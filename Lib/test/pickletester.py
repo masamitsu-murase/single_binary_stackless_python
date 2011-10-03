@@ -374,7 +374,11 @@ highest protocol among opcodes = 2
 DATA3 = b'\x80\x02c__builtin__\nset\nq\x00]q\x01(K\x01K\x02e\x85q\x02Rq\x03.'
 
 # xrange(5) pickled from 2.x with protocol 2
-DATA4 = b'\x80\x02c__builtin__\nxrange\nq\x00K\x00K\x05K\x01\x87q\x01Rq\x02.'
+try:
+    import stackless
+    DATA4 = b'\x80\x02cstackless._wrap\nrange\nq\x00K\x00K\x05K\x01\x87q\x01Rq\x02)b.'
+except:
+    DATA4 = b'\x80\x02c__builtin__\nxrange\nq\x00K\x00K\x05K\x01\x87q\x01Rq\x02.'
 
 # a SimpleCookie() object pickled from 2.x with protocol 2
 DATA5 = (b'\x80\x02cCookie\nSimpleCookie\nq\x00)\x81q\x01U\x03key'

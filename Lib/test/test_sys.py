@@ -670,7 +670,12 @@ class SizeofTest(unittest.TestCase):
         import collections
         check(collections.defaultdict.default_factory, size(h + '2PP'))
         # wrapper_descriptor (descriptor object)
-        check(int.__add__, size(h + '2P2P'))
+        try:
+            import stackless
+            slxtra = 'i'
+        except:
+            slxtra = ''
+        check(int.__add__, size(h + '2P2P' + slxtra))
         # method-wrapper (descriptor object)
         check({}.__iter__, size(h + '2P'))
         # dict
@@ -717,7 +722,12 @@ class SizeofTest(unittest.TestCase):
         nfrees = len(x.f_code.co_freevars)
         extras = x.f_code.co_stacksize + x.f_code.co_nlocals +\
                   ncells + nfrees - 1
-        check(x, size(vh + '12P3i' + CO_MAXBLOCKS*'3i' + 'P' + extras*'P'))
+        try:
+            import stackless
+            slextra = 'P'
+        except:
+            slextra = ''
+        check(x, size(vh + '12P3i' + CO_MAXBLOCKS*'3i' + slextra + 'P' + extras*'P'))
         # function
         def func(): pass
         check(func, size(h + '11P'))
@@ -819,6 +829,16 @@ class SizeofTest(unittest.TestCase):
         # (PyTypeObject + PyNumberMethods + PyMappingMethods +
         #  PySequenceMethods + PyBufferProcs)
         s = size(vh + 'P2P15Pl4PP9PP11PI') + size('16Pi17P 3P 10P 2P 2P')
+        try:
+            import stackless
+            # The number of byte entries in the generated 'slp_methodflags'.
+            stacklessSize = 71
+            # Make it a multiple of two.
+            stacklessSize = stacklessSize + stacklessSize % 2
+            s += stacklessSize
+        except:
+            pass
+
         check(int, s)
         # class
         class newstyleclass(object): pass

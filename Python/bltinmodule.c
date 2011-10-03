@@ -3,6 +3,9 @@
 #include "Python.h"
 #include "Python-ast.h"
 
+#undef Yield /* conflicts with windows headers */
+#include "core/stackless_impl.h"
+
 #include "node.h"
 #include "code.h"
 
@@ -690,6 +693,7 @@ Return the tuple ((x-x%y)/y, x%y).  Invariant: div*y + mod == x.");
 static PyObject *
 builtin_eval(PyObject *self, PyObject *args)
 {
+    STACKLESS_GETARG();
     PyObject *cmd, *result, *tmp = NULL;
     PyObject *globals = Py_None, *locals = Py_None;
     char *str;
@@ -734,6 +738,7 @@ builtin_eval(PyObject *self, PyObject *args)
         "code object passed to eval() may not contain free variables");
             return NULL;
         }
+        STACKLESS_PROMOTE_ALL();
         return PyEval_EvalCode(cmd, globals, locals);
     }
 
@@ -746,7 +751,9 @@ builtin_eval(PyObject *self, PyObject *args)
         str++;
 
     (void)PyEval_MergeCompilerFlags(&cf);
+    STACKLESS_PROMOTE_ALL();
     result = PyRun_StringFlags(str, Py_eval_input, globals, locals, &cf);
+    STACKLESS_ASSERT();
     Py_XDECREF(tmp);
     return result;
 }
@@ -764,6 +771,7 @@ If only globals is given, locals defaults to it.\n");
 static PyObject *
 builtin_exec(PyObject *self, PyObject *args)
 {
+	STACKLESS_GETARG();
     PyObject *v;
     PyObject *prog, *globals = Py_None, *locals = Py_None;
     int plain = 0;
@@ -810,7 +818,9 @@ builtin_exec(PyObject *self, PyObject *args)
                 "contain free variables");
             return NULL;
         }
+        STACKLESS_PROMOTE_ALL();
         v = PyEval_EvalCode(prog, globals, locals);
+        STACKLESS_ASSERT();
     }
     else {
         char *str;
@@ -820,14 +830,20 @@ builtin_exec(PyObject *self, PyObject *args)
                                      "string, bytes or code", &cf);
         if (str == NULL)
             return NULL;
+        STACKLESS_PROMOTE_ALL();
         if (PyEval_MergeCompilerFlags(&cf))
             v = PyRun_StringFlags(str, Py_file_input, globals,
                                   locals, &cf);
         else
             v = PyRun_String(str, Py_file_input, globals, locals);
+        STACKLESS_ASSERT();
     }
     if (v == NULL)
         return NULL;
+#ifdef STACKLESS
+    if (STACKLESS_UNWINDING(v))
+        return v;
+#endif
     Py_DECREF(v);
     Py_RETURN_NONE;
 }
@@ -2268,8 +2284,13 @@ static PyMethodDef builtin_methods[] = {
     {"delattr",         builtin_delattr,    METH_VARARGS, delattr_doc},
     {"dir",             builtin_dir,        METH_VARARGS, dir_doc},
     {"divmod",          builtin_divmod,     METH_VARARGS, divmod_doc},
+#ifdef STACKLESS
+    {"eval",            builtin_eval,       METH_VARARGS | METH_STACKLESS, eval_doc},
+    {"exec",        builtin_exec,       METH_VARARGS | METH_STACKLESS, exec_doc},
+#else
     {"eval",            builtin_eval,       METH_VARARGS, eval_doc},
     {"exec",        builtin_exec,       METH_VARARGS, exec_doc},
+#endif
     {"format",          builtin_format,     METH_VARARGS, format_doc},
     {"getattr",         builtin_getattr,    METH_VARARGS, getattr_doc},
     {"globals",         (PyCFunction)builtin_globals,    METH_NOARGS, globals_doc},

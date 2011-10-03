@@ -101,8 +101,14 @@ PyModule_Create2(struct PyModuleDef* module, int module_api_version)
             _Py_PackageContext = NULL;
         }
     }
-    if ((m = (PyModuleObject*)PyModule_New(name)) == NULL)
-        return NULL;
+#ifdef STACKLESS
+    if (module->m_newfunc) 
+        m = (PyModuleObject*)module->m_newfunc(name);
+    else
+#endif
+        m = (PyModuleObject*)PyModule_New(name);
+    if (m == NULL)
+		return NULL;
 
     if (module->m_size > 0) {
         m->md_state = PyMem_MALLOC(module->m_size);
