@@ -3,6 +3,7 @@
 
 #include "Python.h"
 #include "structmember.h"
+#include "core/stackless_impl.h"
 
 /* Free list for method objects to safe malloc/free overhead
  * The m_self element is used to chain the objects.
@@ -67,27 +68,44 @@ PyCFunction_GetFlags(PyObject *op)
     return ((PyCFunctionObject *)op) -> m_ml -> ml_flags;
 }
 
+#ifdef STACKLESS
+#define WRAP_RETURN(call) { \
+    PyObject * retval; \
+    STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS); \
+    retval = (call); \
+    STACKLESS_ASSERT(); \
+    return retval; \
+}
+#else
+#define WRAP_RETURN(call) return (call);
+#endif
+
 PyObject *
 PyCFunction_Call(PyObject *func, PyObject *arg, PyObject *kw)
 {
+    STACKLESS_GETARG();
     PyCFunctionObject* f = (PyCFunctionObject*)func;
     PyCFunction meth = PyCFunction_GET_FUNCTION(func);
     PyObject *self = PyCFunction_GET_SELF(func);
     Py_ssize_t size;
 
+#ifdef STACKLESS
+    switch (PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_STACKLESS)) {
+#else
     switch (PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST)) {
+#endif
     case METH_VARARGS:
         if (kw == NULL || PyDict_Size(kw) == 0)
-            return (*meth)(self, arg);
+            WRAP_RETURN( (*meth)(self, arg) )
         break;
     case METH_VARARGS | METH_KEYWORDS:
     case METH_OLDARGS | METH_KEYWORDS:
-        return (*(PyCFunctionWithKeywords)meth)(self, arg, kw);
+        WRAP_RETURN( (*(PyCFunctionWithKeywords)meth)(self, arg, kw) )
     case METH_NOARGS:
         if (kw == NULL || PyDict_Size(kw) == 0) {
             size = PyTuple_GET_SIZE(arg);
             if (size == 0)
-                return (*meth)(self, NULL);
+                WRAP_RETURN( (*meth)(self, NULL) )
             PyErr_Format(PyExc_TypeError,
                 "%.200s() takes no arguments (%zd given)",
                 f->m_ml->ml_name, size);
@@ -98,7 +116,7 @@ PyCFunction_Call(PyObject *func, PyObject *arg, PyObject *kw)
         if (kw == NULL || PyDict_Size(kw) == 0) {
             size = PyTuple_GET_SIZE(arg);
             if (size == 1)
-                return (*meth)(self, PyTuple_GET_ITEM(arg, 0));
+                WRAP_RETURN( (*meth)(self, PyTuple_GET_ITEM(arg, 0)) )
             PyErr_Format(PyExc_TypeError,
                 "%.200s() takes exactly one argument (%zd given)",
                 f->m_ml->ml_name, size);
@@ -113,7 +131,7 @@ PyCFunction_Call(PyObject *func, PyObject *arg, PyObject *kw)
                 arg = PyTuple_GET_ITEM(arg, 0);
             else if (size == 0)
                 arg = NULL;
-            return (*meth)(self, arg);
+            WRAP_RETURN( (*meth)(self, arg) )
         }
         break;
     default:
@@ -312,6 +330,8 @@ PyTypeObject PyCFunction_Type = {
     0,                                          /* tp_base */
     0,                                          /* tp_dict */
 };
+
+STACKLESS_DECLARE_METHOD(&PyCFunction_Type, tp_call)
 
 /* List all methods in a chain -- helper for findmethodinchain */
 

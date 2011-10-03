@@ -65,6 +65,11 @@ PyAPI_FUNC(PyObject *) PyEval_GetCallStats(PyObject *);
 PyAPI_FUNC(PyObject *) PyEval_EvalFrame(struct _frame *);
 PyAPI_FUNC(PyObject *) PyEval_EvalFrameEx(struct _frame *f, int exc);
 
+#ifdef STACKLESS
+PyAPI_FUNC(PyObject *) PyEval_EvalFrame_slp(struct _frame *f, int exc, PyObject *retval);
+PyAPI_FUNC(PyObject *) PyEval_EvalFrameEx_slp(struct _frame *f, int exc, PyObject *retval);
+#endif
+
 /* this used to be handled on a per-thread basis - now just two globals */
 PyAPI_DATA(volatile int) _Py_Ticker;
 PyAPI_DATA(int) _Py_CheckInterval;

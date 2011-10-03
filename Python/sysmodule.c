@@ -802,6 +802,10 @@ sys_getframe(PyObject *self, PyObject *args)
 
     while (depth > 0 && f != NULL) {
         f = f->f_back;
+#ifdef STACKLESS
+        if (f != NULL && !PyFrame_Check(f))
+            continue;
+#endif
         --depth;
     }
     if (f == NULL) {
@@ -1157,11 +1161,18 @@ svnversion_init(void)
     const char *python, *br_start, *br_end, *br_end2, *svnversion;
     Py_ssize_t len;
     int istag;
+    int pythonlen;
 
     if (svn_initialized)
         return;
 
+#if defined(STACKLESS) || defined(STACKLESS_OFF)
+    python = strstr(headurl, "/stackless/");
+    pythonlen = 11;
+#else
     python = strstr(headurl, "/python/");
+    pythonlen = 8;
+#endif
     if (!python) {
         /* XXX quick hack to get bzr working */
         *patchlevel_revision = '\0';
@@ -1172,7 +1183,7 @@ svnversion_init(void)
         /* Py_FatalError("subversion keywords missing"); */
     }
 
-    br_start = python + 8;
+    br_start = python + pythonlen;
     br_end = strchr(br_start, '/');
     assert(br_end);
 

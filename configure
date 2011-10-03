@@ -666,6 +666,7 @@ CONFIGURE_MACOSX_DEPLOYMENT_TARGET
 EXTRAMACHDEPPATH
 EXTRAPLATDIR
 SGI_ABI
+SLPFLAGS
 MACHDEP
 FRAMEWORKINSTALLAPPSPREFIX
 FRAMEWORKUNIXTOOLSPREFIX
@@ -678,6 +679,7 @@ PYTHONFRAMEWORKPREFIX
 PYTHONFRAMEWORKDIR
 PYTHONFRAMEWORKIDENTIFIER
 PYTHONFRAMEWORK
+STACKLESS_FRHACK
 LIPO_32BIT_FLAGS
 ARCH_RUN_32BIT
 UNIVERSALSDK
@@ -728,6 +730,7 @@ enable_option_checking
 enable_universalsdk
 with_universal_archs
 with_framework_name
+enable_stacklessfewerregisters
 enable_framework
 with_gcc
 with_cxx_main
@@ -1378,6 +1381,8 @@ Optional Features:
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-universalsdk[=SDKDIR]
                           Build against Mac OS X 10.4u SDK (ppc/i386)
+  --enable-stacklessfewerregisters, save fewer registers building c-stack switching
+
   --enable-framework[=INSTALLDIR]
                           Build (MacOSX|Darwin) framework
   --enable-shared         disable/enable building shared python library
@@ -2840,6 +2845,18 @@ else
 
 fi
 
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --enable-stacklessfewerregisters" >&5
+$as_echo_n "checking for --enable-stacklessfewerregisters... " >&6; }
+# Check whether --enable-stacklessfewerregisters was given.
+if test "${enable_stacklessfewerregisters+set}" = set; then :
+  enableval=$enable_stacklessfewerregisters; STACKLESS_FRHACK=1
+else
+   STACKLESS_FRHACK=0
+fi
+
+
+
 # Check whether --enable-framework was given.
 if test "${enable_framework+set}" = set; then :
   enableval=$enable_framework;
@@ -2993,6 +3010,17 @@ then
 	'')	MACHDEP="unknown";;
 	esac
 fi
+
+# Stackless flags for compiling the hard switching code
+case $MACHDEP in
+ 	darwin)
+ 		SLPFLAGS="-fomit-frame-pointer -O2"
+ 		;;
+ 	*)
+ 		SLPFLAGS="-fno-omit-frame-pointer -O2"
+ 		;;
+esac
+
 
 # Some systems cannot stand _XOPEN_SOURCE being defined at all; they
 # disable features if it is defined, without any means to access these
@@ -5426,6 +5454,7 @@ $as_echo "$ac_cv_no_strict_aliasing_ok" >&6; }
                 ;;
     esac
 
+    BASECFLAGS="${BASECFLAGS} -DSTACKLESS_FRHACK=${STACKLESS_FRHACK}"
     case $ac_sys_system in
 	SCO_SV*)
 	    BASECFLAGS="$BASECFLAGS -m486 -DSCO5"
@@ -13762,7 +13791,14 @@ do
 done
 
 
-SRCDIRS="Parser Grammar Objects Python Modules Mac"
+SLPFLAGS="-fno-omit-frame-pointer -O2"
+case $MACHDEP in
+darwin) SLPFLAGS="-fomit-frame-pointer -O2";;
+'') SLPFLAGS="-fno-omit-frame-pointer -O2";;
+esac
+
+
+SRCDIRS="Parser Grammar Objects Python Modules Mac Stackless Stackless/core Stackless/module Stackless/pickling"
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for build directories" >&5
 $as_echo_n "checking for build directories... " >&6; }
 for dir in $SRCDIRS; do

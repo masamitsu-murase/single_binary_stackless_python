@@ -1,5 +1,8 @@
 #include "Python.h"
 #include "frameobject.h"
+#ifdef STACKLESS
+#include "stackless_api.h"
+#endif
 
 #define MODULE_NAME "_warnings"
 
@@ -446,9 +449,22 @@ setup_context(Py_ssize_t stack_level, PyObject **filename, int *lineno,
     PyObject *globals;
 
     /* Setup globals and lineno. */
+#ifdef STACKLESS
+    PyObject *current = PyStackless_GetCurrent();
+    PyFrameObject *f = (PyFrameObject *)PyTasklet_GetFrame((PyTaskletObject*)current);
+    Py_DECREF(current);
+    Py_XDECREF(f); /* turn it into a borrowed reference */
+#else
     PyFrameObject *f = PyThreadState_GET()->frame;
-    while (--stack_level > 0 && f != NULL)
+#endif
+    while (--stack_level > 0 && f != NULL) {
         f = f->f_back;
+#ifdef STACKLESS
+        /* ignore any CFrame objects */
+        while (f != NULL && !PyFrame_Check(f))
+            f = f->f_back;
+#endif
+    }
 
     if (f == NULL) {
         globals = PyThreadState_Get()->interp->sysdict;

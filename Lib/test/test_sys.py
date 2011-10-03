@@ -4,6 +4,12 @@ import sys, os, cStringIO
 import struct
 import operator
 
+try:
+    import stackless
+    haveStackless = True
+except:
+    haveStackless = False
+
 class SysModuleTest(unittest.TestCase):
 
     def tearDown(self):
@@ -592,7 +598,8 @@ class SizeofTest(unittest.TestCase):
         import __builtin__
         check(__builtin__.file.closed, size(h + '2PP'))
         # wrapper_descriptor (descriptor object)
-        check(int.__add__, size(h + '2P2P'))
+        slpmask = "i" if haveStackless else ""
+        check(int.__add__, size(h + '2P2P'+slpmask))
         # dictproxy
         class C(object): pass
         check(C.__dict__, size(h + 'P'))
@@ -630,7 +637,12 @@ class SizeofTest(unittest.TestCase):
         nfrees = len(x.f_code.co_freevars)
         extras = x.f_code.co_stacksize + x.f_code.co_nlocals +\
                  ncells + nfrees - 1
-        check(x, size(vh + '12P3i' + CO_MAXBLOCKS*'3i' + 'P' + extras*'P'))
+        if haveStackless:
+            # One extra pointer in the structure.
+            stacklessSize = size("1P")
+        else:
+            stacklessSize = 0
+        check(x, size(vh + '12P3i' + CO_MAXBLOCKS*'3i' + 'P' + extras*'P') + stacklessSize)
         # function
         def func(): pass
         check(func, size(h + '9P'))
@@ -733,7 +745,12 @@ class SizeofTest(unittest.TestCase):
         # type
         # (PyTypeObject + PyNumberMethods +  PyMappingMethods +
         #  PySequenceMethods + PyBufferProcs)
-        s = size(vh + 'P2P15Pl4PP9PP11PI') + size('41P 10P 3P 6P')
+        if haveStackless:
+            # The number of byte entries in the generated 'slp_methodflags'.
+            stacklessSize = ' 83c'
+        else:
+            stacklessSize = ''
+        s = size(vh + 'P2P15Pl4PP9PP11PI') + size('41P 10P 3P 6P' + stacklessSize)
         class newstyleclass(object):
             pass
         check(newstyleclass, s)

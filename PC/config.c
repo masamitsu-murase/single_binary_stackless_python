@@ -41,6 +41,9 @@ extern void initxxsubtype(void);
 extern void initzipimport(void);
 extern void init_random(void);
 extern void inititertools(void);
+#ifdef STACKLESS
+extern void initstackless(void);
+#endif
 extern void init_collections(void);
 extern void init_heapq(void);
 extern void init_bisect(void);
@@ -52,6 +55,8 @@ extern void initparser(void);
 extern void init_winreg(void);
 extern void init_struct(void);
 extern void initdatetime(void);
+extern void init_fileio(void);
+extern void init_bytesio(void);
 extern void init_functools(void);
 extern void init_json(void);
 extern void initzlib(void);

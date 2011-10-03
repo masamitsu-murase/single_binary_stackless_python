@@ -3,6 +3,8 @@
 #include "Python.h"
 #include "Python-ast.h"
 
+#include "core/stackless_impl.h"
+
 #include "node.h"
 #include "code.h"
 #include "eval.h"
@@ -612,6 +614,7 @@ Return the tuple ((x-x%y)/y, x%y).  Invariant: div*y + mod == x.");
 static PyObject *
 builtin_eval(PyObject *self, PyObject *args)
 {
+    STACKLESS_GETARG();
     PyObject *cmd, *result, *tmp = NULL;
     PyObject *globals = Py_None, *locals = Py_None;
     char *str;
@@ -656,6 +659,7 @@ builtin_eval(PyObject *self, PyObject *args)
         "code object passed to eval() may not contain free variables");
             return NULL;
         }
+        STACKLESS_PROMOTE_ALL();
         return PyEval_EvalCode((PyCodeObject *) cmd, globals, locals);
     }
 
@@ -684,7 +688,9 @@ builtin_eval(PyObject *self, PyObject *args)
         str++;
 
     (void)PyEval_MergeCompilerFlags(&cf);
+    STACKLESS_PROMOTE_ALL();
     result = PyRun_StringFlags(str, Py_eval_input, globals, locals, &cf);
+    STACKLESS_ASSERT();
     Py_XDECREF(tmp);
     return result;
 }
@@ -703,6 +709,7 @@ If only globals is given, locals defaults to it.\n");
 static PyObject *
 builtin_execfile(PyObject *self, PyObject *args)
 {
+    STACKLESS_GETARG();
     char *filename;
     PyObject *globals = Py_None, *locals = Py_None;
     PyObject *res;
@@ -788,12 +795,14 @@ builtin_execfile(PyObject *self, PyObject *args)
         return NULL;
     }
     cf.cf_flags = 0;
+    STACKLESS_PROMOTE_ALL();
     if (PyEval_MergeCompilerFlags(&cf))
         res = PyRun_FileExFlags(fp, filename, Py_file_input, globals,
                            locals, 1, &cf);
     else
         res = PyRun_FileEx(fp, filename, Py_file_input, globals,
                            locals, 1);
+    STACKLESS_ASSERT();
     return res;
 }
 
@@ -2604,8 +2613,15 @@ static PyMethodDef builtin_methods[] = {
     {"delattr",         builtin_delattr,    METH_VARARGS, delattr_doc},
     {"dir",             builtin_dir,        METH_VARARGS, dir_doc},
     {"divmod",          builtin_divmod,     METH_VARARGS, divmod_doc},
+#ifdef STACKLESS
+    {"eval",            builtin_eval,       METH_VARARGS | METH_STACKLESS,
+     eval_doc},
+    {"execfile",        builtin_execfile,   METH_VARARGS | METH_STACKLESS,
+     execfile_doc},
+#else
     {"eval",            builtin_eval,       METH_VARARGS, eval_doc},
     {"execfile",        builtin_execfile,   METH_VARARGS, execfile_doc},
+#endif
     {"filter",          builtin_filter,     METH_VARARGS, filter_doc},
     {"format",          builtin_format,     METH_VARARGS, format_doc},
     {"getattr",         builtin_getattr,    METH_VARARGS, getattr_doc},

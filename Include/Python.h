@@ -77,6 +77,9 @@
 #include "pymath.h"
 #include "pymem.h"
 
+/* comment this out if you don't want to be stackless */
+#include "stackless.h"
+
 #include "object.h"
 #include "objimpl.h"
 
