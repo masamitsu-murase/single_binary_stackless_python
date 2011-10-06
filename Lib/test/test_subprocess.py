@@ -3,6 +3,7 @@ from test import support
 import subprocess
 import sys
 import signal
+import io
 import os
 import errno
 import tempfile
@@ -11,6 +12,7 @@ import re
 import sysconfig
 import warnings
 import select
+import shutil
 try:
     import gc
 except ImportError:
@@ -118,6 +120,16 @@ class ProcessTestCase(BaseTestCase):
                               'sys.exit(os.getenv("FRUIT")=="banana")'],
                              env=newenv)
         self.assertEqual(rc, 1)
+
+    def test_invalid_args(self):
+        # Popen() called with invalid arguments should raise TypeError
+        # but Popen.__del__ should not complain (issue #12085)
+        with support.captured_stderr() as s:
+            self.assertRaises(TypeError, subprocess.Popen, invalid_arg_name=1)
+            argcount = subprocess.Popen.__init__.__code__.co_argcount
+            too_many_args = [0] * (argcount + 1)
+            self.assertRaises(TypeError, subprocess.Popen, *too_many_args)
+        self.assertEqual(s.getvalue(), '')
 
     def test_stdin_none(self):
         # .stdin is None when not redirected
@@ -319,13 +331,33 @@ class ProcessTestCase(BaseTestCase):
     def test_env(self):
         newenv = os.environ.copy()
         newenv["FRUIT"] = "orange"
-        p = subprocess.Popen([sys.executable, "-c",
-                              'import sys,os;'
-                              'sys.stdout.write(os.getenv("FRUIT"))'],
-                             stdout=subprocess.PIPE,
-                             env=newenv)
-        self.addCleanup(p.stdout.close)
-        self.assertEqual(p.stdout.read(), b"orange")
+        with subprocess.Popen([sys.executable, "-c",
+                               'import sys,os;'
+                               'sys.stdout.write(os.getenv("FRUIT"))'],
+                              stdout=subprocess.PIPE,
+                              env=newenv) as p:
+            stdout, stderr = p.communicate()
+            self.assertEqual(stdout, b"orange")
+
+    # Windows requires at least the SYSTEMROOT environment variable to start
+    # Python
+    @unittest.skipIf(sys.platform == 'win32',
+                     'cannot test an empty env on Windows')
+    @unittest.skipIf(sysconfig.get_config_var('Py_ENABLE_SHARED') is not None,
+                     'the python library cannot be loaded '
+                     'with an empty environment')
+    def test_empty_env(self):
+        with subprocess.Popen([sys.executable, "-c",
+                               'import os; '
+                               'print(list(os.environ.keys()))'],
+                              stdout=subprocess.PIPE,
+                              env={}) as p:
+            stdout, stderr = p.communicate()
+            self.assertIn(stdout.strip(),
+                (b"[]",
+                 # Mac OS X adds __CF_USER_TEXT_ENCODING variable to an empty
+                 # environment
+                 b"['__CF_USER_TEXT_ENCODING']"))
 
     def test_communicate_stdin(self):
         p = subprocess.Popen([sys.executable, "-c",
@@ -488,11 +520,12 @@ class ProcessTestCase(BaseTestCase):
         else:
             max_handles = 2050 # too much for (at least some) Windows setups
         handles = []
+        tmpdir = tempfile.mkdtemp()
         try:
             for i in range(max_handles):
                 try:
-                    handles.append(os.open(support.TESTFN,
-                                           os.O_WRONLY | os.O_CREAT))
+                    tmpfile = os.path.join(tmpdir, support.TESTFN)
+                    handles.append(os.open(tmpfile, os.O_WRONLY|os.O_CREAT))
                 except OSError as e:
                     if e.errno != errno.EMFILE:
                         raise
@@ -517,6 +550,7 @@ class ProcessTestCase(BaseTestCase):
         finally:
             for h in handles:
                 os.close(h)
+            shutil.rmtree(tmpdir)
 
     def test_list2cmdline(self):
         self.assertEqual(subprocess.list2cmdline(['a b c', 'd', 'e']),
@@ -587,7 +621,8 @@ class ProcessTestCase(BaseTestCase):
                 subprocess.Popen(['nonexisting_i_hope'],
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE)
-            if c.exception.errno != errno.ENOENT:  # ignore "no such file"
+            # ignore errors that indicate the command was not found
+            if c.exception.errno not in (errno.ENOENT, errno.EACCES):
                 raise c.exception
 
     def test_issue8780(self):
@@ -620,6 +655,25 @@ class ProcessTestCase(BaseTestCase):
         self.assertFalse(os.path.exists(ifname))
         self.assertFalse(os.path.exists(ofname))
         self.assertFalse(os.path.exists(efname))
+
+    def test_communicate_epipe(self):
+        # Issue 10963: communicate() should hide EPIPE
+        p = subprocess.Popen([sys.executable, "-c", 'pass'],
+                             stdin=subprocess.PIPE,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+        self.addCleanup(p.stdout.close)
+        self.addCleanup(p.stderr.close)
+        self.addCleanup(p.stdin.close)
+        p.communicate(b"x" * 2**20)
+
+    def test_communicate_epipe_only_stdin(self):
+        # Issue 10963: communicate() should hide EPIPE
+        p = subprocess.Popen([sys.executable, "-c", 'pass'],
+                             stdin=subprocess.PIPE)
+        self.addCleanup(p.stdin.close)
+        time.sleep(2)
+        p.communicate(b"x" * 2**20)
 
 
 # context manager
@@ -1151,13 +1205,15 @@ class POSIXProcessTestCase(BaseTestCase):
                          "Some fds were left open")
         self.assertIn(1, remaining_fds, "Subprocess failed")
 
+    # Mac OS X Tiger (10.4) has a kernel bug: sometimes, the file
+    # descriptor of a pipe closed in the parent process is valid in the
+    # child process according to fstat(), but the mode of the file
+    # descriptor is invalid, and read or write raise an error.
+    @support.requires_mac_ver(10, 5)
     def test_pass_fds(self):
         fd_status = support.findfile("fd_status.py", subdir="subprocessdata")
 
         open_fds = set()
-
-        if support.verbose:
-            print(" -- maxfd =", subprocess.MAXFD)
 
         for x in range(5):
             fds = os.pipe()
@@ -1173,10 +1229,6 @@ class POSIXProcessTestCase(BaseTestCase):
 
             remaining_fds = set(map(int, output.split(b',')))
             to_be_closed = open_fds - {fd}
-            # Temporary debug output for intermittent failures
-            if support.verbose:
-                print(" -- fds that should have been closed:", to_be_closed)
-                print(" -- fds that remained open:", remaining_fds)
 
             self.assertIn(fd, remaining_fds, "fd to be passed not passed")
             self.assertFalse(remaining_fds & to_be_closed,
@@ -1189,6 +1241,24 @@ class POSIXProcessTestCase(BaseTestCase):
                         close_fds=False, pass_fds=(fd, )))
             self.assertIn('overriding close_fds', str(context.warning))
 
+    def test_stdout_stdin_are_single_inout_fd(self):
+        with io.open(os.devnull, "r+") as inout:
+            p = subprocess.Popen([sys.executable, "-c", "import sys; sys.exit(0)"],
+                                 stdout=inout, stdin=inout)
+            p.wait()
+
+    def test_stdout_stderr_are_single_inout_fd(self):
+        with io.open(os.devnull, "r+") as inout:
+            p = subprocess.Popen([sys.executable, "-c", "import sys; sys.exit(0)"],
+                                 stdout=inout, stderr=inout)
+            p.wait()
+
+    def test_stderr_stdin_are_single_inout_fd(self):
+        with io.open(os.devnull, "r+") as inout:
+            p = subprocess.Popen([sys.executable, "-c", "import sys; sys.exit(0)"],
+                                 stderr=inout, stdin=inout)
+            p.wait()
+
     def test_wait_when_sigchild_ignored(self):
         # NOTE: sigchild_ignore.py may not be an effective test on all OSes.
         sigchild_ignore = support.findfile("sigchild_ignore.py",
@@ -1199,6 +1269,23 @@ class POSIXProcessTestCase(BaseTestCase):
         self.assertEqual(0, p.returncode, "sigchild_ignore.py exited"
                          " non-zero with this error:\n%s" %
                          stderr.decode('utf8'))
+
+    def test_select_unbuffered(self):
+        # Issue #11459: bufsize=0 should really set the pipes as
+        # unbuffered (and therefore let select() work properly).
+        select = support.import_module("select")
+        p = subprocess.Popen([sys.executable, "-c",
+                              'import sys;'
+                              'sys.stdout.write("apple")'],
+                             stdout=subprocess.PIPE,
+                             bufsize=0)
+        f = p.stdout
+        self.addCleanup(f.close)
+        try:
+            self.assertEqual(f.read(4), b"appl")
+            self.assertIn(f, select.select([f], [], [], 0.0)[0])
+        finally:
+            p.wait()
 
 
 @unittest.skipUnless(mswindows, "Windows specific tests")
@@ -1347,15 +1434,23 @@ class ProcessTestCaseNoPoll(ProcessTestCase):
 @unittest.skipUnless(getattr(subprocess, '_posixsubprocess', False),
                      "_posixsubprocess extension module not found.")
 class ProcessTestCasePOSIXPurePython(ProcessTestCase, POSIXProcessTestCase):
-    def setUp(self):
-        subprocess._posixsubprocess = None
-        ProcessTestCase.setUp(self)
-        POSIXProcessTestCase.setUp(self)
+    @classmethod
+    def setUpClass(cls):
+        global subprocess
+        assert subprocess._posixsubprocess
+        # Reimport subprocess while forcing _posixsubprocess to not exist.
+        with support.check_warnings(('.*_posixsubprocess .* not being used.*',
+                                     RuntimeWarning)):
+            subprocess = support.import_fresh_module(
+                    'subprocess', blocked=['_posixsubprocess'])
+        assert not subprocess._posixsubprocess
 
-    def tearDown(self):
-        subprocess._posixsubprocess = sys.modules['_posixsubprocess']
-        POSIXProcessTestCase.tearDown(self)
-        ProcessTestCase.tearDown(self)
+    @classmethod
+    def tearDownClass(cls):
+        global subprocess
+        # Reimport subprocess as it should be, restoring order to the universe.
+        subprocess = support.import_fresh_module('subprocess')
+        assert subprocess._posixsubprocess
 
 
 class HelperFunctionTests(unittest.TestCase):
@@ -1439,7 +1534,8 @@ class ContextManagerTests(ProcessTestCase):
     def test_returncode(self):
         with subprocess.Popen([sys.executable, "-c",
                                "import sys; sys.exit(100)"]) as proc:
-            proc.wait()
+            pass
+        # __exit__ calls wait(), so the returncode should be set
         self.assertEqual(proc.returncode, 100)
 
     def test_communicate_stdin(self):
@@ -1476,4 +1572,4 @@ def test_main():
     support.reap_children()
 
 if __name__ == "__main__":
-    test_main()
+    unittest.main()

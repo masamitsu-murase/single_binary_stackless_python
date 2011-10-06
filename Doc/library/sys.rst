@@ -239,33 +239,22 @@ always available.
    The struct sequence *flags* exposes the status of command line flags. The
    attributes are read only.
 
-   +------------------------------+------------------------------------------+
-   | attribute                    | flag                                     |
-   +==============================+==========================================+
-   | :const:`debug`               | -d                                       |
-   +------------------------------+------------------------------------------+
-   | :const:`division_warning`    | -Q                                       |
-   +------------------------------+------------------------------------------+
-   | :const:`inspect`             | -i                                       |
-   +------------------------------+------------------------------------------+
-   | :const:`interactive`         | -i                                       |
-   +------------------------------+------------------------------------------+
-   | :const:`optimize`            | -O or -OO                                |
-   +------------------------------+------------------------------------------+
-   | :const:`dont_write_bytecode` | -B                                       |
-   +------------------------------+------------------------------------------+
-   | :const:`no_user_site`        | -s                                       |
-   +------------------------------+------------------------------------------+
-   | :const:`no_site`             | -S                                       |
-   +------------------------------+------------------------------------------+
-   | :const:`ignore_environment`  | -E                                       |
-   +------------------------------+------------------------------------------+
-   | :const:`verbose`             | -v                                       |
-   +------------------------------+------------------------------------------+
-   | :const:`bytes_warning`       | -b                                       |
-   +------------------------------+------------------------------------------+
-   | :const:`quiet`               | -q                                       |
-   +------------------------------+------------------------------------------+
+   ============================= =============================
+   attribute                     flag
+   ============================= =============================
+   :const:`debug`                :option:`-d`
+   :const:`division_warning`     :option:`-Q`
+   :const:`inspect`              :option:`-i`
+   :const:`interactive`          :option:`-i`
+   :const:`optimize`             :option:`-O` or :option:`-OO`
+   :const:`dont_write_bytecode`  :option:`-B`
+   :const:`no_user_site`         :option:`-s`
+   :const:`no_site`              :option:`-S`
+   :const:`ignore_environment`   :option:`-E`
+   :const:`verbose`              :option:`-v`
+   :const:`bytes_warning`        :option:`-b`
+   :const:`quiet`                :option:`-q`
+   ============================= =============================
 
    .. versionchanged:: 3.2
       Added ``quiet`` attribute for the new :option:`-q` flag.
@@ -560,9 +549,32 @@ always available.
 
    This is called ``hexversion`` since it only really looks meaningful when viewed
    as the result of passing it to the built-in :func:`hex` function.  The
-   ``version_info`` value may be used for a more human-friendly encoding of the
-   same information.
+   struct sequence  :data:`sys.version_info` may be used for a more human-friendly
+   encoding of the same information.
 
+   The ``hexversion`` is a 32-bit number with the following layout:
+
+   +-------------------------+------------------------------------------------+
+   | Bits (big endian order) | Meaning                                        |
+   +=========================+================================================+
+   | :const:`1-8`            |  ``PY_MAJOR_VERSION``  (the ``2`` in           |
+   |                         |  ``2.1.0a3``)                                  |
+   +-------------------------+------------------------------------------------+
+   | :const:`9-16`           |  ``PY_MINOR_VERSION``  (the ``1`` in           |
+   |                         |  ``2.1.0a3``)                                  |
+   +-------------------------+------------------------------------------------+
+   | :const:`17-24`          |  ``PY_MICRO_VERSION``  (the ``0`` in           |
+   |                         |  ``2.1.0a3``)                                  |
+   +-------------------------+------------------------------------------------+
+   | :const:`25-28`          |  ``PY_RELEASE_LEVEL``  (``0xA`` for alpha,     |
+   |                         |  ``0xB`` for beta, ``0xC`` for release         |
+   |                         |  candidate and ``0xF`` for final)              |
+   +-------------------------+------------------------------------------------+
+   | :const:`29-32`          |  ``PY_RELEASE_SERIAL``  (the ``3`` in          |
+   |                         |  ``2.1.0a3``, zero for final releases)         |
+   +-------------------------+------------------------------------------------+
+
+   Thus ``2.1.0a3`` is hexversion ``0x020100a3``.
 
 .. data:: int_info
 
@@ -570,7 +582,7 @@ always available.
    internal representation of integers.  The attributes are read only.
 
    +-------------------------+----------------------------------------------+
-   | attribute               | explanation                                  |
+   | Attribute               | Explanation                                  |
    +=========================+==============================================+
    | :const:`bits_per_digit` | number of bits held in each digit.  Python   |
    |                         | integers are stored internally in base       |
@@ -802,7 +814,7 @@ always available.
    Python.
 
    The highest possible limit is platform-dependent.  A user may need to set the
-   limit higher when she has a program that requires deep recursion and a platform
+   limit higher when they have a program that requires deep recursion and a platform
    that supports a higher limit.  This should be done with care, because a too-high
    limit can lead to a crash.
 

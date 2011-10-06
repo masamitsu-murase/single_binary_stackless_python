@@ -25,7 +25,7 @@ Verbosity
 
 -v/--verbose    -- run tests in verbose mode with output to stdout
 -w/--verbose2   -- re-run failed tests in verbose mode
--W/--verbose3   -- re-run failed tests in verbose mode immediately
+-W/--verbose3   -- display test output on failure
 -d/--debug      -- print traceback for failed tests
 -q/--quiet      -- no output unless one or more tests fail
 -S/--slow       -- print the slowest 10 tests
@@ -154,22 +154,23 @@ option '-uall,-gui'.
 """
 
 import builtins
+import errno
 import getopt
+import io
 import json
+import logging
 import os
+import platform
 import random
 import re
-import io
 import sys
+import sysconfig
+import tempfile
 import time
 import traceback
-import warnings
 import unittest
+import warnings
 from inspect import isabstract
-import tempfile
-import platform
-import sysconfig
-import logging
 
 
 # Some times __path__ and __file__ are not absolute (e.g. while running from
@@ -535,7 +536,7 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
                 args_tuple = (
                     (test, verbose, quiet),
                     dict(huntrleaks=huntrleaks, use_resources=use_resources,
-                        debug=debug)
+                         debug=debug, output_on_failure=verbose3)
                 )
                 yield (test, args_tuple)
         pending = tests_and_args()
@@ -579,9 +580,12 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
                 if test is None:
                     finished += 1
                     continue
+                accumulate_result(test, result)
                 if not quiet:
-                    print("[{1:{0}}{2}] {3}".format(
-                        test_count_width, test_index, test_count, test))
+                    fmt = "[{1:{0}}{2}/{3}] {4}" if bad else "[{1:{0}}{2}] {4}"
+                    print(fmt.format(
+                        test_count_width, test_index, test_count,
+                        len(bad), test))
                 if stdout:
                     print(stdout)
                 if stderr:
@@ -589,7 +593,6 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
                 if result[0] == INTERRUPTED:
                     assert result[1] == 'KeyboardInterrupt'
                     raise KeyboardInterrupt   # What else?
-                accumulate_result(test, result)
                 test_index += 1
         except KeyboardInterrupt:
             interrupted = True
@@ -599,8 +602,9 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
     else:
         for test_index, test in enumerate(tests, 1):
             if not quiet:
-                print("[{1:{0}}{2}] {3}".format(
-                    test_count_width, test_index, test_count, test))
+                fmt = "[{1:{0}}{2}/{3}] {4}" if bad else "[{1:{0}}{2}] {4}"
+                print(fmt.format(
+                    test_count_width, test_index, test_count, len(bad), test))
                 sys.stdout.flush()
             if trace:
                 # If we're tracing code coverage, then we don't exit with status
@@ -609,11 +613,9 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
                               globals=globals(), locals=vars())
             else:
                 try:
-                    result = runtest(test, verbose, quiet, huntrleaks, debug)
+                    result = runtest(test, verbose, quiet, huntrleaks, debug,
+                                     output_on_failure=verbose3)
                     accumulate_result(test, result)
-                    if verbose3 and result[0] == FAILED:
-                        print("Re-running test {} in verbose mode".format(test))
-                        runtest(test, True, quiet, huntrleaks, debug)
                 except KeyboardInterrupt:
                     interrupted = True
                     break
@@ -758,7 +760,8 @@ def replace_stdout():
     atexit.register(restore_stdout)
 
 def runtest(test, verbose, quiet,
-            huntrleaks=False, debug=False, use_resources=None):
+            huntrleaks=False, debug=False, use_resources=None,
+            output_on_failure=False):
     """Run a single test.
 
     test -- the name of the test
@@ -767,6 +770,7 @@ def runtest(test, verbose, quiet,
     test_times -- a list of (time, test_name) pairs
     huntrleaks -- run multiple times to test for leaks; requires a debug
                   build; a triple corresponding to -R's three arguments
+    output_on_failure -- if true, display test output on failure
 
     Returns one of the test result constants:
         INTERRUPTED      KeyboardInterrupt when run under -j
@@ -777,13 +781,45 @@ def runtest(test, verbose, quiet,
         PASSED           test passed
     """
 
-    support.verbose = verbose  # Tell tests to be moderately quiet
     if use_resources is not None:
         support.use_resources = use_resources
     try:
-        return runtest_inner(test, verbose, quiet, huntrleaks, debug)
+        if output_on_failure:
+            support.verbose = True
+
+            # Reuse the same instance to all calls to runtest(). Some
+            # tests keep a reference to sys.stdout or sys.stderr
+            # (eg. test_argparse).
+            if runtest.stringio is None:
+                stream = io.StringIO()
+                runtest.stringio = stream
+            else:
+                stream = runtest.stringio
+                stream.seek(0)
+                stream.truncate()
+
+            orig_stdout = sys.stdout
+            orig_stderr = sys.stderr
+            try:
+                sys.stdout = stream
+                sys.stderr = stream
+                result = runtest_inner(test, verbose, quiet, huntrleaks,
+                                       debug, display_failure=False)
+                if result[0] == FAILED:
+                    output = stream.getvalue()
+                    orig_stderr.write(output)
+                    orig_stderr.flush()
+            finally:
+                sys.stdout = orig_stdout
+                sys.stderr = orig_stderr
+        else:
+            support.verbose = verbose  # Tell tests to be moderately quiet
+            result = runtest_inner(test, verbose, quiet, huntrleaks, debug,
+                                   display_failure=not verbose)
+        return result
     finally:
         cleanup_test_droppings(test, verbose)
+runtest.stringio = None
 
 # Unit tests are supposed to leave the execution environment unchanged
 # once they complete.  But sometimes tests have bugs, especially when
@@ -827,7 +863,8 @@ class saved_test_environment:
     resources = ('sys.argv', 'cwd', 'sys.stdin', 'sys.stdout', 'sys.stderr',
                  'os.environ', 'sys.path', 'sys.path_hooks', '__import__',
                  'warnings.filters', 'asyncore.socket_map',
-                 'logging._handlers', 'logging._handlerList')
+                 'logging._handlers', 'logging._handlerList',
+                 'sys.warnoptions')
 
     def get_sys_argv(self):
         return id(sys.argv), sys.argv, sys.argv[:]
@@ -909,6 +946,12 @@ class saved_test_environment:
         # Can't easily revert the logging state
         pass
 
+    def get_sys_warnoptions(self):
+        return id(sys.warnoptions), sys.warnoptions, sys.warnoptions[:]
+    def restore_sys_warnoptions(self, saved_options):
+        sys.warnoptions = saved_options[1]
+        sys.warnoptions[:] = saved_options[2]
+
     def resource_info(self):
         for name in self.resources:
             method_suffix = name.replace('.', '_')
@@ -942,12 +985,9 @@ class saved_test_environment:
         return False
 
 
-def runtest_inner(test, verbose, quiet, huntrleaks=False, debug=False):
+def runtest_inner(test, verbose, quiet,
+                  huntrleaks=False, debug=False, display_failure=True):
     support.unload(test)
-    if verbose:
-        capture_stdout = None
-    else:
-        capture_stdout = io.StringIO()
 
     test_time = 0.0
     refleak = False  # True if the test leaked references.
@@ -984,16 +1024,16 @@ def runtest_inner(test, verbose, quiet, huntrleaks=False, debug=False):
     except KeyboardInterrupt:
         raise
     except support.TestFailed as msg:
-        print("test", test, "failed --", msg, file=sys.stderr)
+        if display_failure:
+            print("test", test, "failed --", msg, file=sys.stderr)
+        else:
+            print("test", test, "failed", file=sys.stderr)
         sys.stderr.flush()
         return FAILED, test_time
     except:
-        type, value = sys.exc_info()[:2]
-        print("test", test, "crashed --", str(type) + ":", value, file=sys.stderr)
+        msg = traceback.format_exc()
+        print("test", test, "crashed --", msg, file=sys.stderr)
         sys.stderr.flush()
-        if verbose or debug:
-            traceback.print_exc(file=sys.stderr)
-            sys.stderr.flush()
         return FAILED, test_time
     else:
         if refleak:
@@ -1469,7 +1509,7 @@ class _ExpectedSkips:
                 # is distributed with Python
                 WIN_ONLY = {"test_unicode_file", "test_winreg",
                             "test_winsound", "test_startfile",
-                            "test_sqlite"}
+                            "test_sqlite", "test_msilib"}
                 self.expected |= WIN_ONLY
 
             if sys.platform != 'sunos5':
@@ -1500,8 +1540,11 @@ def _make_temp_dir_for_build(TEMPDIR):
     if sysconfig.is_python_build():
         TEMPDIR = os.path.join(sysconfig.get_config_var('srcdir'), 'build')
         TEMPDIR = os.path.abspath(TEMPDIR)
-        if not os.path.exists(TEMPDIR):
+        try:
             os.mkdir(TEMPDIR)
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
 
     # Define a writable temp dir that will be used as cwd while running
     # the tests. The name of the dir includes the pid to allow parallel

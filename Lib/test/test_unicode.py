@@ -819,6 +819,14 @@ class UnicodeTest(string_tests.CommonTest,
         self.assertEqual('%f' % INF, 'inf')
         self.assertEqual('%F' % INF, 'INF')
 
+    def test_startswith_endswith_errors(self):
+        for meth in ('foo'.startswith, 'foo'.endswith):
+            with self.assertRaises(TypeError) as cm:
+                meth(['f'])
+            exc = str(cm.exception)
+            self.assertIn('str', exc)
+            self.assertIn('tuple', exc)
+
     @support.run_with_locale('LC_ALL', 'de_DE', 'fr_FR')
     def test_format_float(self):
         # should not format with a comma, but always with C locale
@@ -1427,7 +1435,7 @@ class UnicodeTest(string_tests.CommonTest,
     # Test PyUnicode_FromFormat()
     def test_from_format(self):
         support.import_module('ctypes')
-        from ctypes import pythonapi, py_object
+        from ctypes import pythonapi, py_object, c_int
         if sys.maxunicode == 65535:
             name = "PyUnicodeUCS2_FromFormat"
         else:
@@ -1452,9 +1460,25 @@ class UnicodeTest(string_tests.CommonTest,
             'string, got a non-ASCII byte: 0xe9$',
             PyUnicode_FromFormat, b'unicode\xe9=%s', 'ascii')
 
+        self.assertEqual(PyUnicode_FromFormat(b'%c', c_int(0xabcd)), '\uabcd')
+        self.assertEqual(PyUnicode_FromFormat(b'%c', c_int(0x10ffff)), '\U0010ffff')
+
         # other tests
         text = PyUnicode_FromFormat(b'%%A:%A', 'abc\xe9\uabcd\U0010ffff')
         self.assertEqual(text, r"%A:'abc\xe9\uabcd\U0010ffff'")
+
+        text = PyUnicode_FromFormat(b'repr=%V', 'abc', b'xyz')
+        self.assertEqual(text, 'repr=abc')
+
+        # Test string decode from parameter of %s using utf-8.
+        # b'\xe4\xba\xba\xe6\xb0\x91' is utf-8 encoded byte sequence of
+        # '\u4eba\u6c11'
+        text = PyUnicode_FromFormat(b'repr=%V', None, b'\xe4\xba\xba\xe6\xb0\x91')
+        self.assertEqual(text, 'repr=\u4eba\u6c11')
+
+        #Test replace error handler.
+        text = PyUnicode_FromFormat(b'repr=%V', None, b'abc\xff')
+        self.assertEqual(text, 'repr=abc\ufffd')
 
     # Test PyUnicode_AsWideChar()
     def test_aswidechar(self):

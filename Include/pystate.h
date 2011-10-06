@@ -34,6 +34,7 @@ typedef struct _is {
     PyObject *codec_search_cache;
     PyObject *codec_error_registry;
     int codecs_initialized;
+    int fscodec_initialized;
 
 #ifdef HAVE_DLOPEN
     int dlopenflags;
@@ -138,6 +139,7 @@ PyAPI_FUNC(void) PyThreadState_Clear(PyThreadState *);
 PyAPI_FUNC(void) PyThreadState_Delete(PyThreadState *);
 #ifdef WITH_THREAD
 PyAPI_FUNC(void) PyThreadState_DeleteCurrent(void);
+PyAPI_FUNC(void) _PyGILState_Reinit(void);
 #endif
 
 PyAPI_FUNC(PyThreadState *) PyThreadState_Get(void);

@@ -345,6 +345,7 @@ import gc
 import signal
 import builtins
 import warnings
+import errno
 
 # Exception classes used by this module.
 class CalledProcessError(Exception):
@@ -376,7 +377,6 @@ if mswindows:
 else:
     import select
     _has_poll = hasattr(select, 'poll')
-    import errno
     import fcntl
     import pickle
 
@@ -415,8 +415,15 @@ __all__ = ["Popen", "PIPE", "STDOUT", "call", "check_call", "getstatusoutput",
            "getoutput", "check_output", "CalledProcessError"]
 
 if mswindows:
-    from _subprocess import CREATE_NEW_CONSOLE, CREATE_NEW_PROCESS_GROUP
-    __all__.extend(["CREATE_NEW_CONSOLE", "CREATE_NEW_PROCESS_GROUP"])
+    from _subprocess import (CREATE_NEW_CONSOLE, CREATE_NEW_PROCESS_GROUP,
+                             STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
+                             STD_ERROR_HANDLE, SW_HIDE,
+                             STARTF_USESTDHANDLES, STARTF_USESHOWWINDOW)
+
+    __all__.extend(["CREATE_NEW_CONSOLE", "CREATE_NEW_PROCESS_GROUP",
+                    "STD_INPUT_HANDLE", "STD_OUTPUT_HANDLE",
+                    "STD_ERROR_HANDLE", "SW_HIDE",
+                    "STARTF_USESTDHANDLES", "STARTF_USESHOWWINDOW"])
 try:
     MAXFD = os.sysconf("SC_OPEN_MAX")
 except:
@@ -711,8 +718,6 @@ class Popen(object):
             if errread != -1:
                 errread = msvcrt.open_osfhandle(errread.Detach(), 0)
 
-        if bufsize == 0:
-            bufsize = 1  # Nearly unbuffered (XXX for now)
         if p2cwrite != -1:
             self.stdin = io.open(p2cwrite, 'wb', bufsize)
             if self.universal_newlines:
@@ -759,9 +764,14 @@ class Popen(object):
             self.stderr.close()
         if self.stdin:
             self.stdin.close()
+        # Wait for the process to terminate, to avoid zombies.
+        self.wait()
 
     def __del__(self, _maxsize=sys.maxsize, _active=_active):
-        if not self._child_created:
+        # If __init__ hasn't had a chance to execute (e.g. if it
+        # was passed an undeclared keyword argument), we don't
+        # have a _child_created attribute at all.
+        if not getattr(self, '_child_created', False):
             # We didn't get to successfully create a child process.
             return
         # In case the child hasn't been waited on, check if it's done.
@@ -787,7 +797,11 @@ class Popen(object):
             stderr = None
             if self.stdin:
                 if input:
-                    self.stdin.write(input)
+                    try:
+                        self.stdin.write(input)
+                    except IOError as e:
+                        if e.errno != errno.EPIPE and e.errno != errno.EINVAL:
+                            raise
                 self.stdin.close()
             elif self.stdout:
                 stdout = self.stdout.read()
@@ -947,7 +961,7 @@ class Popen(object):
             except pywintypes.error as e:
                 # Translate pywintypes.error to WindowsError, which is
                 # a subclass of OSError.  FIXME: We should really
-                # translate errno using _sys_errlist (or simliar), but
+                # translate errno using _sys_errlist (or similar), but
                 # how can this be done from Python?
                 raise WindowsError(*e.args)
             finally:
@@ -1021,7 +1035,11 @@ class Popen(object):
 
             if self.stdin:
                 if input is not None:
-                    self.stdin.write(input)
+                    try:
+                        self.stdin.write(input)
+                    except IOError as e:
+                        if e.errno != errno.EPIPE:
+                            raise
                 self.stdin.close()
 
             if self.stdout:
@@ -1151,7 +1169,7 @@ class Popen(object):
                         # potential deadlocks, thus we do all this here.
                         # and pass it to fork_exec()
 
-                        if env:
+                        if env is not None:
                             env_list = [os.fsencode(k) + b'=' + os.fsencode(v)
                                         for k, v in env.items()]
                         else:
@@ -1457,9 +1475,16 @@ class Popen(object):
                 for fd, mode in ready:
                     if mode & select.POLLOUT:
                         chunk = input[input_offset : input_offset + _PIPE_BUF]
-                        input_offset += os.write(fd, chunk)
-                        if input_offset >= len(input):
-                            close_unregister_and_remove(fd)
+                        try:
+                            input_offset += os.write(fd, chunk)
+                        except OSError as e:
+                            if e.errno == errno.EPIPE:
+                                close_unregister_and_remove(fd)
+                            else:
+                                raise
+                        else:
+                            if input_offset >= len(input):
+                                close_unregister_and_remove(fd)
                     elif mode & select_POLLIN_POLLPRI:
                         data = os.read(fd, 4096)
                         if not data:
@@ -1501,11 +1526,19 @@ class Popen(object):
 
                 if self.stdin in wlist:
                     chunk = input[input_offset : input_offset + _PIPE_BUF]
-                    bytes_written = os.write(self.stdin.fileno(), chunk)
-                    input_offset += bytes_written
-                    if input_offset >= len(input):
-                        self.stdin.close()
-                        write_set.remove(self.stdin)
+                    try:
+                        bytes_written = os.write(self.stdin.fileno(), chunk)
+                    except OSError as e:
+                        if e.errno == errno.EPIPE:
+                            self.stdin.close()
+                            write_set.remove(self.stdin)
+                        else:
+                            raise
+                    else:
+                        input_offset += bytes_written
+                        if input_offset >= len(input):
+                            self.stdin.close()
+                            write_set.remove(self.stdin)
 
                 if self.stdout in rlist:
                     data = os.read(self.stdout.fileno(), 1024)

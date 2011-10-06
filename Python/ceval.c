@@ -28,7 +28,7 @@
 
 typedef unsigned long long uint64;
 
-/* PowerPC suppport.
+/* PowerPC support.
    "__ppc__" appears to be the preprocessor definition to detect on OS X, whereas
    "__powerpc__" appears to be the correct one for Linux with GCC
 */
@@ -442,6 +442,12 @@ PyEval_RestoreThread(PyThreadState *tstate)
     if (gil_created()) {
         int err = errno;
         take_gil(tstate);
+        /* _Py_Finalizing is protected by the GIL */
+        if (_Py_Finalizing && tstate != _Py_Finalizing) {
+            drop_gil(tstate);
+            PyThread_exit_thread();
+            assert(0);  /* unreachable */
+        }
         errno = err;
     }
 #endif
@@ -1819,7 +1825,7 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
         if (_Py_atomic_load_relaxed(&eval_breaker)) {
             if (*next_instr == SETUP_FINALLY) {
                 /* Make the last opcode before
-                   a try: finally: block uninterruptable. */
+                   a try: finally: block uninterruptible. */
                 goto fast_next_opcode;
             }
             tstate->tick_counter++;

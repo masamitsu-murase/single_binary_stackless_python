@@ -895,7 +895,26 @@ Files and Directories
       Using :func:`access` to check if a user is authorized to e.g. open a file
       before actually doing so using :func:`open` creates a security hole,
       because the user might exploit the short time interval between checking
-      and opening the file to manipulate it.
+      and opening the file to manipulate it. It's preferable to use :term:`EAFP`
+      techniques. For example::
+
+         if os.access("myfile", os.R_OK):
+             with open("myfile") as fp:
+                 return fp.read()
+         return "some default data"
+
+      is better written as::
+
+         try:
+             fp = open("myfile")
+         except IOError as e:
+             if e.errno == errno.EACCESS:
+                 return "some default data"
+             # Not a permission error.
+             raise
+         else:
+             with fp:
+                 return fp.read()
 
    .. note::
 
@@ -965,16 +984,18 @@ Files and Directories
    Set the flags of *path* to the numeric *flags*. *flags* may take a combination
    (bitwise OR) of the following values (as defined in the :mod:`stat` module):
 
-   * ``UF_NODUMP``
-   * ``UF_IMMUTABLE``
-   * ``UF_APPEND``
-   * ``UF_OPAQUE``
-   * ``UF_NOUNLINK``
-   * ``SF_ARCHIVED``
-   * ``SF_IMMUTABLE``
-   * ``SF_APPEND``
-   * ``SF_NOUNLINK``
-   * ``SF_SNAPSHOT``
+   * :data:`stat.UF_NODUMP`
+   * :data:`stat.UF_IMMUTABLE`
+   * :data:`stat.UF_APPEND`
+   * :data:`stat.UF_OPAQUE`
+   * :data:`stat.UF_NOUNLINK`
+   * :data:`stat.UF_COMPRESSED`
+   * :data:`stat.UF_HIDDEN`
+   * :data:`stat.SF_ARCHIVED`
+   * :data:`stat.SF_IMMUTABLE`
+   * :data:`stat.SF_APPEND`
+   * :data:`stat.SF_NOUNLINK`
+   * :data:`stat.SF_SNAPSHOT`
 
    Availability: Unix.
 

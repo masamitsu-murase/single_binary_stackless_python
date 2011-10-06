@@ -3,6 +3,7 @@ import sys
 import difflib
 import inspect
 import pydoc
+import keyword
 import re
 import string
 import subprocess
@@ -12,11 +13,17 @@ import unittest
 import xml.etree
 import textwrap
 from io import StringIO
+from collections import namedtuple
 from contextlib import contextmanager
 from test.support import TESTFN, forget, rmtree, EnvironmentVarGuard, \
-     reap_children, captured_output
+     reap_children, captured_output, captured_stdout, unlink
 
 from test import pydoc_mod
+
+try:
+    import threading
+except ImportError:
+    threading = None
 
 # Just in case sys.modules["test"] has the optional attribute __loader__.
 if hasattr(pydoc_mod, "__loader__"):
@@ -373,6 +380,26 @@ class PydocDocTest(unittest.TestCase):
         finally:
             pydoc.getpager = getpager_old
 
+    def test_namedtuple_public_underscore(self):
+        NT = namedtuple('NT', ['abc', 'def'], rename=True)
+        with captured_stdout() as help_io:
+            help(NT)
+        helptext = help_io.getvalue()
+        self.assertIn('_1', helptext)
+        self.assertIn('_replace', helptext)
+        self.assertIn('_asdict', helptext)
+
+    def test_synopsis(self):
+        self.addCleanup(unlink, TESTFN)
+        for encoding in ('ISO-8859-1', 'UTF-8'):
+            with open(TESTFN, 'w', encoding=encoding) as script:
+                if encoding != 'UTF-8':
+                    print('#coding: {}'.format(encoding), file=script)
+                print('"""line 1: h\xe9', file=script)
+                print('line 2: hi"""', file=script)
+            synopsis = pydoc.synopsis(TESTFN, {})
+            self.assertEqual(synopsis, 'line 1: h\xe9')
+
 
 class TestDescriptions(unittest.TestCase):
 
@@ -392,6 +419,7 @@ class TestDescriptions(unittest.TestCase):
         self.assertIn(expected, pydoc.render_doc(c))
 
 
+@unittest.skipUnless(threading, 'Threading required for this test.')
 class PydocServerTest(unittest.TestCase):
     """Tests for pydoc._start_server"""
 
@@ -455,11 +483,17 @@ class PydocUrlHandlerTest(unittest.TestCase):
         self.assertEqual(result, title)
 
 
+class TestHelper(unittest.TestCase):
+    def test_keywords(self):
+        self.assertEqual(sorted(pydoc.Helper.keywords),
+                         sorted(keyword.kwlist))
+
 def test_main():
     test.support.run_unittest(PydocDocTest,
                               TestDescriptions,
                               PydocServerTest,
                               PydocUrlHandlerTest,
+                              TestHelper,
                               )
 
 if __name__ == "__main__":

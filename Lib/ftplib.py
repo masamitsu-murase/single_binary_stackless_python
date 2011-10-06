@@ -241,12 +241,13 @@ class FTP:
         This does not follow the procedure from the RFC to send Telnet
         IP and Synch; that doesn't seem to work with the servers I've
         tried.  Instead, just send the ABOR command as OOB data.'''
-        line = 'ABOR' + CRLF
+        line = b'ABOR' + B_CRLF
         if self.debugging > 1: print('*put urgent*', self.sanitize(line))
         self.sock.sendall(line, MSG_OOB)
         resp = self.getmultiline()
         if resp[:3] not in {'426', '225', '226'}:
             raise error_proto(resp)
+        return resp
 
     def sendcmd(self, cmd):
         '''Send a command and return the response.'''
@@ -613,7 +614,7 @@ else:
         Usage example:
         >>> from ftplib import FTP_TLS
         >>> ftps = FTP_TLS('ftp.python.org')
-        >>> ftps.login()  # login anonimously previously securing control channel
+        >>> ftps.login()  # login anonymously previously securing control channel
         '230 Guest login ok, access restrictions apply.'
         >>> ftps.prot_p()  # switch to secure data connection
         '200 Protection level set to P'
@@ -780,6 +781,15 @@ else:
             finally:
                 conn.close()
             return self.voidresp()
+
+        def abort(self):
+            # overridden as we can't pass MSG_OOB flag to sendall()
+            line = b'ABOR' + B_CRLF
+            self.sock.sendall(line)
+            resp = self.getmultiline()
+            if resp[:3] not in {'426', '225', '226'}:
+                raise error_proto(resp)
+            return resp
 
     __all__.append('FTP_TLS')
     all_errors = (Error, IOError, EOFError, ssl.SSLError)

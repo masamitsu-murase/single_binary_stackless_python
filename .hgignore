@@ -39,6 +39,7 @@ Parser/pgen.stamp$
 
 syntax: glob
 libpython*.a
+*.swp
 *.o
 *.pyc
 *.pyo
@@ -49,6 +50,10 @@ libpython*.a
 *~
 Lib/lib2to3/*.pickle
 Lib/test/data/*
+Misc/*.wpu
+PC/python_nt*.h
+PC/pythonnt_rc*.h
+PC/*.obj
 PCbuild/*.exe
 PCbuild/*.dll
 PCbuild/*.pdb
@@ -59,3 +64,7 @@ PCbuild/*.ncb
 PCbuild/*.bsc
 PCbuild/Win32-temp-*
 __pycache__
+Modules/_testembed
+.coverage
+coverage/
+htmlcov/

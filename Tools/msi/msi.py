@@ -184,7 +184,7 @@ try:
 except ImportError:
     have_stackless = False
 
-# Determine the target architechture
+# Determine the target architecture
 dll_path = os.path.join(srcdir, PCBUILD, dll_file)
 msilib.set_arch_from_file(dll_path)
 if msilib.pe_type(dll_path) != msilib.pe_type("msisupport.dll"):
