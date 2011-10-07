@@ -3,11 +3,27 @@ import stackless
 import threading
 
 class TestChannels(unittest.TestCase):
+    def _checkForTestLeakage(self):
+        self.assertEqual(stackless.getruncount(), 1,
+            "Leakage from other tests, with %d tasklets still in the scheduler" %
+            (stackless.getruncount() - 1))
+        # It is perfectly legitimate for threads to still be exiting.  Wait a little otherwise error.
+        currentThread = threading.current_thread()
+        for thread in threading.enumerate():
+            if thread is not currentThread:
+                thread.join(10.0)
+                if thread.isAlive():
+                    traceback.print_stack(sys._current_frames()[thread.ident])
+                self.assertFalse(thread.is_alive(),
+                    "Other thread leaked, will make test results invalid")
+        self.assertEqual(threading.activeCount(), 1,
+            "Leakage from other tests, with %d Python threads active (expected 1; the main thread)")
+
     def setUp(self):
-        self.assertEqual(stackless.getruncount(), 1, "Leakage from other tests, with %d tasklets still in the scheduler" % (stackless.getruncount() - 1))
+        self._checkForTestLeakage()
 
     def tearDown(self):
-        self.assertEqual(stackless.getruncount(), 1, "Leakage from this test, with %d tasklets still in the scheduler" % (stackless.getruncount() - 1))        
+        self._checkForTestLeakage()
 
     def testBlockingSend(self):
         ''' Test that when a tasklet sends to a channel without waiting receivers, the tasklet is blocked. '''
@@ -101,15 +117,11 @@ class TestChannels(unittest.TestCase):
 
     def testMainTaskletBlockingWithoutASender(self):
         ''' Test that the last runnable tasklet cannot be blocked on a channel. '''    
-        self.assertEqual(stackless.getruncount(), 1, "Leakage from other tests, with tasklets still in the scheduler.")
-        
         c = stackless.channel()
         self.assertRaises(RuntimeError, c.receive)
 
     def testInterthreadCommunication(self):
         ''' Test that tasklets in different threads sending over channels to each other work. '''    
-        self.assertEqual(stackless.getruncount(), 1, "Leakage from other tests, with tasklets still in the scheduler.")
-
         commandChannel = stackless.channel()
 
         def master_func():
