@@ -61,6 +61,13 @@ Notes on the availability of these functions:
    names have currently been registered: ``'posix'``, ``'nt'``, ``'mac'``,
    ``'os2'``, ``'ce'``, ``'java'``.
 
+   .. seealso::
+      :attr:`sys.platform` has a finer granularity.  :func:`os.uname` gives
+      system-dependent version information.
+
+      The :mod:`platform` module provides detailed checks for the
+      system's identity.
+
 
 .. _os-filenames:
 
@@ -1339,11 +1346,12 @@ Files and Directories
 
    .. note::
 
-      The exact meaning and resolution of the :attr:`st_atime`, :attr:`st_mtime`, and
-      :attr:`st_ctime` members depends on the operating system and the file system.
-      For example, on Windows systems using the FAT or FAT32 file systems,
-      :attr:`st_mtime` has 2-second resolution, and :attr:`st_atime` has only 1-day
-      resolution.  See your operating system documentation for details.
+      The exact meaning and resolution of the :attr:`st_atime`,
+      :attr:`st_mtime`, and :attr:`st_ctime` attributes depend on the operating
+      system and the file system. For example, on Windows systems using the FAT
+      or FAT32 file systems, :attr:`st_mtime` has 2-second resolution, and
+      :attr:`st_atime` has only 1-day resolution.  See your operating system
+      documentation for details.
 
    For backward compatibility, the return value of :func:`~os.stat` is also accessible
    as a tuple of at least 10 integers giving the most important (and portable)
@@ -1581,8 +1589,9 @@ to be ignored.
 
    Generate a :const:`SIGABRT` signal to the current process.  On Unix, the default
    behavior is to produce a core dump; on Windows, the process immediately returns
-   an exit code of ``3``.  Be aware that programs which use :func:`signal.signal`
-   to register a handler for :const:`SIGABRT` will behave differently.
+   an exit code of ``3``.  Be aware that calling this function will not call the
+   Python signal handler registered for :const:`SIGABRT` with
+   :func:`signal.signal`.
 
    Availability: Unix, Windows.
 
@@ -1921,7 +1930,9 @@ written in Python, such as a mail server's external command delivery program.
       os.spawnvpe(os.P_WAIT, 'cp', L, os.environ)
 
    Availability: Unix, Windows.  :func:`spawnlp`, :func:`spawnlpe`, :func:`spawnvp`
-   and :func:`spawnvpe` are not available on Windows.
+   and :func:`spawnvpe` are not available on Windows.  :func:`spawnle` and
+   :func:`spawnve` are not thread-safe on Windows; we advise you to use the
+   :mod:`subprocess` module instead.
 
 
 .. data:: P_NOWAIT

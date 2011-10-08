@@ -3004,6 +3004,7 @@ then
 	MACHDEP="$ac_md_system$ac_md_release"
 
 	case $MACHDEP in
+	linux*) MACHDEP="linux2";;
 	cygwin*) MACHDEP="cygwin";;
 	darwin*) MACHDEP="darwin";;
         irix646) MACHDEP="irix6";;
@@ -3037,7 +3038,7 @@ case $ac_sys_system/$ac_sys_release in
   # Reconfirmed for OpenBSD 3.3 by Zachary Hamm, for 3.4 by Jason Ish.
   # In addition, Stefan Krah confirms that issue #1244610 exists through
   # OpenBSD 4.6, but is fixed in 4.7.
-  OpenBSD/2.* | OpenBSD/3.[0123456789] | OpenBSD/4.[0123456])
+  OpenBSD/2.* | OpenBSD/3.* | OpenBSD/4.[0123456])
     define_xopen_source=no
     # OpenBSD undoes our definition of __BSD_VISIBLE if _XOPEN_SOURCE is
     # also defined. This can be overridden by defining _BSD_SOURCE
@@ -3046,7 +3047,7 @@ case $ac_sys_system/$ac_sys_release in
 $as_echo "#define _BSD_SOURCE 1" >>confdefs.h
 
     ;;
-  OpenBSD/4.[789])
+  OpenBSD/*)
     # OpenBSD undoes our definition of __BSD_VISIBLE if _XOPEN_SOURCE is
     # also defined. This can be overridden by defining _BSD_SOURCE
     # As this has a different meaning on Linux, only define it on OpenBSD
@@ -4976,7 +4977,7 @@ $as_echo "#define Py_ENABLE_SHARED 1" >>confdefs.h
 	      PY3LIBRARY=libpython3.so
 	  fi
           ;;
-    Linux*|GNU*|NetBSD*|FreeBSD*|DragonFly*)
+    Linux*|GNU*|NetBSD*|FreeBSD*|DragonFly*|OpenBSD*)
 	  LDLIBRARY='libpython$(LDVERSION).so'
 	  BLDLIBRARY='-L. -lpython$(LDVERSION)'
 	  RUNSHARED=LD_LIBRARY_PATH=`pwd`:${LD_LIBRARY_PATH}
@@ -5225,7 +5226,7 @@ fi
 
 
 
-if test -e $srcdir/.hg/00changelog.i
+if test -e $srcdir/.hg/dirstate
 then
 # Extract the first word of "hg", so it can be a program name with args.
 set dummy hg; ac_word=$2
@@ -8887,7 +8888,7 @@ $as_echo "#define _POSIX_THREADS 1" >>confdefs.h
 
       # Bug 662787: Using semaphores causes unexplicable hangs on Solaris 8.
       case  $ac_sys_system/$ac_sys_release in
-  SunOS/5.6)
+      SunOS/5.6)
 $as_echo "#define HAVE_PTHREAD_DESTRUCTOR 1" >>confdefs.h
 
 		       ;;
@@ -8895,14 +8896,10 @@ $as_echo "#define HAVE_PTHREAD_DESTRUCTOR 1" >>confdefs.h
 $as_echo "#define HAVE_BROKEN_POSIX_SEMAPHORES 1" >>confdefs.h
 
 		       ;;
-      AIX/5)
+      AIX/*)
 $as_echo "#define HAVE_BROKEN_POSIX_SEMAPHORES 1" >>confdefs.h
 
 		       ;;
-      AIX/6)
-$as_echo "#define HAVE_BROKEN_POSIX_SEMAPHORES 1" >>confdefs.h
-
-                      ;;
       esac
 
       { $as_echo "$as_me:${as_lineno-$LINENO}: checking if PTHREAD_SCOPE_SYSTEM is supported" >&5
@@ -14492,8 +14489,8 @@ esac
 
 cat >>$CONFIG_STATUS <<_ACEOF || ac_write_fail=1
 # Files that config.status was made for.
-config_files="$ac_config_files"
-config_headers="$ac_config_headers"
+config_files="`echo $ac_config_files`"
+config_headers="`echo $ac_config_headers`"
 
 _ACEOF
 

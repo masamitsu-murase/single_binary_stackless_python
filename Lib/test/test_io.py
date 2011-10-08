@@ -611,7 +611,24 @@ class IOTest(unittest.TestCase):
         self.assertEqual(rawio.read(2), b"")
 
 class CIOTest(IOTest):
-    pass
+
+    def test_IOBase_finalize(self):
+        # Issue #12149: segmentation fault on _PyIOBase_finalize when both a
+        # class which inherits IOBase and an object of this class are caught
+        # in a reference cycle and close() is already in the method cache.
+        class MyIO(self.IOBase):
+            def close(self):
+                pass
+
+        # create an instance to populate the method cache
+        MyIO()
+        obj = MyIO()
+        obj.obj = obj
+        wr = weakref.ref(obj)
+        del MyIO
+        del obj
+        support.gc_collect()
+        self.assertTrue(wr() is None, wr)
 
 class PyIOTest(IOTest):
     pass
@@ -2289,6 +2306,27 @@ class TextIOWrapperTest(unittest.TestCase):
         buf = self.BytesIO(self.testdata)
         with self.assertRaises(AttributeError):
             txt.buffer = buf
+
+    def test_rawio(self):
+        # Issue #12591: TextIOWrapper must work with raw I/O objects, so
+        # that subprocess.Popen() can have the required unbuffered
+        # semantics with universal_newlines=True.
+        raw = self.MockRawIO([b'abc', b'def', b'ghi\njkl\nopq\n'])
+        txt = self.TextIOWrapper(raw, encoding='ascii', newline='\n')
+        # Reads
+        self.assertEqual(txt.read(4), 'abcd')
+        self.assertEqual(txt.readline(), 'efghi\n')
+        self.assertEqual(list(txt), ['jkl\n', 'opq\n'])
+
+    def test_rawio_write_through(self):
+        # Issue #12591: with write_through=True, writes don't need a flush
+        raw = self.MockRawIO([b'abc', b'def', b'ghi\njkl\nopq\n'])
+        txt = self.TextIOWrapper(raw, encoding='ascii', newline='\n',
+                                 write_through=True)
+        txt.write('1')
+        txt.write('23\n4')
+        txt.write('5')
+        self.assertEqual(b''.join(raw._write_stack), b'123\n45')
 
 class CTextIOWrapperTest(TextIOWrapperTest):
 

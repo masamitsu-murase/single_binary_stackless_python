@@ -450,7 +450,7 @@ def _eintr_retry_call(func, *args):
     while True:
         try:
             return func(*args)
-        except OSError as e:
+        except (OSError, IOError) as e:
             if e.errno == errno.EINTR:
                 continue
             raise
@@ -721,7 +721,7 @@ class Popen(object):
         if p2cwrite != -1:
             self.stdin = io.open(p2cwrite, 'wb', bufsize)
             if self.universal_newlines:
-                self.stdin = io.TextIOWrapper(self.stdin)
+                self.stdin = io.TextIOWrapper(self.stdin, write_through=True)
         if c2pread != -1:
             self.stdout = io.open(c2pread, 'rb', bufsize)
             if universal_newlines:
@@ -804,10 +804,10 @@ class Popen(object):
                             raise
                 self.stdin.close()
             elif self.stdout:
-                stdout = self.stdout.read()
+                stdout = _eintr_retry_call(self.stdout.read)
                 self.stdout.close()
             elif self.stderr:
-                stderr = self.stderr.read()
+                stderr = _eintr_retry_call(self.stderr.read)
                 self.stderr.close()
             self.wait()
             return (stdout, stderr)
@@ -1218,6 +1218,14 @@ class Popen(object):
                                 if errread != -1:
                                     os.close(errread)
                                 os.close(errpipe_read)
+
+                                # When duping fds, if there arises a situation
+                                # where one of the fds is either 0, 1 or 2, it
+                                # is possible that it is overwritten (#12607).
+                                if c2pwrite == 0:
+                                    c2pwrite = os.dup(c2pwrite)
+                                if errwrite == 0 or errwrite == 1:
+                                    errwrite = os.dup(errwrite)
 
                                 # Dup fds for child
                                 def _dup2(a, b):
