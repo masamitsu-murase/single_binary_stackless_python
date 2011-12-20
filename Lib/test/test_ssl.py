@@ -20,12 +20,7 @@ import platform
 from BaseHTTPServer import HTTPServer
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 
-# Optionally test SSL support, if we have it in the tested platform
-skip_expected = False
-try:
-    import ssl
-except ImportError:
-    skip_expected = True
+ssl = test_support.import_module("ssl")
 
 HOST = test_support.HOST
 CERTFILE = None
@@ -58,32 +53,35 @@ class BasicTests(unittest.TestCase):
 
 # Issue #9415: Ubuntu hijacks their OpenSSL and forcefully disables SSLv2
 def skip_if_broken_ubuntu_ssl(func):
-    # We need to access the lower-level wrapper in order to create an
-    # implicit SSL context without trying to connect or listen.
-    try:
-        import _ssl
-    except ImportError:
-        # The returned function won't get executed, just ignore the error
-        pass
-    @functools.wraps(func)
-    def f(*args, **kwargs):
+    if hasattr(ssl, 'PROTOCOL_SSLv2'):
+        # We need to access the lower-level wrapper in order to create an
+        # implicit SSL context without trying to connect or listen.
         try:
-            s = socket.socket(socket.AF_INET)
-            _ssl.sslwrap(s._sock, 0, None, None,
-                         ssl.CERT_NONE, ssl.PROTOCOL_SSLv2, None, None)
-        except ssl.SSLError as e:
-            if (ssl.OPENSSL_VERSION_INFO == (0, 9, 8, 15, 15) and
-                platform.linux_distribution() == ('debian', 'squeeze/sid', '')
-                and 'Invalid SSL protocol variant specified' in str(e)):
-                raise unittest.SkipTest("Patched Ubuntu OpenSSL breaks behaviour")
-        return func(*args, **kwargs)
-    return f
+            import _ssl
+        except ImportError:
+            # The returned function won't get executed, just ignore the error
+            pass
+        @functools.wraps(func)
+        def f(*args, **kwargs):
+            try:
+                s = socket.socket(socket.AF_INET)
+                _ssl.sslwrap(s._sock, 0, None, None,
+                             ssl.CERT_NONE, ssl.PROTOCOL_SSLv2, None, None)
+            except ssl.SSLError as e:
+                if (ssl.OPENSSL_VERSION_INFO == (0, 9, 8, 15, 15) and
+                    platform.linux_distribution() == ('debian', 'squeeze/sid', '')
+                    and 'Invalid SSL protocol variant specified' in str(e)):
+                    raise unittest.SkipTest("Patched Ubuntu OpenSSL breaks behaviour")
+            return func(*args, **kwargs)
+        return f
+    else:
+        return func
 
 
 class BasicSocketTests(unittest.TestCase):
 
     def test_constants(self):
-        ssl.PROTOCOL_SSLv2
+        #ssl.PROTOCOL_SSLv2
         ssl.PROTOCOL_SSLv23
         ssl.PROTOCOL_SSLv3
         ssl.PROTOCOL_TLSv1
@@ -225,6 +223,50 @@ class NetworkedTests(unittest.TestCase):
             finally:
                 s.close()
 
+    def test_connect_ex(self):
+        # Issue #11326: check connect_ex() implementation
+        with test_support.transient_internet("svn.python.org"):
+            s = ssl.wrap_socket(socket.socket(socket.AF_INET),
+                                cert_reqs=ssl.CERT_REQUIRED,
+                                ca_certs=SVN_PYTHON_ORG_ROOT_CERT)
+            try:
+                self.assertEqual(0, s.connect_ex(("svn.python.org", 443)))
+                self.assertTrue(s.getpeercert())
+            finally:
+                s.close()
+
+    def test_non_blocking_connect_ex(self):
+        # Issue #11326: non-blocking connect_ex() should allow handshake
+        # to proceed after the socket gets ready.
+        with test_support.transient_internet("svn.python.org"):
+            s = ssl.wrap_socket(socket.socket(socket.AF_INET),
+                                cert_reqs=ssl.CERT_REQUIRED,
+                                ca_certs=SVN_PYTHON_ORG_ROOT_CERT,
+                                do_handshake_on_connect=False)
+            try:
+                s.setblocking(False)
+                rc = s.connect_ex(('svn.python.org', 443))
+                # EWOULDBLOCK under Windows, EINPROGRESS elsewhere
+                self.assertIn(rc, (0, errno.EINPROGRESS, errno.EWOULDBLOCK))
+                # Wait for connect to finish
+                select.select([], [s], [], 5.0)
+                # Non-blocking handshake
+                while True:
+                    try:
+                        s.do_handshake()
+                        break
+                    except ssl.SSLError as err:
+                        if err.args[0] == ssl.SSL_ERROR_WANT_READ:
+                            select.select([s], [], [], 5.0)
+                        elif err.args[0] == ssl.SSL_ERROR_WANT_WRITE:
+                            select.select([], [s], [], 5.0)
+                        else:
+                            raise
+                # SSL established
+                self.assertTrue(s.getpeercert())
+            finally:
+                s.close()
+
     @unittest.skipIf(os.name == "nt", "Can't use a socket as a file under Windows")
     def test_makefile_close(self):
         # Issue #5238: creating a file-like object with makefile() shouldn't
@@ -297,9 +339,9 @@ class NetworkedTests(unittest.TestCase):
         if ssl.OPENSSL_VERSION_INFO < (0, 9, 8, 0, 15):
             self.skipTest("SHA256 not available on %r" % ssl.OPENSSL_VERSION)
         # NOTE: https://sha256.tbs-internet.com is another possible test host
-        remote = ("sha2.hboeck.de", 443)
+        remote = ("sha256.tbs-internet.com", 443)
         sha256_cert = os.path.join(os.path.dirname(__file__), "sha256.pem")
-        with test_support.transient_internet("sha2.hboeck.de"):
+        with test_support.transient_internet("sha256.tbs-internet.com"):
             s = ssl.wrap_socket(socket.socket(socket.AF_INET),
                                 cert_reqs=ssl.CERT_REQUIRED,
                                 ca_certs=sha256_cert,)
@@ -964,7 +1006,8 @@ else:
             try_protocol_combo(ssl.PROTOCOL_SSLv3, ssl.PROTOCOL_SSLv3, True)
             try_protocol_combo(ssl.PROTOCOL_SSLv3, ssl.PROTOCOL_SSLv3, True, ssl.CERT_OPTIONAL)
             try_protocol_combo(ssl.PROTOCOL_SSLv3, ssl.PROTOCOL_SSLv3, True, ssl.CERT_REQUIRED)
-            try_protocol_combo(ssl.PROTOCOL_SSLv3, ssl.PROTOCOL_SSLv2, False)
+            if hasattr(ssl, 'PROTOCOL_SSLv2'):
+                try_protocol_combo(ssl.PROTOCOL_SSLv3, ssl.PROTOCOL_SSLv2, False)
             try_protocol_combo(ssl.PROTOCOL_SSLv3, ssl.PROTOCOL_SSLv23, False)
             try_protocol_combo(ssl.PROTOCOL_SSLv3, ssl.PROTOCOL_TLSv1, False)
 
@@ -976,7 +1019,8 @@ else:
             try_protocol_combo(ssl.PROTOCOL_TLSv1, ssl.PROTOCOL_TLSv1, True)
             try_protocol_combo(ssl.PROTOCOL_TLSv1, ssl.PROTOCOL_TLSv1, True, ssl.CERT_OPTIONAL)
             try_protocol_combo(ssl.PROTOCOL_TLSv1, ssl.PROTOCOL_TLSv1, True, ssl.CERT_REQUIRED)
-            try_protocol_combo(ssl.PROTOCOL_TLSv1, ssl.PROTOCOL_SSLv2, False)
+            if hasattr(ssl, 'PROTOCOL_SSLv2'):
+                try_protocol_combo(ssl.PROTOCOL_TLSv1, ssl.PROTOCOL_SSLv2, False)
             try_protocol_combo(ssl.PROTOCOL_TLSv1, ssl.PROTOCOL_SSLv3, False)
             try_protocol_combo(ssl.PROTOCOL_TLSv1, ssl.PROTOCOL_SSLv23, False)
 
@@ -1285,9 +1329,6 @@ else:
 
 
 def test_main(verbose=False):
-    if skip_expected:
-        raise unittest.SkipTest("No SSL support")
-
     global CERTFILE, SVN_PYTHON_ORG_ROOT_CERT
     CERTFILE = os.path.join(os.path.dirname(__file__) or os.curdir,
                             "keycert.pem")

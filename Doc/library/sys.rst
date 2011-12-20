@@ -208,7 +208,7 @@ always available.
 
    A string giving the site-specific directory prefix where the platform-dependent
    Python files are installed; by default, this is also ``'/usr/local'``.  This can
-   be set at build time with the :option:`--exec-prefix` argument to the
+   be set at build time with the ``--exec-prefix`` argument to the
    :program:`configure` script.  Specifically, all configuration files (e.g. the
    :file:`pyconfig.h` header file) are installed in the directory ``exec_prefix +
    '/lib/pythonversion/config'``, and shared library modules are installed in
@@ -269,39 +269,25 @@ always available.
    The struct sequence *flags* exposes the status of command line flags. The
    attributes are read only.
 
-   +------------------------------+------------------------------------------+
-   | attribute                    | flag                                     |
-   +==============================+==========================================+
-   | :const:`debug`               | -d                                       |
-   +------------------------------+------------------------------------------+
-   | :const:`py3k_warning`        | -3                                       |
-   +------------------------------+------------------------------------------+
-   | :const:`division_warning`    | -Q                                       |
-   +------------------------------+------------------------------------------+
-   | :const:`division_new`        | -Qnew                                    |
-   +------------------------------+------------------------------------------+
-   | :const:`inspect`             | -i                                       |
-   +------------------------------+------------------------------------------+
-   | :const:`interactive`         | -i                                       |
-   +------------------------------+------------------------------------------+
-   | :const:`optimize`            | -O or -OO                                |
-   +------------------------------+------------------------------------------+
-   | :const:`dont_write_bytecode` | -B                                       |
-   +------------------------------+------------------------------------------+
-   | :const:`no_user_site`        | -s                                       |
-   +------------------------------+------------------------------------------+
-   | :const:`no_site`             | -S                                       |
-   +------------------------------+------------------------------------------+
-   | :const:`ignore_environment`  | -E                                       |
-   +------------------------------+------------------------------------------+
-   | :const:`tabcheck`            | -t or -tt                                |
-   +------------------------------+------------------------------------------+
-   | :const:`verbose`             | -v                                       |
-   +------------------------------+------------------------------------------+
-   | :const:`unicode`             | -U                                       |
-   +------------------------------+------------------------------------------+
-   | :const:`bytes_warning`       | -b                                       |
-   +------------------------------+------------------------------------------+
+   ============================= ===================================
+   attribute                     flag
+   ============================= ===================================
+   :const:`debug`                :option:`-d`
+   :const:`py3k_warning`         :option:`-3`
+   :const:`division_warning`     :option:`-Q`
+   :const:`division_new`         :option:`-Qnew <-Q>`
+   :const:`inspect`              :option:`-i`
+   :const:`interactive`          :option:`-i`
+   :const:`optimize`             :option:`-O` or :option:`-OO`
+   :const:`dont_write_bytecode`  :option:`-B`
+   :const:`no_user_site`         :option:`-s`
+   :const:`no_site`              :option:`-S`
+   :const:`ignore_environment`   :option:`-E`
+   :const:`tabcheck`             :option:`-t` or :option:`-tt <-t>`
+   :const:`verbose`              :option:`-v`
+   :const:`unicode`              :option:`-U`
+   :const:`bytes_warning`        :option:`-b`
+   ============================= ===================================
 
    .. versionadded:: 2.6
 
@@ -576,6 +562,30 @@ always available.
    ``version_info`` value may be used for a more human-friendly encoding of the
    same information.
 
+   The ``hexversion`` is a 32-bit number with the following layout:
+
+   +-------------------------+------------------------------------------------+
+   | Bits (big endian order) | Meaning                                        |
+   +=========================+================================================+
+   | :const:`1-8`            |  ``PY_MAJOR_VERSION``  (the ``2`` in           |
+   |                         |  ``2.1.0a3``)                                  |
+   +-------------------------+------------------------------------------------+
+   | :const:`9-16`           |  ``PY_MINOR_VERSION``  (the ``1`` in           |
+   |                         |  ``2.1.0a3``)                                  |
+   +-------------------------+------------------------------------------------+
+   | :const:`17-24`          |  ``PY_MICRO_VERSION``  (the ``0`` in           |
+   |                         |  ``2.1.0a3``)                                  |
+   +-------------------------+------------------------------------------------+
+   | :const:`25-28`          |  ``PY_RELEASE_LEVEL``  (``0xA`` for alpha,     |
+   |                         |  ``0xB`` for beta, ``0xC`` for release         |
+   |                         |  candidate and ``0xF`` for final)              |
+   +-------------------------+------------------------------------------------+
+   | :const:`29-32`          |  ``PY_RELEASE_SERIAL``  (the ``3`` in          |
+   |                         |  ``2.1.0a3``, zero for final releases)         |
+   +-------------------------+------------------------------------------------+
+
+   Thus ``2.1.0a3`` is hexversion ``0x020100a3``.
+
    .. versionadded:: 1.5.2
 
 
@@ -585,7 +595,7 @@ always available.
    internal representation of integers.  The attributes are read only.
 
    +-------------------------+----------------------------------------------+
-   | attribute               | explanation                                  |
+   | Attribute               | Explanation                                  |
    +=========================+==============================================+
    | :const:`bits_per_digit` | number of bits held in each digit.  Python   |
    |                         | integers are stored internally in base       |
@@ -735,7 +745,7 @@ always available.
 
    A string giving the site-specific directory prefix where the platform
    independent Python files are installed; by default, this is the string
-   ``'/usr/local'``.  This can be set at build time with the :option:`--prefix`
+   ``'/usr/local'``.  This can be set at build time with the ``--prefix``
    argument to the :program:`configure` script.  The main collection of Python
    library modules is installed in the directory ``prefix + '/lib/pythonversion'``
    while the platform independent header files (all except :file:`pyconfig.h`) are
@@ -923,7 +933,7 @@ always available.
 
    Activate dumping of VM measurements using the Pentium timestamp counter, if
    *on_flag* is true. Deactivate these dumps if *on_flag* is off. The function is
-   available only if Python was compiled with :option:`--with-tsc`. To understand
+   available only if Python was compiled with ``--with-tsc``. To understand
    the output of this dump, read :file:`Python/ceval.c` in the Python sources.
 
    .. versionadded:: 2.4

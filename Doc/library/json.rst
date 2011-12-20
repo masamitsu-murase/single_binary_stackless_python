@@ -7,7 +7,7 @@
 .. sectionauthor:: Bob Ippolito <bob@redivi.com>
 .. versionadded:: 2.6
 
-JSON (JavaScript Object Notation) <http://json.org> is a subset of JavaScript
+`JSON (JavaScript Object Notation) <http://json.org>`_ is a subset of JavaScript
 syntax (ECMA-262 3rd edition) used as a lightweight data interchange format.
 
 :mod:`json` exposes an API familiar to users of the standard library
@@ -139,9 +139,9 @@ Basic Usage
    using the JavaScript equivalents (``NaN``, ``Infinity``, ``-Infinity``).
 
    If *indent* is a non-negative integer, then JSON array elements and object
-   members will be pretty-printed with that indent level.  An indent level of 0
-   will only insert newlines.  ``None`` (the default) selects the most compact
-   representation.
+   members will be pretty-printed with that indent level.  An indent level of 0,
+   or negative, will only insert newlines.  ``None`` (the default) selects the
+   most compact representation.
 
    If *separators* is an ``(item_separator, dict_separator)`` tuple, then it
    will be used instead of the default ``(', ', ': ')`` separators.  ``(',',
@@ -156,6 +156,11 @@ Basic Usage
    :meth:`default` method to serialize additional types), specify it with the
    *cls* kwarg; otherwise :class:`JSONEncoder` is used.
 
+   .. note::
+
+      Unlike :mod:`pickle` and :mod:`marshal`, JSON is not a framed protocol so
+      trying to serialize more objects with repeated calls to :func:`dump` and
+      the same *fp* will result in an invalid JSON file.
 
 .. function:: dumps(obj[, skipkeys[, ensure_ascii[, check_circular[, allow_nan[, cls[, indent[, separators[, encoding[, default[, **kw]]]]]]]]]])
 

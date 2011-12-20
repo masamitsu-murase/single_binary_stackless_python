@@ -32,6 +32,16 @@ easily.
    This library does *not* interpret or write the value-type prefixes used in
    the Windows Registry extended version of INI syntax.
 
+.. seealso::
+
+   Module :mod:`shlex`
+      Support for a creating Unix shell-like mini-languages which can be used
+      as an alternate format for application configuration files.
+
+   Module :mod:`json`
+      The json module implements a subset of JavaScript syntax which can also
+      be used for this purpose.
+
 The configuration file consists of sections, led by a ``[section]`` header and
 followed by ``name: value`` entries, with continuations in the style of
 :rfc:`822` (see section 3.1.1, "LONG HEADER FIELDS"); ``name=value`` is also
@@ -86,6 +96,9 @@ write-back, as will be the keys within each section.
    This class does not
    support the magical interpolation behavior.
 
+   All option names are passed through the :meth:`optionxform` method.  Its
+   default implementation converts option names to lower case.
+
    .. versionadded:: 2.3
 
    .. versionchanged:: 2.6
@@ -106,10 +119,9 @@ write-back, as will be the keys within each section.
    *defaults*.
 
    All option names used in interpolation will be passed through the
-   :meth:`optionxform` method just like any other option name reference.  For
-   example, using the default implementation of :meth:`optionxform` (which converts
-   option names to lower case), the values ``foo %(bar)s`` and ``foo %(BAR)s`` are
-   equivalent.
+   :meth:`optionxform` method just like any other option name reference.  Using
+   the default implementation of :meth:`optionxform`, the values ``foo %(bar)s``
+   and ``foo %(BAR)s`` are equivalent.
 
    .. versionadded:: 2.3
 

@@ -1,8 +1,8 @@
-:mod:`ssl` --- SSL wrapper for socket objects
-=============================================
+:mod:`ssl` --- TLS/SSL wrapper for socket objects
+=================================================
 
 .. module:: ssl
-   :synopsis: SSL wrapper for socket objects
+   :synopsis: TLS/SSL wrapper for socket objects
 
 .. moduleauthor:: Bill Janssen <bill.janssen@gmail.com>
 
@@ -236,6 +236,9 @@ Functions, Constants, and Exceptions
 .. data:: PROTOCOL_SSLv2
 
    Selects SSL version 2 as the channel encryption protocol.
+
+   This protocol is not available if OpenSSL is compiled with OPENSSL_NO_SSL2
+   flag.
 
    .. warning::
 
@@ -505,11 +508,11 @@ To test for the presence of SSL support in a Python installation, user code
 should use the following idiom::
 
    try:
-      import ssl
+       import ssl
    except ImportError:
-      pass
+       pass
    else:
-      [ do something that requires SSL support ]
+       ... # do something that requires SSL support
 
 Client-side operation
 ^^^^^^^^^^^^^^^^^^^^^
@@ -582,29 +585,31 @@ the other end, and use :func:`wrap_socket` to create a server-side SSL context
 for it::
 
    while True:
-      newsocket, fromaddr = bindsocket.accept()
-      connstream = ssl.wrap_socket(newsocket,
-                                   server_side=True,
-                                   certfile="mycertfile",
-                                   keyfile="mykeyfile",
-                                   ssl_version=ssl.PROTOCOL_TLSv1)
-      deal_with_client(connstream)
+       newsocket, fromaddr = bindsocket.accept()
+       connstream = ssl.wrap_socket(newsocket,
+                                    server_side=True,
+                                    certfile="mycertfile",
+                                    keyfile="mykeyfile",
+                                    ssl_version=ssl.PROTOCOL_TLSv1)
+       try:
+           deal_with_client(connstream)
+       finally:
+           connstream.shutdown(socket.SHUT_RDWR)
+           connstream.close()
 
 Then you'd read data from the ``connstream`` and do something with it till you
 are finished with the client (or the client is finished with you)::
 
    def deal_with_client(connstream):
-
-      data = connstream.read()
-      # null data means the client is finished with us
-      while data:
-         if not do_something(connstream, data):
-            # we'll assume do_something returns False
-            # when we're finished with client
-            break
-         data = connstream.read()
-      # finished with client
-      connstream.close()
+       data = connstream.read()
+       # null data means the client is finished with us
+       while data:
+           if not do_something(connstream, data):
+               # we'll assume do_something returns False
+               # when we're finished with client
+               break
+           data = connstream.read()
+       # finished with client
 
 And go back to listening for new client connections.
 

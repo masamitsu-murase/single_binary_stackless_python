@@ -123,9 +123,10 @@ ZipFile Objects
    and :program:`unzip` commands on Unix (the InfoZIP utilities) don't support
    these extensions.
 
-   If the file is created with mode ``'a'`` or ``'w'`` and then
-   :meth:`close`\ d without adding any files to the archive, the appropriate
-   ZIP structures for an empty archive will be written to the file.
+   .. versionchanged:: 2.7.1
+      If the file is created with mode ``'a'`` or ``'w'`` and then
+      :meth:`close`\ d without adding any files to the archive, the appropriate
+      ZIP structures for an empty archive will be written to the file.
 
    ZipFile is also a context manager and therefore supports the
    :keyword:`with` statement.  In the example, *myzip* is closed after the
@@ -175,8 +176,8 @@ ZipFile Objects
    .. note::
 
       The file-like object is read-only and provides the following methods:
-      :meth:`read`, :meth:`readline`, :meth:`readlines`, :meth:`__iter__`,
-      :meth:`next`.
+      :meth:`!read`, :meth:`!readline`, :meth:`!readlines`, :meth:`!__iter__`,
+      :meth:`!next`.
 
    .. note::
 
@@ -302,7 +303,7 @@ ZipFile Objects
 
    .. note::
 
-      When passing a :class:`ZipInfo` instance as the *zinfo_or_acrname* parameter,
+      When passing a :class:`ZipInfo` instance as the *zinfo_or_arcname* parameter,
       the compression method used will be that specified in the *compress_type*
       member of the given :class:`ZipInfo` instance.  By default, the
       :class:`ZipInfo` constructor sets this member to :const:`ZIP_STORED`.

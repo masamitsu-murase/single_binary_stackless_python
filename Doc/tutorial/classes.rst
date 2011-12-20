@@ -518,7 +518,7 @@ other multiple-inheritance languages as call-next-method and is more powerful
 than the super call found in single-inheritance languages.
 
 With new-style classes, dynamic ordering is necessary because all  cases of
-multiple inheritance exhibit one or more diamond relationships (where one at
+multiple inheritance exhibit one or more diamond relationships (where at
 least one of the parent classes can be accessed through multiple paths from the
 bottommost class).  For example, all new-style classes inherit from
 :class:`object`, so any case of multiple inheritance provides more than one path
@@ -687,7 +687,6 @@ This example shows how it all works::
    >>> it.next()
    'c'
    >>> it.next()
-
    Traceback (most recent call last):
      File "<stdin>", line 1, in ?
        it.next()
@@ -699,7 +698,7 @@ returns an object with a :meth:`next` method.  If the class defines
 :meth:`next`, then :meth:`__iter__` can just return ``self``::
 
    class Reverse:
-       "Iterator for looping over a sequence backwards"
+       """Iterator for looping over a sequence backwards."""
        def __init__(self, data):
            self.data = data
            self.index = len(data)
@@ -710,6 +709,8 @@ returns an object with a :meth:`next` method.  If the class defines
                raise StopIteration
            self.index = self.index - 1
            return self.data[self.index]
+
+::
 
    >>> rev = Reverse('spam')
    >>> iter(rev)
@@ -738,6 +739,8 @@ easy to create::
    def reverse(data):
        for index in range(len(data)-1, -1, -1):
            yield data[index]
+
+::
 
    >>> for char in reverse('golf'):
    ...     print char

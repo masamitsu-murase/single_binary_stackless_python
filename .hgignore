@@ -29,12 +29,16 @@ Modules/Setup$
 Modules/Setup.config
 Modules/Setup.local
 Modules/config.c
+Modules/ld_so_aix$
 Parser/pgen$
+Parser/pgen.stamp$
 ^core
 ^python-gdb.py
 
 syntax: glob
+python.exe-gdb.py
 libpython*.a
+*.swp
 *.o
 *.pyc
 *.pyo
@@ -45,6 +49,10 @@ libpython*.a
 *~
 Lib/lib2to3/*.pickle
 Lib/test/data/*
+Misc/*.wpu
+PC/python_nt*.h
+PC/pythonnt_rc*.h
+PC/*.obj
 PCbuild/*.exe
 PCbuild/*.dll
 PCbuild/*.pdb

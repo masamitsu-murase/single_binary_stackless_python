@@ -58,14 +58,6 @@ Some Python modules are also useful as scripts.  These can be invoked using
 ``python -m module [arg] ...``, which executes the source file for *module* as
 if you had spelled out its full name on the command line.
 
-Note that there is a difference between ``python file`` and ``python <file``.
-In the latter case, input requests from the program, such as calls to
-:func:`input` and :func:`raw_input`, are satisfied from *file*.  Since this file
-has already been read until the end by the parser before the program starts
-executing, the program will encounter end-of-file immediately.  In the former
-case (which is usually what you want) they are satisfied from whatever file or
-device is connected to standard input of the Python interpreter.
-
 When a script file is used, it is sometimes useful to be able to run the script
 and enter interactive mode afterwards.  This can be done by passing :option:`-i`
 before the script.  (This does not work if the script is read from standard
@@ -78,8 +70,9 @@ Argument Passing
 ----------------
 
 When known to the interpreter, the script name and additional arguments
-thereafter are passed to the script in the variable ``sys.argv``, which is a
-list of strings.  Its length is at least one; when no script and no arguments
+thereafter are turned into a list of strings and assigned to the ``argv``
+variable in the ``sys`` module.  You can access this list by executing ``import
+sys``.  The length of the list is at least one; when no script and no arguments
 are given, ``sys.argv[0]`` is an empty string.  When the script name is given as
 ``'-'`` (meaning  standard input), ``sys.argv[0]`` is set to ``'-'``.  When
 :option:`-c` *command* is used, ``sys.argv[0]`` is set to ``'-c'``.  When

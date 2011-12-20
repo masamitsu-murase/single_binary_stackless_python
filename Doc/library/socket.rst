@@ -515,6 +515,9 @@ The module :mod:`socket` exports the following constants and functions:
    Module :mod:`SocketServer`
       Classes that simplify writing network servers.
 
+   Module :mod:`ssl`
+      A TLS/SSL wrapper for socket objects.
+
 
 .. _socket-objects:
 
@@ -550,6 +553,12 @@ correspond to Unix system calls applicable to sockets.
    Close the socket.  All future operations on the socket object will fail. The
    remote end will receive no more data (after queued data is flushed). Sockets are
    automatically closed when they are garbage-collected.
+
+   .. note::
+      :meth:`close()` releases the resource associated with a connection but
+      does not necessarily close the connection immediately.  If you want
+      to close the connection in a timely fashion, call :meth:`shutdown()`
+      before :meth:`close()`.
 
 
 .. method:: socket.connect(address)
@@ -635,8 +644,8 @@ correspond to Unix system calls applicable to sockets.
 .. method:: socket.listen(backlog)
 
    Listen for connections made to the socket.  The *backlog* argument specifies the
-   maximum number of queued connections and should be at least 1; the maximum value
-   is system-dependent (usually 5).
+   maximum number of queued connections and should be at least 0; the maximum value
+   is system-dependent (usually 5), the minimum value is forced to 0.
 
 
 .. method:: socket.makefile([mode[, bufsize]])
@@ -650,6 +659,12 @@ correspond to Unix system calls applicable to sockets.
    The socket must be in blocking mode (it can not have a timeout). The optional
    *mode* and *bufsize* arguments are interpreted the same way as by the built-in
    :func:`file` function.
+
+   .. note::
+
+      On Windows, the file-like object created by :meth:`makefile` cannot be
+      used where a file object with a file descriptor is expected, such as the
+      stream arguments of :meth:`subprocess.Popen`.
 
 
 .. method:: socket.recv(bufsize[, flags])

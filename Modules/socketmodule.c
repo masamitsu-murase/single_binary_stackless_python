@@ -2244,8 +2244,10 @@ sock_listen(PySocketSockObject *s, PyObject *arg)
     if (backlog == -1 && PyErr_Occurred())
         return NULL;
     Py_BEGIN_ALLOW_THREADS
-    if (backlog < 1)
-        backlog = 1;
+    /* To avoid problems on systems that don't allow a negative backlog
+     * (which doesn't make sense anyway) we force a minimum value of 0. */
+    if (backlog < 0)
+        backlog = 0;
     res = listen(s->sock_fd, backlog);
     Py_END_ALLOW_THREADS
     if (res < 0)
@@ -2258,8 +2260,9 @@ PyDoc_STRVAR(listen_doc,
 "listen(backlog)\n\
 \n\
 Enable a server to accept connections.  The backlog argument must be at\n\
-least 1; it specifies the number of unaccepted connection that the system\n\
-will allow before refusing new connections.");
+least 0 (if it is lower, it is set to 0); it specifies the number of\n\
+unaccepted connections that the system will allow before refusing new\n\
+connections.");
 
 
 #ifndef NO_DUP
@@ -2329,7 +2332,7 @@ The mode and buffersize arguments are as for the built-in open() function.");
  * This is the guts of the recv() and recv_into() methods, which reads into a
  * char buffer.  If you have any inc/dec ref to do to the objects that contain
  * the buffer, do it in the caller.  This function returns the number of bytes
- * succesfully read.  If there was an error, it returns -1.  Note that it is
+ * successfully read.  If there was an error, it returns -1.  Note that it is
  * also possible that we return a number of bytes smaller than the request
  * bytes.
  */
@@ -2442,9 +2445,9 @@ sock_recv(PySocketSockObject *s, PyObject *args)
     }
     if (outlen != recvlen) {
         /* We did not read as many bytes as we anticipated, resize the
-           string if possible and be succesful. */
+           string if possible and be successful. */
         if (_PyString_Resize(&buf, outlen) < 0)
-            /* Oopsy, not so succesful after all. */
+            /* Oopsy, not so successful after all. */
             return NULL;
     }
 
@@ -2527,7 +2530,7 @@ See recv() for documentation about the flags.");
  * This is the guts of the recvfrom() and recvfrom_into() methods, which reads
  * into a char buffer.  If you have any inc/def ref to do to the objects that
  * contain the buffer, do it in the caller.  This function returns the number
- * of bytes succesfully read.  If there was an error, it returns -1.  Note
+ * of bytes successfully read.  If there was an error, it returns -1.  Note
  * that it is also possible that we return a number of bytes smaller than the
  * request bytes.
  *
@@ -2620,9 +2623,9 @@ sock_recvfrom(PySocketSockObject *s, PyObject *args)
 
     if (outlen != recvlen) {
         /* We did not read as many bytes as we anticipated, resize the
-           string if possible and be succesful. */
+           string if possible and be successful. */
         if (_PyString_Resize(&buf, outlen) < 0)
-            /* Oopsy, not so succesful after all. */
+            /* Oopsy, not so successful after all. */
             goto finally;
     }
 
@@ -2826,14 +2829,24 @@ sock_sendto(PySocketSockObject *s, PyObject *args)
     Py_ssize_t len;
     sock_addr_t addrbuf;
     int addrlen, n = -1, flags, timeout;
+    int arglen;
 
     flags = 0;
-    if (!PyArg_ParseTuple(args, "s*O:sendto", &pbuf, &addro)) {
-        PyErr_Clear();
-        if (!PyArg_ParseTuple(args, "s*iO:sendto",
-                              &pbuf, &flags, &addro))
-            return NULL;
+    arglen = PyTuple_Size(args);
+    switch(arglen) {
+        case 2:
+            PyArg_ParseTuple(args, "s*O:sendto", &pbuf, &addro);
+            break;
+        case 3:
+            PyArg_ParseTuple(args, "s*iO:sendto", &pbuf, &flags, &addro);
+            break;
+        default:
+            PyErr_Format(PyExc_TypeError, "sendto() takes 2 or 3"
+                         " arguments (%d given)", arglen);
     }
+    if (PyErr_Occurred())
+        return NULL;
+
     buf = pbuf.buf;
     len = pbuf.len;
 
@@ -4413,7 +4426,7 @@ os_init(void)
 
     return 0;  /* Failure */
 #else
-    /* No need to initialise sockets with GCC/EMX */
+    /* No need to initialize sockets with GCC/EMX */
     return 1; /* Success */
 #endif
 }
@@ -4449,7 +4462,7 @@ PySocketModule_APIObject PySocketModuleAPI =
    as makefile(), dup() and fromfd().  The import of "_socket" may fail
    with an ImportError exception if os-specific initialization fails.
    On Windows, this does WINSOCK initialization.  When WINSOCK is
-   initialized succesfully, a call to WSACleanup() is scheduled to be
+   initialized successfully, a call to WSACleanup() is scheduled to be
    made at exit time.
 */
 

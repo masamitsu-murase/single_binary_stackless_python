@@ -62,7 +62,6 @@ import _ssl             # if we can't import it, let the error propagate
 from _ssl import OPENSSL_VERSION_NUMBER, OPENSSL_VERSION_INFO, OPENSSL_VERSION
 from _ssl import SSLError
 from _ssl import CERT_NONE, CERT_OPTIONAL, CERT_REQUIRED
-from _ssl import PROTOCOL_SSLv2, PROTOCOL_SSLv3, PROTOCOL_SSLv23, PROTOCOL_TLSv1
 from _ssl import RAND_status, RAND_egd, RAND_add
 from _ssl import \
      SSL_ERROR_ZERO_RETURN, \
@@ -74,6 +73,18 @@ from _ssl import \
      SSL_ERROR_WANT_CONNECT, \
      SSL_ERROR_EOF, \
      SSL_ERROR_INVALID_ERROR_CODE
+from _ssl import PROTOCOL_SSLv3, PROTOCOL_SSLv23, PROTOCOL_TLSv1
+_PROTOCOL_NAMES = {
+    PROTOCOL_TLSv1: "TLSv1",
+    PROTOCOL_SSLv23: "SSLv23",
+    PROTOCOL_SSLv3: "SSLv3",
+}
+try:
+    from _ssl import PROTOCOL_SSLv2
+except ImportError:
+    pass
+else:
+    _PROTOCOL_NAMES[PROTOCOL_SSLv2] = "SSLv2"
 
 from socket import socket, _fileobject, _delegate_methods, error as socket_error
 from socket import getnameinfo as _getnameinfo
@@ -110,9 +121,11 @@ class SSLSocket(socket):
             if e.errno != errno.ENOTCONN:
                 raise
             # no, no connection yet
+            self._connected = False
             self._sslobj = None
         else:
             # yes, create the SSL object
+            self._connected = True
             self._sslobj = _ssl.sslwrap(self._sock, server_side,
                                         keyfile, certfile,
                                         cert_reqs, ssl_version, ca_certs,
@@ -282,21 +295,36 @@ class SSLSocket(socket):
 
         self._sslobj.do_handshake()
 
-    def connect(self, addr):
-
-        """Connects to remote ADDR, and then wraps the connection in
-        an SSL channel."""
-
+    def _real_connect(self, addr, return_errno):
         # Here we assume that the socket is client-side, and not
         # connected at the time of the call.  We connect it, then wrap it.
-        if self._sslobj:
+        if self._connected:
             raise ValueError("attempt to connect already-connected SSLSocket!")
-        socket.connect(self, addr)
         self._sslobj = _ssl.sslwrap(self._sock, False, self.keyfile, self.certfile,
                                     self.cert_reqs, self.ssl_version,
                                     self.ca_certs, self.ciphers)
-        if self.do_handshake_on_connect:
-            self.do_handshake()
+        try:
+            socket.connect(self, addr)
+            if self.do_handshake_on_connect:
+                self.do_handshake()
+        except socket_error as e:
+            if return_errno:
+                return e.errno
+            else:
+                self._sslobj = None
+                raise e
+        self._connected = True
+        return 0
+
+    def connect(self, addr):
+        """Connects to remote ADDR, and then wraps the connection in
+        an SSL channel."""
+        self._real_connect(addr, False)
+
+    def connect_ex(self, addr):
+        """Connects to remote ADDR, and then wraps the connection in
+        an SSL channel."""
+        return self._real_connect(addr, True)
 
     def accept(self):
 
@@ -408,16 +436,7 @@ def get_server_certificate(addr, ssl_version=PROTOCOL_SSLv3, ca_certs=None):
     return DER_cert_to_PEM_cert(dercert)
 
 def get_protocol_name(protocol_code):
-    if protocol_code == PROTOCOL_TLSv1:
-        return "TLSv1"
-    elif protocol_code == PROTOCOL_SSLv23:
-        return "SSLv23"
-    elif protocol_code == PROTOCOL_SSLv2:
-        return "SSLv2"
-    elif protocol_code == PROTOCOL_SSLv3:
-        return "SSLv3"
-    else:
-        return "<unknown>"
+    return _PROTOCOL_NAMES.get(protocol_code, '<unknown>')
 
 
 # a replacement for the old socket.ssl function

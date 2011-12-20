@@ -167,15 +167,15 @@ High-level interface
       the  download is interrupted.
 
       The *Content-Length* is treated as a lower bound: if there's more data  to read,
-      urlretrieve reads more data, but if less data is available,  it raises the
-      exception.
+      :func:`urlretrieve` reads more data, but if less data is available,  it raises
+      the exception.
 
       You can still retrieve the downloaded data in this case, it is stored  in the
       :attr:`content` attribute of the exception instance.
 
-      If no *Content-Length* header was supplied, urlretrieve can not check the size
-      of the data it has downloaded, and just returns it.  In this case you just have
-      to assume that the download was successful.
+      If no *Content-Length* header was supplied, :func:`urlretrieve` can not check
+      the size of the data it has downloaded, and just returns it.  In this case you
+      just have to assume that the download was successful.
 
 
 .. data:: _urlopener
@@ -451,7 +451,7 @@ URL Opener objects
   you try to fetch a file whose read permissions make it inaccessible; the FTP
   code will try to read it, fail with a 550 error, and then perform a directory
   listing for the unreadable file. If fine-grained control is needed, consider
-  using the :mod:`ftplib` module, subclassing :class:`FancyURLOpener`, or changing
+  using the :mod:`ftplib` module, subclassing :class:`FancyURLopener`, or changing
   *_urlopener* to meet your needs.
 
 * This module does not support the use of proxies which require authentication.

@@ -360,10 +360,10 @@ Notes:
    See :ref:`built-in-funcs` for a full description.
 
 (4)
-   Complex floor division operator, modulo operator, and :func:`divmod`.
-
    .. deprecated:: 2.3
-      Instead convert to float using :func:`abs` if appropriate.
+      The floor division operator, the modulo operator, and the :func:`divmod`
+      function are no longer defined for complex numbers.  Instead, convert to
+      a floating point number using the :func:`abs` function if appropriate.
 
 (5)
    Also referred to as integer division.  The resultant value is a whole integer,
@@ -460,6 +460,9 @@ Notes:
 Additional Methods on Integer Types
 -----------------------------------
 
+The integer types implement the :class:`numbers.Integral` :term:`abstract base
+class`. In addition, they provide one more method:
+
 .. method:: int.bit_length()
 .. method:: long.bit_length()
 
@@ -491,7 +494,8 @@ Additional Methods on Integer Types
 Additional Methods on Float
 ---------------------------
 
-The float type has some additional methods.
+The float type implements the :class:`numbers.Real` :term:`abstract base
+class`. float also has the following additional methods.
 
 .. method:: float.as_integer_ratio()
 
@@ -939,6 +943,15 @@ string functions based on regular expressions.
    that *sub* is contained in the slice ``s[start:end]``.  Optional arguments
    *start* and *end* are interpreted as in slice notation.  Return ``-1`` if
    *sub* is not found.
+
+   .. note::
+
+      The :meth:`~str.find` method should be used only if you need to know the
+      position of *sub*.  To check if *sub* is a substring or not, use the
+      :keyword:`in` operator::
+
+         >>> 'Py' in 'Python'
+         True
 
 
 .. method:: str.format(*args, **kwargs)
@@ -2388,11 +2401,12 @@ Files have the following methods:
 
 .. method:: file.readline([size])
 
-   Read one entire line from the file.  A trailing newline character is kept in the
-   string (but may be absent when a file ends with an incomplete line). [#]_  If
-   the *size* argument is present and non-negative, it is a maximum byte count
-   (including the trailing newline) and an incomplete line may be returned. An
-   empty string is returned *only* when EOF is encountered immediately.
+   Read one entire line from the file.  A trailing newline character is kept in
+   the string (but may be absent when a file ends with an incomplete line). [#]_
+   If the *size* argument is present and non-negative, it is a maximum byte
+   count (including the trailing newline) and an incomplete line may be
+   returned. When *size* is not 0, an empty string is returned *only* when EOF
+   is encountered immediately.
 
    .. note::
 
@@ -2534,14 +2548,14 @@ the particular object.
 
 .. attribute:: file.newlines
 
-   If Python was built with the :option:`--with-universal-newlines` option to
-   :program:`configure` (the default) this read-only attribute exists, and for
-   files opened in universal newline read mode it keeps track of the types of
-   newlines encountered while reading the file. The values it can take are
-   ``'\r'``, ``'\n'``, ``'\r\n'``, ``None`` (unknown, no newlines read yet) or a
-   tuple containing all the newline types seen, to indicate that multiple newline
-   conventions were encountered. For files not opened in universal newline read
-   mode the value of this attribute will be ``None``.
+   If Python was built with universal newlines enabled (the default) this
+   read-only attribute exists, and for files opened in universal newline read
+   mode it keeps track of the types of newlines encountered while reading the
+   file. The values it can take are ``'\r'``, ``'\n'``, ``'\r\n'``, ``None``
+   (unknown, no newlines read yet) or a tuple containing all the newline types
+   seen, to indicate that multiple newline conventions were encountered. For
+   files not opened in universal newline read mode the value of this attribute
+   will be ``None``.
 
 
 .. attribute:: file.softspace
@@ -2575,7 +2589,7 @@ is generally interpreted as simple bytes.
 .. class:: memoryview(obj)
 
    Create a :class:`memoryview` that references *obj*.  *obj* must support the
-   buffer protocol.  Builtin objects that support the buffer protocol include
+   buffer protocol.  Built-in objects that support the buffer protocol include
    :class:`str` and :class:`bytearray` (but not :class:`unicode`).
 
    A :class:`memoryview` has the notion of an *element*, which is the
@@ -2664,6 +2678,10 @@ is generally interpreted as simple bytes.
 
       A tuple of integers the length of :attr:`ndim` giving the size in bytes to
       access each element for each dimension of the array.
+
+   .. attribute:: readonly
+
+      A bool indicating whether the memory is read only.
 
    .. memoryview.suboffsets isn't documented because it only seems useful for C
 

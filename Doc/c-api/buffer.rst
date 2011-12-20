@@ -266,20 +266,6 @@ Buffer related functions
    :cdata:`~Py_buffer.format`.
 
 
-.. cfunction:: int PyObject_CopyToObject(PyObject *obj, void *buf, Py_ssize_t len, char fortran)
-
-   Copy *len* bytes of data pointed to by the contiguous chunk of memory
-   pointed to by *buf* into the buffer exported by obj.  The buffer must of
-   course be writable.  Return 0 on success and return -1 and raise an error
-   on failure.  If the object does not have a writable buffer, then an error
-   is raised.  If *fortran* is ``'F'``, then if the object is
-   multi-dimensional, then the data will be copied into the array in
-   Fortran-style (first dimension varies the fastest).  If *fortran* is
-   ``'C'``, then the data will be copied into the array in C-style (last
-   dimension varies the fastest).  If *fortran* is ``'A'``, then it does not
-   matter and the copy will be made in whatever way is more efficient.
-
-
 .. cfunction:: int PyBuffer_IsContiguous(Py_buffer *view, char fortran)
 
    Return 1 if the memory defined by the *view* is C-style (*fortran* is
@@ -290,7 +276,7 @@ Buffer related functions
 .. cfunction:: void PyBuffer_FillContiguousStrides(int ndim, Py_ssize_t *shape, Py_ssize_t *strides, Py_ssize_t itemsize, char fortran)
 
    Fill the *strides* array with byte-strides of a contiguous (C-style if
-   *fortran* is ``'C'`` or Fortran-style if *fortran* is ``'F'`` array of the
+   *fortran* is ``'C'`` or Fortran-style if *fortran* is ``'F'``) array of the
    given shape with the given number of bytes per element.
 
 

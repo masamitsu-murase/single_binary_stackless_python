@@ -26,10 +26,21 @@ The :mod:`dummy_threading` module is provided for situations where
    Starting with Python 2.5, several Thread methods raise :exc:`RuntimeError`
    instead of :exc:`AssertionError` if called erroneously.
 
+.. impl-detail::
+
+   Due to the :term:`Global Interpreter Lock`, in CPython only one thread
+   can execute Python code at once (even though certain performance-oriented
+   libraries might overcome this limitation).
+   If you want your application to make better of use of the computational
+   resources of multi-core machines, you are advised to use
+   :mod:`multiprocessing`. However, threading is still an appropriate model
+   if you want to run multiple I/O-bound tasks simultaneously.
+
 .. seealso::
 
    Latest version of the `threading module Python source code
    <http://svn.python.org/view/python/branches/release27-maint/Lib/threading.py?view=markup>`_
+
 
 This module defines the following functions and objects:
 
@@ -279,7 +290,7 @@ impossible to detect the termination of alien threads.
       It must be called at most once per thread object.  It arranges for the
       object's :meth:`run` method to be invoked in a separate thread of control.
 
-      This method will raise a :exc:`RuntimeException` if called more than once
+      This method will raise a :exc:`RuntimeError` if called more than once
       on the same thread object.
 
    .. method:: run()
@@ -388,7 +399,7 @@ and may vary across implementations.
 All methods are executed atomically.
 
 
-.. method:: Lock.acquire([blocking=1])
+.. method:: Lock.acquire([blocking])
 
    Acquire a lock, blocking or non-blocking.
 
@@ -644,9 +655,9 @@ waiting until some other thread calls :meth:`release`.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Semaphores are often used to guard resources with limited capacity, for example,
-a database server.  In any situation where the size of the resource size is
-fixed, you should use a bounded semaphore.  Before spawning any worker threads,
-your main thread would initialize the semaphore::
+a database server.  In any situation where the size of the resource is fixed,
+you should use a bounded semaphore.  Before spawning any worker threads, your
+main thread would initialize the semaphore::
 
    maxconnections = 5
    ...

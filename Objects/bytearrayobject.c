@@ -636,7 +636,7 @@ bytearray_ass_subscript(PyByteArrayObject *self, PyObject *index, PyObject *valu
         needed = 0;
     }
     else if (values == (PyObject *)self || !PyByteArray_Check(values)) {
-        /* Make a copy an call this function recursively */
+        /* Make a copy and call this function recursively */
         int err;
         values = PyByteArray_FromObject(values);
         if (values == NULL)
@@ -1149,8 +1149,8 @@ bytearray_find_internal(PyByteArrayObject *self, PyObject *args, int dir)
     Py_ssize_t start=0, end=PY_SSIZE_T_MAX;
     Py_ssize_t res;
 
-    if (!PyArg_ParseTuple(args, "O|O&O&:find/rfind/index/rindex", &subobj,
-        _PyEval_SliceIndex, &start, _PyEval_SliceIndex, &end))
+    if (!stringlib_parse_args_finds("find/rfind/index/rindex",
+                                    args, &subobj, &start, &end))
         return -2;
     if (_getbuffer(subobj, &subbuf) < 0)
         return -2;
@@ -1200,8 +1200,7 @@ bytearray_count(PyByteArrayObject *self, PyObject *args)
     Py_buffer vsub;
     PyObject *count_obj;
 
-    if (!PyArg_ParseTuple(args, "O|O&O&:count", &sub_obj,
-        _PyEval_SliceIndex, &start, _PyEval_SliceIndex, &end))
+    if (!stringlib_parse_args_finds("count", args, &sub_obj, &start, &end))
         return NULL;
 
     if (_getbuffer(sub_obj, &vsub) < 0)
@@ -1359,8 +1358,7 @@ bytearray_startswith(PyByteArrayObject *self, PyObject *args)
     PyObject *subobj;
     int result;
 
-    if (!PyArg_ParseTuple(args, "O|O&O&:startswith", &subobj,
-        _PyEval_SliceIndex, &start, _PyEval_SliceIndex, &end))
+    if (!stringlib_parse_args_finds("startswith", args, &subobj, &start, &end))
         return NULL;
     if (PyTuple_Check(subobj)) {
         Py_ssize_t i;
@@ -1399,8 +1397,7 @@ bytearray_endswith(PyByteArrayObject *self, PyObject *args)
     PyObject *subobj;
     int result;
 
-    if (!PyArg_ParseTuple(args, "O|O&O&:endswith", &subobj,
-        _PyEval_SliceIndex, &start, _PyEval_SliceIndex, &end))
+    if (!stringlib_parse_args_finds("endswith", args, &subobj, &start, &end))
         return NULL;
     if (PyTuple_Check(subobj)) {
         Py_ssize_t i;
@@ -2291,7 +2288,7 @@ bytearray_extend(PyByteArrayObject *self, PyObject *arg)
     if (it == NULL)
         return NULL;
 
-    /* Try to determine the length of the argument. 32 is abitrary. */
+    /* Try to determine the length of the argument. 32 is arbitrary. */
     buf_size = _PyObject_LengthHint(arg, 32);
     if (buf_size == -1) {
         Py_DECREF(it);
@@ -2355,8 +2352,8 @@ bytearray_pop(PyByteArrayObject *self, PyObject *args)
         return NULL;
 
     if (n == 0) {
-        PyErr_SetString(PyExc_OverflowError,
-                        "cannot pop an empty bytearray");
+        PyErr_SetString(PyExc_IndexError,
+                        "pop from empty bytearray");
         return NULL;
     }
     if (where < 0)

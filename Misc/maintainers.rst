@@ -1,6 +1,11 @@
 Maintainers Index
 =================
 
+.. warning::
+
+   This document is out of date and replaced by another version in the
+   developer's guide at http://docs.python.org/devguide/experts
+
 This document has tables that list Python Modules, Tools, Platforms and
 Interest Areas and names for each item that indicate a maintainer or an
 expert in the field.  This list is intended to be used by issue submitters,
@@ -13,7 +18,7 @@ any other issues can and should be decided by any committer.
 
 Unless a name is followed by a '*', you should never assign an issue to
 that person, only make them nosy.  Names followed by a '*' may be assigned
-issues involving the module or topic for which the name has a '*'.
+issues involving the module or topic.
 
 The Platform and Interest Area tables list broader fields in which various
 people have expertise.  These people can also be contacted for help,
@@ -65,7 +70,7 @@ binascii
 binhex
 bisect              rhettinger
 bz2
-calendar
+calendar            rhettinger
 cgi
 CGIHTTPServer
 cgitb
@@ -75,22 +80,23 @@ cmd
 code
 codecs              lemburg, doerwalter
 codeop
-collections         rhettinger, stutzbach
+collections         rhettinger
+collections._abcoll rhettinger, stutzbach
 colorsys
 compileall
 ConfigParser        lukasz.langa
-contextlib
+contextlib          ncoghlan
 copy                alexandre.vassalotti
 copy_reg            alexandre.vassalotti
 cProfile
-crypt
-csv
+crypt               jafo*
+csv                 skip.montanaro
 ctypes              theller
 curses
-datetime            alexander.belopolsky
+datetime            belopolsky
 dbm
 decimal             facundobatista, rhettinger, mark.dickinson
-difflib             tim_one
+difflib             tim_one (inactive)
 dis
 distutils           tarek*, eric.araujo*
 doctest             tim_one (inactive)
@@ -107,7 +113,7 @@ formatter
 fpectl
 fractions           mark.dickinson, rhettinger
 ftplib              giampaolo.rodola
-functools
+functools           ncoghlan, rhettinger
 gc                  pitrou
 getopt
 getpass
@@ -130,7 +136,7 @@ importlib           brett.cannon
 inspect
 io                  pitrou, benjamin.peterson, stutzbach
 itertools           rhettinger
-json                bob.ippolito (inactive)
+json                bob.ippolito (inactive), rhettinger
 keyword
 lib2to3             benjamin.peterson
 linecache
@@ -149,7 +155,7 @@ msvcrt
 multiprocessing     jnoller
 netrc
 nis
-nntplib
+nntplib             pitrou
 numbers
 operator
 optparse            aronacher
@@ -209,8 +215,8 @@ symbol
 symtable            benjamin.peterson
 sys
 sysconfig           tarek
-syslog              jafo
-tabnanny            tim_one
+syslog              jafo*
+tabnanny            tim_one (inactive)
 tarfile             lars.gustaebel
 telnetlib
 tempfile            georg.brandl
@@ -218,18 +224,18 @@ termios
 test
 textwrap            georg.brandl
 threading           pitrou
-time                alexander.belopolsky
+time                belopolsky
 timeit              georg.brandl
 Tkinter             gpolo
 token               georg.brandl
 tokenize
-trace               alexander.belopolsky
+trace               belopolsky
 traceback           georg.brandl*
 tty
 turtle              gregorlingl
 types
 unicodedata         loewis, lemburg, ezio.melotti
-unittest            michael.foord
+unittest            michael.foord, ezio.melotti
 urllib              orsenthil
 uu
 uuid
@@ -271,7 +277,7 @@ Cygwin              jlt63, stutzbach
 FreeBSD
 HP-UX
 Linux
-Mac                 ronaldoussoren
+Mac                 ronaldoussoren, ned.deily
 NetBSD1
 OS2/EMX             aimacintyre
 Solaris
@@ -305,9 +311,9 @@ py3 transition      benjamin.peterson
 release management  tarek, lemburg, benjamin.peterson, barry, loewis,
                     gvanrossum, anthonybaxter
 str.format          eric.smith
-testing             michael.foord, pitrou, giampaolo.rodola
+testing             michael.foord, pitrou, giampaolo.rodola, ezio.melotti
 threads             pitrou
-time and dates      lemburg
+time and dates      lemburg, belopolsky
 unicode             lemburg, ezio.melotti, haypo
 version control
 ==================  ===========

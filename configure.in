@@ -5,14 +5,7 @@ dnl ***********************************************
 # Set VERSION so we only need to edit in one place (i.e., here)
 m4_define(PYTHON_VERSION, 2.7)
 
-dnl Some m4 magic to ensure that the configure script is generated
-dnl by the correct autoconf version.
-m4_define([version_required],
-[m4_if(m4_version_compare(m4_defn([m4_PACKAGE_VERSION]), [$1]), 0,
-       [],
-       [m4_fatal([Autoconf version $1 is required for Python], 63)])
-])
-version_required(2.65)
+AC_PREREQ(2.65)
 
 AC_REVISION($Revision$)
 AC_INIT(python, PYTHON_VERSION, http://bugs.python.org/)
@@ -878,6 +871,21 @@ else
 	SVNVERSION="echo Unversioned directory"
 fi
 
+AC_SUBST(HGVERSION)
+AC_SUBST(HGTAG)
+AC_SUBST(HGBRANCH)
+AC_CHECK_PROG(HAS_HG, hg, found, not-found)
+if test $HAS_HG = found
+then
+    HGVERSION="hg id -i \$(srcdir)"
+    HGTAG="hg id -t \$(srcdir)"
+    HGBRANCH="hg id -b \$(srcdir)"
+else
+    HGVERSION=""
+    HGTAG=""
+    HGBRANCH=""
+fi
+
 case $MACHDEP in
 bsdos*|hp*|HP*)
 	# install -d does not work on BSDI or HP-UX
@@ -1463,6 +1471,12 @@ fi
 if test "$use_lfs" = "yes"; then
 # Two defines needed to enable largefile support on various platforms
 # These may affect some typedefs
+case $ac_sys_system/$ac_sys_release in
+AIX*)
+    AC_DEFINE(_LARGE_FILES, 1, 
+    [This must be defined on AIX systems to enable large file support.])
+    ;;
+esac
 AC_DEFINE(_LARGEFILE_SOURCE, 1, 
 [This must be defined on some systems to enable large file support.])
 AC_DEFINE(_FILE_OFFSET_BITS, 64,
@@ -1783,7 +1797,7 @@ if test -z "$LDSHARED"
 then
 	case $ac_sys_system/$ac_sys_release in
 	AIX*)
-		BLDSHARED="\$(srcdir)/Modules/ld_so_aix \$(CC) -bI:Modules/python.exp -L\$(srcdir)"
+		BLDSHARED="\$(srcdir)/Modules/ld_so_aix \$(CC) -bI:\$(srcdir)/Modules/python.exp"
 		LDSHARED="\$(BINLIBDEST)/config/ld_so_aix \$(CC) -bI:\$(BINLIBDEST)/config/python.exp"
 		;;
 	BeOS*)
@@ -1809,8 +1823,8 @@ then
 		fi ;;
 	OSF*) LDSHARED="ld -shared -expect_unresolved \"*\"";;
 	Darwin/1.3*)
-		LDSHARED='$(CC) $(LDFLAGS) -bundle'
-		LDCXXSHARED='$(CXX) $(LDFLAGS) -bundle'
+		LDSHARED='$(CC) -bundle'
+		LDCXXSHARED='$(CXX) -bundle'
 		if test "$enable_framework" ; then
 			# Link against the framework. All externals should be defined.
 			BLDSHARED="$LDSHARED "'$(PYTHONFRAMEWORKDIR)/Versions/$(VERSION)/$(PYTHONFRAMEWORK)'
@@ -1822,8 +1836,8 @@ then
 			LDCXXSHARED="$LDCXXSHARED -undefined suppress"
 		fi ;;
 	Darwin/1.4*|Darwin/5.*|Darwin/6.*)
-		LDSHARED='$(CC) $(LDFLAGS) -bundle'
-		LDCXXSHARED='$(CXX) $(LDFLAGS) -bundle'
+		LDSHARED='$(CC) -bundle'
+		LDCXXSHARED='$(CXX) -bundle'
 		if test "$enable_framework" ; then
 			# Link against the framework. All externals should be defined.
 			BLDSHARED="$LDSHARED "'$(PYTHONFRAMEWORKDIR)/Versions/$(VERSION)/$(PYTHONFRAMEWORK)'
@@ -1844,12 +1858,12 @@ then
 			if test "${enable_universalsdk}"; then
 				LDFLAGS="${UNIVERSAL_ARCH_FLAGS} -isysroot ${UNIVERSALSDK} ${LDFLAGS}"
 			fi
-			LDSHARED='$(CC) $(LDFLAGS) -bundle -undefined dynamic_lookup'
-			LDCXXSHARED='$(CXX) $(LDFLAGS) -bundle -undefined dynamic_lookup'
+			LDSHARED='$(CC) -bundle -undefined dynamic_lookup'
+			LDCXXSHARED='$(CXX) -bundle -undefined dynamic_lookup'
 			BLDSHARED="$LDSHARED"
 		else
-			LDSHARED='$(CC) $(LDFLAGS) -bundle'
-			LDCXXSHARED='$(CXX) $(LDFLAGS) -bundle'
+			LDSHARED='$(CC) -bundle'
+			LDCXXSHARED='$(CXX) -bundle'
 			if test "$enable_framework" ; then
 				# Link against the framework. All externals should be defined.
 				BLDSHARED="$LDSHARED "'$(PYTHONFRAMEWORKDIR)/Versions/$(VERSION)/$(PYTHONFRAMEWORK)'
@@ -1872,30 +1886,30 @@ then
 	FreeBSD*)
 		if [[ "`$CC -dM -E - </dev/null | grep __ELF__`" != "" ]]
 		then
-			LDSHARED='$(CC) -shared ${LDFLAGS}'
-			LDCXXSHARED='$(CXX) -shared ${LDFLAGS}'
+			LDSHARED='$(CC) -shared'
+			LDCXXSHARED='$(CXX) -shared'
 		else
-			LDSHARED="ld -Bshareable ${LDFLAGS}"
+			LDSHARED="ld -Bshareable"
 		fi;;
 	OpenBSD*)
 		if [[ "`$CC -dM -E - </dev/null | grep __ELF__`" != "" ]]
 		then
-				LDSHARED='$(CC) -shared $(CCSHARED) ${LDFLAGS}'
-				LDCXXSHARED='$(CXX) -shared $(CCSHARED) ${LDFLAGS}'
+				LDSHARED='$(CC) -shared $(CCSHARED)'
+				LDCXXSHARED='$(CXX) -shared $(CCSHARED)'
 		else
 				case `uname -r` in
 				[[01]].* | 2.[[0-7]] | 2.[[0-7]].*)
 				   LDSHARED="ld -Bshareable ${LDFLAGS}"
 				   ;;
 				*)
-				   LDSHARED='$(CC) -shared $(CCSHARED) ${LDFLAGS}'
-				   LDCXXSHARED='$(CXX) -shared $(CCSHARED) ${LDFLAGS}'
+				   LDSHARED='$(CC) -shared $(CCSHARED)'
+				   LDCXXSHARED='$(CXX) -shared $(CCSHARED)'
 				   ;;
 				esac
 		fi;;
 	NetBSD*|DragonFly*)
-		LDSHARED="cc -shared ${LDFLAGS}"
-		LDCXXSHARED="c++ -shared ${LDFLAGS}";;
+		LDSHARED='$(CC) -shared'
+		LDCXXSHARED='$(CXX) -shared';;
 	OpenUNIX*|UnixWare*)
 		if test "$GCC" = "yes" ; then
 			LDSHARED='$(CC) -shared'
@@ -2068,7 +2082,7 @@ AC_CHECK_LIB(intl, textdomain,
 case "$ac_sys_system" in
 	AIX*)	AC_MSG_CHECKING(for genuine AIX C++ extensions support)
 		AC_LINK_IFELSE([
-		  AC_LANG_PROGRAM([[#include "/usr/lpp/xlC/include/load.h"]],
+		  AC_LANG_PROGRAM([[#include <load.h>]],
 				  [[loadAndInit("", 0, "")]])
 		],[
 		  AC_DEFINE(AIX_GENUINE_CPLUSPLUS, 1,
@@ -2522,7 +2536,7 @@ yes
 			;;
 		solaris)
 			if test -f /etc/netconfig; then
-                          if /usr/xpg4/bin/grep -q tcp6 /etc/netconfig; then
+                          if $GREP -q tcp6 /etc/netconfig; then
 				ipv6type=$i
 				ipv6trylibc=yes
                           fi

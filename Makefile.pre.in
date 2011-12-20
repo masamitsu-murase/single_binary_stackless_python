@@ -35,6 +35,9 @@ LINKCC=		@LINKCC@
 AR=		@AR@
 RANLIB=		@RANLIB@
 SVNVERSION=	@SVNVERSION@
+HGVERSION=	@HGVERSION@
+HGTAG=		@HGTAG@
+HGBRANCH=	@HGBRANCH@
 
 GNULD=          @GNULD@
 
@@ -472,17 +475,11 @@ $(PYTHONFRAMEWORKDIR)/Versions/$(VERSION)/$(PYTHONFRAMEWORK): \
 		$(LIBRARY) \
 		$(RESSRCDIR)/Info.plist
 	$(INSTALL) -d -m $(DIRMODE) $(PYTHONFRAMEWORKDIR)/Versions/$(VERSION)
-	if test "${UNIVERSALSDK}"; then \
-		$(CC) -o $(LDLIBRARY) @UNIVERSAL_ARCH_FLAGS@ -dynamiclib \
-			-isysroot "${UNIVERSALSDK}" \
-			-all_load $(LIBRARY) -Wl,-single_module \
-			-install_name $(DESTDIR)$(PYTHONFRAMEWORKINSTALLDIR)/Versions/$(VERSION)/$(PYTHONFRAMEWORK) \
-			-compatibility_version $(VERSION) \
-			-current_version $(VERSION); \
-        else \
-		/usr/bin/libtool -o $(LDLIBRARY) -dynamic $(OTHER_LIBTOOL_OPT) $(LIBRARY) \
-			@LIBTOOL_CRUFT@ ;\
-	fi
+	$(CC) -o $(LDLIBRARY) $(LDFLAGS)  -dynamiclib \
+		-all_load $(LIBRARY) -Wl,-single_module \
+		-install_name $(DESTDIR)$(PYTHONFRAMEWORKINSTALLDIR)/Versions/$(VERSION)/$(PYTHONFRAMEWORK) \
+		-compatibility_version $(VERSION) \
+		-current_version $(VERSION);
 	$(INSTALL) -d -m $(DIRMODE)  \
 		$(PYTHONFRAMEWORKDIR)/Versions/$(VERSION)/Resources/English.lproj
 	$(INSTALL_DATA) $(RESSRCDIR)/Info.plist \
@@ -540,7 +537,12 @@ Modules/getbuildinfo.o: $(PARSER_OBJS) \
 		$(SIGNAL_OBJS) \
 		$(MODOBJS) \
 		$(srcdir)/Modules/getbuildinfo.c
-	$(CC) -c $(PY_CFLAGS) -DSVNVERSION="\"`LC_ALL=C $(SVNVERSION)`\"" -o $@ $(srcdir)/Modules/getbuildinfo.c
+	$(CC) -c $(PY_CFLAGS) \
+	      -DSVNVERSION="\"`LC_ALL=C $(SVNVERSION)`\"" \
+	      -DHGVERSION="\"`LC_ALL=C $(HGVERSION)`\"" \
+	      -DHGTAG="\"`LC_ALL=C $(HGTAG)`\"" \
+	      -DHGBRANCH="\"`LC_ALL=C $(HGBRANCH)`\"" \
+	      -o $@ $(srcdir)/Modules/getbuildinfo.c
 
 Modules/getpath.o: $(srcdir)/Modules/getpath.c Makefile
 	$(CC) -c $(PY_CFLAGS) -DPYTHONPATH='"$(PYTHONPATH)"' \
@@ -554,9 +556,12 @@ Modules/python.o: $(srcdir)/Modules/python.c
 	$(MAINCC) -c $(PY_CFLAGS) -o $@ $(srcdir)/Modules/python.c
 
 
-$(GRAMMAR_H) $(GRAMMAR_C): $(PGEN) $(GRAMMAR_INPUT)
+# Use a stamp file to prevent make -j invoking pgen twice
+$(GRAMMAR_H) $(GRAMMAR_C): Parser/pgen.stamp
+Parser/pgen.stamp: $(PGEN) $(GRAMMAR_INPUT)
 		-@$(INSTALL) -d Include
-		-$(PGEN) $(GRAMMAR_INPUT) $(GRAMMAR_H) $(GRAMMAR_C)
+		$(PGEN) $(GRAMMAR_INPUT) $(GRAMMAR_H) $(GRAMMAR_C)
+		-touch Parser/pgen.stamp
 
 $(PGEN):	$(PGENOBJS)
 		$(CC) $(OPT) $(LDFLAGS) $(PGENOBJS) $(LIBS) -o $(PGEN)
@@ -893,8 +898,8 @@ PLATMACDIRS= plat-mac plat-mac/Carbon plat-mac/lib-scriptpackages \
 	plat-mac/lib-scriptpackages/Terminal 
 PLATMACPATH=:plat-mac:plat-mac/lib-scriptpackages
 LIBSUBDIRS=	lib-tk lib-tk/test lib-tk/test/test_tkinter \
-                lib-tk/test/test_ttk site-packages test test/data \
-		test/decimaltestdata test/xmltestdata \
+		lib-tk/test/test_ttk site-packages test test/data \
+		test/cjkencodings test/decimaltestdata test/xmltestdata test/subprocessdata \
 		test/tracedmodules \
 		encodings compiler hotshot \
 		email email/mime email/test email/test/data \
@@ -1106,7 +1111,7 @@ sharedinstall: sharedmods
 	   	--prefix=$(prefix) \
 		--install-scripts=$(BINDIR) \
 		--install-platlib=$(DESTSHARED) \
-		--root=/$(DESTDIR)
+		--root=$(DESTDIR)/
 
 # Here are a couple of targets for MacOSX again, to install a full
 # framework-based Python. frameworkinstall installs everything, the
@@ -1178,7 +1183,7 @@ scriptsinstall:
 	./$(BUILDPYTHON) $(srcdir)/Tools/scripts/setup.py install \
 	--prefix=$(prefix) \
 	--install-scripts=$(BINDIR) \
-	--root=/$(DESTDIR)
+	--root=$(DESTDIR)/
 
 # Build the toplevel Makefile
 Makefile.pre: Makefile.pre.in config.status
@@ -1242,7 +1247,7 @@ profile-removal:
 
 clobber: clean profile-removal
 	-rm -f $(BUILDPYTHON) $(PGEN) $(LIBRARY) $(LDLIBRARY) $(DLLLIBRARY) \
-		tags TAGS \
+		tags TAGS Parser/pgen.stamp \
 		config.cache config.log pyconfig.h Modules/config.c
 	-rm -rf build platform
 	-rm -rf $(PYTHONFRAMEWORKDIR)
@@ -1256,7 +1261,7 @@ distclean: clobber
 	done
 	-rm -f core Makefile Makefile.pre config.status \
 		Modules/Setup Modules/Setup.local Modules/Setup.config \
-		Modules/ld_so_aix Misc/python.pc
+		Modules/ld_so_aix Modules/python.exp Misc/python.pc
 	-rm -f python*-gdb.py
 	find $(srcdir) '(' -name '*.fdc' -o -name '*~' \
 			   -o -name '[@,#]*' -o -name '*.old' \
