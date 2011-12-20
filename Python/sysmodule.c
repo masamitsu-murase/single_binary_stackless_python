@@ -1156,16 +1156,9 @@ static const char *svn_revision;
 static void
 svnversion_init(void)
 {
-    int pythonlen;
     if (svn_initialized)
         return;
     svn_initialized = 1;
-#if defined(STACKLESS) || defined(STACKLESS_OFF)
-    python = strstr(headurl, "/stackless/");
-    pythonlen = 11;
-#else
-    pythonlen = 8;
-#endif
     *patchlevel_revision = '\0';
     strcpy(branch, "");
     strcpy(shortbranch, "unknown");
