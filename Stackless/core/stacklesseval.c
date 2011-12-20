@@ -328,6 +328,9 @@ void slp_kill_tasks_with_stacks(PyThreadState *ts)
                 continue;
             if (ts != NULL && cs->tstate != ts)
                 continue;
+            /* Not killable, another thread's frameless main? */
+            if (slp_get_frame(cs->task) == NULL)
+                continue;
             break;
         }
         count = 0;
