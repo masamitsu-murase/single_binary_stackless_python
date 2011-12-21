@@ -393,14 +393,16 @@ eval_frame_callback(PyFrameObject *f, int exc, PyObject *retval)
 {
     PyThreadState *ts = PyThreadState_GET();
     PyTaskletObject *cur = ts->st.current;
-    PyCStackObject *cst = cur->cstate;
+    PyCStackObject *cst;
     PyCFrameObject *cf = (PyCFrameObject *) f;
-    PyObject *tmpval;
     intptr_t *saved_base;
 
-    ts->st.nesting_level = cf->n;
+    //make sure we don't try softswitching out of this callstack
+    ts->st.nesting_level = cf->n + 1;
     ts->frame = f->f_back;
-    Py_DECREF(f);
+
+    //this tasklet now runs in this tstate.
+    cst = cur->cstate; //The calling cstate
     cur->cstate = ts->st.initial_stub;
     Py_INCREF(cur->cstate);
 
@@ -409,22 +411,26 @@ eval_frame_callback(PyFrameObject *f, int exc, PyObject *retval)
      */
     saved_base = ts->st.cstack_root;
     ts->st.cstack_root = STACK_REFPLUS + (intptr_t *) &f;
+    Py_XDECREF(retval);
+    retval = cf->ob1;
+    cf->ob1 = NULL;
     retval = PyEval_EvalFrameEx_slp(ts->frame, exc, retval);
     ts->st.cstack_root = saved_base;
 
+    /* store retval back into the cstate object */
     if (retval == NULL)
         retval = slp_curexc_to_bomb();
     if (retval == NULL)
-        return NULL;
-    /* Pack the retval and current tempval into the tempval */
-    TASKLET_CLAIMVAL(cur, &tmpval);
-    retval = Py_BuildValue("NN", retval, tmpval);
-    TASKLET_SETVAL_OWN(cur, retval);
+        goto fatal;
+    cf->ob1 = retval;
+
     /* jump back */
     Py_DECREF(cur->cstate);
     cur->cstate = cst;
     slp_transfer_return(cst);
-    /* never come here */
+    /* should never come here */
+fatal:
+    Py_DECREF(cf); /* since the caller won't do it */
     return NULL;
 }
 
@@ -435,7 +441,6 @@ slp_eval_frame_newstack(PyFrameObject *f, int exc, PyObject *retval)
     PyTaskletObject *cur = ts->st.current;
     PyCFrameObject *cf = NULL;
     PyCStackObject *cst;
-    PyObject *packed, *tmpval;
 
     if (cur == NULL || PyErr_Occurred()) {
         /* Bypass this during early initialization or if we have a pending
@@ -464,25 +469,20 @@ slp_eval_frame_newstack(PyFrameObject *f, int exc, PyObject *retval)
     if (cf == NULL)
         return NULL;
     cf->n = ts->st.nesting_level;
+    cf->ob1 = retval;
     ts->frame = (PyFrameObject *) cf;
     cst = cur->cstate;
     cur->cstate = NULL;
-    Py_XDECREF(retval);
     if (slp_transfer(&cur->cstate, NULL, cur))
         goto finally; /* fatal */
     Py_XDECREF(cur->cstate);
 
-    /* unpack the retval and tempval from the tempval */
-    TASKLET_CLAIMVAL(cur, &packed);
-    retval = PyTuple_GET_ITEM(packed, 0);
-    Py_INCREF(retval);
-    tmpval = PyTuple_GET_ITEM(packed, 1);
-    TASKLET_SETVAL(cur, tmpval); /* takes a reference */
-    Py_DECREF(packed);
-
+    retval = cf->ob1;
+    cf->ob1 = NULL;
     if (PyBomb_Check(retval))
         retval = slp_bomb_explode(retval);
 finally:
+    Py_DECREF(cf);
     cur->cstate = cst;
     return retval;
 }
@@ -514,7 +514,7 @@ typedef struct {
  * was not faster, but considerably slower than this solution.
  */
 
-static PyObject* gen_iternext_callback(PyFrameObject *f, int exc, PyObject *retval);
+PyObject* gen_iternext_callback(PyFrameObject *f, int exc, PyObject *retval);
 
 PyObject *
 slp_gen_send_ex(PyGenObject *ob, PyObject *arg, int exc)
@@ -588,7 +588,7 @@ slp_gen_send_ex(PyGenObject *ob, PyObject *arg, int exc)
     return slp_frame_dispatch(f, stopframe, exc, retval);
 }
 
-static PyObject*
+PyObject*
 gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result)
 {
     PyThreadState *ts = PyThreadState_GET();
