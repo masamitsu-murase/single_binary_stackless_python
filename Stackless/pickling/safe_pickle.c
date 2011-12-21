@@ -15,9 +15,16 @@ pickle_callback(PyFrameObject *f, int exc, PyObject *retval)
 {
     PyThreadState *ts = PyThreadState_GET();
     PyTaskletObject *cur = ts->st.current;
-    PyCStackObject *cst = cur->cstate;
+    PyCStackObject *cst;
     PyCFrameObject *cf = (PyCFrameObject *) f;
     intptr_t *saved_base;
+
+    /* store and update thread state */
+    ts->st.nesting_level = 1; /* always hard-switch from this one now */
+    /* swap the cstates, hold on to the return one */
+    cst = cur->cstate;
+    cur->cstate = ts->st.initial_stub;
+    Py_INCREF(cur->cstate);
 
     /* We must base our new stack from here, because oterwise we might find
      * ourselves in an infinite loop of stack spilling.
@@ -27,7 +34,10 @@ pickle_callback(PyFrameObject *f, int exc, PyObject *retval)
     Py_DECREF(retval);
     cf->i = cPickle_save(cf->ob1, cf->ob2, cf->n);
     ts->st.cstack_root = saved_base;
+
     /* jump back. No decref, frame contains result. */
+    Py_DECREF(cur->cstate);
+    cur->cstate = cst;
     ts->frame = cf->f_back;
     slp_transfer_return(cst);
     /* never come here */
