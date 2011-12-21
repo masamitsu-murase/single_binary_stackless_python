@@ -1,6 +1,9 @@
 from zipfile import *
 import os, sys, hashlib
 
+version2 = "%d%d" % (sys.version_info.major, sys.version_info.minor)
+version3 = "%s%d" % (version2, sys.version_info.micro)
+
 exp_path = r""
 
 prog = """
@@ -23,7 +26,7 @@ fileList = [
 
 for debug in ("", "_d"):
     for suffix in ("dll", "lib", "exp"):
-        fileList.append("python30%s.%s" % (debug, suffix))
+        fileList.append("python%s%s.%s" % (version2, debug, suffix))
 
 pathBySuffix = {
     "dll":  "",
@@ -46,7 +49,7 @@ for f in os.listdir(slpdir):
     elif f.endswith(".h"):
         includeFileList.append([ "include/Stackless/"+ f, os.path.join(slpdir, f) ])
 
-zname = os.path.join(exp_path, "stackless-python-30.zip")
+zname = os.path.join(exp_path, "stackless-python-%s.zip" % version3)
 z = ZipFile(zname, "w", ZIP_DEFLATED)
 for fileName in fileList:
     if os.path.exists(fileName):
