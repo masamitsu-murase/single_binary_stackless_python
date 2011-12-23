@@ -126,13 +126,13 @@ cframe_reduce(PyCFrameObject *cf)
     if (params == NULL) goto err_exit;
 
     res = Py_BuildValue ("(O()(" cframetuplefmt "))",
-             Py_TYPE(cf),
-             valid,
-             exec_name,
-             params,
-             cf->i,
-             cf->n);
-    
+                         Py_TYPE(cf),
+                         valid,
+                         exec_name,
+                         params,
+                         cf->i,
+                         cf->n);
+
 err_exit:
     Py_XDECREF(exec_name);
     Py_XDECREF(params);
@@ -162,11 +162,11 @@ cframe_setstate(PyObject *self, PyObject *args)
     long i, n;
 
     if (!PyArg_ParseTuple (args, cframetuplenewfmt,
-                   &valid,
-                   &exec_name,
-                   &PyTuple_Type, &params,
-                   &i,
-                   &n))
+                           &valid,
+                           &exec_name,
+                           &PyTuple_Type, &params,
+                           &i,
+                           &n))
         return NULL;
 
     if (slp_find_execfuncs(Py_TYPE(cf), exec_name, &good_func, &bad_func))

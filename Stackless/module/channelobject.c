@@ -929,11 +929,11 @@ channel_reduce(PyChannelObject * ch)
         t = t->next;
     }
     tup = Py_BuildValue("(O()(iiO))",
-                Py_TYPE(ch),
-                ch->balance,
-                ch->flags,
-                lis
-                );
+                        Py_TYPE(ch),
+                        ch->balance,
+                        ch->flags,
+                        lis
+                        );
 err_exit:
     Py_XDECREF(lis);
     return tup;

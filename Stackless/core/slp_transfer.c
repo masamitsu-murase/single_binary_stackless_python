@@ -82,7 +82,7 @@ extern int slp_switch(void);
 
 static int
 climb_stack_and_transfer(PyCStackObject **cstprev, PyCStackObject *cst,
-             PyTaskletObject *prev)
+                         PyTaskletObject *prev)
 {
     /*
      * there are cases where we have been initialized
@@ -105,7 +105,7 @@ climb_stack_and_transfer(PyCStackObject **cstprev, PyCStackObject *cst,
 
 int
 slp_transfer(PyCStackObject **cstprev, PyCStackObject *cst,
-         PyTaskletObject *prev)
+             PyTaskletObject *prev)
 {
     PyThreadState *ts = PyThreadState_GET();
     int error;

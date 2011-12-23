@@ -242,7 +242,7 @@ run_script(char *src, char *retname)
     if (globals == NULL)
         return NULL;
     if (PyDict_SetItemString(globals, "__builtins__",
-                 PyEval_GetBuiltins()) != 0)
+                             PyEval_GetBuiltins()) != 0)
         return NULL;
     retval = PyRun_String(src, Py_file_input, globals, globals);
     if (retval != NULL) {
@@ -1776,7 +1776,7 @@ enum_setstate(PyObject *self, PyObject *args)
 }
 
 MAKE_WRAPPERTYPE(PyEnum_Type, en, "enumerate", enum_reduce, generic_new,
-         enum_setstate)
+                 enum_setstate)
 
 static int init_enumtype(void)
 {

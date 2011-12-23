@@ -828,7 +828,7 @@ static TASKLET_KILL_HEAD(impl_tasklet_kill)
     noargs = PyTuple_New(0);
     STACKLESS_PROMOTE_ALL();
     ret = impl_tasklet_raise_exception(task, PyExc_TaskletExit,
-                       noargs);
+                                       noargs);
     STACKLESS_ASSERT();
     Py_DECREF(noargs);
     return ret;
@@ -965,7 +965,7 @@ tasklet_get_recursion_depth(PyTaskletObject *task)
     assert(task->cstate != NULL);
     ts = task->cstate->tstate;
     return PyLong_FromLong(ts->st.current == task ? ts->recursion_depth
-                             : task->recursion_depth);
+                                                  : task->recursion_depth);
 }
 
 int
@@ -989,7 +989,7 @@ tasklet_get_nesting_level(PyTaskletObject *task)
     ts = task->cstate->tstate;
     return PyLong_FromLong(
         ts->st.current == task ? ts->st.nesting_level
-                   : task->cstate->nesting_level);
+                               : task->cstate->nesting_level);
 }
 
 int
@@ -1054,7 +1054,7 @@ tasklet_restorable(PyTaskletObject *task)
     ts = task->cstate->tstate;
     return PyBool_FromLong(
         0 == (ts->st.current == task ? ts->st.nesting_level
-                     : task->cstate->nesting_level) );
+                                     : task->cstate->nesting_level) );
 }
 
 int
@@ -1065,7 +1065,7 @@ PyTasklet_Restorable(PyTaskletObject *task)
     assert(task->cstate != NULL);
     ts = task->cstate->tstate;
     return 0 == (ts->st.current == task ? ts->st.nesting_level
-                        : task->cstate->nesting_level);
+                                        : task->cstate->nesting_level);
 }
 
 static PyObject *
@@ -1113,9 +1113,9 @@ tasklet_thread_id(PyTaskletObject *task)
 
 static PyMemberDef tasklet_members[] = {
     {"cstate", T_OBJECT, offsetof(PyTaskletObject, cstate), READONLY,
-     "the C stack object associated with the tasklet.\n\
+     PyDoc_STR("the C stack object associated with the tasklet.\n\
      Every tasklet has a cstate, even if it is a trivial one.\n\
-     Please see the cstate doc and the stackless documentation."},
+     Please see the cstate doc and the stackless documentation.")},
     {"tempval", T_OBJECT, offsetof(PyTaskletObject, tempval), 0},
     /* blocked, slicing_lock, atomic and such are treated by tp_getset */
     {0}
@@ -1123,80 +1123,80 @@ static PyMemberDef tasklet_members[] = {
 
 static PyGetSetDef tasklet_getsetlist[] = {
     {"next", (getter)tasklet_get_next, NULL,
-     "the next tasklet in a a circular list of tasklets."},
+     PyDoc_STR("the next tasklet in a a circular list of tasklets.")},
 
     {"prev", (getter)tasklet_get_prev, NULL,
-     "the previous tasklet in a circular list of tasklets"},
+     PyDoc_STR("the previous tasklet in a circular list of tasklets")},
 
     {"_channel", (getter)tasklet_get_channel, NULL,
-     "The channel this tasklet is blocked on, or None if it is not blocked.\n"
+     PyDoc_STR("The channel this tasklet is blocked on, or None if it is not blocked.\n"
      "This computed attribute may cause a linear search and should normally\n"
-     "not be used, or be replaced by a real attribute in a derived type."
+     "not be used, or be replaced by a real attribute in a derived type.")
     },
 
     {"blocked", (getter)tasklet_get_blocked, NULL,
-     "Nonzero if waiting on a channel (1: send, -1: receive).\n"
-     "Part of the flags word."},
+     PyDoc_STR("Nonzero if waiting on a channel (1: send, -1: receive).\n"
+     "Part of the flags word.")},
 
     {"atomic", (getter)tasklet_get_atomic, NULL,
-     "atomic inhibits scheduling of this tasklet. See set_atomic()\n"
-     "Part of the flags word."},
+     PyDoc_STR("atomic inhibits scheduling of this tasklet. See set_atomic()\n"
+     "Part of the flags word.")},
 
     {"ignore_nesting", (getter)tasklet_get_ignore_nesting, NULL,
-     "unless ignore_nesting is set, any nesting level > 0 inhibits\n"
+     PyDoc_STR("unless ignore_nesting is set, any nesting level > 0 inhibits\n"
      "auto-scheduling of this tasklet. See set_ignore_nesting()\n"
-    "Part of the flags word."},
+     "Part of the flags word.")},
 
     {"frame", (getter)tasklet_get_frame, NULL,
-    "the current frame of this tasklet. For the running tasklet,\n"
-    "this is redirected to tstate.frame."},
+     PyDoc_STR("the current frame of this tasklet. For the running tasklet,\n"
+     "this is redirected to tstate.frame.")},
 
     {"block_trap", (getter)tasklet_get_block_trap,
-               (setter)tasklet_set_block_trap,
-     "An individual lock against blocking on a channel.\n"
+                   (setter)tasklet_set_block_trap,
+     PyDoc_STR("An individual lock against blocking on a channel.\n"
      "This is used as a debugging aid to find out undesired blocking.\n"
-     "Instead of trying to block, an exception is raised."},
+     "Instead of trying to block, an exception is raised.")},
 
     {"is_main", (getter)tasklet_is_main, NULL,
-     "There always exists exactly one tasklet per thread which acts as\n"
+     PyDoc_STR("There always exists exactly one tasklet per thread which acts as\n"
      "main. It receives all uncaught exceptions and can act as a watchdog.\n"
-     "This attribute is computed."},
+     "This attribute is computed.")},
 
     {"is_current", (getter)tasklet_is_current, NULL,
-     "There always exists exactly one tasklet per thread which is "
+     PyDoc_STR("There always exists exactly one tasklet per thread which is "
      "currently running.\n"
-     "This attribute is computed."},
+     "This attribute is computed.")},
 
     {"paused", (getter)tasklet_paused, NULL,
-     "A tasklet is said to be paused if it is neither in the runnables list\n"
+     PyDoc_STR("A tasklet is said to be paused if it is neither in the runnables list\n"
      "nor blocked, but alive. This state is entered after a t.remove()\n"
      "or by the main tasklet, when it is acting as a watchdog.\n"
-     "This attribute is computed."},
+     "This attribute is computed.")},
 
     {"scheduled", (getter)tasklet_scheduled, NULL,
-     "A tasklet is said to be scheduled if it is either in the runnables list\n"
+     PyDoc_STR("A tasklet is said to be scheduled if it is either in the runnables list\n"
      "or waiting in a channel.\n"
-     "This attribute is computed."},
+     "This attribute is computed.")},
 
     {"recursion_depth", (getter)tasklet_get_recursion_depth, NULL,
-     "The system recursion_depth is replicated for every tasklet.\n"
-     "They all start running with a recursion_depth of zero."},
+     PyDoc_STR("The system recursion_depth is replicated for every tasklet.\n"
+     "They all start running with a recursion_depth of zero.")},
 
     {"nesting_level", (getter)tasklet_get_nesting_level, NULL,
-     "The interpreter nesting level is monitored by every tasklet.\n"
-     "They all start running with a nesting level of zero."},
+     PyDoc_STR("The interpreter nesting level is monitored by every tasklet.\n"
+     "They all start running with a nesting level of zero.")},
 
     {"restorable", (getter)tasklet_restorable, NULL,
-     "True, if the tasklet can be completely restored by pickling/unpickling.\n"
+     PyDoc_STR("True, if the tasklet can be completely restored by pickling/unpickling.\n"
      "All tasklets can be pickled for debugging/inspection purposes, but an \n"
-     "unpickled tasklet might have lost runtime information (C stack)."},
+     "unpickled tasklet might have lost runtime information (C stack).")},
 
     {"alive", (getter)tasklet_alive, NULL,
-     "A tasklet is alive if it has an associated frame.\n"
-     "This attribute is computed."},
+     PyDoc_STR("A tasklet is alive if it has an associated frame.\n"
+     "This attribute is computed.")},
 
     {"thread_id", (getter)tasklet_thread_id, NULL,
-     "Return the thread id of the thread the tasklet belongs to."},
+     PyDoc_STR("Return the thread id of the thread the tasklet belongs to.")},
 
     {0},
 };
@@ -1302,8 +1302,8 @@ int init_tasklettype(void)
     PyTypeObject *t = &_PyTasklet_Type;
 
     if ( (t = PyFlexType_Build("stackless", "tasklet", t->tp_doc, t,
-                   sizeof(PyTasklet_HeapType),
-                   tasklet_cmethods) ) == NULL)
+                               sizeof(PyTasklet_HeapType),
+                               tasklet_cmethods) ) == NULL)
         return -1;
     PyTasklet_TypePtr = t;
     return 0;

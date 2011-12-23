@@ -146,7 +146,7 @@ flextype_new(PyTypeObject *meta, PyObject *args, PyObject *kwds)
 
 static PyTypeObject *
 type_clone(PyTypeObject *meta, PyTypeObject *base, const char *typename, PyObject *dict,
-       size_t type_size, PyCMethodDef *ml)
+           size_t type_size, PyCMethodDef *ml)
 {
     PyObject *args = Py_BuildValue("(s(O)O)", typename, base, dict);
     Py_ssize_t basicsize = meta->tp_basicsize;
