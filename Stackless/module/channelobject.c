@@ -12,7 +12,32 @@
 
 
 static void
+channel_remove_all(PyObject *ob);
+
+/* GC support.  The tasklets already know if they are collectable
+ * or not.  If they are not, and referenced by the channel, then
+ * no channel_clear() will be performed.  Thus, the GC support
+ * routines don't have to be clever about resurrected tasklets.
+ */
+static int
+channel_traverse(PyChannelObject *ch, visitproc visit, void *arg)
+{
+    PyTaskletObject *p;
+    for (p = ch->head; p != (PyTaskletObject *) ch; p = p->next) {
+        Py_VISIT(p);
+    }
+    return 0;
+}
+
+static void
 channel_clear(PyObject *ob)
+{
+    /* this function does nothing but decref, so it's safe to use */
+    channel_remove_all(ob);
+}
+
+static void
+channel_remove_all(PyObject *ob)
 {
     PyChannelObject *ch = (PyChannelObject *) ob;
 
@@ -36,7 +61,7 @@ channel_dealloc(PyObject *ob)
     PyChannelObject *ch = (PyChannelObject *) ob;
 
     if (ch->balance) {
-        if (slp_resurrect_and_kill(ob, channel_clear)) {
+        if (slp_resurrect_and_kill(ob, channel_remove_all)) {
             /* the beast has grown new references */
             return;
         }
@@ -44,16 +69,6 @@ channel_dealloc(PyObject *ob)
     if (ch->chan_weakreflist != NULL)
         PyObject_ClearWeakRefs((PyObject *)ch);
     ob->ob_type->tp_free(ob);
-}
-
-static int
-channel_traverse(PyChannelObject *ch, visitproc visit, void *arg)
-{
-    PyTaskletObject *p;
-    for (p = ch->head; p != (PyTaskletObject *) ch; p = p->next) {
-        Py_VISIT(p);
-    }
-    return 0;
 }
 
 void
@@ -958,7 +973,7 @@ channel_setstate(PyObject *self, PyObject *args)
                           &PyList_Type, &lis))
         return NULL;
 
-    channel_clear((PyObject *) ch);
+    channel_remove_all((PyObject *) ch);
     n = PyList_GET_SIZE(lis);
     *(int *)&ch->flags = flags;
     dir = balance > 0 ? 1 : -1;
