@@ -60,7 +60,7 @@ PyAPI_FUNC(void) _PyStackless_Init(void);
 
 PyAPI_FUNC(void) slp_stacklesseval_fini(void);
 PyAPI_FUNC(void) slp_scheduling_fini(void);
-PyAPI_FUNC(void) slp_cstack_fini(void);
+PyAPI_FUNC(void) slp_cframe_fini(void);
 
 PyAPI_FUNC(void) PyStackless_Fini(void);
 

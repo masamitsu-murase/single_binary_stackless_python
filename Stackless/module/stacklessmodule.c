@@ -1219,7 +1219,7 @@ void
 PyStackless_Fini(void)
 {
     slp_scheduling_fini();
-    slp_cstack_fini();
+    slp_cframe_fini();
     slp_stacklesseval_fini();
 }
 
