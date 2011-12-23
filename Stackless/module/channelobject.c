@@ -388,7 +388,7 @@ PyChannel_Send_nr(PyChannelObject *self, PyObject *arg)
 {
     PyChannel_HeapType *t = (PyChannel_HeapType *) Py_TYPE(self);
 
-    slp_try_stackless = slp_enable_softswitch;
+    STACKLESS_PROPOSE_ALL();
     return slp_return_wrapper(t->send(self, arg));
 }
 
@@ -611,7 +611,7 @@ PyChannel_Receive_nr(PyChannelObject *self)
     PyChannel_HeapType *t = (PyChannel_HeapType *) Py_TYPE(self);
     PyObject *ret;
 
-    slp_try_stackless = 1;
+    STACKLESS_PROPOSE_ALL();
     ret = t->receive(self);
     STACKLESS_ASSERT();
     return ret;
