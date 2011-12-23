@@ -466,6 +466,10 @@ static TASKLET_INSERT_HEAD(impl_tasklet_insert)
     if (task->next == NULL) {
         Py_INCREF(task);
         slp_current_insert(task);
+        /* The tasklet may belong to a different thread, and that thread may
+         * be blocked, waiting for something to do!
+         */
+        slp_thread_unblock(task->cstate->tstate);
     }
     return 0;
 }

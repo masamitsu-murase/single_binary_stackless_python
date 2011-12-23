@@ -586,6 +586,17 @@ static int schedule_thread_unblock(PyThreadState *nts)
     }
     return 0;
 }
+
+void slp_thread_unblock(PyThreadState *nts)
+{
+    schedule_thread_unblock(nts);
+}
+
+#else
+
+void slp_thread_unblock(PyThreadState *nts)
+{}
+
 #endif
 
 static PyObject *
