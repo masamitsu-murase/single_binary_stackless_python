@@ -1,20 +1,20 @@
 #define TASKLET_INSERT_HEAD(func) \
-	int func (PyTaskletObject *task)
+    int func (PyTaskletObject *task)
 
 #define TASKLET_RUN_HEAD(func) \
-	PyObject *func (PyTaskletObject *task)
+    PyObject *func (PyTaskletObject *task)
 
 #define TASKLET_REMOVE_HEAD(func) \
-	int func (PyTaskletObject *task)
+    int func (PyTaskletObject *task)
 
 #define TASKLET_SETATOMIC_HEAD(func) \
-	int func (PyTaskletObject *task, int flag)
+    int func (PyTaskletObject *task, int flag)
 
 #define TASKLET_SETIGNORENESTING_HEAD(func) \
-	int func (PyTaskletObject *task, int flag)
+    int func (PyTaskletObject *task, int flag)
 
 #define TASKLET_CALL_HEAD(func) \
-	int func (PyTaskletObject *task, PyObject *args, PyObject *kwds)
+    int func (PyTaskletObject *task, PyObject *args, PyObject *kwds)
 
 #define TASKLET_RAISE_EXCEPTION_HEAD(func) \
     PyObject *func (PyTaskletObject *self, PyObject *klass, PyObject *args)
