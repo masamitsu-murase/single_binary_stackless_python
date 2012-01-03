@@ -1324,7 +1324,7 @@ def add_registry(db):
 def build_pdbzip():
     pdbexclude = ['kill_python.pdb', 'make_buildinfo.pdb',
                   'make_versioninfo.pdb']
-    path = "python-%s%s-pdb.zip" % (full_current_version, msilib.arch_ext)
+    path = "python-%s%s-pdb-stackless.zip" % (full_current_version, msilib.arch_ext)
     pdbzip = zipfile.ZipFile(path, 'w')
     for f in glob.glob1(os.path.join(srcdir, PCBUILD), "*.pdb"):
         if f not in pdbexclude and not f.endswith('_d.pdb'):
