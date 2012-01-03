@@ -967,7 +967,8 @@ schedule_task_destruct(PyTaskletObject *prev, PyTaskletObject *next)
     assert(ts->st.nesting_level == 0);
     /* even there is a (buggy) nesting, ensure soft switch */
     if (ts->st.nesting_level != 0) {
-        printf("XXX error, nesting_level = %d\n", ts->st.nesting_level);
+        /* TODO: Old message with no context for what to do.  Revisit?
+        printf("XXX error, nesting_level = %d\n", ts->st.nesting_level); */
         ts->st.nesting_level = 0;
     }
 
