@@ -4,10 +4,17 @@ import threading
 
 class TestChannels(unittest.TestCase):
     def setUp(self):
-        self.assertEqual(stackless.getruncount(), 1, "Leakage from other tests, with %d tasklets still in the scheduler" % (stackless.getruncount() - 1))
+        self.assertEqual(stackless.getruncount(), 1, "Leakage from other tests, with %d tasklets still in the scheduler" % (stackless.getruncount() - 1))        
+        self.assertEqual(threading.activeCount(), 1, "Leakage from other threads, with %d threads running (1 expected)" % (threading.activeCount()))
 
     def tearDown(self):
-        self.assertEqual(stackless.getruncount(), 1, "Leakage from this test, with %d tasklets still in the scheduler" % (stackless.getruncount() - 1))        
+        self.assertEqual(stackless.getruncount(), 1, "Leakage from this test, with %d tasklets still in the scheduler" % (stackless.getruncount() - 1))
+        if threading.activeCount() > 1:
+            activeThreads = threading.enumerate()
+            activeThreads.remove(threading.currentThread())
+            activeThreads[0].join(0.5)
+            if threading.activeCount() > 1:
+                self.assertEqual(threading.activeCount(), 1, "Leakage from other threads, with %d threads running (1 expected)" % (threading.activeCount()))
 
     def testBlockingSend(self):
         ''' Test that when a tasklet sends to a channel without waiting receivers, the tasklet is blocked. '''
