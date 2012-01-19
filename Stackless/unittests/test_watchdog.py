@@ -3,6 +3,9 @@ import unittest
 import stackless
 import random
 
+from support import StacklessTestCase
+
+
 # Helpers
 
 def in_psyco():
@@ -154,9 +157,10 @@ def servertask(name, chan):
         self.count += 1
 
 
-class TestWatchdog(unittest.TestCase):
+class TestWatchdog(StacklessTestCase):
     softSchedule = False
     def setUp(self):
+        super(TestWatchdog, self).setUp()
         self.verbose = __name__ == "__main__"
 
     def tearDown(self):

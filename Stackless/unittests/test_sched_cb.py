@@ -2,6 +2,8 @@ import unittest
 import stackless
 import gc
 
+from support import StacklessTestCase
+
 
 class SchedulingMonitor:
     "A scheduling monitor acting as a callback for set_schedule_callback()."
@@ -12,9 +14,10 @@ class SchedulingMonitor:
     def __call__(self, prevTasklet, nextTasklet):
         self.count += 1
 
-class SchedulingCallbackTestCase(unittest.TestCase):
+class SchedulingCallbackTestCase(StacklessTestCase):
     "A collection of scheduling callback tests."
     def setUp(self):
+        super(SchedulingCallbackTestCase, self).setUp()
         gc.collect() #to avoid unexpected GC
 
     def test0(self):

@@ -1,8 +1,10 @@
 import unittest
 from stackless import *
 
+from support import StacklessTestCase
 
-class TestOutside(unittest.TestCase):
+
+class TestOutside(StacklessTestCase):
     def test_outside1(self):
         ran = [False]
         def foo():
@@ -58,7 +60,7 @@ class TestOutside(unittest.TestCase):
         test_outside()
     
         
-class TestCframe(unittest.TestCase):
+class TestCframe(StacklessTestCase):
     n = 100
     def test_cframe(self):
         tasklet(test_cframe)(self.n)

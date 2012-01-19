@@ -4,6 +4,9 @@ import pickle
 import unittest
 import stackless
 
+from support import StacklessTestCase
+
+
 def in_psyco():
     try:
         return __in_psyco__
@@ -23,7 +26,7 @@ def runtask():
         x += 1
 
 
-class TestWatchdog(unittest.TestCase):
+class TestWatchdog(StacklessTestCase):
 
     def lifecycle(self, t):
         # Initial state - unrun

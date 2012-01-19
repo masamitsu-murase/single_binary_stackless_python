@@ -4,6 +4,9 @@ import gc
 
 from stackless import *
 
+from support import StacklessTestCase
+
+
 class Counter(object):
     ctr = 0
     def __call__(self, *args):
@@ -13,7 +16,7 @@ class Counter(object):
     def get(self):
         return self.ctr
 
-class TestWeakReferences(unittest.TestCase):
+class TestWeakReferences(StacklessTestCase):
     def testSimpleTaskletWeakRef(self):
         counter = Counter()
         t = tasklet(lambda:None)()

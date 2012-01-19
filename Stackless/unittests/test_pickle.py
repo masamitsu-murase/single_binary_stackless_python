@@ -6,6 +6,8 @@ import gc
 
 from stackless import schedule, tasklet, stackless
 
+from support import StacklessTestCase
+
 
 #because test runner instances in the testsuite contain copies of the old stdin/stdout thingies,
 #we need to make it appear that pickling them is ok, otherwise we will fail when pickling
@@ -146,12 +148,10 @@ def is_soft():
     stackless.enable_softswitch(softswitch)
     return softswitch and not in_psyco()
 
-class TestPickledTasklets(unittest.TestCase):
+class TestPickledTasklets(StacklessTestCase):
     def setUp(self):
+        super(TestPickledTasklets, self).setUp()
         self.verbose = VERBOSE
-
-        # A useful check to make sure that crap doesn't roll downhill to us from other test suites.
-        self.assertEqual(stackless.getruncount(), 1, "Leakage from other tests, with tasklets still in the scheduler")
 
     def tearDown(self):
         # Tasklets created in pickling tests can be left in the scheduler when they finish.  We can feel free to
@@ -162,6 +162,8 @@ class TestPickledTasklets(unittest.TestCase):
             next = current.next
             current.kill()
             current = next
+            
+        super(TestPickledTasklets, self).tearDown()
     
         del self.verbose
 

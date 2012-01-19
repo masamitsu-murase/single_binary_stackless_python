@@ -2,13 +2,16 @@ import unittest
 import stackless
 import gc
 
+from support import StacklessTestCase
+
+
 """
 Various regression tests for stackless defects.
 Typically, one can start by adding a test here, then fix it.
 Don't check in tests for un-fixed defects unless they are disabled (by adding a leading _)
 """
 
-class TestTaskletDel(unittest.TestCase):
+class TestTaskletDel(StacklessTestCase):
     #Defect:  If a tasklet's tempval contains any non-trivial __del__ function, it will cause
     #an assertion in debug mode due to violation of the stackless protocol.
     #The return value of the tasklet's function is stored in the tasklet's tempval and cleared
@@ -68,7 +71,7 @@ class TestTaskletDel(unittest.TestCase):
         hex(id(self.TaskletWithDelAndCollect(TaskletFunc)(self)))
         stackless.run() #crash here
 
-class Schedule(unittest.TestCase):
+class Schedule(StacklessTestCase):
     def testScheduleRemove(self):
         #schedule remove doesn't work if it is the only tasklet running under watchdog
         def func(self):
@@ -104,7 +107,7 @@ class Schedule(unittest.TestCase):
         stackless.schedule_remove(None)        
             
         
-class Channel(unittest.TestCase):
+class Channel(StacklessTestCase):
     def testTemporaryChannel(self):
         def f1():
             stackless.channel().receive()

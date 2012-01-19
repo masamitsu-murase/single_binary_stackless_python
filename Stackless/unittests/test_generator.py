@@ -1,9 +1,12 @@
 import unittest
 import gc
 
+from support import StacklessTestCase
+
+
 def f(): yield 1
 
-class TestGarbageCollection(unittest.TestCase):
+class TestGarbageCollection(StacklessTestCase):
     def testSimpleLeakage(self):
         leakage = []
 
