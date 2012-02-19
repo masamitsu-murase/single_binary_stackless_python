@@ -781,19 +781,19 @@ PyEval_EvalCode(PyObject *co, PyObject *globals, PyObject *locals)
 PyObject *
 PyEval_EvalFrame(PyFrameObject *f)
 {
-	return PyEval_EvalFrameEx_slp(f, 0, NULL);
+    return PyEval_EvalFrameEx_slp(f, 0, NULL);
 }
 
 PyObject *
 PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
 {
-	return PyEval_EvalFrameEx_slp(f, throwflag, NULL);
+    return PyEval_EvalFrameEx_slp(f, throwflag, NULL);
 }
 
 PyObject *
 PyEval_EvalFrameEx_slp(PyFrameObject *f, int throwflag, PyObject *retval)
 {
-	PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = PyThreadState_GET();
 #else
 
 PyObject *
@@ -1060,10 +1060,10 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
 #ifdef STACKLESS_USE_ENDIAN
 
 #undef NEXTARG
-#define NEXTARG()	(next_instr += 2, ((unsigned short *)next_instr)[-1])
+#define NEXTARG()    (next_instr += 2, ((unsigned short *)next_instr)[-1])
 #undef PREDICTED_WITH_ARG
-#define PREDICTED_WITH_ARG(op)	PRED_##op: next_instr += 3;  \
-				oparg = ((unsigned short *)next_instr)[-1]
+#define PREDICTED_WITH_ARG(op)    PRED_##op: next_instr += 3;  \
+                oparg = ((unsigned short *)next_instr)[-1]
 
 #endif
 #endif
@@ -1531,10 +1531,10 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
 #ifdef STACKLESS_USE_ENDIAN
 
 #undef NEXTARG
-#define NEXTARG()	(next_instr += 2, ((unsigned short *)next_instr)[-1])
+#define NEXTARG()    (next_instr += 2, ((unsigned short *)next_instr)[-1])
 #undef PREDICTED_WITH_ARG
-#define PREDICTED_WITH_ARG(op)	PRED_##op: next_instr += 3;  \
-				oparg = ((unsigned short *)next_instr)[-1]
+#define PREDICTED_WITH_ARG(op)    PRED_##op: next_instr += 3;  \
+                oparg = ((unsigned short *)next_instr)[-1]
 
 #endif
 #endif
@@ -1700,6 +1700,9 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
     f->f_stacktop = NULL;       /* remains NULL unless yield suspends frame */
 
     if (co->co_flags & CO_GENERATOR && !throwflag) {
+#ifdef STACKLESS
+        if (f->f_execute == PyEval_EvalFrame_noval) {
+#endif
         if (f->f_exc_type != NULL && f->f_exc_type != Py_None) {
             /* We were in an except handler when we left,
                restore the exception state which was put aside
@@ -1709,6 +1712,9 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
         else {
             SAVE_EXC_STATE();
         }
+#ifdef STACKLESS
+        }
+#endif
     }
 
 #ifdef LLTRACE
@@ -1819,7 +1825,7 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
            Py_MakePendingCalls() above. */
 
 #ifdef STACKLESS
-		SLP_CHECK_INTERRUPT()
+        SLP_CHECK_INTERRUPT()
 #endif
 
         if (_Py_atomic_load_relaxed(&eval_breaker)) {
