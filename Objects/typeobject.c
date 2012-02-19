@@ -968,6 +968,8 @@ subtype_dealloc(PyObject *self)
     assert(basedealloc);
     basedealloc(self);
 
+    PyType_Modified(type);
+
     /* Can't reference self beyond this point */
     Py_DECREF(type);
 
@@ -2941,7 +2943,7 @@ object_str(PyObject *self)
     unaryfunc f;
 
     f = Py_TYPE(self)->tp_repr;
-    if (f == NULL)
+    if (f == NULL || f == object_str)
         f = object_repr;
     return f(self);
 }

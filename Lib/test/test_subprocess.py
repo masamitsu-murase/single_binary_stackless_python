@@ -474,44 +474,75 @@ class ProcessTestCase(BaseTestCase):
     def test_universal_newlines(self):
         p = subprocess.Popen([sys.executable, "-c",
                               'import sys,os;' + SETBINARY +
-                              'sys.stdout.write("line1\\n");'
+                              'sys.stdout.write(sys.stdin.readline());'
                               'sys.stdout.flush();'
                               'sys.stdout.write("line2\\n");'
                               'sys.stdout.flush();'
-                              'sys.stdout.write("line3\\r\\n");'
+                              'sys.stdout.write(sys.stdin.read());'
                               'sys.stdout.flush();'
-                              'sys.stdout.write("line4\\r");'
+                              'sys.stdout.write("line4\\n");'
                               'sys.stdout.flush();'
-                              'sys.stdout.write("\\nline5");'
+                              'sys.stdout.write("line5\\r\\n");'
                               'sys.stdout.flush();'
-                              'sys.stdout.write("\\nline6");'],
+                              'sys.stdout.write("line6\\r");'
+                              'sys.stdout.flush();'
+                              'sys.stdout.write("\\nline7");'
+                              'sys.stdout.flush();'
+                              'sys.stdout.write("\\nline8");'],
+                             stdin=subprocess.PIPE,
                              stdout=subprocess.PIPE,
                              universal_newlines=1)
+        p.stdin.write("line1\n")
+        self.assertEqual(p.stdout.readline(), "line1\n")
+        p.stdin.write("line3\n")
+        p.stdin.close()
         self.addCleanup(p.stdout.close)
-        stdout = p.stdout.read()
-        self.assertEqual(stdout, "line1\nline2\nline3\nline4\nline5\nline6")
+        self.assertEqual(p.stdout.readline(),
+                         "line2\n")
+        self.assertEqual(p.stdout.read(6),
+                         "line3\n")
+        self.assertEqual(p.stdout.read(),
+                         "line4\nline5\nline6\nline7\nline8")
 
     def test_universal_newlines_communicate(self):
         # universal newlines through communicate()
         p = subprocess.Popen([sys.executable, "-c",
                               'import sys,os;' + SETBINARY +
-                              'sys.stdout.write("line1\\n");'
-                              'sys.stdout.flush();'
                               'sys.stdout.write("line2\\n");'
                               'sys.stdout.flush();'
-                              'sys.stdout.write("line3\\r\\n");'
+                              'sys.stdout.write("line4\\n");'
                               'sys.stdout.flush();'
-                              'sys.stdout.write("line4\\r");'
+                              'sys.stdout.write("line5\\r\\n");'
                               'sys.stdout.flush();'
-                              'sys.stdout.write("\\nline5");'
+                              'sys.stdout.write("line6\\r");'
                               'sys.stdout.flush();'
-                              'sys.stdout.write("\\nline6");'],
-                             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              'sys.stdout.write("\\nline7");'
+                              'sys.stdout.flush();'
+                              'sys.stdout.write("\\nline8");'],
+                             stderr=subprocess.PIPE,
+                             stdout=subprocess.PIPE,
                              universal_newlines=1)
         self.addCleanup(p.stdout.close)
         self.addCleanup(p.stderr.close)
+        # BUG: can't give a non-empty stdin because it breaks both the
+        # select- and poll-based communicate() implementations.
         (stdout, stderr) = p.communicate()
-        self.assertEqual(stdout, "line1\nline2\nline3\nline4\nline5\nline6")
+        self.assertEqual(stdout,
+                         "line2\nline4\nline5\nline6\nline7\nline8")
+
+    def test_universal_newlines_communicate_stdin(self):
+        # universal newlines through communicate(), with only stdin
+        p = subprocess.Popen([sys.executable, "-c",
+                              'import sys,os;' + SETBINARY + '''\nif True:
+                                  s = sys.stdin.readline()
+                                  assert s == "line1\\n", repr(s)
+                                  s = sys.stdin.read()
+                                  assert s == "line3\\n", repr(s)
+                              '''],
+                             stdin=subprocess.PIPE,
+                             universal_newlines=1)
+        (stdout, stderr) = p.communicate("line1\nline3\n")
+        self.assertEqual(p.returncode, 0)
 
     def test_no_leaking(self):
         # Make sure we leak no resources
@@ -674,6 +705,24 @@ class ProcessTestCase(BaseTestCase):
         self.addCleanup(p.stdin.close)
         time.sleep(2)
         p.communicate(b"x" * 2**20)
+
+    @unittest.skipUnless(hasattr(signal, 'SIGALRM'),
+                         "Requires signal.SIGALRM")
+    def test_communicate_eintr(self):
+        # Issue #12493: communicate() should handle EINTR
+        def handler(signum, frame):
+            pass
+        old_handler = signal.signal(signal.SIGALRM, handler)
+        self.addCleanup(signal.signal, signal.SIGALRM, old_handler)
+
+        # the process is running for 2 seconds
+        args = [sys.executable, "-c", 'import time; time.sleep(2)']
+        for stream in ('stdout', 'stderr'):
+            kw = {stream: subprocess.PIPE}
+            with subprocess.Popen(args, **kw) as process:
+                signal.alarm(1)
+                # communicate() will be interrupted by SIGALRM
+                process.communicate()
 
 
 # context manager
@@ -1056,6 +1105,64 @@ class POSIXProcessTestCase(BaseTestCase):
         finally:
             for fd in temp_fds:
                 os.close(fd)
+
+    def check_swap_fds(self, stdin_no, stdout_no, stderr_no):
+        # open up some temporary files
+        temps = [mkstemp() for i in range(3)]
+        temp_fds = [fd for fd, fname in temps]
+        try:
+            # unlink the files -- we won't need to reopen them
+            for fd, fname in temps:
+                os.unlink(fname)
+
+            # save a copy of the standard file descriptors
+            saved_fds = [os.dup(fd) for fd in range(3)]
+            try:
+                # duplicate the temp files over the standard fd's 0, 1, 2
+                for fd, temp_fd in enumerate(temp_fds):
+                    os.dup2(temp_fd, fd)
+
+                # write some data to what will become stdin, and rewind
+                os.write(stdin_no, b"STDIN")
+                os.lseek(stdin_no, 0, 0)
+
+                # now use those files in the given order, so that subprocess
+                # has to rearrange them in the child
+                p = subprocess.Popen([sys.executable, "-c",
+                    'import sys; got = sys.stdin.read();'
+                    'sys.stdout.write("got %s"%got); sys.stderr.write("err")'],
+                    stdin=stdin_no,
+                    stdout=stdout_no,
+                    stderr=stderr_no)
+                p.wait()
+
+                for fd in temp_fds:
+                    os.lseek(fd, 0, 0)
+
+                out = os.read(stdout_no, 1024)
+                err = support.strip_python_stderr(os.read(stderr_no, 1024))
+            finally:
+                for std, saved in enumerate(saved_fds):
+                    os.dup2(saved, std)
+                    os.close(saved)
+
+            self.assertEqual(out, b"got STDIN")
+            self.assertEqual(err, b"err")
+
+        finally:
+            for fd in temp_fds:
+                os.close(fd)
+
+    # When duping fds, if there arises a situation where one of the fds is
+    # either 0, 1 or 2, it is possible that it is overwritten (#12607).
+    # This tests all combinations of this.
+    def test_swap_fds(self):
+        self.check_swap_fds(0, 1, 2)
+        self.check_swap_fds(0, 2, 1)
+        self.check_swap_fds(1, 0, 2)
+        self.check_swap_fds(1, 2, 0)
+        self.check_swap_fds(2, 0, 1)
+        self.check_swap_fds(2, 1, 0)
 
     def test_surrogates_error_message(self):
         def prepare():
@@ -1566,7 +1673,8 @@ def test_main():
                   ProcessTestCaseNoPoll,
                   HelperFunctionTests,
                   CommandsWithSpaces,
-                  ContextManagerTests)
+                  ContextManagerTests,
+                  )
 
     support.run_unittest(*unit_tests)
     support.reap_children()

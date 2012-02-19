@@ -1464,7 +1464,7 @@ components, which must occur in this order:
    object to convert comes after the minimum field width and optional precision.
 
 #. Precision (optional), given as a ``'.'`` (dot) followed by the precision.  If
-   specified as ``'*'`` (an asterisk), the actual width is read from the next
+   specified as ``'*'`` (an asterisk), the actual precision is read from the next
    element of the tuple in *values*, and the value to convert comes after the
    precision.
 
@@ -1546,8 +1546,11 @@ The conversion types are:
 | ``'r'``    | String (converts any Python object using            | \(5)  |
 |            | :func:`repr`).                                      |       |
 +------------+-----------------------------------------------------+-------+
-| ``'s'``    | String (converts any Python object using            |       |
+| ``'s'``    | String (converts any Python object using            | \(5)  |
 |            | :func:`str`).                                       |       |
++------------+-----------------------------------------------------+-------+
+| ``'a'``    | String (converts any Python object using            | \(5)  |
+|            | :func:`ascii`).                                     |       |
 +------------+-----------------------------------------------------+-------+
 | ``'%'``    | No argument is converted, results in a ``'%'``      |       |
 |            | character in the result.                            |       |
@@ -1581,7 +1584,7 @@ Notes:
    decimal point and defaults to 6.
 
 (5)
-   The precision determines the maximal number of characters used.
+   If precision is ``N``, the output is truncated to ``N`` characters.
 
 
 (7)
@@ -2315,7 +2318,7 @@ An example of dictionary view usage::
    >>> keys & {'eggs', 'bacon', 'salad'}
    {'bacon'}
    >>> keys ^ {'sausage', 'juice'}
-   {'juice', 'eggs', 'bacon', 'spam'}
+   {'juice', 'sausage', 'bacon', 'spam'}
 
 
 .. _typememoryview:
@@ -2567,7 +2570,7 @@ statement is not, strictly speaking, an operation on a module object; ``import
 foo`` does not require a module object named *foo* to exist, rather it requires
 an (external) *definition* for a module named *foo* somewhere.)
 
-A special member of every module is :attr:`__dict__`. This is the dictionary
+A special attribute of every module is :attr:`__dict__`. This is the dictionary
 containing the module's symbol table. Modifying this dictionary will actually
 change the module's symbol table, but direct assignment to the :attr:`__dict__`
 attribute is not possible (you can write ``m.__dict__['a'] = 1``, which defines
@@ -2707,6 +2710,16 @@ special operations.  There is exactly one ellipsis object, named
 :const:`Ellipsis` (a built-in name).
 
 It is written as ``Ellipsis`` or ``...``.
+
+
+The NotImplemented Object
+-------------------------
+
+This object is returned from comparisons and binary operations when they are
+asked to operate on types they don't support. See :ref:`comparisons` for more
+information.
+
+It is written as ``NotImplemented``.
 
 
 Boolean Values

@@ -2,6 +2,238 @@
 Python News
 +++++++++++
 
+What's New in Python 3.2.2?
+===========================
+
+*Release date: 03-Sep-2011*
+
+Core and Builtins
+-----------------
+
+- Issue #12326: sys.platform is now always 'linux2' on Linux, even if Python
+  is compiled on Linux 3.
+
+- Accept bytes for the AST string type. This is temporary until a proper fix in
+  3.3.
+
+Library
+-------
+
+- Issue #10946: The distutils commands bdist_dumb, bdist_wininst and bdist_msi
+  now respect a --skip-build option given to bdist.
+
+- Issue #12839: Fix crash in zlib module due to version mismatch.
+  Fix by Richard M. Tew.
+
+Extension Modules
+-----------------
+
+- Issue #9651: Fix a crash when ctypes.create_string_buffer(0) was passed to
+  some functions like file.write().
+
+
+
+What's New in Python 3.2.2 release candidate 1?
+===============================================
+
+*Release date: 14-Aug-2011*
+
+Core and Builtins
+-----------------
+
+- Issue #12732: In narrow unicode builds, allow Unicode identifiers which fall
+  outside the BMP.
+
+- Issue #11603: Fix a crash when __str__ is rebound as __repr__.  Patch by
+  Andreas Stührk.
+
+- Issue #11321: Fix a crash with multiple imports of the _pickle module when
+  embedding Python.  Patch by Andreas Stührk.
+
+- Verify the types of AST strings and identifiers provided by the user before
+  compiling them.
+
+- Issue #12579: str.format_map() now raises a ValueError if used on a
+  format string that contains positional fields. Initial patch by
+  Julian Berman.
+
+- Issue #11627: Fix segfault when __new__ on a exception returns a
+  non-exception class.
+
+- Issue #12149: Update the method cache after a type's dictionnary gets
+  cleared by the garbage collector.  This fixes a segfault when an instance
+  and its type get caught in a reference cycle, and the instance's
+  deallocator calls one of the methods on the type (e.g. when subclassing
+  IOBase).  Diagnosis and patch by Davide Rizzo.
+
+- When a generator yields, do not retain the caller's exception state on the
+  generator.
+
+- Issue #12475: Prevent generators from leaking their exception state into the
+  caller's frame as they return for the last time.
+
+Library
+-------
+
+- Issue #11513: Fix exception handling ``tarfile.TarFile.gzopen()`` when
+  the file cannot be opened.
+
+- Issue #12687: Fix a possible buffering bug when unpickling text mode
+  (protocol 0, mostly) pickles.
+
+- Issue #10087: Fix the html output format of the calendar module.
+
+- Issue #12540: Prevent zombie IDLE processes on Windows due to changes
+  in os.kill().
+
+- Issue #12683: urlparse updated to include svn as schemes that uses relative
+  paths. (svn from 1.5 onwards support relative path).
+
+- Issues #11104, #8688: Fix the behavior of distutils' sdist command with
+  manually-maintained MANIFEST files.
+
+- Issue #12464: tempfile.TemporaryDirectory.cleanup() should not follow
+  symlinks: fix it. Patch by Petri Lehtinen.
+
+- Issue #8887: "pydoc somebuiltin.somemethod" (or help('somebuiltin.somemethod')
+  in Python code) now finds the doc of the method.
+
+- Issue #12603: Fix pydoc.synopsis() on files with non-negative st_mtime.
+
+- Issue #12514: Use try/finally to assure the timeit module restores garbage
+  collections when it is done.
+
+- Issue #12607: In subprocess, fix issue where if stdin, stdout or stderr is
+  given as a low fd, it gets overwritten.
+
+- Issue #12590: IDLE editor window now always displays the first line
+  when opening a long file.  With Tk 8.5, the first line was hidden.
+
+- Issue #12576: Fix urlopen behavior on sites which do not send (or obfuscates)
+  Connection:close header.
+
+- Issue #1813: Fix codec lookup under Turkish locales.
+
+- Issue #12591: Improve support of "universal newlines" in the subprocess
+  module: the piped streams can now be properly read from or written to.
+
+- Issue #12591: Allow io.TextIOWrapper to work with raw IO objects (without
+  a read1() method), and add an undocumented *write_through* parameter to
+  mandate unbuffered writes.
+
+- Issue #9611, #9015: FileIO.read() clamps the length to INT_MAX on Windows.
+
+- Issue #10883: Fix socket leaks in urllib.request when using FTP.
+
+- Issue #12571: Add a plat-linux3 directory mirroring the plat-linux2
+  directory, so that "import DLFCN" and other similar imports work on
+  Linux 3.0.
+
+- Issue #7484: smtplib no longer puts <> around addresses in VRFY and EXPN
+  commands; they aren't required and in fact postfix doesn't support that form.
+
+- Close the call queue in concurrent.futures.ProcessPoolExecutor when
+  shutdown() is called, without waiting for the garbage collector to kick in.
+
+- Issue #12502: asyncore: fix polling loop with AF_UNIX sockets.
+
+- Issue #4376: ctypes now supports nested structures with an endianness
+  different than that of the parent structure.  Patch by Vlad Riscutia.
+
+- Raise ValueError when attempting to set the _CHUNK_SIZE attribute of a
+  TextIOWrapper to a huge value, not TypeError.
+
+- Issue #12493: subprocess: Popen.communicate() now also handles EINTR errors
+  if the process has only one pipe.
+
+- Issue #12451: pydoc: html_getfile() now uses tokenize.open() to support
+  Python modules using a encoding different than UTF-8 (reading the coding
+  cookie of the module).
+
+- Issue #12451: pydoc: importfile() now opens the Python module in binary mode,
+  instead of text mode using the locale encoding, to avoid encoding issues.
+
+- Issue #12451: runpy: run_path() now opens the Python module in binary mode,
+  instead of text mode using the locale encoding, to support other encodings
+  than UTF-8 (modules using the coding cookie).
+
+- Issue #12451: xml.dom.pulldom: parse() now opens files in binary mode instead
+  of the text mode (using the locale encoding) to avoid encoding issues.
+
+Extension Modules
+-----------------
+
+- Issue #10309: Define _GNU_SOURCE so that mremap() gets the proper
+  signature.  Without this, architectures where sizeof void* != sizeof int are
+  broken.  Patch given by Hallvard B Furuseth.
+
+C-API
+-----
+
+Build
+-----
+
+- Issue #12560: Build libpython.so on OpenBSD.  Patch by Stefan Sperling.
+
+- Issue #12592: Make Python build on OpenBSD 5 (and future major releases).
+
+- Issue #12372: POSIX semaphores are broken on AIX: don't use them.
+
+Tools/Demos
+-----------
+
+- Issue #10639: reindent.py no longer converts newlines and will raise
+  an error if attempting to convert a file with mixed newlines.
+
+Tests
+-----
+
+- Issue #12331: The test suite for lib2to3 can now run from an installed
+  Python.
+
+- Issue #12626: In regrtest, allow to filter tests using a glob filter
+  with the ``-m`` (or ``--match``) option.  This works with all test cases
+  using the unittest module.  This is useful with long test suites
+  such as test_io or test_subprocess.
+
+- Issue #12624: It is now possible to fail after the first failure when
+  running in verbose mode (``-v`` or ``-W``), by using the ``--failfast``
+  (or ``-G``) option to regrtest.  This is useful with long test suites
+  such as test_io or test_subprocess.
+
+- Issue #12587: Correct faulty test file and reference in test_tokenize.
+  (Patch by Robert Xiao)
+
+- Try harder to reap dangling threads in test.support.reap_threads().
+
+- Issue #12573: Add resource checks for dangling Thread and Process objects.
+
+- Issue #12549: Correct test_platform to not fail when OS X returns 'x86_64'
+  as the processor type on some Mac systems.
+
+- Avoid failing in test_robotparser when mueblesmoraleda.com is flaky and
+  an overzealous DNS service (e.g. OpenDNS) redirects to a placeholder
+  Web site.
+
+- Issue #12440: When testing whether some bits in SSLContext.options can be
+  reset, check the version of the OpenSSL headers Python was compiled against,
+  rather than the runtime version of the OpenSSL library.
+
+- Issue #12497: Install test/data to prevent failures of the various codecmaps
+  tests.
+
+- Issue #12496: Install test/capath directory to prevent test_connect_capath
+  testcase failure in test_ssl.
+
+- Issue #12469: Run "wakeup" signal tests in subprocess to run the test in a
+  fresh process with only one thread and to not change signal handling of the
+  parent process.
+
+- Issue #8716: Avoid crashes caused by Aqua Tk on OSX when attempting to run
+  test_tk or test_ttk_guionly under a username that is not currently logged
+  in to the console windowserver (as may be the case under buildbot or ssh).
+
+
 What's New in Python 3.2.1?
 ===========================
 
@@ -64,7 +296,7 @@ Library
   to avoid encoding issues.
 
 - Issue #12451: pydoc.synopsis() now reads the encoding cookie if available, to
-  read the Python script from the right encoding.
+  read the Python module from the right encoding.
 
 - Issue #12451: distutils now opens the setup script in binary mode to read the
   encoding cookie, instead of opening it in UTF-8.
@@ -79,9 +311,6 @@ Library
   MACOSX_DEPLOYMENT_TARGET before launching the interpreter; its value must be
   greater or equal to the default value, the value with which the interpreter
   was built.
-
-- Issue #12404: Remove C89 incompatible code from mmap module. Patch by Akira
-  Kitada.
 
 - Issue #12383: Fix subprocess module with env={}: don't copy the environment
   variables, start with an empty environment.
@@ -149,6 +378,9 @@ Library
 Extension Modules
 -----------------
 
+- Issue #12404: Remove C89 incompatible code from mmap module. Patch by Akira
+  Kitada.
+
 - Issue #12221: Replace pyexpat.__version__ with the Python version.
 
 Build
@@ -162,6 +394,7 @@ Build
 - Issue #11217: For 64-bit/32-bit Mac OS X universal framework builds, ensure
   "make install" creates symlinks in --prefix bin for the "-32" files in the
   framework bin directory like the installer does.
+
 
 Tests
 -----
@@ -864,7 +1097,7 @@ Core and Builtins
   (length bigger than 2^31-1 bytes).
 
 - Issue #9015, #9611: FileIO.readinto(), FileIO.write(), os.write() and
-  stdprinter.write() clamp the length to 2^31-1 on Windows.
+  stdprinter.write() clamp the length to INT_MAX on Windows.
 
 - Issue #8278: On Windows and with a NTFS filesystem, os.stat() and os.utime()
   can now handle dates after 2038.

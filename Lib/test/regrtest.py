@@ -38,6 +38,8 @@ Selecting tests
 -f/--fromfile   -- read names of tests to run from a file (see below)
 -x/--exclude    -- arguments are tests to *exclude*
 -s/--single     -- single step through a set of tests (see below)
+-m/--match PAT  -- match test cases and methods with glob pattern PAT
+-G/--failfast   -- fail as soon as a test fails (only with -v or -W)
 -u/--use RES1,RES2,...
                 -- specify which special resource intensive tests to run
 -M/--memlimit LIMIT
@@ -172,6 +174,15 @@ import unittest
 import warnings
 from inspect import isabstract
 
+try:
+    import threading
+except ImportError:
+    threading = None
+try:
+    import multiprocessing.process
+except ImportError:
+    multiprocessing = None
+
 
 # Some times __path__ and __file__ are not absolute (e.g. while running from
 # Lib/) and, if we change the CWD to run the tests in a temporary dir, some
@@ -232,7 +243,7 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
          findleaks=False, use_resources=None, trace=False, coverdir='coverage',
          runleaks=False, huntrleaks=False, verbose2=False, print_slow=False,
          random_seed=None, use_mp=None, verbose3=False, forever=False,
-         header=False):
+         header=False, failfast=False, match_tests=None):
     """Execute a test suite.
 
     This also parses command-line options and modifies its behavior
@@ -260,13 +271,13 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
 
     support.record_original_stdout(sys.stdout)
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'hvqxsSrf:lu:t:TD:NLR:FwWM:nj:',
+        opts, args = getopt.getopt(sys.argv[1:], 'hvqxsSrf:lu:t:TD:NLR:FwWM:nj:Gm:',
             ['help', 'verbose', 'verbose2', 'verbose3', 'quiet',
              'exclude', 'single', 'slow', 'random', 'fromfile', 'findleaks',
              'use=', 'threshold=', 'trace', 'coverdir=', 'nocoverdir',
              'runleaks', 'huntrleaks=', 'memlimit=', 'randseed=',
              'multiprocess=', 'coverage', 'slaveargs=', 'forever', 'debug',
-             'start=', 'nowindows', 'header'])
+             'start=', 'nowindows', 'header', 'failfast', 'match'])
     except getopt.error as msg:
         usage(msg)
 
@@ -289,6 +300,8 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
             debug = True
         elif o in ('-W', '--verbose3'):
             verbose3 = True
+        elif o in ('-G', '--failfast'):
+            failfast = True
         elif o in ('-q', '--quiet'):
             quiet = True;
             verbose = 0
@@ -306,6 +319,8 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
             random_seed = int(a)
         elif o in ('-f', '--fromfile'):
             fromfile = a
+        elif o in ('-m', '--match'):
+            match_tests = a
         elif o in ('-l', '--findleaks'):
             findleaks = True
         elif o in ('-L', '--runleaks'):
@@ -397,6 +412,10 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
         usage("-T and -j don't go together!")
     if use_mp and findleaks:
         usage("-l and -j don't go together!")
+    if use_mp and support.max_memuse:
+        usage("-M and -j don't go together!")
+    if failfast and not (verbose or verbose3):
+        usage("-G/--failfast needs either -v or -W")
 
     good = []
     bad = []
@@ -498,7 +517,6 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
         elif ok == FAILED:
             bad.append(test)
         elif ok == ENV_CHANGED:
-            bad.append(test)
             environment_changed.append(test)
         elif ok == SKIPPED:
             skipped.append(test)
@@ -536,7 +554,8 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
                 args_tuple = (
                     (test, verbose, quiet),
                     dict(huntrleaks=huntrleaks, use_resources=use_resources,
-                         debug=debug, output_on_failure=verbose3)
+                         debug=debug, output_on_failure=verbose3,
+                         failfast=failfast, match_tests=match_tests)
                 )
                 yield (test, args_tuple)
         pending = tests_and_args()
@@ -614,7 +633,8 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
             else:
                 try:
                     result = runtest(test, verbose, quiet, huntrleaks, debug,
-                                     output_on_failure=verbose3)
+                                     output_on_failure=verbose3,
+                                     failfast=failfast, match_tests=match_tests)
                     accumulate_result(test, result)
                 except KeyboardInterrupt:
                     interrupted = True
@@ -761,7 +781,7 @@ def replace_stdout():
 
 def runtest(test, verbose, quiet,
             huntrleaks=False, debug=False, use_resources=None,
-            output_on_failure=False):
+            output_on_failure=False, failfast=False, match_tests=None):
     """Run a single test.
 
     test -- the name of the test
@@ -784,6 +804,9 @@ def runtest(test, verbose, quiet,
     if use_resources is not None:
         support.use_resources = use_resources
     try:
+        support.match_tests = match_tests
+        if failfast:
+            support.failfast = True
         if output_on_failure:
             support.verbose = True
 
@@ -864,7 +887,8 @@ class saved_test_environment:
                  'os.environ', 'sys.path', 'sys.path_hooks', '__import__',
                  'warnings.filters', 'asyncore.socket_map',
                  'logging._handlers', 'logging._handlerList',
-                 'sys.warnoptions')
+                 'sys.warnoptions', 'threading._dangling',
+                 'multiprocessing.process._dangling')
 
     def get_sys_argv(self):
         return id(sys.argv), sys.argv, sys.argv[:]
@@ -951,6 +975,31 @@ class saved_test_environment:
     def restore_sys_warnoptions(self, saved_options):
         sys.warnoptions = saved_options[1]
         sys.warnoptions[:] = saved_options[2]
+
+    # Controlling dangling references to Thread objects can make it easier
+    # to track reference leaks.
+    def get_threading__dangling(self):
+        if not threading:
+            return None
+        # This copies the weakrefs without making any strong reference
+        return threading._dangling.copy()
+    def restore_threading__dangling(self, saved):
+        if not threading:
+            return
+        threading._dangling.clear()
+        threading._dangling.update(saved)
+
+    # Same for Process objects
+    def get_multiprocessing_process__dangling(self):
+        if not multiprocessing:
+            return None
+        # This copies the weakrefs without making any strong reference
+        return multiprocessing.process._dangling.copy()
+    def restore_multiprocessing_process__dangling(self, saved):
+        if not multiprocessing:
+            return
+        multiprocessing.process._dangling.clear()
+        multiprocessing.process._dangling.update(saved)
 
     def resource_info(self):
         for name in self.resources:

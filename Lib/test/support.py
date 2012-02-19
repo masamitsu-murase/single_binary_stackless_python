@@ -21,12 +21,19 @@ import subprocess
 import imp
 import time
 import sysconfig
+import fnmatch
 import logging.handlers
 
 try:
-    import _thread
+    import _thread, threading
 except ImportError:
     _thread = None
+    threading = None
+try:
+    import multiprocessing.process
+except ImportError:
+    multiprocessing = None
+
 
 __all__ = [
     "Error", "TestFailed", "ResourceDenied", "import_module",
@@ -46,7 +53,7 @@ __all__ = [
     "reap_children", "cpython_only", "check_impl_detail", "get_attribute",
     "swap_item", "swap_attr", "requires_IEEE_754",
     "TestHandler", "Matcher", "can_symlink", "skip_unless_symlink",
-    "import_fresh_module"
+    "import_fresh_module", "failfast",
     ]
 
 class Error(Exception):
@@ -170,6 +177,8 @@ use_resources = None     # Flag set to [] by regrtest.py
 max_memuse = 0           # Disable bigmem tests (they will still be run with
                          # small sizes, to make sure they work.)
 real_max_memuse = 0
+failfast = False
+match_tests = None
 
 # _original_stdout is meant to hold stdout at the time regrtest began.
 # This may be "the real" stdout, or IDLE's emulation of stdout, or whatever.
@@ -1176,11 +1185,24 @@ def check_impl_detail(**guards):
     return guards.get(platform.python_implementation().lower(), default)
 
 
+def _filter_suite(suite, pred):
+    """Recursively filter test cases in a suite based on a predicate."""
+    newtests = []
+    for test in suite._tests:
+        if isinstance(test, unittest.TestSuite):
+            _filter_suite(test, pred)
+            newtests.append(test)
+        else:
+            if pred(test):
+                newtests.append(test)
+    suite._tests = newtests
+
 
 def _run_suite(suite):
     """Run tests from a unittest.TestSuite-derived class."""
     if verbose:
-        runner = unittest.TextTestRunner(sys.stdout, verbosity=2)
+        runner = unittest.TextTestRunner(sys.stdout, verbosity=2,
+                                         failfast=failfast)
     else:
         runner = BasicTestRunner()
 
@@ -1210,6 +1232,14 @@ def run_unittest(*classes):
             suite.addTest(cls)
         else:
             suite.addTest(unittest.makeSuite(cls))
+    def case_pred(test):
+        if match_tests is None:
+            return True
+        for name in test.id().split("."):
+            if fnmatch.fnmatchcase(name, match_tests):
+                return True
+        return False
+    _filter_suite(suite, case_pred)
     _run_suite(suite)
 
 
@@ -1275,19 +1305,20 @@ def modules_cleanup(oldmodules):
 
 def threading_setup():
     if _thread:
-        return _thread._count(),
+        return _thread._count(), threading._dangling.copy()
     else:
-        return 1,
+        return 1, ()
 
-def threading_cleanup(nb_threads):
+def threading_cleanup(*original_values):
     if not _thread:
         return
     _MAX_COUNT = 10
     for count in range(_MAX_COUNT):
-        n = _thread._count()
-        if n == nb_threads:
+        values = _thread._count(), threading._dangling
+        if values == original_values:
             break
         time.sleep(0.1)
+        gc_collect()
     # XXX print a warning in case of failure?
 
 def reap_threads(func):

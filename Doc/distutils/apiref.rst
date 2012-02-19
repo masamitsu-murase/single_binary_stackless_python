@@ -72,8 +72,8 @@ setup script). Indirectly provides the  :class:`distutils.dist.Distribution` and
    |                    | be built                       | :class:`distutils.core.Extension`                           |
    +--------------------+--------------------------------+-------------------------------------------------------------+
    | *classifiers*      | A list of categories for the   | The list of available                                       |
-   |                    | package                        | categorizations is at                                       |
-   |                    |                                | http://pypi.python.org/pypi?:action=list_classifiers.       |
+   |                    | package                        | categorizations is available on `PyPI                       |
+   |                    |                                | <http://pypi.python.org/pypi?:action=list_classifiers>`_.   |
    +--------------------+--------------------------------+-------------------------------------------------------------+
    | *distclass*        | the :class:`Distribution`      | A subclass of                                               |
    |                    | class to use                   | :class:`distutils.core.Distribution`                        |
@@ -260,6 +260,11 @@ the full reference.
    |                        | ``'objc'``). Will be detected  |                           |
    |                        | from the source extensions if  |                           |
    |                        | not provided.                  |                           |
+   +------------------------+--------------------------------+---------------------------+
+   | *optional*             | specifies that a build failure | a boolean                 |
+   |                        | in the extension should not    |                           |
+   |                        | abort the build process, but   |                           |
+   |                        | simply skip the extension.     |                           |
    +------------------------+--------------------------------+---------------------------+
 
 

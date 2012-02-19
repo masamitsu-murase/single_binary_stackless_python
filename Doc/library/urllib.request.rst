@@ -105,7 +105,7 @@ The :mod:`urllib.request` module defines the following functions:
    can be imported), :class:`HTTPSHandler` will also be added.
 
    A :class:`BaseHandler` subclass may also change its :attr:`handler_order`
-   member variable to modify its position in the handlers list.
+   attribute to modify its position in the handlers list.
 
 
 .. function:: pathname2url(path)
@@ -311,6 +311,11 @@ The following classes are provided:
 .. class:: UnknownHandler()
 
    A catch-all class to handle unknown URLs.
+
+
+.. class:: HTTPErrorProcessor()
+
+   Process HTTP error responses.
 
 
 .. _request-objects:
@@ -536,7 +541,7 @@ intended for direct use:
 
    Remove any parents.
 
-The following members and methods should only be used by classes derived from
+The following attribute and methods should only be used by classes derived from
 :class:`BaseHandler`.
 
 .. note::
@@ -916,7 +921,7 @@ UnknownHandler Objects
 HTTPErrorProcessor Objects
 --------------------------
 
-.. method:: HTTPErrorProcessor.unknown_open()
+.. method:: HTTPErrorProcessor.http_response()
 
    Process HTTP error responses.
 
@@ -926,6 +931,13 @@ HTTPErrorProcessor Objects
    :meth:`protocol_error_code` handler methods, via :meth:`OpenerDirector.error`.
    Eventually, :class:`HTTPDefaultErrorHandler` will raise an
    :exc:`HTTPError` if no other handler handles the error.
+
+
+.. method:: HTTPErrorProcessor.https_response()
+
+   Process HTTPS error responses.
+
+   The behavior is same as :meth:`http_response`.
 
 
 .. _urllib-request-examples:

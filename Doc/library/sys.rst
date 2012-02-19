@@ -36,18 +36,6 @@ always available.
    little-endian (least-significant byte first) platforms.
 
 
-.. data:: subversion
-
-   A triple (repo, branch, version) representing the Subversion information of the
-   Python interpreter. *repo* is the name of the repository, ``'CPython'``.
-   *branch* is a string of one of the forms ``'trunk'``, ``'branches/name'`` or
-   ``'tags/name'``. *version* is the output of ``svnversion``, if the interpreter
-   was built from a Subversion checkout; it contains the revision number (range)
-   and possibly a trailing 'M' if there were local modifications. If the tree was
-   exported (or svnversion was not available), it is the revision of
-   ``Include/patchlevel.h`` if the branch is a tag. Otherwise, it is ``None``.
-
-
 .. data:: builtin_module_names
 
    A tuple of strings giving the names of all modules that are compiled into this
@@ -711,21 +699,43 @@ always available.
    This string contains a platform identifier that can be used to append
    platform-specific components to :data:`sys.path`, for instance.
 
-   For Unix systems, this is the lowercased OS name as returned by ``uname -s``
-   with the first part of the version as returned by ``uname -r`` appended,
-   e.g. ``'sunos5'`` or ``'linux2'``, *at the time when Python was built*.
+   For most Unix systems, this is the lowercased OS name as returned by ``uname
+   -s`` with the first part of the version as returned by ``uname -r`` appended,
+   e.g. ``'sunos5'``, *at the time when Python was built*.  Unless you want to
+   test for a specific system version, it is therefore recommended to use the
+   following idiom::
+
+      if sys.platform.startswith('freebsd'):
+          # FreeBSD-specific code here...
+      elif sys.platform.startswith('linux'):
+          # Linux-specific code here...
+
+   .. versionchanged:: 3.2.2
+      Since lots of code check for ``sys.platform == 'linux2'``, and there is
+      no essential change between Linux 2.x and 3.x, ``sys.platform`` is always
+      set to ``'linux2'``, even on Linux 3.x.  In Python 3.3 and later, the
+      value will always be set to ``'linux'``, so it is recommended to always
+      use the ``startswith`` idiom presented above.
+
    For other systems, the values are:
 
-   ================ ===========================
-   System           :data:`platform` value
-   ================ ===========================
-   Windows          ``'win32'``
-   Windows/Cygwin   ``'cygwin'``
-   Mac OS X         ``'darwin'``
-   OS/2             ``'os2'``
-   OS/2 EMX         ``'os2emx'``
-   ================ ===========================
+   ====================== ===========================
+   System                 :data:`platform` value
+   ====================== ===========================
+   Linux (2.x *and* 3.x)  ``'linux2'``
+   Windows                ``'win32'``
+   Windows/Cygwin         ``'cygwin'``
+   Mac OS X               ``'darwin'``
+   OS/2                   ``'os2'``
+   OS/2 EMX               ``'os2emx'``
+   ====================== ===========================
 
+   .. seealso::
+      :attr:`os.name` has a coarser granularity.  :func:`os.uname` gives
+      system-dependent version information.
+
+      The :mod:`platform` module provides detailed checks for the
+      system's identity.
 
 .. data:: prefix
 
@@ -968,6 +978,24 @@ always available.
        original values ``__stdin__``, ``__stdout__`` and ``__stderr__`` can be
        None. It is usually the case for Windows GUI apps that aren't connected
        to a console and Python apps started with :program:`pythonw`.
+
+
+.. data:: subversion
+
+   A triple (repo, branch, version) representing the Subversion information of the
+   Python interpreter. *repo* is the name of the repository, ``'CPython'``.
+   *branch* is a string of one of the forms ``'trunk'``, ``'branches/name'`` or
+   ``'tags/name'``. *version* is the output of ``svnversion``, if the interpreter
+   was built from a Subversion checkout; it contains the revision number (range)
+   and possibly a trailing 'M' if there were local modifications. If the tree was
+   exported (or svnversion was not available), it is the revision of
+   ``Include/patchlevel.h`` if the branch is a tag. Otherwise, it is ``None``.
+
+   .. deprecated:: 3.2.1
+      Python is now `developed <http://docs.python.org/devguide/>`_ using
+      Mercurial.  In recent Python 3.2 bugfix releases, :data:`subversion`
+      therefore contains placeholder information.  It is removed in Python
+      3.3.
 
 
 .. data:: tracebacklimit

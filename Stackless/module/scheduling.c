@@ -190,7 +190,7 @@ static PyMethodDef bomb_methods[] = {
     {NULL,     NULL}             /* sentinel */
 };
 
-static char bomb__doc__[] =
+PyDoc_STRVAR(bomb__doc__,
 "A bomb object is used to hold exceptions in tasklets.\n\
 Whenever a tasklet is activated and its tempval is a bomb,\n\
 it will explode as an exception.\n\
@@ -205,7 +205,7 @@ try: 1/0\n\
 except: b = bomb(sys.exc_info())\n\
 \n\
 t.tempval = b\n\
-t.run()  # let the bomb explode";
+t.run()  # let the bomb explode");
 
 PyTypeObject PyBomb_Type = {
     PyObject_HEAD_INIT(&PyType_Type)
@@ -246,7 +246,7 @@ PyTypeObject PyBomb_Type = {
     0,                                          /* tp_init */
     0,                                          /* tp_alloc */
     bomb_new,                                   /* tp_new */
-    PyObject_GC_Del,                           /* tp_free */
+    PyObject_GC_Del,                            /* tp_free */
 };
 
 
@@ -586,6 +586,17 @@ static int schedule_thread_unblock(PyThreadState *nts)
     }
     return 0;
 }
+
+void slp_thread_unblock(PyThreadState *nts)
+{
+    schedule_thread_unblock(nts);
+}
+
+#else
+
+void slp_thread_unblock(PyThreadState *nts)
+{}
+
 #endif
 
 static PyObject *

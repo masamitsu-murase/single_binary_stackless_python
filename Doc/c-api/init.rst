@@ -122,7 +122,7 @@ Process-wide parameters
    program name is ``'/usr/local/bin/python'``, the prefix is ``'/usr/local'``. The
    returned string points into static storage; the caller should not modify its
    value.  This corresponds to the :makevar:`prefix` variable in the top-level
-   :file:`Makefile` and the :option:`--prefix` argument to the :program:`configure`
+   :file:`Makefile` and the ``--prefix`` argument to the :program:`configure`
    script at build time.  The value is available to Python code as ``sys.prefix``.
    It is only useful on Unix.  See also the next function.
 
@@ -135,7 +135,7 @@ Process-wide parameters
    program name is ``'/usr/local/bin/python'``, the exec-prefix is
    ``'/usr/local'``.  The returned string points into static storage; the caller
    should not modify its value.  This corresponds to the :makevar:`exec_prefix`
-   variable in the top-level :file:`Makefile` and the :option:`--exec-prefix`
+   variable in the top-level :file:`Makefile` and the ``--exec-prefix``
    argument to the :program:`configure` script at build  time.  The value is
    available to Python code as ``sys.exec_prefix``.  It is only useful on Unix.
 
@@ -644,6 +644,14 @@ with sub-interpreters:
 
    Every call to :c:func:`PyGILState_Ensure` must be matched by a call to
    :c:func:`PyGILState_Release` on the same thread.
+
+
+.. c:function:: PyThreadState PyGILState_GetThisThreadState()
+
+   Get the current thread state for this thread.  May return ``NULL`` if no
+   GILState API has been used on the current thread.  Note that the main thread
+   always has such a thread-state, even if no auto-thread-state call has been
+   made on the main thread.  This is mainly a helper/diagnostic function.
 
 
 The following macros are normally used without a trailing semicolon; look for

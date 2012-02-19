@@ -224,8 +224,8 @@ def source_synopsis(file):
 def synopsis(filename, cache={}):
     """Get the one-line summary out of a module file."""
     mtime = os.stat(filename).st_mtime
-    lastupdate, result = cache.get(filename, (0, None))
-    if lastupdate < mtime:
+    lastupdate, result = cache.get(filename, (None, None))
+    if lastupdate is None or lastupdate < mtime:
         info = inspect.getmoduleinfo(filename)
         try:
             file = tokenize.open(filename)
@@ -256,20 +256,18 @@ class ErrorDuringImport(Exception):
 def importfile(path):
     """Import a Python source file or compiled file given its path."""
     magic = imp.get_magic()
-    file = open(path, 'r')
-    if file.read(len(magic)) == magic:
-        kind = imp.PY_COMPILED
-    else:
-        kind = imp.PY_SOURCE
-    file.close()
-    filename = os.path.basename(path)
-    name, ext = os.path.splitext(filename)
-    file = open(path, 'r')
-    try:
-        module = imp.load_module(name, file, path, (ext, 'r', kind))
-    except:
-        raise ErrorDuringImport(path, sys.exc_info())
-    file.close()
+    with open(path, 'rb') as file:
+        if file.read(len(magic)) == magic:
+            kind = imp.PY_COMPILED
+        else:
+            kind = imp.PY_SOURCE
+        file.seek(0)
+        filename = os.path.basename(path)
+        name, ext = os.path.splitext(filename)
+        try:
+            module = imp.load_module(name, file, path, (ext, 'r', kind))
+        except:
+            raise ErrorDuringImport(path, sys.exc_info())
     return module
 
 def safeimport(path, forceload=0, cache={}):
@@ -1484,13 +1482,14 @@ def locate(path, forceload=0):
         else: break
     if module:
         object = module
-        for part in parts[n:]:
-            try: object = getattr(object, part)
-            except AttributeError: return None
-        return object
     else:
-        if hasattr(builtins, path):
-            return getattr(builtins, path)
+        object = builtins
+    for part in parts[n:]:
+        try:
+            object = getattr(object, part)
+        except AttributeError:
+            return None
+    return object
 
 # --------------------------------------- interactive interpreter interface
 
@@ -2582,7 +2581,7 @@ def _url_handler(url, content_type="text/html"):
     def html_getfile(path):
         """Get and display a source file listing safely."""
         path = path.replace('%20', ' ')
-        with open(path, 'r') as fp:
+        with tokenize.open(path) as fp:
             lines = html.escape(fp.read())
         body = '<pre>%s</pre>' % lines
         heading = html.heading(
