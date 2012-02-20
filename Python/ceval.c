@@ -1735,6 +1735,10 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
 
     if (co->co_flags & CO_GENERATOR && !throwflag) {
 #ifdef STACKLESS
+        /* In non-Stackless Python, this clause is executed on first entry of
+           the generator and on the return from each yield.  In Stackless, we
+           reenter frames for other purposes (calls, iteration, ..) and need
+           to avoid incorrect reexecution and exc reference leaking. */
         if (f->f_execute == PyEval_EvalFrame_noval) {
 #endif
         if (f->f_exc_type != NULL && f->f_exc_type != Py_None) {
