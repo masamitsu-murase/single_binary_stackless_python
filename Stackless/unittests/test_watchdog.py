@@ -2,6 +2,9 @@ import pickle, sys, random
 import unittest
 import stackless
 
+from support import StacklessTestCase
+
+
 # Helpers
 
 def is_soft():
@@ -147,9 +150,10 @@ def servertask(name, chan):
         self.count += 1
 
 
-class TestWatchdog(unittest.TestCase):
+class TestWatchdog(StacklessTestCase):
     softSchedule = False
     def setUp(self):
+        super(TestWatchdog, self).setUp()
         self.verbose = __name__ == "__main__"
 
     def tearDown(self):

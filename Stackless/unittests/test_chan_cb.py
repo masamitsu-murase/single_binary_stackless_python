@@ -1,5 +1,7 @@
 import unittest
 
+from support import StacklessTestCase
+
 
 class ChannelMonitor:
     "A channel monitor acting as a callback for set_channel_callback()."
@@ -12,7 +14,7 @@ class ChannelMonitor:
         self.history.append(tup)
         
 
-class ChannelCallbackTestCase(unittest.TestCase):
+class ChannelCallbackTestCase(StacklessTestCase):
     "A collection of channel callback tests."
     
     def test0(self):

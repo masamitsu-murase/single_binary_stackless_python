@@ -3,9 +3,12 @@ import sys
 
 from stackless import *
 
+from support import StacklessTestCase
+
+
 #test that thread state is restored properly
 
-class TestExceptionState(unittest.TestCase):
+class TestExceptionState(StacklessTestCase):
     def Tasklet(self):
         try:
             1/0
@@ -27,9 +30,9 @@ class TestExceptionState(unittest.TestCase):
         ei = sys.exc_info()
         self.assertEqual(ei, (None,)*3)
 
-class TestTracingState(unittest.TestCase):
+class TestTracingState(StacklessTestCase):
     def __init__(self, *args):
-        unittest.TestCase.__init__(self, *args)
+        StacklessTestCase.__init__(self, *args)
         self.trace = []
 
     def Callback(self, *args):

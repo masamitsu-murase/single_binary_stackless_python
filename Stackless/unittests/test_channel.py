@@ -1,30 +1,9 @@
 import unittest
 import stackless
 import threading
+from support import StacklessTestCase
 
-class TestChannels(unittest.TestCase):
-    def _checkForTestLeakage(self):
-        self.assertEqual(stackless.getruncount(), 1,
-            "Leakage from other tests, with %d tasklets still in the scheduler" %
-            (stackless.getruncount() - 1))
-        # It is perfectly legitimate for threads to still be exiting.  Wait a little otherwise error.
-        currentThread = threading.current_thread()
-        for thread in threading.enumerate():
-            if thread is not currentThread:
-                thread.join(10.0)
-                if thread.isAlive():
-                    traceback.print_stack(sys._current_frames()[thread.ident])
-                self.assertFalse(thread.is_alive(),
-                    "Other thread leaked, will make test results invalid")
-        self.assertEqual(threading.activeCount(), 1,
-            "Leakage from other tests, with %d Python threads active (expected 1; the main thread)")
-
-    def setUp(self):
-        self._checkForTestLeakage()
-
-    def tearDown(self):
-        self._checkForTestLeakage()
-
+class TestChannels(StacklessTestCase):
     def testBlockingSend(self):
         ''' Test that when a tasklet sends to a channel without waiting receivers, the tasklet is blocked. '''
 
@@ -36,7 +15,7 @@ class TestChannels(unittest.TestCase):
         channel = stackless.channel()
         tasklet = stackless.tasklet(f)(channel)
         tasklet.run()
-        
+
         # The tasklet should be blocked.
         self.assertTrue(tasklet.blocked, "The tasklet should have been run and have blocked on the channel waiting for a corresponding receiver")
 
@@ -54,7 +33,7 @@ class TestChannels(unittest.TestCase):
         channel = stackless.channel()
         tasklet = stackless.tasklet(f)(channel)
         tasklet.run()
-        
+
         # The tasklet should be blocked.
         self.assertTrue(tasklet.blocked, "The tasklet should have been run and have blocked on the channel waiting for a corresponding sender")
 
@@ -66,7 +45,7 @@ class TestChannels(unittest.TestCase):
 
         originalValue = 1
         receivedValues = []
-    
+
         # Function to block when run in a tasklet.
         def f(testChannel):
             receivedValues.append(testChannel.receive())
@@ -85,13 +64,13 @@ class TestChannels(unittest.TestCase):
             channel.send(originalValue)
         finally:
             stackless.getcurrent().block_trap = oldBlockTrap
-        
+
         self.assertTrue(len(receivedValues) == 1 and receivedValues[0] == originalValue, "We sent a value, but it was not the one we received.  Completely unexpected.")
 
     def testNonBlockingReceive(self):
         ''' Test that when there is a waiting sender, we can receive without blocking with normal channel behaviour. '''
         originalValue = 1
-    
+
         # Function to block when run in a tasklet.
         def f(testChannel, valueToSend):
             testChannel.send(valueToSend)
@@ -112,16 +91,16 @@ class TestChannels(unittest.TestCase):
             stackless.getcurrent().block_trap = oldBlockTrap
 
         tasklet.kill()
-        
+
         self.assertEqual(value, originalValue, "We received a value, but it was not the one we sent.  Completely unexpected.")
 
     def testMainTaskletBlockingWithoutASender(self):
-        ''' Test that the last runnable tasklet cannot be blocked on a channel. '''    
+        ''' Test that the last runnable tasklet cannot be blocked on a channel. '''
         c = stackless.channel()
         self.assertRaises(RuntimeError, c.receive)
 
     def testInterthreadCommunication(self):
-        ''' Test that tasklets in different threads sending over channels to each other work. '''    
+        ''' Test that tasklets in different threads sending over channels to each other work. '''
         commandChannel = stackless.channel()
 
         def master_func():
