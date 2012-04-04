@@ -1867,12 +1867,21 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
 #endif
 
         if (_Py_atomic_load_relaxed(&eval_breaker)) {
+#ifdef STACKLESS
+            if (tstate->st.current->flags.atomic) {
+                /* make stackless atomic fully atomic */
+                goto fast_next_opcode;
+            }
+#endif
             if (*next_instr == SETUP_FINALLY) {
                 /* Make the last opcode before
                    a try: finally: block uninterruptible. */
                 goto fast_next_opcode;
             }
             tstate->tick_counter++;
+
+
+
 #ifdef WITH_TSC
             ticked = 1;
 #endif
