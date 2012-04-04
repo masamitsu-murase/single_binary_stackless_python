@@ -1171,7 +1171,12 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
            async I/O handler); see Py_AddPendingCall() and
            Py_MakePendingCalls() above. */
 
+#ifdef STACKLESS
+        /* don't do periodic things when in atomic mode */
+        if (--_Py_Ticker < 0 && !tstate->st.current->flags.atomic) {
+#else
         if (--_Py_Ticker < 0) {
+#endif
             if (*next_instr == SETUP_FINALLY) {
                 /* Make the last opcode before
                    a try: finally: block uninterruptible. */
