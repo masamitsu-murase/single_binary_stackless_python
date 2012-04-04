@@ -335,7 +335,7 @@ void slp_kill_tasks_with_stacks(PyThreadState *ts)
         }
         count = 0;
         t = cs->task;
-        Py_INCREF(t);
+        Py_INCREF(t); /* cs->task is a borrowed ref */
 
         /* We need to ensure that the tasklet 't' is in the scheduler
          * tasklet chain before this one (our main).  This ensures
@@ -347,16 +347,20 @@ void slp_kill_tasks_with_stacks(PyThreadState *ts)
          * killed, they will be implicitly placed before this one,
          * leaving it to run next.
          */
-        if (!t->flags.blocked && t != cs->tstate->st.main) {
-            if (t->next && t->prev) { /* it may have been removed() */
-                chain = &t;
+        if (!t->flags.blocked && t != cs->tstate->st.current) {
+            PyTaskletObject *tmp;
+            /* unlink from runnable queue if it wasn't previously remove()'d */
+            if (t->next && t->prev) {
+                task = t;
+                chain = &task;
                 SLP_CHAIN_REMOVE(PyTaskletObject, chain, task, next, prev)
-            }
-            chain = &cs->tstate->st.main;
-            task = cs->task;
+            } else
+                Py_INCREF(t); /* a new reference for the runnable queue */
+            /* insert into the 'current' chain without modifying 'current' */
+            tmp = cs->tstate->st.current;
+            chain = &tmp;
+            task = t;
             SLP_CHAIN_INSERT(PyTaskletObject, chain, task, next, prev);
-            cs->tstate->st.current = cs->tstate->st.main;
-            t = cs->task;
         }
 
         PyTasklet_Kill(t);

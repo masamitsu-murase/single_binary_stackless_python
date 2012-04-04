@@ -21,6 +21,7 @@ class StacklessTestCase(unittest.TestCase):
         if threading.activeCount() > 1:
             activeThreads = threading.enumerate()
             activeThreads.remove(threading.currentThread())
-            activeThreads[0].join(0.5)
+            if activeThreads:
+                activeThreads[0].join(0.5)
             if threading.activeCount() > 1:
                 self.assertEqual(threading.activeCount(), 1, "Leakage from other threads, with %d threads running (1 expected)" % (threading.activeCount()))
