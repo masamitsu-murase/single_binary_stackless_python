@@ -13,7 +13,7 @@ class StacklessTestCase(unittest.TestCase):
         # assertions to check.
         mainTasklet = stackless.getmain()
         current = mainTasklet.next
-        while current is not mainTasklet:
+        while current is not None and current is not mainTasklet:
             next = current.next
             current.kill()
             current = next

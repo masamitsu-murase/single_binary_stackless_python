@@ -1,6 +1,8 @@
 import unittest
 import stackless
 import threading
+import sys
+import traceback
 from support import StacklessTestCase
 
 class TestChannels(StacklessTestCase):
@@ -125,6 +127,56 @@ class TestChannels(StacklessTestCase):
 
         scheduler_run(slave_func)
 
+    def testSendException(self):
+        
+        # Function to send the exception
+        def f(testChannel):
+            testChannel.send_exception(ValueError, 1,2,3)
+
+        # Get the tasklet blocked on the channel.
+        channel = stackless.channel()
+        tasklet = stackless.tasklet(f)(channel)
+        tasklet.run()
+        self.assertRaises(ValueError, channel.receive)
+        tasklet = stackless.tasklet(f)(channel)
+        tasklet.run()
+        try:
+            channel.receive()
+        except ValueError as e:
+            self.assertEqual(e.args, (1, 2, 3))
+
+    def testSendThrow(self):
+        
+        # subfunction in tasklet
+        def bar():
+            raise ValueError(1,2,3)
+        
+        # Function to send the exception
+        def f(testChannel):
+            try:
+                bar()
+            except Exception:
+                testChannel.send_throw(*sys.exc_info())
+
+        # Get the tasklet blocked on the channel.
+        channel = stackless.channel()
+        tasklet = stackless.tasklet(f)(channel)
+        tasklet.run()
+        self.assertRaises(ValueError, channel.receive)
+
+        tasklet = stackless.tasklet(f)(channel)
+        tasklet.run()
+        try:
+            channel.receive()
+        except ValueError:
+            exc, val, tb = sys.exc_info()
+            self.assertEqual(val.args, (1, 2, 3))
+            
+            # Check that the traceback is correct
+            l = traceback.extract_tb(tb)
+            self.assertEqual(l[-1][2], "bar")
+            
+        
 
 if __name__ == '__main__':
     import sys

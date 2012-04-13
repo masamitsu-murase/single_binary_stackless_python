@@ -591,6 +591,104 @@ err_exit:
     return retval;
 }
 
+PyDoc_STRVAR(channel_send_throw__doc__,
+"channel.send_throw(typ[,val[,tb]]) -- send an exception over the channel.\n\
+The exception is raised out of the corresponding channel.receive() call.");
+
+static PyObject *
+PyChannel_SendThrow_M(PyChannelObject *self, PyObject *exc,
+                          PyObject *val, PyObject *tb)
+{
+    exc = exc ? exc : Py_None;
+    val = val ? val : Py_None;
+    tb = tb ? tb : Py_None;
+    return PyStackless_CallMethod_Main((PyObject *) self,
+        "send_throw", "(OOO)", exc, val, tb);
+}
+
+int
+PyChannel_SendThrow(PyChannelObject *self, PyObject *exc, PyObject *val, PyObject *tb)
+{
+    PyChannel_HeapType *t = (PyChannel_HeapType *) Py_TYPE(self);
+    return slp_return_wrapper(t->send_throw(self, exc, val, tb));
+}
+
+static CHANNEL_SEND_THROW_HEAD(impl_channel_send_throw)
+{
+    STACKLESS_GETARG();
+    PyThreadState *ts = PyThreadState_GET();
+    PyObject *bomb, *ret = NULL;
+
+    assert(PyChannel_Check(self));
+    if (ts->st.main == NULL)
+        return PyChannel_SendThrow_M(self, exc, val, tb);
+
+    bomb = slp_exc_to_bomb(exc, val, tb);
+    if (bomb != NULL) {
+        ret = generic_channel_action(self, bomb, 1, stackless);
+        Py_DECREF(bomb);
+    }
+    return ret;
+}
+
+static CHANNEL_SEND_THROW_HEAD(wrap_channel_send_throw)
+{
+    return PyObject_CallMethod((PyObject *) self, "send_throw",
+        "(OOO)", exc, val, tb);
+}
+
+static PyObject *
+channel_send_throw(PyObject *myself, PyObject *args)
+{
+    STACKLESS_GETARG();
+
+    PyObject *typ;
+    PyObject *tb = NULL;
+    PyObject *val = NULL;
+    PyObject *retval;
+    if (!PyArg_UnpackTuple(args, "send_throw", 1, 3, &typ, &val, &tb))
+        return NULL;
+
+    /* First, check the traceback argument */
+    if (tb != Py_None && !PyTraceBack_Check(tb)) {
+        PyErr_SetString(PyExc_TypeError,
+            "third argument must be a traceback object");
+        return NULL;
+    }
+
+    if (PyExceptionClass_Check(typ)) {
+        ; /* it will be normalized on other side */
+        /*PyErr_NormalizeException(&typ, &val, &tb);*/
+    } else if (PyExceptionInstance_Check(typ)) {
+        /* Raising an instance.  The value should be a dummy. */
+        if (val != Py_None) {
+            PyErr_SetString(PyExc_TypeError,
+                "instance exception may not have a separate value");
+            return NULL;
+        }
+        /* Normalize to raise <class>, <instance> */
+        val = typ;
+        typ = PyExceptionInstance_Class(typ);
+    } else {
+        /* Not something you can raise.  throw() fails. */
+        PyErr_Format(PyExc_TypeError,
+            "exceptions must be classes, or instances, not %s",
+            typ->ob_type->tp_name);
+        return NULL;
+    }
+    STACKLESS_PROMOTE_ALL();
+    retval = impl_channel_send_throw((PyChannelObject*)myself,
+        typ, val, tb);
+    STACKLESS_ASSERT();
+    if (retval == NULL || STACKLESS_UNWINDING(retval)) {
+        goto err_exit;
+    }
+    Py_INCREF(Py_None);
+    retval = Py_None;
+err_exit:
+    return retval;
+}
+
 PyDoc_STRVAR(channel_receive__doc__,
 "channel.receive() -- receive a value over the channel.\n\
 If no other tasklet is already sending on the channel,\n\
@@ -1010,8 +1108,10 @@ static PyMethodDef
 channel_methods[] = {
     {"send",                (PCF)channel_send,              METH_OS,
      channel_send__doc__},
-    {"send_exception",  (PCF)channel_send_exception,    METH_VS,
+    {"send_exception",  (PCF)channel_send_exception,        METH_VS,
      channel_send_exception__doc__},
+    {"send_throw",  (PCF)channel_send_throw,                METH_VS,
+     channel_send_throw__doc__},
     {"receive",             (PCF)channel_receive,           METH_NS,
      channel_receive__doc__},
     {"close",               (PCF)channel_close,             METH_NOARGS,
