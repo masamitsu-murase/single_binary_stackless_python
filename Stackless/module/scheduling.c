@@ -127,6 +127,21 @@ slp_make_bomb(PyObject *klass, PyObject *args, char *msg)
 }
 
 PyObject *
+slp_exc_to_bomb(PyObject *exc, PyObject *val, PyObject *tb)
+{
+    PyBombObject *bomb = new_bomb();
+    if (bomb == NULL)
+        return NULL;
+    Py_XINCREF(exc);
+    Py_XINCREF(val);
+    Py_XINCREF(tb);
+    bomb->curexc_type = exc;
+    bomb->curexc_value = val;
+    bomb->curexc_traceback = tb;
+    return (PyObject *) bomb;
+}
+
+PyObject *
 slp_curexc_to_bomb(void)
 {
     PyBombObject *bomb = new_bomb();
