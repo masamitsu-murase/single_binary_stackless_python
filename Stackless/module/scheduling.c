@@ -915,7 +915,7 @@ hard_switching:
     else
         transfer = slp_transfer;
 
-    if (transfer(cstprev, next->cstate, prev) == 0) {
+    if (transfer(cstprev, next->cstate, prev) >= 0) {
         --ts->st.nesting_level;
         TASKLET_CLAIMVAL(prev, &retval);
         if (PyBomb_Check(retval))

@@ -103,12 +103,15 @@ climb_stack_and_transfer(PyCStackObject **cstprev, PyCStackObject *cst,
     return slp_transfer(cstprev, cst, prev);
 }
 
+/* This function returns -1 on error, 1 if a switch occurred and 0
+ * if only a stack save was performed
+ */
 int
 slp_transfer(PyCStackObject **cstprev, PyCStackObject *cst,
              PyTaskletObject *prev)
 {
     PyThreadState *ts = PyThreadState_GET();
-    int error;
+    int result;
 
     /* since we change the stack we must assure that the protocol was met */
     STACKLESS_ASSERT();
@@ -139,26 +142,31 @@ slp_transfer(PyCStackObject **cstprev, PyCStackObject *cst,
     _cstprev = cstprev;
     _cst = cst;
     _prev = prev;
-    error = slp_switch();
-    if (_cst && !error) {
-        /* record the context of the target stack.  Can't do it before the switch because
-         * when saving the stack, the serial number is taken from serial_last_jump
-         */
-        ts->st.serial_last_jump = _cst->serial;
+    result = slp_switch();
+    if (!result) {
+        if (_cst) {
+            /* record the context of the target stack.  Can't do it before the switch because
+             * when saving the stack, the serial number is taken from serial_last_jump
+             */
+            ts->st.serial_last_jump = _cst->serial;
 
-        /* release any objects that needed to wait until after the switch.
-         * Note that it is important that this does not mess with the 
-         * current tasklet's "tempval".  We store it here to be
-         * absolutely sure.
-         */
-        if (ts->st.del_post_switch) {
-            PyObject *tmp;
-            TASKLET_CLAIMVAL(ts->st.current, &tmp);
-            Py_CLEAR(ts->st.del_post_switch);
-            TASKLET_SETVAL_OWN(ts->st.current, tmp);
-        }
-    }
-    return error;
+            /* release any objects that needed to wait until after the switch.
+             * Note that it is important that this does not mess with the 
+             * current tasklet's "tempval".  We store it here to be
+             * absolutely sure.
+             */
+            if (ts->st.del_post_switch) {
+                PyObject *tmp;
+                TASKLET_CLAIMVAL(ts->st.current, &tmp);
+                Py_CLEAR(ts->st.del_post_switch);
+                TASKLET_SETVAL_OWN(ts->st.current, tmp);
+            }
+            result = 1;
+        } else
+            result = 0;
+    } else
+        result = -1;
+    return result;
 }
 
 #ifdef Py_DEBUG

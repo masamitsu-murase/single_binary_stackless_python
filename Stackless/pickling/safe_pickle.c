@@ -72,7 +72,7 @@ slp_safe_pickling(int(*save)(PyObject *, PyObject *, int),
     ts->frame = (PyFrameObject *) cf;
     cst = cur->cstate;
     cur->cstate = NULL;
-    if (slp_transfer(&cur->cstate, NULL, cur))
+    if (slp_transfer(&cur->cstate, NULL, cur) < 0)
         return -1; /* fatal */
     Py_CLEAR(cur->cstate);
     cur->cstate = cst;
