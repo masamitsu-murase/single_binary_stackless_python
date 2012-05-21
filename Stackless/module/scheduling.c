@@ -588,8 +588,16 @@ static int schedule_thread_block(PyThreadState *ts)
     acquire_lock(ts->st.thread.block_lock, 1);
     Py_END_ALLOW_THREADS
 
-    /* Now we have switched (on this thread), clear any post-switch stuff */
-    Py_CLEAR(ts->st.del_post_switch);
+    /* Now we have switched (on this thread), clear any post-switch stuff.
+     * We may have a valuable "tmpval" here
+     * because of channel switching, so be careful to maintain that.
+     */
+    if (ts->st.del_post_switch) {
+        PyObject *tmp;
+        TASKLET_CLAIMVAL(ts->st.current, &tmp);
+        Py_CLEAR(ts->st.del_post_switch);
+        TASKLET_SETVAL_OWN(ts->st.current, tmp);
+    }
     return 0;
 }
 

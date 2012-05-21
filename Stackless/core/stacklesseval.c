@@ -414,9 +414,15 @@ eval_frame_callback(PyFrameObject *f, int exc, PyObject *retval)
      */
     saved_base = ts->st.cstack_root;
     ts->st.cstack_root = STACK_REFPLUS + (intptr_t *) &f;
-    Py_XDECREF(retval);
+    
+    /* retval is the previous "tempval", passed in by slp_run_tasklet.
+     * put it back into tempval, and pull out the right retval
+     * from the arguments.
+     */
+    TASKLET_SETVAL_OWN(cur, retval);
     retval = cf->ob1;
     cf->ob1 = NULL;
+    
     retval = PyEval_EvalFrameEx_slp(ts->frame, exc, retval);
     ts->st.cstack_root = saved_base;
 

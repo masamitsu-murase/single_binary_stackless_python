@@ -146,8 +146,17 @@ slp_transfer(PyCStackObject **cstprev, PyCStackObject *cst,
          */
         ts->st.serial_last_jump = _cst->serial;
 
-        /* release any objects that needed to wait until after the switch */
-        Py_CLEAR(ts->st.del_post_switch);
+        /* release any objects that needed to wait until after the switch.
+         * Note that it is important that this does not mess with the 
+         * current tasklet's "tempval".  We store it here to be
+         * absolutely sure.
+         */
+        if (ts->st.del_post_switch) {
+            PyObject *tmp;
+            TASKLET_CLAIMVAL(ts->st.current, &tmp);
+            Py_CLEAR(ts->st.del_post_switch);
+            TASKLET_SETVAL_OWN(ts->st.current, tmp);
+        }
     }
     return error;
 }
