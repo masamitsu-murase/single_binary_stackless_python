@@ -229,13 +229,16 @@ static int
 make_initial_stub(void)
 {
     PyThreadState *ts = PyThreadState_GET();
+    int result;
 
     if (ts->st.initial_stub != NULL) {
         Py_DECREF(ts->st.initial_stub);
         ts->st.initial_stub = NULL;
     }
     ts->st.serial_last_jump = ++ts->st.serial;
-    if (slp_transfer(&ts->st.initial_stub, NULL, NULL)) return -1;
+    result = slp_transfer(&ts->st.initial_stub, NULL, NULL);
+    if (result < 0)
+        return result;
     /*
      * from here, we always arrive with a compatible cstack
      * that also can be used by main, if it is running
@@ -245,7 +248,7 @@ make_initial_stub(void)
      * This will vanish with greenlet-like stack management.
      */
 
-    return 0;
+    return result;
 }
 
 static PyObject *
@@ -280,6 +283,7 @@ slp_eval_frame(PyFrameObject *f)
     intptr_t * stackref;
 
     if (fprev == NULL && ts->st.main == NULL) {
+        int returning;
         /* this is the initial frame, so mark the stack base */
 
         /*
@@ -292,15 +296,20 @@ slp_eval_frame(PyFrameObject *f)
          * will run as a toplevel frame, with f_back == NULL!
          */
 
-    stackref = STACK_REFPLUS + (intptr_t *) &f;
+        stackref = STACK_REFPLUS + (intptr_t *) &f;
         if (ts->st.cstack_base == NULL)
             ts->st.cstack_base = stackref - CSTACK_GOODGAP;
         if (stackref > ts->st.cstack_base)
             return climb_stack_and_eval_frame(f);
 
         ts->frame = f;
-        if (make_initial_stub())
+        returning = make_initial_stub();
+        if (returning < 0)
             return NULL;
+        /* returning will be 1 if we "switched back" to this stub, and 0
+         * if this is the original call that just created the stub.
+         * This can be useful for debugging
+         */
         return slp_run_tasklet();
     }
     Py_INCREF(Py_None);
@@ -483,7 +492,7 @@ slp_eval_frame_newstack(PyFrameObject *f, int exc, PyObject *retval)
     ts->frame = (PyFrameObject *) cf;
     cst = cur->cstate;
     cur->cstate = NULL;
-    if (slp_transfer(&cur->cstate, NULL, cur))
+    if (slp_transfer(&cur->cstate, NULL, cur) < 0)
         goto finally; /* fatal */
     Py_XDECREF(cur->cstate);
 
