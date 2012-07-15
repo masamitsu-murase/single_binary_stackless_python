@@ -24,7 +24,7 @@ Command line
 
 When invoking Python, you may specify any of these options::
 
-    python [-bBdEhiOsSuvVWx?] [-c command | -m module-name | script | - ] [args]
+    python [-bBdEhiOqsSuvVWx?] [-c command | -m module-name | script | - ] [args]
 
 The most common use case is, of course, a simple invocation of a script::
 
@@ -227,6 +227,29 @@ Miscellaneous options
    .. versionadded:: 3.2
 
 
+.. cmdoption:: -R
+
+   Turn on hash randomization, so that the :meth:`__hash__` values of str, bytes
+   and datetime objects are "salted" with an unpredictable random value.
+   Although they remain constant within an individual Python process, they are
+   not predictable between repeated invocations of Python.
+
+   This is intended to provide protection against a denial-of-service caused by
+   carefully-chosen inputs that exploit the worst case performance of a dict
+   construction, O(n^2) complexity.  See
+   http://www.ocert.org/advisories/ocert-2011-003.html for details.
+
+   Changing hash values affects the order in which keys are retrieved from a
+   dict.  Although Python has never made guarantees about this ordering (and it
+   typically varies between 32-bit and 64-bit builds), enough real-world code
+   implicitly relies on this non-guaranteed behavior that the randomization is
+   disabled by default.
+
+   See also :envvar:`PYTHONHASHSEED`.
+
+   .. versionadded:: 3.2.3
+
+
 .. cmdoption:: -s
 
    Don't add the :data:`user site-packages directory <site.USER_SITE>` to
@@ -240,14 +263,17 @@ Miscellaneous options
 .. cmdoption:: -S
 
    Disable the import of the module :mod:`site` and the site-dependent
-   manipulations of :data:`sys.path` that it entails.
+   manipulations of :data:`sys.path` that it entails.  Also disable these
+   manipulations if :mod:`site` is explicitly imported later (call
+   :func:`site.main` if you want them to be triggered).
 
 
 .. cmdoption:: -u
 
    Force the binary layer of the stdin, stdout and stderr streams (which is
    available as their ``buffer`` attribute) to be unbuffered.  The text I/O
-   layer will still be line-buffered.
+   layer will still be line-buffered if writing to the console, or
+   block-buffered if redirected to a non-interactive file.
 
    See also :envvar:`PYTHONUNBUFFERED`.
 
@@ -349,6 +375,7 @@ Options you shouldn't use
 
 .. _Jython: http://jython.org
 
+
 .. _using-on-envvars:
 
 Environment variables
@@ -447,13 +474,33 @@ These environment variables influence Python's behavior.
 .. envvar:: PYTHONCASEOK
 
    If this is set, Python ignores case in :keyword:`import` statements.  This
-   only works on Windows.
+   only works on Windows and OS X.
 
 
 .. envvar:: PYTHONDONTWRITEBYTECODE
 
    If this is set, Python won't try to write ``.pyc`` or ``.pyo`` files on the
-   import of source modules.
+   import of source modules.  This is equivalent to specifying the :option:`-B`
+   option.
+
+
+.. envvar:: PYTHONHASHSEED
+
+   If this variable is set to ``random``, a random value is used to seed the
+   hashes of str, bytes and datetime objects.
+
+   If :envvar:`PYTHONHASHSEED` is set to an integer value, it is used as a fixed
+   seed for generating the hash() of the types covered by the hash
+   randomization.
+
+   Its purpose is to allow repeatable hashing, such as for selftests for the
+   interpreter itself, or to allow a cluster of python processes to share hash
+   values.
+
+   The integer must be a decimal number in the range [0,4294967295].  Specifying
+   the value 0 will disable hash randomization.
+
+   .. versionadded:: 3.2.3
 
 
 .. envvar:: PYTHONIOENCODING
@@ -481,8 +528,8 @@ These environment variables influence Python's behavior.
 
    Defines the :data:`user base directory <site.USER_BASE>`, which is used to
    compute the path of the :data:`user site-packages directory <site.USER_SITE>`
-   and :ref:`Distutils installation paths <inst-alt-install-user>` for ``python
-   setup.py install --user``.
+   and :ref:`Distutils installation paths <inst-alt-install-user>` for
+   ``python setup.py install --user``.
 
    .. seealso::
 
@@ -500,6 +547,14 @@ These environment variables influence Python's behavior.
    This is equivalent to the :option:`-W` option. If set to a comma
    separated string, it is equivalent to specifying :option:`-W` multiple
    times.
+
+.. envvar:: PYTHONFAULTHANDLER
+
+   If this environment variable is set, :func:`faulthandler.enable` is called
+   at startup: install a handler for :const:`SIGSEGV`, :const:`SIGFPE`,
+   :const:`SIGABRT`, :const:`SIGBUS` and :const:`SIGILL` signals to dump the
+   Python traceback.  This is equivalent to :option:`-X` ``faulthandler``
+   option.
 
 
 Debug-mode variables

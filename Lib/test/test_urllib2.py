@@ -5,6 +5,7 @@ import os
 import io
 import socket
 import array
+import sys
 
 import urllib.request
 # The proxy bypass method imported below has logic specific to the OSX
@@ -18,6 +19,22 @@ import urllib.error
 # parse_keqv_list, parse_http_list, HTTPDigestAuthHandler
 
 class TrivialTests(unittest.TestCase):
+
+    def test___all__(self):
+        # Verify which names are exposed
+        for module in 'request', 'response', 'parse', 'error', 'robotparser':
+            context = {}
+            exec('from urllib.%s import *' % module, context)
+            del context['__builtins__']
+            if module == 'request' and os.name == 'nt':
+                u, p = context.pop('url2pathname'), context.pop('pathname2url')
+                self.assertEqual(u.__module__, 'nturl2path')
+                self.assertEqual(p.__module__, 'nturl2path')
+            for k, v in context.items():
+                self.assertEqual(v.__module__, 'urllib.%s' % module,
+                    "%r is exposed in 'urllib.%s' but defined in %r" %
+                    (k, module, v.__module__))
+
     def test_trivial(self):
         # A couple trivial tests
 
@@ -536,10 +553,6 @@ class OpenerDirectorTests(unittest.TestCase):
         self.assertRaises(urllib.error.URLError, o.open, req)
         self.assertEqual(o.calls, [(handlers[0], "http_open", (req,), {})])
 
-##     def test_error(self):
-##         # XXX this doesn't actually seem to be used in standard library,
-##         #  but should really be tested anyway...
-
     def test_http_error(self):
         # XXX http_error_default
         # http errors are a special case
@@ -566,6 +579,7 @@ class OpenerDirectorTests(unittest.TestCase):
             handler, method_name, args = expected
             self.assertEqual((handler, method_name), got[:2])
             self.assertEqual(args, got[2])
+
 
     def test_processors(self):
         # *_request / *_response methods get called appropriately
@@ -602,10 +616,28 @@ class OpenerDirectorTests(unittest.TestCase):
                 self.assertTrue(args[1] is None or
                              isinstance(args[1], MockResponse))
 
+    def test_method_deprecations(self):
+        req = Request("http://www.example.com")
+
+        with self.assertWarns(DeprecationWarning):
+            req.add_data("data")
+        with self.assertWarns(DeprecationWarning):
+            req.has_data()
+        with self.assertWarns(DeprecationWarning):
+            req.get_data()
+        with self.assertWarns(DeprecationWarning):
+            req.get_host()
+        with self.assertWarns(DeprecationWarning):
+            req.get_selector()
+        with self.assertWarns(DeprecationWarning):
+            req.is_unverifiable()
+        with self.assertWarns(DeprecationWarning):
+            req.get_origin_req_host()
+
 
 def sanepathname2url(path):
     try:
-        path.encode("utf8")
+        path.encode("utf-8")
     except UnicodeEncodeError:
         raise unittest.SkipTest("path is not encodable to utf8")
     urlpath = urllib.request.pathname2url(path)
@@ -878,7 +910,7 @@ class HandlerTests(unittest.TestCase):
     def test_http_doubleslash(self):
         # Checks the presence of any unnecessary double slash in url does not
         # break anything. Previously, a double slash directly after the host
-        # could could cause incorrect parsing.
+        # could cause incorrect parsing.
         h = urllib.request.AbstractHTTPHandler()
         o = h.parent = MockOpener()
 
@@ -1059,6 +1091,19 @@ class HandlerTests(unittest.TestCase):
                 MockHeaders({"location": valid_url}))
             self.assertEqual(o.req.get_full_url(), valid_url)
 
+    def test_relative_redirect(self):
+        from_url = "http://example.com/a.html"
+        relative_url = "/b.html"
+        h = urllib.request.HTTPRedirectHandler()
+        o = h.parent = MockOpener()
+        req = Request(from_url)
+        req.timeout = socket._GLOBAL_DEFAULT_TIMEOUT
+
+        valid_url = urllib.parse.urljoin(from_url,relative_url)
+        h.http_error_302(req, MockFile(), 302, "That's fine",
+            MockHeaders({"location": valid_url}))
+        self.assertEqual(o.req.get_full_url(), valid_url)
+
     def test_cookie_redirect(self):
         # cookies shouldn't leak into redirected requests
         from http.cookiejar import CookieJar
@@ -1166,6 +1211,8 @@ class HandlerTests(unittest.TestCase):
         self.assertEqual(req.get_host(), "proxy.example.com:3128")
         self.assertEqual(req.get_header("Proxy-authorization"),"FooBar")
 
+    # TODO: This should be only for OSX
+    @unittest.skipUnless(sys.platform == 'darwin', "only relevant for OSX")
     def test_osx_proxy_bypass(self):
         bypass = {
             'exclude_simple': False,
@@ -1204,6 +1251,22 @@ class HandlerTests(unittest.TestCase):
 
     def test_basic_auth_with_single_quoted_realm(self):
         self.test_basic_auth(quote_char="'")
+
+    def test_basic_auth_with_unquoted_realm(self):
+        opener = OpenerDirector()
+        password_manager = MockPasswordManager()
+        auth_handler = urllib.request.HTTPBasicAuthHandler(password_manager)
+        realm = "ACME Widget Store"
+        http_handler = MockHTTPHandler(
+            401, 'WWW-Authenticate: Basic realm=%s\r\n\r\n' % realm)
+        opener.add_handler(auth_handler)
+        opener.add_handler(http_handler)
+        with self.assertWarns(UserWarning):
+            self._test_basic_auth(opener, auth_handler, "Authorization",
+                                realm, http_handler, password_manager,
+                                "http://acme.example.com/protected",
+                                "http://acme.example.com/protected",
+                                )
 
     def test_proxy_basic_auth(self):
         opener = OpenerDirector()
@@ -1269,6 +1332,26 @@ class HandlerTests(unittest.TestCase):
         # _test_basic_auth called .open() twice)
         self.assertEqual(opener.recorded, ["digest", "basic"]*2)
 
+    def test_unsupported_auth_digest_handler(self):
+        opener = OpenerDirector()
+        # While using DigestAuthHandler
+        digest_auth_handler = urllib.request.HTTPDigestAuthHandler(None)
+        http_handler = MockHTTPHandler(
+            401, 'WWW-Authenticate: Kerberos\r\n\r\n')
+        opener.add_handler(digest_auth_handler)
+        opener.add_handler(http_handler)
+        self.assertRaises(ValueError,opener.open,"http://www.example.com")
+
+    def test_unsupported_auth_basic_handler(self):
+        # While using BasicAuthHandler
+        opener = OpenerDirector()
+        basic_auth_handler = urllib.request.HTTPBasicAuthHandler(None)
+        http_handler = MockHTTPHandler(
+            401, 'WWW-Authenticate: NTLM\r\n\r\n')
+        opener.add_handler(basic_auth_handler)
+        opener.add_handler(http_handler)
+        self.assertRaises(ValueError,opener.open,"http://www.example.com")
+
     def _test_basic_auth(self, opener, auth_handler, auth_header,
                          realm, http_handler, password_manager,
                          request_url, protected_url):
@@ -1305,6 +1388,7 @@ class HandlerTests(unittest.TestCase):
         r = opener.open(request_url)
         self.assertEqual(len(http_handler.requests), 1)
         self.assertFalse(http_handler.requests[0].has_header(auth_header))
+
 
 class MiscTests(unittest.TestCase):
 
@@ -1408,6 +1492,19 @@ class RequestTests(unittest.TestCase):
         url = 'http://docs.python.org/library/urllib2.html#OK'
         req = Request(url)
         self.assertEqual(req.get_full_url(), url)
+
+def test_HTTPError_interface():
+    """
+    Issue 13211 reveals that HTTPError didn't implement the URLError
+    interface even though HTTPError is a subclass of URLError.
+
+    >>> msg = 'something bad happened'
+    >>> url = code = hdrs = fp = None
+    >>> err = urllib.error.HTTPError(url, code, msg, hdrs, fp)
+    >>> assert hasattr(err, 'reason')
+    >>> err.reason
+    'something bad happened'
+    """
 
 def test_main(verbose=None):
     from test import test_urllib2

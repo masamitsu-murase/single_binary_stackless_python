@@ -35,7 +35,7 @@ def uncache(*names):
     for name in names:
         if name in ('sys', 'marshal', 'imp'):
             raise ValueError(
-                "cannot uncache {0} as it will break _importlib".format(name))
+                "cannot uncache {0}".format(name))
         try:
             del sys.modules[name]
         except KeyError:
@@ -84,8 +84,9 @@ class mock_modules:
 
     """A mock importer/loader."""
 
-    def __init__(self, *names):
+    def __init__(self, *names, module_code={}):
         self.modules = {}
+        self.module_code = {}
         for name in names:
             if not name.endswith('.__init__'):
                 import_name = name
@@ -105,6 +106,8 @@ class mock_modules:
             if import_name != name:
                 module.__path__ = ['<mock __path__>']
             self.modules[import_name] = module
+            if import_name in module_code:
+                self.module_code[import_name] = module_code[import_name]
 
     def __getitem__(self, name):
         return self.modules[name]
@@ -120,6 +123,12 @@ class mock_modules:
             raise ImportError
         else:
             sys.modules[fullname] = self.modules[fullname]
+            if fullname in self.module_code:
+                try:
+                    self.module_code[fullname]()
+                except Exception:
+                    del sys.modules[fullname]
+                    raise
             return self.modules[fullname]
 
     def __enter__(self):

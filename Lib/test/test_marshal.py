@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
 from test import support
+import array
 import marshal
 import sys
 import unittest
 import os
+import types
 
 class HelperMixin:
     def helper(self, sample, *extra):
@@ -113,6 +115,22 @@ class CodeTestCase(unittest.TestCase):
         codes = (ExceptionTestCase.test_exceptions.__code__,) * count
         marshal.loads(marshal.dumps(codes))
 
+    def test_different_filenames(self):
+        co1 = compile("x", "f1", "exec")
+        co2 = compile("y", "f2", "exec")
+        co1, co2 = marshal.loads(marshal.dumps((co1, co2)))
+        self.assertEqual(co1.co_filename, "f1")
+        self.assertEqual(co2.co_filename, "f2")
+
+    @support.cpython_only
+    def test_same_filename_used(self):
+        s = """def f(): pass\ndef g(): pass"""
+        co = compile(s, "myfile", "exec")
+        co = marshal.loads(marshal.dumps(co))
+        for obj in co.co_consts:
+            if isinstance(obj, types.CodeType):
+                self.assertIs(co.co_filename, obj.co_filename)
+
 class ContainerTestCase(unittest.TestCase, HelperMixin):
     d = {'astring': 'foo@bar.baz.spam',
          'afloat': 7283.43,
@@ -136,6 +154,27 @@ class ContainerTestCase(unittest.TestCase, HelperMixin):
     def test_sets(self):
         for constructor in (set, frozenset):
             self.helper(constructor(self.d.keys()))
+
+
+class BufferTestCase(unittest.TestCase, HelperMixin):
+
+    def test_bytearray(self):
+        b = bytearray(b"abc")
+        self.helper(b)
+        new = marshal.loads(marshal.dumps(b))
+        self.assertEqual(type(new), bytes)
+
+    def test_memoryview(self):
+        b = memoryview(b"abc")
+        self.helper(b)
+        new = marshal.loads(marshal.dumps(b))
+        self.assertEqual(type(new), bytes)
+
+    def test_array(self):
+        a = array.array('B', b"abc")
+        new = marshal.loads(marshal.dumps(a))
+        self.assertEqual(new, b"abc")
+
 
 class BugsTestCase(unittest.TestCase):
     def test_bug_5888452(self):
@@ -162,7 +201,7 @@ class BugsTestCase(unittest.TestCase):
                 pass
 
     def test_loads_recursion(self):
-        s = 'c' + ('X' * 4*4) + '{' * 2**20
+        s = b'c' + (b'X' * 4*4) + b'{' * 2**20
         self.assertRaises(ValueError, marshal.loads, s)
 
     def test_recursion_limit(self):
@@ -235,6 +274,11 @@ class BugsTestCase(unittest.TestCase):
             finally:
                 support.unlink(support.TESTFN)
 
+    def test_loads_reject_unicode_strings(self):
+        # Issue #14177: marshal.loads() should not accept unicode strings
+        unicode_string = 'T'
+        self.assertRaises(TypeError, marshal.loads, unicode_string)
+
 
 def test_main():
     support.run_unittest(IntTestCase,
@@ -243,6 +287,7 @@ def test_main():
                               CodeTestCase,
                               ContainerTestCase,
                               ExceptionTestCase,
+                              BufferTestCase,
                               BugsTestCase)
 
 if __name__ == "__main__":

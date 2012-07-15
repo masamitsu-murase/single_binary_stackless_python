@@ -273,11 +273,9 @@ class Maildir(Mailbox):
             else:
                 raise NoSuchMailboxError(self._path)
         self._toc = {}
-        self._toc_mtimes = {}
-        for subdir in ('cur', 'new'):
-            self._toc_mtimes[subdir] = os.path.getmtime(self._paths[subdir])
-        self._last_read = time.time()  # Records last time we read cur/new
-        self._skewfactor = 0.1         # Adjust if os/fs clocks are skewing
+        self._toc_mtimes = {'cur': 0, 'new': 0}
+        self._last_read = 0         # Records last time we read cur/new
+        self._skewfactor = 0.1      # Adjust if os/fs clocks are skewing
 
     def add(self, message):
         """Add message and return assigned key."""
@@ -589,16 +587,19 @@ class _singlefileMailbox(Mailbox):
         self._file = f
         self._toc = None
         self._next_key = 0
-        self._pending = False   # No changes require rewriting the file.
+        self._pending = False       # No changes require rewriting the file.
+        self._pending_sync = False  # No need to sync the file
         self._locked = False
-        self._file_length = None        # Used to record mailbox size
+        self._file_length = None    # Used to record mailbox size
 
     def add(self, message):
         """Add message and return assigned key."""
         self._lookup()
         self._toc[self._next_key] = self._append_message(message)
         self._next_key += 1
-        self._pending = True
+        # _append_message appends the message to the mailbox file. We
+        # don't need a full rewrite + rename, sync is enough.
+        self._pending_sync = True
         return self._next_key - 1
 
     def remove(self, key):
@@ -644,6 +645,11 @@ class _singlefileMailbox(Mailbox):
     def flush(self):
         """Write any pending changes to disk."""
         if not self._pending:
+            if self._pending_sync:
+                # Messages have only been added, so syncing the file
+                # is enough.
+                _sync_flush(self._file)
+                self._pending_sync = False
             return
 
         # In order to be writing anything out at all, self._toc must
@@ -677,6 +683,7 @@ class _singlefileMailbox(Mailbox):
                     new_file.write(buffer)
                 new_toc[key] = (new_start, new_file.tell())
                 self._post_message_hook(new_file)
+            self._file_length = new_file.tell()
         except:
             new_file.close()
             os.remove(new_file.name)
@@ -684,6 +691,9 @@ class _singlefileMailbox(Mailbox):
         _sync_close(new_file)
         # self._file is about to get replaced, so no need to sync.
         self._file.close()
+        # Make sure the new file's mode is the same as the old file's
+        mode = os.stat(self._path).st_mode
+        os.chmod(new_file.name, mode)
         try:
             os.rename(new_file.name, self._path)
         except OSError as e:
@@ -696,6 +706,7 @@ class _singlefileMailbox(Mailbox):
         self._file = open(self._path, 'rb+')
         self._toc = new_toc
         self._pending = False
+        self._pending_sync = False
         if self._locked:
             _lock_file(self._file, dotlock=False)
 
@@ -732,6 +743,12 @@ class _singlefileMailbox(Mailbox):
         """Append message to mailbox and return (start, stop) offsets."""
         self._file.seek(0, 2)
         before = self._file.tell()
+        if len(self._toc) == 0 and not self._pending:
+            # This is the first message, and the _pre_mailbox_hook
+            # hasn't yet been called. If self._pending is True,
+            # messages have been removed, so _pre_mailbox_hook must
+            # have been called already.
+            self._pre_mailbox_hook(self._file)
         try:
             self._pre_message_hook(self._file)
             offsets = self._install_message(message)
@@ -1108,8 +1125,7 @@ class MH(Mailbox):
     def get_sequences(self):
         """Return a name-to-key-list dictionary to define each sequence."""
         results = {}
-        f = open(os.path.join(self._path, '.mh_sequences'), 'r')
-        try:
+        with open(os.path.join(self._path, '.mh_sequences'), 'r', encoding='ASCII') as f:
             all_keys = set(self.keys())
             for line in f:
                 try:
@@ -1128,13 +1144,11 @@ class MH(Mailbox):
                 except ValueError:
                     raise FormatError('Invalid sequence specification: %s' %
                                       line.rstrip())
-        finally:
-            f.close()
         return results
 
     def set_sequences(self, sequences):
         """Set sequences using the given name-to-key-list dictionary."""
-        f = open(os.path.join(self._path, '.mh_sequences'), 'r+')
+        f = open(os.path.join(self._path, '.mh_sequences'), 'r+', encoding='ASCII')
         try:
             os.close(os.open(f.name, os.O_WRONLY | os.O_TRUNC))
             for name, keys in sequences.items():
@@ -1467,9 +1481,10 @@ class Message(email.message.Message):
 
     def _become_message(self, message):
         """Assume the non-format-specific state of message."""
-        for name in ('_headers', '_unixfrom', '_payload', '_charset',
-                     'preamble', 'epilogue', 'defects', '_default_type'):
-            self.__dict__[name] = message.__dict__[name]
+        type_specific = getattr(message, '_type_specific_attributes', [])
+        for name in message.__dict__:
+            if name not in type_specific:
+                self.__dict__[name] = message.__dict__[name]
 
     def _explain_to(self, message):
         """Copy format-specific state to message insofar as possible."""
@@ -1481,6 +1496,8 @@ class Message(email.message.Message):
 
 class MaildirMessage(Message):
     """Message with Maildir-specific properties."""
+
+    _type_specific_attributes = ['_subdir', '_info', '_date']
 
     def __init__(self, message=None):
         """Initialize a MaildirMessage instance."""
@@ -1588,6 +1605,8 @@ class MaildirMessage(Message):
 
 class _mboxMMDFMessage(Message):
     """Message with mbox- or MMDF-specific properties."""
+
+    _type_specific_attributes = ['_from']
 
     def __init__(self, message=None):
         """Initialize an mboxMMDFMessage instance."""
@@ -1704,6 +1723,8 @@ class mboxMessage(_mboxMMDFMessage):
 class MHMessage(Message):
     """Message with MH-specific properties."""
 
+    _type_specific_attributes = ['_sequences']
+
     def __init__(self, message=None):
         """Initialize an MHMessage instance."""
         self._sequences = []
@@ -1773,6 +1794,8 @@ class MHMessage(Message):
 
 class BabylMessage(Message):
     """Message with Babyl-specific properties."""
+
+    _type_specific_attributes = ['_labels', '_visible']
 
     def __init__(self, message=None):
         """Initialize an BabylMessage instance."""

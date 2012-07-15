@@ -2,6 +2,8 @@
 
 import test.support
 from test.support import verbose, strip_python_stderr, import_module
+from test.script_helper import assert_python_ok
+
 import random
 import re
 import sys
@@ -173,7 +175,7 @@ class ThreadTests(BaseTestCase):
         exception = ctypes.py_object(AsyncExc)
 
         # First check it works when setting the exception from the same thread.
-        tid = _thread.get_ident()
+        tid = threading.get_ident()
 
         try:
             result = set_async_exc(ctypes.c_long(tid), exception)
@@ -202,7 +204,7 @@ class ThreadTests(BaseTestCase):
 
         class Worker(threading.Thread):
             def run(self):
-                self.id = _thread.get_ident()
+                self.id = threading.get_ident()
                 self.finished = False
 
                 try:
@@ -406,6 +408,41 @@ class ThreadTests(BaseTestCase):
         self.assertFalse('daemon' in repr(t))
         t.daemon = True
         self.assertTrue('daemon' in repr(t))
+
+    def test_deamon_param(self):
+        t = threading.Thread()
+        self.assertFalse(t.daemon)
+        t = threading.Thread(daemon=False)
+        self.assertFalse(t.daemon)
+        t = threading.Thread(daemon=True)
+        self.assertTrue(t.daemon)
+
+    @unittest.skipUnless(hasattr(os, 'fork'), 'test needs fork()')
+    def test_dummy_thread_after_fork(self):
+        # Issue #14308: a dummy thread in the active list doesn't mess up
+        # the after-fork mechanism.
+        code = """if 1:
+            import _thread, threading, os, time
+
+            def background_thread(evt):
+                # Creates and registers the _DummyThread instance
+                threading.current_thread()
+                evt.set()
+                time.sleep(10)
+
+            evt = threading.Event()
+            _thread.start_new_thread(background_thread, (evt,))
+            evt.wait()
+            assert threading.active_count() == 2, threading.active_count()
+            if os.fork() == 0:
+                assert threading.active_count() == 1, threading.active_count()
+                os._exit(0)
+            else:
+                os.wait()
+        """
+        _, out, err = assert_python_ok("-c", code)
+        self.assertEqual(out, b'')
+        self.assertEqual(err, b'')
 
 
 class ThreadJoinOnShutdown(BaseTestCase):
@@ -624,6 +661,7 @@ class ThreadJoinOnShutdown(BaseTestCase):
         output = "end of worker thread\nend of main thread\n"
         self.assertScriptHasOutput(script, output)
 
+    @unittest.skipIf(sys.platform in platforms_to_skip, "due to known OS bug")
     def test_6_daemon_threads(self):
         # Check that a daemon thread cannot crash the interpreter on shutdown
         # by manipulating internal structures that are being disposed of in
@@ -666,6 +704,30 @@ class ThreadJoinOnShutdown(BaseTestCase):
         rc, out, err = assert_python_ok('-c', script)
         self.assertFalse(err)
 
+    @unittest.skipUnless(hasattr(os, 'fork'), "needs os.fork()")
+    @unittest.skipIf(sys.platform in platforms_to_skip, "due to known OS bug")
+    def test_reinit_tls_after_fork(self):
+        # Issue #13817: fork() would deadlock in a multithreaded program with
+        # the ad-hoc TLS implementation.
+
+        def do_fork_and_wait():
+            # just fork a child process and wait it
+            pid = os.fork()
+            if pid > 0:
+                os.waitpid(pid, 0)
+            else:
+                os._exit(0)
+
+        # start a bunch of threads that will fork() child processes
+        threads = []
+        for i in range(16):
+            t = threading.Thread(target=do_fork_and_wait)
+            threads.append(t)
+            t.start()
+
+        for t in threads:
+            t.join()
+
 
 class ThreadingExceptionTests(BaseTestCase):
     # A RuntimeError should be raised if Thread.start() is called
@@ -687,6 +749,10 @@ class ThreadingExceptionTests(BaseTestCase):
         thread = threading.Thread()
         thread.start()
         self.assertRaises(RuntimeError, setattr, thread, "daemon", True)
+
+    def test_releasing_unacquired_lock(self):
+        lock = threading.Lock()
+        self.assertRaises(RuntimeError, lock.release)
 
     @unittest.skipUnless(sys.platform == 'darwin', 'test macosx problem')
     def test_recursion_limit(self):
@@ -714,10 +780,10 @@ class ThreadingExceptionTests(BaseTestCase):
             """
         expected_output = "end of main thread\n"
         p = subprocess.Popen([sys.executable, "-c", script],
-                             stdout=subprocess.PIPE)
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = p.communicate()
         data = stdout.decode().replace('\r', '')
-        self.assertEqual(p.returncode, 0, "Unexpected error")
+        self.assertEqual(p.returncode, 0, "Unexpected error: " + stderr.decode())
         self.assertEqual(data, expected_output)
 
 class LockTests(lock_tests.LockTests):
@@ -726,6 +792,7 @@ class LockTests(lock_tests.LockTests):
 class PyRLockTests(lock_tests.RLockTests):
     locktype = staticmethod(threading._PyRLock)
 
+@unittest.skipIf(threading._CRLock is None, 'RLock not implemented in C')
 class CRLockTests(lock_tests.RLockTests):
     locktype = staticmethod(threading._CRLock)
 
@@ -748,6 +815,7 @@ class BoundedSemaphoreTests(lock_tests.BoundedSemaphoreTests):
 class BarrierTests(lock_tests.BarrierTests):
     barriertype = staticmethod(threading.Barrier)
 
+
 def test_main():
     test.support.run_unittest(LockTests, PyRLockTests, CRLockTests, EventTests,
                               ConditionAsRLockTests, ConditionTests,
@@ -755,7 +823,7 @@ def test_main():
                               ThreadTests,
                               ThreadJoinOnShutdown,
                               ThreadingExceptionTests,
-                              BarrierTests
+                              BarrierTests,
                               )
 
 if __name__ == "__main__":

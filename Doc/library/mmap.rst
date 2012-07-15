@@ -196,12 +196,16 @@ To map anonymous memory, -1 should be passed as the fileno along with the length
       move will raise a :exc:`TypeError` exception.
 
 
-   .. method:: read(num)
+   .. method:: read([n])
 
-      Return a :class:`bytes` containing up to *num* bytes starting from the
-      current file position; the file position is updated to point after the
-      bytes that were returned.
+      Return a :class:`bytes` containing up to *n* bytes starting from the
+      current file position. If the argument is omitted, *None* or negative,
+      return all bytes from the current file position to the end of the
+      mapping. The file position is updated to point after the bytes that were
+      returned.
 
+      .. versionchanged:: 3.3
+         Argument can be omitted or *None*.
 
    .. method:: read_byte()
 
@@ -259,7 +263,7 @@ To map anonymous memory, -1 should be passed as the fileno along with the length
 
    .. method:: write_byte(byte)
 
-      Write the the integer *byte* into memory at the current
+      Write the integer *byte* into memory at the current
       position of the file pointer; the file position is advanced by ``1``. If
       the mmap was created with :const:`ACCESS_READ`, then writing to it will
       raise a :exc:`TypeError` exception.

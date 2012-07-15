@@ -728,29 +728,6 @@ Ye olde Fibonacci generator, tee style.
 
 syntax_tests = """
 
->>> def f():
-...     return 22
-...     yield 1
-Traceback (most recent call last):
-  ..
-SyntaxError: 'return' with argument inside generator
-
->>> def f():
-...     yield 1
-...     return 22
-Traceback (most recent call last):
-  ..
-SyntaxError: 'return' with argument inside generator
-
-"return None" is not the same as "return" in a generator:
-
->>> def f():
-...     yield 1
-...     return None
-Traceback (most recent call last):
-  ..
-SyntaxError: 'return' with argument inside generator
-
 These are fine:
 
 >>> def f():
@@ -865,20 +842,6 @@ These are fine:
 ...         yield 2
 >>> type(f())
 <class 'generator'>
-
-
->>> def f():
-...     if 0:
-...         lambda x:  x        # shouldn't trigger here
-...         return              # or here
-...         def f(i):
-...             return 2*i      # or here
-...         if 0:
-...             return 3        # but *this* sucks (line 8)
-...     if 0:
-...         yield 2             # because it's a generator (line 10)
-Traceback (most recent call last):
-SyntaxError: 'return' with argument inside generator
 
 This one caused a crash (see SF bug 567538):
 
@@ -1566,11 +1529,6 @@ Traceback (most recent call last):
   ...
 SyntaxError: 'yield' outside function
 
->>> def f(): return lambda x=(yield): 1
-Traceback (most recent call last):
-  ...
-SyntaxError: 'return' with argument inside generator
-
 >>> def f(): x = yield = y
 Traceback (most recent call last):
   ...
@@ -1672,6 +1630,32 @@ ValueError: 6
 Traceback (most recent call last):
   ...
 ValueError: 7
+
+Plain "raise" inside a generator should preserve the traceback (#13188).
+The traceback should have 3 levels:
+- g.throw()
+- f()
+- 1/0
+
+>>> def f():
+...     try:
+...         yield
+...     except:
+...         raise
+>>> g = f()
+>>> try:
+...     1/0
+... except ZeroDivisionError as v:
+...     try:
+...         g.throw(v)
+...     except Exception as w:
+...         tb = w.__traceback__
+>>> levels = 0
+>>> while tb:
+...     levels += 1
+...     tb = tb.tb_next
+>>> levels
+3
 
 Now let's try closing a generator:
 

@@ -180,6 +180,14 @@ class TestAlternateInput(unittest.TestCase):
         def do_EOF(self, args):
             return True
 
+
+    class simplecmd2(simplecmd):
+
+        def do_EOF(self, args):
+            print('*** Unknown syntax: EOF', file=self.stdout)
+            return True
+
+
     def test_file_with_missing_final_nl(self):
         input = io.StringIO("print test\nprint test2")
         output = io.StringIO()
@@ -192,6 +200,27 @@ class TestAlternateInput(unittest.TestCase):
              "(Cmd) "))
 
 
+    def test_input_reset_at_EOF(self):
+        input = io.StringIO("print test\nprint test2")
+        output = io.StringIO()
+        cmd = self.simplecmd2(stdin=input, stdout=output)
+        cmd.use_rawinput = False
+        cmd.cmdloop()
+        self.assertMultiLineEqual(output.getvalue(),
+            ("(Cmd) test\n"
+             "(Cmd) test2\n"
+             "(Cmd) *** Unknown syntax: EOF\n"))
+        input = io.StringIO("print \n\n")
+        output = io.StringIO()
+        cmd.stdin = input
+        cmd.stdout = output
+        cmd.cmdloop()
+        self.assertMultiLineEqual(output.getvalue(),
+            ("(Cmd) \n"
+             "(Cmd) \n"
+             "(Cmd) *** Unknown syntax: EOF\n"))
+
+
 def test_main(verbose=None):
     from test import test_cmd
     support.run_doctest(test_cmd, verbose)
@@ -199,7 +228,7 @@ def test_main(verbose=None):
 
 def test_coverage(coverdir):
     trace = support.import_module('trace')
-    tracer=trace.Trace(ignoredirs=[sys.prefix, sys.exec_prefix,],
+    tracer=trace.Trace(ignoredirs=[sys.base_prefix, sys.base_exec_prefix,],
                         trace=0, count=1)
     tracer.run('reload(cmd);test_main()')
     r=tracer.results()

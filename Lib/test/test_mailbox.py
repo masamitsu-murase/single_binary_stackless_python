@@ -7,6 +7,7 @@ import email
 import email.message
 import re
 import io
+import shutil
 import tempfile
 from test import support
 import unittest
@@ -19,7 +20,11 @@ except ImportError:
     pass
 
 
-class TestBase(unittest.TestCase):
+class TestBase:
+
+    all_mailbox_types = (mailbox.Message, mailbox.MaildirMessage,
+                         mailbox.mboxMessage, mailbox.MHMessage,
+                         mailbox.BabylMessage, mailbox.MMDFMessage)
 
     def _check_sample(self, msg):
         # Inspect a mailbox.Message representation of the sample message
@@ -38,12 +43,7 @@ class TestBase(unittest.TestCase):
     def _delete_recursively(self, target):
         # Delete a file or delete a directory recursively
         if os.path.isdir(target):
-            for path, dirs, files in os.walk(target, topdown=False):
-                for name in files:
-                    os.remove(os.path.join(path, name))
-                for name in dirs:
-                    os.rmdir(os.path.join(path, name))
-            os.rmdir(target)
+            shutil.rmtree(target)
         elif os.path.exists(target):
             os.remove(target)
 
@@ -95,14 +95,14 @@ class TestMailbox(TestBase):
             """)
 
     def test_add_invalid_8bit_bytes_header(self):
-        key = self._box.add(self._nonascii_msg.encode('latin1'))
+        key = self._box.add(self._nonascii_msg.encode('latin-1'))
         self.assertEqual(len(self._box), 1)
         self.assertEqual(self._box.get_bytes(key),
-            self._nonascii_msg.encode('latin1'))
+            self._nonascii_msg.encode('latin-1'))
 
     def test_invalid_nonascii_header_as_string(self):
         subj = self._nonascii_msg.splitlines()[1]
-        key = self._box.add(subj.encode('latin1'))
+        key = self._box.add(subj.encode('latin-1'))
         self.assertEqual(self._box.get_string(key),
             'Subject: =?unknown-8bit?b?RmFsaW5hcHThciBo4Xpob3pzeuFsbO104XNz'
             'YWwuIE3hciByZW5kZWx06Ww/?=\n\n')
@@ -115,10 +115,10 @@ class TestMailbox(TestBase):
         self.assertMailboxEmpty()
 
     def test_add_that_raises_leaves_mailbox_empty(self):
-        # XXX This test will start failing when Message learns to handle
-        # non-ASCII string headers, and a different internal failure will
-        # need to be found or manufactured.
-        with self.assertRaises(ValueError):
+        def raiser(*args, **kw):
+            raise Exception("a fake error")
+        support.patch(self, email.generator.BytesGenerator, 'flatten', raiser)
+        with self.assertRaises(Exception):
             self._box.add(email.message_from_string("From: Alphöso"))
         self.assertEqual(len(self._box), 0)
         self._box.close()
@@ -504,6 +504,17 @@ class TestMailbox(TestBase):
         # Write changes to disk
         self._test_flush_or_close(self._box.flush, True)
 
+    def test_popitem_and_flush_twice(self):
+        # See #15036.
+        self._box.add(self._template % 0)
+        self._box.add(self._template % 1)
+        self._box.flush()
+
+        self._box.popitem()
+        self._box.flush()
+        self._box.popitem()
+        self._box.flush()
+
     def test_lock_unlock(self):
         # Lock and unlock the mailbox
         self.assertFalse(os.path.exists(self._get_lock_path()))
@@ -549,7 +560,7 @@ class TestMailbox(TestBase):
         return self._path + '.lock'
 
 
-class TestMailboxSuperclass(TestBase):
+class TestMailboxSuperclass(TestBase, unittest.TestCase):
 
     def test_notimplemented(self):
         # Test that all Mailbox methods raise NotImplementedException.
@@ -585,7 +596,7 @@ class TestMailboxSuperclass(TestBase):
         self.assertRaises(NotImplementedError, lambda: box.close())
 
 
-class TestMaildir(TestMailbox):
+class TestMaildir(TestMailbox, unittest.TestCase):
 
     _factory = lambda self, path, factory=None: mailbox.Maildir(path, factory)
 
@@ -801,6 +812,25 @@ class TestMaildir(TestMailbox):
                                           key1: os.path.join('new', key1),
                                           key2: os.path.join('new', key2)})
 
+    def test_refresh_after_safety_period(self):
+        # Issue #13254: Call _refresh after the "file system safety
+        # period" of 2 seconds has passed; _toc should still be
+        # updated because this is the first call to _refresh.
+        key0 = self._box.add(self._template % 0)
+        key1 = self._box.add(self._template % 1)
+
+        self._box = self._factory(self._path)
+        self.assertEqual(self._box._toc, {})
+
+        # Emulate sleeping. Instead of sleeping for 2 seconds, use the
+        # skew factor to make _refresh think that the filesystem
+        # safety period has passed and re-reading the _toc is only
+        # required if mtimes differ.
+        self._box._skewfactor = -3
+
+        self._box._refresh()
+        self.assertEqual(sorted(self._box._toc.keys()), sorted([key0, key1]))
+
     def test_lookup(self):
         # Look up message subpaths in the TOC
         self.assertRaises(KeyError, lambda: self._box._lookup('foo'))
@@ -876,6 +906,8 @@ class TestMaildir(TestMailbox):
         self.assertFalse((perms & 0o111)) # Execute bits should all be off.
 
     def test_reread(self):
+        # Do an initial unconditional refresh
+        self._box._refresh()
 
         # Put the last modified times more than two seconds into the past
         # (because mtime may have a two second granularity)
@@ -887,7 +919,12 @@ class TestMaildir(TestMailbox):
         # refresh is done unconditionally if called for within
         # two-second-plus-a-bit of the last one, just in case the mbox has
         # changed; so now we have to wait for that interval to expire.
-        time.sleep(2.01 + self._box._skewfactor)
+        #
+        # Because this is a test, emulate sleeping. Instead of
+        # sleeping for 2 seconds, use the skew factor to make _refresh
+        # think that 2 seconds have passed and re-reading the _toc is
+        # only required if mtimes differ.
+        self._box._skewfactor = -3
 
         # Re-reading causes the ._toc attribute to be assigned a new dictionary
         # object, so we'll check that the ._toc attribute isn't a different
@@ -900,15 +937,57 @@ class TestMaildir(TestMailbox):
         self.assertFalse(refreshed())
 
         # Now, write something into cur and remove it.  This changes
-        # the mtime and should cause a re-read.
+        # the mtime and should cause a re-read. Note that "sleep
+        # emulation" is still in effect, as skewfactor is -3.
         filename = os.path.join(self._path, 'cur', 'stray-file')
-        f = open(filename, 'w')
-        f.close()
+        support.create_empty_file(filename)
         os.unlink(filename)
         self._box._refresh()
         self.assertTrue(refreshed())
 
-class _TestMboxMMDF(TestMailbox):
+
+class _TestSingleFile(TestMailbox):
+    '''Common tests for single-file mailboxes'''
+
+    def test_add_doesnt_rewrite(self):
+        # When only adding messages, flush() should not rewrite the
+        # mailbox file. See issue #9559.
+
+        # Inode number changes if the contents are written to another
+        # file which is then renamed over the original file. So we
+        # must check that the inode number doesn't change.
+        inode_before = os.stat(self._path).st_ino
+
+        self._box.add(self._template % 0)
+        self._box.flush()
+
+        inode_after = os.stat(self._path).st_ino
+        self.assertEqual(inode_before, inode_after)
+
+        # Make sure the message was really added
+        self._box.close()
+        self._box = self._factory(self._path)
+        self.assertEqual(len(self._box), 1)
+
+    def test_permissions_after_flush(self):
+        # See issue #5346
+
+        # Make the mailbox world writable. It's unlikely that the new
+        # mailbox file would have these permissions after flush(),
+        # because umask usually prevents it.
+        mode = os.stat(self._path).st_mode | 0o666
+        os.chmod(self._path, mode)
+
+        self._box.add(self._template % 0)
+        i = self._box.add(self._template % 1)
+        # Need to remove one message to make flush() create a new file
+        self._box.remove(i)
+        self._box.flush()
+
+        self.assertEqual(os.stat(self._path).st_mode, mode)
+
+
+class _TestMboxMMDF(_TestSingleFile):
 
     def tearDown(self):
         super().tearDown()
@@ -967,28 +1046,37 @@ class _TestMboxMMDF(TestMailbox):
             self.assertEqual(contents, f.read())
         self._box = self._factory(self._path)
 
+    @unittest.skipUnless(hasattr(os, 'fork'), "Test needs fork().")
+    @unittest.skipUnless(hasattr(socket, 'socketpair'), "Test needs socketpair().")
     def test_lock_conflict(self):
-        # Fork off a subprocess that will lock the file for 2 seconds,
-        # unlock it, and then exit.
-        if not hasattr(os, 'fork'):
-            return
+        # Fork off a child process that will lock the mailbox temporarily,
+        # unlock it and exit.
+        c, p = socket.socketpair()
+        self.addCleanup(c.close)
+        self.addCleanup(p.close)
+
         pid = os.fork()
         if pid == 0:
-            # In the child, lock the mailbox.
+            # child
             try:
+                # lock the mailbox, and signal the parent it can proceed
                 self._box.lock()
-                time.sleep(2)
+                c.send(b'c')
+
+                # wait until the parent is done, and unlock the mailbox
+                c.recv(1)
                 self._box.unlock()
             finally:
                 os._exit(0)
 
-        # In the parent, sleep a bit to give the child time to acquire
-        # the lock.
-        time.sleep(0.5)
+        # In the parent, wait until the child signals it locked the mailbox.
+        p.recv(1)
         try:
             self.assertRaises(mailbox.ExternalClashError,
                               self._box.lock)
         finally:
+            # Signal the child it can now release the lock and exit.
+            p.send(b'p')
             # Wait for child to exit.  Locking should now succeed.
             exited_pid, status = os.waitpid(pid, 0)
 
@@ -1011,7 +1099,7 @@ class _TestMboxMMDF(TestMailbox):
         self._box.close()
 
 
-class TestMbox(_TestMboxMMDF):
+class TestMbox(_TestMboxMMDF, unittest.TestCase):
 
     _factory = lambda self, path, factory=None: mailbox.mbox(path, factory)
 
@@ -1034,12 +1122,12 @@ class TestMbox(_TestMboxMMDF):
             perms = st.st_mode
             self.assertFalse((perms & 0o111)) # Execute bits should all be off.
 
-class TestMMDF(_TestMboxMMDF):
+class TestMMDF(_TestMboxMMDF, unittest.TestCase):
 
     _factory = lambda self, path, factory=None: mailbox.MMDF(path, factory)
 
 
-class TestMH(TestMailbox):
+class TestMH(TestMailbox, unittest.TestCase):
 
     _factory = lambda self, path, factory=None: mailbox.MH(path, factory)
 
@@ -1174,7 +1262,7 @@ class TestMH(TestMailbox):
         return os.path.join(self._path, '.mh_sequences.lock')
 
 
-class TestBabyl(TestMailbox):
+class TestBabyl(_TestSingleFile, unittest.TestCase):
 
     _factory = lambda self, path, factory=None: mailbox.Babyl(path, factory)
 
@@ -1239,7 +1327,7 @@ class TestFakeMailBox(unittest.TestCase):
             self.assertTrue(box.files[i].closed)
 
 
-class TestMessage(TestBase):
+class TestMessage(TestBase, unittest.TestCase):
 
     _factory = mailbox.Message      # Overridden by subclasses to reuse tests
 
@@ -1295,6 +1383,14 @@ class TestMessage(TestBase):
         # Initialize with invalid argument
         self.assertRaises(TypeError, lambda: self._factory(object()))
 
+    def test_all_eMM_attribues_exist(self):
+        # Issue 12537
+        eMM = email.message_from_string(_sample_message)
+        msg = self._factory(_sample_message)
+        for attr in eMM.__dict__:
+            self.assertTrue(attr in msg.__dict__,
+                '{} attribute does not exist'.format(attr))
+
     def test_become_message(self):
         # Take on the state of another message
         eMM = email.message_from_string(_sample_message)
@@ -1306,9 +1402,7 @@ class TestMessage(TestBase):
         # Copy self's format-specific data to other message formats.
         # This test is superficial; better ones are in TestMessageConversion.
         msg = self._factory()
-        for class_ in (mailbox.Message, mailbox.MaildirMessage,
-                       mailbox.mboxMessage, mailbox.MHMessage,
-                       mailbox.BabylMessage, mailbox.MMDFMessage):
+        for class_ in self.all_mailbox_types:
             other_msg = class_()
             msg._explain_to(other_msg)
         other_msg = email.message.Message()
@@ -1319,7 +1413,7 @@ class TestMessage(TestBase):
         pass
 
 
-class TestMaildirMessage(TestMessage):
+class TestMaildirMessage(TestMessage, unittest.TestCase):
 
     _factory = mailbox.MaildirMessage
 
@@ -1393,7 +1487,7 @@ class TestMaildirMessage(TestMessage):
         self._check_sample(msg)
 
 
-class _TestMboxMMDFMessage(TestMessage):
+class _TestMboxMMDFMessage:
 
     _factory = mailbox._mboxMMDFMessage
 
@@ -1440,12 +1534,12 @@ class _TestMboxMMDFMessage(TestMessage):
                               r"\d{2} \d{4}", msg.get_from()) is not None)
 
 
-class TestMboxMessage(_TestMboxMMDFMessage):
+class TestMboxMessage(_TestMboxMMDFMessage, TestMessage):
 
     _factory = mailbox.mboxMessage
 
 
-class TestMHMessage(TestMessage):
+class TestMHMessage(TestMessage, unittest.TestCase):
 
     _factory = mailbox.MHMessage
 
@@ -1476,7 +1570,7 @@ class TestMHMessage(TestMessage):
         self.assertEqual(msg.get_sequences(), ['foobar', 'replied'])
 
 
-class TestBabylMessage(TestMessage):
+class TestBabylMessage(TestMessage, unittest.TestCase):
 
     _factory = mailbox.BabylMessage
 
@@ -1531,45 +1625,52 @@ class TestBabylMessage(TestMessage):
             self.assertEqual(visible[header], msg[header])
 
 
-class TestMMDFMessage(_TestMboxMMDFMessage):
+class TestMMDFMessage(_TestMboxMMDFMessage, TestMessage):
 
     _factory = mailbox.MMDFMessage
 
 
-class TestMessageConversion(TestBase):
+class TestMessageConversion(TestBase, unittest.TestCase):
 
     def test_plain_to_x(self):
         # Convert Message to all formats
-        for class_ in (mailbox.Message, mailbox.MaildirMessage,
-                       mailbox.mboxMessage, mailbox.MHMessage,
-                       mailbox.BabylMessage, mailbox.MMDFMessage):
+        for class_ in self.all_mailbox_types:
             msg_plain = mailbox.Message(_sample_message)
             msg = class_(msg_plain)
             self._check_sample(msg)
 
     def test_x_to_plain(self):
         # Convert all formats to Message
-        for class_ in (mailbox.Message, mailbox.MaildirMessage,
-                       mailbox.mboxMessage, mailbox.MHMessage,
-                       mailbox.BabylMessage, mailbox.MMDFMessage):
+        for class_ in self.all_mailbox_types:
             msg = class_(_sample_message)
             msg_plain = mailbox.Message(msg)
             self._check_sample(msg_plain)
 
     def test_x_from_bytes(self):
         # Convert all formats to Message
-        for class_ in (mailbox.Message, mailbox.MaildirMessage,
-                       mailbox.mboxMessage, mailbox.MHMessage,
-                       mailbox.BabylMessage, mailbox.MMDFMessage):
+        for class_ in self.all_mailbox_types:
             msg = class_(_bytes_sample_message)
             self._check_sample(msg)
 
     def test_x_to_invalid(self):
         # Convert all formats to an invalid format
-        for class_ in (mailbox.Message, mailbox.MaildirMessage,
-                       mailbox.mboxMessage, mailbox.MHMessage,
-                       mailbox.BabylMessage, mailbox.MMDFMessage):
+        for class_ in self.all_mailbox_types:
             self.assertRaises(TypeError, lambda: class_(False))
+
+    def test_type_specific_attributes_removed_on_conversion(self):
+        reference = {class_: class_(_sample_message).__dict__
+                        for class_ in self.all_mailbox_types}
+        for class1 in self.all_mailbox_types:
+            for class2 in self.all_mailbox_types:
+                if class1 is class2:
+                    continue
+                source = class1(_sample_message)
+                target = class2(source)
+                type_specific = [a for a in reference[class1]
+                                   if a not in reference[class2]]
+                for attr in type_specific:
+                    self.assertNotIn(attr, target.__dict__,
+                        "while converting {} to {}".format(class1, class2))
 
     def test_maildir_to_maildir(self):
         # Convert MaildirMessage to MaildirMessage
@@ -1877,7 +1978,7 @@ class TestProxyFileBase(TestBase):
         self.assertTrue(proxy.closed)
 
 
-class TestProxyFile(TestProxyFileBase):
+class TestProxyFile(TestProxyFileBase, unittest.TestCase):
 
     def setUp(self):
         self._path = support.TESTFN
@@ -1926,7 +2027,7 @@ class TestProxyFile(TestProxyFileBase):
         self._test_close(mailbox._ProxyFile(self._file))
 
 
-class TestPartialFile(TestProxyFileBase):
+class TestPartialFile(TestProxyFileBase, unittest.TestCase):
 
     def setUp(self):
         self._path = support.TESTFN
@@ -1993,6 +2094,10 @@ class MaildirTestCase(unittest.TestCase):
     def setUp(self):
         # create a new maildir mailbox to work with:
         self._dir = support.TESTFN
+        if os.path.isdir(self._dir):
+            shutil.rmtree(self._dir)
+        elif os.path.isfile(self._dir):
+            os.unlink(self._dir)
         os.mkdir(self._dir)
         os.mkdir(os.path.join(self._dir, "cur"))
         os.mkdir(os.path.join(self._dir, "tmp"))

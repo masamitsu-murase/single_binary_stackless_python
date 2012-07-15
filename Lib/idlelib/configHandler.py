@@ -145,7 +145,8 @@ class IdleUserConfParser(IdleConfParser):
             except IOError:
                 os.unlink(fname)
                 cfgFile = open(fname, 'w')
-            self.write(cfgFile)
+            with cfgFile:
+                self.write(cfgFile)
         else:
             self.RemoveFile()
 
@@ -595,7 +596,7 @@ class IdleConf:
             '<<replace>>': ['<Control-h>'],
             '<<goto-line>>': ['<Alt-g>'],
             '<<smart-backspace>>': ['<Key-BackSpace>'],
-            '<<newline-and-indent>>': ['<Key-Return> <Key-KP_Enter>'],
+            '<<newline-and-indent>>': ['<Key-Return>', '<Key-KP_Enter>'],
             '<<smart-indent>>': ['<Key-Tab>'],
             '<<indent-region>>': ['<Control-Key-bracketright>'],
             '<<dedent-region>>': ['<Control-Key-bracketleft>'],

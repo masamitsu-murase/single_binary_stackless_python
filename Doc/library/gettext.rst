@@ -185,9 +185,12 @@ class can also install themselves in the built-in namespace as the function
    translation object from the cache; the actual instance data is still shared with
    the cache.
 
-   If no :file:`.mo` file is found, this function raises :exc:`IOError` if
+   If no :file:`.mo` file is found, this function raises :exc:`OSError` if
    *fallback* is false (which is the default), and returns a
    :class:`NullTranslations` instance if *fallback* is true.
+
+   .. versionchanged:: 3.3
+      :exc:`IOError` used to be raised instead of :exc:`OSError`.
 
 
 .. function:: install(domain, localedir=None, codeset=None, names=None)
@@ -263,7 +266,7 @@ are the methods of :class:`NullTranslations`:
 
    .. method:: lngettext(singular, plural, n)
 
-      If a fallback has been set, forward :meth:`ngettext` to the fallback.
+      If a fallback has been set, forward :meth:`lngettext` to the fallback.
       Otherwise, return the translated message.  Overridden in derived classes.
 
 
@@ -342,7 +345,7 @@ The entire set of key/value pairs are placed into a dictionary and set as the
 
 If the :file:`.mo` file's magic number is invalid, or if other problems occur
 while reading the file, instantiating a :class:`GNUTranslations` class can raise
-:exc:`IOError`.
+:exc:`OSError`.
 
 The following methods are overridden from the base class implementation:
 
@@ -644,8 +647,8 @@ implementations, and valuable experience to the creation of this module:
 .. [#] See the footnote for :func:`bindtextdomain` above.
 
 .. [#] François Pinard has written a program called :program:`xpot` which does a
-   similar job.  It is available as part of his :program:`po-utils` package at http
-   ://po-utils.progiciels-bpi.ca/.
+   similar job.  It is available as part of his `po-utils package
+   <http://po-utils.progiciels-bpi.ca/>`_.
 
 .. [#] :program:`msgfmt.py` is binary compatible with GNU :program:`msgfmt` except that
    it provides a simpler, all-Python implementation.  With this and

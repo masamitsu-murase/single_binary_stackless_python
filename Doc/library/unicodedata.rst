@@ -15,8 +15,8 @@
 
 This module provides access to the Unicode Character Database (UCD) which
 defines character properties for all Unicode characters. The data contained in
-this database is compiled from the `UCD version 6.0.0
-<http://www.unicode.org/Public/6.0.0/ucd>`_.
+this database is compiled from the `UCD version 6.1.0
+<http://www.unicode.org/Public/6.1.0/ucd>`_.
 
 The module uses the same names and symbols as defined by Unicode
 Standard Annex #44, `"Unicode Character Database"
@@ -28,6 +28,9 @@ following functions:
 
    Look up character by name.  If a character with the given name is found, return
    the corresponding character.  If not found, :exc:`KeyError` is raised.
+
+   .. versionchanged:: 3.3
+      Support for name aliases [#]_ and named sequences [#]_ has been added.
 
 
 .. function:: name(chr[, default])
@@ -105,7 +108,7 @@ following functions:
    based on the definition of canonical equivalence and compatibility equivalence.
    In Unicode, several characters can be expressed in various way. For example, the
    character U+00C7 (LATIN CAPITAL LETTER C WITH CEDILLA) can also be expressed as
-   the sequence U+0327 (COMBINING CEDILLA) U+0043 (LATIN CAPITAL LETTER C).
+   the sequence U+0043 (LATIN CAPITAL LETTER C) U+0327 (COMBINING CEDILLA).
 
    For each character, there are two normal forms: normal form C and normal form D.
    Normal form D (NFD) is also known as canonical decomposition, and translates
@@ -160,3 +163,9 @@ Examples:
    >>> unicodedata.bidirectional('\u0660') # 'A'rabic, 'N'umber
    'AN'
 
+
+.. rubric:: Footnotes
+
+.. [#] http://www.unicode.org/Public/6.1.0/ucd/NameAliases.txt
+
+.. [#] http://www.unicode.org/Public/6.1.0/ucd/NamedSequences.txt

@@ -12,7 +12,7 @@ and build the projects.
 The proper order to build subprojects:
 
 1) pythoncore (this builds the main Python DLL and library files,
-               python32.{dll, lib} in Release mode)
+               python33.{dll, lib} in Release mode)
 
 2) python (this builds the main Python executable,
            python.exe in Release mode)
@@ -23,7 +23,7 @@ The proper order to build subprojects:
    to the subsystems they implement; see SUBPROJECTS below)
 
 When using the Debug setting, the output files have a _d added to
-their name:  python32_d.dll, python_d.exe, pyexpat_d.pyd, and so on.
+their name:  python33_d.dll, python_d.exe, pyexpat_d.pyd, and so on.
 
 SUBPROJECTS
 -----------
@@ -120,14 +120,14 @@ bz2
     Download the source from the python.org copy into the dist
     directory:
 
-    svn export http://svn.python.org/projects/external/bzip2-1.0.5
+    svn export http://svn.python.org/projects/external/bzip2-1.0.6
 
     And requires building bz2 first.
 
-    cd dist\bzip2-1.0.5
+    cd dist\bzip2-1.0.6
     nmake -f makefile.msc
 
-    All of this managed to build bzip2-1.0.5\libbz2.lib, which the Python
+    All of this managed to build bzip2-1.0.6\libbz2.lib, which the Python
     project links in.
 
 
@@ -153,10 +153,9 @@ _ssl
 
     Unpack into the "dist" directory, retaining the folder name from
     the archive - for example, the latest stable OpenSSL will install as
-        dist/openssl-1.0.0a
+        dist/openssl-1.0.1c
 
-    You can (theoretically) use any version of OpenSSL you like - the
-    build process will automatically select the latest version.
+    You need to use version 1.0.1c of OpenSSL.
 
     You can install the NASM assembler from
         http://www.nasm.us/

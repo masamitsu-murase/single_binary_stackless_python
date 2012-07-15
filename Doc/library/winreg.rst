@@ -38,7 +38,11 @@ This module offers the following functions:
    *key* is the predefined handle to connect to.
 
    The return value is the handle of the opened key. If the function fails, a
-   :exc:`WindowsError` exception is raised.
+   :exc:`OSError` exception is raised.
+
+   .. versionchanged:: 3.3
+      This function used to raise a :exc:`WindowsError`, which is now an
+      alias of :exc:`OSError`.
 
 
 .. function:: CreateKey(key, sub_key)
@@ -57,7 +61,11 @@ This module offers the following functions:
    If the key already exists, this function opens the existing key.
 
    The return value is the handle of the opened key. If the function fails, a
-   :exc:`WindowsError` exception is raised.
+   :exc:`OSError` exception is raised.
+
+   .. versionchanged:: 3.3
+      This function used to raise a :exc:`WindowsError`, which is now an
+      alias of :exc:`OSError`.
 
 
 .. function:: CreateKeyEx(key, sub_key, reserved=0, access=KEY_ALL_ACCESS)
@@ -82,9 +90,13 @@ This module offers the following functions:
    If the key already exists, this function opens the existing key.
 
    The return value is the handle of the opened key. If the function fails, a
-   :exc:`WindowsError` exception is raised.
+   :exc:`OSError` exception is raised.
 
    .. versionadded:: 3.2
+
+   .. versionchanged:: 3.3
+      This function used to raise a :exc:`WindowsError`, which is now an
+      alias of :exc:`OSError`.
 
 
 .. function:: DeleteKey(key, sub_key)
@@ -100,7 +112,11 @@ This module offers the following functions:
    *This method can not delete keys with subkeys.*
 
    If the method succeeds, the entire key, including all of its values, is removed.
-   If the method fails, a :exc:`WindowsError` exception is raised.
+   If the method fails, a :exc:`OSError` exception is raised.
+
+   .. versionchanged:: 3.3
+      This function used to raise a :exc:`WindowsError`, which is now an
+      alias of :exc:`OSError`.
 
 
 .. function:: DeleteKeyEx(key, sub_key, access=KEY_ALL_ACCESS, reserved=0)
@@ -129,11 +145,15 @@ This module offers the following functions:
    *This method can not delete keys with subkeys.*
 
    If the method succeeds, the entire key, including all of its values, is
-   removed. If the method fails, a :exc:`WindowsError` exception is raised.
+   removed. If the method fails, a :exc:`OSError` exception is raised.
 
    On unsupported Windows versions, :exc:`NotImplementedError` is raised.
 
    .. versionadded:: 3.2
+
+   .. versionchanged:: 3.3
+      This function used to raise a :exc:`WindowsError`, which is now an
+      alias of :exc:`OSError`.
 
 
 .. function:: DeleteValue(key, value)
@@ -156,8 +176,12 @@ This module offers the following functions:
    *index* is an integer that identifies the index of the key to retrieve.
 
    The function retrieves the name of one subkey each time it is called.  It is
-   typically called repeatedly until a :exc:`WindowsError` exception is
+   typically called repeatedly until a :exc:`OSError` exception is
    raised, indicating, no more values are available.
+
+   .. versionchanged:: 3.3
+      This function used to raise a :exc:`WindowsError`, which is now an
+      alias of :exc:`OSError`.
 
 
 .. function:: EnumValue(key, index)
@@ -170,7 +194,7 @@ This module offers the following functions:
    *index* is an integer that identifies the index of the value to retrieve.
 
    The function retrieves the name of one subkey each time it is called. It is
-   typically called repeatedly, until a :exc:`WindowsError` exception is
+   typically called repeatedly, until a :exc:`OSError` exception is
    raised, indicating no more values.
 
    The result is a tuple of 3 items:
@@ -188,6 +212,10 @@ This module offers the following functions:
    |       | value data (see table in docs for          |
    |       | :meth:`SetValueEx`)                        |
    +-------+--------------------------------------------+
+
+   .. versionchanged:: 3.3
+      This function used to raise a :exc:`WindowsError`, which is now an
+      alias of :exc:`OSError`.
 
 
 .. function:: ExpandEnvironmentStrings(str)
@@ -243,7 +271,7 @@ This module offers the following functions:
    specified in *file_name* is relative to the remote computer.
 
 
-.. function:: OpenKey(key, sub_key, reserved=0, access=KEY_ALL_ACCESS)
+.. function:: OpenKey(key, sub_key, reserved=0, access=KEY_READ)
 
    Opens the specified key, returning a :ref:`handle object <handle-object>`.
 
@@ -252,17 +280,22 @@ This module offers the following functions:
 
    *sub_key* is a string that identifies the sub_key to open.
 
-   *res* is a reserved integer, and must be zero.  The default is zero.
+   *reserved* is a reserved integer, and must be zero.  The default is zero.
 
-   *sam* is an integer that specifies an access mask that describes the desired
+   *access* is an integer that specifies an access mask that describes the desired
    security access for the key.  Default is :const:`KEY_READ`.  See :ref:`Access
    Rights <access-rights>` for other allowed values.
 
    The result is a new handle to the specified key.
 
-   If the function fails, :exc:`WindowsError` is raised.
+   If the function fails, :exc:`OSError` is raised.
 
-   .. versionchanged:: 3.2 Allow the use of named arguments.
+   .. versionchanged:: 3.2
+      Allow the use of named arguments.
+
+   .. versionchanged:: 3.3
+      This function used to raise a :exc:`WindowsError`, which is now an
+      alias of :exc:`OSError`.
 
 
 .. function:: OpenKeyEx()

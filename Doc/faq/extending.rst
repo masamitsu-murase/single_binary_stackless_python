@@ -37,13 +37,7 @@ Writing C is hard; are there any alternatives?
 There are a number of alternatives to writing your own C extensions, depending
 on what you're trying to do.
 
-.. XXX make sure these all work; mention Cython
-
-If you need more speed, `Psyco <http://psyco.sourceforge.net/>`_ generates x86
-assembly code from Python bytecode.  You can use Psyco to compile the most
-time-critical functions in your code, and gain a significant improvement with
-very little effort, as long as you're running on a machine with an
-x86-compatible processor.
+.. XXX make sure these all work
 
 `Cython <http://cython.org>`_ and its relative `Pyrex
 <http://www.cosc.canterbury.ac.nz/~greg/python/Pyrex/>`_ are compilers
@@ -105,12 +99,7 @@ many other useful protocols.
 How do I use Py_BuildValue() to create a tuple of arbitrary length?
 -------------------------------------------------------------------
 
-You can't.  Use ``t = PyTuple_New(n)`` instead, and fill it with objects using
-``PyTuple_SetItem(t, i, o)`` -- note that this "eats" a reference count of
-``o``, so you have to :c:func:`Py_INCREF` it.  Lists have similar functions
-``PyList_New(n)`` and ``PyList_SetItem(l, i, o)``.  Note that you *must* set all
-the tuple items to some value before you pass the tuple to Python code --
-``PyTuple_New(n)`` initializes them to NULL, which isn't a valid Python value.
+You can't.  Use :c:func:`PyTuple_Pack` instead.
 
 
 How do I call an object's method from C?
@@ -153,21 +142,30 @@ this object to :data:`sys.stdout` and :data:`sys.stderr`.  Call print_error, or
 just allow the standard traceback mechanism to work. Then, the output will go
 wherever your ``write()`` method sends it.
 
-The easiest way to do this is to use the StringIO class in the standard library.
+The easiest way to do this is to use the :class:`io.StringIO` class::
 
-Sample code and use for catching stdout:
+   >>> import io, sys
+   >>> sys.stdout = io.StringIO()
+   >>> print('foo')
+   >>> print('hello world!')
+   >>> sys.stderr.write(sys.stdout.getvalue())
+   foo
+   hello world!
 
-   >>> class StdoutCatcher:
+A custom object to do the same would look like this::
+
+   >>> import io, sys
+   >>> class StdoutCatcher(io.TextIOBase):
    ...     def __init__(self):
-   ...         self.data = ''
+   ...         self.data = []
    ...     def write(self, stuff):
-   ...         self.data = self.data + stuff
+   ...         self.data.append(stuff)
    ...
    >>> import sys
    >>> sys.stdout = StdoutCatcher()
    >>> print('foo')
    >>> print('hello world!')
-   >>> sys.stderr.write(sys.stdout.data)
+   >>> sys.stderr.write(''.join(sys.stdout.data))
    foo
    hello world!
 
@@ -447,34 +445,3 @@ In Python 2.2, you can inherit from built-in classes such as :class:`int`,
 The Boost Python Library (BPL, http://www.boost.org/libs/python/doc/index.html)
 provides a way of doing this from C++ (i.e. you can inherit from an extension
 class written in C++ using the BPL).
-
-
-When importing module X, why do I get "undefined symbol: PyUnicodeUCS2*"?
--------------------------------------------------------------------------
-
-You are using a version of Python that uses a 4-byte representation for Unicode
-characters, but some C extension module you are importing was compiled using a
-Python that uses a 2-byte representation for Unicode characters (the default).
-
-If instead the name of the undefined symbol starts with ``PyUnicodeUCS4``, the
-problem is the reverse: Python was built using 2-byte Unicode characters, and
-the extension module was compiled using a Python with 4-byte Unicode characters.
-
-This can easily occur when using pre-built extension packages.  RedHat Linux
-7.x, in particular, provided a "python2" binary that is compiled with 4-byte
-Unicode.  This only causes the link failure if the extension uses any of the
-``PyUnicode_*()`` functions.  It is also a problem if an extension uses any of
-the Unicode-related format specifiers for :c:func:`Py_BuildValue` (or similar) or
-parameter specifications for :c:func:`PyArg_ParseTuple`.
-
-You can check the size of the Unicode character a Python interpreter is using by
-checking the value of sys.maxunicode:
-
-   >>> import sys
-   >>> if sys.maxunicode > 65535:
-   ...     print('UCS4 build')
-   ... else:
-   ...     print('UCS2 build')
-
-The only way to solve this problem is to use extension modules compiled with a
-Python binary built using the same size for Unicode characters.

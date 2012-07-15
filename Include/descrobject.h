@@ -45,6 +45,7 @@ typedef struct {
     PyObject_HEAD
     PyTypeObject *d_type;
     PyObject *d_name;
+    PyObject *d_qualname;
 } PyDescrObject;
 
 #define PyDescr_COMMON PyDescrObject d_common
@@ -83,6 +84,7 @@ PyAPI_DATA(PyTypeObject) PyMemberDescr_Type;
 PyAPI_DATA(PyTypeObject) PyMethodDescr_Type;
 PyAPI_DATA(PyTypeObject) PyWrapperDescr_Type;
 PyAPI_DATA(PyTypeObject) PyDictProxy_Type;
+PyAPI_DATA(PyTypeObject) _PyMethodWrapper_Type;
 
 PyAPI_FUNC(PyObject *) PyDescr_NewMethod(PyTypeObject *, PyMethodDef *);
 PyAPI_FUNC(PyObject *) PyDescr_NewClassMethod(PyTypeObject *, PyMethodDef *);

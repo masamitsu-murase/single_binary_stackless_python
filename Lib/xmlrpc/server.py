@@ -1,4 +1,4 @@
-"""XML-RPC Servers.
+r"""XML-RPC Servers.
 
 This module can be used to create simple XML-RPC servers
 by creating a server and either installing functions, a
@@ -149,7 +149,7 @@ def list_public_methods(obj):
 
     return [member for member in dir(obj)
                 if not member.startswith('_') and
-                    hasattr(getattr(obj, member), '__call__')]
+                    callable(getattr(obj, member))]
 
 class SimpleXMLRPCDispatcher:
     """Mix-in class that dispatches XML-RPC requests.
@@ -160,11 +160,13 @@ class SimpleXMLRPCDispatcher:
     can be instanced when used by the MultiPathXMLRPCServer
     """
 
-    def __init__(self, allow_none=False, encoding=None):
+    def __init__(self, allow_none=False, encoding=None,
+                 use_builtin_types=False):
         self.funcs = {}
         self.instance = None
         self.allow_none = allow_none
         self.encoding = encoding or 'utf-8'
+        self.use_builtin_types = use_builtin_types
 
     def register_instance(self, instance, allow_dotted_names=False):
         """Registers an instance to respond to XML-RPC requests.
@@ -245,7 +247,7 @@ class SimpleXMLRPCDispatcher:
         """
 
         try:
-            params, method = loads(data)
+            params, method = loads(data, use_builtin_types=self.use_builtin_types)
 
             # generate response
             if dispatch_method is not None:
@@ -329,7 +331,6 @@ class SimpleXMLRPCDispatcher:
         if method is None:
             return ""
         else:
-            import pydoc
             return pydoc.getdoc(method)
 
     def system_multicall(self, call_list):
@@ -475,7 +476,10 @@ class SimpleXMLRPCRequestHandler(BaseHTTPRequestHandler):
             L = []
             while size_remaining:
                 chunk_size = min(size_remaining, max_chunk_size)
-                L.append(self.rfile.read(chunk_size))
+                chunk = self.rfile.read(chunk_size)
+                if not chunk:
+                    break
+                L.append(chunk)
                 size_remaining -= len(L[-1])
             data = b''.join(L)
 
@@ -560,7 +564,7 @@ class SimpleXMLRPCServer(socketserver.TCPServer,
     Simple XML-RPC server that allows functions and a single instance
     to be installed to handle requests. The default implementation
     attempts to dispatch XML-RPC calls to the functions or instance
-    installed in the server. Override the _dispatch method inhereted
+    installed in the server. Override the _dispatch method inherited
     from SimpleXMLRPCDispatcher to change this behavior.
     """
 
@@ -573,10 +577,11 @@ class SimpleXMLRPCServer(socketserver.TCPServer,
     _send_traceback_header = False
 
     def __init__(self, addr, requestHandler=SimpleXMLRPCRequestHandler,
-                 logRequests=True, allow_none=False, encoding=None, bind_and_activate=True):
+                 logRequests=True, allow_none=False, encoding=None,
+                 bind_and_activate=True, use_builtin_types=False):
         self.logRequests = logRequests
 
-        SimpleXMLRPCDispatcher.__init__(self, allow_none, encoding)
+        SimpleXMLRPCDispatcher.__init__(self, allow_none, encoding, use_builtin_types)
         socketserver.TCPServer.__init__(self, addr, requestHandler, bind_and_activate)
 
         # [Bug #1222790] If possible, set close-on-exec flag; if a
@@ -596,13 +601,14 @@ class MultiPathXMLRPCServer(SimpleXMLRPCServer):
     Make sure that the requestHandler accepts the paths in question.
     """
     def __init__(self, addr, requestHandler=SimpleXMLRPCRequestHandler,
-                 logRequests=True, allow_none=False, encoding=None, bind_and_activate=True):
+                 logRequests=True, allow_none=False, encoding=None,
+                 bind_and_activate=True, use_builtin_types=False):
 
         SimpleXMLRPCServer.__init__(self, addr, requestHandler, logRequests, allow_none,
-                                    encoding, bind_and_activate)
+                                    encoding, bind_and_activate, use_builtin_types)
         self.dispatchers = {}
         self.allow_none = allow_none
-        self.encoding = encoding
+        self.encoding = encoding or 'utf-8'
 
     def add_dispatcher(self, path, dispatcher):
         self.dispatchers[path] = dispatcher
@@ -620,16 +626,17 @@ class MultiPathXMLRPCServer(SimpleXMLRPCServer):
             # (each dispatcher should have handled their own
             # exceptions)
             exc_type, exc_value = sys.exc_info()[:2]
-            response = xmlrpclib.dumps(
-                xmlrpclib.Fault(1, "%s:%s" % (exc_type, exc_value)),
+            response = dumps(
+                Fault(1, "%s:%s" % (exc_type, exc_value)),
                 encoding=self.encoding, allow_none=self.allow_none)
+            response = response.encode(self.encoding)
         return response
 
 class CGIXMLRPCRequestHandler(SimpleXMLRPCDispatcher):
     """Simple handler for XML-RPC data passed through CGI."""
 
-    def __init__(self, allow_none=False, encoding=None):
-        SimpleXMLRPCDispatcher.__init__(self, allow_none, encoding)
+    def __init__(self, allow_none=False, encoding=None, use_builtin_types=False):
+        SimpleXMLRPCDispatcher.__init__(self, allow_none, encoding, use_builtin_types)
 
     def handle_xmlrpc(self, request_text):
         """Handle a single XML-RPC request"""
@@ -924,9 +931,10 @@ class DocXMLRPCServer(  SimpleXMLRPCServer,
 
     def __init__(self, addr, requestHandler=DocXMLRPCRequestHandler,
                  logRequests=True, allow_none=False, encoding=None,
-                 bind_and_activate=True):
+                 bind_and_activate=True, use_builtin_types=False):
         SimpleXMLRPCServer.__init__(self, addr, requestHandler, logRequests,
-                                    allow_none, encoding, bind_and_activate)
+                                    allow_none, encoding, bind_and_activate,
+                                    use_builtin_types)
         XMLRPCDocGenerator.__init__(self)
 
 class DocCGIXMLRPCRequestHandler(   CGIXMLRPCRequestHandler,
@@ -956,8 +964,13 @@ class DocCGIXMLRPCRequestHandler(   CGIXMLRPCRequestHandler,
 
 
 if __name__ == '__main__':
-    print('Running XML-RPC server on port 8000')
     server = SimpleXMLRPCServer(("localhost", 8000))
     server.register_function(pow)
     server.register_function(lambda x,y: x+y, 'add')
-    server.serve_forever()
+    print('Serving XML-RPC on localhost port 8000')
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nKeyboard interrupt received, exiting.")
+        server.server_close()
+        sys.exit(0)

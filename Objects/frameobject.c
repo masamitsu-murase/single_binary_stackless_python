@@ -16,12 +16,12 @@
 
 static PyMemberDef frame_memberlist[] = {
 #ifndef STACKLESS
-    {"f_back",          T_OBJECT,       OFF(f_back),    READONLY},
+    {"f_back",          T_OBJECT,       OFF(f_back),      READONLY},
 #endif
-    {"f_code",          T_OBJECT,       OFF(f_code),    READONLY},
-    {"f_builtins",      T_OBJECT,       OFF(f_builtins),READONLY},
-    {"f_globals",       T_OBJECT,       OFF(f_globals), READONLY},
-    {"f_lasti",         T_INT,          OFF(f_lasti),   READONLY},
+    {"f_code",          T_OBJECT,       OFF(f_code),      READONLY},
+    {"f_builtins",      T_OBJECT,       OFF(f_builtins),  READONLY},
+    {"f_globals",       T_OBJECT,       OFF(f_globals),   READONLY},
+    {"f_lasti",         T_INT,          OFF(f_lasti),     READONLY},
     {NULL}      /* Sentinel */
 };
 
@@ -201,6 +201,7 @@ frame_setlineno(PyFrameObject *f, PyObject* p_new_lineno)
         case SETUP_LOOP:
         case SETUP_EXCEPT:
         case SETUP_FINALLY:
+        case SETUP_WITH:
             blockstack[blockstack_top++] = addr;
             in_finally[blockstack_top-1] = 0;
             break;
@@ -208,7 +209,7 @@ frame_setlineno(PyFrameObject *f, PyObject* p_new_lineno)
         case POP_BLOCK:
             assert(blockstack_top > 0);
             setup_op = code[blockstack[blockstack_top-1]];
-            if (setup_op == SETUP_FINALLY) {
+            if (setup_op == SETUP_FINALLY || setup_op == SETUP_WITH) {
                 in_finally[blockstack_top-1] = 1;
             }
             else {
@@ -223,7 +224,7 @@ frame_setlineno(PyFrameObject *f, PyObject* p_new_lineno)
              * be seeing such an END_FINALLY.) */
             if (blockstack_top > 0) {
                 setup_op = code[blockstack[blockstack_top-1]];
-                if (setup_op == SETUP_FINALLY) {
+                if (setup_op == SETUP_FINALLY || setup_op == SETUP_WITH) {
                     blockstack_top--;
                 }
             }
@@ -285,6 +286,7 @@ frame_setlineno(PyFrameObject *f, PyObject* p_new_lineno)
         case SETUP_LOOP:
         case SETUP_EXCEPT:
         case SETUP_FINALLY:
+        case SETUP_WITH:
             delta_iblock++;
             break;
 
@@ -636,10 +638,8 @@ PyFrame_New(PyThreadState *tstate, PyCodeObject *code, PyObject *globals,
         if (builtins) {
             if (PyModule_Check(builtins)) {
                 builtins = PyModule_GetDict(builtins);
-                assert(!builtins || PyDict_Check(builtins));
+                assert(builtins != NULL);
             }
-            else if (!PyDict_Check(builtins))
-                builtins = NULL;
         }
         if (builtins == NULL) {
             /* No builtins!              Make up a minimal one
@@ -658,7 +658,7 @@ PyFrame_New(PyThreadState *tstate, PyCodeObject *code, PyObject *globals,
         /* If we share the globals, we share the builtins.
            Save a lookup and a call. */
         builtins = back->f_builtins;
-        assert(builtins != NULL && PyDict_Check(builtins));
+        assert(builtins != NULL);
         Py_INCREF(builtins);
     }
     if (code->co_zombieframe != NULL) {
@@ -687,11 +687,13 @@ PyFrame_New(PyThreadState *tstate, PyCodeObject *code, PyObject *globals,
             f = free_list;
             free_list = free_list->f_back;
             if (Py_SIZE(f) < extras) {
-                f = PyObject_GC_Resize(PyFrameObject, f, extras);
-                if (f == NULL) {
+                PyFrameObject *new_f = PyObject_GC_Resize(PyFrameObject, f, extras);
+                if (new_f == NULL) {
+                    PyObject_GC_Del(f);
                     Py_DECREF(builtins);
                     return NULL;
                 }
+                f = new_f;
             }
             _Py_NewReference((PyObject *)f);
         }
@@ -980,3 +982,13 @@ PyFrame_Fini(void)
     Py_XDECREF(builtin_object);
     builtin_object = NULL;
 }
+
+/* Print summary info about the state of the optimized allocator */
+void
+_PyFrame_DebugMallocStats(FILE *out)
+{
+    _PyDebugAllocatorStats(out,
+                           "free PyFrameObject",
+                           numfree, sizeof(PyFrameObject));
+}
+

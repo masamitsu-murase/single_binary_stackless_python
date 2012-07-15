@@ -9,20 +9,22 @@
 
 The :mod:`atexit` module defines functions to register and unregister cleanup
 functions.  Functions thus registered are automatically executed upon normal
-interpreter termination.  The order in which the functions are called is not
-defined; if you have cleanup operations that depend on each other, you should
-wrap them in a function and register that one.  This keeps :mod:`atexit` simple.
+interpreter termination.  :mod:`atexit` runs these functions in the *reverse*
+order in which they were registered; if you register ``A``, ``B``, and ``C``,
+at interpreter termination time they will be run in the order ``C``, ``B``,
+``A``.
 
-Note: the functions registered via this module are not called when the program
-is killed by a signal not handled by Python, when a Python fatal internal error
-is detected, or when :func:`os._exit` is called.
+**Note:** The functions registered via this module are not called when the
+program is killed by a signal not handled by Python, when a Python fatal
+internal error is detected, or when :func:`os._exit` is called.
 
 
 .. function:: register(func, *args, **kargs)
 
    Register *func* as a function to be executed at termination.  Any optional
    arguments that are to be passed to *func* must be passed as arguments to
-   :func:`register`.
+   :func:`register`.  It is possible to register the same function and arguments
+   more than once.
 
    At normal program termination (for instance, if :func:`sys.exit` is called or
    the main module's execution completes), all functions registered are called in
@@ -35,15 +37,17 @@ is detected, or when :func:`os._exit` is called.
    saved.  After all exit handlers have had a chance to run the last exception to
    be raised is re-raised.
 
-   This function returns *func* which makes it possible to use it as a decorator
-   without binding the original name to ``None``.
+   This function returns *func*, which makes it possible to use it as a
+   decorator.
 
 
 .. function:: unregister(func)
 
-   Remove a function *func* from the list of functions to be run at interpreter-
+   Remove *func* from the list of functions to be run at interpreter
    shutdown.  After calling :func:`unregister`, *func* is guaranteed not to be
-   called when the interpreter shuts down.
+   called when the interpreter shuts down, even if it was registered more than
+   once.  :func:`unregister` silently does nothing if *func* was not previously
+   registered.
 
 
 .. seealso::
@@ -64,8 +68,9 @@ automatically when the program terminates without relying on the application
 making an explicit call into this module at termination. ::
 
    try:
-       _count = int(open("/tmp/counter").read())
-   except IOError:
+       with open("/tmp/counter") as infile:
+           _count = int(infile.read())
+   except FileNotFoundError:
        _count = 0
 
    def incrcounter(n):
@@ -73,7 +78,8 @@ making an explicit call into this module at termination. ::
        _count = _count + n
 
    def savecounter():
-       open("/tmp/counter", "w").write("%d" % _count)
+       with open("/tmp/counter", "w") as outfile:
+           outfile.write("%d" % _count)
 
    import atexit
    atexit.register(savecounter)
@@ -98,6 +104,4 @@ Usage as a :term:`decorator`::
    def goodbye():
        print("You are now leaving the Python sector.")
 
-This obviously only works with functions that don't take arguments.
-
-
+This only works with functions that can be called without arguments.

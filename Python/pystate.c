@@ -27,6 +27,9 @@ the expense of doing their own locking).
 #endif
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #ifdef WITH_THREAD
 #include "pythread.h"
@@ -34,10 +37,6 @@ static PyThread_type_lock head_mutex = NULL; /* Protects interp->tstate_head */
 #define HEAD_INIT() (void)(head_mutex || (head_mutex = PyThread_allocate_lock()))
 #define HEAD_LOCK() PyThread_acquire_lock(head_mutex, WAIT_LOCK)
 #define HEAD_UNLOCK() PyThread_release_lock(head_mutex)
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* The single PyInterpreterState used by this process'
    GILState implementation
@@ -75,7 +74,6 @@ PyInterpreterState_New(void)
             Py_FatalError("Can't initialize threads for interpreter");
 #endif
         interp->modules = NULL;
-        interp->modules_reloading = NULL;
         interp->modules_by_index = NULL;
         interp->sysdict = NULL;
         interp->builtins = NULL;
@@ -85,6 +83,7 @@ PyInterpreterState_New(void)
         interp->codec_error_registry = NULL;
         interp->codecs_initialized = 0;
         interp->fscodec_initialized = 0;
+        interp->importlib = NULL;
 #ifdef HAVE_DLOPEN
 #ifdef RTLD_NOW
         interp->dlopenflags = RTLD_NOW;
@@ -119,9 +118,9 @@ PyInterpreterState_Clear(PyInterpreterState *interp)
     Py_CLEAR(interp->codec_error_registry);
     Py_CLEAR(interp->modules);
     Py_CLEAR(interp->modules_by_index);
-    Py_CLEAR(interp->modules_reloading);
     Py_CLEAR(interp->sysdict);
     Py_CLEAR(interp->builtins);
+    Py_CLEAR(interp->importlib);
 }
 
 
@@ -155,6 +154,12 @@ PyInterpreterState_Delete(PyInterpreterState *interp)
     *p = interp->next;
     HEAD_UNLOCK();
     free(interp);
+#ifdef WITH_THREAD
+    if (interp_head == NULL && head_mutex != NULL) {
+        PyThread_free_lock(head_mutex);
+        head_mutex = NULL;
+    }
+#endif
 }
 
 
@@ -250,9 +255,9 @@ _PyThreadState_Init(PyThreadState *tstate)
 }
 
 PyObject*
-PyState_FindModule(struct PyModuleDef* m)
+PyState_FindModule(struct PyModuleDef* module)
 {
-    Py_ssize_t index = m->m_base.m_index;
+    Py_ssize_t index = module->m_base.m_index;
     PyInterpreterState *state = PyThreadState_GET()->interp;
     PyObject *res;
     if (index == 0)
@@ -282,6 +287,47 @@ _PyState_AddModule(PyObject* module, struct PyModuleDef* def)
     Py_INCREF(module);
     return PyList_SetItem(state->modules_by_index,
                           def->m_base.m_index, module);
+}
+
+int
+PyState_AddModule(PyObject* module, struct PyModuleDef* def)
+{
+    Py_ssize_t index;
+    PyInterpreterState *state = PyThreadState_GET()->interp;
+    if (!def) {
+        Py_FatalError("PyState_AddModule: Module Definition is NULL");
+        return -1;
+    }
+    index = def->m_base.m_index;
+    if (state->modules_by_index) {
+        if(PyList_GET_SIZE(state->modules_by_index) >= index) {
+            if(module == PyList_GET_ITEM(state->modules_by_index, index)) {
+                Py_FatalError("PyState_AddModule: Module already added!");
+                return -1;
+            }
+        }
+    }
+    return _PyState_AddModule(module, def);
+}
+
+int
+PyState_RemoveModule(struct PyModuleDef* def)
+{
+    Py_ssize_t index = def->m_base.m_index;
+    PyInterpreterState *state = PyThreadState_GET()->interp;
+    if (index == 0) {
+        Py_FatalError("PyState_RemoveModule: Module index invalid.");
+        return -1;
+    }
+    if (state->modules_by_index == NULL) {
+        Py_FatalError("PyState_RemoveModule: Interpreters module-list not acessible.");
+        return -1;
+    }
+    if (index > PyList_GET_SIZE(state->modules_by_index)) {
+        Py_FatalError("PyState_RemoveModule: Module index out of bounds.");
+        return -1;
+    }
+    return PyList_SetItem(state->modules_by_index, index, Py_None);
 }
 
 void
@@ -605,9 +651,9 @@ _PyGILState_Fini(void)
     autoInterpreterState = NULL;
 }
 
-/* Reset the TLS key - called by PyOS_AfterFork.
+/* Reset the TLS key - called by PyOS_AfterFork().
  * This should not be necessary, but some - buggy - pthread implementations
- * don't flush TLS on fork, see issue #10517.
+ * don't reset TLS upon fork(), see issue #10517.
  */
 void
 _PyGILState_Reinit(void)
@@ -617,8 +663,9 @@ _PyGILState_Reinit(void)
     if ((autoTLSkey = PyThread_create_key()) == -1)
         Py_FatalError("Could not allocate TLS entry");
 
-    /* re-associate the current thread state with the new key */
-    if (PyThread_set_key_value(autoTLSkey, (void *)tstate) < 0)
+    /* If the thread had an associated auto thread state, reassociate it with
+     * the new key. */
+    if (tstate && PyThread_set_key_value(autoTLSkey, (void *)tstate) < 0)
         Py_FatalError("Couldn't create autoTLSkey mapping");
 }
 
@@ -739,10 +786,10 @@ PyGILState_Release(PyGILState_STATE oldstate)
         PyEval_SaveThread();
 }
 
+#endif /* WITH_THREAD */
+
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* WITH_THREAD */
 
 

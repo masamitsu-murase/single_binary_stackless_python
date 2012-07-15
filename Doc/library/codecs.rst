@@ -458,7 +458,8 @@ define in order to be compatible with the Python codec registry.
 
    .. method:: reset()
 
-      Reset the encoder to the initial state.
+      Reset the encoder to the initial state. The output is discarded: call
+      ``.encode('', final=True)`` to reset the encoder and to get the output.
 
 
 .. method:: IncrementalEncoder.getstate()
@@ -786,11 +787,9 @@ methods and attributes from the underlying stream.
 Encodings and Unicode
 ---------------------
 
-Strings are stored internally as sequences of codepoints (to be precise
-as :c:type:`Py_UNICODE` arrays). Depending on the way Python is compiled (either
-via ``--without-wide-unicode`` or ``--with-wide-unicode``, with the
-former being the default) :c:type:`Py_UNICODE` is either a 16-bit or 32-bit data
-type. Once a string object is used outside of CPU and memory, CPU endianness
+Strings are stored internally as sequences of codepoints in range ``0 - 10FFFF``
+(see :pep:`393` for more details about the implementation).
+Once a string object is used outside of CPU and memory, CPU endianness
 and how these arrays are stored as bytes become an issue.  Transforming a
 string object into a sequence of bytes is called encoding and recreating the
 string object from the sequence of bytes is known as decoding.  There are many
@@ -810,27 +809,28 @@ e.g. :file:`encodings/cp1252.py` (which is an encoding that is used primarily on
 Windows). There's a string constant with 256 characters that shows you which
 character is mapped to which byte value.
 
-All of these encodings can only encode 256 of the 65536 (or 1114111) codepoints
+All of these encodings can only encode 256 of the 1114112 codepoints
 defined in Unicode. A simple and straightforward way that can store each Unicode
-code point, is to store each codepoint as two consecutive bytes. There are two
-possibilities: Store the bytes in big endian or in little endian order. These
-two encodings are called UTF-16-BE and UTF-16-LE respectively. Their
-disadvantage is that if e.g. you use UTF-16-BE on a little endian machine you
-will always have to swap bytes on encoding and decoding. UTF-16 avoids this
-problem: Bytes will always be in natural endianness. When these bytes are read
+code point, is to store each codepoint as four consecutive bytes. There are two
+possibilities: store the bytes in big endian or in little endian order. These
+two encodings are called ``UTF-32-BE`` and ``UTF-32-LE`` respectively. Their
+disadvantage is that if e.g. you use ``UTF-32-BE`` on a little endian machine you
+will always have to swap bytes on encoding and decoding. ``UTF-32`` avoids this
+problem: bytes will always be in natural endianness. When these bytes are read
 by a CPU with a different endianness, then bytes have to be swapped though. To
-be able to detect the endianness of a UTF-16 byte sequence, there's the so
-called BOM (the "Byte Order Mark"). This is the Unicode character ``U+FEFF``.
-This character will be prepended to every UTF-16 byte sequence. The byte swapped
-version of this character (``0xFFFE``) is an illegal character that may not
-appear in a Unicode text. So when the first character in an UTF-16 byte sequence
+be able to detect the endianness of a ``UTF-16`` or ``UTF-32`` byte sequence,
+there's the so called BOM ("Byte Order Mark"). This is the Unicode character
+``U+FEFF``. This character can be prepended to every ``UTF-16`` or ``UTF-32``
+byte sequence. The byte swapped version of this character (``0xFFFE``) is an
+illegal character that may not appear in a Unicode text. So when the
+first character in an ``UTF-16`` or ``UTF-32`` byte sequence
 appears to be a ``U+FFFE`` the bytes have to be swapped on decoding.
-Unfortunately upto Unicode 4.0 the character ``U+FEFF`` had a second purpose as
-a ``ZERO WIDTH NO-BREAK SPACE``: A character that has no width and doesn't allow
+Unfortunately the character ``U+FEFF`` had a second purpose as
+a ``ZERO WIDTH NO-BREAK SPACE``: a character that has no width and doesn't allow
 a word to be split. It can e.g. be used to give hints to a ligature algorithm.
 With Unicode 4.0 using ``U+FEFF`` as a ``ZERO WIDTH NO-BREAK SPACE`` has been
 deprecated (with ``U+2060`` (``WORD JOINER``) assuming this role). Nevertheless
-Unicode software still must be able to handle ``U+FEFF`` in both roles: As a BOM
+Unicode software still must be able to handle ``U+FEFF`` in both roles: as a BOM
 it's a device to determine the storage layout of the encoded bytes, and vanishes
 once the byte sequence has been decoded into a string; as a ``ZERO WIDTH
 NO-BREAK SPACE`` it's a normal character that will be decoded like any other.
@@ -838,8 +838,8 @@ NO-BREAK SPACE`` it's a normal character that will be decoded like any other.
 There's another encoding that is able to encoding the full range of Unicode
 characters: UTF-8. UTF-8 is an 8-bit encoding, which means there are no issues
 with byte order in UTF-8. Each byte in a UTF-8 byte sequence consists of two
-parts: Marker bits (the most significant bits) and payload bits. The marker bits
-are a sequence of zero to six 1 bits followed by a 0 bit. Unicode characters are
+parts: marker bits (the most significant bits) and payload bits. The marker bits
+are a sequence of zero to four ``1`` bits followed by a ``0`` bit. Unicode characters are
 encoded like this (with x being payload bits, which when concatenated give the
 Unicode character):
 
@@ -852,12 +852,7 @@ Unicode character):
 +-----------------------------------+----------------------------------------------+
 | ``U-00000800`` ... ``U-0000FFFF`` | 1110xxxx 10xxxxxx 10xxxxxx                   |
 +-----------------------------------+----------------------------------------------+
-| ``U-00010000`` ... ``U-001FFFFF`` | 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx          |
-+-----------------------------------+----------------------------------------------+
-| ``U-00200000`` ... ``U-03FFFFFF`` | 111110xx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx |
-+-----------------------------------+----------------------------------------------+
-| ``U-04000000`` ... ``U-7FFFFFFF`` | 1111110x 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx |
-|                                   | 10xxxxxx                                     |
+| ``U-00010000`` ... ``U-0010FFFF`` | 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx          |
 +-----------------------------------+----------------------------------------------+
 
 The least significant bit of the Unicode character is the rightmost x bit.
@@ -882,13 +877,14 @@ map to
    | RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK
    | INVERTED QUESTION MARK
 
-in iso-8859-1), this increases the probability that a utf-8-sig encoding can be
+in iso-8859-1), this increases the probability that a ``utf-8-sig`` encoding can be
 correctly guessed from the byte sequence. So here the BOM is not used to be able
 to determine the byte order used for generating the byte sequence, but as a
 signature that helps in guessing the encoding. On encoding the utf-8-sig codec
 will write ``0xef``, ``0xbb``, ``0xbf`` as the first three bytes to the file. On
-decoding utf-8-sig will skip those three bytes if they appear as the first three
-bytes in the file.
+decoding ``utf-8-sig`` will skip those three bytes if they appear as the first
+three bytes in the file.  In UTF-8, the use of the BOM is discouraged and
+should generally be avoided.
 
 
 .. _standard-encodings:
@@ -903,6 +899,15 @@ encoding is likely used. Neither the list of aliases nor the list of languages
 is meant to be exhaustive. Notice that spelling alternatives that only differ in
 case or use a hyphen instead of an underscore are also valid aliases; therefore,
 e.g. ``'utf-8'`` is a valid alias for the ``'utf_8'`` codec.
+
+.. impl-detail::
+
+   Some common encodings can bypass the codecs lookup machinery to
+   improve performance.  These optimization opportunities are only
+   recognized by CPython for a limited set of aliases: utf-8, utf8,
+   latin-1, latin1, iso-8859-1, mbcs (Windows only), ascii, utf-16,
+   and utf-32.  Using alternative spellings for these encodings may
+   result in slower execution.
 
 Many of the character sets support the same languages. They vary in individual
 characters (e.g. whether the EURO SIGN is supported or not), and in the
@@ -1005,6 +1010,11 @@ particular, the following variants typically exist:
 | cp1257          | windows-1257                   | Baltic languages               |
 +-----------------+--------------------------------+--------------------------------+
 | cp1258          | windows-1258                   | Vietnamese                     |
++-----------------+--------------------------------+--------------------------------+
+| cp65001         |                                | Windows only: Windows UTF-8    |
+|                 |                                | (``CP_UTF8``)                  |
+|                 |                                |                                |
+|                 |                                | .. versionadded:: 3.3          |
 +-----------------+--------------------------------+--------------------------------+
 | euc_jp          | eucjp, ujis, u-jis             | Japanese                       |
 +-----------------+--------------------------------+--------------------------------+
@@ -1163,6 +1173,8 @@ particular, the following variants typically exist:
 | unicode_internal   |         | Return the internal       |
 |                    |         | representation of the     |
 |                    |         | operand                   |
+|                    |         |                           |
+|                    |         | .. deprecated:: 3.3       |
 +--------------------+---------+---------------------------+
 
 The following codecs provide bytes-to-bytes mappings.
@@ -1275,11 +1287,12 @@ functions can be used directly if desired.
 .. module:: encodings.mbcs
    :synopsis: Windows ANSI codepage
 
-Encode operand according to the ANSI codepage (CP_ACP). This codec only
-supports ``'strict'`` and ``'replace'`` error handlers to encode, and
-``'strict'`` and ``'ignore'`` error handlers to decode.
+Encode operand according to the ANSI codepage (CP_ACP).
 
 Availability: Windows only.
+
+.. versionchanged:: 3.3
+   Support any error handler.
 
 .. versionchanged:: 3.2
    Before 3.2, the *errors* argument was ignored; ``'replace'`` was always used

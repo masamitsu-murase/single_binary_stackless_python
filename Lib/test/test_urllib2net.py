@@ -83,12 +83,13 @@ class CloseSocketTest(unittest.TestCase):
     def test_close(self):
         # calling .close() on urllib2's response objects should close the
         # underlying socket
-
-        response = _urlopen_with_retry("http://www.python.org/")
-        sock = response.fp
-        self.assertTrue(not sock.closed)
-        response.close()
-        self.assertTrue(sock.closed)
+        url = "http://www.python.org/"
+        with support.transient_internet(url):
+            response = _urlopen_with_retry(url)
+            sock = response.fp
+            self.assertTrue(not sock.closed)
+            response.close()
+            self.assertTrue(sock.closed)
 
 class OtherNetworkTests(unittest.TestCase):
     def setUp(self):
@@ -124,6 +125,8 @@ class OtherNetworkTests(unittest.TestCase):
             self._test_urls(urls, self._extra_handlers(), retry=True)
         finally:
             os.remove(TESTFN)
+
+        self.assertRaises(ValueError, urllib.request.urlopen,'./relative_path/to/file')
 
     # XXX Following test depends on machine configurations that are internal
     # to CNRI.  Need to set up a public server with the right authentication

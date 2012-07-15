@@ -1,4 +1,4 @@
-#-*- coding: ISO-8859-1 -*-
+#-*- coding: iso-8859-1 -*-
 # pysqlite2/test/factory.py: tests for the various factories in pysqlite
 #
 # Copyright (C) 2005-2007 Gerhard Häring <gh@ghaering.de>
@@ -178,6 +178,8 @@ class TextFactoryTests(unittest.TestCase):
         self.assertTrue(row[0].endswith("reich"), "column must contain original data")
 
     def CheckOptimizedUnicode(self):
+        # In py3k, str objects are always returned when text_factory
+        # is OptimizedUnicode
         self.con.text_factory = sqlite.OptimizedUnicode
         austria = "Österreich"
         germany = "Deutchland"
@@ -189,13 +191,48 @@ class TextFactoryTests(unittest.TestCase):
     def tearDown(self):
         self.con.close()
 
+class TextFactoryTestsWithEmbeddedZeroBytes(unittest.TestCase):
+    def setUp(self):
+        self.con = sqlite.connect(":memory:")
+        self.con.execute("create table test (value text)")
+        self.con.execute("insert into test (value) values (?)", ("a\x00b",))
+
+    def CheckString(self):
+        # text_factory defaults to str
+        row = self.con.execute("select value from test").fetchone()
+        self.assertIs(type(row[0]), str)
+        self.assertEqual(row[0], "a\x00b")
+
+    def CheckBytes(self):
+        self.con.text_factory = bytes
+        row = self.con.execute("select value from test").fetchone()
+        self.assertIs(type(row[0]), bytes)
+        self.assertEqual(row[0], b"a\x00b")
+
+    def CheckBytearray(self):
+        self.con.text_factory = bytearray
+        row = self.con.execute("select value from test").fetchone()
+        self.assertIs(type(row[0]), bytearray)
+        self.assertEqual(row[0], b"a\x00b")
+
+    def CheckCustom(self):
+        # A custom factory should receive a bytes argument
+        self.con.text_factory = lambda x: x
+        row = self.con.execute("select value from test").fetchone()
+        self.assertIs(type(row[0]), bytes)
+        self.assertEqual(row[0], b"a\x00b")
+
+    def tearDown(self):
+        self.con.close()
+
 def suite():
     connection_suite = unittest.makeSuite(ConnectionFactoryTests, "Check")
     cursor_suite = unittest.makeSuite(CursorFactoryTests, "Check")
     row_suite_compat = unittest.makeSuite(RowFactoryTestsBackwardsCompat, "Check")
     row_suite = unittest.makeSuite(RowFactoryTests, "Check")
     text_suite = unittest.makeSuite(TextFactoryTests, "Check")
-    return unittest.TestSuite((connection_suite, cursor_suite, row_suite_compat, row_suite, text_suite))
+    text_zero_bytes_suite = unittest.makeSuite(TextFactoryTestsWithEmbeddedZeroBytes, "Check")
+    return unittest.TestSuite((connection_suite, cursor_suite, row_suite_compat, row_suite, text_suite, text_zero_bytes_suite))
 
 def test():
     runner = unittest.TextTestRunner()

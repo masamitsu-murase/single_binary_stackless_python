@@ -9,7 +9,6 @@
 
 #define CTYPES_CFIELD_CAPSULE_NAME_PYMEM "_ctypes/cfield.c pymem"
 
-#if Py_UNICODE_SIZE != SIZEOF_WCHAR_T
 static void pymem_destructor(PyObject *ptr)
 {
     void *p = PyCapsule_GetPointer(ptr, CTYPES_CFIELD_CAPSULE_NAME_PYMEM);
@@ -17,7 +16,6 @@ static void pymem_destructor(PyObject *ptr)
         PyMem_Free(p);
     }
 }
-#endif
 
 
 /******************************************************************/
@@ -52,7 +50,7 @@ PyCField_FromDesc(PyObject *desc, Py_ssize_t index,
 {
     CFieldObject *self;
     PyObject *proto;
-    Py_ssize_t size, align, length;
+    Py_ssize_t size, align;
     SETFUNC setfunc = NULL;
     GETFUNC getfunc = NULL;
     StgDictObject *dict;
@@ -106,7 +104,6 @@ PyCField_FromDesc(PyObject *desc, Py_ssize_t index,
     }
 
     size = dict->size;
-    length = dict->length;
     proto = desc;
 
     /*  Field descriptors for 'c_char * n' are be scpecial cased to
@@ -1002,12 +999,8 @@ g_set(void *ptr, PyObject *value, Py_ssize_t size)
     long double x;
 
     x = PyFloat_AsDouble(value);
-    if (x == -1 && PyErr_Occurred()) {
-        PyErr_Format(PyExc_TypeError,
-                     " float expected instead of %s instance",
-                     value->ob_type->tp_name);
+    if (x == -1 && PyErr_Occurred())
         return NULL;
-    }
     memcpy(ptr, &x, sizeof(long double));
     _RET(value);
 }
@@ -1026,12 +1019,8 @@ d_set(void *ptr, PyObject *value, Py_ssize_t size)
     double x;
 
     x = PyFloat_AsDouble(value);
-    if (x == -1 && PyErr_Occurred()) {
-        PyErr_Format(PyExc_TypeError,
-                     " float expected instead of %s instance",
-                     value->ob_type->tp_name);
+    if (x == -1 && PyErr_Occurred())
         return NULL;
-    }
     memcpy(ptr, &x, sizeof(double));
     _RET(value);
 }
@@ -1050,12 +1039,8 @@ d_set_sw(void *ptr, PyObject *value, Py_ssize_t size)
     double x;
 
     x = PyFloat_AsDouble(value);
-    if (x == -1 && PyErr_Occurred()) {
-        PyErr_Format(PyExc_TypeError,
-                     " float expected instead of %s instance",
-                     value->ob_type->tp_name);
+    if (x == -1 && PyErr_Occurred())
         return NULL;
-    }
 #ifdef WORDS_BIGENDIAN
     if (_PyFloat_Pack8(x, (unsigned char *)ptr, 1))
         return NULL;
@@ -1082,12 +1067,8 @@ f_set(void *ptr, PyObject *value, Py_ssize_t size)
     float x;
 
     x = (float)PyFloat_AsDouble(value);
-    if (x == -1 && PyErr_Occurred()) {
-        PyErr_Format(PyExc_TypeError,
-                     " float expected instead of %s instance",
-                     value->ob_type->tp_name);
+    if (x == -1 && PyErr_Occurred())
         return NULL;
-    }
     memcpy(ptr, &x, sizeof(x));
     _RET(value);
 }
@@ -1106,12 +1087,8 @@ f_set_sw(void *ptr, PyObject *value, Py_ssize_t size)
     float x;
 
     x = (float)PyFloat_AsDouble(value);
-    if (x == -1 && PyErr_Occurred()) {
-        PyErr_Format(PyExc_TypeError,
-                     " float expected instead of %s instance",
-                     value->ob_type->tp_name);
+    if (x == -1 && PyErr_Occurred())
         return NULL;
-    }
 #ifdef WORDS_BIGENDIAN
     if (_PyFloat_Pack4(x, (unsigned char *)ptr, 1))
         return NULL;
@@ -1239,37 +1216,30 @@ u_get(void *ptr, Py_ssize_t size)
 static PyObject *
 U_get(void *ptr, Py_ssize_t size)
 {
-    PyObject *result;
     Py_ssize_t len;
-    Py_UNICODE *p;
+    wchar_t *p;
 
     size /= sizeof(wchar_t); /* we count character units here, not bytes */
 
-    result = PyUnicode_FromWideChar((wchar_t *)ptr, size);
-    if (!result)
-        return NULL;
     /* We need 'result' to be able to count the characters with wcslen,
        since ptr may not be NUL terminated.  If the length is smaller (if
        it was actually NUL terminated, we construct a new one and throw
        away the result.
     */
     /* chop off at the first NUL character, if any. */
-    p = PyUnicode_AS_UNICODE(result);
-    for (len = 0; len < size; ++len)
+    p = (wchar_t*)ptr;
+    for (len = 0; len < size; ++len) {
         if (!p[len])
             break;
-
-    if (len < size) {
-        PyObject *ob = PyUnicode_FromWideChar((wchar_t *)ptr, len);
-        Py_DECREF(result);
-        return ob;
     }
-    return result;
+
+    return PyUnicode_FromWideChar((wchar_t *)ptr, len);
 }
 
 static PyObject *
 U_set(void *ptr, PyObject *value, Py_ssize_t length)
 {
+    Py_UNICODE *wstr;
     Py_ssize_t size;
 
     /* It's easier to calculate in characters than in bytes */
@@ -1282,7 +1252,10 @@ U_set(void *ptr, PyObject *value, Py_ssize_t length)
         return NULL;
     } else
         Py_INCREF(value);
-    size = PyUnicode_GET_SIZE(value);
+
+    wstr = PyUnicode_AsUnicodeAndSize(value, &size);
+    if (wstr == NULL)
+        return NULL;
     if (size > length) {
         PyErr_Format(PyExc_ValueError,
                      "string too long (%zd, maximum length %zd)",
@@ -1372,7 +1345,7 @@ z_set(void *ptr, PyObject *value, Py_ssize_t size)
         _RET(value);
     }
     PyErr_Format(PyExc_TypeError,
-                 "string or integer address expected instead of %s instance",
+                 "bytes or integer address expected instead of %s instance",
                  value->ob_type->tp_name);
     return NULL;
 }
@@ -1402,6 +1375,9 @@ z_get(void *ptr, Py_ssize_t size)
 static PyObject *
 Z_set(void *ptr, PyObject *value, Py_ssize_t size)
 {
+    PyObject *keep;
+    wchar_t *buffer;
+
     if (value == Py_None) {
         *(wchar_t **)ptr = NULL;
         Py_INCREF(value);
@@ -1421,37 +1397,20 @@ Z_set(void *ptr, PyObject *value, Py_ssize_t size)
                      "unicode string or integer address expected instead of %s instance",
                      value->ob_type->tp_name);
         return NULL;
-    } else
-        Py_INCREF(value);
-#if Py_UNICODE_SIZE == SIZEOF_WCHAR_T
-    /* We can copy directly.  Hm, are unicode objects always NUL
-       terminated in Python, internally?
-     */
-    *(wchar_t **)ptr = (wchar_t *) PyUnicode_AS_UNICODE(value);
-    return value;
-#else
-    {
-        /* We must create a wchar_t* buffer from the unicode object,
-           and keep it alive */
-        PyObject *keep;
-        wchar_t *buffer;
-
-        buffer = PyUnicode_AsWideCharString(value, NULL);
-        if (!buffer) {
-            Py_DECREF(value);
-            return NULL;
-        }
-        keep = PyCapsule_New(buffer, CTYPES_CFIELD_CAPSULE_NAME_PYMEM, pymem_destructor);
-        if (!keep) {
-            Py_DECREF(value);
-            PyMem_Free(buffer);
-            return NULL;
-        }
-        *(wchar_t **)ptr = (wchar_t *)buffer;
-        Py_DECREF(value);
-        return keep;
     }
-#endif
+
+    /* We must create a wchar_t* buffer from the unicode object,
+       and keep it alive */
+    buffer = PyUnicode_AsWideCharString(value, NULL);
+    if (!buffer)
+        return NULL;
+    keep = PyCapsule_New(buffer, CTYPES_CFIELD_CAPSULE_NAME_PYMEM, pymem_destructor);
+    if (!keep) {
+        PyMem_Free(buffer);
+        return NULL;
+    }
+    *(wchar_t **)ptr = buffer;
+    return keep;
 }
 
 static PyObject *
@@ -1496,13 +1455,16 @@ BSTR_set(void *ptr, PyObject *value, Py_ssize_t size)
 
     /* create a BSTR from value */
     if (value) {
-        Py_ssize_t size = PyUnicode_GET_SIZE(value);
+        wchar_t* wvalue;
+        Py_ssize_t size;
+        wvalue = PyUnicode_AsUnicodeAndSize(value, &size);
+        if (wvalue == NULL)
+            return NULL;
         if ((unsigned) size != size) {
             PyErr_SetString(PyExc_ValueError, "String too long for BSTR");
             return NULL;
         }
-        bstr = SysAllocStringLen(PyUnicode_AS_UNICODE(value),
-                                 (unsigned)size);
+        bstr = SysAllocStringLen(wvalue, (unsigned)size);
         Py_DECREF(value);
     } else
         bstr = NULL;

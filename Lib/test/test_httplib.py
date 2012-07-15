@@ -99,6 +99,34 @@ class HeaderTests(TestCase):
                 conn.request('POST', '/', body, headers)
                 self.assertEqual(conn._buffer.count[header.lower()], 1)
 
+    def test_content_length_0(self):
+
+        class ContentLengthChecker(list):
+            def __init__(self):
+                list.__init__(self)
+                self.content_length = None
+            def append(self, item):
+                kv = item.split(b':', 1)
+                if len(kv) > 1 and kv[0].lower() == b'content-length':
+                    self.content_length = kv[1].strip()
+                list.append(self, item)
+
+        # POST with empty body
+        conn = client.HTTPConnection('example.com')
+        conn.sock = FakeSocket(None)
+        conn._buffer = ContentLengthChecker()
+        conn.request('POST', '/', '')
+        self.assertEqual(conn._buffer.content_length, b'0',
+                        'Header Content-Length not set')
+
+        # PUT request with empty body
+        conn = client.HTTPConnection('example.com')
+        conn.sock = FakeSocket(None)
+        conn._buffer = ContentLengthChecker()
+        conn.request('PUT', '/', '')
+        self.assertEqual(conn._buffer.content_length, b'0',
+                        'Header Content-Length not set')
+
     def test_putheader(self):
         conn = client.HTTPConnection('example.com')
         conn.sock = FakeSocket(None)
@@ -158,17 +186,36 @@ class BasicTest(TestCase):
         self.assertEqual(resp.read(2), b'xt')
         self.assertTrue(resp.isclosed())
 
+    def test_partial_readintos(self):
+        # if we have a lenght, the system knows when to close itself
+        # same behaviour than when we read the whole thing with read()
+        body = "HTTP/1.1 200 Ok\r\nContent-Length: 4\r\n\r\nText"
+        sock = FakeSocket(body)
+        resp = client.HTTPResponse(sock)
+        resp.begin()
+        b = bytearray(2)
+        n = resp.readinto(b)
+        self.assertEqual(n, 2)
+        self.assertEqual(bytes(b), b'Te')
+        self.assertFalse(resp.isclosed())
+        n = resp.readinto(b)
+        self.assertEqual(n, 2)
+        self.assertEqual(bytes(b), b'xt')
+        self.assertTrue(resp.isclosed())
+
     def test_host_port(self):
         # Check invalid host_port
 
-        for hp in ("www.python.org:abc", "www.python.org:"):
+        for hp in ("www.python.org:abc", "user:password@www.python.org"):
             self.assertRaises(client.InvalidURL, client.HTTPConnection, hp)
 
         for hp, h, p in (("[fe80::207:e9ff:fe9b]:8000",
                           "fe80::207:e9ff:fe9b", 8000),
                          ("www.python.org:80", "www.python.org", 80),
+                         ("www.python.org:", "www.python.org", 80),
                          ("www.python.org", "www.python.org", 80),
-                         ("[fe80::207:e9ff:fe9b]", "fe80::207:e9ff:fe9b", 80)):
+                         ("[fe80::207:e9ff:fe9b]", "fe80::207:e9ff:fe9b", 80),
+                         ("[fe80::207:e9ff:fe9b]:", "fe80::207:e9ff:fe9b", 80)):
             c = client.HTTPConnection(hp)
             self.assertEqual(h, c.host)
             self.assertEqual(p, c.port)
@@ -203,6 +250,21 @@ class BasicTest(TestCase):
         resp.begin()
         if resp.read():
             self.fail("Did not expect response from HEAD request")
+
+    def test_readinto_head(self):
+        # Test that the library doesn't attempt to read any data
+        # from a HEAD request.  (Tickles SF bug #622042.)
+        sock = FakeSocket(
+            'HTTP/1.1 200 OK\r\n'
+            'Content-Length: 14432\r\n'
+            '\r\n',
+            NoEOFStringIO)
+        resp = client.HTTPResponse(sock, method="HEAD")
+        resp.begin()
+        b = bytearray(5)
+        if resp.readinto(b) != 0:
+            self.fail("Did not expect response from HEAD request")
+        self.assertEqual(bytes(b), b'\x00'*5)
 
     def test_send_file(self):
         expected = (b'GET /foo HTTP/1.1\r\nHost: example.com\r\n'
@@ -259,14 +321,27 @@ class BasicTest(TestCase):
             'Transfer-Encoding: chunked\r\n\r\n'
             'a\r\n'
             'hello worl\r\n'
-            '1\r\n'
-            'd\r\n'
+            '3\r\n'
+            'd! \r\n'
+            '8\r\n'
+            'and now \r\n'
+            '22\r\n'
+            'for something completely different\r\n'
         )
+        expected = b'hello world! and now for something completely different'
         sock = FakeSocket(chunked_start + '0\r\n')
         resp = client.HTTPResponse(sock, method="GET")
         resp.begin()
-        self.assertEqual(resp.read(), b'hello world')
+        self.assertEqual(resp.read(), expected)
         resp.close()
+
+        # Various read sizes
+        for n in range(1, 12):
+            sock = FakeSocket(chunked_start + '0\r\n')
+            resp = client.HTTPResponse(sock, method="GET")
+            resp.begin()
+            self.assertEqual(resp.read(n) + resp.read(n) + resp.read(), expected)
+            resp.close()
 
         for x in ('', 'foo\r\n'):
             sock = FakeSocket(chunked_start + x)
@@ -275,9 +350,64 @@ class BasicTest(TestCase):
             try:
                 resp.read()
             except client.IncompleteRead as i:
-                self.assertEqual(i.partial, b'hello world')
-                self.assertEqual(repr(i),'IncompleteRead(11 bytes read)')
-                self.assertEqual(str(i),'IncompleteRead(11 bytes read)')
+                self.assertEqual(i.partial, expected)
+                expected_message = 'IncompleteRead(%d bytes read)' % len(expected)
+                self.assertEqual(repr(i), expected_message)
+                self.assertEqual(str(i), expected_message)
+            else:
+                self.fail('IncompleteRead expected')
+            finally:
+                resp.close()
+
+    def test_readinto_chunked(self):
+        chunked_start = (
+            'HTTP/1.1 200 OK\r\n'
+            'Transfer-Encoding: chunked\r\n\r\n'
+            'a\r\n'
+            'hello worl\r\n'
+            '3\r\n'
+            'd! \r\n'
+            '8\r\n'
+            'and now \r\n'
+            '22\r\n'
+            'for something completely different\r\n'
+        )
+        expected = b'hello world! and now for something completely different'
+        nexpected = len(expected)
+        b = bytearray(128)
+
+        sock = FakeSocket(chunked_start + '0\r\n')
+        resp = client.HTTPResponse(sock, method="GET")
+        resp.begin()
+        n = resp.readinto(b)
+        self.assertEqual(b[:nexpected], expected)
+        self.assertEqual(n, nexpected)
+        resp.close()
+
+        # Various read sizes
+        for n in range(1, 12):
+            sock = FakeSocket(chunked_start + '0\r\n')
+            resp = client.HTTPResponse(sock, method="GET")
+            resp.begin()
+            m = memoryview(b)
+            i = resp.readinto(m[0:n])
+            i += resp.readinto(m[i:n + i])
+            i += resp.readinto(m[i:])
+            self.assertEqual(b[:nexpected], expected)
+            self.assertEqual(i, nexpected)
+            resp.close()
+
+        for x in ('', 'foo\r\n'):
+            sock = FakeSocket(chunked_start + x)
+            resp = client.HTTPResponse(sock, method="GET")
+            resp.begin()
+            try:
+                n = resp.readinto(b)
+            except client.IncompleteRead as i:
+                self.assertEqual(i.partial, expected)
+                expected_message = 'IncompleteRead(%d bytes read)' % len(expected)
+                self.assertEqual(repr(i), expected_message)
+                self.assertEqual(str(i), expected_message)
             else:
                 self.fail('IncompleteRead expected')
             finally:
@@ -296,6 +426,26 @@ class BasicTest(TestCase):
         resp = client.HTTPResponse(sock, method="HEAD")
         resp.begin()
         self.assertEqual(resp.read(), b'')
+        self.assertEqual(resp.status, 200)
+        self.assertEqual(resp.reason, 'OK')
+        self.assertTrue(resp.isclosed())
+
+    def test_readinto_chunked_head(self):
+        chunked_start = (
+            'HTTP/1.1 200 OK\r\n'
+            'Transfer-Encoding: chunked\r\n\r\n'
+            'a\r\n'
+            'hello world\r\n'
+            '1\r\n'
+            'd\r\n'
+        )
+        sock = FakeSocket(chunked_start + '0\r\n')
+        resp = client.HTTPResponse(sock, method="HEAD")
+        resp.begin()
+        b = bytearray(5)
+        n = resp.readinto(b)
+        self.assertEqual(n, 0)
+        self.assertEqual(bytes(b), b'\x00'*5)
         self.assertEqual(resp.status, 200)
         self.assertEqual(resp.reason, 'OK')
         self.assertTrue(resp.isclosed())
@@ -366,6 +516,15 @@ class BasicTest(TestCase):
         resp = client.HTTPResponse(FakeSocket(body))
         resp.begin()
         self.assertRaises(client.LineTooLong, resp.read)
+
+    def test_early_eof(self):
+        # Test httpresponse with no \r\n termination,
+        body = "HTTP/1.1 200 Ok"
+        sock = FakeSocket(body)
+        resp = client.HTTPResponse(sock)
+        resp.begin()
+        self.assertEqual(resp.read(), b'')
+        self.assertTrue(resp.isclosed())
 
 class OfflineTest(TestCase):
     def test_responses(self):
@@ -506,8 +665,7 @@ class HTTPSTest(TestCase):
     def test_local_good_hostname(self):
         # The (valid) cert validates the HTTP hostname
         import ssl
-        from test.ssl_servers import make_https_server
-        server = make_https_server(self, CERT_localhost)
+        server = self.make_server(CERT_localhost)
         context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
         context.verify_mode = ssl.CERT_REQUIRED
         context.load_verify_locations(CERT_localhost)
@@ -515,12 +673,12 @@ class HTTPSTest(TestCase):
         h.request('GET', '/nonexistent')
         resp = h.getresponse()
         self.assertEqual(resp.status, 404)
+        del server
 
     def test_local_bad_hostname(self):
         # The (valid) cert doesn't validate the HTTP hostname
         import ssl
-        from test.ssl_servers import make_https_server
-        server = make_https_server(self, CERT_fakehostname)
+        server = self.make_server(CERT_fakehostname)
         context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
         context.verify_mode = ssl.CERT_REQUIRED
         context.load_verify_locations(CERT_fakehostname)
@@ -538,6 +696,27 @@ class HTTPSTest(TestCase):
         h.request('GET', '/nonexistent')
         resp = h.getresponse()
         self.assertEqual(resp.status, 404)
+        del server
+
+    @unittest.skipIf(not hasattr(client, 'HTTPSConnection'),
+                     'http.client.HTTPSConnection not available')
+    def test_host_port(self):
+        # Check invalid host_port
+
+        for hp in ("www.python.org:abc", "user:password@www.python.org"):
+            self.assertRaises(client.InvalidURL, client.HTTPSConnection, hp)
+
+        for hp, h, p in (("[fe80::207:e9ff:fe9b]:8000",
+                          "fe80::207:e9ff:fe9b", 8000),
+                         ("www.python.org:443", "www.python.org", 443),
+                         ("www.python.org:", "www.python.org", 443),
+                         ("www.python.org", "www.python.org", 443),
+                         ("[fe80::207:e9ff:fe9b]", "fe80::207:e9ff:fe9b", 443),
+                         ("[fe80::207:e9ff:fe9b]:", "fe80::207:e9ff:fe9b",
+                             443)):
+            c = client.HTTPSConnection(hp)
+            self.assertEqual(h, c.host)
+            self.assertEqual(p, c.port)
 
 
 class RequestBodyTest(TestCase):
@@ -588,6 +767,7 @@ class RequestBodyTest(TestCase):
         self.assertEqual(b'body\xc1', f.read())
 
     def test_file_body(self):
+        self.addCleanup(support.unlink, support.TESTFN)
         with open(support.TESTFN, "w") as f:
             f.write("body")
         with open(support.TESTFN) as f:
@@ -599,6 +779,7 @@ class RequestBodyTest(TestCase):
             self.assertEqual(b'body', f.read())
 
     def test_binary_file_body(self):
+        self.addCleanup(support.unlink, support.TESTFN)
         with open(support.TESTFN, "wb") as f:
             f.write(b"body\xc1")
         with open(support.TESTFN, "rb") as f:

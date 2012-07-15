@@ -234,8 +234,8 @@ Code for creating and managing concurrency is being collected in a new top-level
 namespace, *concurrent*.  Its first member is a *futures* package which provides
 a uniform high-level interface for managing threads and processes.
 
-The design for :mod:`concurrent.futures` was inspired by
-*java.util.concurrent.package*.  In that model, a running call and its result
+The design for :mod:`concurrent.futures` was inspired by the
+*java.util.concurrent* package.  In that model, a running call and its result
 are represented by a :class:`~concurrent.futures.Future` object that abstracts
 features common to threads, processes, and remote procedure calls.  That object
 supports status checks (running or done), timeouts, cancellations, adding
@@ -270,7 +270,7 @@ launch of four parallel threads for copying files::
       e.submit(shutil.copy, 'src1.txt', 'dest1.txt')
       e.submit(shutil.copy, 'src2.txt', 'dest2.txt')
       e.submit(shutil.copy, 'src3.txt', 'dest3.txt')
-      e.submit(shutil.copy, 'src4.txt', 'dest4.txt')
+      e.submit(shutil.copy, 'src3.txt', 'dest4.txt')
 
 .. seealso::
 
@@ -2354,7 +2354,7 @@ A number of small performance enhancements have been added:
   (Contributed by Antoine Pitrou; :issue:`3001`.)
 
 * The fast-search algorithm in stringlib is now used by the :meth:`split`,
-  :meth:`splitlines` and :meth:`replace` methods on
+  :meth:`rsplit`, :meth:`splitlines` and :meth:`replace` methods on
   :class:`bytes`, :class:`bytearray` and :class:`str` objects. Likewise, the
   algorithm is also used by :meth:`rfind`, :meth:`rindex`, :meth:`rsplit` and
   :meth:`rpartition`.
@@ -2362,7 +2362,7 @@ A number of small performance enhancements have been added:
   (Patch by Florent Xicluna in :issue:`7622` and :issue:`7462`.)
 
 
-* String to integer conversions now work two "digits" at a time, reducing the
+* Integer to string conversions now work two "digits" at a time, reducing the
   number of division and modulo operations.
 
   (:issue:`6713` by Gawain Bolton, Mark Dickinson, and Victor Stinner.)
@@ -2471,14 +2471,14 @@ Code Repository
 
 In addition to the existing Subversion code repository at http://svn.python.org
 there is now a `Mercurial <http://mercurial.selenic.com/>`_ repository at
-http://hg.python.org/\.
+http://hg.python.org/ .
 
 After the 3.2 release, there are plans to switch to Mercurial as the primary
 repository.  This distributed version control system should make it easier for
 members of the community to create and share external changesets.  See
 :pep:`385` for details.
 
-To learn the new version control system, see the `tutorial by Joel
+To learn to use the new version control system, see the `tutorial by Joel
 Spolsky <http://hginit.com>`_ or the `Guide to Mercurial Workflows
 <http://mercurial.selenic.com/guide/>`_.
 

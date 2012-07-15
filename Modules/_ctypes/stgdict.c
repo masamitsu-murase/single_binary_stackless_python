@@ -426,9 +426,9 @@ PyCStructUnionType_update_stgdict(PyObject *type, PyObject *fields, int isStruct
         StgDictObject *dict;
         int bitsize = 0;
 
-        if (!pair || !PyArg_ParseTuple(pair, "OO|i", &name, &desc, &bitsize)) {
-            PyErr_SetString(PyExc_AttributeError,
-                            "'_fields_' must be a sequence of pairs");
+        if (!pair || !PyArg_ParseTuple(pair, "UO|i", &name, &desc, &bitsize)) {
+            PyErr_SetString(PyExc_TypeError,
+                            "'_fields_' must be a sequence of (name, C type) pairs");
             Py_XDECREF(pair);
             return -1;
         }
@@ -478,24 +478,41 @@ PyCStructUnionType_update_stgdict(PyObject *type, PyObject *fields, int isStruct
             }
         } else
             bitsize = 0;
+
         if (isStruct && !isPacked) {
             char *fieldfmt = dict->format ? dict->format : "B";
             char *fieldname = _PyUnicode_AsString(name);
             char *ptr;
-            Py_ssize_t len = strlen(fieldname) + strlen(fieldfmt);
-            char *buf = alloca(len + 2 + 1);
+            Py_ssize_t len; 
+            char *buf;
 
+            if (fieldname == NULL)
+            {
+                Py_DECREF(pair);
+                return -1;
+            }
+
+            len = strlen(fieldname) + strlen(fieldfmt);
+
+            buf = PyMem_Malloc(len + 2 + 1);
+            if (buf == NULL) {
+                Py_DECREF(pair);
+                PyErr_NoMemory();
+                return -1;
+            }
             sprintf(buf, "%s:%s:", fieldfmt, fieldname);
 
             ptr = stgdict->format;
             stgdict->format = _ctypes_alloc_format_string(stgdict->format, buf);
             PyMem_Free(ptr);
+            PyMem_Free(buf);
 
             if (stgdict->format == NULL) {
                 Py_DECREF(pair);
                 return -1;
             }
         }
+
         if (isStruct) {
             prop = PyCField_FromDesc(desc, i,
                                    &field_size, bitsize, &bitofs,

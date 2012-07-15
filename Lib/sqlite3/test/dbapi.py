@@ -1,4 +1,4 @@
-#-*- coding: ISO-8859-1 -*-
+#-*- coding: iso-8859-1 -*-
 # pysqlite2/test/dbapi.py: tests for DB-API compliance
 #
 # Copyright (C) 2004-2010 Gerhard Häring <gh@ghaering.de>
@@ -224,6 +224,13 @@ class CursorTests(unittest.TestCase):
 
     def CheckExecuteArgString(self):
         self.cu.execute("insert into test(name) values (?)", ("Hugo",))
+
+    def CheckExecuteArgStringWithZeroByte(self):
+        self.cu.execute("insert into test(name) values (?)", ("Hu\x00go",))
+
+        self.cu.execute("select name from test where id=?", (self.cu.lastrowid,))
+        row = self.cu.fetchone()
+        self.assertEqual(row[0], "Hu\x00go")
 
     def CheckExecuteWrongNoOfArgs1(self):
         # too many parameters

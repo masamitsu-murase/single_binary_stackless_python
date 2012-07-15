@@ -293,7 +293,7 @@ used from the command line. The basic command-line usage is::
 
    As a shortcut, ``python -m unittest`` is the equivalent of
    ``python -m unittest discover``. If you want to pass arguments to test
-   discovery the `discover` sub-command must be used explicitly.
+   discovery the ``discover`` sub-command must be used explicitly.
 
 The ``discover`` sub-command has the following options:
 
@@ -305,11 +305,11 @@ The ``discover`` sub-command has the following options:
 
 .. cmdoption:: -s directory
 
-   Directory to start discovery ('.' default)
+   Directory to start discovery (``.`` default)
 
 .. cmdoption:: -p pattern
 
-   Pattern to match test files ('test*.py' default)
+   Pattern to match test files (``test*.py`` default)
 
 .. cmdoption:: -t directory
 
@@ -376,7 +376,7 @@ The simplest :class:`TestCase` subclass will simply override the
            widget = Widget('The widget')
            self.assertEqual(widget.size(), (50, 50), 'incorrect default size')
 
-Note that in order to test something, we use the one of the :meth:`assert\*`
+Note that in order to test something, we use one of the :meth:`assert\*`
 methods provided by the :class:`TestCase` base class.  If the test fails, an
 exception will be raised, and :mod:`unittest` will identify the test case as a
 :dfn:`failure`.  Any other exceptions will be treated as :dfn:`errors`. This
@@ -640,7 +640,7 @@ This is the output of running the example above in verbose mode: ::
 
 Classes can be skipped just like methods: ::
 
-   @skip("showing class skipping")
+   @unittest.skip("showing class skipping")
    class MySkippedTestCase(unittest.TestCase):
        def test_not_run(self):
            pass
@@ -725,7 +725,7 @@ Test cases
 
    .. versionchanged:: 3.2
       :class:`TestCase` can be instantiated successfully without providing a method
-      name. This makes it easier to experiment with `TestCase` from the
+      name. This makes it easier to experiment with :class:`TestCase` from the
       interactive interpreter.
 
    *methodName* defaults to :meth:`runTest`.
@@ -792,11 +792,14 @@ Test cases
       Run the test, collecting the result into the test result object passed as
       *result*.  If *result* is omitted or ``None``, a temporary result
       object is created (by calling the :meth:`defaultTestResult` method) and
-      used. The result object is not returned to :meth:`run`'s caller.
+      used. The result object is returned to :meth:`run`'s caller.
 
       The same effect may be had by simply calling the :class:`TestCase`
       instance.
 
+      .. versionchanged:: 3.3
+         Previous versions of ``run`` did not return the result. Neither did
+         calling an instance.
 
    .. method:: skipTest(reason)
 
@@ -857,10 +860,11 @@ Test cases
    | <TestCase.assertNotIsInstance>`         |                             |               |
    +-----------------------------------------+-----------------------------+---------------+
 
-   All the assert methods (except :meth:`assertRaises`,
-   :meth:`assertRaisesRegex`, :meth:`assertWarns`, :meth:`assertWarnsRegex`)
-   accept a *msg* argument that, if specified, is used as the error message on
-   failure (see also :data:`longMessage`).
+   All the assert methods accept a *msg* argument that, if specified, is used
+   as the error message on failure (see also :data:`longMessage`).
+   Note that the *msg* keyword argument can be passed to :meth:`assertRaises`,
+   :meth:`assertRaisesRegex`, :meth:`assertWarns`, :meth:`assertWarnsRegex`
+   only when they are used as a context manager.
 
    .. method:: assertEqual(first, second, msg=None)
 
@@ -869,13 +873,13 @@ Test cases
 
       In addition, if *first* and *second* are the exact same type and one of
       list, tuple, dict, set, frozenset or str or any type that a subclass
-      registers with :meth:`addTypeEqualityFunc` the type specific equality
+      registers with :meth:`addTypeEqualityFunc` the type-specific equality
       function will be called in order to generate a more useful default
       error message (see also the :ref:`list of type-specific methods
       <type-specific-methods>`).
 
       .. versionchanged:: 3.1
-         Added the automatic calling of type specific equality function.
+         Added the automatic calling of type-specific equality function.
 
       .. versionchanged:: 3.2
          :meth:`assertMultiLineEqual` added as the default type equality
@@ -929,6 +933,7 @@ Test cases
 
       Test that *obj* is (or is not) an instance of *cls* (which can be a
       class or a tuple of classes, as supported by :func:`isinstance`).
+      To check for the exact type, use :func:`assertIs(type(obj), cls) <assertIs>`.
 
       .. versionadded:: 3.2
 
@@ -940,21 +945,21 @@ Test cases
    +---------------------------------------------------------+--------------------------------------+------------+
    | Method                                                  | Checks that                          | New in     |
    +=========================================================+======================================+============+
-   | :meth:`assertRaises(exc, fun, *args, **kwds)            | ``fun(*args, **kwds)`` raises `exc`  |            |
+   | :meth:`assertRaises(exc, fun, *args, **kwds)            | ``fun(*args, **kwds)`` raises *exc*  |            |
    | <TestCase.assertRaises>`                                |                                      |            |
    +---------------------------------------------------------+--------------------------------------+------------+
-   | :meth:`assertRaisesRegex(exc, re, fun, *args, **kwds)   | ``fun(*args, **kwds)`` raises `exc`  | 3.1        |
-   | <TestCase.assertRaisesRegex>`                           | and the message matches `re`         |            |
+   | :meth:`assertRaisesRegex(exc, re, fun, *args, **kwds)   | ``fun(*args, **kwds)`` raises *exc*  | 3.1        |
+   | <TestCase.assertRaisesRegex>`                           | and the message matches *re*         |            |
    +---------------------------------------------------------+--------------------------------------+------------+
-   | :meth:`assertWarns(warn, fun, *args, **kwds)            | ``fun(*args, **kwds)`` raises `warn` | 3.2        |
+   | :meth:`assertWarns(warn, fun, *args, **kwds)            | ``fun(*args, **kwds)`` raises *warn* | 3.2        |
    | <TestCase.assertWarns>`                                 |                                      |            |
    +---------------------------------------------------------+--------------------------------------+------------+
-   | :meth:`assertWarnsRegex(warn, re, fun, *args, **kwds)   | ``fun(*args, **kwds)`` raises `warn` | 3.2        |
-   | <TestCase.assertWarnsRegex>`                            | and the message matches `re`         |            |
+   | :meth:`assertWarnsRegex(warn, re, fun, *args, **kwds)   | ``fun(*args, **kwds)`` raises *warn* | 3.2        |
+   | <TestCase.assertWarnsRegex>`                            | and the message matches *re*         |            |
    +---------------------------------------------------------+--------------------------------------+------------+
 
    .. method:: assertRaises(exception, callable, *args, **kwds)
-               assertRaises(exception)
+               assertRaises(exception, msg=None)
 
       Test that an exception is raised when *callable* is called with any
       positional or keyword arguments that are also passed to
@@ -963,11 +968,15 @@ Test cases
       To catch any of a group of exceptions, a tuple containing the exception
       classes may be passed as *exception*.
 
-      If only the *exception* argument is given, returns a context manager so
-      that the code under test can be written inline rather than as a function::
+      If only the *exception* and possibly the *msg* arguments are given,
+      return a context manager so that the code under test can be written
+      inline rather than as a function::
 
          with self.assertRaises(SomeException):
              do_something()
+
+      When used as a context manager, :meth:`assertRaises` accepts the
+      additional keyword argument *msg*.
 
       The context manager will store the caught exception object in its
       :attr:`exception` attribute.  This can be useful if the intention
@@ -985,9 +994,12 @@ Test cases
       .. versionchanged:: 3.2
          Added the :attr:`exception` attribute.
 
+      .. versionchanged:: 3.3
+         Added the *msg* keyword argument when used as a context manager.
+
 
    .. method:: assertRaisesRegex(exception, regex, callable, *args, **kwds)
-               assertRaisesRegex(exception, regex)
+               assertRaisesRegex(exception, regex, msg=None)
 
       Like :meth:`assertRaises` but also tests that *regex* matches
       on the string representation of the raised exception.  *regex* may be
@@ -1004,12 +1016,16 @@ Test cases
 
       .. versionadded:: 3.1
          under the name ``assertRaisesRegexp``.
+
       .. versionchanged:: 3.2
          Renamed to :meth:`assertRaisesRegex`.
 
+      .. versionchanged:: 3.3
+         Added the *msg* keyword argument when used as a context manager.
+
 
    .. method:: assertWarns(warning, callable, *args, **kwds)
-               assertWarns(warning)
+               assertWarns(warning, msg=None)
 
       Test that a warning is triggered when *callable* is called with any
       positional or keyword arguments that are also passed to
@@ -1018,11 +1034,15 @@ Test cases
       To catch any of a group of warnings, a tuple containing the warning
       classes may be passed as *warnings*.
 
-      If only the *warning* argument is given, returns a context manager so
-      that the code under test can be written inline rather than as a function::
+      If only the *warning* and possibly the *msg* arguments are given,
+      returns a context manager so that the code under test can be written
+      inline rather than as a function::
 
          with self.assertWarns(SomeWarning):
              do_something()
+
+      When used as a context manager, :meth:`assertRaises` accepts the
+      additional keyword argument *msg*.
 
       The context manager will store the caught warning object in its
       :attr:`warning` attribute, and the source line which triggered the
@@ -1041,9 +1061,12 @@ Test cases
 
       .. versionadded:: 3.2
 
+      .. versionchanged:: 3.3
+         Added the *msg* keyword argument when used as a context manager.
+
 
    .. method:: assertWarnsRegex(warning, regex, callable, *args, **kwds)
-               assertWarnsRegex(warning, regex)
+               assertWarnsRegex(warning, regex, msg=None)
 
       Like :meth:`assertWarns` but also tests that *regex* matches on the
       message of the triggered warning.  *regex* may be a regular expression
@@ -1061,6 +1084,8 @@ Test cases
 
       .. versionadded:: 3.2
 
+      .. versionchanged:: 3.3
+         Added the *msg* keyword argument when used as a context manager.
 
 
    There are also other methods used to perform more specific checks, such as:
@@ -1092,7 +1117,7 @@ Test cases
    | :meth:`assertNotRegex(s, re)          | ``not regex.search(s)``        | 3.2          |
    | <TestCase.assertNotRegex>`            |                                |              |
    +---------------------------------------+--------------------------------+--------------+
-   | :meth:`assertCountEqual(a, b)         | `a` and `b` have the same      | 3.2          |
+   | :meth:`assertCountEqual(a, b)         | *a* and *b* have the same      | 3.2          |
    | <TestCase.assertCountEqual>`          | elements in the same number,   |              |
    |                                       | regardless of their order      |              |
    +---------------------------------------+--------------------------------+--------------+
@@ -1150,21 +1175,6 @@ Test cases
          :meth:`.assertNotRegex`.
 
 
-   .. method:: assertDictContainsSubset(subset, dictionary, msg=None)
-
-      Tests whether the key/value pairs in *dictionary* are a superset of
-      those in *subset*.  If not, an error message listing the missing keys
-      and mismatched values is generated.
-
-      Note, the arguments are in the opposite order of what the method name
-      dictates.  Instead, consider using the set-methods on :ref:`dictionary
-      views <dict-views>`, for example: ``d.keys() <= e.keys()`` or
-      ``d.items() <= d.items()``.
-
-      .. versionadded:: 3.1
-      .. deprecated:: 3.2
-
-
    .. method:: assertCountEqual(first, second, msg=None)
 
       Test that sequence *first* contains the same elements as *second*,
@@ -1178,21 +1188,6 @@ Test cases
       but works with sequences of unhashable objects as well.
 
       .. versionadded:: 3.2
-
-   .. method:: assertSameElements(first, second, msg=None)
-
-      Test that sequence *first* contains the same elements as *second*,
-      regardless of their order. When they don't, an error message listing
-      the differences between the sequences will be generated.
-
-      Duplicate elements are ignored when comparing *first* and *second*.
-      It is the equivalent of ``assertEqual(set(first), set(second))``
-      but it works with sequences of unhashable objects as well. Because
-      duplicates are ignored, this method has been deprecated in favour of
-      :meth:`assertCountEqual`.
-
-      .. versionadded:: 3.1
-      .. deprecated:: 3.2
 
 
    .. _type-specific-methods:
@@ -1552,8 +1547,8 @@ Loading and running tests
    The :class:`TestLoader` class is used to create test suites from classes and
    modules.  Normally, there is no need to create an instance of this class; the
    :mod:`unittest` module provides an instance that can be shared as
-   ``unittest.defaultTestLoader``. Using a subclass or instance, however, allows
-   customization of some configurable properties.
+   :data:`unittest.defaultTestLoader`.  Using a subclass or instance, however,
+   allows customization of some configurable properties.
 
    :class:`TestLoader` objects have the following methods:
 
@@ -1887,7 +1882,7 @@ Loading and running tests
 .. class:: TextTestRunner(stream=None, descriptions=True, verbosity=1, runnerclass=None, warnings=None)
 
    A basic test runner implementation that outputs results to a stream. If *stream*
-   is `None`, the default, `sys.stderr` is used as the output stream. This class
+   is ``None``, the default, :data:`sys.stderr` is used as the output stream. This class
    has a few configurable parameters, but is essentially very simple.  Graphical
    applications which run test suites should provide alternate implementations.
 
@@ -1904,7 +1899,7 @@ Loading and running tests
       Added the ``warnings`` argument.
 
    .. versionchanged:: 3.2
-      The default stream is set to `sys.stderr` at instantiation time rather
+      The default stream is set to :data:`sys.stderr` at instantiation time rather
       than import time.
 
    .. method:: _makeResult()
@@ -1925,9 +1920,10 @@ Loading and running tests
                    testLoader=unittest.defaultTestLoader, exit=True, verbosity=1, \
                    failfast=None, catchbreak=None, buffer=None, warnings=None)
 
-   A command-line program that runs a set of tests; this is primarily for making
-   test modules conveniently executable.  The simplest use for this function is to
-   include the following line at the end of a test script::
+   A command-line program that loads a set of tests from *module* and runs them;
+   this is primarily for making test modules conveniently executable.
+   The simplest use for this function is to include the following line at the
+   end of a test script::
 
       if __name__ == '__main__':
           unittest.main()
@@ -1938,9 +1934,16 @@ Loading and running tests
       if __name__ == '__main__':
           unittest.main(verbosity=2)
 
+   The *argv* argument can be a list of options passed to the program, with the
+   first element being the program name.  If not specified or ``None``,
+   the values of :data:`sys.argv` are used.
+
    The *testRunner* argument can either be a test runner class or an already
    created instance of it. By default ``main`` calls :func:`sys.exit` with
    an exit code indicating success or failure of the tests run.
+
+   The *testLoader* argument has to be a :class:`TestLoader` instance,
+   and defaults to :data:`defaultTestLoader`.
 
    ``main`` supports being used from the interactive interpreter by passing in the
    argument ``exit=False``. This displays the result on standard output without
@@ -1949,7 +1952,7 @@ Loading and running tests
       >>> from unittest import main
       >>> main(module='test_module', exit=False)
 
-   The ``failfast``, ``catchbreak`` and ``buffer`` parameters have the same
+   The *failfast*, *catchbreak* and *buffer* parameters have the same
    effect as the same-name `command-line options`_.
 
    The *warning* argument specifies the :ref:`warning filter <warning-filter>`
@@ -1961,11 +1964,11 @@ Loading and running tests
    This stores the result of the tests run as the ``result`` attribute.
 
    .. versionchanged:: 3.1
-      The ``exit`` parameter was added.
+      The *exit* parameter was added.
 
    .. versionchanged:: 3.2
-      The ``verbosity``, ``failfast``, ``catchbreak``, ``buffer``
-      and ``warnings`` parameters were added.
+      The *verbosity*, *failfast*, *catchbreak*, *buffer*
+      and *warnings* parameters were added.
 
 
 load_tests Protocol

@@ -9,6 +9,7 @@ from random import randrange, shuffle
 import sys
 import warnings
 import collections
+import collections.abc
 
 class PassThru(Exception):
     pass
@@ -233,6 +234,26 @@ class TestJointOps(unittest.TestCase):
                 p = pickle.dumps(self.s)
                 dup = pickle.loads(p)
                 self.assertEqual(self.s.x, dup.x)
+
+    def test_iterator_pickling(self):
+        itorg = iter(self.s)
+        data = self.thetype(self.s)
+        d = pickle.dumps(itorg)
+        it = pickle.loads(d)
+        # Set iterators unpickle as list iterators due to the
+        # undefined order of set items.
+        # self.assertEqual(type(itorg), type(it))
+        self.assertTrue(isinstance(it, collections.abc.Iterator))
+        self.assertEqual(self.thetype(it), data)
+
+        it = pickle.loads(d)
+        try:
+            drop = next(it)
+        except StopIteration:
+            return
+        d = pickle.dumps(it)
+        it = pickle.loads(d)
+        self.assertEqual(self.thetype(it), data - self.thetype((drop,)))
 
     def test_deepcopy(self):
         class Tracer:
@@ -733,6 +754,17 @@ class TestBasicOps(unittest.TestCase):
         if self.repr is not None:
             self.assertEqual(repr(self.set), self.repr)
 
+    def check_repr_against_values(self):
+        text = repr(self.set)
+        self.assertTrue(text.startswith('{'))
+        self.assertTrue(text.endswith('}'))
+
+        result = text[1:-1].split(', ')
+        result.sort()
+        sorted_repr_values = [repr(value) for value in self.values]
+        sorted_repr_values.sort()
+        self.assertEqual(result, sorted_repr_values)
+
     def test_print(self):
         try:
             fo = open(support.TESTFN, "w")
@@ -891,7 +923,9 @@ class TestBasicOpsString(TestBasicOps):
         self.set    = set(self.values)
         self.dup    = set(self.values)
         self.length = 3
-        self.repr   = "{'a', 'c', 'b'}"
+
+    def test_repr(self):
+        self.check_repr_against_values()
 
 #------------------------------------------------------------------------------
 
@@ -902,7 +936,9 @@ class TestBasicOpsBytes(TestBasicOps):
         self.set    = set(self.values)
         self.dup    = set(self.values)
         self.length = 3
-        self.repr   = "{b'a', b'c', b'b'}"
+
+    def test_repr(self):
+        self.check_repr_against_values()
 
 #------------------------------------------------------------------------------
 
@@ -916,10 +952,12 @@ class TestBasicOpsMixedStringBytes(TestBasicOps):
         self.set    = set(self.values)
         self.dup    = set(self.values)
         self.length = 4
-        self.repr   = "{'a', b'a', 'b', b'b'}"
 
     def tearDown(self):
         self._warning_filters.__exit__(None, None, None)
+
+    def test_repr(self):
+        self.check_repr_against_values()
 
 #==============================================================================
 

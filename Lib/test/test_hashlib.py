@@ -9,6 +9,7 @@
 import array
 import hashlib
 import itertools
+import os
 import sys
 try:
     import threading
@@ -17,7 +18,7 @@ except ImportError:
 import unittest
 import warnings
 from test import support
-from test.support import _4G, precisionbigmemtest
+from test.support import _4G, bigmemtest
 
 # Were we compiled --with-pydebug or with #define Py_DEBUG?
 COMPILED_WITH_PYDEBUG = hasattr(sys, 'gettotalrefcount')
@@ -37,7 +38,8 @@ class HashLibTestCase(unittest.TestCase):
                              'sha224', 'SHA224', 'sha256', 'SHA256',
                              'sha384', 'SHA384', 'sha512', 'SHA512' )
 
-    _warn_on_extension_import = COMPILED_WITH_PYDEBUG
+    # Issue #14693: fallback modules are always compiled under POSIX
+    _warn_on_extension_import = os.name == 'posix' or COMPILED_WITH_PYDEBUG
 
     def _conditional_import_module(self, module_name):
         """Import a module and return a reference to it or None on failure."""
@@ -111,12 +113,8 @@ class HashLibTestCase(unittest.TestCase):
                             issubset(hashlib.algorithms_available))
 
     def test_unknown_hash(self):
-        try:
-            hashlib.new('spam spam spam spam spam')
-        except ValueError:
-            pass
-        else:
-            self.assertTrue(0 == "hashlib didn't reject bogus hash name")
+        self.assertRaises(ValueError, hashlib.new, 'spam spam spam spam spam')
+        self.assertRaises(TypeError, hashlib.new, 1)
 
     def test_get_builtin_constructor(self):
         get_builtin_constructor = hashlib.__dict__[
@@ -196,7 +194,7 @@ class HashLibTestCase(unittest.TestCase):
                    b'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',
                    'd174ab98d277d9f5a5611c2c9f419d9f')
 
-    @precisionbigmemtest(size=_4G + 5, memuse=1)
+    @bigmemtest(size=_4G + 5, memuse=1)
     def test_case_md5_huge(self, size):
         if size == _4G + 5:
             try:
@@ -204,7 +202,7 @@ class HashLibTestCase(unittest.TestCase):
             except OverflowError:
                 pass # 32-bit arch
 
-    @precisionbigmemtest(size=_4G - 1, memuse=1)
+    @bigmemtest(size=_4G - 1, memuse=1)
     def test_case_md5_uintmax(self, size):
         if size == _4G - 1:
             try:

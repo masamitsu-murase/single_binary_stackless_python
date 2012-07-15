@@ -1,5 +1,4 @@
 from test.support import run_unittest, verbose
-from platform import linux_distribution
 import unittest
 import locale
 import sys
@@ -12,7 +11,7 @@ def get_enUS_locale():
     if sys.platform == 'darwin':
         import os
         tlocs = ("en_US.UTF-8", "en_US.ISO8859-1", "en_US")
-        if int(os.uname()[2].split('.')[0]) < 10:
+        if int(os.uname().release.split('.')[0]) < 10:
             # The locale test work fine on OSX 10.6, I (ronaldoussoren)
             # haven't had time yet to verify if tests work on OSX 10.5
             # (10.4 is known to be bad)
@@ -392,8 +391,6 @@ class TestMiscellaneous(unittest.TestCase):
         # crasher from bug #7419
         self.assertRaises(locale.Error, locale.setlocale, 12345)
 
-    @unittest.skipIf(linux_distribution()[0] == 'Fedora', "Fedora setlocale() "
-                     "bug: https://bugzilla.redhat.com/show_bug.cgi?id=726536")
     def test_getsetlocale_issue1813(self):
         # Issue #1813: setting and getting the locale under a Turkish locale
         oldlocale = locale.setlocale(locale.LC_CTYPE)
@@ -404,8 +401,18 @@ class TestMiscellaneous(unittest.TestCase):
             # Unsupported locale on this system
             self.skipTest('test needs Turkish locale')
         loc = locale.getlocale(locale.LC_CTYPE)
+        if verbose:
+            print('got locale %a' % (loc,))
         locale.setlocale(locale.LC_CTYPE, loc)
         self.assertEqual(loc, locale.getlocale(locale.LC_CTYPE))
+
+    def test_invalid_locale_format_in_localetuple(self):
+        with self.assertRaises(TypeError):
+            locale.setlocale(locale.LC_ALL, b'fi_FI')
+
+    def test_invalid_iterable_in_localetuple(self):
+        with self.assertRaises(TypeError):
+            locale.setlocale(locale.LC_ALL, (b'not', b'valid'))
 
 
 def test_main():

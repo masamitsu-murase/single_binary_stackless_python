@@ -7,7 +7,6 @@ import pydoc
 import keyword
 import re
 import string
-import subprocess
 import test.support
 import time
 import unittest
@@ -15,11 +14,9 @@ import xml.etree
 import textwrap
 from io import StringIO
 from collections import namedtuple
-from contextlib import contextmanager
-
 from test.script_helper import assert_python_ok
 from test.support import (
-    TESTFN, forget, rmtree, EnvironmentVarGuard,
+    TESTFN, rmtree,
     reap_children, reap_threads, captured_output, captured_stdout, unlink
 )
 from test import pydoc_mod
@@ -201,7 +198,7 @@ war</tt></dd></dl>
 missing_pattern = "no Python documentation found for '%s'"
 
 # output pattern for module with bad imports
-badimport_pattern = "problem in %s - ImportError: No module named %s"
+badimport_pattern = "problem in %s - ImportError: No module named %r"
 
 def run_pydoc(module_name, *args, **env):
     """
@@ -209,7 +206,8 @@ def run_pydoc(module_name, *args, **env):
     output of pydoc.
     """
     args = args + (module_name,)
-    rc, out, err = assert_python_ok(pydoc.__file__, *args, **env)
+    # do not write bytecode files to avoid caching errors
+    rc, out, err = assert_python_ok('-B', pydoc.__file__, *args, **env)
     return out.strip()
 
 def get_pydoc_html(module):
@@ -238,8 +236,8 @@ def get_pydoc_text(module):
 def print_diffs(text1, text2):
     "Prints unified diffs for two texts"
     # XXX now obsolete, use unittest built-in support
-    lines1 = text1.splitlines(True)
-    lines2 = text2.splitlines(True)
+    lines1 = text1.splitlines(keepends=True)
+    lines2 = text2.splitlines(keepends=True)
     diffs = difflib.unified_diff(lines1, lines2, n=0, fromfile='expected',
                                  tofile='got')
     print('\n' + ''.join(diffs))
@@ -256,6 +254,8 @@ class PydocDocTest(unittest.TestCase):
 
     @unittest.skipIf(sys.flags.optimize >= 2,
                      "Docstrings are omitted with -O2 and above")
+    @unittest.skipIf(hasattr(sys, 'gettrace') and sys.gettrace(),
+                     'trace function introduces __locals__ unexpectedly')
     def test_html_doc(self):
         result, doc_loc = get_pydoc_html(pydoc_mod)
         mod_file = inspect.getabsfile(pydoc_mod)
@@ -271,6 +271,8 @@ class PydocDocTest(unittest.TestCase):
 
     @unittest.skipIf(sys.flags.optimize >= 2,
                      "Docstrings are omitted with -O2 and above")
+    @unittest.skipIf(hasattr(sys, 'gettrace') and sys.gettrace(),
+                     'trace function introduces __locals__ unexpectedly')
     def test_text_doc(self):
         result, doc_loc = get_pydoc_text(pydoc_mod)
         expected_text = expected_text_pattern % \
@@ -284,49 +286,23 @@ class PydocDocTest(unittest.TestCase):
         result, doc_loc = get_pydoc_text(xml.etree)
         self.assertEqual(doc_loc, "", "MODULE DOCS incorrectly includes a link")
 
+    def test_non_str_name(self):
+        # issue14638
+        # Treat illegal (non-str) name like no name
+        class A:
+            __name__ = 42
+        class B:
+            pass
+        adoc = pydoc.render_doc(A())
+        bdoc = pydoc.render_doc(B())
+        self.assertEqual(adoc.replace("A", "B"), bdoc)
+
     def test_not_here(self):
         missing_module = "test.i_am_not_here"
         result = str(run_pydoc(missing_module), 'ascii')
         expected = missing_pattern % missing_module
         self.assertEqual(expected, result,
             "documentation for missing module found")
-
-    def test_badimport(self):
-        # This tests the fix for issue 5230, where if pydoc found the module
-        # but the module had an internal import error pydoc would report no doc
-        # found.
-        modname = 'testmod_xyzzy'
-        testpairs = (
-            ('i_am_not_here', 'i_am_not_here'),
-            ('test.i_am_not_here_either', 'i_am_not_here_either'),
-            ('test.i_am_not_here.neither_am_i', 'i_am_not_here.neither_am_i'),
-            ('i_am_not_here.{}'.format(modname),
-             'i_am_not_here.{}'.format(modname)),
-            ('test.{}'.format(modname), modname),
-            )
-
-        @contextmanager
-        def newdirinpath(dir):
-            os.mkdir(dir)
-            sys.path.insert(0, dir)
-            try:
-                yield
-            finally:
-                sys.path.pop(0)
-                rmtree(dir)
-
-        with newdirinpath(TESTFN):
-            fullmodname = os.path.join(TESTFN, modname)
-            sourcefn = fullmodname + os.extsep + "py"
-            for importstring, expectedinmsg in testpairs:
-                with open(sourcefn, 'w') as f:
-                    f.write("import {}\n".format(importstring))
-                try:
-                    result = run_pydoc(modname, PYTHONPATH=TESTFN).decode("ascii")
-                finally:
-                    forget(modname)
-                expected = badimport_pattern % (modname, expectedinmsg)
-                self.assertEqual(expected, result)
 
     def test_input_strip(self):
         missing_module = " test.i_am_not_here "
@@ -349,6 +325,8 @@ class PydocDocTest(unittest.TestCase):
 
     @unittest.skipIf(sys.flags.optimize >= 2,
                      'Docstrings are omitted with -O2 and above')
+    @unittest.skipIf(hasattr(sys, 'gettrace') and sys.gettrace(),
+                     'trace function introduces __locals__ unexpectedly')
     def test_help_output_redirect(self):
         # issue 940286, if output is set in Helper, then all output from
         # Helper.help should be redirected
@@ -401,6 +379,54 @@ class PydocDocTest(unittest.TestCase):
                 print('line 2: hi"""', file=script)
             synopsis = pydoc.synopsis(TESTFN, {})
             self.assertEqual(synopsis, 'line 1: h\xe9')
+
+
+class PydocImportTest(unittest.TestCase):
+
+    def setUp(self):
+        self.test_dir = os.mkdir(TESTFN)
+        self.addCleanup(rmtree, TESTFN)
+
+    def test_badimport(self):
+        # This tests the fix for issue 5230, where if pydoc found the module
+        # but the module had an internal import error pydoc would report no doc
+        # found.
+        modname = 'testmod_xyzzy'
+        testpairs = (
+            ('i_am_not_here', 'i_am_not_here'),
+            ('test.i_am_not_here_either', 'test.i_am_not_here_either'),
+            ('test.i_am_not_here.neither_am_i', 'test.i_am_not_here'),
+            ('i_am_not_here.{}'.format(modname), 'i_am_not_here'),
+            ('test.{}'.format(modname), 'test.{}'.format(modname)),
+            )
+
+        sourcefn = os.path.join(TESTFN, modname) + os.extsep + "py"
+        for importstring, expectedinmsg in testpairs:
+            with open(sourcefn, 'w') as f:
+                f.write("import {}\n".format(importstring))
+            result = run_pydoc(modname, PYTHONPATH=TESTFN).decode("ascii")
+            expected = badimport_pattern % (modname, expectedinmsg)
+            self.assertEqual(expected, result)
+
+    def test_apropos_with_bad_package(self):
+        # Issue 7425 - pydoc -k failed when bad package on path
+        pkgdir = os.path.join(TESTFN, "syntaxerr")
+        os.mkdir(pkgdir)
+        badsyntax = os.path.join(pkgdir, "__init__") + os.extsep + "py"
+        with open(badsyntax, 'w') as f:
+            f.write("invalid python syntax = $1\n")
+        result = run_pydoc('zqwykjv', '-k', PYTHONPATH=TESTFN)
+        self.assertEqual(b'', result)
+
+    def test_apropos_with_unreadable_dir(self):
+        # Issue 7367 - pydoc -k failed when unreadable dir on path
+        self.unreadable_dir = os.path.join(TESTFN, "unreadable")
+        os.mkdir(self.unreadable_dir, 0)
+        self.addCleanup(os.rmdir, self.unreadable_dir)
+        # Note, on Windows the directory appears to be still
+        #   readable so this is not really testing the issue there
+        result = run_pydoc('zqwykjv', '-k', PYTHONPATH=TESTFN)
+        self.assertEqual(b'', result)
 
 
 class TestDescriptions(unittest.TestCase):
@@ -511,6 +537,7 @@ class TestHelper(unittest.TestCase):
 def test_main():
     try:
         test.support.run_unittest(PydocDocTest,
+                                  PydocImportTest,
                                   TestDescriptions,
                                   PydocServerTest,
                                   PydocUrlHandlerTest,

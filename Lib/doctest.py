@@ -440,6 +440,24 @@ class Example:
         self.options = options
         self.exc_msg = exc_msg
 
+    def __eq__(self, other):
+        if type(self) is not type(other):
+            return NotImplemented
+
+        return self.source == other.source and \
+               self.want == other.want and \
+               self.lineno == other.lineno and \
+               self.indent == other.indent and \
+               self.options == other.options and \
+               self.exc_msg == other.exc_msg
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash((self.source, self.want, self.lineno, self.indent,
+                     self.exc_msg))
+
 class DocTest:
     """
     A collection of doctest examples that should be run in a single
@@ -488,6 +506,22 @@ class DocTest:
         return ('<DocTest %s from %s:%s (%s)>' %
                 (self.name, self.filename, self.lineno, examples))
 
+    def __eq__(self, other):
+        if type(self) is not type(other):
+            return NotImplemented
+
+        return self.examples == other.examples and \
+               self.docstring == other.docstring and \
+               self.globs == other.globs and \
+               self.name == other.name and \
+               self.filename == other.filename and \
+               self.lineno == other.lineno
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash((self.docstring, self.name, self.filename, self.lineno))
 
     # This lets us sort tests by name:
     def __lt__(self, other):
@@ -1332,7 +1366,7 @@ class DocTestRunner:
         m = self.__LINECACHE_FILENAME_RE.match(filename)
         if m and m.group('name') == self.test.name:
             example = self.test.examples[int(m.group('examplenum'))]
-            return example.source.splitlines(True)
+            return example.source.splitlines(keepends=True)
         else:
             return self.save_linecache_getlines(filename, module_globals)
 
@@ -1378,6 +1412,7 @@ class DocTestRunner:
         # Note that the interactive output will go to *our*
         # save_stdout, even if that's not the real sys.stdout; this
         # allows us to write test cases for the set_trace behavior.
+        save_trace = sys.gettrace()
         save_set_trace = pdb.set_trace
         self.debugger = _OutputRedirectingPdb(save_stdout)
         self.debugger.reset()
@@ -1397,6 +1432,7 @@ class DocTestRunner:
         finally:
             sys.stdout = save_stdout
             pdb.set_trace = save_set_trace
+            sys.settrace(save_trace)
             linecache.getlines = self.save_linecache_getlines
             sys.displayhook = save_displayhook
             if clear_globs:
@@ -1593,8 +1629,8 @@ class OutputChecker:
         # Check if we should use diff.
         if self._do_a_fancy_diff(want, got, optionflags):
             # Split want & got into lines.
-            want_lines = want.splitlines(True)  # True == keep line ends
-            got_lines = got.splitlines(True)
+            want_lines = want.splitlines(keepends=True)
+            got_lines = got.splitlines(keepends=True)
             # Use difflib to find their differences.
             if optionflags & REPORT_UDIFF:
                 diff = difflib.unified_diff(want_lines, got_lines, n=2)
@@ -2204,6 +2240,23 @@ class DocTestCase(unittest.TestCase):
     def id(self):
         return self._dt_test.name
 
+    def __eq__(self, other):
+        if type(self) is not type(other):
+            return NotImplemented
+
+        return self._dt_test == other._dt_test and \
+               self._dt_optionflags == other._dt_optionflags and \
+               self._dt_setUp == other._dt_setUp and \
+               self._dt_tearDown == other._dt_tearDown and \
+               self._dt_checker == other._dt_checker
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash((self._dt_optionflags, self._dt_setUp, self._dt_tearDown,
+                     self._dt_checker))
+
     def __repr__(self):
         name = self._dt_test.name.split('.')
         return "%s (%s)" % (name[-1], '.'.join(name[:-1]))
@@ -2214,7 +2267,8 @@ class DocTestCase(unittest.TestCase):
         return "Doctest: " + self._dt_test.name
 
 class SkipDocTestCase(DocTestCase):
-    def __init__(self):
+    def __init__(self, module):
+        self.module = module
         DocTestCase.__init__(self, None)
 
     def setUp(self):
@@ -2224,7 +2278,10 @@ class SkipDocTestCase(DocTestCase):
         pass
 
     def shortDescription(self):
-        return "Skipping tests from %s" % module.__name__
+        return "Skipping tests from %s" % self.module.__name__
+
+    __str__ = shortDescription
+
 
 def DocTestSuite(module=None, globs=None, extraglobs=None, test_finder=None,
                  **options):
@@ -2272,7 +2329,7 @@ def DocTestSuite(module=None, globs=None, extraglobs=None, test_finder=None,
     if not tests and sys.flags.optimize >=2:
         # Skip doctests when running with -O2
         suite = unittest.TestSuite()
-        suite.addTest(SkipDocTestCase())
+        suite.addTest(SkipDocTestCase(module))
         return suite
     elif not tests:
         # Why do we want to do this? Because it reveals a bug that might

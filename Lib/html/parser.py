@@ -10,11 +10,11 @@
 
 import _markupbase
 import re
+import warnings
 
 # Regular expressions used for parsing
 
 interesting_normal = re.compile('[&<]')
-interesting_cdata = re.compile(r'<(/|\Z)')
 incomplete = re.compile('&[a-zA-Z#]')
 
 entityref = re.compile('&([a-zA-Z][-.a-zA-Z0-9]*)[^a-zA-Z0-9]')
@@ -23,15 +23,22 @@ charref = re.compile('&#(?:[0-9]+|[xX][0-9a-fA-F]+)[^0-9a-fA-F]')
 starttagopen = re.compile('<[a-zA-Z]')
 piclose = re.compile('>')
 commentclose = re.compile(r'--\s*>')
-tagfind = re.compile('[a-zA-Z][-.a-zA-Z0-9:_]*')
-# Note, the strict one of this pair isn't really strict, but we can't
-# make it correctly strict without breaking backward compatibility.
+tagfind = re.compile('([a-zA-Z][-.a-zA-Z0-9:_]*)(?:\s|/(?!>))*')
+# see http://www.w3.org/TR/html5/tokenization.html#tag-open-state
+# and http://www.w3.org/TR/html5/tokenization.html#tag-name-state
+tagfind_tolerant = re.compile('[a-zA-Z][^\t\n\r\f />\x00]*')
+# Note:
+#  1) the strict attrfind isn't really strict, but we can't make it
+#     correctly strict without breaking backward compatibility;
+#  2) if you change attrfind remember to update locatestarttagend too;
+#  3) if you change attrfind and/or locatestarttagend the parser will
+#     explode, so don't do it.
 attrfind = re.compile(
     r'\s*([a-zA-Z_][-.:a-zA-Z_0-9]*)(\s*=\s*'
     r'(\'[^\']*\'|"[^"]*"|[^\s"\'=<>`]*))?')
 attrfind_tolerant = re.compile(
-    r'\s*([a-zA-Z_][-.:a-zA-Z_0-9]*)(\s*=\s*'
-    r'(\'[^\']*\'|"[^"]*"|[^>\s]*))?')
+    r'((?<=[\'"\s/])[^\s/>][^\s/=>]*)(\s*=+\s*'
+    r'(\'[^\']*\'|"[^"]*"|(?![\'"])[^>\s]*))?(?:\s|/(?!>))*')
 locatestarttagend = re.compile(r"""
   <[a-zA-Z][-.a-zA-Z0-9:_]*          # tag name
   (?:\s+                             # whitespace before attribute name
@@ -48,20 +55,22 @@ locatestarttagend = re.compile(r"""
 """, re.VERBOSE)
 locatestarttagend_tolerant = re.compile(r"""
   <[a-zA-Z][-.a-zA-Z0-9:_]*          # tag name
-  (?:\s*                             # optional whitespace before attribute name
-    (?:[a-zA-Z_][-.:a-zA-Z0-9_]*     # attribute name
-      (?:\s*=\s*                     # value indicator
+  (?:[\s/]*                          # optional whitespace before attribute name
+    (?:(?<=['"\s/])[^\s/>][^\s/=>]*  # attribute name
+      (?:\s*=+\s*                    # value indicator
         (?:'[^']*'                   # LITA-enclosed value
-          |\"[^\"]*\"                # LIT-enclosed value
-          |[^'\">\s]+                # bare value
+          |"[^"]*"                   # LIT-enclosed value
+          |(?!['"])[^>\s]*           # bare value
          )
          (?:\s*,)*                   # possibly followed by a comma
-       )?
-     )
-   )*
+       )?(?:\s|/(?!>))*
+     )*
+   )?
   \s*                                # trailing whitespace
 """, re.VERBOSE)
 endendtag = re.compile('>')
+# the HTML 5 spec, section 8.1.2.2, doesn't allow spaces between
+# </ and the tag name, so maybe this should be fixed
 endtagfind = re.compile('</\s*([a-zA-Z][-.a-zA-Z0-9:_]*)\s*>')
 
 
@@ -105,14 +114,16 @@ class HTMLParser(_markupbase.ParserBase):
 
     CDATA_CONTENT_ELEMENTS = ("script", "style")
 
-    def __init__(self, strict=True):
+    def __init__(self, strict=False):
         """Initialize and reset this instance.
 
-        If strict is set to True (the default), errors are raised when invalid
-        HTML is encountered.  If set to False, an attempt is instead made to
-        continue parsing, making "best guesses" about the intended meaning, in
-        a fashion similar to what browsers typically do.
+        If strict is set to False (the default) the parser will parse invalid
+        markup, otherwise it will raise an error.  Note that the strict mode
+        is deprecated.
         """
+        if strict:
+            warnings.warn("The strict mode is deprecated.",
+                          DeprecationWarning, stacklevel=2)
         self.strict = strict
         self.reset()
 
@@ -121,6 +132,7 @@ class HTMLParser(_markupbase.ParserBase):
         self.rawdata = ''
         self.lasttag = '???'
         self.interesting = interesting_normal
+        self.cdata_elem = None
         _markupbase.ParserBase.reset(self)
 
     def feed(self, data):
@@ -145,11 +157,13 @@ class HTMLParser(_markupbase.ParserBase):
         """Return full source of start tag: '<...>'."""
         return self.__starttag_text
 
-    def set_cdata_mode(self):
-        self.interesting = interesting_cdata
+    def set_cdata_mode(self, elem):
+        self.cdata_elem = elem.lower()
+        self.interesting = re.compile(r'</\s*%s\s*>' % self.cdata_elem, re.I)
 
     def clear_cdata_mode(self):
         self.interesting = interesting_normal
+        self.cdata_elem = None
 
     # Internal -- handle data as far as reasonable.  May leave state
     # and data to be processed by a subsequent call.  If 'end' is
@@ -163,6 +177,8 @@ class HTMLParser(_markupbase.ParserBase):
             if match:
                 j = match.start()
             else:
+                if self.cdata_elem:
+                    break
                 j = n
             if i < j: self.handle_data(rawdata[i:j])
             i = self.updatepos(i, j)
@@ -178,7 +194,10 @@ class HTMLParser(_markupbase.ParserBase):
                 elif startswith("<?", i):
                     k = self.parse_pi(i)
                 elif startswith("<!", i):
-                    k = self.parse_declaration(i)
+                    if self.strict:
+                        k = self.parse_declaration(i)
+                    else:
+                        k = self.parse_html_declaration(i)
                 elif (i + 1) < n:
                     self.handle_data("<")
                     k = i + 1
@@ -245,10 +264,45 @@ class HTMLParser(_markupbase.ParserBase):
             else:
                 assert 0, "interesting.search() lied"
         # end while
-        if end and i < n:
+        if end and i < n and not self.cdata_elem:
             self.handle_data(rawdata[i:n])
             i = self.updatepos(i, n)
         self.rawdata = rawdata[i:]
+
+    # Internal -- parse html declarations, return length or -1 if not terminated
+    # See w3.org/TR/html5/tokenization.html#markup-declaration-open-state
+    # See also parse_declaration in _markupbase
+    def parse_html_declaration(self, i):
+        rawdata = self.rawdata
+        assert rawdata[i:i+2] == '<!', ('unexpected call to '
+                                        'parse_html_declaration()')
+        if rawdata[i:i+4] == '<!--':
+            # this case is actually already handled in goahead()
+            return self.parse_comment(i)
+        elif rawdata[i:i+3] == '<![':
+            return self.parse_marked_section(i)
+        elif rawdata[i:i+9].lower() == '<!doctype':
+            # find the closing >
+            gtpos = rawdata.find('>', i+9)
+            if gtpos == -1:
+                return -1
+            self.handle_decl(rawdata[i+2:gtpos])
+            return gtpos+1
+        else:
+            return self.parse_bogus_comment(i)
+
+    # Internal -- parse bogus comment, return length or -1 if not terminated
+    # see http://www.w3.org/TR/html5/tokenization.html#bogus-comment-state
+    def parse_bogus_comment(self, i, report=1):
+        rawdata = self.rawdata
+        assert rawdata[i:i+2] in ('<!', '</'), ('unexpected call to '
+                                                'parse_comment()')
+        pos = rawdata.find('>', i+2)
+        if pos == -1:
+            return -1
+        if report:
+            self.handle_comment(rawdata[i+2:pos])
+        return pos + 1
 
     # Internal -- parse processing instr, return end or -1 if not terminated
     def parse_pi(self, i):
@@ -276,13 +330,12 @@ class HTMLParser(_markupbase.ParserBase):
         match = tagfind.match(rawdata, i+1)
         assert match, 'unexpected call to parse_starttag()'
         k = match.end()
-        self.lasttag = tag = rawdata[i+1:k].lower()
-
+        self.lasttag = tag = match.group(1).lower()
         while k < endpos:
             if self.strict:
                 m = attrfind.match(rawdata, k)
             else:
-                m = attrfind_tolerant.search(rawdata, k)
+                m = attrfind_tolerant.match(rawdata, k)
             if not m:
                 break
             attrname, rest, attrvalue = m.group(1, 2, 3)
@@ -291,6 +344,7 @@ class HTMLParser(_markupbase.ParserBase):
             elif attrvalue[:1] == '\'' == attrvalue[-1:] or \
                  attrvalue[:1] == '"' == attrvalue[-1:]:
                 attrvalue = attrvalue[1:-1]
+            if attrvalue:
                 attrvalue = self.unescape(attrvalue)
             attrs.append((attrname.lower(), attrvalue))
             k = m.end()
@@ -315,7 +369,7 @@ class HTMLParser(_markupbase.ParserBase):
         else:
             self.handle_starttag(tag, attrs)
             if tag in self.CDATA_CONTENT_ELEMENTS:
-                self.set_cdata_mode()
+                self.set_cdata_mode(tag)
         return endpos
 
     # Internal -- check to see if we have a complete starttag; return end
@@ -369,22 +423,40 @@ class HTMLParser(_markupbase.ParserBase):
         match = endendtag.search(rawdata, i+1) # >
         if not match:
             return -1
-        j = match.end()
+        gtpos = match.end()
         match = endtagfind.match(rawdata, i) # </ + tag + >
         if not match:
+            if self.cdata_elem is not None:
+                self.handle_data(rawdata[i:gtpos])
+                return gtpos
             if self.strict:
-                self.error("bad end tag: %r" % (rawdata[i:j],))
-            k = rawdata.find('<', i + 1, j)
-            if k > i:
-                j = k
-            if j <= i:
-                j = i + 1
-            self.handle_data(rawdata[i:j])
-            return j
-        tag = match.group(1)
-        self.handle_endtag(tag.lower())
+                self.error("bad end tag: %r" % (rawdata[i:gtpos],))
+            # find the name: w3.org/TR/html5/tokenization.html#tag-name-state
+            namematch = tagfind_tolerant.match(rawdata, i+2)
+            if not namematch:
+                # w3.org/TR/html5/tokenization.html#end-tag-open-state
+                if rawdata[i:i+3] == '</>':
+                    return i+3
+                else:
+                    return self.parse_bogus_comment(i)
+            tagname = namematch.group().lower()
+            # consume and ignore other stuff between the name and the >
+            # Note: this is not 100% correct, since we might have things like
+            # </tag attr=">">, but looking for > after tha name should cover
+            # most of the cases and is much simpler
+            gtpos = rawdata.find('>', namematch.end())
+            self.handle_endtag(tagname)
+            return gtpos+1
+
+        elem = match.group(1).lower() # script or style
+        if self.cdata_elem is not None:
+            if elem != self.cdata_elem:
+                self.handle_data(rawdata[i:gtpos])
+                return gtpos
+
+        self.handle_endtag(elem.lower())
         self.clear_cdata_mode()
-        return j
+        return gtpos
 
     # Overridable -- finish processing of start+end tag: <tag.../>
     def handle_startendtag(self, tag, attrs):
@@ -428,7 +500,6 @@ class HTMLParser(_markupbase.ParserBase):
             self.error("unknown declaration: %r" % (data,))
 
     # Internal -- helper to remove special character quoting
-    entitydefs = None
     def unescape(self, s):
         if '&' not in s:
             return s
@@ -438,24 +509,23 @@ class HTMLParser(_markupbase.ParserBase):
                 if s[0] == "#":
                     s = s[1:]
                     if s[0] in ['x','X']:
-                        c = int(s[1:], 16)
+                        c = int(s[1:].rstrip(';'), 16)
                     else:
-                        c = int(s)
+                        c = int(s.rstrip(';'))
                     return chr(c)
             except ValueError:
-                return '&#'+ s +';'
+                return '&#' + s
             else:
-                # Cannot use name2codepoint directly, because HTMLParser
-                # supports apos, which is not part of HTML 4
-                import html.entities
-                if HTMLParser.entitydefs is None:
-                    entitydefs = HTMLParser.entitydefs = {'apos':"'"}
-                    for k, v in html.entities.name2codepoint.items():
-                        entitydefs[k] = chr(v)
-                try:
-                    return self.entitydefs[s]
-                except KeyError:
-                    return '&'+s+';'
+                from html.entities import html5
+                if s in html5:
+                    return html5[s]
+                elif s.endswith(';'):
+                    return '&' + s
+                for x in range(2, len(s)):
+                    if s[:x] in html5:
+                        return html5[s[:x]] + s[x:]
+                else:
+                    return '&' + s
 
-        return re.sub(r"&(#?[xX]?(?:[0-9a-fA-F]+|\w{1,8}));",
-                      replaceEntities, s, re.ASCII)
+        return re.sub(r"&(#?[xX]?(?:[0-9a-fA-F]+;|\w{1,32};?))",
+                      replaceEntities, s, flags=re.ASCII)

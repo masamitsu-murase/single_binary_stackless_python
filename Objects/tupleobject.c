@@ -2,6 +2,7 @@
 /* Tuple object implementation */
 
 #include "Python.h"
+#include "accu.h"
 
 /* Speed optimization to avoid frequent malloc/free of small tuples */
 #ifndef PyTuple_MAXSAVESIZE
@@ -44,6 +45,22 @@ show_track(void)
 }
 #endif
 
+/* Print summary info about the state of the optimized allocator */
+void
+_PyTuple_DebugMallocStats(FILE *out)
+{
+#if PyTuple_MAXSAVESIZE > 0
+    int i;
+    char buf[128];
+    for (i = 1; i < PyTuple_MAXSAVESIZE; i++) {
+        PyOS_snprintf(buf, sizeof(buf),
+                      "free %d-sized PyTupleObject", i);
+        _PyDebugAllocatorStats(out,
+                               buf,
+                               numfree[i], _PyObject_VAR_SIZE(&PyTuple_Type, i));
+    }
+#endif
+}
 
 PyObject *
 PyTuple_New(register Py_ssize_t size)
@@ -86,7 +103,7 @@ PyTuple_New(register Py_ssize_t size)
         {
             return PyErr_NoMemory();
         }
-        nbytes += sizeof(PyTupleObject) - sizeof(PyObject *);
+        /* nbytes += sizeof(PyTupleObject) - sizeof(PyObject *); */
 
         op = PyObject_GC_NewVar(PyTupleObject, &PyTuple_Type, size);
         if (op == NULL)
@@ -240,12 +257,19 @@ static PyObject *
 tuplerepr(PyTupleObject *v)
 {
     Py_ssize_t i, n;
-    PyObject *s, *temp;
-    PyObject *pieces, *result = NULL;
+    PyObject *s = NULL;
+    _PyAccu acc;
+    static PyObject *sep = NULL;
 
     n = Py_SIZE(v);
     if (n == 0)
         return PyUnicode_FromString("()");
+
+    if (sep == NULL) {
+        sep = PyUnicode_FromString(", ");
+        if (sep == NULL)
+            return NULL;
+    }
 
     /* While not mutable, it is still possible to end up with a cycle in a
        tuple through an object that stores itself within a tuple (and thus
@@ -256,52 +280,42 @@ tuplerepr(PyTupleObject *v)
         return i > 0 ? PyUnicode_FromString("(...)") : NULL;
     }
 
-    pieces = PyTuple_New(n);
-    if (pieces == NULL)
-        return NULL;
+    if (_PyAccu_Init(&acc))
+        goto error;
+
+    s = PyUnicode_FromString("(");
+    if (s == NULL || _PyAccu_Accumulate(&acc, s))
+        goto error;
+    Py_CLEAR(s);
 
     /* Do repr() on each element. */
     for (i = 0; i < n; ++i) {
         if (Py_EnterRecursiveCall(" while getting the repr of a tuple"))
-            goto Done;
+            goto error;
         s = PyObject_Repr(v->ob_item[i]);
         Py_LeaveRecursiveCall();
-        if (s == NULL)
-            goto Done;
-        PyTuple_SET_ITEM(pieces, i, s);
+        if (i > 0 && _PyAccu_Accumulate(&acc, sep))
+            goto error;
+        if (s == NULL || _PyAccu_Accumulate(&acc, s))
+            goto error;
+        Py_CLEAR(s);
     }
+    if (n > 1)
+        s = PyUnicode_FromString(")");
+    else
+        s = PyUnicode_FromString(",)");
+    if (s == NULL || _PyAccu_Accumulate(&acc, s))
+        goto error;
+    Py_CLEAR(s);
 
-    /* Add "()" decorations to the first and last items. */
-    assert(n > 0);
-    s = PyUnicode_FromString("(");
-    if (s == NULL)
-        goto Done;
-    temp = PyTuple_GET_ITEM(pieces, 0);
-    PyUnicode_AppendAndDel(&s, temp);
-    PyTuple_SET_ITEM(pieces, 0, s);
-    if (s == NULL)
-        goto Done;
-
-    s = PyUnicode_FromString(n == 1 ? ",)" : ")");
-    if (s == NULL)
-        goto Done;
-    temp = PyTuple_GET_ITEM(pieces, n-1);
-    PyUnicode_AppendAndDel(&temp, s);
-    PyTuple_SET_ITEM(pieces, n-1, temp);
-    if (temp == NULL)
-        goto Done;
-
-    /* Paste them all together with ", " between. */
-    s = PyUnicode_FromString(", ");
-    if (s == NULL)
-        goto Done;
-    result = PyUnicode_Join(s, pieces);
-    Py_DECREF(s);
-
-Done:
-    Py_DECREF(pieces);
     Py_ReprLeave((PyObject *)v);
-    return result;
+    return _PyAccu_Finish(&acc);
+
+error:
+    _PyAccu_Destroy(&acc);
+    Py_XDECREF(s);
+    Py_ReprLeave((PyObject *)v);
+    return NULL;
 }
 
 /* The addend 82520, was selected from the range(0, 1000000) for
@@ -315,11 +329,12 @@ Done:
 static Py_hash_t
 tuplehash(PyTupleObject *v)
 {
-    register Py_hash_t x, y;
+    register Py_uhash_t x;
+    register Py_hash_t y;
     register Py_ssize_t len = Py_SIZE(v);
     register PyObject **p;
-    Py_hash_t mult = 1000003L;
-    x = 0x345678L;
+    Py_uhash_t mult = _PyHASH_MULTIPLIER;
+    x = 0x345678;
     p = v->ob_item;
     while (--len >= 0) {
         y = PyObject_Hash(*p++);
@@ -330,7 +345,7 @@ tuplehash(PyTupleObject *v)
         mult += (Py_hash_t)(82520L + len + len);
     }
     x += 97531L;
-    if (x == -1)
+    if (x == (Py_uhash_t)-1)
         x = -2;
     return x;
 }
@@ -546,10 +561,8 @@ tuplerichcompare(PyObject *v, PyObject *w, int op)
     Py_ssize_t i;
     Py_ssize_t vlen, wlen;
 
-    if (!PyTuple_Check(v) || !PyTuple_Check(w)) {
-        Py_INCREF(Py_NotImplemented);
-        return Py_NotImplemented;
-    }
+    if (!PyTuple_Check(v) || !PyTuple_Check(w))
+        Py_RETURN_NOTIMPLEMENTED;
 
     vt = (PyTupleObject *)v;
     wt = (PyTupleObject *)w;
@@ -970,8 +983,39 @@ tupleiter_len(tupleiterobject *it)
 
 PyDoc_STRVAR(length_hint_doc, "Private method returning an estimate of len(list(it)).");
 
+static PyObject *
+tupleiter_reduce(tupleiterobject *it)
+{
+    if (it->it_seq)
+        return Py_BuildValue("N(O)l", _PyObject_GetBuiltin("iter"),
+                             it->it_seq, it->it_index);
+    else
+        return Py_BuildValue("N(())", _PyObject_GetBuiltin("iter"));
+}
+
+static PyObject *
+tupleiter_setstate(tupleiterobject *it, PyObject *state)
+{
+    long index = PyLong_AsLong(state);
+    if (index == -1 && PyErr_Occurred())
+        return NULL;
+    if (it->it_seq != NULL) {
+        if (index < 0)
+            index = 0;
+        else if (it->it_seq != NULL && index > PyTuple_GET_SIZE(it->it_seq))
+            index = PyTuple_GET_SIZE(it->it_seq);
+        it->it_index = index;
+    }
+    Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(reduce_doc, "Return state information for pickling.");
+PyDoc_STRVAR(setstate_doc, "Set state information for unpickling.");
+
 static PyMethodDef tupleiter_methods[] = {
     {"__length_hint__", (PyCFunction)tupleiter_len, METH_NOARGS, length_hint_doc},
+    {"__reduce__", (PyCFunction)tupleiter_reduce, METH_NOARGS, reduce_doc},
+    {"__setstate__", (PyCFunction)tupleiter_setstate, METH_O, setstate_doc},
     {NULL,              NULL}           /* sentinel */
 };
 

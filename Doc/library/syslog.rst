@@ -30,7 +30,7 @@ The module defines the following functions:
    ``openlog()`` will be called with no arguments.
 
 
-.. function:: openlog([ident[, logopt[, facility]]])
+.. function:: openlog([ident[, logoption[, facility]]])
 
    Logging options of subsequent :func:`syslog` calls can be set by calling
    :func:`openlog`.  :func:`syslog` will call :func:`openlog` with no arguments
@@ -38,7 +38,7 @@ The module defines the following functions:
 
    The optional *ident* keyword argument is a string which is prepended to every
    message, and defaults to ``sys.argv[0]`` with leading path components
-   stripped.  The optional *logopt* keyword argument (default is 0) is a bit
+   stripped.  The optional *logoption* keyword argument (default is 0) is a bit
    field -- see below for possible values to combine.  The optional *facility*
    keyword argument (default is :const:`LOG_USER`) sets the default facility for
    messages which do not have a facility explicitly encoded.
@@ -78,11 +78,14 @@ Priority levels (high to low):
 Facilities:
    :const:`LOG_KERN`, :const:`LOG_USER`, :const:`LOG_MAIL`, :const:`LOG_DAEMON`,
    :const:`LOG_AUTH`, :const:`LOG_LPR`, :const:`LOG_NEWS`, :const:`LOG_UUCP`,
-   :const:`LOG_CRON` and :const:`LOG_LOCAL0` to :const:`LOG_LOCAL7`.
+   :const:`LOG_CRON`, :const:`LOG_SYSLOG`, :const:`LOG_LOCAL0` to
+   :const:`LOG_LOCAL7`, and, if defined in ``<syslog.h>``,
+   :const:`LOG_AUTHPRIV`.
 
 Log options:
-   :const:`LOG_PID`, :const:`LOG_CONS`, :const:`LOG_NDELAY`, :const:`LOG_NOWAIT`
-   and :const:`LOG_PERROR` if defined in ``<syslog.h>``.
+   :const:`LOG_PID`, :const:`LOG_CONS`, :const:`LOG_NDELAY`, and, if defined
+   in ``<syslog.h>``, :const:`LOG_ODELAY`, :const:`LOG_NOWAIT`, and
+   :const:`LOG_PERROR`.
 
 
 Examples
@@ -103,5 +106,5 @@ An example of setting some log options, these would include the process ID in
 logged messages, and write the messages to the destination facility used for
 mail logging::
 
-   syslog.openlog(logopt=syslog.LOG_PID, facility=syslog.LOG_MAIL)
+   syslog.openlog(logoption=syslog.LOG_PID, facility=syslog.LOG_MAIL)
    syslog.syslog('E-mail processing initiated...')

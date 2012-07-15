@@ -24,6 +24,8 @@ alist = [{'astring': 'foo@bar.baz.spam',
           'ashortlong': 2,
           'anotherlist': ['.zyx.41'],
           'abase64': xmlrpclib.Binary(b"my dog has fleas"),
+          'b64bytes': b"my dog has fleas",
+          'b64bytearray': bytearray(b"my dog has fleas"),
           'boolean': False,
           'unicode': '\u4000\u6000\u8000',
           'ukey\u4000': 'regular value',
@@ -44,36 +46,54 @@ class XMLRPCTestCase(unittest.TestCase):
     def test_dump_bare_datetime(self):
         # This checks that an unwrapped datetime.date object can be handled
         # by the marshalling code.  This can't be done via test_dump_load()
-        # since with use_datetime set to 1 the unmarshaller would create
+        # since with use_builtin_types set to 1 the unmarshaller would create
         # datetime objects for the 'datetime[123]' keys as well
         dt = datetime.datetime(2005, 2, 10, 11, 41, 23)
+        self.assertEqual(dt, xmlrpclib.DateTime('20050210T11:41:23'))
         s = xmlrpclib.dumps((dt,))
-        (newdt,), m = xmlrpclib.loads(s, use_datetime=1)
-        self.assertEqual(newdt, dt)
-        self.assertEqual(m, None)
 
-        (newdt,), m = xmlrpclib.loads(s, use_datetime=0)
-        self.assertEqual(newdt, xmlrpclib.DateTime('20050210T11:41:23'))
+        result, m = xmlrpclib.loads(s, use_builtin_types=True)
+        (newdt,) = result
+        self.assertEqual(newdt, dt)
+        self.assertIs(type(newdt), datetime.datetime)
+        self.assertIsNone(m)
+
+        result, m = xmlrpclib.loads(s, use_builtin_types=False)
+        (newdt,) = result
+        self.assertEqual(newdt, dt)
+        self.assertIs(type(newdt), xmlrpclib.DateTime)
+        self.assertIsNone(m)
+
+        result, m = xmlrpclib.loads(s, use_datetime=True)
+        (newdt,) = result
+        self.assertEqual(newdt, dt)
+        self.assertIs(type(newdt), datetime.datetime)
+        self.assertIsNone(m)
+
+        result, m = xmlrpclib.loads(s, use_datetime=False)
+        (newdt,) = result
+        self.assertEqual(newdt, dt)
+        self.assertIs(type(newdt), xmlrpclib.DateTime)
+        self.assertIsNone(m)
+
 
     def test_datetime_before_1900(self):
         # same as before but with a date before 1900
         dt = datetime.datetime(1,  2, 10, 11, 41, 23)
+        self.assertEqual(dt, xmlrpclib.DateTime('00010210T11:41:23'))
         s = xmlrpclib.dumps((dt,))
-        (newdt,), m = xmlrpclib.loads(s, use_datetime=1)
+
+        result, m = xmlrpclib.loads(s, use_builtin_types=True)
+        (newdt,) = result
         self.assertEqual(newdt, dt)
-        self.assertEqual(m, None)
+        self.assertIs(type(newdt), datetime.datetime)
+        self.assertIsNone(m)
 
-        (newdt,), m = xmlrpclib.loads(s, use_datetime=0)
-        self.assertEqual(newdt, xmlrpclib.DateTime('00010210T11:41:23'))
-
-    def test_cmp_datetime_DateTime(self):
-        now = datetime.datetime.now()
-        dt = xmlrpclib.DateTime(now.timetuple())
-        self.assertTrue(dt == now)
-        self.assertTrue(now == dt)
-        then = now + datetime.timedelta(seconds=4)
-        self.assertTrue(then >= dt)
-        self.assertTrue(dt < then)
+        result, m = xmlrpclib.loads(s, use_builtin_types=False)
+        (newdt,) = result
+        self.assertEqual(newdt, dt)
+        self.assertIs(type(newdt), xmlrpclib.DateTime)
+        self.assertIsNone(m)
 
     def test_bug_1164912 (self):
         d = xmlrpclib.DateTime()
@@ -134,6 +154,22 @@ class XMLRPCTestCase(unittest.TestCase):
         self.assertRaises(OverflowError, m.dump_int,
                           xmlrpclib.MININT-1, dummy_write)
 
+    def test_dump_double(self):
+        xmlrpclib.dumps((float(2 ** 34),))
+        xmlrpclib.dumps((float(xmlrpclib.MAXINT),
+                         float(xmlrpclib.MININT)))
+        xmlrpclib.dumps((float(xmlrpclib.MAXINT + 42),
+                         float(xmlrpclib.MININT - 42)))
+
+        def dummy_write(s):
+            pass
+
+        m = xmlrpclib.Marshaller()
+        m.dump_double(xmlrpclib.MAXINT, dummy_write)
+        m.dump_double(xmlrpclib.MININT, dummy_write)
+        m.dump_double(xmlrpclib.MAXINT + 42, dummy_write)
+        m.dump_double(xmlrpclib.MININT - 42, dummy_write)
+
     def test_dump_none(self):
         value = alist + [None]
         arg1 = (alist + [None],)
@@ -141,6 +177,25 @@ class XMLRPCTestCase(unittest.TestCase):
         self.assertEqual(value,
                           xmlrpclib.loads(strg)[0][0])
         self.assertRaises(TypeError, xmlrpclib.dumps, (arg1,))
+
+    def test_dump_bytes(self):
+        sample = b"my dog has fleas"
+        self.assertEqual(sample, xmlrpclib.Binary(sample))
+        for type_ in bytes, bytearray, xmlrpclib.Binary:
+            value = type_(sample)
+            s = xmlrpclib.dumps((value,))
+
+            result, m = xmlrpclib.loads(s, use_builtin_types=True)
+            (newvalue,) = result
+            self.assertEqual(newvalue, sample)
+            self.assertIs(type(newvalue), bytes)
+            self.assertIsNone(m)
+
+            result, m = xmlrpclib.loads(s, use_builtin_types=False)
+            (newvalue,) = result
+            self.assertEqual(newvalue, sample)
+            self.assertIs(type(newvalue), xmlrpclib.Binary)
+            self.assertIsNone(m)
 
     def test_get_host_info(self):
         # see bug #3613, this raised a TypeError
@@ -186,7 +241,7 @@ class FaultTestCase(unittest.TestCase):
         self.assertRaises(xmlrpclib.Fault, xmlrpclib.loads, s)
 
     def test_dotted_attribute(self):
-        # this will raise AttirebuteError because code don't want us to use
+        # this will raise AttributeError because code don't want us to use
         # private methods
         self.assertRaises(AttributeError,
                           xmlrpc.server.resolve_dotted_attribute, str, '__add')
@@ -232,6 +287,45 @@ class DateTimeTestCase(unittest.TestCase):
 
         t2 = xmlrpclib._datetime(d)
         self.assertEqual(t1, tref)
+
+    def test_comparison(self):
+        now = datetime.datetime.now()
+        dtime = xmlrpclib.DateTime(now.timetuple())
+
+        # datetime vs. DateTime
+        self.assertTrue(dtime == now)
+        self.assertTrue(now == dtime)
+        then = now + datetime.timedelta(seconds=4)
+        self.assertTrue(then >= dtime)
+        self.assertTrue(dtime < then)
+
+        # str vs. DateTime
+        dstr = now.strftime("%Y%m%dT%H:%M:%S")
+        self.assertTrue(dtime == dstr)
+        self.assertTrue(dstr == dtime)
+        dtime_then = xmlrpclib.DateTime(then.timetuple())
+        self.assertTrue(dtime_then >= dstr)
+        self.assertTrue(dstr < dtime_then)
+
+        # some other types
+        dbytes = dstr.encode('ascii')
+        dtuple = now.timetuple()
+        with self.assertRaises(TypeError):
+            dtime == 1970
+        with self.assertRaises(TypeError):
+            dtime != dbytes
+        with self.assertRaises(TypeError):
+            dtime == bytearray(dbytes)
+        with self.assertRaises(TypeError):
+            dtime != dtuple
+        with self.assertRaises(TypeError):
+            dtime < float(1970)
+        with self.assertRaises(TypeError):
+            dtime > dbytes
+        with self.assertRaises(TypeError):
+            dtime <= bytearray(dbytes)
+        with self.assertRaises(TypeError):
+            dtime >= dtuple
 
 class BinaryTestCase(unittest.TestCase):
 
@@ -295,7 +389,7 @@ def http_server(evt, numrequests, requestHandler=None):
         global ADDR, PORT, URL
         ADDR, PORT = serv.socket.getsockname()
         #connect to IP address directly.  This avoids socket.create_connection()
-        #trying to connect to to "localhost" using all address families, which
+        #trying to connect to "localhost" using all address families, which
         #causes slowdown e.g. on vista which supports AF_INET6.  The server listens
         #on AF_INET only.
         URL = "http://%s:%d"%(ADDR, PORT)
@@ -346,6 +440,10 @@ def http_multi_server(evt, numrequests, requestHandler=None):
     class MyRequestHandler(requestHandler):
         rpc_paths = []
 
+    class BrokenDispatcher:
+        def _marshaled_dispatch(self, data, dispatch_method=None, path=None):
+            raise RuntimeError("broken dispatcher")
+
     serv = MyXMLRPCServer(("localhost", 0), MyRequestHandler,
                           logRequests=False, bind_and_activate=False)
     serv.socket.settimeout(3)
@@ -354,7 +452,7 @@ def http_multi_server(evt, numrequests, requestHandler=None):
         global ADDR, PORT, URL
         ADDR, PORT = serv.socket.getsockname()
         #connect to IP address directly.  This avoids socket.create_connection()
-        #trying to connect to to "localhost" using all address families, which
+        #trying to connect to "localhost" using all address families, which
         #causes slowdown e.g. on vista which supports AF_INET6.  The server listens
         #on AF_INET only.
         URL = "http://%s:%d"%(ADDR, PORT)
@@ -366,6 +464,7 @@ def http_multi_server(evt, numrequests, requestHandler=None):
             d.register_multicall_functions()
         serv.get_dispatcher(paths[0]).register_function(pow)
         serv.get_dispatcher(paths[1]).register_function(lambda x,y: x+y, 'add')
+        serv.add_dispatcher("/is/broken", BrokenDispatcher())
         evt.set()
 
         # handle up to 'numrequests' requests
@@ -436,12 +535,7 @@ class BaseServerTestCase(unittest.TestCase):
 
     def tearDown(self):
         # wait on the server thread to terminate
-        self.evt.wait(4.0)
-        # XXX this code does not work, and in fact stop_serving doesn't exist.
-        if not self.evt.is_set():
-            self.evt.set()
-            stop_serving()
-            raise RuntimeError("timeout reached, test has failed")
+        self.evt.wait()
 
         # disable traceback reporting
         xmlrpc.server.SimpleXMLRPCServer._send_traceback_header = False
@@ -584,6 +678,17 @@ class SimpleServerTestCase(BaseServerTestCase):
         # This avoids waiting for the socket timeout.
         self.test_simple1()
 
+    def test_unicode_host(self):
+        server = xmlrpclib.ServerProxy("http://%s:%d/RPC2" % (ADDR, PORT))
+        self.assertEqual(server.add("a", "\xe9"), "a\xe9")
+
+    def test_partial_post(self):
+        # Check that a partial POST doesn't make the server loop: issue #14001.
+        conn = http.client.HTTPConnection(ADDR, PORT)
+        conn.request('POST', '/RPC2 HTTP/1.0\r\nContent-Length: 100\r\n\r\nbye')
+        conn.close()
+
+
 class MultiPathServerTestCase(BaseServerTestCase):
     threadFunc = staticmethod(http_multi_server)
     request_count = 2
@@ -591,10 +696,15 @@ class MultiPathServerTestCase(BaseServerTestCase):
         p = xmlrpclib.ServerProxy(URL+"/foo")
         self.assertEqual(p.pow(6,8), 6**8)
         self.assertRaises(xmlrpclib.Fault, p.add, 6, 8)
+
     def test_path2(self):
         p = xmlrpclib.ServerProxy(URL+"/foo/bar")
         self.assertEqual(p.add(6,8), 6+8)
         self.assertRaises(xmlrpclib.Fault, p.pow, 6, 8)
+
+    def test_path3(self):
+        p = xmlrpclib.ServerProxy(URL+"/is/broken")
+        self.assertRaises(xmlrpclib.Fault, p.add, 6, 8)
 
 #A test case that verifies that a server using the HTTP/1.1 keep-alive mechanism
 #does indeed serve subsequent requests on the same connection
@@ -931,10 +1041,44 @@ class CGIHandlerTestCase(unittest.TestCase):
             len(content))
 
 
+class UseBuiltinTypesTestCase(unittest.TestCase):
+
+    def test_use_builtin_types(self):
+        # SimpleXMLRPCDispatcher.__init__ accepts use_builtin_types, which
+        # makes all dispatch of binary data as bytes instances, and all
+        # dispatch of datetime argument as datetime.datetime instances.
+        self.log = []
+        expected_bytes = b"my dog has fleas"
+        expected_date = datetime.datetime(2008, 5, 26, 18, 25, 12)
+        marshaled = xmlrpclib.dumps((expected_bytes, expected_date), 'foobar')
+        def foobar(*args):
+            self.log.extend(args)
+        handler = xmlrpc.server.SimpleXMLRPCDispatcher(
+            allow_none=True, encoding=None, use_builtin_types=True)
+        handler.register_function(foobar)
+        handler._marshaled_dispatch(marshaled)
+        self.assertEqual(len(self.log), 2)
+        mybytes, mydate = self.log
+        self.assertEqual(self.log, [expected_bytes, expected_date])
+        self.assertIs(type(mydate), datetime.datetime)
+        self.assertIs(type(mybytes), bytes)
+
+    def test_cgihandler_has_use_builtin_types_flag(self):
+        handler = xmlrpc.server.CGIXMLRPCRequestHandler(use_builtin_types=True)
+        self.assertTrue(handler.use_builtin_types)
+
+    def test_xmlrpcserver_has_use_builtin_types_flag(self):
+        server = xmlrpc.server.SimpleXMLRPCServer(("localhost", 0),
+            use_builtin_types=True)
+        server.server_close()
+        self.assertTrue(server.use_builtin_types)
+
+
 @support.reap_threads
 def test_main():
     xmlrpc_tests = [XMLRPCTestCase, HelperTestCase, DateTimeTestCase,
          BinaryTestCase, FaultTestCase]
+    xmlrpc_tests.append(UseBuiltinTypesTestCase)
     xmlrpc_tests.append(SimpleServerTestCase)
     xmlrpc_tests.append(KeepaliveServerTestCase1)
     xmlrpc_tests.append(KeepaliveServerTestCase2)

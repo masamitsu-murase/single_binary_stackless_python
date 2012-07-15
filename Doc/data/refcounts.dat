@@ -376,6 +376,8 @@ PyEval_EvalCode:PyCodeObject*:co:0:
 PyEval_EvalCode:PyObject*:globals:0:
 PyEval_EvalCode:PyObject*:locals:0:
 
+PyException_GetTraceback:PyObject*::+1:
+
 PyFile_AsFile:FILE*:::
 PyFile_AsFile:PyFileObject*:p:0:
 
@@ -462,6 +464,11 @@ PyFunction_GetModule:PyObject*:op:0:
 PyFunction_New:PyObject*::+1:
 PyFunction_New:PyObject*:code:+1:
 PyFunction_New:PyObject*:globals:+1:
+
+PyFunction_NewWithQualName:PyObject*::+1:
+PyFunction_NewWithQualName:PyObject*:code:+1:
+PyFunction_NewWithQualName:PyObject*:globals:+1:
+PyFunction_NewWithQualName:PyObject*:qualname:+1:
 
 PyFunction_SetClosure:int:::
 PyFunction_SetClosure:PyObject*:op:0:

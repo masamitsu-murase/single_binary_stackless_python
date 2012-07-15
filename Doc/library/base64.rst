@@ -18,9 +18,14 @@ POST request.  The encoding algorithm is not the same as the
 
 There are two interfaces provided by this module.  The modern interface
 supports encoding and decoding ASCII byte string objects using all three
-alphabets.  The legacy interface provides for encoding and decoding to and from
-file-like objects as well as byte strings, but only using the Base64 standard
-alphabet.
+alphabets. Additionally, the decoding functions of the modern interface also
+accept Unicode strings containing only ASCII characters. The legacy interface
+provides for encoding and decoding to and from file-like objects as well as
+byte strings, but only using the Base64 standard alphabet.
+
+.. versionchanged:: 3.3
+   ASCII-only Unicode strings are now accepted by the decoding functions of
+   the modern interface.
 
 The modern interface provides:
 
@@ -45,8 +50,8 @@ The modern interface provides:
    at least length 2 (additional characters are ignored) which specifies the
    alternative alphabet used instead of the ``+`` and ``/`` characters.
 
-   The decoded string is returned.  A `binascii.Error` is raised if *s* is
-   incorrectly padded.
+   The decoded string is returned.  A :exc:`binascii.Error` exception is raised
+   if *s* is incorrectly padded.
 
    If *validate* is ``False`` (the default), non-base64-alphabet characters are
    discarded prior to the padding check.  If *validate* is ``True``,

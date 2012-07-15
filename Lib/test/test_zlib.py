@@ -3,14 +3,20 @@ from test import support
 import binascii
 import random
 import sys
-from test.support import precisionbigmemtest, _1G, _4G
+from test.support import bigmemtest, _1G, _4G
 
 zlib = support.import_module('zlib')
 
-try:
-    import mmap
-except ImportError:
-    mmap = None
+
+class VersionTestCase(unittest.TestCase):
+
+    def test_library_version(self):
+        # Test that the major version of the actual library in use matches the
+        # major version that we were compiled against. We can't guarantee that
+        # the minor versions will match (even on the machine on which the module
+        # was compiled), and the API is stable between minor versions, so
+        # testing only the major versions avoids spurious failures.
+        self.assertEqual(zlib.ZLIB_RUNTIME_VERSION[0], zlib.ZLIB_VERSION[0])
 
 
 class ChecksumTestCase(unittest.TestCase):
@@ -66,24 +72,11 @@ class ChecksumTestCase(unittest.TestCase):
 # Issue #10276 - check that inputs >=4GB are handled correctly.
 class ChecksumBigBufferTestCase(unittest.TestCase):
 
-    def setUp(self):
-        with open(support.TESTFN, "wb+") as f:
-            f.seek(_4G)
-            f.write(b"asdf")
-            f.flush()
-            self.mapping = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
-
-    def tearDown(self):
-        self.mapping.close()
-        support.unlink(support.TESTFN)
-
-    @unittest.skipUnless(mmap, "mmap() is not available.")
-    @unittest.skipUnless(sys.maxsize > _4G, "Can't run on a 32-bit system.")
-    @unittest.skipUnless(support.is_resource_enabled("largefile"),
-                         "May use lots of disk space.")
-    def test_big_buffer(self):
-        self.assertEqual(zlib.crc32(self.mapping), 3058686908)
-        self.assertEqual(zlib.adler32(self.mapping), 82837919)
+    @bigmemtest(size=_4G + 4, memuse=1, dry_run=False)
+    def test_big_buffer(self, size):
+        data = b"nyan" * (_1G + 1)
+        self.assertEqual(zlib.crc32(data), 1044521549)
+        self.assertEqual(zlib.adler32(data), 2256789997)
 
 
 class ExceptionTestCase(unittest.TestCase):
@@ -177,19 +170,17 @@ class CompressTestCase(BaseCompressTestCase, unittest.TestCase):
 
     # Memory use of the following functions takes into account overallocation
 
-    @precisionbigmemtest(size=_1G + 1024 * 1024, memuse=3)
+    @bigmemtest(size=_1G + 1024 * 1024, memuse=3)
     def test_big_compress_buffer(self, size):
         compress = lambda s: zlib.compress(s, 1)
         self.check_big_compress_buffer(size, compress)
 
-    @precisionbigmemtest(size=_1G + 1024 * 1024, memuse=2)
+    @bigmemtest(size=_1G + 1024 * 1024, memuse=2)
     def test_big_decompress_buffer(self, size):
         self.check_big_decompress_buffer(size, zlib.decompress)
 
-    @precisionbigmemtest(size=_4G + 100, memuse=1)
+    @bigmemtest(size=_4G + 100, memuse=1, dry_run=False)
     def test_length_overflow(self, size):
-        if size < _4G + 100:
-            self.skipTest("not enough free memory, need at least 4 GB")
         data = b'x' * size
         try:
             self.assertRaises(OverflowError, zlib.compress, data, 1)
@@ -434,6 +425,35 @@ class CompressObjectTestCase(BaseCompressTestCase, unittest.TestCase):
         dco = zlib.decompressobj()
         self.assertEqual(dco.flush(), b"") # Returns nothing
 
+    def test_dictionary(self):
+        h = HAMLET_SCENE
+        # Build a simulated dictionary out of the words in HAMLET.
+        words = h.split()
+        random.shuffle(words)
+        zdict = b''.join(words)
+        # Use it to compress HAMLET.
+        co = zlib.compressobj(zdict=zdict)
+        cd = co.compress(h) + co.flush()
+        # Verify that it will decompress with the dictionary.
+        dco = zlib.decompressobj(zdict=zdict)
+        self.assertEqual(dco.decompress(cd) + dco.flush(), h)
+        # Verify that it fails when not given the dictionary.
+        dco = zlib.decompressobj()
+        self.assertRaises(zlib.error, dco.decompress, cd)
+
+    def test_dictionary_streaming(self):
+        # This simulates the reuse of a compressor object for compressing
+        # several separate data streams.
+        co = zlib.compressobj(zdict=HAMLET_SCENE)
+        do = zlib.decompressobj(zdict=HAMLET_SCENE)
+        piece = HAMLET_SCENE[1000:1500]
+        d0 = co.compress(piece) + co.flush(zlib.Z_SYNC_FLUSH)
+        d1 = co.compress(piece[100:]) + co.flush(zlib.Z_SYNC_FLUSH)
+        d2 = co.compress(piece[:-100]) + co.flush(zlib.Z_SYNC_FLUSH)
+        self.assertEqual(do.decompress(d0), piece)
+        self.assertEqual(do.decompress(d1), piece[100:])
+        self.assertEqual(do.decompress(d2), piece[:-100])
+
     def test_decompress_incomplete_stream(self):
         # This is 'foo', deflated
         x = b'x\x9cK\xcb\xcf\x07\x00\x02\x82\x01E'
@@ -446,6 +466,26 @@ class CompressObjectTestCase(BaseCompressTestCase, unittest.TestCase):
         y = dco.decompress(x[:-5])
         y += dco.flush()
         self.assertEqual(y, b'foo')
+
+    def test_decompress_eof(self):
+        x = b'x\x9cK\xcb\xcf\x07\x00\x02\x82\x01E'  # 'foo'
+        dco = zlib.decompressobj()
+        self.assertFalse(dco.eof)
+        dco.decompress(x[:-5])
+        self.assertFalse(dco.eof)
+        dco.decompress(x[-5:])
+        self.assertTrue(dco.eof)
+        dco.flush()
+        self.assertTrue(dco.eof)
+
+    def test_decompress_eof_incomplete_stream(self):
+        x = b'x\x9cK\xcb\xcf\x07\x00\x02\x82\x01E'  # 'foo'
+        dco = zlib.decompressobj()
+        self.assertFalse(dco.eof)
+        dco.decompress(x[:-5])
+        self.assertFalse(dco.eof)
+        dco.flush()
+        self.assertFalse(dco.eof)
 
     if hasattr(zlib.compressobj(), "copy"):
         def test_compresscopy(self):
@@ -511,22 +551,20 @@ class CompressObjectTestCase(BaseCompressTestCase, unittest.TestCase):
 
     # Memory use of the following functions takes into account overallocation
 
-    @precisionbigmemtest(size=_1G + 1024 * 1024, memuse=3)
+    @bigmemtest(size=_1G + 1024 * 1024, memuse=3)
     def test_big_compress_buffer(self, size):
         c = zlib.compressobj(1)
         compress = lambda s: c.compress(s) + c.flush()
         self.check_big_compress_buffer(size, compress)
 
-    @precisionbigmemtest(size=_1G + 1024 * 1024, memuse=2)
+    @bigmemtest(size=_1G + 1024 * 1024, memuse=2)
     def test_big_decompress_buffer(self, size):
         d = zlib.decompressobj()
         decompress = lambda s: d.decompress(s) + d.flush()
         self.check_big_decompress_buffer(size, decompress)
 
-    @precisionbigmemtest(size=_4G + 100, memuse=1)
+    @bigmemtest(size=_4G + 100, memuse=1, dry_run=False)
     def test_length_overflow(self, size):
-        if size < _4G + 100:
-            self.skipTest("not enough free memory, need at least 4 GB")
         data = b'x' * size
         c = zlib.compressobj(1)
         d = zlib.decompressobj()
@@ -627,6 +665,7 @@ LAERTES
 
 def test_main():
     support.run_unittest(
+        VersionTestCase,
         ChecksumTestCase,
         ChecksumBigBufferTestCase,
         ExceptionTestCase,

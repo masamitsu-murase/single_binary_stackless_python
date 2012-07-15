@@ -36,13 +36,12 @@ General notes on the underlying Mersenne Twister core generator:
 
 """
 
-from __future__ import division
 from warnings import warn as _warn
 from types import MethodType as _MethodType, BuiltinMethodType as _BuiltinMethodType
 from math import log as _log, exp as _exp, pi as _pi, e as _e, ceil as _ceil
 from math import sqrt as _sqrt, acos as _acos, cos as _cos, sin as _sin
 from os import urandom as _urandom
-from collections import Set as _Set, Sequence as _Sequence
+from collections.abc import Set as _Set, Sequence as _Sequence
 from hashlib import sha512 as _sha512
 
 __all__ = ["Random","seed","random","uniform","randint","choice","sample",
@@ -97,7 +96,7 @@ class Random(_random.Random):
         None or no argument seeds from current time or from an operating
         system specific randomness source if available.
 
-        For version 2 (the default), all of the bits are used if *a *is a str,
+        For version 2 (the default), all of the bits are used if *a* is a str,
         bytes, or bytearray.  For version 1, the hash() of *a* is used instead.
 
         If *a* is an int, all bits are used.

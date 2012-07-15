@@ -108,6 +108,10 @@ class DummyPOP3Handler(asynchat.async_chat):
     def cmd_apop(self, arg):
         self.push('+OK done nothing.')
 
+    def cmd_quit(self, arg):
+        self.push('+OK closing.')
+        self.close_when_done()
+
 
 class DummyPOP3Server(asyncore.dispatcher, threading.Thread):
 
@@ -165,10 +169,10 @@ class TestPOP3Class(TestCase):
     def setUp(self):
         self.server = DummyPOP3Server((HOST, PORT))
         self.server.start()
-        self.client = poplib.POP3(self.server.host, self.server.port)
+        self.client = poplib.POP3(self.server.host, self.server.port, timeout=3)
 
     def tearDown(self):
-        self.client.quit()
+        self.client.close()
         self.server.stop()
 
     def test_getwelcome(self):
@@ -228,6 +232,12 @@ class TestPOP3Class(TestCase):
         self.client.uidl()
         self.client.uidl('foo')
 
+    def test_quit(self):
+        resp = self.client.quit()
+        self.assertTrue(resp)
+        self.assertIsNone(self.client.sock)
+        self.assertIsNone(self.client.file)
+
 
 SUPPORTS_SSL = False
 if hasattr(poplib, 'POP3_SSL'):
@@ -274,6 +284,7 @@ if hasattr(poplib, 'POP3_SSL'):
             else:
                 DummyPOP3Handler.handle_read(self)
 
+
     class TestPOP3_SSLClass(TestPOP3Class):
         # repeat previous tests by using poplib.POP3_SSL
 
@@ -309,32 +320,34 @@ class TestTimeouts(TestCase):
     def setUp(self):
         self.evt = threading.Event()
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.settimeout(3)
+        self.sock.settimeout(60)  # Safety net. Look issue 11812
         self.port = test_support.bind_port(self.sock)
-        threading.Thread(target=self.server, args=(self.evt,self.sock)).start()
-        time.sleep(.1)
+        self.thread = threading.Thread(target=self.server, args=(self.evt,self.sock))
+        self.thread.setDaemon(True)
+        self.thread.start()
+        self.evt.wait()
 
     def tearDown(self):
-        self.evt.wait()
+        self.thread.join()
+        del self.thread  # Clear out any dangling Thread objects.
 
     def server(self, evt, serv):
         serv.listen(5)
+        evt.set()
         try:
             conn, addr = serv.accept()
-        except socket.timeout:
-            pass
-        else:
             conn.send(b"+ Hola mundo\n")
             conn.close()
+        except socket.timeout:
+            pass
         finally:
             serv.close()
-            evt.set()
 
     def testTimeoutDefault(self):
         self.assertTrue(socket.getdefaulttimeout() is None)
         socket.setdefaulttimeout(30)
         try:
-            pop = poplib.POP3("localhost", self.port)
+            pop = poplib.POP3(HOST, self.port)
         finally:
             socket.setdefaulttimeout(None)
         self.assertEqual(pop.sock.gettimeout(), 30)
@@ -351,7 +364,7 @@ class TestTimeouts(TestCase):
         pop.sock.close()
 
     def testTimeoutValue(self):
-        pop = poplib.POP3("localhost", self.port, timeout=30)
+        pop = poplib.POP3(HOST, self.port, timeout=30)
         self.assertEqual(pop.sock.gettimeout(), 30)
         pop.sock.close()
 

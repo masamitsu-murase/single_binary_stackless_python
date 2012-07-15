@@ -339,6 +339,15 @@ and also the following constants for integer status codes:
 | :const:`UPGRADE_REQUIRED`                | ``426`` | HTTP Upgrade to TLS,                                                  |
 |                                          |         | :rfc:`2817`, Section 6                                                |
 +------------------------------------------+---------+-----------------------------------------------------------------------+
+| :const:`PRECONDITION_REQUIRED`           | ``428`` | Additional HTTP Status Codes,                                         |
+|                                          |         | :rfc:`6585`, Section 3                                                |
++------------------------------------------+---------+-----------------------------------------------------------------------+
+| :const:`TOO_MANY_REQUESTS`               | ``429`` | Additional HTTP Status Codes,                                         |
+|                                          |         | :rfc:`6585`, Section 4                                                |
++------------------------------------------+---------+-----------------------------------------------------------------------+
+| :const:`REQUEST_HEADER_FIELDS_TOO_LARGE` | ``431`` | Additional HTTP Status Codes,                                         |
+|                                          |         | :rfc:`6585`, Section 5                                                |
++------------------------------------------+---------+-----------------------------------------------------------------------+
 | :const:`INTERNAL_SERVER_ERROR`           | ``500`` | HTTP/1.1, `RFC 2616, Section                                          |
 |                                          |         | 10.5.1                                                                |
 |                                          |         | <http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.5.1>`_  |
@@ -369,6 +378,12 @@ and also the following constants for integer status codes:
 | :const:`NOT_EXTENDED`                    | ``510`` | An HTTP Extension Framework,                                          |
 |                                          |         | :rfc:`2774`, Section 7                                                |
 +------------------------------------------+---------+-----------------------------------------------------------------------+
+| :const:`NETWORK_AUTHENTICATION_REQUIRED` | ``511`` | Additional HTTP Status Codes,                                         |
+|                                          |         | :rfc:`6585`, Section 6                                                |
++------------------------------------------+---------+-----------------------------------------------------------------------+
+
+.. versionchanged:: 3.3
+   Added codes ``428``, ``429``, ``431`` and ``511`` from :rfc:`6585`.
 
 
 .. data:: responses
@@ -435,7 +450,7 @@ HTTPConnection Objects
    Set the host and the port for HTTP Connect Tunnelling. Normally used when it
    is required to a HTTPS Connection through a proxy server.
 
-   The headers argument should be a mapping of extra HTTP headers to to sent
+   The headers argument should be a mapping of extra HTTP headers to send
    with the CONNECT request.
 
    .. versionadded:: 3.2
@@ -472,10 +487,13 @@ also send your request step by step, by using the four functions below.
    an argument.
 
 
-.. method:: HTTPConnection.endheaders()
+.. method:: HTTPConnection.endheaders(message_body=None)
 
-   Send a blank line to the server, signalling the end of the headers.
-
+   Send a blank line to the server, signalling the end of the headers. The
+   optional *message_body* argument can be used to pass a message body
+   associated with the request.  The message body will be sent in the same
+   packet as the message headers if it is string, otherwise it is sent in a
+   separate packet.
 
 .. method:: HTTPConnection.send(data)
 
@@ -499,6 +517,12 @@ statement.
 
    Reads and returns the response body, or up to the next *amt* bytes.
 
+.. method:: HTTPResponse.readinto(b)
+
+   Reads up to the next len(b) bytes of the response body into the buffer *b*.
+   Returns the number of bytes read.
+
+   .. versionadded:: 3.3
 
 .. method:: HTTPResponse.getheader(name, default=None)
 

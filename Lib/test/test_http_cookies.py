@@ -34,6 +34,15 @@ class CookieTests(unittest.TestCase):
              'dict': {'keebler' : 'E=mc2'},
              'repr': "<SimpleCookie: keebler='E=mc2'>",
              'output': 'Set-Cookie: keebler=E=mc2'},
+
+            # Cookies with ':' character in their name. Though not mentioned in
+            # RFC, servers / browsers allow it.
+
+             {'data': 'key:term=value:term',
+             'dict': {'key:term' : 'value:term'},
+             'repr': "<SimpleCookie: key:term='value:term'>",
+             'output': 'Set-Cookie: key:term=value:term'},
+
         ]
 
         for case in cases:
@@ -86,13 +95,13 @@ class CookieTests(unittest.TestCase):
 
         # loading 'expires'
         C = cookies.SimpleCookie()
-        C.load('Customer="W"; expires=Wed, 01-Jan-2010 00:00:00 GMT')
+        C.load('Customer="W"; expires=Wed, 01 Jan 2010 00:00:00 GMT')
         self.assertEqual(C['Customer']['expires'],
-                         'Wed, 01-Jan-2010 00:00:00 GMT')
+                         'Wed, 01 Jan 2010 00:00:00 GMT')
         C = cookies.SimpleCookie()
-        C.load('Customer="W"; expires=Wed, 01-Jan-98 00:00:00 GMT')
+        C.load('Customer="W"; expires=Wed, 01 Jan 98 00:00:00 GMT')
         self.assertEqual(C['Customer']['expires'],
-                         'Wed, 01-Jan-98 00:00:00 GMT')
+                         'Wed, 01 Jan 98 00:00:00 GMT')
 
         # 'max-age'
         C = cookies.SimpleCookie('Customer="WILE_E_COYOTE"')

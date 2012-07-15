@@ -6,6 +6,7 @@
 #include <locale.h>
 
 #ifdef __VMS
+#error "PEP 11: VMS is now unsupported, code will be removed in Python 3.4"
 #include <unixlib.h>
 #endif
 
@@ -46,7 +47,7 @@ static wchar_t **orig_argv;
 static int  orig_argc;
 
 /* command line options */
-#define BASE_OPTS L"bBc:dEhiJm:OqsStuvVW:xX:?"
+#define BASE_OPTS L"bBc:dEhiJm:OqRsStuvVW:xX:?"
 
 #define PROGRAM_OPTS BASE_OPTS
 
@@ -100,7 +101,14 @@ static char *usage_5 =
 "               The default module search path uses %s.\n"
 "PYTHONCASEOK : ignore case in 'import' statements (Windows).\n"
 "PYTHONIOENCODING: Encoding[:errors] used for stdin/stdout/stderr.\n"
-;
+"PYTHONFAULTHANDLER: dump the Python traceback on fatal errors.\n\
+";
+static char *usage_6 = "\
+PYTHONHASHSEED: if this variable is set to 'random', a random value is used\n\
+   to seed the hashes of str, bytes and datetime objects.  It can also be\n\
+   set to an integer in the range [0,4294967295] to get hash values with a\n\
+   predictable seed.\n\
+";
 
 static int
 usage(int exitcode, wchar_t* program)
@@ -116,6 +124,7 @@ usage(int exitcode, wchar_t* program)
         fputs(usage_3, f);
         fprintf(f, usage_4, DELIM);
         fprintf(f, usage_5, DELIM, PYTHONHOMEHELP);
+        fputs(usage_6, f);
     }
 #if defined(__VMS)
     if (exitcode == 0) {
@@ -215,7 +224,7 @@ RunMainFromImporter(wchar_t *filename)
     if (importer == NULL)
         goto error;
 
-    if (importer->ob_type == &PyNullImporter_Type) {
+    if (importer == Py_None) {
         Py_DECREF(argv0);
         Py_DECREF(importer);
         return -1;
@@ -327,7 +336,25 @@ Py_Main(int argc, wchar_t **argv)
     orig_argc = argc;           /* For Py_GetArgcArgv() */
     orig_argv = argv;
 
+    /* Hash randomization needed early for all string operations
+       (including -W and -X options). */
+    while ((c = _PyOS_GetOpt(argc, argv, PROGRAM_OPTS)) != EOF) {
+        if (c == 'm' || c == 'c') {
+            /* -c / -m is the last option: following arguments are
+               not interpreter options. */
+            break;
+        }
+        if (c == 'E') {
+            Py_IgnoreEnvironmentFlag++;
+            break;
+        }
+    }
+
+    Py_HashRandomizationFlag = 1;
+    _PyRandom_Init();
+
     PySys_ResetWarnOptions();
+    _PyOS_ResetGetOpt();
 
     while ((c = _PyOS_GetOpt(argc, argv, PROGRAM_OPTS)) != EOF) {
         if (c == 'c') {
@@ -388,7 +415,7 @@ Py_Main(int argc, wchar_t **argv)
             break;
 
         case 'E':
-            Py_IgnoreEnvironmentFlag++;
+            /* Already handled above */
             break;
 
         case 't':
@@ -427,6 +454,10 @@ Py_Main(int argc, wchar_t **argv)
 
         case 'q':
             Py_QuietFlag++;
+            break;
+
+        case 'R':
+            /* Ignored */
             break;
 
         /* This space reserved for other options */
@@ -493,16 +524,13 @@ Py_Main(int argc, wchar_t **argv)
             /* Use utf-8 on Mac OS X */
             unicode = PyUnicode_FromString(p);
 #else
-            wchar_t *wchar;
-            size_t len;
-            wchar = _Py_char2wchar(p, &len);
-            if (wchar == NULL)
-                continue;
-            unicode = PyUnicode_FromWideChar(wchar, len);
-            PyMem_Free(wchar);
+            unicode = PyUnicode_DecodeLocale(p, "surrogateescape");
 #endif
-            if (unicode == NULL)
+            if (unicode == NULL) {
+                /* ignore errors */
+                PyErr_Clear();
                 continue;
+            }
             PySys_AddWarnOptionUnicode(unicode);
             Py_DECREF(unicode);
         }
@@ -577,7 +605,6 @@ Py_Main(int argc, wchar_t **argv)
     if ((p = Py_GETENV("PYTHONEXECUTABLE")) && *p != '\0') {
         wchar_t* buffer;
         size_t len = strlen(p);
-        size_t r;
 
         buffer = malloc(len * sizeof(wchar_t));
         if (buffer == NULL) {
@@ -585,7 +612,7 @@ Py_Main(int argc, wchar_t **argv)
                "not enough memory to copy PYTHONEXECUTABLE");
         }
 
-        r = mbstowcs(buffer, p, len);
+        mbstowcs(buffer, p, len);
         Py_SetProgramName(buffer);
         /* buffer is now handed off - do not free */
     } else {
@@ -633,7 +660,7 @@ Py_Main(int argc, wchar_t **argv)
         sts = run_command(command, &cf);
         free(command);
     } else if (module) {
-        sts = RunModule(module, 1);
+        sts = (RunModule(module, 1) != 0);
     }
     else {
 
@@ -654,13 +681,14 @@ Py_Main(int argc, wchar_t **argv)
             if (fp == NULL) {
                 char *cfilename_buffer;
                 const char *cfilename;
+                int err = errno;
                 cfilename_buffer = _Py_wchar2char(filename, NULL);
                 if (cfilename_buffer != NULL)
                     cfilename = cfilename_buffer;
                 else
                     cfilename = "<unprintable file name>";
                 fprintf(stderr, "%ls: can't open file '%s': [Errno %d] %s\n",
-                    argv[0], cfilename, errno, strerror(errno));
+                    argv[0], cfilename, err, strerror(err));
                 if (cfilename_buffer)
                     PyMem_Free(cfilename_buffer);
                 return 2;

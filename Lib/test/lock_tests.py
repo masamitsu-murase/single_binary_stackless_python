@@ -4,7 +4,7 @@ Various tests for synchronization primitives.
 
 import sys
 import time
-from _thread import start_new_thread, get_ident, TIMEOUT_MAX
+from _thread import start_new_thread, TIMEOUT_MAX
 import threading
 import unittest
 
@@ -31,7 +31,7 @@ class Bunch(object):
         self.finished = []
         self._can_exit = not wait_before_exit
         def task():
-            tid = get_ident()
+            tid = threading.get_ident()
             self.started.append(tid)
             try:
                 f()
@@ -255,6 +255,18 @@ class RLockTests(BaseLockTests):
         lock.release()
         self.assertRaises(RuntimeError, lock.release)
 
+    def test_release_save_unacquired(self):
+        # Cannot _release_save an unacquired lock
+        lock = self.locktype()
+        self.assertRaises(RuntimeError, lock._release_save)
+        lock.acquire()
+        lock.acquire()
+        lock.release()
+        lock.acquire()
+        lock.release()
+        lock.release()
+        self.assertRaises(RuntimeError, lock._release_save)
+
     def test_different_thread(self):
         # Cannot release from a different thread
         lock = self.locktype()
@@ -350,6 +362,22 @@ class EventTests(BaseTestCase):
         self.assertEqual(results1, [True] * N)
         for r, dt in results2:
             self.assertTrue(r)
+
+    def test_set_and_clear(self):
+        # Issue #13502: check that wait() returns true even when the event is
+        # cleared before the waiting thread is woken up.
+        evt = self.eventtype()
+        results = []
+        N = 5
+        def f():
+            results.append(evt.wait(1))
+        b = Bunch(f, N)
+        b.wait_for_started()
+        time.sleep(0.5)
+        evt.set()
+        evt.clear()
+        b.wait_for_finished()
+        self.assertEqual(results, [True] * N)
 
 
 class ConditionTests(BaseTestCase):
