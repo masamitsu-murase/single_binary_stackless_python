@@ -610,9 +610,10 @@ need to log to a single file from multiple processes, one way of doing this is
 to have all the processes log to a :class:`SocketHandler`, and have a separate
 process which implements a socket server which reads from the socket and logs
 to file. (If you prefer, you can dedicate one thread in one of the existing
-processes to perform this function.) The following section documents this
-approach in more detail and includes a working socket receiver which can be
-used as a starting point for you to adapt in your own applications.
+processes to perform this function.) :ref:`This section <network-logging>`
+documents this approach in more detail and includes a working socket receiver
+which can be used as a starting point for you to adapt in your own
+applications.
 
 If you are using a recent version of Python which includes the
 :mod:`multiprocessing` module, you could write your own handler which uses the
@@ -679,6 +680,113 @@ and each time it reaches the size limit it is renamed with the suffix
 ``.1``. Each of the existing backup files is renamed to increment the suffix
 (``.1`` becomes ``.2``, etc.)  and the ``.6`` file is erased.
 
-Obviously this example sets the log length much much too small as an extreme
+Obviously this example sets the log length much too small as an extreme
 example.  You would want to set *maxBytes* to an appropriate value.
+
+An example dictionary-based configuration
+-----------------------------------------
+
+Below is an example of a logging configuration dictionary - it's taken from
+the `documentation on the Django project <https://docs.djangoproject.com/en/1.3/topics/logging/#configuring-logging>`_.
+This dictionary is passed to :func:`~logging.config.dictConfig` to put the configuration into effect::
+
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': True,
+        'formatters': {
+            'verbose': {
+                'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s'
+            },
+            'simple': {
+                'format': '%(levelname)s %(message)s'
+            },
+        },
+        'filters': {
+            'special': {
+                '()': 'project.logging.SpecialFilter',
+                'foo': 'bar',
+            }
+        },
+        'handlers': {
+            'null': {
+                'level':'DEBUG',
+                'class':'django.utils.log.NullHandler',
+            },
+            'console':{
+                'level':'DEBUG',
+                'class':'logging.StreamHandler',
+                'formatter': 'simple'
+            },
+            'mail_admins': {
+                'level': 'ERROR',
+                'class': 'django.utils.log.AdminEmailHandler',
+                'filters': ['special']
+            }
+        },
+        'loggers': {
+            'django': {
+                'handlers':['null'],
+                'propagate': True,
+                'level':'INFO',
+            },
+            'django.request': {
+                'handlers': ['mail_admins'],
+                'level': 'ERROR',
+                'propagate': False,
+            },
+            'myproject.custom': {
+                'handlers': ['console', 'mail_admins'],
+                'level': 'INFO',
+                'filters': ['special']
+            }
+        }
+    }
+
+For more information about this configuration, you can see the `relevant
+section <https://docs.djangoproject.com/en/1.3/topics/logging/#configuring-logging>`_
+of the Django documentation.
+
+Inserting a BOM into messages sent to a SysLogHandler
+-----------------------------------------------------
+
+`RFC 5424 <http://tools.ietf.org/html/rfc5424>`_ requires that a
+Unicode message be sent to a syslog daemon as a set of bytes which have the
+following structure: an optional pure-ASCII component, followed by a UTF-8 Byte
+Order Mark (BOM), followed by Unicode encoded using UTF-8. (See the `relevant
+section of the specification <http://tools.ietf.org/html/rfc5424#section-6>`_.)
+
+In Python 2.6 and 2.7, code was added to
+:class:`~logging.handlers.SysLogHandler` to insert a BOM into the message, but
+unfortunately, it was implemented incorrectly, with the BOM appearing at the
+beginning of the message and hence not allowing any pure-ASCII component to
+appear before it.
+
+As this behaviour is broken, the incorrect BOM insertion code is being removed
+from Python 2.7.4 and later. However, it is not being replaced, and if you
+want to produce RFC 5424-compliant messages which includes a BOM, an optional
+pure-ASCII sequence before it and arbitrary Unicode after it, encoded using
+UTF-8, then you need to do the following:
+
+#. Attach a :class:`~logging.Formatter` instance to your
+   :class:`~logging.handlers.SysLogHandler` instance, with a format string
+   such as::
+
+      u'ASCII section\ufeffUnicode section'
+
+   The Unicode code point ``u'\feff```, when encoded using UTF-8, will be
+   encoded as a UTF-8 BOM -- the byte-string ``'\xef\xbb\xbf'``.
+
+#. Replace the ASCII section with whatever placeholders you like, but make sure
+   that the data that appears in there after substitution is always ASCII (that
+   way, it will remain unchanged after UTF-8 encoding).
+
+#. Replace the Unicode section with whatever placeholders you like; if the data
+   which appears there after substitution is Unicode, that's fine -- it will be
+   encoded using UTF-8.
+
+If the formatted message is Unicode, it *will* be encoded using UTF-8 encoding
+by ``SysLogHandler``. If you follow the above rules, you should be able to
+produce RFC 5424-compliant messages. If you don't, logging may not complain,
+but your messages will not be RFC 5424-compliant, and your syslog daemon may
+complain.
 

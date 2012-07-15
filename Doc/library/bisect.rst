@@ -7,19 +7,18 @@
 .. sectionauthor:: Raymond Hettinger <python at rcn.com>
 .. example based on the PyModules FAQ entry by Aaron Watters <arw@pythonpros.com>
 
+.. versionadded:: 2.1
+
+**Source code:** :source:`Lib/bisect.py`
+
+--------------
+
 This module provides support for maintaining a list in sorted order without
 having to sort the list after each insertion.  For long lists of items with
 expensive comparison operations, this can be an improvement over the more common
 approach.  The module is called :mod:`bisect` because it uses a basic bisection
 algorithm to do its work.  The source code may be most useful as a working
 example of the algorithm (the boundary conditions are already right!).
-
-.. versionadded:: 2.1
-
-.. seealso::
-
-   Latest version of the `bisect module Python source code
-   <http://svn.python.org/view/python/branches/release27-maint/Lib/bisect.py?view=markup>`_
 
 The following functions are provided:
 
@@ -124,9 +123,9 @@ based on a set of ordered numeric breakpoints: 90 and up is an 'A', 80 to 89 is
 a 'B', and so on::
 
    >>> def grade(score, breakpoints=[60, 70, 80, 90], grades='FDCBA'):
-   ...     i = bisect(breakpoints, score)
-   ...     return grades[i]
-   ...
+           i = bisect(breakpoints, score)
+           return grades[i]
+
    >>> [grade(score) for score in [33, 99, 77, 70, 89, 90, 100]]
    ['F', 'A', 'C', 'C', 'B', 'A', 'A']
 

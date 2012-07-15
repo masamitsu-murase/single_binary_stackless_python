@@ -71,11 +71,11 @@ An explanation of some terminology and conventions is in order.
   the units in which their value or argument is expressed. E.g. on most Unix
   systems, the clock "ticks" only 50 or 100 times a second.
 
-* On the other hand, the precision of :func:`time` and :func:`sleep` is better
+* On the other hand, the precision of :func:`.time` and :func:`sleep` is better
   than their Unix equivalents: times are expressed as floating point numbers,
-  :func:`time` returns the most accurate time available (using Unix
-  :cfunc:`gettimeofday` where available), and :func:`sleep` will accept a time
-  with a nonzero fraction (Unix :cfunc:`select` is used to implement this, where
+  :func:`.time` returns the most accurate time available (using Unix
+  :c:func:`gettimeofday` where available), and :func:`sleep` will accept a time
+  with a nonzero fraction (Unix :c:func:`select` is used to implement this, where
   available).
 
 * The time value as returned by :func:`gmtime`, :func:`localtime`, and
@@ -156,7 +156,7 @@ The module defines the following functions and data items:
 
    On Windows, this function returns wall-clock seconds elapsed since the first
    call to this function, as a floating point number, based on the Win32 function
-   :cfunc:`QueryPerformanceCounter`. The resolution is typically better than one
+   :c:func:`QueryPerformanceCounter`. The resolution is typically better than one
    microsecond.
 
 
@@ -164,7 +164,7 @@ The module defines the following functions and data items:
 
    Convert a time expressed in seconds since the epoch to a string representing
    local time. If *secs* is not provided or :const:`None`, the current time as
-   returned by :func:`time` is used.  ``ctime(secs)`` is equivalent to
+   returned by :func:`.time` is used.  ``ctime(secs)`` is equivalent to
    ``asctime(localtime(secs))``. Locale information is not used by :func:`ctime`.
 
    .. versionchanged:: 2.1
@@ -183,7 +183,7 @@ The module defines the following functions and data items:
 
    Convert a time expressed in seconds since the epoch to a :class:`struct_time` in
    UTC in which the dst flag is always zero.  If *secs* is not provided or
-   :const:`None`, the current time as returned by :func:`time` is used.  Fractions
+   :const:`None`, the current time as returned by :func:`.time` is used.  Fractions
    of a second are ignored.  See above for a description of the
    :class:`struct_time` object. See :func:`calendar.timegm` for the inverse of this
    function.
@@ -198,7 +198,7 @@ The module defines the following functions and data items:
 .. function:: localtime([secs])
 
    Like :func:`gmtime` but converts to local time.  If *secs* is not provided or
-   :const:`None`, the current time as returned by :func:`time` is used.  The dst
+   :const:`None`, the current time as returned by :func:`.time` is used.  The dst
    flag is set to ``1`` when DST applies to the given time.
 
    .. versionchanged:: 2.1
@@ -213,7 +213,7 @@ The module defines the following functions and data items:
    This is the inverse function of :func:`localtime`.  Its argument is the
    :class:`struct_time` or full 9-tuple (since the dst flag is needed; use ``-1``
    as the dst flag if it is unknown) which expresses the time in *local* time, not
-   UTC.  It returns a floating point number, for compatibility with :func:`time`.
+   UTC.  It returns a floating point number, for compatibility with :func:`.time`.
    If the input value cannot be represented as a valid time, either
    :exc:`OverflowError` or :exc:`ValueError` will be raised (which depends on
    whether the invalid value is caught by Python or the underlying C libraries).
@@ -410,7 +410,7 @@ The module defines the following functions and data items:
    +-------+-------------------+---------------------------------+
    | 4     | :attr:`tm_min`    | range [0, 59]                   |
    +-------+-------------------+---------------------------------+
-   | 5     | :attr:`tm_sec`    | range [0, 61]; see **(1)** in   |
+   | 5     | :attr:`tm_sec`    | range [0, 61]; see **(2)** in   |
    |       |                   | :func:`strftime` description    |
    +-------+-------------------+---------------------------------+
    | 6     | :attr:`tm_wday`   | range [0, 6], Monday is 0       |
@@ -435,8 +435,8 @@ The module defines the following functions and data items:
 
 .. function:: time()
 
-   Return the time as a floating point number expressed in seconds since the epoch,
-   in UTC.  Note that even though the time is always returned as a floating point
+   Return the time in seconds since the epoch as a floating point number.
+   Note that even though the time is always returned as a floating point
    number, not all systems provide time with a better precision than 1 second.
    While this function normally returns non-decreasing values, it can return a
    lower value than a previous call if the system clock has been set back between
@@ -560,6 +560,6 @@ The module defines the following functions and data items:
    preferred  hour/minute offset is not supported by all ANSI C libraries. Also, a
    strict reading of the original 1982 :rfc:`822` standard calls for a two-digit
    year (%y rather than %Y), but practice moved to 4-digit years long before the
-   year 2000.  The 4-digit year has been mandated by :rfc:`2822`, which obsoletes
-   :rfc:`822`.
+   year 2000.  After that, :rfc:`822` became obsolete and the 4-digit year has
+   been first recommended by :rfc:`1123` and then mandated by :rfc:`2822`.
 

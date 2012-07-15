@@ -154,7 +154,7 @@ Maildir, mbox, MH, Babyl, and MMDF.
       when the :class:`Mailbox` instance was initialized.
 
 
-   .. method:: get(key[, default=None])
+   .. method:: get(key, default=None)
                __getitem__(key)
 
       Return a representation of the message corresponding to *key*. If no such
@@ -278,7 +278,7 @@ Maildir, mbox, MH, Babyl, and MMDF.
 ^^^^^^^^^^^^^^^^
 
 
-.. class:: Maildir(dirname[, factory=rfc822.Message[, create=True]])
+.. class:: Maildir(dirname, factory=rfc822.Message, create=True)
 
    A subclass of :class:`Mailbox` for mailboxes in Maildir format. Parameter
    *factory* is a callable object that accepts a file-like message representation
@@ -423,7 +423,7 @@ Maildir, mbox, MH, Babyl, and MMDF.
 ^^^^^^^^^^^^^
 
 
-.. class:: mbox(path[, factory=None[, create=True]])
+.. class:: mbox(path, factory=None, create=True)
 
    A subclass of :class:`Mailbox` for mailboxes in mbox format. Parameter *factory*
    is a callable object that accepts a file-like message representation (which
@@ -459,7 +459,7 @@ Maildir, mbox, MH, Babyl, and MMDF.
                unlock()
 
       Three locking mechanisms are used---dot locking and, if available, the
-      :cfunc:`flock` and :cfunc:`lockf` system calls.
+      :c:func:`flock` and :c:func:`lockf` system calls.
 
 
 .. seealso::
@@ -483,7 +483,7 @@ Maildir, mbox, MH, Babyl, and MMDF.
 ^^^^^^^^^^^
 
 
-.. class:: MH(path[, factory=None[, create=True]])
+.. class:: MH(path, factory=None, create=True)
 
    A subclass of :class:`Mailbox` for mailboxes in MH format. Parameter *factory*
    is a callable object that accepts a file-like message representation (which
@@ -573,7 +573,7 @@ Maildir, mbox, MH, Babyl, and MMDF.
                unlock()
 
       Three locking mechanisms are used---dot locking and, if available, the
-      :cfunc:`flock` and :cfunc:`lockf` system calls. For MH mailboxes, locking
+      :c:func:`flock` and :c:func:`lockf` system calls. For MH mailboxes, locking
       the mailbox means locking the :file:`.mh_sequences` file and, only for the
       duration of any operations that affect them, locking individual message
       files.
@@ -613,7 +613,7 @@ Maildir, mbox, MH, Babyl, and MMDF.
 ^^^^^^^^^^^^^^
 
 
-.. class:: Babyl(path[, factory=None[, create=True]])
+.. class:: Babyl(path, factory=None, create=True)
 
    A subclass of :class:`Mailbox` for mailboxes in Babyl format. Parameter
    *factory* is a callable object that accepts a file-like message representation
@@ -671,7 +671,7 @@ Maildir, mbox, MH, Babyl, and MMDF.
                unlock()
 
       Three locking mechanisms are used---dot locking and, if available, the
-      :cfunc:`flock` and :cfunc:`lockf` system calls.
+      :c:func:`flock` and :c:func:`lockf` system calls.
 
 
 .. seealso::
@@ -689,7 +689,7 @@ Maildir, mbox, MH, Babyl, and MMDF.
 ^^^^^^^^^^^^^
 
 
-.. class:: MMDF(path[, factory=None[, create=True]])
+.. class:: MMDF(path, factory=None, create=True)
 
    A subclass of :class:`Mailbox` for mailboxes in MMDF format. Parameter *factory*
    is a callable object that accepts a file-like message representation (which
@@ -722,7 +722,7 @@ Maildir, mbox, MH, Babyl, and MMDF.
                unlock()
 
       Three locking mechanisms are used---dot locking and, if available, the
-      :cfunc:`flock` and :cfunc:`lockf` system calls.
+      :c:func:`flock` and :c:func:`lockf` system calls.
 
 
 .. seealso::
@@ -765,7 +765,7 @@ Maildir, mbox, MH, Babyl, and MMDF.
    There is no requirement that :class:`Message` instances be used to represent
    messages retrieved using :class:`Mailbox` instances. In some situations, the
    time and memory required to generate :class:`Message` representations might
-   not not acceptable. For such situations, :class:`Mailbox` instances also
+   not be acceptable. For such situations, :class:`Mailbox` instances also
    offer string and file-like representations, and a custom message factory may
    be specified when a :class:`Mailbox` instance is initialized.
 
@@ -987,7 +987,7 @@ When a :class:`MaildirMessage` instance is created based upon a
       are excluded.
 
 
-   .. method:: set_from(from_[, time_=None])
+   .. method:: set_from(from_, time_=None)
 
       Set the "From " line to *from_*, which should be specified without a
       leading "From " or trailing newline. For convenience, *time_* may be
@@ -1358,7 +1358,7 @@ When a :class:`BabylMessage` instance is created based upon an
       are excluded.
 
 
-   .. method:: set_from(from_[, time_=None])
+   .. method:: set_from(from_, time_=None)
 
       Set the "From " line to *from_*, which should be specified without a
       leading "From " or trailing newline. For convenience, *time_* may be
@@ -1513,7 +1513,7 @@ Older versions of the :mod:`mailbox` module do not support modification of
 mailboxes, such as adding or removing message, and do not provide classes to
 represent format-specific message properties. For backward compatibility, the
 older mailbox classes are still available, but the newer classes should be used
-in preference to them.  The old classes will be removed in Python 3.0.
+in preference to them.  The old classes have been removed in Python 3.
 
 Older mailbox objects support only iteration and provide a single public method:
 

@@ -138,7 +138,7 @@ This is done as follows::
     name=Somebody+Here&language=Python&location=Northampton
     >>> url = 'http://www.example.com/example.cgi'
     >>> full_url = url + '?' + url_values
-    >>> data = urllib2.open(full_url)
+    >>> data = urllib2.urlopen(full_url)
 
 Notice that the full URL is created by adding a ``?`` to the URL, followed by
 the encoded values.
@@ -439,12 +439,12 @@ Authentication Tutorial
 
 When authentication is required, the server sends a header (as well as the 401
 error code) requesting authentication.  This specifies the authentication scheme
-and a 'realm'. The header looks like : ``Www-authenticate: SCHEME
+and a 'realm'. The header looks like : ``WWW-Authenticate: SCHEME
 realm="REALM"``.
 
 e.g. ::
 
-    Www-authenticate: Basic realm="cPanel Users"
+    WWW-Authenticate: Basic realm="cPanel Users"
 
 
 The client should then retry the request with the appropriate name and password

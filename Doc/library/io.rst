@@ -233,7 +233,7 @@ I/O Base Classes
    :class:`IOBase` object can be iterated over yielding the lines in a stream.
    Lines are defined slightly differently depending on whether the stream is
    a binary stream (yielding :class:`bytes`), or a text stream (yielding
-   :class:`unicode` strings).  See :meth:`readline` below.
+   :class:`unicode` strings).  See :meth:`~IOBase.readline` below.
 
    IOBase is also a context manager and therefore supports the
    :keyword:`with` statement.  In this example, *file* is closed after the
@@ -407,8 +407,8 @@ I/O Base Classes
    :class:`RawIOBase` implementation, but wrap one, like
    :class:`BufferedWriter` and :class:`BufferedReader` do.
 
-   :class:`BufferedIOBase` provides or overrides these members in addition to
-   those from :class:`IOBase`:
+   :class:`BufferedIOBase` provides or overrides these methods and attribute in
+   addition to those from :class:`IOBase`:
 
    .. attribute:: raw
 
@@ -604,25 +604,6 @@ than raw I/O does.
       if the buffer needs to be written out but the raw stream blocks.
 
 
-.. class:: BufferedRWPair(reader, writer, buffer_size=DEFAULT_BUFFER_SIZE)
-
-   A buffered I/O object giving a combined, higher-level access to two
-   sequential :class:`RawIOBase` objects: one readable, the other writeable.
-   It is useful for pairs of unidirectional communication channels
-   (pipes, for instance).  It inherits :class:`BufferedIOBase`.
-
-   *reader* and *writer* are :class:`RawIOBase` objects that are readable and
-   writeable respectively.  If the *buffer_size* is omitted it defaults to
-   :data:`DEFAULT_BUFFER_SIZE`.
-
-   A fourth argument, *max_buffer_size*, is supported, but unused and
-   deprecated.
-
-   :class:`BufferedRWPair` implements all of :class:`BufferedIOBase`\'s methods
-   except for :meth:`~BufferedIOBase.detach`, which raises
-   :exc:`UnsupportedOperation`.
-
-
 .. class:: BufferedRandom(raw, buffer_size=DEFAULT_BUFFER_SIZE)
 
    A buffered interface to random access streams.  It inherits
@@ -637,6 +618,29 @@ than raw I/O does.
 
    :class:`BufferedRandom` is capable of anything :class:`BufferedReader` or
    :class:`BufferedWriter` can do.
+
+
+.. class:: BufferedRWPair(reader, writer, buffer_size=DEFAULT_BUFFER_SIZE)
+
+   A buffered I/O object combining two unidirectional :class:`RawIOBase`
+   objects -- one readable, the other writeable -- into a single bidirectional
+   endpoint.  It inherits :class:`BufferedIOBase`.
+
+   *reader* and *writer* are :class:`RawIOBase` objects that are readable and
+   writeable respectively.  If the *buffer_size* is omitted it defaults to
+   :data:`DEFAULT_BUFFER_SIZE`.
+
+   A fourth argument, *max_buffer_size*, is supported, but unused and
+   deprecated.
+
+   :class:`BufferedRWPair` implements all of :class:`BufferedIOBase`\'s methods
+   except for :meth:`~BufferedIOBase.detach`, which raises
+   :exc:`UnsupportedOperation`.
+
+   .. warning::
+      :class:`BufferedRWPair` does not attempt to synchronize accesses to
+      its underlying raw streams.  You should not pass it the same object
+      as reader and writer; use :class:`BufferedRandom` instead.
 
 
 Text I/O
@@ -696,6 +700,32 @@ Text I/O
 
       Read until newline or EOF and return a single ``unicode``.  If the
       stream is already at EOF, an empty string is returned.
+
+   .. method:: seek(offset, whence=SEEK_SET)
+
+      Change the stream position to the given *offset*.  Behaviour depends
+      on the *whence* parameter:
+
+      * :data:`SEEK_SET` or ``0``: seek from the start of the stream
+        (the default); *offset* must either be a number returned by
+        :meth:`TextIOBase.tell`, or zero.  Any other *offset* value
+        produces undefined behaviour.
+      * :data:`SEEK_CUR` or ``1``: "seek" to the current position;
+        *offset* must be zero, which is a no-operation (all other values
+        are unsupported).
+      * :data:`SEEK_END` or ``2``: seek to the end of the stream;
+        *offset* must be zero (all other values are unsupported).
+
+      Return the new absolute position as an opaque number.
+
+      .. versionadded:: 2.7
+         The ``SEEK_*`` constants.
+
+   .. method:: tell()
+
+      Return the current stream position as an opaque number.  The number
+      does not usually represent a number of bytes in the underlying
+      binary storage.
 
    .. method:: write(s)
 

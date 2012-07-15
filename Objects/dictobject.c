@@ -502,27 +502,16 @@ _PyDict_MaybeUntrack(PyObject *op)
     _PyObject_GC_UNTRACK(op);
 }
 
-
 /*
-Internal routine to insert a new item into the table.
-Used both by the internal resize routine and by the public insert routine.
-Eats a reference to key and one to value.
-Returns -1 if an error occurred, or 0 on success.
+Internal routine to insert a new item into the table when you have entry object.
+Used by insertdict.
 */
 static int
-insertdict(register PyDictObject *mp, PyObject *key, long hash, PyObject *value)
+insertdict_by_entry(register PyDictObject *mp, PyObject *key, long hash,
+                    PyDictEntry *ep, PyObject *value)
 {
     PyObject *old_value;
-    register PyDictEntry *ep;
-    typedef PyDictEntry *(*lookupfunc)(PyDictObject *, PyObject *, long);
 
-    assert(mp->ma_lookup != NULL);
-    ep = mp->ma_lookup(mp, key, hash);
-    if (ep == NULL) {
-        Py_DECREF(key);
-        Py_DECREF(value);
-        return -1;
-    }
     MAINTAIN_TRACKING(mp, key, value);
     if (ep->me_value != NULL) {
         old_value = ep->me_value;
@@ -543,6 +532,28 @@ insertdict(register PyDictObject *mp, PyObject *key, long hash, PyObject *value)
         mp->ma_used++;
     }
     return 0;
+}
+
+
+/*
+Internal routine to insert a new item into the table.
+Used both by the internal resize routine and by the public insert routine.
+Eats a reference to key and one to value.
+Returns -1 if an error occurred, or 0 on success.
+*/
+static int
+insertdict(register PyDictObject *mp, PyObject *key, long hash, PyObject *value)
+{
+    register PyDictEntry *ep;
+
+    assert(mp->ma_lookup != NULL);
+    ep = mp->ma_lookup(mp, key, hash);
+    if (ep == NULL) {
+        Py_DECREF(key);
+        Py_DECREF(value);
+        return -1;
+    }
+    return insertdict_by_entry(mp, key, hash, ep, value);
 }
 
 /*
@@ -738,42 +749,26 @@ PyDict_GetItem(PyObject *op, PyObject *key)
     return ep->me_value;
 }
 
-/* CAUTION: PyDict_SetItem() must guarantee that it won't resize the
- * dictionary if it's merely replacing the value for an existing key.
- * This means that it's safe to loop over a dictionary with PyDict_Next()
- * and occasionally replace a value -- but you can't insert new keys or
- * remove them.
- */
-int
-PyDict_SetItem(register PyObject *op, PyObject *key, PyObject *value)
+static int
+dict_set_item_by_hash_or_entry(register PyObject *op, PyObject *key,
+                               long hash, PyDictEntry *ep, PyObject *value)
 {
     register PyDictObject *mp;
-    register long hash;
     register Py_ssize_t n_used;
 
-    if (!PyDict_Check(op)) {
-        PyErr_BadInternalCall();
-        return -1;
-    }
-    assert(key);
-    assert(value);
     mp = (PyDictObject *)op;
-    if (PyString_CheckExact(key)) {
-        hash = ((PyStringObject *)key)->ob_shash;
-        if (hash == -1)
-            hash = PyObject_Hash(key);
-    }
-    else {
-        hash = PyObject_Hash(key);
-        if (hash == -1)
-            return -1;
-    }
     assert(mp->ma_fill <= mp->ma_mask);  /* at least one empty slot */
     n_used = mp->ma_used;
     Py_INCREF(value);
     Py_INCREF(key);
-    if (insertdict(mp, key, hash, value) != 0)
-        return -1;
+    if (ep == NULL) {
+        if (insertdict(mp, key, hash, value) != 0)
+            return -1;
+    }
+    else {
+        if (insertdict_by_entry(mp, key, hash, ep, value) != 0)
+            return -1;
+    }
     /* If we added a key, we can safely resize.  Otherwise just return!
      * If fill >= 2/3 size, adjust size.  Normally, this doubles or
      * quaduples the size, but it's also possible for the dict to shrink
@@ -791,6 +786,36 @@ PyDict_SetItem(register PyObject *op, PyObject *key, PyObject *value)
     if (!(mp->ma_used > n_used && mp->ma_fill*3 >= (mp->ma_mask+1)*2))
         return 0;
     return dictresize(mp, (mp->ma_used > 50000 ? 2 : 4) * mp->ma_used);
+}
+
+/* CAUTION: PyDict_SetItem() must guarantee that it won't resize the
+ * dictionary if it's merely replacing the value for an existing key.
+ * This means that it's safe to loop over a dictionary with PyDict_Next()
+ * and occasionally replace a value -- but you can't insert new keys or
+ * remove them.
+ */
+int
+PyDict_SetItem(register PyObject *op, PyObject *key, PyObject *value)
+{
+    register long hash;
+
+    if (!PyDict_Check(op)) {
+        PyErr_BadInternalCall();
+        return -1;
+    }
+    assert(key);
+    assert(value);
+    if (PyString_CheckExact(key)) {
+        hash = ((PyStringObject *)key)->ob_shash;
+        if (hash == -1)
+            hash = PyObject_Hash(key);
+    }
+    else {
+        hash = PyObject_Hash(key);
+        if (hash == -1)
+            return -1;
+    }
+    return dict_set_item_by_hash_or_entry(op, key, hash, NULL, value);
 }
 
 int
@@ -1335,14 +1360,18 @@ dict_fromkeys(PyObject *cls, PyObject *args)
         PyObject *key;
         long hash;
 
-        if (dictresize(mp, Py_SIZE(seq)))
+        if (dictresize(mp, Py_SIZE(seq))) {
+            Py_DECREF(d);
             return NULL;
+        }
 
         while (_PyDict_Next(seq, &pos, &key, &oldvalue, &hash)) {
             Py_INCREF(key);
             Py_INCREF(value);
-            if (insertdict(mp, key, hash, value))
+            if (insertdict(mp, key, hash, value)) {
+                Py_DECREF(d);
                 return NULL;
+            }
         }
         return d;
     }
@@ -1353,14 +1382,18 @@ dict_fromkeys(PyObject *cls, PyObject *args)
         PyObject *key;
         long hash;
 
-        if (dictresize(mp, PySet_GET_SIZE(seq)))
+        if (dictresize(mp, PySet_GET_SIZE(seq))) {
+            Py_DECREF(d);
             return NULL;
+        }
 
         while (_PySet_NextEntry(seq, &pos, &key, &hash)) {
             Py_INCREF(key);
             Py_INCREF(value);
-            if (insertdict(mp, key, hash, value))
+            if (insertdict(mp, key, hash, value)) {
+                Py_DECREF(d);
                 return NULL;
+            }
         }
         return d;
     }
@@ -1949,9 +1982,9 @@ dict_setdefault(register PyDictObject *mp, PyObject *args)
         return NULL;
     val = ep->me_value;
     if (val == NULL) {
-        val = failobj;
-        if (PyDict_SetItem((PyObject*)mp, key, failobj))
-            val = NULL;
+        if (dict_set_item_by_hash_or_entry((PyObject*)mp, key, hash, ep,
+                                           failobj) == 0)
+            val = failobj;
     }
     Py_XINCREF(val);
     return val;
@@ -2159,9 +2192,9 @@ PyDoc_STRVAR(values__doc__,
 "D.values() -> list of D's values");
 
 PyDoc_STRVAR(update__doc__,
-"D.update(E, **F) -> None.  Update D from dict/iterable E and F.\n"
-"If E has a .keys() method, does:     for k in E: D[k] = E[k]\n\
-If E lacks .keys() method, does:     for (k, v) in E: D[k] = v\n\
+"D.update([E, ]**F) -> None.  Update D from dict/iterable E and F.\n"
+"If E present and has a .keys() method, does:     for k in E: D[k] = E[k]\n\
+If E present and lacks .keys() method, does:     for (k, v) in E: D[k] = v\n\
 In either case, this is followed by: for k in F: D[k] = F[k]");
 
 PyDoc_STRVAR(fromkeys__doc__,

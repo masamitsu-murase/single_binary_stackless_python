@@ -307,7 +307,7 @@ as the start directory.
 
     Test discovery loads tests by importing them. Once test discovery has
     found all the test files from the start directory you specify it turns the
-    paths into package names to import. For example `foo/bar/baz.py` will be
+    paths into package names to import. For example :file:`foo/bar/baz.py` will be
     imported as ``foo.bar.baz``.
 
     If you have a package installed globally and attempt test discovery on
@@ -352,7 +352,7 @@ The simplest :class:`TestCase` subclass will simply override the
            widget = Widget('The widget')
            self.assertEqual(widget.size(), (50, 50), 'incorrect default size')
 
-Note that in order to test something, we use the one of the :meth:`assert\*`
+Note that in order to test something, we use one of the :meth:`assert\*`
 methods provided by the :class:`TestCase` base class.  If the test fails, an
 exception will be raised, and :mod:`unittest` will identify the test case as a
 :dfn:`failure`.  Any other exceptions will be treated as :dfn:`errors`. This
@@ -616,7 +616,7 @@ This is the output of running the example above in verbose mode: ::
 
 Classes can be skipped just like methods: ::
 
-   @skip("showing class skipping")
+   @unittest.skip("showing class skipping")
    class MySkippedTestCase(unittest.TestCase):
        def test_not_run(self):
            pass
@@ -840,13 +840,13 @@ Test cases
 
       In addition, if *first* and *second* are the exact same type and one of
       list, tuple, dict, set, frozenset or unicode or any type that a subclass
-      registers with :meth:`addTypeEqualityFunc` the type specific equality
+      registers with :meth:`addTypeEqualityFunc` the type-specific equality
       function will be called in order to generate a more useful default
       error message (see also the :ref:`list of type-specific methods
       <type-specific-methods>`).
 
       .. versionchanged:: 2.7
-         Added the automatic calling of type specific equality function.
+         Added the automatic calling of type-specific equality function.
 
 
    .. method:: assertNotEqual(first, second, msg=None)
@@ -895,6 +895,7 @@ Test cases
 
       Test that *obj* is (or is not) an instance of *cls* (which can be a
       class or a tuple of classes, as supported by :func:`isinstance`).
+      To check for the exact type, use :func:`assertIs(type(obj), cls) <assertIs>`.
 
       .. versionadded:: 2.7
 
@@ -905,11 +906,11 @@ Test cases
    +---------------------------------------------------------+--------------------------------------+------------+
    | Method                                                  | Checks that                          | New in     |
    +=========================================================+======================================+============+
-   | :meth:`assertRaises(exc, fun, *args, **kwds)            | ``fun(*args, **kwds)`` raises `exc`  |            |
+   | :meth:`assertRaises(exc, fun, *args, **kwds)            | ``fun(*args, **kwds)`` raises *exc*  |            |
    | <TestCase.assertRaises>`                                |                                      |            |
    +---------------------------------------------------------+--------------------------------------+------------+
-   | :meth:`assertRaisesRegexp(exc, re, fun, *args, **kwds)  | ``fun(*args, **kwds)`` raises `exc`  | 2.7        |
-   | <TestCase.assertRaisesRegexp>`                          | and the message matches `re`         |            |
+   | :meth:`assertRaisesRegexp(exc, re, fun, *args, **kwds)  | ``fun(*args, **kwds)`` raises *exc*  | 2.7        |
+   | <TestCase.assertRaisesRegexp>`                          | and the message matches *re*         |            |
    +---------------------------------------------------------+--------------------------------------+------------+
 
    .. method:: assertRaises(exception, callable, *args, **kwds)
@@ -995,7 +996,7 @@ Test cases
    | <TestCase.assertItemsEqual>`          | works with unhashable objs     |              |
    +---------------------------------------+--------------------------------+--------------+
    | :meth:`assertDictContainsSubset(a, b) | all the key/value pairs        | 2.7          |
-   | <TestCase.assertDictContainsSubset>`  | in `a` exist in `b`            |              |
+   | <TestCase.assertDictContainsSubset>`  | in *a* exist in *b*            |              |
    +---------------------------------------+--------------------------------+--------------+
 
 
@@ -1425,8 +1426,8 @@ Loading and running tests
    The :class:`TestLoader` class is used to create test suites from classes and
    modules.  Normally, there is no need to create an instance of this class; the
    :mod:`unittest` module provides an instance that can be shared as
-   ``unittest.defaultTestLoader``. Using a subclass or instance, however, allows
-   customization of some configurable properties.
+   :data:`unittest.defaultTestLoader`.  Using a subclass or instance, however,
+   allows customization of some configurable properties.
 
    :class:`TestLoader` objects have the following methods:
 
@@ -1783,11 +1784,12 @@ Loading and running tests
             stream, descriptions, verbosity
 
 
-.. function:: main([module[, defaultTest[, argv[, testRunner[, testLoader[, exit[, verbosity[, failfast[, catchbreak[,buffer]]]]]]]]]])
+.. function:: main([module[, defaultTest[, argv[, testRunner[, testLoader[, exit[, verbosity[, failfast[, catchbreak[, buffer]]]]]]]]]])
 
-   A command-line program that runs a set of tests; this is primarily for making
-   test modules conveniently executable.  The simplest use for this function is to
-   include the following line at the end of a test script::
+   A command-line program that loads a set of tests from *module* and runs them;
+   this is primarily for making test modules conveniently executable.
+   The simplest use for this function is to include the following line at the
+   end of a test script::
 
       if __name__ == '__main__':
           unittest.main()
@@ -1798,9 +1800,16 @@ Loading and running tests
       if __name__ == '__main__':
           unittest.main(verbosity=2)
 
+   The *argv* argument can be a list of options passed to the program, with the
+   first element being the program name.  If not specified or ``None``,
+   the values of :data:`sys.argv` are used.
+
    The *testRunner* argument can either be a test runner class or an already
    created instance of it. By default ``main`` calls :func:`sys.exit` with
    an exit code indicating success or failure of the tests run.
+
+   The *testLoader* argument has to be a :class:`TestLoader` instance,
+   and defaults to :data:`defaultTestLoader`.
 
    ``main`` supports being used from the interactive interpreter by passing in the
    argument ``exit=False``. This displays the result on standard output without
@@ -1809,14 +1818,14 @@ Loading and running tests
       >>> from unittest import main
       >>> main(module='test_module', exit=False)
 
-   The ``failfast``, ``catchbreak`` and ``buffer`` parameters have the same
+   The *failfast*, *catchbreak* and *buffer* parameters have the same
    effect as the same-name `command-line options`_.
 
    Calling ``main`` actually returns an instance of the ``TestProgram`` class.
    This stores the result of the tests run as the ``result`` attribute.
 
    .. versionchanged:: 2.7
-      The ``exit``, ``verbosity``, ``failfast``, ``catchbreak`` and ``buffer``
+      The *exit*, *verbosity*, *failfast*, *catchbreak* and *buffer*
       parameters were added.
 
 

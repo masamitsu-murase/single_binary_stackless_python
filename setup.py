@@ -186,7 +186,7 @@ class PyBuildExt(build_ext):
 
         # Python header files
         headers = [sysconfig.get_config_h_filename()]
-        headers += glob(os.path.join(sysconfig.get_path('platinclude'), "*.h"))
+        headers += glob(os.path.join(sysconfig.get_path('include'), "*.h"))
         for ext in self.extensions[:]:
             ext.sources = [ find_module_file(filename, moddirlist)
                             for filename in ext.sources ]
@@ -450,6 +450,10 @@ class PyBuildExt(build_ext):
         # OSF/1 and Unixware have some stuff in /usr/ccs/lib (like -ldb)
         if platform in ['osf1', 'unixware7', 'openunix8']:
             lib_dirs += ['/usr/ccs/lib']
+
+        # HP-UX11iv3 keeps files in lib/hpux folders.
+        if platform == 'hp-ux11':
+            lib_dirs += ['/usr/lib/hpux64', '/usr/lib/hpux32']
 
         if platform == 'darwin':
             # This should work on any unixy platform ;-)
@@ -1154,10 +1158,14 @@ class PyBuildExt(build_ext):
             for cand in dbm_order:
                 if cand == "ndbm":
                     if find_file("ndbm.h", inc_dirs, []) is not None:
-                        # Some systems have -lndbm, others don't
+                        # Some systems have -lndbm, others have -lgdbm_compat,
+                        # others don't have either
                         if self.compiler.find_library_file(lib_dirs,
                                                                'ndbm'):
                             ndbm_libs = ['ndbm']
+                        elif self.compiler.find_library_file(lib_dirs,
+                                                             'gdbm_compat'):
+                            ndbm_libs = ['gdbm_compat']
                         else:
                             ndbm_libs = []
                         print "building dbm using ndbm"

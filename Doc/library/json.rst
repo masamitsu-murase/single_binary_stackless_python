@@ -99,8 +99,8 @@ Using json.tool from the shell to validate and pretty-print::
     {
         "json": "obj"
     }
-    $ echo '{ 1.2:3.4}' | python -mjson.tool
-    Expecting property name: line 1 column 2 (char 2)
+    $ echo '{1.2:3.4}' | python -mjson.tool
+    Expecting property name enclosed in double quotes: line 1 column 1 (char 1)
 
 .. highlight:: python
 
@@ -170,6 +170,14 @@ Basic Usage
    :class:`unicode` instance.  The other arguments have the same meaning as in
    :func:`dump`.
 
+   .. note::
+
+      Keys in key/value pairs of JSON are always of the type :class:`str`. When
+      a dictionary is converted into JSON, all the keys of the dictionary are
+      coerced to strings. As a result of this, if a dictionary is convered
+      into JSON and then back into a dictionary, the dictionary may not equal
+      the original one. That is, ``loads(dumps(x)) != x`` if x has non-string
+      keys.
 
 .. function:: load(fp[, encoding[, cls[, object_hook[, parse_float[, parse_int[, parse_constant[, object_pairs_hook[, **kw]]]]]]]])
 
@@ -209,9 +217,12 @@ Basic Usage
    (e.g. :class:`float`).
 
    *parse_constant*, if specified, will be called with one of the following
-   strings: ``'-Infinity'``, ``'Infinity'``, ``'NaN'``, ``'null'``, ``'true'``,
-   ``'false'``.  This can be used to raise an exception if invalid JSON numbers
+   strings: ``'-Infinity'``, ``'Infinity'``, ``'NaN'``.
+   This can be used to raise an exception if invalid JSON numbers
    are encountered.
+
+   .. versionchanged:: 2.7
+      *parse_constant* doesn't get called on 'null', 'true', 'false' anymore.
 
    To use a custom :class:`JSONDecoder` subclass, specify it with the ``cls``
    kwarg; otherwise :class:`JSONDecoder` is used.  Additional keyword arguments

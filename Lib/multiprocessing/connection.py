@@ -249,10 +249,14 @@ class SocketListener(object):
     '''
     def __init__(self, address, family, backlog=1):
         self._socket = socket.socket(getattr(socket, family))
-        self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self._socket.bind(address)
-        self._socket.listen(backlog)
-        self._address = self._socket.getsockname()
+        try:
+            self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self._socket.bind(address)
+            self._socket.listen(backlog)
+            self._address = self._socket.getsockname()
+        except socket.error:
+            self._socket.close()
+            raise
         self._family = family
         self._last_accepted = None
 
@@ -344,7 +348,10 @@ if sys.platform == 'win32':
             try:
                 win32.ConnectNamedPipe(handle, win32.NULL)
             except WindowsError, e:
-                if e.args[0] != win32.ERROR_PIPE_CONNECTED:
+                # ERROR_NO_DATA can occur if a client has already connected,
+                # written data and then disconnected -- see Issue 14725.
+                if e.args[0] not in (win32.ERROR_PIPE_CONNECTED,
+                                     win32.ERROR_NO_DATA):
                     raise
             return _multiprocessing.PipeConnection(handle)
 

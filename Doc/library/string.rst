@@ -7,6 +7,10 @@
 
 .. index:: module: re
 
+**Source code:** :source:`Lib/string.py`
+
+--------------
+
 The :mod:`string` module contains a number of useful constants and
 classes, as well as some deprecated legacy functions that are also
 available as methods on strings. In addition, Python's built-in string
@@ -16,12 +20,6 @@ in the :ref:`string-methods` section. To output formatted strings use
 template strings or the ``%`` operator described in the
 :ref:`string-formatting` section. Also, see the :mod:`re` module for
 string functions based on regular expressions.
-
-.. seealso::
-
-   Latest version of the `string module Python source code
-   <http://svn.python.org/view/python/branches/release27-maint/Lib/string.py?view=markup>`_
-
 
 String constants
 ----------------
@@ -245,11 +243,13 @@ by a colon ``':'``.  These specify a non-default format for the replacement valu
 
 See also the :ref:`formatspec` section.
 
-The *field_name* itself begins with an *arg_name* that is either either a number or a
+The *field_name* itself begins with an *arg_name* that is either a number or a
 keyword.  If it's a number, it refers to a positional argument, and if it's a keyword,
 it refers to a named keyword argument.  If the numerical arg_names in a format string
 are 0, 1, 2, ... in sequence, they can all be omitted (not just some)
 and the numbers 0, 1, 2, ... will be automatically inserted in that order.
+Because *arg_name* is not quote-delimited, it is not possible to specify arbitrary
+dictionary keys (e.g., the strings ``'10'`` or ``':-]'``) within a format string.
 The *arg_name* can be followed by any number of index or
 attribute expressions. An expression of the form ``'.name'`` selects the named
 attribute using :func:`getattr`, while an expression of the form ``'[index]'``
@@ -322,7 +322,7 @@ The general form of a *standard format specifier* is:
 
 .. productionlist:: sf
    format_spec: [[`fill`]`align`][`sign`][#][0][`width`][,][.`precision`][`type`]
-   fill: <a character other than '}'>
+   fill: <a character other than '{' or '}'>
    align: "<" | ">" | "=" | "^"
    sign: "+" | "-" | " "
    width: `integer`
@@ -602,7 +602,7 @@ Expressing a percentage::
 
    >>> points = 19.5
    >>> total = 22
-   >>> 'Correct answers: {:.2%}.'.format(points/total)
+   >>> 'Correct answers: {:.2%}'.format(points/total)
    'Correct answers: 88.64%'
 
 Using type-specific formatting::
@@ -729,9 +729,9 @@ placeholder syntax, delimiter character, or the entire regular expression used
 to parse template strings.  To do this, you can override these class attributes:
 
 * *delimiter* -- This is the literal string describing a placeholder introducing
-  delimiter.  The default value ``$``.  Note that this should *not* be a regular
-  expression, as the implementation will call :meth:`re.escape` on this string as
-  needed.
+  delimiter.  The default value is ``$``.  Note that this should *not* be a
+  regular expression, as the implementation will call :meth:`re.escape` on this
+  string as needed.
 
 * *idpattern* -- This is the regular expression describing the pattern for
   non-braced placeholders (the braces will be added automatically as
@@ -793,7 +793,7 @@ Deprecated string functions
 The following list of functions are also defined as methods of string and
 Unicode objects; see section :ref:`string-methods` for more information on
 those.  You should consider these functions as deprecated, although they will
-not be removed until Python 3.0.  The functions defined in this module are:
+not be removed until Python 3.  The functions defined in this module are:
 
 
 .. function:: atof(s)
@@ -905,14 +905,15 @@ not be removed until Python 3.0.  The functions defined in this module are:
 
    Return a list of the words of the string *s*.  If the optional second argument
    *sep* is absent or ``None``, the words are separated by arbitrary strings of
-   whitespace characters (space, tab,  newline, return, formfeed).  If the second
+   whitespace characters (space, tab, newline, return, formfeed).  If the second
    argument *sep* is present and not ``None``, it specifies a string to be used as
    the  word separator.  The returned list will then have one more item than the
-   number of non-overlapping occurrences of the separator in the string.  The
-   optional third argument *maxsplit* defaults to 0.  If it is nonzero, at most
-   *maxsplit* number of splits occur, and the remainder of the string is returned
-   as the final element of the list (thus, the list will have at most
-   ``maxsplit+1`` elements).
+   number of non-overlapping occurrences of the separator in the string.
+   If *maxsplit* is given, at most *maxsplit* number of splits occur, and the
+   remainder of the string is returned as the final element of the list (thus,
+   the list will have at most ``maxsplit+1`` elements).  If *maxsplit* is not
+   specified or ``-1``, then there is no limit on the number of splits (all
+   possible splits are made).
 
    The behavior of split on an empty string depends on the value of *sep*. If *sep*
    is not specified, or specified as ``None``, the result will be an empty list.
@@ -925,7 +926,7 @@ not be removed until Python 3.0.  The functions defined in this module are:
    Return a list of the words of the string *s*, scanning *s* from the end.  To all
    intents and purposes, the resulting list of words is the same as returned by
    :func:`split`, except when the optional third argument *maxsplit* is explicitly
-   specified and nonzero.  When *maxsplit* is nonzero, at most *maxsplit* number of
+   specified and nonzero.  If *maxsplit* is given, at most *maxsplit* number of
    splits -- the *rightmost* ones -- occur, and the remainder of the string is
    returned as the first element of the list (thus, the list will have at most
    ``maxsplit+1`` elements).

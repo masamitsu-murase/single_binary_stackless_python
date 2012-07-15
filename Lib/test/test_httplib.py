@@ -90,6 +90,34 @@ class HeaderTests(TestCase):
                 conn.request('POST', '/', body, headers)
                 self.assertEqual(conn._buffer.count[header.lower()], 1)
 
+    def test_content_length_0(self):
+
+        class ContentLengthChecker(list):
+            def __init__(self):
+                list.__init__(self)
+                self.content_length = None
+            def append(self, item):
+                kv = item.split(':', 1)
+                if len(kv) > 1 and kv[0].lower() == 'content-length':
+                    self.content_length = kv[1].strip()
+                list.append(self, item)
+
+        # POST with empty body
+        conn = httplib.HTTPConnection('example.com')
+        conn.sock = FakeSocket(None)
+        conn._buffer = ContentLengthChecker()
+        conn.request('POST', '/', '')
+        self.assertEqual(conn._buffer.content_length, '0',
+                        'Header Content-Length not set')
+
+        # PUT request with empty body
+        conn = httplib.HTTPConnection('example.com')
+        conn.sock = FakeSocket(None)
+        conn._buffer = ContentLengthChecker()
+        conn.request('PUT', '/', '')
+        self.assertEqual(conn._buffer.content_length, '0',
+                        'Header Content-Length not set')
+
     def test_putheader(self):
         conn = httplib.HTTPConnection('example.com')
         conn.sock = FakeSocket(None)
@@ -152,13 +180,15 @@ class BasicTest(TestCase):
     def test_host_port(self):
         # Check invalid host_port
 
-        for hp in ("www.python.org:abc", "www.python.org:"):
+        # Note that httplib does not accept user:password@ in the host-port.
+        for hp in ("www.python.org:abc", "user:password@www.python.org"):
             self.assertRaises(httplib.InvalidURL, httplib.HTTP, hp)
 
         for hp, h, p in (("[fe80::207:e9ff:fe9b]:8000", "fe80::207:e9ff:fe9b",
                           8000),
                          ("www.python.org:80", "www.python.org", 80),
                          ("www.python.org", "www.python.org", 80),
+                         ("www.python.org:", "www.python.org", 80),
                          ("[fe80::207:e9ff:fe9b]", "fe80::207:e9ff:fe9b", 80)):
             http = httplib.HTTP(hp)
             c = http._conn
@@ -347,6 +377,14 @@ class BasicTest(TestCase):
         resp.begin()
         self.assertRaises(httplib.LineTooLong, resp.read)
 
+    def test_early_eof(self):
+        # Test httpresponse with no \r\n termination,
+        body = "HTTP/1.1 200 Ok"
+        sock = FakeSocket(body)
+        resp = httplib.HTTPResponse(sock)
+        resp.begin()
+        self.assertEqual(resp.read(), '')
+        self.assertTrue(resp.isclosed())
 
 class OfflineTest(TestCase):
     def test_responses(self):
@@ -438,6 +476,28 @@ class HTTPSTimeoutTest(TestCase):
         if hasattr(httplib, 'HTTPSConnection'):
             h = httplib.HTTPSConnection(HOST, TimeoutTest.PORT, timeout=30)
             self.assertEqual(h.timeout, 30)
+
+    @unittest.skipIf(not hasattr(httplib, 'HTTPS'), 'httplib.HTTPS not available')
+    def test_host_port(self):
+        # Check invalid host_port
+
+        # Note that httplib does not accept user:password@ in the host-port.
+        for hp in ("www.python.org:abc", "user:password@www.python.org"):
+            self.assertRaises(httplib.InvalidURL, httplib.HTTP, hp)
+
+        for hp, h, p in (("[fe80::207:e9ff:fe9b]:8000", "fe80::207:e9ff:fe9b",
+                          8000),
+                         ("pypi.python.org:443", "pypi.python.org", 443),
+                         ("pypi.python.org", "pypi.python.org", 443),
+                         ("pypi.python.org:", "pypi.python.org", 443),
+                         ("[fe80::207:e9ff:fe9b]", "fe80::207:e9ff:fe9b", 443)):
+            http = httplib.HTTPS(hp)
+            c = http._conn
+            if h != c.host:
+                self.fail("Host incorrectly parsed: %s != %s" % (h, c.host))
+            if p != c.port:
+                self.fail("Port incorrectly parsed: %s != %s" % (p, c.host))
+
 
 def test_main(verbose=None):
     test_support.run_unittest(HeaderTests, OfflineTest, BasicTest, TimeoutTest,

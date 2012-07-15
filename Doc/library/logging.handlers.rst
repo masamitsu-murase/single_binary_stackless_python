@@ -262,10 +262,7 @@ timed intervals.
    :meth:`emit`.
 
    .. versionchanged:: 2.6
-      *delay* was added.
-
-   .. versionchanged:: 2.7
-      *utc* was added.
+      *delay* and *utc* were added.
 
 
    .. method:: doRollover()
@@ -613,8 +610,14 @@ supports sending logging messages to an email address via SMTP.
    port, use the (host, port) tuple format for the *mailhost* argument. If you
    use a string, the standard SMTP port is used. If your SMTP server requires
    authentication, you can specify a (username, password) tuple for the
-   *credentials* argument. If *secure* is True, then the handler will attempt
-   to use TLS for the email transmission.
+   *credentials* argument.
+
+   To specify the use of a secure protocol (TLS), pass in a tuple to the
+   *secure* argument. This will only be used when authentication credentials are
+   supplied. The tuple should be either an empty tuple, or a single-value tuple
+   with the name of a keyfile, or a 2-value tuple with the names of the keyfile
+   and certificate file. (This tuple is passed to the
+   :meth:`smtplib.SMTP.starttls` method.)
 
    .. versionchanged:: 2.6
       *credentials* was added.
@@ -647,7 +650,7 @@ event of a certain severity or greater is seen.
 :class:`BufferingHandler`, which is an abstract class. This buffers logging
 records in memory. Whenever each record is added to the buffer, a check is made
 by calling :meth:`shouldFlush` to see if the buffer should be flushed.  If it
-should, then :meth:`flush` is expected to do the needful.
+should, then :meth:`flush` is expected to do the flushing.
 
 
 .. class:: BufferingHandler(capacity)

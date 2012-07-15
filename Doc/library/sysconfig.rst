@@ -5,9 +5,14 @@
    :synopsis: Python's configuration information
 .. moduleauthor:: Tarek Ziade <tarek@ziade.org>
 .. sectionauthor:: Tarek Ziade <tarek@ziade.org>
-.. versionadded:: 2.7
 .. index::
    single: configuration information
+
+.. versionadded:: 2.7
+
+**Source code:** :source:`Lib/sysconfig.py`
+
+--------------
 
 The :mod:`sysconfig` module provides access to Python's configuration
 information like the list of installation paths and the configuration variables
@@ -124,7 +129,7 @@ identifier.  Python currently uses eight paths:
    one may call this function and get the default value.
 
    If *scheme* is provided, it must be a value from the list returned by
-   :func:`get_path_names`.  Otherwise, the default scheme for the current
+   :func:`get_scheme_names`.  Otherwise, the default scheme for the current
    platform is used.
 
    If *vars* is provided, it must be a dictionary of variables that will update

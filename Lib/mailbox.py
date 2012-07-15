@@ -247,11 +247,9 @@ class Maildir(Mailbox):
             else:
                 raise NoSuchMailboxError(self._path)
         self._toc = {}
-        self._toc_mtimes = {}
-        for subdir in ('cur', 'new'):
-            self._toc_mtimes[subdir] = os.path.getmtime(self._paths[subdir])
-        self._last_read = time.time()  # Records last time we read cur/new
-        self._skewfactor = 0.1         # Adjust if os/fs clocks are skewing
+        self._toc_mtimes = {'cur': 0, 'new': 0}
+        self._last_read = 0         # Records last time we read cur/new
+        self._skewfactor = 0.1      # Adjust if os/fs clocks are skewing
 
     def add(self, message):
         """Add message and return assigned key."""
@@ -563,16 +561,19 @@ class _singlefileMailbox(Mailbox):
         self._file = f
         self._toc = None
         self._next_key = 0
-        self._pending = False   # No changes require rewriting the file.
+        self._pending = False       # No changes require rewriting the file.
+        self._pending_sync = False  # No need to sync the file
         self._locked = False
-        self._file_length = None        # Used to record mailbox size
+        self._file_length = None    # Used to record mailbox size
 
     def add(self, message):
         """Add message and return assigned key."""
         self._lookup()
         self._toc[self._next_key] = self._append_message(message)
         self._next_key += 1
-        self._pending = True
+        # _append_message appends the message to the mailbox file. We
+        # don't need a full rewrite + rename, sync is enough.
+        self._pending_sync = True
         return self._next_key - 1
 
     def remove(self, key):
@@ -618,6 +619,11 @@ class _singlefileMailbox(Mailbox):
     def flush(self):
         """Write any pending changes to disk."""
         if not self._pending:
+            if self._pending_sync:
+                # Messages have only been added, so syncing the file
+                # is enough.
+                _sync_flush(self._file)
+                self._pending_sync = False
             return
 
         # In order to be writing anything out at all, self._toc must
@@ -651,6 +657,7 @@ class _singlefileMailbox(Mailbox):
                     new_file.write(buffer)
                 new_toc[key] = (new_start, new_file.tell())
                 self._post_message_hook(new_file)
+            self._file_length = new_file.tell()
         except:
             new_file.close()
             os.remove(new_file.name)
@@ -658,6 +665,9 @@ class _singlefileMailbox(Mailbox):
         _sync_close(new_file)
         # self._file is about to get replaced, so no need to sync.
         self._file.close()
+        # Make sure the new file's mode is the same as the old file's
+        mode = os.stat(self._path).st_mode
+        os.chmod(new_file.name, mode)
         try:
             os.rename(new_file.name, self._path)
         except OSError, e:
@@ -670,6 +680,7 @@ class _singlefileMailbox(Mailbox):
         self._file = open(self._path, 'rb+')
         self._toc = new_toc
         self._pending = False
+        self._pending_sync = False
         if self._locked:
             _lock_file(self._file, dotlock=False)
 
@@ -706,6 +717,12 @@ class _singlefileMailbox(Mailbox):
         """Append message to mailbox and return (start, stop) offsets."""
         self._file.seek(0, 2)
         before = self._file.tell()
+        if len(self._toc) == 0 and not self._pending:
+            # This is the first message, and the _pre_mailbox_hook
+            # hasn't yet been called. If self._pending is True,
+            # messages have been removed, so _pre_mailbox_hook must
+            # have been called already.
+            self._pre_mailbox_hook(self._file)
         try:
             self._pre_message_hook(self._file)
             offsets = self._install_message(message)
@@ -1854,7 +1871,10 @@ class _ProxyFile:
 
     def close(self):
         """Close the file."""
-        del self._file
+        if hasattr(self, '_file'):
+            if hasattr(self._file, 'close'):
+                self._file.close()
+            del self._file
 
     def _read(self, size, read_method):
         """Read size bytes using read_method."""
@@ -1897,6 +1917,12 @@ class _PartialFile(_ProxyFile):
         if size is None or size < 0 or size > remaining:
             size = remaining
         return _ProxyFile._read(self, size, read_method)
+
+    def close(self):
+        # do *not* close the underlying file object for partial files,
+        # since it's global to the mailbox object
+        if hasattr(self, '_file'):
+            del self._file
 
 
 def _lock_file(f, dotlock=True):

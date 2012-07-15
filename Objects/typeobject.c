@@ -877,8 +877,13 @@ subtype_clear(PyObject *self)
         assert(base);
     }
 
-    /* There's no need to clear the instance dict (if any);
-       the collector will call its tp_clear handler. */
+    /* Clear the instance dict (if any), to break cycles involving only
+       __dict__ slots (as in the case 'self.__dict__ is self'). */
+    if (type->tp_dictoffset != base->tp_dictoffset) {
+        PyObject **dictptr = _PyObject_GetDictPtr(self);
+        if (dictptr && *dictptr)
+            Py_CLEAR(*dictptr);
+    }
 
     if (baseclear)
         return baseclear(self);
@@ -2240,8 +2245,10 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
                 (add_weak && strcmp(s, "__weakref__") == 0))
                 continue;
             tmp =_Py_Mangle(name, tmp);
-            if (!tmp)
+            if (!tmp) {
+                Py_DECREF(newslots);
                 goto bad_slots;
+            }
             PyList_SET_ITEM(newslots, j, tmp);
             j++;
         }
@@ -2552,6 +2559,13 @@ type_getattro(PyTypeObject *type, PyObject *name)
     PyObject *meta_attribute, *attribute;
     descrgetfunc meta_get;
 
+    if (!PyString_Check(name)) {
+        PyErr_Format(PyExc_TypeError,
+                     "attribute name must be string, not '%.200s'",
+                     name->ob_type->tp_name);
+        return NULL;
+    }
+
     /* Initialize this type (we'll assume the metatype is initialized) */
     if (type->tp_dict == NULL) {
         if (PyType_Ready(type) < 0)
@@ -2732,14 +2746,15 @@ type_clear(PyTypeObject *type)
        for heaptypes. */
     assert(type->tp_flags & Py_TPFLAGS_HEAPTYPE);
 
-    /* The only field we need to clear is tp_mro, which is part of a
-       hard cycle (its first element is the class itself) that won't
-       be broken otherwise (it's a tuple and tuples don't have a
+    /* We need to invalidate the method cache carefully before clearing
+       the dict, so that other objects caught in a reference cycle
+       don't start calling destroyed methods.
+
+       Otherwise, the only field we need to clear is tp_mro, which is
+       part of a hard cycle (its first element is the class itself) that
+       won't be broken otherwise (it's a tuple and tuples don't have a
        tp_clear handler).  None of the other fields need to be
        cleared, and here's why:
-
-       tp_dict:
-           It is a dict, so the collector will call its tp_clear.
 
        tp_cache:
            Not used; if it were, it would be a dict.
@@ -2757,6 +2772,9 @@ type_clear(PyTypeObject *type)
            A tuple of strings can't be part of a cycle.
     */
 
+    PyType_Modified(type);
+    if (type->tp_dict)
+        PyDict_Clear(type->tp_dict);
     Py_CLEAR(type->tp_mro);
 
     return 0;
@@ -3586,6 +3604,7 @@ add_methods(PyTypeObject *type, PyMethodDef *meth)
 
     for (; meth->ml_name != NULL; meth++) {
         PyObject *descr;
+        int err;
         if (PyDict_GetItemString(dict, meth->ml_name) &&
             !(meth->ml_flags & METH_COEXIST))
                 continue;
@@ -3609,9 +3628,10 @@ add_methods(PyTypeObject *type, PyMethodDef *meth)
         }
         if (descr == NULL)
             return -1;
-        if (PyDict_SetItemString(dict, meth->ml_name, descr) < 0)
-            return -1;
+        err = PyDict_SetItemString(dict, meth->ml_name, descr);
         Py_DECREF(descr);
+        if (err < 0)
+            return -1;
     }
     return 0;
 }
@@ -6096,27 +6116,27 @@ static slotdef slotdefs[] = {
     NBSLOT("__index__", nb_index, slot_nb_index, wrap_unaryfunc,
            "x[y:z] <==> x[y.__index__():z.__index__()]"),
     IBSLOT("__iadd__", nb_inplace_add, slot_nb_inplace_add,
-           wrap_binaryfunc, "+"),
+           wrap_binaryfunc, "+="),
     IBSLOT("__isub__", nb_inplace_subtract, slot_nb_inplace_subtract,
-           wrap_binaryfunc, "-"),
+           wrap_binaryfunc, "-="),
     IBSLOT("__imul__", nb_inplace_multiply, slot_nb_inplace_multiply,
-           wrap_binaryfunc, "*"),
+           wrap_binaryfunc, "*="),
     IBSLOT("__idiv__", nb_inplace_divide, slot_nb_inplace_divide,
-           wrap_binaryfunc, "/"),
+           wrap_binaryfunc, "/="),
     IBSLOT("__imod__", nb_inplace_remainder, slot_nb_inplace_remainder,
-           wrap_binaryfunc, "%"),
+           wrap_binaryfunc, "%="),
     IBSLOT("__ipow__", nb_inplace_power, slot_nb_inplace_power,
-           wrap_binaryfunc, "**"),
+           wrap_binaryfunc, "**="),
     IBSLOT("__ilshift__", nb_inplace_lshift, slot_nb_inplace_lshift,
-           wrap_binaryfunc, "<<"),
+           wrap_binaryfunc, "<<="),
     IBSLOT("__irshift__", nb_inplace_rshift, slot_nb_inplace_rshift,
-           wrap_binaryfunc, ">>"),
+           wrap_binaryfunc, ">>="),
     IBSLOT("__iand__", nb_inplace_and, slot_nb_inplace_and,
-           wrap_binaryfunc, "&"),
+           wrap_binaryfunc, "&="),
     IBSLOT("__ixor__", nb_inplace_xor, slot_nb_inplace_xor,
-           wrap_binaryfunc, "^"),
+           wrap_binaryfunc, "^="),
     IBSLOT("__ior__", nb_inplace_or, slot_nb_inplace_or,
-           wrap_binaryfunc, "|"),
+           wrap_binaryfunc, "|="),
     BINSLOT("__floordiv__", nb_floor_divide, slot_nb_floor_divide, "//"),
     RBINSLOT("__rfloordiv__", nb_floor_divide, slot_nb_floor_divide, "//"),
     BINSLOT("__truediv__", nb_true_divide, slot_nb_true_divide, "/"),
@@ -6288,7 +6308,8 @@ update_one_slot(PyTypeObject *type, slotdef *p)
             }
             continue;
         }
-        if (Py_TYPE(descr) == &PyWrapperDescr_Type) {
+        if (Py_TYPE(descr) == &PyWrapperDescr_Type &&
+            ((PyWrapperDescrObject *)descr)->d_base->name_strobj == p->name_strobj) {
             void **tptr = resolve_slotdups(type, p->name_strobj);
             if (tptr == NULL || tptr == ptr)
                 generic = p->function;

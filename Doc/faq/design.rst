@@ -297,8 +297,9 @@ use the ``join()`` function from the string module, which allows you to write ::
 How fast are exceptions?
 ------------------------
 
-A try/except block is extremely efficient.  Actually catching an exception is
-expensive.  In versions of Python prior to 2.0 it was common to use this idiom::
+A try/except block is extremely efficient if no exceptions are raised.  Actually
+catching an exception is expensive.  In versions of Python prior to 2.0 it was
+common to use this idiom::
 
    try:
        value = mydict[key]
@@ -309,11 +310,10 @@ expensive.  In versions of Python prior to 2.0 it was common to use this idiom::
 This only made sense when you expected the dict to have the key almost all the
 time.  If that wasn't the case, you coded it like this::
 
-   if mydict.has_key(key):
+   if key in mydict:
        value = mydict[key]
    else:
-       mydict[key] = getvalue(key)
-       value = mydict[key]
+       value = mydict[key] = getvalue(key)
 
 .. note::
 
@@ -684,7 +684,7 @@ construction of large programs.
 Python 2.6 adds an :mod:`abc` module that lets you define Abstract Base Classes
 (ABCs).  You can then use :func:`isinstance` and :func:`issubclass` to check
 whether an instance or a class implements a particular ABC.  The
-:mod:`collections` modules defines a set of useful ABCs such as
+:mod:`collections` module defines a set of useful ABCs such as
 :class:`Iterable`, :class:`Container`, and :class:`MutableMapping`.
 
 For Python, many of the advantages of interface specifications can be obtained

@@ -1,4 +1,3 @@
-
 :mod:`zipfile` --- Work with ZIP archives
 =========================================
 
@@ -8,6 +7,10 @@
 .. sectionauthor:: James C. Ahlstrom <jim@interet.com>
 
 .. versionadded:: 1.6
+
+**Source code:** :source:`Lib/zipfile.py`
+
+--------------
 
 The ZIP file format is a common archive and compression standard. This module
 provides tools to create, read, write, append, and list a ZIP file.  Any
@@ -21,9 +24,6 @@ It can handle ZIP files that use the ZIP64 extensions
 decryption of encrypted files in ZIP archives, but it currently cannot
 create an encrypted file.  Decryption is extremely slow as it is
 implemented in native Python rather than C.
-
-For other archive formats, see the :mod:`bz2`, :mod:`gzip`, and
-:mod:`tarfile` modules.
 
 The module defines the following items:
 
@@ -385,7 +385,7 @@ Instances have the following attributes:
    +-------+--------------------------+
    | Index | Value                    |
    +=======+==========================+
-   | ``0`` | Year                     |
+   | ``0`` | Year (>= 1980)           |
    +-------+--------------------------+
    | ``1`` | Month (one-based)        |
    +-------+--------------------------+
@@ -397,6 +397,10 @@ Instances have the following attributes:
    +-------+--------------------------+
    | ``5`` | Seconds (zero-based)     |
    +-------+--------------------------+
+
+   .. note::
+
+      The ZIP file format does not support timestamps before 1980.
 
 
 .. attribute:: ZipInfo.compress_type

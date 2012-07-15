@@ -130,6 +130,14 @@ class AutoFileTests(unittest.TestCase):
         else:
             self.fail("Should have raised IOError")
 
+    @unittest.skipIf(os.name == 'nt', "test only works on a POSIX-like system")
+    def testOpenDirFD(self):
+        fd = os.open('.', os.O_RDONLY)
+        with self.assertRaises(IOError) as cm:
+            _FileIO(fd, 'r')
+        os.close(fd)
+        self.assertEqual(cm.exception.errno, errno.EISDIR)
+
     #A set of functions testing that we get expected behaviour if someone has
     #manually closed the internal file descriptor.  First, a decorator:
     def ClosedFD(func):
@@ -420,6 +428,17 @@ class OtherFileTests(unittest.TestCase):
         if ('UnicodeEncodeError' not in out and
             'IOError: [Errno 2] No such file or directory' not in out):
             self.fail('Bad output: %r' % out)
+
+    def testUnclosedFDOnException(self):
+        class MyException(Exception): pass
+        class MyFileIO(_FileIO):
+            def __setattr__(self, name, value):
+                if name == "name":
+                    raise MyException("blocked setting name")
+                return super(MyFileIO, self).__setattr__(name, value)
+        fd = os.open(__file__, os.O_RDONLY)
+        self.assertRaises(MyException, MyFileIO, fd)
+        os.close(fd)  # should not raise OSError(EBADF)
 
 def test_main():
     # Historically, these tests have been sloppy about removing TESTFN.

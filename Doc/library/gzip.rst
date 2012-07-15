@@ -4,6 +4,10 @@
 .. module:: gzip
    :synopsis: Interfaces for gzip compression and decompression using file objects.
 
+**Source code:** :source:`Lib/gzip.py`
+
+--------------
+
 This module provides a simple interface to compress and decompress files just
 like the GNU programs :program:`gzip` and :program:`gunzip` would.
 
@@ -17,9 +21,6 @@ data so that it looks like an ordinary file object.
 Note that additional file formats which can be decompressed by the
 :program:`gzip` and :program:`gunzip` programs, such  as those produced by
 :program:`compress` and :program:`pack`, are not supported by this module.
-
-For other archive formats, see the :mod:`bz2`, :mod:`zipfile`, and
-:mod:`tarfile` modules.
 
 The module defines the following items:
 
@@ -58,7 +59,7 @@ The module defines the following items:
    time is used.  This module ignores the timestamp when decompressing;
    however, some programs, such as :program:`gunzip`\ , make use of it.
    The format of the timestamp is the same as that of the return value of
-   ``time.time()`` and of the ``st_mtime`` member of the object returned
+   ``time.time()`` and of the ``st_mtime`` attribute of the object returned
    by ``os.stat()``.
 
    Calling a :class:`GzipFile` object's :meth:`close` method does not close

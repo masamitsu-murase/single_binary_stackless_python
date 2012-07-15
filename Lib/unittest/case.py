@@ -6,6 +6,7 @@ import functools
 import difflib
 import pprint
 import re
+import types
 import warnings
 
 from . import result
@@ -55,7 +56,7 @@ def skip(reason):
     Unconditionally skip a test.
     """
     def decorator(test_item):
-        if not (isinstance(test_item, type) and issubclass(test_item, TestCase)):
+        if not isinstance(test_item, (type, types.ClassType)):
             @functools.wraps(test_item)
             def skip_wrapper(*args, **kwargs):
                 raise SkipTest(reason)
@@ -196,12 +197,16 @@ class TestCase(object):
         # instances of said type in more detail to generate a more useful
         # error message.
         self._type_equality_funcs = {}
-        self.addTypeEqualityFunc(dict, self.assertDictEqual)
-        self.addTypeEqualityFunc(list, self.assertListEqual)
-        self.addTypeEqualityFunc(tuple, self.assertTupleEqual)
-        self.addTypeEqualityFunc(set, self.assertSetEqual)
-        self.addTypeEqualityFunc(frozenset, self.assertSetEqual)
-        self.addTypeEqualityFunc(unicode, self.assertMultiLineEqual)
+        self.addTypeEqualityFunc(dict, 'assertDictEqual')
+        self.addTypeEqualityFunc(list, 'assertListEqual')
+        self.addTypeEqualityFunc(tuple, 'assertTupleEqual')
+        self.addTypeEqualityFunc(set, 'assertSetEqual')
+        self.addTypeEqualityFunc(frozenset, 'assertSetEqual')
+        try:
+            self.addTypeEqualityFunc(unicode, 'assertMultiLineEqual')
+        except NameError:
+            # No unicode support in this build
+            pass
 
     def addTypeEqualityFunc(self, typeobj, function):
         """Add a type specific assertEqual style function to compare a type.
@@ -490,6 +495,8 @@ class TestCase(object):
         if type(first) is type(second):
             asserter = self._type_equality_funcs.get(type(first))
             if asserter is not None:
+                if isinstance(asserter, basestring):
+                    asserter = getattr(self, asserter)
                 return asserter
 
         return self._baseAssertEqual
@@ -869,7 +876,7 @@ class TestCase(object):
             - [0, 1, 1] and [1, 0, 1] compare equal.
             - [0, 0, 1] and [0, 1] compare unequal.
         """
-        first_seq, second_seq = list(actual_seq), list(expected_seq)
+        first_seq, second_seq = list(expected_seq), list(actual_seq)
         with warnings.catch_warnings():
             if sys.py3kwarning:
                 # Silence Py3k warning raised during the sorting

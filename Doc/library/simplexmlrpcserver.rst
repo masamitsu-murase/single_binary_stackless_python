@@ -8,11 +8,15 @@
 
 .. note::
    The :mod:`SimpleXMLRPCServer` module has been merged into
-   :mod:`xmlrpc.server` in Python 3.0.  The :term:`2to3` tool will automatically
-   adapt imports when converting your sources to 3.0.
+   :mod:`xmlrpc.server` in Python 3.  The :term:`2to3` tool will automatically
+   adapt imports when converting your sources to Python 3.
 
 
 .. versionadded:: 2.2
+
+**Source code:** :source:`Lib/SimpleXMLRPCServer.py`
+
+--------------
 
 The :mod:`SimpleXMLRPCServer` module provides a basic server framework for
 XML-RPC servers written in Python.  Servers can either be free standing, using

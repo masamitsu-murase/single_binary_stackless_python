@@ -171,7 +171,7 @@ tick of the interpreter's mainloop using highly optimized C implementations.
 Thus to get the same effect as::
 
    L2 = []
-   for i in range[3]:
+   for i in range(3):
        L2.append(L1[i])
 
 it is much shorter and far faster to use ::
@@ -980,7 +980,7 @@ and then convert decimal strings to numeric values using :func:`int` or
 if the line uses something other than whitespace as a separator.
 
 For more complicated input parsing, regular expressions are more powerful
-than C's :cfunc:`sscanf` and better suited for the task.
+than C's :c:func:`sscanf` and better suited for the task.
 
 
 What does 'UnicodeError: ASCII [decoding,encoding] error: ordinal not in range(128)' mean?

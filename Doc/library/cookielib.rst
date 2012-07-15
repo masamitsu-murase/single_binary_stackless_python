@@ -8,13 +8,14 @@
 
 .. note::
    The :mod:`cookielib` module has been renamed to :mod:`http.cookiejar` in
-   Python 3.0.  The :term:`2to3` tool will automatically adapt imports when
-   converting your sources to 3.0.
-
+   Python 3.  The :term:`2to3` tool will automatically adapt imports when
+   converting your sources to Python 3.
 
 .. versionadded:: 2.4
 
+**Source code:** :source:`Lib/cookielib.py`
 
+--------------
 
 The :mod:`cookielib` module defines classes for automatic handling of HTTP
 cookies.  It is useful for accessing web sites that require small pieces of data

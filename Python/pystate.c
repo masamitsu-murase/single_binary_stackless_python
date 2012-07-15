@@ -27,6 +27,9 @@ the expense of doing their own locking).
 #endif
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #ifdef WITH_THREAD
 #include "pythread.h"
@@ -34,10 +37,6 @@ static PyThread_type_lock head_mutex = NULL; /* Protects interp->tstate_head */
 #define HEAD_INIT() (void)(head_mutex || (head_mutex = PyThread_allocate_lock()))
 #define HEAD_LOCK() PyThread_acquire_lock(head_mutex, WAIT_LOCK)
 #define HEAD_UNLOCK() PyThread_release_lock(head_mutex)
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* The single PyInterpreterState used by this process'
    GILState implementation
@@ -556,23 +555,6 @@ _PyGILState_Fini(void)
     autoInterpreterState = NULL;
 }
 
-/* Reset the TLS key - called by PyOS_AfterFork.
- * This should not be necessary, but some - buggy - pthread implementations
- * don't flush TLS on fork, see issue #10517.
- */
-void
-_PyGILState_Reinit(void)
-{
-    PyThreadState *tstate = PyGILState_GetThisThreadState();
-    PyThread_delete_key(autoTLSkey);
-    if ((autoTLSkey = PyThread_create_key()) == -1)
-        Py_FatalError("Could not allocate TLS entry");
-
-    /* re-associate the current thread state with the new key */
-    if (PyThread_set_key_value(autoTLSkey, (void *)tstate) < 0)
-        Py_FatalError("Couldn't create autoTLSkey mapping");
-}
-
 /* When a thread state is created for a thread by some mechanism other than
    PyGILState_Ensure, it's important that the GILState machinery knows about
    it so it doesn't try to create another thread state for the thread (this is
@@ -690,10 +672,10 @@ PyGILState_Release(PyGILState_STATE oldstate)
         PyEval_SaveThread();
 }
 
+#endif /* WITH_THREAD */
+
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* WITH_THREAD */
 
 

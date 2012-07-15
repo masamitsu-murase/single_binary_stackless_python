@@ -90,6 +90,7 @@ int Py_IgnoreEnvironmentFlag; /* e.g. PYTHONPATH, PYTHONHOME */
   true divisions (which they will be in 2.3). */
 int _Py_QnewFlag = 0;
 int Py_NoUserSiteDirectory = 0; /* for -s and site.py */
+int Py_HashRandomizationFlag = 0; /* for -R and PYTHONHASHSEED */
 
 /* PyModule_GetWarningsModule is no longer necessary as of 2.6
 since _warnings is builtin.  This API should not be used. */
@@ -167,6 +168,12 @@ Py_InitializeEx(int install_sigs)
         Py_OptimizeFlag = add_flag(Py_OptimizeFlag, p);
     if ((p = Py_GETENV("PYTHONDONTWRITEBYTECODE")) && *p != '\0')
         Py_DontWriteBytecodeFlag = add_flag(Py_DontWriteBytecodeFlag, p);
+    /* The variable is only tested for existence here; _PyRandom_Init will
+       check its value further. */
+    if ((p = Py_GETENV("PYTHONHASHSEED")) && *p != '\0')
+        Py_HashRandomizationFlag = add_flag(Py_HashRandomizationFlag, p);
+
+    _PyRandom_Init();
 
     interp = PyInterpreterState_New();
     if (interp == NULL)
@@ -1000,55 +1007,67 @@ parse_syntax_error(PyObject *err, PyObject **message, const char **filename,
         return PyArg_ParseTuple(err, "O(ziiz)", message, filename,
                                 lineno, offset, text);
 
+    *message = NULL;
+
     /* new style errors.  `err' is an instance */
-
-    if (! (v = PyObject_GetAttrString(err, "msg")))
+    *message = PyObject_GetAttrString(err, "msg");
+    if (!*message)
         goto finally;
-    *message = v;
 
-    if (!(v = PyObject_GetAttrString(err, "filename")))
+    v = PyObject_GetAttrString(err, "filename");
+    if (!v)
         goto finally;
-    if (v == Py_None)
+    if (v == Py_None) {
+        Py_DECREF(v);
         *filename = NULL;
-    else if (! (*filename = PyString_AsString(v)))
-        goto finally;
+    }
+    else {
+        *filename = PyString_AsString(v);
+        Py_DECREF(v);
+        if (!*filename)
+            goto finally;
+    }
 
-    Py_DECREF(v);
-    if (!(v = PyObject_GetAttrString(err, "lineno")))
+    v = PyObject_GetAttrString(err, "lineno");
+    if (!v)
         goto finally;
     hold = PyInt_AsLong(v);
     Py_DECREF(v);
-    v = NULL;
     if (hold < 0 && PyErr_Occurred())
         goto finally;
     *lineno = (int)hold;
 
-    if (!(v = PyObject_GetAttrString(err, "offset")))
+    v = PyObject_GetAttrString(err, "offset");
+    if (!v)
         goto finally;
     if (v == Py_None) {
         *offset = -1;
         Py_DECREF(v);
-        v = NULL;
     } else {
         hold = PyInt_AsLong(v);
         Py_DECREF(v);
-        v = NULL;
         if (hold < 0 && PyErr_Occurred())
             goto finally;
         *offset = (int)hold;
     }
 
-    if (!(v = PyObject_GetAttrString(err, "text")))
+    v = PyObject_GetAttrString(err, "text");
+    if (!v)
         goto finally;
-    if (v == Py_None)
+    if (v == Py_None) {
+        Py_DECREF(v);
         *text = NULL;
-    else if (! (*text = PyString_AsString(v)))
-        goto finally;
-    Py_DECREF(v);
+    }
+    else {
+        *text = PyString_AsString(v);
+        Py_DECREF(v);
+        if (!*text)
+            goto finally;
+    }
     return 1;
 
 finally:
-    Py_XDECREF(v);
+    Py_XDECREF(*message);
     return 0;
 }
 

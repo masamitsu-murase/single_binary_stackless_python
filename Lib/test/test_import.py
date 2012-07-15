@@ -1,3 +1,4 @@
+import errno
 import imp
 import marshal
 import os
@@ -6,9 +7,12 @@ import random
 import stat
 import sys
 import unittest
+import textwrap
+import shutil
+
 from test.test_support import (unlink, TESTFN, unload, run_unittest, rmtree,
                                is_jython, check_warnings, EnvironmentVarGuard)
-import textwrap
+from test import symlink_support
 from test import script_helper
 
 def remove_files(name):
@@ -263,7 +267,43 @@ class ImportTests(unittest.TestCase):
                   import imp
             sys.argv.insert(0, C())
             """))
-        script_helper.assert_python_ok(testfn)
+        try:
+            script_helper.assert_python_ok(testfn)
+        finally:
+            unlink(testfn)
+
+    def test_bug7732(self):
+        source = TESTFN + '.py'
+        os.mkdir(source)
+        try:
+            self.assertRaises((ImportError, IOError),
+                              imp.find_module, TESTFN, ["."])
+        finally:
+            os.rmdir(source)
+
+    def test_timestamp_overflow(self):
+        # A modification timestamp larger than 2**32 should not be a problem
+        # when importing a module (issue #11235).
+        sys.path.insert(0, os.curdir)
+        try:
+            source = TESTFN + ".py"
+            compiled = source + ('c' if __debug__ else 'o')
+            with open(source, 'w') as f:
+                pass
+            try:
+                os.utime(source, (2 ** 33 - 5, 2 ** 33 - 5))
+            except OverflowError:
+                self.skipTest("cannot set modification time to large integer")
+            except OSError as e:
+                if e.errno != getattr(errno, 'EOVERFLOW', None):
+                    raise
+                self.skipTest("cannot set modification time to large integer ({})".format(e))
+            __import__(TESTFN)
+            # The pyc file was created.
+            os.stat(compiled)
+        finally:
+            del sys.path[0]
+            remove_files(TESTFN)
 
 
 class PycRewritingTests(unittest.TestCase):
@@ -387,6 +427,13 @@ class PathsTests(unittest.TestCase):
         drive = path[0]
         unc = "\\\\%s\\%s$"%(hn, drive)
         unc += path[2:]
+        try:
+            os.listdir(unc)
+        except OSError as e:
+            if e.errno in (errno.EPERM, errno.EACCES):
+                # See issue #15338
+                self.skipTest("cannot access administrative share %r" % (unc,))
+            raise
         sys.path.append(path)
         mod = __import__("test_trailing_slash")
         self.assertEqual(mod.testdata, 'test_trailing_slash')
@@ -451,8 +498,58 @@ class RelativeImportTests(unittest.TestCase):
                       "implicit absolute import")
 
 
+class TestSymbolicallyLinkedPackage(unittest.TestCase):
+    package_name = 'sample'
+
+    def setUp(self):
+        if os.path.exists(self.tagged):
+            shutil.rmtree(self.tagged)
+        if os.path.exists(self.package_name):
+            symlink_support.remove_symlink(self.package_name)
+        self.orig_sys_path = sys.path[:]
+
+        # create a sample package; imagine you have a package with a tag and
+        #  you want to symbolically link it from its untagged name.
+        os.mkdir(self.tagged)
+        init_file = os.path.join(self.tagged, '__init__.py')
+        open(init_file, 'w').close()
+        assert os.path.exists(init_file)
+
+        # now create a symlink to the tagged package
+        # sample -> sample-tagged
+        symlink_support.symlink(self.tagged, self.package_name)
+
+        assert os.path.isdir(self.package_name)
+        assert os.path.isfile(os.path.join(self.package_name, '__init__.py'))
+
+    @property
+    def tagged(self):
+        return self.package_name + '-tagged'
+
+    # regression test for issue6727
+    @unittest.skipUnless(
+        not hasattr(sys, 'getwindowsversion')
+        or sys.getwindowsversion() >= (6, 0),
+        "Windows Vista or later required")
+    @symlink_support.skip_unless_symlink
+    def test_symlinked_dir_importable(self):
+        # make sure sample can only be imported from the current directory.
+        sys.path[:] = ['.']
+
+        # and try to import the package
+        __import__(self.package_name)
+
+    def tearDown(self):
+        # now cleanup
+        if os.path.exists(self.package_name):
+            symlink_support.remove_symlink(self.package_name)
+        if os.path.exists(self.tagged):
+            shutil.rmtree(self.tagged)
+        sys.path[:] = self.orig_sys_path
+
 def test_main(verbose=None):
-    run_unittest(ImportTests, PycRewritingTests, PathsTests, RelativeImportTests)
+    run_unittest(ImportTests, PycRewritingTests, PathsTests,
+        RelativeImportTests, TestSymbolicallyLinkedPackage)
 
 if __name__ == '__main__':
     # Test needs to be a package, so we can do relative imports.

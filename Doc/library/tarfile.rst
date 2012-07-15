@@ -1,5 +1,3 @@
-.. _tarfile-mod:
-
 :mod:`tarfile` --- Read and write tar archive files
 ===================================================
 
@@ -12,10 +10,14 @@
 .. moduleauthor:: Lars Gustäbel <lars@gustaebel.de>
 .. sectionauthor:: Lars Gustäbel <lars@gustaebel.de>
 
+**Source code:** :source:`Lib/tarfile.py`
+
+--------------
 
 The :mod:`tarfile` module makes it possible to read and write tar
 archives, including those using gzip or bz2 compression.
-(:file:`.zip` files can be read and written using the :mod:`zipfile` module.)
+Use the :mod:`zipfile` module to read or write :file:`.zip` files, or the
+higher-level functions in :ref:`shutil <archiving-operations>`.
 
 Some facts and figures:
 
@@ -141,7 +143,7 @@ Some facts and figures:
 
 
    .. deprecated:: 2.6
-      The :class:`TarFileCompat` class has been deprecated for removal in Python 3.0.
+      The :class:`TarFileCompat` class has been removed in Python 3.
 
 
 .. exception:: TarError

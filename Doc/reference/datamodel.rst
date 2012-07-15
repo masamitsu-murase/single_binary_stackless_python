@@ -573,7 +573,7 @@ Callable types
          :attr:`im_self` used to refer to the class that defined the method.
 
       .. versionchanged:: 2.6
-         For 3.0 forward-compatibility, :attr:`im_func` is also available as
+         For Python 3 forward-compatibility, :attr:`im_func` is also available as
          :attr:`__func__`, and :attr:`im_self` as :attr:`__self__`.
 
       .. index::
@@ -1149,7 +1149,7 @@ sources of additional information.
    single: class; classic
    single: class; old-style
 
-Old-style classes are removed in Python 3.0, leaving only the semantics of
+Old-style classes are removed in Python 3, leaving only the semantics of
 new-style classes.
 
 
@@ -1281,6 +1281,8 @@ Basic customization
       references to such globals exist, this may help in assuring that imported
       modules are still available at the time when the :meth:`__del__` method is
       called.
+
+   See also the :option:`-R` command-line option.
 
 
 .. method:: object.__repr__(self)
@@ -2233,7 +2235,7 @@ Coercion rules
 This section used to document the rules for coercion.  As the language has
 evolved, the coercion rules have become hard to document precisely; documenting
 what one version of one particular implementation does is undesirable.  Instead,
-here are some informal guidelines regarding coercion.  In Python 3.0, coercion
+here are some informal guidelines regarding coercion.  In Python 3, coercion
 will not be supported.
 
 *
@@ -2308,7 +2310,7 @@ will not be supported.
 
 *
 
-  In ``x * y``, if one operator is a sequence that implements sequence
+  In ``x * y``, if one operand is a sequence that implements sequence
   repetition, and the other is an integer (:class:`int` or :class:`long`),
   sequence repetition is invoked.
 

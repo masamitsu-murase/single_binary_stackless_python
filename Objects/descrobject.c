@@ -259,16 +259,53 @@ classmethoddescr_call(PyMethodDescrObject *descr, PyObject *args,
                       PyObject *kwds)
 {
     STACKLESS_GETARG();
-    PyObject *func, *result;
+    Py_ssize_t argc;
+    PyObject *self, *func, *result;
 
-    func = PyCFunction_New(descr->d_method, (PyObject *)descr->d_type);
+    /* Make sure that the first argument is acceptable as 'self' */
+    assert(PyTuple_Check(args));
+    argc = PyTuple_GET_SIZE(args);
+    if (argc < 1) {
+        PyErr_Format(PyExc_TypeError,
+                     "descriptor '%s' of '%.100s' "
+                     "object needs an argument",
+                     descr_name((PyDescrObject *)descr),
+                     descr->d_type->tp_name);
+        return NULL;
+    }
+    self = PyTuple_GET_ITEM(args, 0);
+    if (!PyType_Check(self)) {
+        PyErr_Format(PyExc_TypeError,
+                     "descriptor '%s' requires a type "
+                     "but received a '%.100s'",
+                     descr_name((PyDescrObject *)descr),
+                     self->ob_type->tp_name);
+        return NULL;
+    }
+    if (!PyType_IsSubtype((PyTypeObject *)self, descr->d_type)) {
+        PyErr_Format(PyExc_TypeError,
+                     "descriptor '%s' "
+                     "requires a subtype of '%.100s' "
+                     "but received '%.100s",
+                     descr_name((PyDescrObject *)descr),
+                     descr->d_type->tp_name,
+                     self->ob_type->tp_name);
+        return NULL;
+    }
+
+    func = PyCFunction_New(descr->d_method, self);
     if (func == NULL)
         return NULL;
-
+    args = PyTuple_GetSlice(args, 1, argc);
+    if (args == NULL) {
+        Py_DECREF(func);
+        return NULL;
+    }
     STACKLESS_PROMOTE_ALL();
     result = PyEval_CallObjectWithKeywords(func, args, kwds);
     STACKLESS_ASSERT();
     Py_DECREF(func);
+    Py_DECREF(args);
     return result;
 }
 
@@ -834,6 +871,20 @@ proxy_str(proxyobject *pp)
     return PyObject_Str(pp->dict);
 }
 
+static PyObject *
+proxy_repr(proxyobject *pp)
+{
+    PyObject *dictrepr;
+    PyObject *result;
+
+    dictrepr = PyObject_Repr(pp->dict);
+    if (dictrepr == NULL)
+        return NULL;
+    result = PyString_FromFormat("dict_proxy(%s)", PyString_AS_STRING(dictrepr));
+    Py_DECREF(dictrepr);
+    return result;
+}
+
 static int
 proxy_traverse(PyObject *self, visitproc visit, void *arg)
 {
@@ -865,7 +916,7 @@ PyTypeObject PyDictProxy_Type = {
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
     (cmpfunc)proxy_compare,                     /* tp_compare */
-    0,                                          /* tp_repr */
+    (reprfunc)proxy_repr,                       /* tp_repr */
     0,                                          /* tp_as_number */
     &proxy_as_sequence,                         /* tp_as_sequence */
     &proxy_as_mapping,                          /* tp_as_mapping */

@@ -14,6 +14,7 @@ Currently, the HOWTOs are:
    :maxdepth: 1
 
    advocacy.rst
+   pyporting.rst
    cporting.rst
    curses.rst
    descriptor.rst
@@ -27,4 +28,5 @@ Currently, the HOWTOs are:
    unicode.rst
    urllib2.rst
    webservers.rst
+   argparse.rst
 

@@ -470,7 +470,7 @@ value --- this is a syntactic restriction that is not expressed by the grammar.
 
 **Default parameter values are evaluated when the function definition is
 executed.**  This means that the expression is evaluated once, when the function
-is defined, and that that same "pre-computed" value is used for each call.  This
+is defined, and that the same "pre-computed" value is used for each call.  This
 is especially important to understand when a default parameter is a mutable
 object, such as a list or a dictionary: if the function modifies the object
 (e.g. by appending an item to a list), the default value is in effect modified.
@@ -562,8 +562,9 @@ which is then bound to the class name.
 
 .. rubric:: Footnotes
 
-.. [#] The exception is propagated to the invocation stack only if there is no
-   :keyword:`finally` clause that negates the exception.
+.. [#] The exception is propagated to the invocation stack unless
+   there is a :keyword:`finally` clause which happens to raise another
+   exception. That new exception causes the old one to be lost.
 
 .. [#] Currently, control "flows off the end" except in the case of an exception or the
    execution of a :keyword:`return`, :keyword:`continue`, or :keyword:`break`

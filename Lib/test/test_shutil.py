@@ -7,6 +7,7 @@ import sys
 import stat
 import os
 import os.path
+import errno
 from os.path import splitdrive
 from distutils.spawn import find_executable, spawn
 from shutil import (_make_tarball, _make_zipfile, make_archive,
@@ -339,6 +340,35 @@ class TestShutil(unittest.TestCase):
                 shutil.rmtree(TESTFN, ignore_errors=True)
                 shutil.rmtree(TESTFN2, ignore_errors=True)
 
+    @unittest.skipUnless(hasattr(os, 'chflags') and
+                         hasattr(errno, 'EOPNOTSUPP') and
+                         hasattr(errno, 'ENOTSUP'),
+                         "requires os.chflags, EOPNOTSUPP & ENOTSUP")
+    def test_copystat_handles_harmless_chflags_errors(self):
+        tmpdir = self.mkdtemp()
+        file1 = os.path.join(tmpdir, 'file1')
+        file2 = os.path.join(tmpdir, 'file2')
+        self.write_file(file1, 'xxx')
+        self.write_file(file2, 'xxx')
+
+        def make_chflags_raiser(err):
+            ex = OSError()
+
+            def _chflags_raiser(path, flags):
+                ex.errno = err
+                raise ex
+            return _chflags_raiser
+        old_chflags = os.chflags
+        try:
+            for err in errno.EOPNOTSUPP, errno.ENOTSUP:
+                os.chflags = make_chflags_raiser(err)
+                shutil.copystat(file1, file2)
+            # assert others errors break it
+            os.chflags = make_chflags_raiser(errno.EOPNOTSUPP + errno.ENOTSUP)
+            self.assertRaises(OSError, shutil.copystat, file1, file2)
+        finally:
+            os.chflags = old_chflags
+
     @unittest.skipUnless(zlib, "requires zlib")
     def test_make_tarball(self):
         # creating something to tar
@@ -349,6 +379,8 @@ class TestShutil(unittest.TestCase):
         self.write_file([tmpdir, 'sub', 'file3'], 'xxx')
 
         tmpdir2 = self.mkdtemp()
+        # force shutil to create the directory
+        os.rmdir(tmpdir2)
         unittest.skipUnless(splitdrive(tmpdir)[0] == splitdrive(tmpdir2)[0],
                             "source and target should be on same drive")
 
@@ -464,6 +496,8 @@ class TestShutil(unittest.TestCase):
         self.write_file([tmpdir, 'file2'], 'xxx')
 
         tmpdir2 = self.mkdtemp()
+        # force shutil to create the directory
+        os.rmdir(tmpdir2)
         base_name = os.path.join(tmpdir2, 'archive')
         _make_zipfile(base_name, tmpdir)
 

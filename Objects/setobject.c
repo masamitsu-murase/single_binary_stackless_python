@@ -1875,7 +1875,7 @@ set_contains(PySetObject *so, PyObject *key)
         tmpkey = make_new_set(&PyFrozenSet_Type, key);
         if (tmpkey == NULL)
             return -1;
-        rv = set_contains(so, tmpkey);
+        rv = set_contains_key(so, tmpkey);
         Py_DECREF(tmpkey);
     }
     return rv;
@@ -1929,7 +1929,7 @@ If the element is not a member, raise a KeyError.");
 static PyObject *
 set_discard(PySetObject *so, PyObject *key)
 {
-    PyObject *tmpkey, *result;
+    PyObject *tmpkey;
     int rv;
 
     rv = set_discard_key(so, key);
@@ -1940,9 +1940,10 @@ set_discard(PySetObject *so, PyObject *key)
         tmpkey = make_new_set(&PyFrozenSet_Type, key);
         if (tmpkey == NULL)
             return NULL;
-        result = set_discard(so, tmpkey);
+        rv = set_discard_key(so, tmpkey);
         Py_DECREF(tmpkey);
-        return result;
+        if (rv == -1)
+            return NULL;
     }
     Py_RETURN_NONE;
 }

@@ -3,7 +3,7 @@
 
 .. module:: sqlite3
    :synopsis: A DB-API 2.0 implementation using SQLite 3.x.
-.. sectionauthor:: Gerhard HÃ¤ring <gh@ghaering.de>
+.. sectionauthor:: Gerhard Häring <gh@ghaering.de>
 
 
 .. versionadded:: 2.5
@@ -15,14 +15,15 @@ SQLite for internal data storage.  It's also possible to prototype an
 application using SQLite and then port the code to a larger database such as
 PostgreSQL or Oracle.
 
-sqlite3 was written by Gerhard Häring and provides a SQL interface compliant
-with the DB-API 2.0 specification described by :pep:`249`.
+The sqlite3 module was written by Gerhard Häring.  It provides a SQL interface
+compliant with the DB-API 2.0 specification described by :pep:`249`.
 
 To use the module, you must first create a :class:`Connection` object that
 represents the database.  Here the data will be stored in the
-:file:`/tmp/example` file::
+:file:`example.db` file::
 
-   conn = sqlite3.connect('/tmp/example')
+   import sqlite3
+   conn = sqlite3.connect('example.db')
 
 You can also supply the special name ``:memory:`` to create a database in RAM.
 
@@ -32,13 +33,11 @@ and call its :meth:`~Cursor.execute` method to perform SQL commands::
    c = conn.cursor()
 
    # Create table
-   c.execute('''create table stocks
-   (date text, trans text, symbol text,
-    qty real, price real)''')
+   c.execute('''CREATE TABLE stocks
+                (date text, trans text, symbol text, qty real, price real)''')
 
    # Insert a row of data
-   c.execute("""insert into stocks
-             values ('2006-01-05','BUY','RHAT',100,35.14)""")
+   c.execute("INSERT INTO stocks VALUES ('2006-01-05','BUY','RHAT',100,35.14)")
 
    # Save (commit) the changes
    conn.commit()
@@ -46,9 +45,16 @@ and call its :meth:`~Cursor.execute` method to perform SQL commands::
    # We can also close the cursor if we are done with it
    c.close()
 
+The data you've saved is persistent and is available in subsequent sessions::
+
+   import sqlite3
+   conn = sqlite3.connect('example.db')
+   c = conn.cursor()
+
 Usually your SQL operations will need to use values from Python variables.  You
 shouldn't assemble your query using Python's string operations because doing so
-is insecure; it makes your program vulnerable to an SQL injection attack.
+is insecure; it makes your program vulnerable to an SQL injection attack
+(see http://xkcd.com/327/ for humorous example of what can go wrong).
 
 Instead, use the DB-API's parameter substitution.  Put ``?`` as a placeholder
 wherever you want to use a value, and then provide a tuple of values as the
@@ -57,19 +63,20 @@ modules may use a different placeholder, such as ``%s`` or ``:1``.) For
 example::
 
    # Never do this -- insecure!
-   symbol = 'IBM'
-   c.execute("... where symbol = '%s'" % symbol)
+   symbol = 'RHAT'
+   c.execute("SELECT * FROM stocks WHERE symbol = '%s'" % symbol)
 
    # Do this instead
    t = (symbol,)
-   c.execute('select * from stocks where symbol=?', t)
+   c.execute('SELECT * FROM stocks WHERE symbol=?', t)
+   print c.fetchone()
 
-   # Larger example
-   for t in [('2006-03-28', 'BUY', 'IBM', 1000, 45.00),
-             ('2006-04-05', 'BUY', 'MSOFT', 1000, 72.00),
-             ('2006-04-06', 'SELL', 'IBM', 500, 53.00),
-            ]:
-       c.execute('insert into stocks values (?,?,?,?,?)', t)
+   # Larger example that inserts many records at a time
+   purchases = [('2006-03-28', 'BUY', 'IBM', 1000, 45.00),
+                ('2006-04-05', 'BUY', 'MSFT', 1000, 72.00),
+                ('2006-04-06', 'SELL', 'IBM', 500, 53.00),
+               ]
+   c.executemany('INSERT INTO stocks VALUES (?,?,?,?,?)', purchases)
 
 To retrieve data after executing a SELECT statement, you can either treat the
 cursor as an :term:`iterator`, call the cursor's :meth:`~Cursor.fetchone` method to
@@ -78,16 +85,13 @@ matching rows.
 
 This example uses the iterator form::
 
-   >>> c = conn.cursor()
-   >>> c.execute('select * from stocks order by price')
-   >>> for row in c:
-   ...    print row
-   ...
+   >>> for row in c.execute('SELECT * FROM stocks ORDER BY price'):
+           print row
+
    (u'2006-01-05', u'BUY', u'RHAT', 100, 35.14)
    (u'2006-03-28', u'BUY', u'IBM', 1000, 45.0)
    (u'2006-04-06', u'SELL', u'IBM', 500, 53.0)
-   (u'2006-04-05', u'BUY', u'MSOFT', 1000, 72.0)
-   >>>
+   (u'2006-04-05', u'BUY', u'MSFT', 1000, 72.0)
 
 
 .. seealso::
@@ -99,6 +103,9 @@ This example uses the iterator form::
    http://www.sqlite.org
       The SQLite web page; the documentation describes the syntax and the
       available data types for the supported SQL dialect.
+
+   http://www.w3schools.com/sql/
+      Tutorial, reference and examples for learning SQL syntax.
 
    :pep:`249` - Database API Specification 2.0
       PEP written by Marc-André Lemburg.
@@ -236,11 +243,10 @@ Connection Objects
    supplied, this must be a custom cursor class that extends
    :class:`sqlite3.Cursor`.
 
-
 .. method:: Connection.commit()
 
    This method commits the current transaction. If you don't call this method,
-   anything you did since the last call to ``commit()`` is not visible from from
+   anything you did since the last call to ``commit()`` is not visible from
    other database connections. If you wonder why you don't see the data you've
    written to the database, please check you didn't forget to call this method.
 
@@ -356,8 +362,6 @@ Connection Objects
 
 .. method:: Connection.set_progress_handler(handler, n)
 
-   .. versionadded:: 2.6
-
    This routine registers a callback. The callback is invoked for every *n*
    instructions of the SQLite virtual machine. This is useful if you want to
    get called from SQLite during long-running operations, for example to update
@@ -366,25 +370,31 @@ Connection Objects
    If you want to clear any previously installed progress handler, call the
    method with :const:`None` for *handler*.
 
+   .. versionadded:: 2.6
+
 
 .. method:: Connection.enable_load_extension(enabled)
-
-   .. versionadded:: 2.7
 
    This routine allows/disallows the SQLite engine to load SQLite extensions
    from shared libraries.  SQLite extensions can define new functions,
    aggregates or whole new virtual table implementations.  One well-known
    extension is the fulltext-search extension distributed with SQLite.
 
+   Loadable extensions are disabled by default. See [#f1]_.
+
+   .. versionadded:: 2.7
+
    .. literalinclude:: ../includes/sqlite3/load_extension.py
 
 .. method:: Connection.load_extension(path)
 
-   .. versionadded:: 2.7
-
    This routine loads a SQLite extension from a shared library.  You have to
    enable extension loading with :meth:`enable_load_extension` before you can
    use this routine.
+
+   Loadable extensions are disabled by default. See [#f1]_.
+
+   .. versionadded:: 2.7
 
 .. attribute:: Connection.row_factory
 
@@ -463,18 +473,14 @@ Cursor Objects
 
 .. method:: Cursor.execute(sql, [parameters])
 
-   Executes an SQL statement. The SQL statement may be parametrized (i. e.
+   Executes an SQL statement. The SQL statement may be parameterized (i. e.
    placeholders instead of SQL literals). The :mod:`sqlite3` module supports two
    kinds of placeholders: question marks (qmark style) and named placeholders
    (named style).
 
-   This example shows how to use parameters with qmark style:
+   Here's an example of both styles:
 
    .. literalinclude:: ../includes/sqlite3/execute_1.py
-
-   This example shows how to use the named style:
-
-   .. literalinclude:: ../includes/sqlite3/execute_2.py
 
    :meth:`execute` will only execute a single SQL statement. If you try to execute
    more than one statement with it, it will raise a Warning. Use
@@ -543,18 +549,17 @@ Cursor Objects
    attribute, the database engine's own support for the determination of "rows
    affected"/"rows selected" is quirky.
 
-   For ``DELETE`` statements, SQLite reports :attr:`rowcount` as 0 if you make a
-   ``DELETE FROM table`` without any condition.
-
    For :meth:`executemany` statements, the number of modifications are summed up
    into :attr:`rowcount`.
 
    As required by the Python DB API Spec, the :attr:`rowcount` attribute "is -1 in
    case no ``executeXX()`` has been performed on the cursor or the rowcount of the
-   last operation is not determinable by the interface".
+   last operation is not determinable by the interface". This includes ``SELECT``
+   statements because we cannot determine the number of rows a query produced
+   until all rows were fetched.
 
-   This includes ``SELECT`` statements because we cannot determine the number of
-   rows a query produced until all rows were fetched.
+   With SQLite versions before 3.6.5, :attr:`rowcount` is set to 0 if
+   you make a ``DELETE FROM table`` without any condition.
 
 .. attribute:: Cursor.lastrowid
 
@@ -600,42 +605,43 @@ Row Objects
 
 Let's assume we initialize a table as in the example given above::
 
-    conn = sqlite3.connect(":memory:")
-    c = conn.cursor()
-    c.execute('''create table stocks
-    (date text, trans text, symbol text,
-     qty real, price real)''')
-    c.execute("""insert into stocks
-              values ('2006-01-05','BUY','RHAT',100,35.14)""")
-    conn.commit()
-    c.close()
+   conn = sqlite3.connect(":memory:")
+   c = conn.cursor()
+   c.execute('''create table stocks
+   (date text, trans text, symbol text,
+    qty real, price real)''')
+   c.execute("""insert into stocks
+             values ('2006-01-05','BUY','RHAT',100,35.14)""")
+   conn.commit()
+   c.close()
 
 Now we plug :class:`Row` in::
 
-    >>> conn.row_factory = sqlite3.Row
-    >>> c = conn.cursor()
-    >>> c.execute('select * from stocks')
-    <sqlite3.Cursor object at 0x7f4e7dd8fa80>
-    >>> r = c.fetchone()
-    >>> type(r)
-    <type 'sqlite3.Row'>
-    >>> r
-    (u'2006-01-05', u'BUY', u'RHAT', 100.0, 35.14)
-    >>> len(r)
-    5
-    >>> r[2]
-    u'RHAT'
-    >>> r.keys()
-    ['date', 'trans', 'symbol', 'qty', 'price']
-    >>> r['qty']
-    100.0
-    >>> for member in r: print member
-    ...
-    2006-01-05
-    BUY
-    RHAT
-    100.0
-    35.14
+   >>> conn.row_factory = sqlite3.Row
+   >>> c = conn.cursor()
+   >>> c.execute('select * from stocks')
+   <sqlite3.Cursor object at 0x7f4e7dd8fa80>
+   >>> r = c.fetchone()
+   >>> type(r)
+   <type 'sqlite3.Row'>
+   >>> r
+   (u'2006-01-05', u'BUY', u'RHAT', 100.0, 35.14)
+   >>> len(r)
+   5
+   >>> r[2]
+   u'RHAT'
+   >>> r.keys()
+   ['date', 'trans', 'symbol', 'qty', 'price']
+   >>> r['qty']
+   100.0
+   >>> for member in r:
+   ...     print member
+   ...
+   2006-01-05
+   BUY
+   RHAT
+   100.0
+   35.14
 
 
 .. _sqlite3-types:
@@ -893,3 +899,12 @@ threads. If you still try to do so, you will get an exception at runtime.
 
 The only exception is calling the :meth:`~Connection.interrupt` method, which
 only makes sense to call from a different thread.
+
+.. rubric:: Footnotes
+
+.. [#f1] The sqlite3 module is not built with loadable extension support by
+   default, because some platforms (notably Mac OS X) have SQLite libraries
+   which are compiled without this feature. To get loadable extension support,
+   you must modify setup.py and remove the line that sets
+   SQLITE_OMIT_LOAD_EXTENSION.
+

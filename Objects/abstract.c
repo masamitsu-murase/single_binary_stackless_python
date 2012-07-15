@@ -127,7 +127,7 @@ _PyObject_LengthHint(PyObject *o, Py_ssize_t defaultvalue)
         PyErr_Clear();
         return defaultvalue;
     }
-    rv = PyLong_Check(ro) ? PyLong_AsSsize_t(ro) : defaultvalue;
+    rv = PyNumber_Check(ro) ? PyInt_AsSsize_t(ro) : defaultvalue;
     Py_DECREF(ro);
     return rv;
 }
@@ -157,7 +157,7 @@ PyObject_GetItem(PyObject *o, PyObject *key)
                               "be integer, not '%.200s'", key);
     }
 
-    return type_error("'%.200s' object is not subscriptable", o);
+    return type_error("'%.200s' object has no attribute '__getitem__'", o);
 }
 
 int

@@ -1170,7 +1170,7 @@ PyDoc_STRVAR(find__doc__,
 "B.find(sub [,start [,end]]) -> int\n\
 \n\
 Return the lowest index in B where subsection sub is found,\n\
-such that sub is contained within s[start,end].  Optional\n\
+such that sub is contained within B[start,end].  Optional\n\
 arguments start and end are interpreted as in slice notation.\n\
 \n\
 Return -1 on failure.");
@@ -1240,7 +1240,7 @@ PyDoc_STRVAR(rfind__doc__,
 "B.rfind(sub [,start [,end]]) -> int\n\
 \n\
 Return the highest index in B where subsection sub is found,\n\
-such that sub is contained within s[start,end].  Optional\n\
+such that sub is contained within B[start,end].  Optional\n\
 arguments start and end are interpreted as in slice notation.\n\
 \n\
 Return -1 on failure.");
@@ -2296,8 +2296,10 @@ bytearray_extend(PyByteArrayObject *self, PyObject *arg)
     }
 
     bytearray_obj = PyByteArray_FromStringAndSize(NULL, buf_size);
-    if (bytearray_obj == NULL)
+    if (bytearray_obj == NULL) {
+        Py_DECREF(it);
         return NULL;
+    }
     buf = PyByteArray_AS_STRING(bytearray_obj);
 
     while ((item = PyIter_Next(it)) != NULL) {
@@ -2330,8 +2332,10 @@ bytearray_extend(PyByteArrayObject *self, PyObject *arg)
         return NULL;
     }
 
-    if (bytearray_setslice(self, Py_SIZE(self), Py_SIZE(self), bytearray_obj) == -1)
+    if (bytearray_setslice(self, Py_SIZE(self), Py_SIZE(self), bytearray_obj) == -1) {
+        Py_DECREF(bytearray_obj);
         return NULL;
+    }
     Py_DECREF(bytearray_obj);
 
     Py_RETURN_NONE;
@@ -2645,7 +2649,7 @@ bytearray_join(PyByteArrayObject *self, PyObject *it)
 }
 
 PyDoc_STRVAR(splitlines__doc__,
-"B.splitlines([keepends]) -> list of lines\n\
+"B.splitlines(keepends=False) -> list of lines\n\
 \n\
 Return a list of the lines in B, breaking at line boundaries.\n\
 Line breaks are not included in the resulting list unless keepends\n\

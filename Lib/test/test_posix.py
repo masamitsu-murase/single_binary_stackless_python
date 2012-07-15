@@ -9,12 +9,17 @@ import errno
 import sys
 import time
 import os
+import platform
 import pwd
 import shutil
+import stat
 import sys
+import tempfile
 import unittest
 import warnings
 
+_DUMMY_SYMLINK = os.path.join(tempfile.gettempdir(),
+                              test_support.TESTFN + '-dummy-symlink')
 
 warnings.filterwarnings('ignore', '.* potential security risk .*',
                         RuntimeWarning)
@@ -25,9 +30,11 @@ class PosixTester(unittest.TestCase):
         # create empty file
         fp = open(test_support.TESTFN, 'w+')
         fp.close()
+        self.teardown_files = [ test_support.TESTFN ]
 
     def tearDown(self):
-        os.unlink(test_support.TESTFN)
+        for teardown_file in self.teardown_files:
+            os.unlink(teardown_file)
 
     def testNoArgFunctions(self):
         # test posix functions which take no arguments and have
@@ -101,7 +108,11 @@ class PosixTester(unittest.TestCase):
         # If a non-privileged user invokes it, it should fail with OSError
         # EPERM.
         if os.getuid() != 0:
-            name = pwd.getpwuid(posix.getuid()).pw_name
+            try:
+                name = pwd.getpwuid(posix.getuid()).pw_name
+            except KeyError:
+                # the current UID may not have a pwd entry
+                raise unittest.SkipTest("need a pwd entry")
             try:
                 posix.initgroups(name, 13)
             except OSError as e:
@@ -213,6 +224,9 @@ class PosixTester(unittest.TestCase):
 
     def _test_all_chown_common(self, chown_func, first_param):
         """Common code for chown, fchown and lchown tests."""
+        # test a successful chown call
+        chown_func(first_param, os.getuid(), os.getgid())
+
         if os.getuid() == 0:
             try:
                 # Many linux distros have a nfsnobody user as MAX_UID-2
@@ -224,13 +238,15 @@ class PosixTester(unittest.TestCase):
                 chown_func(first_param, ent.pw_uid, ent.pw_gid)
             except KeyError:
                 pass
+        elif platform.system() in ('HP-UX', 'SunOS'):
+            # HP-UX and Solaris can allow a non-root user to chown() to root
+            # (issue #5113)
+            raise unittest.SkipTest("Skipping because of non-standard chown() "
+                                    "behavior")
         else:
             # non-root cannot chown to root, raises OSError
             self.assertRaises(OSError, chown_func,
                               first_param, 0, 0)
-
-        # test a successful chown call
-        chown_func(first_param, os.getuid(), os.getgid())
 
     @unittest.skipUnless(hasattr(posix, 'chown'), "test needs os.chown()")
     def test_chown(self):
@@ -258,7 +274,7 @@ class PosixTester(unittest.TestCase):
     def test_lchown(self):
         os.unlink(test_support.TESTFN)
         # create a symlink
-        os.symlink('/tmp/dummy-symlink-target', test_support.TESTFN)
+        os.symlink(_DUMMY_SYMLINK, test_support.TESTFN)
         self._test_all_chown_common(posix.lchown, test_support.TESTFN)
 
     def test_chdir(self):
@@ -315,17 +331,49 @@ class PosixTester(unittest.TestCase):
             posix.utime(test_support.TESTFN, (int(now), int(now)))
             posix.utime(test_support.TESTFN, (now, now))
 
-    def test_chflags(self):
-        if hasattr(posix, 'chflags'):
-            st = os.stat(test_support.TESTFN)
-            if hasattr(st, 'st_flags'):
-                posix.chflags(test_support.TESTFN, st.st_flags)
+    def _test_chflags_regular_file(self, chflags_func, target_file):
+        st = os.stat(target_file)
+        self.assertTrue(hasattr(st, 'st_flags'))
+        chflags_func(target_file, st.st_flags | stat.UF_IMMUTABLE)
+        try:
+            new_st = os.stat(target_file)
+            self.assertEqual(st.st_flags | stat.UF_IMMUTABLE, new_st.st_flags)
+            try:
+                fd = open(target_file, 'w+')
+            except IOError as e:
+                self.assertEqual(e.errno, errno.EPERM)
+        finally:
+            posix.chflags(target_file, st.st_flags)
 
-    def test_lchflags(self):
-        if hasattr(posix, 'lchflags'):
-            st = os.stat(test_support.TESTFN)
-            if hasattr(st, 'st_flags'):
-                posix.lchflags(test_support.TESTFN, st.st_flags)
+    @unittest.skipUnless(hasattr(posix, 'chflags'), 'test needs os.chflags()')
+    def test_chflags(self):
+        self._test_chflags_regular_file(posix.chflags, test_support.TESTFN)
+
+    @unittest.skipUnless(hasattr(posix, 'lchflags'), 'test needs os.lchflags()')
+    def test_lchflags_regular_file(self):
+        self._test_chflags_regular_file(posix.lchflags, test_support.TESTFN)
+
+    @unittest.skipUnless(hasattr(posix, 'lchflags'), 'test needs os.lchflags()')
+    def test_lchflags_symlink(self):
+        testfn_st = os.stat(test_support.TESTFN)
+
+        self.assertTrue(hasattr(testfn_st, 'st_flags'))
+
+        os.symlink(test_support.TESTFN, _DUMMY_SYMLINK)
+        self.teardown_files.append(_DUMMY_SYMLINK)
+        dummy_symlink_st = os.lstat(_DUMMY_SYMLINK)
+
+        posix.lchflags(_DUMMY_SYMLINK,
+                       dummy_symlink_st.st_flags | stat.UF_IMMUTABLE)
+        try:
+            new_testfn_st = os.stat(test_support.TESTFN)
+            new_dummy_symlink_st = os.lstat(_DUMMY_SYMLINK)
+
+            self.assertEqual(testfn_st.st_flags, new_testfn_st.st_flags)
+            self.assertEqual(dummy_symlink_st.st_flags | stat.UF_IMMUTABLE,
+                             new_dummy_symlink_st.st_flags)
+        finally:
+            posix.lchflags(_DUMMY_SYMLINK, dummy_symlink_st.st_flags)
 
     def test_getcwd_long_pathnames(self):
         if hasattr(posix, 'getcwd'):
@@ -374,8 +422,9 @@ class PosixTester(unittest.TestCase):
     def test_getgroups(self):
         with os.popen('id -G') as idg:
             groups = idg.read().strip()
+            ret = idg.close()
 
-        if not groups:
+        if ret != None or not groups:
             raise unittest.SkipTest("need working 'id -G'")
 
         # 'id -G' and 'os.getgroups()' should return the same

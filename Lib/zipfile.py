@@ -236,16 +236,14 @@ def _EndRecData(fpin):
         # found the magic number; attempt to unpack and interpret
         recData = data[start:start+sizeEndCentDir]
         endrec = list(struct.unpack(structEndArchive, recData))
-        comment = data[start+sizeEndCentDir:]
-        # check that comment length is correct
-        if endrec[_ECD_COMMENT_SIZE] == len(comment):
-            # Append the archive comment and start offset
-            endrec.append(comment)
-            endrec.append(maxCommentStart + start)
+        commentSize = endrec[_ECD_COMMENT_SIZE] #as claimed by the zip file
+        comment = data[start+sizeEndCentDir:start+sizeEndCentDir+commentSize]
+        endrec.append(comment)
+        endrec.append(maxCommentStart + start)
 
-            # Try to read the "Zip64 end of central directory" structure
-            return _EndRecData64(fpin, maxCommentStart + start - filesize,
-                                 endrec)
+        # Try to read the "Zip64 end of central directory" structure
+        return _EndRecData64(fpin, maxCommentStart + start - filesize,
+                             endrec)
 
     # Unable to find a valid end of central directory structure
     return
@@ -292,6 +290,10 @@ class ZipInfo (object):
 
         self.filename = filename        # Normalized file name
         self.date_time = date_time      # year, month, day, hour, min, sec
+
+        if date_time[0] < 1980:
+            raise ValueError('ZIP does not support timestamps before 1980')
+
         # Standard values:
         self.compress_type = ZIP_STORED # Type of compression for the file
         self.comment = ""               # Comment for each file
@@ -649,7 +651,7 @@ class ZipExtFile(io.BufferedIOBase):
 
 
 
-class ZipFile:
+class ZipFile(object):
     """ Class with methods to open, read, write, close, list zip files.
 
     z = ZipFile(file, mode="r", compression=ZIP_STORED, allowZip64=False)
@@ -688,7 +690,7 @@ class ZipFile:
         self.compression = compression  # Method of compression
         self.mode = key = mode.replace('b', '')[0]
         self.pwd = None
-        self.comment = ''
+        self._comment = ''
 
         # Check if we were passed a file-like object
         if isinstance(file, basestring):
@@ -763,7 +765,7 @@ class ZipFile:
             print endrec
         size_cd = endrec[_ECD_SIZE]             # bytes in central directory
         offset_cd = endrec[_ECD_OFFSET]         # offset of central directory
-        self.comment = endrec[_ECD_COMMENT]     # archive comment
+        self._comment = endrec[_ECD_COMMENT]    # archive comment
 
         # "concat" is zero, unless zip was concatenated to another file
         concat = endrec[_ECD_LOCATION] - size_cd - offset_cd
@@ -861,6 +863,22 @@ class ZipFile:
     def setpassword(self, pwd):
         """Set default password for encrypted files."""
         self.pwd = pwd
+
+    @property
+    def comment(self):
+        """The comment text associated with the ZIP file."""
+        return self._comment
+
+    @comment.setter
+    def comment(self, comment):
+        # check for valid comment length
+        if len(comment) >= ZIP_MAX_COMMENT:
+            if self.debug:
+                print('Archive comment is too long; truncating to %d bytes'
+                        % ZIP_MAX_COMMENT)
+            comment = comment[:ZIP_MAX_COMMENT]
+        self._comment = comment
+        self._didModify = True
 
     def read(self, name, pwd=None):
         """Return file bytes (as a string) for name."""
@@ -1241,18 +1259,11 @@ class ZipFile:
                 centDirSize = min(centDirSize, 0xFFFFFFFF)
                 centDirOffset = min(centDirOffset, 0xFFFFFFFF)
 
-            # check for valid comment length
-            if len(self.comment) >= ZIP_MAX_COMMENT:
-                if self.debug > 0:
-                    msg = 'Archive comment is too long; truncating to %d bytes' \
-                          % ZIP_MAX_COMMENT
-                self.comment = self.comment[:ZIP_MAX_COMMENT]
-
             endrec = struct.pack(structEndArchive, stringEndArchive,
                                  0, 0, centDirCount, centDirCount,
-                                 centDirSize, centDirOffset, len(self.comment))
+                                 centDirSize, centDirOffset, len(self._comment))
             self.fp.write(endrec)
-            self.fp.write(self.comment)
+            self.fp.write(self._comment)
             self.fp.flush()
 
         if not self._filePassed:

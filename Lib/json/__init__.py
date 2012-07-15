@@ -31,7 +31,7 @@ Encoding basic Python object hierarchies::
 Compact encoding::
 
     >>> import json
-    >>> json.dumps([1,2,3,{'4': 5, '6': 7}], separators=(',',':'))
+    >>> json.dumps([1,2,3,{'4': 5, '6': 7}], sort_keys=True, separators=(',',':'))
     '[1,2,3,{"4":5,"6":7}]'
 
 Pretty printing::
@@ -95,7 +95,7 @@ Using json.tool from the shell to validate and pretty-print::
         "json": "obj"
     }
     $ echo '{ 1.2:3.4}' | python -m json.tool
-    Expecting property name: line 1 column 2 (char 2)
+    Expecting property name enclosed in double quotes: line 1 column 2 (char 2)
 """
 __version__ = '2.0.9'
 __all__ = [
