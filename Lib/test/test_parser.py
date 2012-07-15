@@ -57,6 +57,16 @@ class RoundtripLegalSyntaxTestCase(unittest.TestCase):
                          "    if (yield):\n"
                          "        yield x\n")
 
+    def test_nonlocal_statement(self):
+        self.check_suite("def f():\n"
+                         "    x = 0\n"
+                         "    def g():\n"
+                         "        nonlocal x\n")
+        self.check_suite("def f():\n"
+                         "    x = y = 0\n"
+                         "    def g():\n"
+                         "        nonlocal x, y\n")
+
     def test_expressions(self):
         self.check_expr("foo(1)")
         self.check_expr("[1, 2, 3]")
@@ -96,6 +106,8 @@ class RoundtripLegalSyntaxTestCase(unittest.TestCase):
         self.check_expr("lambda x, *y, **z: 0")
         self.check_expr("(x for x in range(10))")
         self.check_expr("foo(x for x in range(10))")
+        self.check_expr("...")
+        self.check_expr("a[...]")
 
     def test_simple_expression(self):
         # expr_stmt
@@ -145,6 +157,27 @@ class RoundtripLegalSyntaxTestCase(unittest.TestCase):
                          "def f(): pass")
         self.check_suite("@funcattrs()\n"
                          "def f(): pass")
+
+        # keyword-only arguments
+        self.check_suite("def f(*, a): pass")
+        self.check_suite("def f(*, a = 5): pass")
+        self.check_suite("def f(*, a = 5, b): pass")
+        self.check_suite("def f(*, a, b = 5): pass")
+        self.check_suite("def f(*, a, b = 5, **kwds): pass")
+        self.check_suite("def f(*args, a): pass")
+        self.check_suite("def f(*args, a = 5): pass")
+        self.check_suite("def f(*args, a = 5, b): pass")
+        self.check_suite("def f(*args, a, b = 5): pass")
+        self.check_suite("def f(*args, a, b = 5, **kwds): pass")
+
+        # function annotations
+        self.check_suite("def f(a: int): pass")
+        self.check_suite("def f(a: int = 5): pass")
+        self.check_suite("def f(*args: list): pass")
+        self.check_suite("def f(**kwds: dict): pass")
+        self.check_suite("def f(*, a: int): pass")
+        self.check_suite("def f(*, a: int = 5): pass")
+        self.check_suite("def f() -> int: pass")
 
     def test_class_defs(self):
         self.check_suite("class foo():pass")
@@ -265,6 +298,37 @@ class RoundtripLegalSyntaxTestCase(unittest.TestCase):
         self.check_suite("x, *b, = m")
         self.check_suite("[*a, *b] = y")
         self.check_suite("for [*x, b] in x: pass")
+
+    def test_raise_statement(self):
+        self.check_suite("raise\n")
+        self.check_suite("raise e\n")
+        self.check_suite("try:\n"
+                         "    suite\n"
+                         "except Exception as e:\n"
+                         "    raise ValueError from e\n")
+
+    def test_set_displays(self):
+        self.check_expr('{2}')
+        self.check_expr('{2,}')
+        self.check_expr('{2, 3}')
+        self.check_expr('{2, 3,}')
+
+    def test_dict_displays(self):
+        self.check_expr('{}')
+        self.check_expr('{a:b}')
+        self.check_expr('{a:b,}')
+        self.check_expr('{a:b, c:d}')
+        self.check_expr('{a:b, c:d,}')
+
+    def test_set_comprehensions(self):
+        self.check_expr('{x for x in seq}')
+        self.check_expr('{f(x) for x in seq}')
+        self.check_expr('{f(x) for x in seq if condition(x)}')
+
+    def test_dict_comprehensions(self):
+        self.check_expr('{x:x for x in seq}')
+        self.check_expr('{x**2:x[3] for x in seq if condition(x)}')
+        self.check_expr('{x:x for x in seq1 for y in seq2 if condition(x, y)}')
 
 
 #

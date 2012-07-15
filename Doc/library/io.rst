@@ -217,7 +217,7 @@ I/O Base Classes
    :class:`IOBase` object can be iterated over yielding the lines in a stream.
    Lines are defined slightly differently depending on whether the stream is
    a binary stream (yielding bytes), or a text stream (yielding character
-   strings).  See :meth:`readline` below.
+   strings).  See :meth:`~IOBase.readline` below.
 
    IOBase is also a context manager and therefore supports the
    :keyword:`with` statement.  In this example, *file* is closed after the
@@ -703,6 +703,32 @@ Text I/O
 
       Read until newline or EOF and return a single ``str``.  If the stream is
       already at EOF, an empty string is returned.
+
+   .. method:: seek(offset, whence=SEEK_SET)
+
+      Change the stream position to the given *offset*.  Behaviour depends
+      on the *whence* parameter:
+
+      * :data:`SEEK_SET` or ``0``: seek from the start of the stream
+        (the default); *offset* must either be a number returned by
+        :meth:`TextIOBase.tell`, or zero.  Any other *offset* value
+        produces undefined behaviour.
+      * :data:`SEEK_CUR` or ``1``: "seek" to the current position;
+        *offset* must be zero, which is a no-operation (all other values
+        are unsupported).
+      * :data:`SEEK_END` or ``2``: seek to the end of the stream;
+        *offset* must be zero (all other values are unsupported).
+
+      Return the new absolute position as an opaque number.
+
+      .. versionadded:: 3.1
+         The ``SEEK_*`` constants.
+
+   .. method:: tell()
+
+      Return the current stream position as an opaque number.  The number
+      does not usually represent a number of bytes in the underlying
+      binary storage.
 
    .. method:: write(s)
 

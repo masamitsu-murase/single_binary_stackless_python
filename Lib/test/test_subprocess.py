@@ -13,10 +13,12 @@ import sysconfig
 import warnings
 import select
 import shutil
+import gc
+
 try:
-    import gc
+    import resource
 except ImportError:
-    gc = None
+    resource = None
 
 mswindows = (sys.platform == "win32")
 
@@ -732,12 +734,12 @@ class _SuppressCoreFiles(object):
 
     def __enter__(self):
         """Try to save previous ulimit, then set it to (0, 0)."""
-        try:
-            import resource
-            self.old_limit = resource.getrlimit(resource.RLIMIT_CORE)
-            resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
-        except (ImportError, ValueError, resource.error):
-            pass
+        if resource is not None:
+            try:
+                self.old_limit = resource.getrlimit(resource.RLIMIT_CORE)
+                resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+            except (ValueError, resource.error):
+                pass
 
         if sys.platform == 'darwin':
             # Check if the 'Crash Reporter' on OSX was configured
@@ -758,11 +760,11 @@ class _SuppressCoreFiles(object):
         """Return core file behavior to default."""
         if self.old_limit is None:
             return
-        try:
-            import resource
-            resource.setrlimit(resource.RLIMIT_CORE, self.old_limit)
-        except (ImportError, ValueError, resource.error):
-            pass
+        if resource is not None:
+            try:
+                resource.setrlimit(resource.RLIMIT_CORE, self.old_limit)
+            except (ValueError, resource.error):
+                pass
 
 
 @unittest.skipIf(mswindows, "POSIX specific tests")
@@ -853,7 +855,6 @@ class POSIXProcessTestCase(BaseTestCase):
             self.fail("Exception raised by preexec_fn did not make it "
                       "to the parent process.")
 
-    @unittest.skipUnless(gc, "Requires a gc module.")
     def test_preexec_gc_module_failure(self):
         # This tests the code that disables garbage collection if the child
         # process will execute any Python.
@@ -988,6 +989,27 @@ class POSIXProcessTestCase(BaseTestCase):
         getattr(p, method)(*args)
         return p
 
+    def _kill_dead_process(self, method, *args):
+        # Do not inherit file handles from the parent.
+        # It should fix failures on some platforms.
+        p = subprocess.Popen([sys.executable, "-c", """if 1:
+                             import sys, time
+                             sys.stdout.write('x\\n')
+                             sys.stdout.flush()
+                             """],
+                             close_fds=True,
+                             stdin=subprocess.PIPE,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+        # Wait for the interpreter to be completely initialized before
+        # sending any signal.
+        p.stdout.read(1)
+        # The process should end after this
+        time.sleep(1)
+        # This shouldn't raise even though the child is now dead
+        getattr(p, method)(*args)
+        p.communicate()
+
     def test_send_signal(self):
         p = self._kill_process('send_signal', signal.SIGINT)
         _, stderr = p.communicate()
@@ -1005,6 +1027,18 @@ class POSIXProcessTestCase(BaseTestCase):
         _, stderr = p.communicate()
         self.assertStderrEqual(stderr, b'')
         self.assertEqual(p.wait(), -signal.SIGTERM)
+
+    def test_send_signal_dead(self):
+        # Sending a signal to a dead process
+        self._kill_dead_process('send_signal', signal.SIGINT)
+
+    def test_kill_dead(self):
+        # Killing a dead process
+        self._kill_dead_process('kill')
+
+    def test_terminate_dead(self):
+        # Terminating a dead process
+        self._kill_dead_process('terminate')
 
     def check_close_std_fds(self, fds):
         # Issue #9905: test that subprocess pipes still work properly with
@@ -1272,8 +1306,18 @@ class POSIXProcessTestCase(BaseTestCase):
 
         self.addCleanup(p1.wait)
         self.addCleanup(p2.wait)
-        self.addCleanup(p1.terminate)
-        self.addCleanup(p2.terminate)
+        def kill_p1():
+            try:
+                p1.terminate()
+            except ProcessLookupError:
+                pass
+        def kill_p2():
+            try:
+                p2.terminate()
+            except ProcessLookupError:
+                pass
+        self.addCleanup(kill_p1)
+        self.addCleanup(kill_p2)
 
         p1.stdin.write(data)
         p1.stdin.close()
@@ -1294,6 +1338,11 @@ class POSIXProcessTestCase(BaseTestCase):
         self.addCleanup(os.close, fds[1])
 
         open_fds = set(fds)
+        # add a bunch more fds
+        for _ in range(9):
+            fd = os.open("/dev/null", os.O_RDONLY)
+            self.addCleanup(os.close, fd)
+            open_fds.add(fd)
 
         p = subprocess.Popen([sys.executable, fd_status],
                              stdout=subprocess.PIPE, close_fds=False)
@@ -1310,6 +1359,19 @@ class POSIXProcessTestCase(BaseTestCase):
 
         self.assertFalse(remaining_fds & open_fds,
                          "Some fds were left open")
+        self.assertIn(1, remaining_fds, "Subprocess failed")
+
+        # Keep some of the fd's we opened open in the subprocess.
+        # This tests _posixsubprocess.c's proper handling of fds_to_keep.
+        fds_to_keep = set(open_fds.pop() for _ in range(8))
+        p = subprocess.Popen([sys.executable, fd_status],
+                             stdout=subprocess.PIPE, close_fds=True,
+                             pass_fds=())
+        output, ignored = p.communicate()
+        remaining_fds = set(map(int, output.split(b',')))
+
+        self.assertFalse(remaining_fds & fds_to_keep & open_fds,
+                         "Some fds not in pass_fds were left open")
         self.assertIn(1, remaining_fds, "Subprocess failed")
 
     # Mac OS X Tiger (10.4) has a kernel bug: sometimes, the file
@@ -1393,6 +1455,56 @@ class POSIXProcessTestCase(BaseTestCase):
             self.assertIn(f, select.select([f], [], [], 0.0)[0])
         finally:
             p.wait()
+
+    def test_zombie_fast_process_del(self):
+        # Issue #12650: on Unix, if Popen.__del__() was called before the
+        # process exited, it wouldn't be added to subprocess._active, and would
+        # remain a zombie.
+        # spawn a Popen, and delete its reference before it exits
+        p = subprocess.Popen([sys.executable, "-c",
+                              'import sys, time;'
+                              'time.sleep(0.2)'],
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+        self.addCleanup(p.stdout.close)
+        self.addCleanup(p.stderr.close)
+        ident = id(p)
+        pid = p.pid
+        del p
+        # check that p is in the active processes list
+        self.assertIn(ident, [id(o) for o in subprocess._active])
+
+    def test_leak_fast_process_del_killed(self):
+        # Issue #12650: on Unix, if Popen.__del__() was called before the
+        # process exited, and the process got killed by a signal, it would never
+        # be removed from subprocess._active, which triggered a FD and memory
+        # leak.
+        # spawn a Popen, delete its reference and kill it
+        p = subprocess.Popen([sys.executable, "-c",
+                              'import time;'
+                              'time.sleep(3)'],
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+        self.addCleanup(p.stdout.close)
+        self.addCleanup(p.stderr.close)
+        ident = id(p)
+        pid = p.pid
+        del p
+        os.kill(pid, signal.SIGKILL)
+        # check that p is in the active processes list
+        self.assertIn(ident, [id(o) for o in subprocess._active])
+
+        # let some time for the process to exit, and create a new Popen: this
+        # should trigger the wait() of p
+        time.sleep(0.2)
+        with self.assertRaises(EnvironmentError) as c:
+            with subprocess.Popen(['nonexisting_i_hope'],
+                                  stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE) as proc:
+                pass
+        # p should have been wait()ed on, and removed from the _active list
+        self.assertRaises(OSError, os.waitpid, pid, 0)
+        self.assertNotIn(ident, [id(o) for o in subprocess._active])
 
 
 @unittest.skipUnless(mswindows, "Windows specific tests")
@@ -1489,6 +1601,31 @@ class Win32ProcessTestCase(BaseTestCase):
         returncode = p.wait()
         self.assertNotEqual(returncode, 0)
 
+    def _kill_dead_process(self, method, *args):
+        p = subprocess.Popen([sys.executable, "-c", """if 1:
+                             import sys, time
+                             sys.stdout.write('x\\n')
+                             sys.stdout.flush()
+                             sys.exit(42)
+                             """],
+                             stdin=subprocess.PIPE,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+        self.addCleanup(p.stdout.close)
+        self.addCleanup(p.stderr.close)
+        self.addCleanup(p.stdin.close)
+        # Wait for the interpreter to be completely initialized before
+        # sending any signal.
+        p.stdout.read(1)
+        # The process should end after this
+        time.sleep(1)
+        # This shouldn't raise even though the child is now dead
+        getattr(p, method)(*args)
+        _, stderr = p.communicate()
+        self.assertStderrEqual(stderr, b'')
+        rc = p.wait()
+        self.assertEqual(rc, 42)
+
     def test_send_signal(self):
         self._kill_process('send_signal', signal.SIGTERM)
 
@@ -1497,6 +1634,15 @@ class Win32ProcessTestCase(BaseTestCase):
 
     def test_terminate(self):
         self._kill_process('terminate')
+
+    def test_send_signal_dead(self):
+        self._kill_dead_process('send_signal', signal.SIGTERM)
+
+    def test_kill_dead(self):
+        self._kill_dead_process('kill')
+
+    def test_terminate_dead(self):
+        self._kill_dead_process('terminate')
 
 
 # The module says:
@@ -1623,7 +1769,7 @@ class CommandsWithSpaces (BaseTestCase):
         self.with_spaces([sys.executable, self.fname, "ab cd"])
 
 
-class ContextManagerTests(ProcessTestCase):
+class ContextManagerTests(BaseTestCase):
 
     def test_pipe(self):
         with subprocess.Popen([sys.executable, "-c",

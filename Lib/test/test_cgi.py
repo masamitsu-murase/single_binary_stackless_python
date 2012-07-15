@@ -118,6 +118,11 @@ def gen_result(data, environ):
 
 class CgiTests(unittest.TestCase):
 
+    def test_escape(self):
+        self.assertEqual("test &amp; string", cgi.escape("test & string"))
+        self.assertEqual("&lt;test string&gt;", cgi.escape("<test string>"))
+        self.assertEqual("&quot;test string&quot;", cgi.escape('"test string"', True))
+
     def test_strict(self):
         for orig, expect in parse_strict_test_cases:
             # Test basic parsing
@@ -348,6 +353,10 @@ this is the content of the fake file
         self.assertEqual(
             cgi.parse_header('attachment; filename="strange;name";size=123;'),
             ("attachment", {"filename": "strange;name", "size": "123"}))
+        self.assertEqual(
+            cgi.parse_header('form-data; name="files"; filename="fo\\"o;bar"'),
+            ("form-data", {"name": "files", "filename": 'fo"o;bar'}))
+
 
 BOUNDARY = "---------------------------721837373350705526688164684"
 

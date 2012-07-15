@@ -435,7 +435,7 @@ HTTPConnection Objects
    Set the host and the port for HTTP Connect Tunnelling. Normally used when it
    is required to a HTTPS Connection through a proxy server.
 
-   The headers argument should be a mapping of extra HTTP headers to to sent
+   The headers argument should be a mapping of extra HTTP headers to send
    with the CONNECT request.
 
    .. versionadded:: 3.2
@@ -472,10 +472,13 @@ also send your request step by step, by using the four functions below.
    an argument.
 
 
-.. method:: HTTPConnection.endheaders()
+.. method:: HTTPConnection.endheaders(message_body=None)
 
-   Send a blank line to the server, signalling the end of the headers.
-
+   Send a blank line to the server, signalling the end of the headers. The
+   optional *message_body* argument can be used to pass a message body
+   associated with the request.  The message body will be sent in the same
+   packet as the message headers if it is string, otherwise it is sent in a
+   separate packet.
 
 .. method:: HTTPConnection.send(data)
 

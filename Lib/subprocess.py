@@ -429,12 +429,16 @@ try:
 except:
     MAXFD = 256
 
+# This lists holds Popen instances for which the underlying process had not
+# exited at the time its __del__ method got called: those processes are wait()ed
+# for synchronously from _cleanup() when a new Popen object is created, to avoid
+# zombie processes.
 _active = []
 
 def _cleanup():
     for inst in _active[:]:
         res = inst._internal_poll(_deadstate=sys.maxsize)
-        if res is not None and res >= 0:
+        if res is not None:
             try:
                 _active.remove(inst)
             except ValueError:
@@ -1071,7 +1075,17 @@ class Popen(object):
         def terminate(self):
             """Terminates the process
             """
-            _subprocess.TerminateProcess(self._handle, 1)
+            try:
+                _subprocess.TerminateProcess(self._handle, 1)
+            except OSError as e:
+                # ERROR_ACCESS_DENIED (winerror 5) is received when the
+                # process already died.
+                if e.winerror != 5:
+                    raise
+                rc = _subprocess.GetExitCodeProcess(self._handle)
+                if rc == _subprocess.STILL_ACTIVE:
+                    raise
+                self.returncode = rc
 
         kill = terminate
 
@@ -1191,6 +1205,7 @@ class Popen(object):
                                 errread, errwrite,
                                 errpipe_read, errpipe_write,
                                 restore_signals, start_new_session, preexec_fn)
+                        self._child_created = True
                     else:
                         # Pure Python implementation: It is not thread safe.
                         # This implementation may deadlock in the child if your

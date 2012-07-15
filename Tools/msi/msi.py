@@ -185,6 +185,8 @@ except ImportError:
     have_stackless = False
 
 # Determine the target architecture
+if os.system("nmake /nologo /c /f msisupport.mak") != 0:
+    raise RuntimeError("'nmake /f msisupport.mak' failed")
 dll_path = os.path.join(srcdir, PCBUILD, dll_file)
 msilib.set_arch_from_file(dll_path)
 if msilib.pe_type(dll_path) != msilib.pe_type("msisupport.dll"):
@@ -382,8 +384,6 @@ def add_ui(db):
     # UpdateEditIDLE sets the REGISTRY.tcl component into
     # the installed/uninstalled state according to both the
     # Extensions and TclTk features.
-    if os.system("nmake /nologo /c /f msisupport.mak") != 0:
-        raise RuntimeError("'nmake /f msisupport.mak' failed")
     add_data(db, "Binary", [("Script", msilib.Binary("msisupport.dll"))])
     # See "Custom Action Type 1"
     if msilib.Win64:
@@ -503,7 +503,7 @@ def add_ui(db):
 
     exit_dialog = PyDialog(db, "ExitDialog", x, y, w, h, modal, title,
                          "Finish", "Finish", "Finish")
-    exit_dialog.title("Completing the [ProductName] Installer")
+    exit_dialog.title("Complete the [ProductName] Installer")
     exit_dialog.back("< Back", "Finish", active = 0)
     exit_dialog.cancel("Cancel", "Back", active = 0)
     exit_dialog.text("Acknowledgements", 135, 95, 220, 120, 0x30003,
@@ -1027,6 +1027,7 @@ def add_files(db):
             lib.add_file("check_soundcard.vbs")
             lib.add_file("empty.vbs")
             lib.add_file("Sine-1000Hz-300ms.aif")
+            lib.add_file("mime.types")
             lib.glob("*.uue")
             lib.glob("*.pem")
             lib.glob("*.pck")

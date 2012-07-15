@@ -7,13 +7,13 @@
 .. moduleauthor:: Greg Ward <gward@python.net>
 .. sectionauthor:: Greg Ward <gward@python.net>
 
+.. deprecated:: 3.2
+  The :mod:`optparse` module is deprecated and will not be developed further;
+  development will continue with the :mod:`argparse` module.
+
 **Source code:** :source:`Lib/optparse.py`
 
 --------------
-
-.. deprecated:: 2.7
-  The :mod:`optparse` module is deprecated and will not be developed further;
-  development will continue with the :mod:`argparse` module.
 
 :mod:`optparse` is a more convenient, flexible, and powerful library for parsing
 command-line options than the old :mod:`getopt` module.  :mod:`optparse` uses a
@@ -607,8 +607,8 @@ This would result in the following help output:
 
        -g                  Group option.
 
-A bit more complete example might invole using more than one group: still
-extendind the previous example::
+A bit more complete example might involve using more than one group: still
+extending the previous example::
 
     group = OptionGroup(parser, "Dangerous Options",
                         "Caution: use these options at your own risk.  "

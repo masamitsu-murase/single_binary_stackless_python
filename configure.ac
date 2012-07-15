@@ -943,6 +943,13 @@ then
         if "$CC" -v --help 2>/dev/null |grep -- -fwrapv > /dev/null; then
            WRAP="-fwrapv"
         fi
+
+        # Clang also needs -fwrapv
+        case $CC in
+            *clang*) WRAP="-fwrapv"
+            ;;
+        esac
+
 	case $ac_cv_prog_cc_g in
 	yes)
 	    if test "$Py_DEBUG" = 'true' ; then
@@ -1352,7 +1359,7 @@ unistd.h utime.h \
 sys/audioio.h sys/bsdtty.h sys/epoll.h sys/event.h sys/file.h sys/loadavg.h \
 sys/lock.h sys/mkdev.h sys/modem.h \
 sys/param.h sys/poll.h sys/select.h sys/socket.h sys/statvfs.h sys/stat.h \
-sys/termio.h sys/time.h \
+sys/syscall.h sys/termio.h sys/time.h \
 sys/times.h sys/types.h sys/un.h sys/utsname.h sys/wait.h pty.h libutil.h \
 sys/resource.h netpacket/packet.h sysexits.h bluetooth.h \
 bluetooth/bluetooth.h linux/tipc.h spawn.h util.h)
@@ -2612,6 +2619,12 @@ AC_CHECK_FUNCS(alarm accept4 setitimer getitimer bind_textdomain_codeset chown \
  truncate uname unsetenv utimes waitpid wait3 wait4 \
  wcscoll wcsftime wcsxfrm _getpty)
 
+AC_CHECK_DECL(dirfd,
+    AC_DEFINE(HAVE_DIRFD, 1,
+              Define if you have the 'dirfd' function or macro.), ,
+      [#include <sys/types.h>
+       #include <dirent.h>])
+
 # For some functions, having a definition is not sufficient, since
 # we want to take their address.
 AC_MSG_CHECKING(for chroot)
@@ -2706,6 +2719,15 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
   [AC_DEFINE(HAVE_GETPAGESIZE, 1, Define if you have the 'getpagesize' function.)
    AC_MSG_RESULT(yes)],
   [AC_MSG_RESULT(no)
+])
+
+AC_MSG_CHECKING(for broken unsetenv)
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <stdlib.h>
+]], [[int res = unsetenv("DUMMY")]])],
+  [AC_MSG_RESULT(no)],
+  [AC_DEFINE(HAVE_BROKEN_UNSETENV, 1, Define if `unsetenv` does not return an int.)
+   AC_MSG_RESULT(yes)
 ])
 
 dnl check for true

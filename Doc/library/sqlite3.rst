@@ -3,7 +3,7 @@
 
 .. module:: sqlite3
    :synopsis: A DB-API 2.0 implementation using SQLite 3.x.
-.. sectionauthor:: Gerhard HÃ¤ring <gh@ghaering.de>
+.. sectionauthor:: Gerhard Häring <gh@ghaering.de>
 
 
 SQLite is a C library that provides a lightweight disk-based database that
@@ -20,6 +20,7 @@ To use the module, you must first create a :class:`Connection` object that
 represents the database.  Here the data will be stored in the
 :file:`/tmp/example` file::
 
+   import sqlite3
    conn = sqlite3.connect('/tmp/example')
 
 You can also supply the special name ``:memory:`` to create a database in RAM.
@@ -56,7 +57,7 @@ example::
 
    # Never do this -- insecure!
    symbol = 'IBM'
-   c.execute("... where symbol = '%s'" % symbol)
+   c.execute("select * from stocks where symbol = '%s'" % symbol)
 
    # Do this instead
    t = (symbol,)
@@ -64,7 +65,7 @@ example::
 
    # Larger example
    for t in [('2006-03-28', 'BUY', 'IBM', 1000, 45.00),
-             ('2006-04-05', 'BUY', 'MSOFT', 1000, 72.00),
+             ('2006-04-05', 'BUY', 'MSFT', 1000, 72.00),
              ('2006-04-06', 'SELL', 'IBM', 500, 53.00),
             ]:
        c.execute('insert into stocks values (?,?,?,?,?)', t)
@@ -243,7 +244,7 @@ Connection Objects
 .. method:: Connection.commit()
 
    This method commits the current transaction. If you don't call this method,
-   anything you did since the last call to ``commit()`` is not visible from from
+   anything you did since the last call to ``commit()`` is not visible from
    other database connections. If you wonder why you don't see the data you've
    written to the database, please check you didn't forget to call this method.
 
@@ -270,7 +271,6 @@ Connection Objects
    This is a nonstandard shortcut that creates an intermediate cursor object by
    calling the cursor method, then calls the cursor's :meth:`executemany
    <Cursor.executemany>` method with the parameters given.
-
 
 .. method:: Connection.executescript(sql_script)
 
@@ -376,11 +376,11 @@ Connection Objects
    aggregates or whole new virtual table implementations.  One well-known
    extension is the fulltext-search extension distributed with SQLite.
 
+   Loadable extensions are disabled by default. See [#f1]_.
+
    .. versionadded:: 3.2
 
    .. literalinclude:: ../includes/sqlite3/load_extension.py
-
-   Loadable extensions are disabled by default. See [#f1]_.
 
 .. method:: Connection.load_extension(path)
 
@@ -388,9 +388,9 @@ Connection Objects
    enable extension loading with :meth:`enable_load_extension` before you can
    use this routine.
 
-   .. versionadded:: 3.2
-
    Loadable extensions are disabled by default. See [#f1]_.
+
+   .. versionadded:: 3.2
 
 .. attribute:: Connection.row_factory
 
@@ -472,13 +472,9 @@ Cursor Objects
    kinds of placeholders: question marks (qmark style) and named placeholders
    (named style).
 
-   This example shows how to use parameters with qmark style:
+   Here's an example of both styles:
 
    .. literalinclude:: ../includes/sqlite3/execute_1.py
-
-   This example shows how to use the named style:
-
-   .. literalinclude:: ../includes/sqlite3/execute_2.py
 
    :meth:`execute` will only execute a single SQL statement. If you try to execute
    more than one statement with it, it will raise a Warning. Use
@@ -518,7 +514,7 @@ Cursor Objects
    or :const:`None` when no more data is available.
 
 
-.. method:: Cursor.fetchmany([size=cursor.arraysize])
+.. method:: Cursor.fetchmany(size=cursor.arraysize)
 
    Fetches the next set of rows of a query result, returning a list.  An empty
    list is returned when no more rows are available.
@@ -547,18 +543,17 @@ Cursor Objects
    attribute, the database engine's own support for the determination of "rows
    affected"/"rows selected" is quirky.
 
-   For ``DELETE`` statements, SQLite reports :attr:`rowcount` as 0 if you make a
-   ``DELETE FROM table`` without any condition.
-
    For :meth:`executemany` statements, the number of modifications are summed up
    into :attr:`rowcount`.
 
    As required by the Python DB API Spec, the :attr:`rowcount` attribute "is -1 in
    case no ``executeXX()`` has been performed on the cursor or the rowcount of the
-   last operation is not determinable by the interface".
+   last operation is not determinable by the interface". This includes ``SELECT``
+   statements because we cannot determine the number of rows a query produced
+   until all rows were fetched.
 
-   This includes ``SELECT`` statements because we cannot determine the number of
-   rows a query produced until all rows were fetched.
+   With SQLite versions before 3.6.5, :attr:`rowcount` is set to 0 if
+   you make a ``DELETE FROM table`` without any condition.
 
 .. attribute:: Cursor.lastrowid
 
@@ -761,7 +756,7 @@ and constructs a :class:`Point` object from it.
 ::
 
    def convert_point(s):
-       x, y = map(float, s.split(";"))
+       x, y = map(float, s.split(b";"))
        return Point(x, y)
 
 Now you need to make the :mod:`sqlite3` module know that what you select from

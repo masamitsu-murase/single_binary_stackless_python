@@ -89,7 +89,8 @@ Maildir, mbox, MH, Babyl, and MMDF.
       format-specific information is used. Otherwise, reasonable defaults for
       format-specific information are used.
 
-      .. versionchanged:: 3.2 support for binary input
+      .. versionchanged:: 3.2
+         Support for binary input was added.
 
 
    .. method:: remove(key)
@@ -780,7 +781,7 @@ Maildir, mbox, MH, Babyl, and MMDF.
    There is no requirement that :class:`Message` instances be used to represent
    messages retrieved using :class:`Mailbox` instances. In some situations, the
    time and memory required to generate :class:`Message` representations might
-   not not acceptable. For such situations, :class:`Mailbox` instances also
+   not be acceptable. For such situations, :class:`Mailbox` instances also
    offer string and file-like representations, and a custom message factory may
    be specified when a :class:`Mailbox` instance is initialized.
 

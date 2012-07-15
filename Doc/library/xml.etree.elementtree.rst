@@ -95,11 +95,14 @@ Functions
 .. function:: iterparse(source, events=None, parser=None)
 
    Parses an XML section into an element tree incrementally, and reports what's
-   going on to the user.  *source* is a filename or :term:`file object` containing
-   XML data.  *events* is a list of events to report back.  If omitted, only "end"
-   events are reported.  *parser* is an optional parser instance.  If not
-   given, the standard :class:`XMLParser` parser is used.  Returns an
-   :term:`iterator` providing ``(event, elem)`` pairs.
+   going on to the user.  *source* is a filename or :term:`file object`
+   containing XML data.  *events* is a list of events to report back.  The
+   supported events are the strings ``"start"``, ``"end"``, ``"start-ns"``
+   and ``"end-ns"`` (the "ns" events are used to get detailed namespace
+   information).  If *events* is omitted, only ``"end"`` events are reported.
+   *parser* is an optional parser instance.  If not given, the standard
+   :class:`XMLParser` parser is used.  Returns an :term:`iterator` providing
+   ``(event, elem)`` pairs.
 
    .. note::
 
@@ -334,6 +337,8 @@ Element Objects
       document (depth first) order.  If *tag* is not ``None`` or ``'*'``, only
       elements whose tag equals *tag* are returned from the iterator.  If the
       tree structure is modified during iteration, the result is undefined.
+
+      .. versionadded:: 3.2
 
 
    .. method:: iterfind(match)

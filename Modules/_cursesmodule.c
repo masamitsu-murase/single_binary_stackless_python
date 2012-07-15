@@ -2379,7 +2379,8 @@ PyCurses_Putp(PyObject *self, PyObject *args)
 {
     char *str;
 
-    if (!PyArg_ParseTuple(args,"s;str", &str)) return NULL;
+    if (!PyArg_ParseTuple(args,"y;str", &str))
+        return NULL;
     return PyCursesCheckERR(putp(str), "putp");
 }
 
@@ -2600,7 +2601,7 @@ PyCurses_tparm(PyObject *self, PyObject *args)
 
     PyCursesSetupTermCalled;
 
-    if (!PyArg_ParseTuple(args, "s|iiiiiiiii:tparm",
+    if (!PyArg_ParseTuple(args, "y|iiiiiiiii:tparm",
                           &fmt, &i1, &i2, &i3, &i4,
                           &i5, &i6, &i7, &i8, &i9)) {
         return NULL;

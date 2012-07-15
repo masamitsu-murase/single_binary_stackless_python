@@ -168,7 +168,7 @@ SRCDIRS= 	@SRCDIRS@
 SUBDIRSTOO=	Include Lib Misc
 
 # Files and directories to be distributed
-CONFIGFILES=	configure configure.in acconfig.h pyconfig.h.in Makefile.pre.in
+CONFIGFILES=	configure configure.ac acconfig.h pyconfig.h.in Makefile.pre.in
 DISTFILES=	README ChangeLog $(CONFIGFILES)
 DISTDIRS=	$(SUBDIRS) $(SUBDIRSTOO) Ext-dummy
 DIST=		$(DISTFILES) $(DISTDIRS)
@@ -340,6 +340,7 @@ PYTHON_OBJS=	\
 		Python/pystate.o \
 		Python/pythonrun.o \
 		Python/pytime.o \
+		Python/random.o \
 		Python/structmember.o \
 		Python/symtable.o \
 		Python/sysmodule.o \
@@ -360,6 +361,7 @@ PYTHON_OBJS=	\
 # Objects
 OBJECT_OBJS=	\
 		Objects/abstract.o \
+		Objects/accu.o \
 		Objects/boolobject.o \
 		Objects/bytes_methods.o \
 		Objects/bytearrayobject.o \
@@ -659,6 +661,9 @@ Objects/bytearrayobject.o: $(srcdir)/Objects/bytearrayobject.c $(BYTESTR_DEPS)
 Objects/unicodeobject.o: $(srcdir)/Objects/unicodeobject.c \
 				$(BYTESTR_DEPS)
 
+Objects/dictobject.o: $(srcdir)/Objects/stringlib/eq.h
+Objects/setobject.o: $(srcdir)/Objects/stringlib/eq.h
+
 $(OPCODETARGETS_H): $(OPCODETARGETGEN_FILES)
 	$(OPCODETARGETGEN) $(OPCODETARGETS_H)
 
@@ -682,6 +687,7 @@ PYTHON_HEADERS= \
 		Include/Python-ast.h \
 		Include/Python.h \
 		Include/abstract.h \
+		Include/accu.h \
 		Include/asdl.h \
 		Include/ast.h \
                 Include/bltinmodule.h \
@@ -798,7 +804,7 @@ $(LIBRARY_OBJS) $(MODOBJS) Modules/python.o: $(PYTHON_HEADERS)
 
 TESTOPTS=	-l $(EXTRATESTOPTS)
 TESTPROG=	$(srcdir)/Lib/test/regrtest.py
-TESTPYTHON=	$(RUNSHARED) ./$(BUILDPYTHON) -Wd -E -bb $(TESTPYTHONOPTS)
+TESTPYTHON=	$(RUNSHARED) ./$(BUILDPYTHON) -Wd -E -R -bb $(TESTPYTHONOPTS)
 test:		all platform
 		-find $(srcdir)/Lib -name '*.py[co]' -print | xargs rm -f
 		-$(TESTPYTHON) $(TESTPROG) $(TESTOPTS)
@@ -954,7 +960,8 @@ XMLLIBSUBDIRS=  xml xml/dom xml/etree xml/parsers xml/sax
 LIBSUBDIRS=	tkinter tkinter/test tkinter/test/test_tkinter \
 		tkinter/test/test_ttk site-packages test \
 		test/capath test/data \
-		test/cjkencodings test/decimaltestdata test/xmltestdata test/subprocessdata \
+		test/cjkencodings test/decimaltestdata test/xmltestdata \
+		test/subprocessdata test/sndhdrdata \
 		test/tracedmodules test/encoded_modules \
 		concurrent concurrent/futures encodings \
 		email email/mime email/test email/test/data \
@@ -1260,7 +1267,7 @@ recheck:
 	$(SHELL) config.status --recheck
 	$(SHELL) config.status
 
-# Rebuild the configure script from configure.in; also rebuild pyconfig.h.in
+# Rebuild the configure script from configure.ac; also rebuild pyconfig.h.in
 autoconf:
 	(cd $(srcdir); autoconf -Wall)
 	(cd $(srcdir); autoheader -Wall)
@@ -1282,8 +1289,8 @@ TAGS::
 # Sanitation targets -- clean leaves libraries, executables and tags
 # files, which clobber removes as well
 pycremoval:
+	-find $(srcdir) -depth -name '__pycache__' -exec rm -rf {} ';'
 	-find $(srcdir) -name '*.py[co]' -exec rm -f {} ';'
-	-find $(srcdir) -name '__pycache__' -exec rmdir {} '+'
 
 rmtestturds:
 	-rm -f *BAD *GOOD *SKIPPED
@@ -1303,6 +1310,7 @@ clean: pycremoval
 	find build -name 'fficonfig.h' -exec rm -f {} ';' || true
 	find build -name 'fficonfig.py' -exec rm -f {} ';' || true
 	-rm -f Lib/lib2to3/*Grammar*.pickle
+	-rm -f Modules/_testembed
 
 profile-removal:
 	find . -name '*.gc??' -exec rm -f {} ';'

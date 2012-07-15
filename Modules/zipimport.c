@@ -714,15 +714,16 @@ read_directory(PyObject *archive_obj)
     PyObject *files = NULL;
     FILE *fp;
     unsigned short flags;
-    long compress, crc, data_size, file_size, file_offset, date, time;
-    long header_offset, name_size, header_size, header_position;
+    short compress, time, date, name_size;
+    long crc, data_size, file_size, header_size;
+    Py_ssize_t file_offset, header_position, header_offset;
     long i, l, count;
     size_t length;
     Py_UNICODE path[MAXPATHLEN + 5];
     char name[MAXPATHLEN + 5];
     PyObject *nameobj = NULL;
     char *p, endof_central_dir[22];
-    long arc_offset; /* offset from beginning of file to start of zip-archive */
+    Py_ssize_t arc_offset;  /* Absolute offset to start of the zip-archive. */
     PyObject *pathobj;
     const char *charset;
     int bootstrap;
@@ -736,7 +737,8 @@ read_directory(PyObject *archive_obj)
 
     fp = _Py_fopen(archive_obj, "rb");
     if (fp == NULL) {
-        PyErr_Format(ZipImportError, "can't open Zip file: '%U'", archive_obj);
+        if (!PyErr_Occurred())
+            PyErr_Format(ZipImportError, "can't open Zip file: '%U'", archive_obj);
         return NULL;
     }
     fseek(fp, -22, SEEK_END);
@@ -831,7 +833,7 @@ read_directory(PyObject *archive_obj)
         pathobj = PyUnicode_FromUnicode(path, Py_UNICODE_strlen(path));
         if (pathobj == NULL)
             goto error;
-        t = Py_BuildValue("Niiiiiii", pathobj, compress, data_size,
+        t = Py_BuildValue("Nhllnhhl", pathobj, compress, data_size,
                           file_size, file_offset, time, date, crc);
         if (t == NULL)
             goto error;
@@ -909,8 +911,9 @@ get_data(PyObject *archive, PyObject *toc_entry)
 
     fp = _Py_fopen(archive, "rb");
     if (!fp) {
-        PyErr_Format(PyExc_IOError,
-           "zipimport: can not open file %U", archive);
+        if (!PyErr_Occurred())
+            PyErr_Format(PyExc_IOError,
+               "zipimport: can not open file %U", archive);
         return NULL;
     }
 

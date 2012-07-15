@@ -234,8 +234,8 @@ Code for creating and managing concurrency is being collected in a new top-level
 namespace, *concurrent*.  Its first member is a *futures* package which provides
 a uniform high-level interface for managing threads and processes.
 
-The design for :mod:`concurrent.futures` was inspired by
-*java.util.concurrent.package*.  In that model, a running call and its result
+The design for :mod:`concurrent.futures` was inspired by the
+*java.util.concurrent* package.  In that model, a running call and its result
 are represented by a :class:`~concurrent.futures.Future` object that abstracts
 features common to threads, processes, and remote procedure calls.  That object
 supports status checks (running or done), timeouts, cancellations, adding
@@ -2362,7 +2362,7 @@ A number of small performance enhancements have been added:
   (Patch by Florent Xicluna in :issue:`7622` and :issue:`7462`.)
 
 
-* String to integer conversions now work two "digits" at a time, reducing the
+* Integer to string conversions now work two "digits" at a time, reducing the
   number of division and modulo operations.
 
   (:issue:`6713` by Gawain Bolton, Mark Dickinson, and Victor Stinner.)

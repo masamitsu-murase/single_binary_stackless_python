@@ -300,6 +300,10 @@ class ZipInfo (object):
 
         self.filename = filename        # Normalized file name
         self.date_time = date_time      # year, month, day, hour, min, sec
+
+        if date_time[0] < 1980:
+            raise ValueError('ZIP does not support timestamps before 1980')
+
         # Standard values:
         self.compress_type = ZIP_STORED # Type of compression for the file
         self.comment = b""              # Comment for each file
@@ -694,7 +698,7 @@ class ZipFile:
         self.compression = compression  # Method of compression
         self.mode = key = mode.replace('b', '')[0]
         self.pwd = None
-        self.comment = b''
+        self._comment = b''
 
         # Check if we were passed a file-like object
         if isinstance(file, str):
@@ -770,7 +774,7 @@ class ZipFile:
             print(endrec)
         size_cd = endrec[_ECD_SIZE]             # bytes in central directory
         offset_cd = endrec[_ECD_OFFSET]         # offset of central directory
-        self.comment = endrec[_ECD_COMMENT]     # archive comment
+        self._comment = endrec[_ECD_COMMENT]    # archive comment
 
         # "concat" is zero, unless zip was concatenated to another file
         concat = endrec[_ECD_LOCATION] - size_cd - offset_cd
@@ -881,6 +885,24 @@ class ZipFile:
             self.pwd = pwd
         else:
             self.pwd = None
+
+    @property
+    def comment(self):
+        """The comment text associated with the ZIP file."""
+        return self._comment
+
+    @comment.setter
+    def comment(self, comment):
+        if not isinstance(comment, bytes):
+            raise TypeError("comment: expected bytes, got %s" % type(comment))
+        # check for valid comment length
+        if len(comment) >= ZIP_MAX_COMMENT:
+            if self.debug:
+                print('Archive comment is too long; truncating to %d bytes'
+                        % ZIP_MAX_COMMENT)
+            comment = comment[:ZIP_MAX_COMMENT]
+        self._comment = comment
+        self._didModify = True
 
     def read(self, name, pwd=None):
         """Return file bytes (as a string) for name."""
@@ -1283,18 +1305,11 @@ class ZipFile:
                 centDirSize = min(centDirSize, 0xFFFFFFFF)
                 centDirOffset = min(centDirOffset, 0xFFFFFFFF)
 
-            # check for valid comment length
-            if len(self.comment) >= ZIP_MAX_COMMENT:
-                if self.debug > 0:
-                    msg = 'Archive comment is too long; truncating to %d bytes' \
-                          % ZIP_MAX_COMMENT
-                self.comment = self.comment[:ZIP_MAX_COMMENT]
-
             endrec = struct.pack(structEndArchive, stringEndArchive,
                                  0, 0, centDirCount, centDirCount,
-                                 centDirSize, centDirOffset, len(self.comment))
+                                 centDirSize, centDirOffset, len(self._comment))
             self.fp.write(endrec)
-            self.fp.write(self.comment)
+            self.fp.write(self._comment)
             self.fp.flush()
 
         if not self._filePassed:

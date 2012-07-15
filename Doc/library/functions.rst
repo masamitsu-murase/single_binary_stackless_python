@@ -10,7 +10,7 @@ are always available.  They are listed here in alphabetical order.
 ===================  =================  ==================  ================  ====================
 ..                   ..                 Built-in Functions  ..                ..
 ===================  =================  ==================  ================  ====================
-:func:`abs`          :func:`dict`       :func:`help`        :func:`min`       :func:`setattr`
+:func:`abs`          |func-dict|_       :func:`help`        :func:`min`       :func:`setattr`
 :func:`all`          :func:`dir`        :func:`hex`         :func:`next`      :func:`slice`
 :func:`any`          :func:`divmod`     :func:`id`          :func:`object`    :func:`sorted`
 :func:`ascii`        :func:`enumerate`  :func:`input`       :func:`oct`       :func:`staticmethod`
@@ -19,12 +19,21 @@ are always available.  They are listed here in alphabetical order.
 :func:`bytearray`    :func:`filter`     :func:`issubclass`  :func:`pow`       :func:`super`
 :func:`bytes`        :func:`float`      :func:`iter`        :func:`print`     :func:`tuple`
 :func:`callable`     :func:`format`     :func:`len`         :func:`property`  :func:`type`
-:func:`chr`          :func:`frozenset`  :func:`list`        :func:`range`     :func:`vars`
+:func:`chr`          |func-frozenset|_  :func:`list`        :func:`range`     :func:`vars`
 :func:`classmethod`  :func:`getattr`    :func:`locals`      :func:`repr`      :func:`zip`
 :func:`compile`      :func:`globals`    :func:`map`         :func:`reversed`  :func:`__import__`
 :func:`complex`      :func:`hasattr`    :func:`max`         :func:`round`
-:func:`delattr`      :func:`hash`       :func:`memoryview`  :func:`set`
+:func:`delattr`      :func:`hash`       |func-memoryview|_  |func-set|_
 ===================  =================  ==================  ================  ====================
+
+.. using :func:`dict` would create a link to another page, so local targets are
+   used, with replacement texts to make the output in the table consistent
+
+.. |func-dict| replace:: ``dict()``
+.. |func-frozenset| replace:: ``frozenset()``
+.. |func-memoryview| replace:: ``memoryview()``
+.. |func-set| replace:: ``set()``
+
 
 .. function:: abs(x)
 
@@ -74,11 +83,12 @@ are always available.  They are listed here in alphabetical order.
 
 .. function:: bool([x])
 
-   Convert a value to a Boolean, using the standard truth testing procedure.  If
-   *x* is false or omitted, this returns :const:`False`; otherwise it returns
-   :const:`True`. :class:`bool` is also a class, which is a subclass of
-   :class:`int`. Class :class:`bool` cannot be subclassed further.  Its only
-   instances are :const:`False` and :const:`True`.
+   Convert a value to a Boolean, using the standard :ref:`truth testing
+   procedure <truth>`.  If *x* is false or omitted, this returns ``False``;
+   otherwise it returns ``True``. :class:`bool` is also a class, which is a
+   subclass of :class:`int` (see :ref:`typesnumeric`).  Class :class:`bool`
+   cannot be subclassed further.  Its only instances are ``False`` and
+   ``True`` (see :ref:`bltin-boolean-values`).
 
    .. index:: pair: Boolean; type
 
@@ -237,6 +247,13 @@ are always available.  They are listed here in alphabetical order.
    the function serves as a numeric conversion function like :func:`int`
    and :func:`float`.  If both arguments are omitted, returns ``0j``.
 
+   .. note::
+
+      When converting from a string, the string must not contain whitespace
+      around the central ``+`` or ``-`` operator.  For example,
+      ``complex('1+2j')`` is fine, but ``complex('1 + 2j')`` raises
+      :exc:`ValueError`.
+
    The complex type is described in :ref:`typesnumeric`.
 
 
@@ -248,6 +265,7 @@ are always available.  They are listed here in alphabetical order.
    example, ``delattr(x, 'foobar')`` is equivalent to ``del x.foobar``.
 
 
+.. _func-dict:
 .. function:: dict([arg])
    :noindex:
 
@@ -399,7 +417,10 @@ are always available.  They are listed here in alphabetical order.
    current scope.  If only *globals* is provided, it must be a dictionary, which
    will be used for both the global and the local variables.  If *globals* and
    *locals* are given, they are used for the global and local variables,
-   respectively.  If provided, *locals* can be any mapping object.
+   respectively.  If provided, *locals* can be any mapping object.  Remember
+   that at module level, globals and locals are the same dictionary. If exec
+   gets two separate objects as *globals* and *locals*, the code will be
+   executed as if it were embedded in a class definition.
 
    If the *globals* dictionary does not contain a value for the key
    ``__builtins__``, a reference to the dictionary of the built-in module
@@ -491,6 +512,7 @@ are always available.  They are listed here in alphabetical order.
 
    The float type is described in :ref:`typesnumeric`.
 
+
 .. function:: format(value[, format_spec])
 
    .. index::
@@ -511,6 +533,8 @@ are always available.  They are listed here in alphabetical order.
    :exc:`TypeError` exception is raised if the method is not found or if either
    the *format_spec* or the return value are not strings.
 
+
+.. _func-frozenset:
 .. function:: frozenset([iterable])
    :noindex:
 
@@ -624,7 +648,8 @@ are always available.  They are listed here in alphabetical order.
 .. function:: isinstance(object, classinfo)
 
    Return true if the *object* argument is an instance of the *classinfo*
-   argument, or of a (direct or indirect) subclass thereof.  If *object* is not
+   argument, or of a (direct, indirect or :term:`virtual <abstract base
+   class>`) subclass thereof.  If *object* is not
    an object of the given type, the function always returns false.  If
    *classinfo* is not a class (type object), it may be a tuple of type objects,
    or may recursively contain other such tuples (other sequence types are not
@@ -634,7 +659,8 @@ are always available.  They are listed here in alphabetical order.
 
 .. function:: issubclass(class, classinfo)
 
-   Return true if *class* is a subclass (direct or indirect) of *classinfo*.  A
+   Return true if *class* is a subclass (direct, indirect or :term:`virtual
+   <abstract base class>`) of *classinfo*.  A
    class is considered a subclass of itself. *classinfo* may be a tuple of class
    objects, in which case every entry in *classinfo* will be checked. In any other
    case, a :exc:`TypeError` exception is raised.
@@ -715,6 +741,8 @@ are always available.  They are listed here in alphabetical order.
    such as ``sorted(iterable, key=keyfunc, reverse=True)[0]`` and
    ``heapq.nlargest(1, iterable, key=keyfunc)``.
 
+
+.. _func-memoryview:
 .. function:: memoryview(obj)
    :noindex:
 
@@ -810,7 +838,7 @@ are always available.  They are listed here in alphabetical order.
    .. note::
 
       Python doesn't depend on the underlying operating system's notion of text
-      files; all the the processing is done by Python itself, and is therefore
+      files; all the processing is done by Python itself, and is therefore
       platform-independent.
 
    *buffering* is an optional integer used to set the buffering policy.  Pass 0
@@ -898,7 +926,7 @@ are always available.  They are listed here in alphabetical order.
 .. XXX works for bytes too, but should it?
 .. function:: ord(c)
 
-   Given a string representing one Uncicode character, return an integer
+   Given a string representing one Unicode character, return an integer
    representing the Unicode code
    point of that character.  For example, ``ord('a')`` returns the integer ``97``
    and ``ord('\u2020')`` returns ``8224``.  This is the inverse of :func:`chr`.
@@ -936,7 +964,9 @@ are always available.  They are listed here in alphabetical order.
    *end*.
 
    The *file* argument must be an object with a ``write(string)`` method; if it
-   is not present or ``None``, :data:`sys.stdout` will be used.
+   is not present or ``None``, :data:`sys.stdout` will be used. Output buffering
+   is determined by *file*. Use ``file.flush()`` to ensure, for instance,
+   immediate appearance on a screen.
 
 
 .. function:: property(fget=None, fset=None, fdel=None, doc=None)
@@ -1038,7 +1068,7 @@ are always available.  They are listed here in alphabetical order.
 
    Range objects implement the :class:`collections.Sequence` ABC, and provide
    features such as containment tests, element index lookup, slicing and
-   support for negative indices:
+   support for negative indices (see :ref:`typesseq`):
 
       >>> r = range(0, 20, 2)
       >>> r
@@ -1106,6 +1136,8 @@ are always available.  They are listed here in alphabetical order.
       can't be represented exactly as a float.  See :ref:`tut-fp-issues` for
       more information.
 
+
+.. _func-set:
 .. function:: set([iterable])
    :noindex:
 
@@ -1347,10 +1379,10 @@ are always available.  They are listed here in alphabetical order.
         def zip(*iterables):
             # zip('ABCD', 'xy') --> Ax By
             sentinel = object()
-            iterables = [iter(it) for it in iterables]
-            while iterables:
+            iterators = [iter(it) for it in iterables]
+            while iterators:
                 result = []
-                for it in iterables:
+                for it in iterators:
                     elem = next(it, sentinel)
                     if elem is sentinel:
                         return

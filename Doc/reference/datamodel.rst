@@ -1157,6 +1157,14 @@ Basic customization
    .. XXX what about subclasses of string?
 
 
+.. method:: object.__bytes__(self)
+
+   .. index:: builtin: bytes
+
+   Called by :func:`bytes` to compute a byte-string representation of an
+   object. This should return a ``bytes`` object.
+
+
 .. method:: object.__format__(self, format_spec)
 
    .. index::
@@ -1263,6 +1271,8 @@ Basic customization
    explicitly by setting ``__hash__ = <ParentClass>.__hash__``. Otherwise the
    inheritance of :meth:`__hash__` will be blocked, just as if :attr:`__hash__`
    had been explicitly set to :const:`None`.
+
+   See also the :option:`-R` command-line option.
 
 
 .. method:: object.__bool__(self)

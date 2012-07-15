@@ -1,4 +1,4 @@
-/* pyconfig.h.in.  Generated from configure.in by autoheader.  */
+/* pyconfig.h.in.  Generated from configure.ac by autoheader.  */
 
 
 #ifndef Py_PYCONFIG_H
@@ -98,6 +98,9 @@
 /* define to 1 if your sem_getvalue is broken. */
 #undef HAVE_BROKEN_SEM_GETVALUE
 
+/* Define if `unsetenv` does not return an int. */
+#undef HAVE_BROKEN_UNSETENV
+
 /* Define this if you have the type _Bool. */
 #undef HAVE_C99_BOOL
 
@@ -174,6 +177,9 @@
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
 #undef HAVE_DIRENT_H
+
+/* Define if you have the 'dirfd' function or macro. */
+#undef HAVE_DIRFD
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
@@ -782,6 +788,9 @@
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/syscall.h> header file. */
+#undef HAVE_SYS_SYSCALL_H
 
 /* Define to 1 if you have the <sys/termio.h> header file. */
 #undef HAVE_SYS_TERMIO_H

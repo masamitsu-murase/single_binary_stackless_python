@@ -526,12 +526,19 @@ class Misc:
 
         The type keyword specifies the form in which the data is
         to be returned and should be an atom name such as STRING
-        or FILE_NAME.  Type defaults to STRING.
+        or FILE_NAME.  Type defaults to STRING, except on X11, where the default
+        is to try UTF8_STRING and fall back to STRING.
 
         This command is equivalent to:
 
         selection_get(CLIPBOARD)
         """
+        if 'type' not in kw and self._windowingsystem == 'x11':
+            try:
+                kw['type'] = 'UTF8_STRING'
+                return self.tk.call(('clipboard', 'get') + self._options(kw))
+            except TclError:
+                del kw['type']
         return self.tk.call(('clipboard', 'get') + self._options(kw))
 
     def clipboard_clear(self, **kw):
@@ -613,8 +620,16 @@ class Misc:
         A keyword parameter selection specifies the name of
         the selection and defaults to PRIMARY.  A keyword
         parameter displayof specifies a widget on the display
-        to use."""
+        to use. A keyword parameter type specifies the form of data to be
+        fetched, defaulting to STRING except on X11, where UTF8_STRING is tried
+        before STRING."""
         if 'displayof' not in kw: kw['displayof'] = self._w
+        if 'type' not in kw and self._windowingsystem == 'x11':
+            try:
+                kw['type'] = 'UTF8_STRING'
+                return self.tk.call(('selection', 'get') + self._options(kw))
+            except TclError:
+                del kw['type']
         return self.tk.call(('selection', 'get') + self._options(kw))
     def selection_handle(self, command, **kw):
         """Specify a function COMMAND to call if the X
@@ -1029,6 +1044,15 @@ class Misc:
         if displayof is None:
             return ('-displayof', self._w)
         return ()
+    @property
+    def _windowingsystem(self):
+        """Internal function."""
+        try:
+            return self._root()._windowingsystem_cached
+        except AttributeError:
+            ws = self._root()._windowingsystem_cached = \
+                        self.tk.call('tk', 'windowingsystem')
+            return ws
     def _options(self, cnf, kw = None):
         """Internal function."""
         if kw:
@@ -1039,7 +1063,7 @@ class Misc:
         for k, v in cnf.items():
             if v is not None:
                 if k[-1] == '_': k = k[:-1]
-                if hasattr(v, '__call__'):
+                if callable(v):
                     v = self._register(v)
                 elif isinstance(v, (tuple, list)):
                     nv = []
@@ -1608,7 +1632,7 @@ class Wm:
         """Bind function FUNC to command NAME for this widget.
         Return the function bound to NAME if None is given. NAME could be
         e.g. "WM_SAVE_YOURSELF" or "WM_DELETE_WINDOW"."""
-        if hasattr(func, '__call__'):
+        if callable(func):
             command = self._register(func)
         else:
             command = func
@@ -3178,7 +3202,7 @@ class Image:
         elif kw: cnf = kw
         options = ()
         for k, v in cnf.items():
-            if hasattr(v, '__call__'):
+            if callable(v):
                 v = self._register(v)
             options = options + ('-'+k, v)
         self.tk.call(('image', 'create', imgtype, name,) + options)
@@ -3201,7 +3225,7 @@ class Image:
         for k, v in _cnfmerge(kw).items():
             if v is not None:
                 if k[-1] == '_': k = k[:-1]
-                if hasattr(v, '__call__'):
+                if callable(v):
                     v = self._register(v)
                 res = res + ('-'+k, v)
         self.tk.call((self.name, 'config') + res)

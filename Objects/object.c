@@ -754,6 +754,8 @@ PyObject_HashNotImplemented(PyObject *v)
     return -1;
 }
 
+_Py_HashSecret_t _Py_HashSecret;
+
 Py_hash_t
 PyObject_Hash(PyObject *v)
 {
@@ -1624,6 +1626,9 @@ _Py_ReadyTypes(void)
 
     if (PyType_Ready(&PyWrapperDescr_Type) < 0)
         Py_FatalError("Can't initialize wrapper type");
+
+    if (PyType_Ready(&_PyMethodWrapper_Type) < 0)
+        Py_FatalError("Can't initialize method wrapper type");
 
     if (PyType_Ready(&PyEllipsis_Type) < 0)
         Py_FatalError("Can't initialize ellipsis type");

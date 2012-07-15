@@ -261,16 +261,54 @@ classmethoddescr_call(PyMethodDescrObject *descr, PyObject *args,
                       PyObject *kwds)
 {
     STACKLESS_GETARG();
-    PyObject *func, *result;
+    Py_ssize_t argc;
+    PyObject *self, *func, *result;
 
-    func = PyCFunction_New(descr->d_method, (PyObject *)PyDescr_TYPE(descr));
+    /* Make sure that the first argument is acceptable as 'self' */
+    assert(PyTuple_Check(args));
+    argc = PyTuple_GET_SIZE(args);
+    if (argc < 1) {
+        PyErr_Format(PyExc_TypeError,
+                     "descriptor '%V' of '%.100s' "
+                     "object needs an argument",
+                     descr_name((PyDescrObject *)descr), "?",
+                     PyDescr_TYPE(descr)->tp_name);
+        return NULL;
+    }
+    self = PyTuple_GET_ITEM(args, 0);
+    if (!PyType_Check(self)) {
+        PyErr_Format(PyExc_TypeError,
+                     "descriptor '%V' requires a type "
+                     "but received a '%.100s'",
+                     descr_name((PyDescrObject *)descr), "?",
+                     PyDescr_TYPE(descr)->tp_name,
+                     self->ob_type->tp_name);
+        return NULL;
+    }
+    if (!PyType_IsSubtype((PyTypeObject *)self, PyDescr_TYPE(descr))) {
+        PyErr_Format(PyExc_TypeError,
+                     "descriptor '%V' "
+                     "requires a subtype of '%.100s' "
+                     "but received '%.100s",
+                     descr_name((PyDescrObject *)descr), "?",
+                     PyDescr_TYPE(descr)->tp_name,
+                     self->ob_type->tp_name);
+        return NULL;
+    }
+
+    func = PyCFunction_New(descr->d_method, self);
     if (func == NULL)
         return NULL;
-
+    args = PyTuple_GetSlice(args, 1, argc);
+    if (args == NULL) {
+        Py_DECREF(func);
+        return NULL;
+    }
     STACKLESS_PROMOTE_ALL();
     result = PyEval_CallObjectWithKeywords(func, args, kwds);
     STACKLESS_ASSERT();
     Py_DECREF(func);
+    Py_DECREF(args);
     return result;
 }
 
@@ -865,20 +903,13 @@ PyDictProxy_New(PyObject *dict)
 /* This has no reason to be in this file except that adding new files is a
    bit of a pain */
 
-/* forward */
-static PyTypeObject wrappertype;
-
 typedef struct {
     PyObject_HEAD
     PyWrapperDescrObject *descr;
     PyObject *self;
 } wrapperobject;
 
-#ifdef STACKLESS
-#define Wrapper_Check(v) (Py_TYPE(v) == &PyMethodWrapper_Type)
-#else
-#define Wrapper_Check(v) (Py_TYPE(v) == &wrappertype)
-#endif
+#define Wrapper_Check(v) (Py_TYPE(v) == &_PyMethodWrapper_Type)
 
 static void
 wrapper_dealloc(wrapperobject *wp)
@@ -1052,12 +1083,7 @@ wrapper_traverse(PyObject *self, visitproc visit, void *arg)
     return 0;
 }
 
-#ifdef STACKLESS
-#define wrappertype PyMethodWrapper_Type
-PyTypeObject PyMethodWrapper_Type = {
-#else
-static PyTypeObject wrappertype = {
-#endif
+PyTypeObject _PyMethodWrapper_Type = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "method-wrapper",                           /* tp_name */
     sizeof(wrapperobject),                      /* tp_basicsize */
@@ -1095,7 +1121,7 @@ static PyTypeObject wrappertype = {
     0,                                          /* tp_descr_set */
 };
 
-STACKLESS_DECLARE_METHOD(&PyMethodWrapper_Type, tp_call)
+STACKLESS_DECLARE_METHOD(&_PyMethodWrapper_Type, tp_call)
 
 PyObject *
 PyWrapper_New(PyObject *d, PyObject *self)
@@ -1108,7 +1134,7 @@ PyWrapper_New(PyObject *d, PyObject *self)
     assert(_PyObject_RealIsSubclass((PyObject *)Py_TYPE(self),
                                     (PyObject *)PyDescr_TYPE(descr)));
 
-    wp = PyObject_GC_New(wrapperobject, &wrappertype);
+    wp = PyObject_GC_New(wrapperobject, &_PyMethodWrapper_Type);
     if (wp != NULL) {
         Py_INCREF(descr);
         wp->descr = descr;

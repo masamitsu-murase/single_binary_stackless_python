@@ -292,9 +292,12 @@ def detect_encoding(readline):
 
     def find_cookie(line):
         try:
-            line_string = line.decode('ascii')
+            # Decode as UTF-8. Either the line is an encoding declaration,
+            # in which case it should be pure ASCII, or it must be UTF-8
+            # per default encoding.
+            line_string = line.decode('utf-8')
         except UnicodeDecodeError:
-            return None
+            raise SyntaxError("invalid or missing encoding declaration")
 
         matches = cookie_re.findall(line_string)
         if not matches:
@@ -307,7 +310,7 @@ def detect_encoding(readline):
             raise SyntaxError("unknown encoding: " + encoding)
 
         if bom_found:
-            if codec.name != 'utf-8':
+            if encoding != 'utf-8':
                 # This behaviour mimics the Python interpreter
                 raise SyntaxError('encoding problem: utf-8')
             encoding += '-sig'

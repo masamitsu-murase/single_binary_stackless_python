@@ -474,6 +474,7 @@ PyAPI_FUNC(PyObject *) PyType_GenericNew(PyTypeObject *,
 #ifndef Py_LIMITED_API
 PyAPI_FUNC(PyObject *) _PyType_Lookup(PyTypeObject *, PyObject *);
 PyAPI_FUNC(PyObject *) _PyObject_LookupSpecial(PyObject *, char *, PyObject **);
+PyAPI_FUNC(PyTypeObject *) _PyType_CalculateMetaclass(PyTypeObject *, PyObject *);
 #endif
 PyAPI_FUNC(unsigned int) PyType_ClearCache(void);
 PyAPI_FUNC(void) PyType_Modified(PyTypeObject *);
@@ -539,6 +540,16 @@ PyAPI_FUNC(void) Py_ReprLeave(PyObject *);
 #ifndef Py_LIMITED_API
 PyAPI_FUNC(Py_hash_t) _Py_HashDouble(double);
 PyAPI_FUNC(Py_hash_t) _Py_HashPointer(void*);
+#endif
+
+typedef struct {
+    Py_hash_t prefix;
+    Py_hash_t suffix;
+} _Py_HashSecret_t;
+PyAPI_DATA(_Py_HashSecret_t) _Py_HashSecret;
+
+#ifdef Py_DEBUG
+PyAPI_DATA(int) _Py_HashSecret_Initialized;
 #endif
 
 /* Helper for passing objects to printf and the like */

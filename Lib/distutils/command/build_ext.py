@@ -183,8 +183,7 @@ class build_ext(Command):
                     if os.path.exists(stackless_py_include):
                         self.include_dirs.append(stackless_py_include)
 
-        if isinstance(self.libraries, str):
-            self.libraries = [self.libraries]
+        self.ensure_string_list('libraries')
 
         # Life is easier if we're not forever checking for None, so
         # simplify these options to empty lists if unset

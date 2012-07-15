@@ -627,7 +627,7 @@ PyDoc_STRVAR(textiowrapper_doc,
     "enabled.  With this enabled, on input, the lines endings '\\n', '\\r',\n"
     "or '\\r\\n' are translated to '\\n' before being returned to the\n"
     "caller. Conversely, on output, '\\n' is translated to the system\n"
-    "default line seperator, os.linesep. If newline is any other of its\n"
+    "default line separator, os.linesep. If newline is any other of its\n"
     "legal values, that newline becomes the newline when the file is read\n"
     "and it is returned untranslated. On output, '\\n' is converted to the\n"
     "newline.\n"
@@ -1541,8 +1541,14 @@ textiowrapper_read(textio *self, PyObject *args)
         /* Keep reading chunks until we have n characters to return */
         while (remaining > 0) {
             res = textiowrapper_read_chunk(self);
-            if (res < 0)
+            if (res < 0) {
+                /* NOTE: PyErr_SetFromErrno() calls PyErr_CheckSignals()
+                   when EINTR occurs so we needn't do it ourselves. */
+                if (_PyIO_trap_eintr()) {
+                    continue;
+                }
                 goto fail;
+            }
             if (res == 0)  /* EOF */
                 break;
             if (chunks == NULL) {
@@ -1701,8 +1707,14 @@ _textiowrapper_readline(textio *self, Py_ssize_t limit)
         while (!self->decoded_chars ||
                !PyUnicode_GET_SIZE(self->decoded_chars)) {
             res = textiowrapper_read_chunk(self);
-            if (res < 0)
+            if (res < 0) {
+                /* NOTE: PyErr_SetFromErrno() calls PyErr_CheckSignals()
+                   when EINTR occurs so we needn't do it ourselves. */
+                if (_PyIO_trap_eintr()) {
+                    continue;
+                }
                 goto error;
+            }
             if (res == 0)
                 break;
         }

@@ -1,4 +1,3 @@
-
 :mod:`collections` --- Container datatypes
 ==========================================
 
@@ -192,7 +191,7 @@ counts, but the output will exclude results with counts of zero or less.
    * The multiset methods are designed only for use cases with positive values.
      The inputs may be negative or zero, but only outputs with positive values
      are created.  There are no type restrictions, but the value type needs to
-     support support addition, subtraction, and comparison.
+     support addition, subtraction, and comparison.
 
    * The :meth:`elements` method requires integer counts.  It ignores zero and
      negative counts.
@@ -468,6 +467,11 @@ stack manipulations such as ``dup``, ``drop``, ``swap``, ``over``, ``pick``,
       This method is called by the :meth:`__getitem__` method of the
       :class:`dict` class when the requested key is not found; whatever it
       returns or raises is then returned or raised by :meth:`__getitem__`.
+
+      Note that :meth:`__missing__` is *not* called for any operations besides
+      :meth:`__getitem__`. This means that :meth:`get` will, like normal
+      dictionaries, return ``None`` as a default rather than using
+      :attr:`default_factory`.
 
 
    :class:`defaultdict` objects support the following instance variable:
@@ -886,7 +890,7 @@ original insertion position is changed and moved to the end::
                 del self[key]
             OrderedDict.__setitem__(self, key, value)
 
-An ordered dictionary can combined with the :class:`Counter` class
+An ordered dictionary can be combined with the :class:`Counter` class
 so that the counter remembers the order elements are first encountered::
 
    class OrderedCounter(Counter, OrderedDict):
@@ -984,6 +988,7 @@ attribute.
    be an instance of :class:`bytes`, :class:`str`, :class:`UserString` (or a
    subclass) or an arbitrary sequence which can be converted into a string using
    the built-in :func:`str` function.
+
 
 .. _collections-abstract-base-classes:
 

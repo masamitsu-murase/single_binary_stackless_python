@@ -127,6 +127,14 @@ class AutoFileTests(unittest.TestCase):
         else:
             self.fail("Should have raised IOError")
 
+    @unittest.skipIf(os.name == 'nt', "test only works on a POSIX-like system")
+    def testOpenDirFD(self):
+        fd = os.open('.', os.O_RDONLY)
+        with self.assertRaises(IOError) as cm:
+            _FileIO(fd, 'r')
+        os.close(fd)
+        self.assertEqual(cm.exception.errno, errno.EISDIR)
+
     #A set of functions testing that we get expected behaviour if someone has
     #manually closed the internal file descriptor.  First, a decorator:
     def ClosedFD(func):
@@ -305,6 +313,11 @@ class OtherFileTests(unittest.TestCase):
         finally:
             os.unlink(TESTFN)
 
+    def testConstructorHandlesNULChars(self):
+        fn_with_NUL = 'foo\0bar'
+        self.assertRaises(TypeError, _FileIO, fn_with_NUL, 'w')
+        self.assertRaises(TypeError, _FileIO, bytes(fn_with_NUL, 'ascii'), 'w')
+
     def testInvalidFd(self):
         self.assertRaises(ValueError, _FileIO, -10)
         self.assertRaises(OSError, _FileIO, make_bad_fd())
@@ -397,6 +410,17 @@ class OtherFileTests(unittest.TestCase):
             self.assertEqual(w.warnings, [])
             self.assertRaises(ValueError, _FileIO, "/some/invalid/name", "rt")
             self.assertEqual(w.warnings, [])
+
+    def testUnclosedFDOnException(self):
+        class MyException(Exception): pass
+        class MyFileIO(_FileIO):
+            def __setattr__(self, name, value):
+                if name == "name":
+                    raise MyException("blocked setting name")
+                return super(MyFileIO, self).__setattr__(name, value)
+        fd = os.open(__file__, os.O_RDONLY)
+        self.assertRaises(MyException, MyFileIO, fd)
+        os.close(fd)  # should not raise OSError(EBADF)
 
 
 def test_main():

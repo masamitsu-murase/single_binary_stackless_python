@@ -28,7 +28,7 @@ Verbosity
 -W/--verbose3   -- display test output on failure
 -d/--debug      -- print traceback for failed tests
 -q/--quiet      -- no output unless one or more tests fail
--S/--slow       -- print the slowest 10 tests
+-o/--slow       -- print the slowest 10 tests
    --header     -- print header with interpreter info
 
 Selecting tests
@@ -165,6 +165,7 @@ import os
 import platform
 import random
 import re
+import shutil
 import sys
 import sysconfig
 import tempfile
@@ -271,10 +272,10 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
 
     support.record_original_stdout(sys.stdout)
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'hvqxsSrf:lu:t:TD:NLR:FwWM:nj:Gm:',
+        opts, args = getopt.getopt(sys.argv[1:], 'hvqxsoS:rf:lu:t:TD:NLR:FdwWM:nj:Gm:',
             ['help', 'verbose', 'verbose2', 'verbose3', 'quiet',
              'exclude', 'single', 'slow', 'random', 'fromfile', 'findleaks',
-             'use=', 'threshold=', 'trace', 'coverdir=', 'nocoverdir',
+             'use=', 'threshold=', 'coverdir=', 'nocoverdir',
              'runleaks', 'huntrleaks=', 'memlimit=', 'randseed=',
              'multiprocess=', 'coverage', 'slaveargs=', 'forever', 'debug',
              'start=', 'nowindows', 'header', 'failfast', 'match'])
@@ -311,7 +312,7 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
             start = a
         elif o in ('-s', '--single'):
             single = True
-        elif o in ('-S', '--slow'):
+        elif o in ('-o', '--slow'):
             print_slow = True
         elif o in ('-r', '--randomize'):
             randomize = True
@@ -571,10 +572,14 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
                         output.put((None, None, None, None))
                         return
                     # -E is needed by some tests, e.g. test_import
+                    # Running the child from the same working directory ensures
+                    # that TEMPDIR for the child is the same when
+                    # sysconfig.is_python_build() is true. See issue 15300.
                     popen = Popen(base_cmd + ['--slaveargs', json.dumps(args_tuple)],
                                    stdout=PIPE, stderr=PIPE,
                                    universal_newlines=True,
-                                   close_fds=(os.name != 'nt'))
+                                   close_fds=(os.name != 'nt'),
+                                   cwd=support.SAVEDCWD)
                     stdout, stderr = popen.communicate()
                     # Strip last refcount output line if it exists, since it
                     # comes from the shutdown of the interpreter in the subcommand.
@@ -609,6 +614,8 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
                     print(stdout)
                 if stderr:
                     print(stderr, file=sys.stderr)
+                sys.stdout.flush()
+                sys.stderr.flush()
                 if result[0] == INTERRUPTED:
                     assert result[1] == 'KeyboardInterrupt'
                     raise KeyboardInterrupt   # What else?
@@ -676,10 +683,10 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
         if bad:
             print(count(len(bad), "test"), "failed:")
             printlist(bad)
-        if environment_changed:
-            print("{} altered the execution environment:".format(
-                     count(len(environment_changed), "test")))
-            printlist(environment_changed)
+    if environment_changed:
+        print("{} altered the execution environment:".format(
+                 count(len(environment_changed), "test")))
+        printlist(environment_changed)
     if skipped and not quiet:
         print(count(len(skipped), "test"), "skipped:")
         printlist(skipped)
@@ -887,8 +894,11 @@ class saved_test_environment:
                  'os.environ', 'sys.path', 'sys.path_hooks', '__import__',
                  'warnings.filters', 'asyncore.socket_map',
                  'logging._handlers', 'logging._handlerList',
+                 'shutil.archive_formats', 'shutil.unpack_formats',
                  'sys.warnoptions', 'threading._dangling',
-                 'multiprocessing.process._dangling')
+                 'multiprocessing.process._dangling',
+                 'support.TESTFN',
+                )
 
     def get_sys_argv(self):
         return id(sys.argv), sys.argv, sys.argv[:]
@@ -956,6 +966,23 @@ class saved_test_environment:
             asyncore.close_all(ignore_all=True)
             asyncore.socket_map.update(saved_map)
 
+    def get_shutil_archive_formats(self):
+        # we could call get_archives_formats() but that only returns the
+        # registry keys; we want to check the values too (the functions that
+        # are registered)
+        return shutil._ARCHIVE_FORMATS, shutil._ARCHIVE_FORMATS.copy()
+    def restore_shutil_archive_formats(self, saved):
+        shutil._ARCHIVE_FORMATS = saved[0]
+        shutil._ARCHIVE_FORMATS.clear()
+        shutil._ARCHIVE_FORMATS.update(saved[1])
+
+    def get_shutil_unpack_formats(self):
+        return shutil._UNPACK_FORMATS, shutil._UNPACK_FORMATS.copy()
+    def restore_shutil_unpack_formats(self, saved):
+        shutil._UNPACK_FORMATS = saved[0]
+        shutil._UNPACK_FORMATS.clear()
+        shutil._UNPACK_FORMATS.update(saved[1])
+
     def get_logging__handlers(self):
         # _handlers is a WeakValueDictionary
         return id(logging._handlers), logging._handlers, logging._handlers.copy()
@@ -1000,6 +1027,21 @@ class saved_test_environment:
             return
         multiprocessing.process._dangling.clear()
         multiprocessing.process._dangling.update(saved)
+
+    def get_support_TESTFN(self):
+        if os.path.isfile(support.TESTFN):
+            result = 'f'
+        elif os.path.isdir(support.TESTFN):
+            result = 'd'
+        else:
+            result = None
+        return result
+    def restore_support_TESTFN(self, saved_value):
+        if saved_value is None:
+            if os.path.isfile(support.TESTFN):
+                os.unlink(support.TESTFN)
+            elif os.path.isdir(support.TESTFN):
+                shutil.rmtree(support.TESTFN)
 
     def resource_info(self):
         for name in self.resources:
@@ -1255,6 +1297,13 @@ def dash_R_cleanup(fs, ps, pic, zdc, abcs):
     filecmp._cache.clear()
     struct._clearcache()
     doctest.master = None
+    try:
+        import ctypes
+    except ImportError:
+        # Don't worry about resetting the cache if ctypes is not supported
+        pass
+    else:
+        ctypes._reset_cache()
 
     # Collect cyclic trash.
     gc.collect()

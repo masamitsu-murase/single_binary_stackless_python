@@ -243,6 +243,11 @@ Fundamental data types
 | :class:`c_ulonglong` | :c:type:`unsigned __int64` or            | int                        |
 |                      | :c:type:`unsigned long long`             |                            |
 +----------------------+------------------------------------------+----------------------------+
+| :class:`c_size_t`    | :c:type:`size_t`                         | int                        |
++----------------------+------------------------------------------+----------------------------+
+| :class:`c_ssize_t`   | :c:type:`ssize_t` or                     | int                        |
+|                      | :c:type:`Py_ssize_t`                     |                            |
++----------------------+------------------------------------------+----------------------------+
 | :class:`c_float`     | :c:type:`float`                          | float                      |
 +----------------------+------------------------------------------+----------------------------+
 | :class:`c_double`    | :c:type:`double`                         | float                      |
@@ -1815,8 +1820,6 @@ Utility functions
    termination character. An integer can be passed as second argument which allows
    to specify the size of the array if the length of the bytes should not be used.
 
-   If the first parameter is a string, it is converted into a bytes object
-   according to ctypes conversion rules.
 
 
 .. function:: create_unicode_buffer(init_or_size, size=None)
@@ -1833,8 +1836,6 @@ Utility functions
    allows to specify the size of the array if the length of the string should not
    be used.
 
-   If the first parameter is a bytes object, it is converted into an unicode string
-   according to ctypes conversion rules.
 
 
 .. function:: DllCanUnloadNow()
@@ -1958,7 +1959,7 @@ Utility functions
 
 .. function:: string_at(address, size=-1)
 
-   This function returns the C string starting at memory address address as a bytes
+   This function returns the C string starting at memory address *address* as a bytes
    object. If size is specified, it is used as size, otherwise the string is assumed
    to be zero-terminated.
 

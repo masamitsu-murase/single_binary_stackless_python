@@ -1,4 +1,5 @@
 import sys
+import io
 import linecache
 import time
 import socket
@@ -244,6 +245,29 @@ class MyRPCServer(rpc.RPCServer):
             quitting = True
             thread.interrupt_main()
 
+class _RPCFile(io.TextIOBase):
+    """Wrapper class for the RPC proxy to typecheck arguments
+    that may not support pickling. The base class is there only
+    to support type tests; all implementations come from the remote
+    object."""
+
+    def __init__(self, rpc):
+        super.__setattr__(self, 'rpc', rpc)
+
+    def __getattribute__(self, name):
+        # When accessing the 'rpc' attribute, or 'write', use ours
+        if name in ('rpc', 'write'):
+            return io.TextIOBase.__getattribute__(self, name)
+        # Else only look into the remote object only
+        return getattr(self.rpc, name)
+
+    def __setattr__(self, name, value):
+        return setattr(self.rpc, name, value)
+
+    def write(self, s):
+        if not isinstance(s, str):
+            raise TypeError('must be str, not ' + type(s).__name__)
+        return self.rpc.write(s)
 
 class MyHandler(rpc.RPCHandler):
 
@@ -252,8 +276,8 @@ class MyHandler(rpc.RPCHandler):
         executive = Executive(self)
         self.register("exec", executive)
         sys.stdin = self.console = self.get_remote_proxy("stdin")
-        sys.stdout = self.get_remote_proxy("stdout")
-        sys.stderr = self.get_remote_proxy("stderr")
+        sys.stdout = _RPCFile(self.get_remote_proxy("stdout"))
+        sys.stderr = _RPCFile(self.get_remote_proxy("stderr"))
         # page help() text to shell.
         import pydoc # import must be done here to capture i/o binding
         pydoc.pager = pydoc.plainpager

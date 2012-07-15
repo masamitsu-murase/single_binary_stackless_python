@@ -156,9 +156,7 @@ _PyLong_Copy(PyLongObject *src)
     if (i < 0)
         i = -(i);
     if (i < 2) {
-        sdigit ival = src->ob_digit[0];
-        if (Py_SIZE(src) < 0)
-            ival = -ival;
+        sdigit ival = MEDIUM_VALUE(src);
         CHECK_SMALL_INT(ival);
     }
     result = _PyLong_New(i);
@@ -525,8 +523,8 @@ PyLong_AsUnsignedLong(PyObject *vv)
     return x;
 }
 
-/* Get a C unsigned long int from a long int object.
-   Returns -1 and sets an error condition if overflow occurs. */
+/* Get a C size_t from a long int object. Returns (size_t)-1 and sets
+   an error condition if overflow occurs. */
 
 size_t
 PyLong_AsSize_t(PyObject *vv)
@@ -562,7 +560,7 @@ PyLong_AsSize_t(PyObject *vv)
         if ((x >> PyLong_SHIFT) != prev) {
             PyErr_SetString(PyExc_OverflowError,
                 "Python int too large to convert to C size_t");
-            return (unsigned long) -1;
+            return (size_t) -1;
         }
     }
     return x;

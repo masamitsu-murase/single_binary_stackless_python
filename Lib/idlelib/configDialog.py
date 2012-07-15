@@ -187,7 +187,7 @@ class ConfigDialog(Toplevel):
                               text=' Highlighting Theme ')
         #frameCustom
         self.textHighlightSample=Text(frameCustom,relief=SOLID,borderwidth=1,
-            font=('courier',12,''),cursor='hand2',width=21,height=10,
+            font=('courier',12,''),cursor='hand2',width=21,height=11,
             takefocus=FALSE,highlightthickness=0,wrap=NONE)
         text=self.textHighlightSample
         text.bind('<Double-Button-1>',lambda e: 'break')
@@ -199,7 +199,7 @@ class ConfigDialog(Toplevel):
             ("'string'",'string'),('\n  var1 = ','normal'),("'selected'",'hilite'),
             ('\n  var2 = ','normal'),("'found'",'hit'),
             ('\n  var3 = ','normal'),('list', 'builtin'), ('(','normal'),
-            ('None', 'builtin'),(')\n\n','normal'),
+            ('None', 'keyword'),(')\n\n','normal'),
             (' error ','error'),(' ','normal'),('cursor |','cursor'),
             ('\n ','normal'),('shell','console'),(' ','normal'),('stdout','stdout'),
             (' ','normal'),('stderr','stderr'),('\n','normal'))
@@ -821,8 +821,10 @@ class ConfigDialog(Toplevel):
             fontWeight=tkFont.BOLD
         else:
             fontWeight=tkFont.NORMAL
-        self.editFont.config(size=self.fontSize.get(),
+        size=self.fontSize.get()
+        self.editFont.config(size=size,
                 weight=fontWeight,family=fontName)
+        self.textHighlightSample.configure(font=(fontName, size, fontWeight))
 
     def SetHighlightTarget(self):
         if self.highlightTarget.get()=='Cursor': #bg not possible

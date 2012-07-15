@@ -4001,7 +4001,7 @@ search path to find the file.\n\
 static PyObject *
 posix_spawnvpe(PyObject *self, PyObject *args)
 {
-    PyObject *opath
+    PyObject *opath;
     char *path;
     PyObject *argv, *env;
     char **argvlist;
@@ -5330,7 +5330,6 @@ win_symlink(PyObject *self, PyObject *args, PyObject *kwargs)
     PyObject *src, *dest;
     int target_is_directory = 0;
     DWORD res;
-    WIN32_FILE_ATTRIBUTE_DATA src_info;
 
     if (!check_CreateSymbolicLinkW())
     {
@@ -5349,16 +5348,6 @@ win_symlink(PyObject *self, PyObject *args, PyObject *kwargs)
     if (!convert_to_unicode(&dest)) {
         Py_DECREF(src);
         return NULL;
-    }
-
-    /* if src is a directory, ensure target_is_directory==1 */
-    if(
-        GetFileAttributesExW(
-            PyUnicode_AsUnicode(src), GetFileExInfoStandard, &src_info
-        ))
-    {
-        target_is_directory = target_is_directory ||
-            (src_info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
     }
 
     Py_BEGIN_ALLOW_THREADS
@@ -5687,7 +5676,8 @@ posix_dup2(PyObject *self, PyObject *args)
 
 PyDoc_STRVAR(posix_lseek__doc__,
 "lseek(fd, pos, how) -> newpos\n\n\
-Set the current position of a file descriptor.");
+Set the current position of a file descriptor.\n\
+Return the new cursor position in bytes, starting from the beginning.");
 
 static PyObject *
 posix_lseek(PyObject *self, PyObject *args)
@@ -6106,6 +6096,12 @@ posix_putenv(PyObject *self, PyObject *args)
        PyBytes_FromStringAndSize does not count that */
 #ifdef MS_WINDOWS
     len = wcslen(s1) + wcslen(s2) + 2;
+    if (_MAX_ENV < (len - 1)) {
+        PyErr_Format(PyExc_ValueError,
+                     "the environment variable is longer than %u characters",
+                     _MAX_ENV);
+        goto error;
+    }
     newstr = PyUnicode_FromUnicode(NULL, (int)len - 1);
 #else
     len = PyBytes_GET_SIZE(os1) + PyBytes_GET_SIZE(os2) + 2;
@@ -6177,42 +6173,38 @@ Delete an environment variable.");
 static PyObject *
 posix_unsetenv(PyObject *self, PyObject *args)
 {
-#ifdef MS_WINDOWS
-    char *s1;
-
-    if (!PyArg_ParseTuple(args, "s:unsetenv", &s1))
-        return NULL;
-#else
     PyObject *os1;
     char *s1;
+#ifndef HAVE_BROKEN_UNSETENV
+    int err;
+#endif
 
     if (!PyArg_ParseTuple(args, "O&:unsetenv",
                           PyUnicode_FSConverter, &os1))
         return NULL;
     s1 = PyBytes_AsString(os1);
-#endif
 
+#ifdef HAVE_BROKEN_UNSETENV
     unsetenv(s1);
+#else
+    err = unsetenv(s1);
+    if (err) {
+        Py_DECREF(os1);
+        return posix_error();
+    }
+#endif
 
     /* Remove the key from posix_putenv_garbage;
      * this will cause it to be collected.  This has to
      * happen after the real unsetenv() call because the
      * old value was still accessible until then.
      */
-    if (PyDict_DelItem(posix_putenv_garbage,
-#ifdef MS_WINDOWS
-                       PyTuple_GET_ITEM(args, 0)
-#else
-                       os1
-#endif
-                       )) {
+    if (PyDict_DelItem(posix_putenv_garbage, os1)) {
         /* really not much we can do; just leak */
         PyErr_Clear();
     }
 
-#ifndef MS_WINDOWS
     Py_DECREF(os1);
-#endif
     Py_RETURN_NONE;
 }
 #endif /* unsetenv */
@@ -7622,82 +7614,6 @@ posix_getloadavg(PyObject *self, PyObject *noargs)
 }
 #endif
 
-#ifdef MS_WINDOWS
-
-PyDoc_STRVAR(win32_urandom__doc__,
-"urandom(n) -> str\n\n\
-Return n random bytes suitable for cryptographic use.");
-
-typedef BOOL (WINAPI *CRYPTACQUIRECONTEXTA)(HCRYPTPROV *phProv,\
-              LPCSTR pszContainer, LPCSTR pszProvider, DWORD dwProvType,\
-              DWORD dwFlags );
-typedef BOOL (WINAPI *CRYPTGENRANDOM)(HCRYPTPROV hProv, DWORD dwLen,\
-              BYTE *pbBuffer );
-
-static CRYPTGENRANDOM pCryptGenRandom = NULL;
-/* This handle is never explicitly released. Instead, the operating
-   system will release it when the process terminates. */
-static HCRYPTPROV hCryptProv = 0;
-
-static PyObject*
-win32_urandom(PyObject *self, PyObject *args)
-{
-    int howMany;
-    PyObject* result;
-
-    /* Read arguments */
-    if (! PyArg_ParseTuple(args, "i:urandom", &howMany))
-        return NULL;
-    if (howMany < 0)
-        return PyErr_Format(PyExc_ValueError,
-                            "negative argument not allowed");
-
-    if (hCryptProv == 0) {
-        HINSTANCE hAdvAPI32 = NULL;
-        CRYPTACQUIRECONTEXTA pCryptAcquireContext = NULL;
-
-        /* Obtain handle to the DLL containing CryptoAPI
-           This should not fail         */
-        hAdvAPI32 = GetModuleHandle("advapi32.dll");
-        if(hAdvAPI32 == NULL)
-            return win32_error("GetModuleHandle", NULL);
-
-        /* Obtain pointers to the CryptoAPI functions
-           This will fail on some early versions of Win95 */
-        pCryptAcquireContext = (CRYPTACQUIRECONTEXTA)GetProcAddress(
-                                        hAdvAPI32,
-                                        "CryptAcquireContextA");
-        if (pCryptAcquireContext == NULL)
-            return PyErr_Format(PyExc_NotImplementedError,
-                                "CryptAcquireContextA not found");
-
-        pCryptGenRandom = (CRYPTGENRANDOM)GetProcAddress(
-                                        hAdvAPI32, "CryptGenRandom");
-        if (pCryptGenRandom == NULL)
-            return PyErr_Format(PyExc_NotImplementedError,
-                                "CryptGenRandom not found");
-
-        /* Acquire context */
-        if (! pCryptAcquireContext(&hCryptProv, NULL, NULL,
-                                   PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
-            return win32_error("CryptAcquireContext", NULL);
-    }
-
-    /* Allocate bytes */
-    result = PyBytes_FromStringAndSize(NULL, howMany);
-    if (result != NULL) {
-        /* Get random data */
-        memset(PyBytes_AS_STRING(result), 0, howMany); /* zero seed */
-        if (! pCryptGenRandom(hCryptProv, howMany, (unsigned char*)
-                              PyBytes_AS_STRING(result))) {
-            Py_DECREF(result);
-            return win32_error("CryptGenRandom", NULL);
-        }
-    }
-    return result;
-}
-#endif
-
 PyDoc_STRVAR(device_encoding__doc__,
 "device_encoding(fd) -> str\n\n\
 Return a string describing the encoding of the device\n\
@@ -7735,41 +7651,35 @@ device_encoding(PyObject *self, PyObject *args)
     return Py_None;
 }
 
-#ifdef __VMS
-/* Use openssl random routine */
-#include <openssl/rand.h>
-PyDoc_STRVAR(vms_urandom__doc__,
+PyDoc_STRVAR(posix_urandom__doc__,
 "urandom(n) -> str\n\n\
 Return n random bytes suitable for cryptographic use.");
 
-static PyObject*
-vms_urandom(PyObject *self, PyObject *args)
+static PyObject *
+posix_urandom(PyObject *self, PyObject *args)
 {
-    int howMany;
-    PyObject* result;
+    Py_ssize_t size;
+    PyObject *result;
+    int ret;
 
-    /* Read arguments */
-    if (! PyArg_ParseTuple(args, "i:urandom", &howMany))
+     /* Read arguments */
+    if (!PyArg_ParseTuple(args, "n:urandom", &size))
         return NULL;
-    if (howMany < 0)
+    if (size < 0)
         return PyErr_Format(PyExc_ValueError,
                             "negative argument not allowed");
+    result = PyBytes_FromStringAndSize(NULL, size);
+    if (result == NULL)
+        return NULL;
 
-    /* Allocate bytes */
-    result = PyBytes_FromStringAndSize(NULL, howMany);
-    if (result != NULL) {
-        /* Get random data */
-        if (RAND_pseudo_bytes((unsigned char*)
-                              PyBytes_AS_STRING(result),
-                              howMany) < 0) {
-            Py_DECREF(result);
-            return PyErr_Format(PyExc_ValueError,
-                                "RAND_pseudo_bytes");
-        }
+    ret = _PyOS_URandom(PyBytes_AS_STRING(result),
+                        PyBytes_GET_SIZE(result));
+    if (ret == -1) {
+        Py_DECREF(result);
+        return NULL;
     }
     return result;
 }
-#endif
 
 #ifdef HAVE_SETRESUID
 PyDoc_STRVAR(posix_setresuid__doc__,
@@ -8145,12 +8055,7 @@ static PyMethodDef posix_methods[] = {
 #ifdef HAVE_GETLOADAVG
     {"getloadavg",      posix_getloadavg, METH_NOARGS, posix_getloadavg__doc__},
 #endif
- #ifdef MS_WINDOWS
-    {"urandom", win32_urandom, METH_VARARGS, win32_urandom__doc__},
- #endif
- #ifdef __VMS
-    {"urandom", vms_urandom, METH_VARARGS, vms_urandom__doc__},
- #endif
+    {"urandom",         posix_urandom,   METH_VARARGS, posix_urandom__doc__},
 #ifdef HAVE_SETRESUID
     {"setresuid",       posix_setresuid, METH_VARARGS, posix_setresuid__doc__},
 #endif
@@ -8163,7 +8068,6 @@ static PyMethodDef posix_methods[] = {
 #ifdef HAVE_GETRESGID
     {"getresgid",       posix_getresgid, METH_NOARGS, posix_getresgid__doc__},
 #endif
-
     {NULL,              NULL}            /* Sentinel */
 };
 

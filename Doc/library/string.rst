@@ -4,16 +4,15 @@
 .. module:: string
    :synopsis: Common string operations.
 
+**Source code:** :source:`Lib/string.py`
+
+--------------
 
 .. seealso::
 
    :ref:`typesseq`
 
    :ref:`string-methods`
-
-**Source code:** :source:`Lib/string.py`
-
---------------
 
 String constants
 ----------------
@@ -212,7 +211,7 @@ by a colon ``':'``.  These specify a non-default format for the replacement valu
 
 See also the :ref:`formatspec` section.
 
-The *field_name* itself begins with an *arg_name* that is either either a number or a
+The *field_name* itself begins with an *arg_name* that is either a number or a
 keyword.  If it's a number, it refers to a positional argument, and if it's a keyword,
 it refers to a named keyword argument.  If the numerical arg_names in a format string
 are 0, 1, 2, ... in sequence, they can all be omitted (not just some)
@@ -293,7 +292,7 @@ The general form of a *standard format specifier* is:
 
 .. productionlist:: sf
    format_spec: [[`fill`]`align`][`sign`][#][0][`width`][,][.`precision`][`type`]
-   fill: <a character other than '}'>
+   fill: <a character other than '{' or '}'>
    align: "<" | ">" | "=" | "^"
    sign: "+" | "-" | " "
    width: `integer`
@@ -584,7 +583,7 @@ Expressing a percentage::
 
    >>> points = 19
    >>> total = 22
-   >>> 'Correct answers: {:.2%}.'.format(points/total)
+   >>> 'Correct answers: {:.2%}'.format(points/total)
    'Correct answers: 86.36%'
 
 Using type-specific formatting::

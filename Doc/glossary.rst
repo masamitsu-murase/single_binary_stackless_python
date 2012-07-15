@@ -30,7 +30,10 @@ Glossary
       Abstract base classes complement :term:`duck-typing` by
       providing a way to define interfaces when other techniques like
       :func:`hasattr` would be clumsy or subtly wrong (for example with
-      :ref:`magic methods <special-lookup>`). Python comes with many built-in ABCs for
+      :ref:`magic methods <special-lookup>`).  ABCs introduce virtual
+      subclasses, which are classes that don't inherit from a class but are
+      still recognized by :func:`isinstance` and :func:`issubclass`; see the
+      :mod:`abc` module documentation.  Python comes with many built-in ABCs for
       data structures (in the :mod:`collections` module), numbers (in the
       :mod:`numbers` module), streams (in the :mod:`io` module), import finders
       and loaders (in the :mod:`importlib.abc` module).  You can create your own
@@ -143,9 +146,9 @@ Glossary
       For more information about descriptors' methods, see :ref:`descriptors`.
 
    dictionary
-      An associative array, where arbitrary keys are mapped to values.  The keys
-      can be any object with :meth:`__hash__` function and :meth:`__eq__`
-      methods. Called a hash in Perl.
+      An associative array, where arbitrary keys are mapped to values.  The
+      keys can be any object with :meth:`__hash__` and :meth:`__eq__` methods.
+      Called a hash in Perl.
 
    docstring
       A string literal which appears as the first expression in a class,
@@ -163,8 +166,8 @@ Glossary
       well-designed code improves its flexibility by allowing polymorphic
       substitution.  Duck-typing avoids tests using :func:`type` or
       :func:`isinstance`.  (Note, however, that duck-typing can be complemented
-      with :term:`abstract base class`\ es.)  Instead, it typically employs
-      :func:`hasattr` tests or :term:`EAFP` programming.
+      with :term:`abstract base classes <abstract base class>`.)  Instead, it
+      typically employs :func:`hasattr` tests or :term:`EAFP` programming.
 
    EAFP
       Easier to ask for forgiveness than permission.  This common Python coding
@@ -191,7 +194,7 @@ Glossary
       An object exposing a file-oriented API (with methods such as
       :meth:`read()` or :meth:`write()`) to an underlying resource.  Depending
       on the way it was created, a file object can mediate access to a real
-      on-disk file or to another other type of storage or communication device
+      on-disk file or to another type of storage or communication device
       (for example standard input/output, in-memory buffers, sockets, pipes,
       etc.).  File objects are also called :dfn:`file-like objects` or
       :dfn:`streams`.
@@ -382,7 +385,7 @@ Glossary
       :meth:`str.lower` method can serve as a key function for case insensitive
       sorts.  Alternatively, an ad-hoc key function can be built from a
       :keyword:`lambda` expression such as ``lambda r: (r[0], r[2])``.  Also,
-      the :mod:`operator` module provides three key function constuctors:
+      the :mod:`operator` module provides three key function constructors:
       :func:`~operator.attrgetter`, :func:`~operator.itemgetter`, and
       :func:`~operator.methodcaller`.  See the :ref:`Sorting HOW TO
       <sortinghowto>` for examples of how to create and use key functions.

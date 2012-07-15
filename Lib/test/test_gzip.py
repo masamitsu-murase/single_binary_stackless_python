@@ -323,6 +323,28 @@ class TestGzip(unittest.TestCase):
             self.assertEqual(f.read(100), b'')
             self.assertEqual(nread, len(uncompressed))
 
+    def test_fileobj_from_fdopen(self):
+        # Issue #13781: Opening a GzipFile for writing fails when using a
+        # fileobj created with os.fdopen().
+        fd = os.open(self.filename, os.O_WRONLY | os.O_CREAT)
+        with os.fdopen(fd, "wb") as f:
+            with gzip.GzipFile(fileobj=f, mode="w") as g:
+                pass
+
+    def test_bytes_filename(self):
+        str_filename = self.filename
+        try:
+            bytes_filename = str_filename.encode("ascii")
+        except UnicodeEncodeError:
+            self.skipTest("Temporary file name needs to be ASCII")
+        with gzip.GzipFile(bytes_filename, "wb") as f:
+            f.write(data1 * 50)
+        with gzip.GzipFile(bytes_filename, "rb") as f:
+            self.assertEqual(f.read(), data1 * 50)
+        # Sanity check that we are actually operating on the right file.
+        with gzip.GzipFile(str_filename, "rb") as f:
+            self.assertEqual(f.read(), data1 * 50)
+
     # Testing compress/decompress shortcut functions
 
     def test_compress(self):

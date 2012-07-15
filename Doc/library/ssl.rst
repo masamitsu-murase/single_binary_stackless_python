@@ -108,9 +108,8 @@ instead.
    The parameter ``ssl_version`` specifies which version of the SSL protocol to
    use.  Typically, the server chooses a particular protocol version, and the
    client must adapt to the server's choice.  Most of the versions are not
-   interoperable with the other versions.  If not specified, for client-side
-   operation, the default SSL version is SSLv3; for server-side operation,
-   SSLv23.  These version selections provide the most compatibility with other
+   interoperable with the other versions.  If not specified, the default is
+   :data:`PROTOCOL_SSLv23`; it provides the most compatibility with other
    versions.
 
    Here's a table showing which versions in a client (down the side) can connect
@@ -122,7 +121,7 @@ instead.
         *client* / **server**    **SSLv2**  **SSLv3**  **SSLv23**  **TLSv1**
        ------------------------  ---------  ---------  ----------  ---------
         *SSLv2*                    yes        no         yes         no
-        *SSLv3*                    yes        yes        yes         no
+        *SSLv3*                    no         yes        yes         no
         *SSLv23*                   yes        no         yes         no
         *TLSv1*                    no         no         yes         yes
        ========================  =========  =========  ==========  =========
@@ -317,7 +316,8 @@ Constants
 .. data:: OP_ALL
 
    Enables workarounds for various bugs present in other SSL implementations.
-   This option is set by default.
+   This option is set by default.  It does not necessarily set the same
+   flags as OpenSSL's ``SSL_OP_ALL`` constant.
 
    .. versionadded:: 3.2
 
@@ -788,10 +788,19 @@ This example connects to an SSL server and prints the server's certificate::
    # note that closing the SSLSocket will also close the underlying socket
    ssl_sock.close()
 
-As of October 6, 2010, the certificate printed by this program looks like
+As of January 6, 2012, the certificate printed by this program looks like
 this::
 
-   {'notAfter': 'May 25 23:59:59 2012 GMT',
+   {'issuer': ((('countryName', 'US'),),
+               (('organizationName', 'VeriSign, Inc.'),),
+               (('organizationalUnitName', 'VeriSign Trust Network'),),
+               (('organizationalUnitName',
+                 'Terms of use at https://www.verisign.com/rpa (c)06'),),
+               (('commonName',
+                 'VeriSign Class 3 Extended Validation SSL SGC CA'),)),
+    'notAfter': 'May 25 23:59:59 2012 GMT',
+    'notBefore': 'May 26 00:00:00 2010 GMT',
+    'serialNumber': '53D2BEF924A7245E83CA01E46CAA2477',
     'subject': ((('1.3.6.1.4.1.311.60.2.1.3', 'US'),),
                 (('1.3.6.1.4.1.311.60.2.1.2', 'Delaware'),),
                 (('businessCategory', 'V1.0, Clause 5.(b)'),),
@@ -803,7 +812,16 @@ this::
                 (('streetAddress', '487 East Middlefield Road'),),
                 (('organizationName', 'VeriSign, Inc.'),),
                 (('organizationalUnitName', ' Production Security Services'),),
-                (('commonName', 'www.verisign.com'),))}
+                (('commonName', 'www.verisign.com'),)),
+    'subjectAltName': (('DNS', 'www.verisign.com'),
+                       ('DNS', 'verisign.com'),
+                       ('DNS', 'www.verisign.net'),
+                       ('DNS', 'verisign.net'),
+                       ('DNS', 'www.verisign.mobi'),
+                       ('DNS', 'verisign.mobi'),
+                       ('DNS', 'www.verisign.eu'),
+                       ('DNS', 'verisign.eu')),
+    'version': 3}
 
 This other example first creates an SSL context, instructs it to verify
 certificates sent by peers, and feeds it a set of recognized certificate
@@ -834,9 +852,26 @@ Visual inspection shows that the certificate does identify the desired service
 (that is, the HTTPS host ``linuxfr.org``)::
 
    >>> pprint.pprint(cert)
-   {'notAfter': 'Jun 26 21:41:46 2011 GMT',
+   {'issuer': ((('organizationName', 'CAcert Inc.'),),
+               (('organizationalUnitName', 'http://www.CAcert.org'),),
+               (('commonName', 'CAcert Class 3 Root'),)),
+    'notAfter': 'Jun  7 21:02:24 2013 GMT',
+    'notBefore': 'Jun  8 21:02:24 2011 GMT',
+    'serialNumber': 'D3E9',
     'subject': ((('commonName', 'linuxfr.org'),),),
-    'subjectAltName': (('DNS', 'linuxfr.org'), ('othername', '<unsupported>'))}
+    'subjectAltName': (('DNS', 'linuxfr.org'),
+                       ('othername', '<unsupported>'),
+                       ('DNS', 'linuxfr.org'),
+                       ('othername', '<unsupported>'),
+                       ('DNS', 'dev.linuxfr.org'),
+                       ('othername', '<unsupported>'),
+                       ('DNS', 'prod.linuxfr.org'),
+                       ('othername', '<unsupported>'),
+                       ('DNS', 'alpha.linuxfr.org'),
+                       ('othername', '<unsupported>'),
+                       ('DNS', '*.linuxfr.org'),
+                       ('othername', '<unsupported>')),
+    'version': 3}
 
 Now that you are assured of its authenticity, you can proceed to talk with
 the server::
@@ -984,14 +1019,33 @@ SSLv2 explicitly using the :data:`SSLContext.options` attribute::
 The SSL context created above will allow SSLv3 and TLSv1 connections, but
 not SSLv2.
 
+Cipher selection
+^^^^^^^^^^^^^^^^
+
+If you have advanced security requirements, fine-tuning of the ciphers
+enabled when negotiating a SSL session is possible through the
+:meth:`SSLContext.set_ciphers` method.  Starting from Python 3.2.3, the
+ssl module disables certain weak ciphers by default, but you may want
+to further restrict the cipher choice.  For example::
+
+   context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
+   context.set_ciphers('HIGH:!aNULL:!eNULL')
+
+The ``!aNULL:!eNULL`` part of the cipher spec is necessary to disable ciphers
+which don't provide both encryption and authentication.  Be sure to read
+OpenSSL's documentation about the `cipher list
+format <http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT>`_.
+If you want to check which ciphers are enabled by a given cipher list,
+use the ``openssl ciphers`` command on your system.
+
 
 .. seealso::
 
    Class :class:`socket.socket`
             Documentation of underlying :mod:`socket` class
 
-   `Introducing SSL and Certificates using OpenSSL <http://old.pseudonym.org/ssl/wwwj-index.html>`_
-       Frederick J. Hirsch
+   `TLS (Transport Layer Security) and SSL (Secure Socket Layer) <http://www3.rad.com/networks/applications/secure/tls.htm>`_
+      Debby Koren
 
    `RFC 1422: Privacy Enhancement for Internet Electronic Mail: Part II: Certificate-Based Key Management <http://www.ietf.org/rfc/rfc1422>`_
        Steve Kent

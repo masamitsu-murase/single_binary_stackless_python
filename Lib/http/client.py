@@ -563,7 +563,7 @@ class HTTPResponse(io.RawIOBase):
                 # a vanishingly small number of sites EOF without
                 # sending the trailer
                 break
-            if line == b"\r\n":
+            if line in (b'\r\n', b'\n', b''):
                 break
 
         # we read everything; close the "file"
@@ -678,7 +678,10 @@ class HTTPConnection:
                 try:
                     port = int(host[i+1:])
                 except ValueError:
-                    raise InvalidURL("nonnumeric port: '%s'" % host[i+1:])
+                    if host[i+1:] == "": # http://foo.com:/ == http://foo.com/
+                        port = self.default_port
+                    else:
+                        raise InvalidURL("nonnumeric port: '%s'" % host[i+1:])
                 host = host[:i]
             else:
                 port = self.default_port
@@ -712,7 +715,10 @@ class HTTPConnection:
             line = response.fp.readline(_MAXLINE + 1)
             if len(line) > _MAXLINE:
                 raise LineTooLong("header line")
-            if line == b'\r\n':
+            if not line:
+                # for sites which EOF without sending a trailer
+                break
+            if line in (b'\r\n', b'\n', b''):
                 break
 
     def connect(self):
@@ -947,11 +953,11 @@ class HTTPConnection:
     def endheaders(self, message_body=None):
         """Indicate that the last header line has been sent to the server.
 
-        This method sends the request to the server.  The optional
-        message_body argument can be used to pass message body
-        associated with the request.  The message body will be sent in
-        the same packet as the message headers if possible.  The
-        message_body should be a string.
+        This method sends the request to the server.  The optional message_body
+        argument can be used to pass a message body associated with the
+        request.  The message body will be sent in the same packet as the
+        message headers if it is a string, otherwise it is sent as a separate
+        packet.
         """
         if self.__state == _CS_REQ_STARTED:
             self.__state = _CS_REQ_SENT
@@ -991,7 +997,7 @@ class HTTPConnection:
 
         self.putrequest(method, url, **skips)
 
-        if body and ('content-length' not in header_names):
+        if body is not None and ('content-length' not in header_names):
             self._set_content_length(body)
         for hdr, value in headers.items():
             self.putheader(hdr, value)

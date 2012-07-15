@@ -1,4 +1,4 @@
-# Copyright 2001-2010 by Vinay Sajip. All Rights Reserved.
+# Copyright 2001-2012 by Vinay Sajip. All Rights Reserved.
 #
 # Permission to use, copy, modify, and distribute this software and its
 # documentation for any purpose and without fee is hereby granted,
@@ -16,9 +16,9 @@
 
 """
 Logging package for Python. Based on PEP 282 and comments thereto in
-comp.lang.python, and influenced by Apache's log4j system.
+comp.lang.python.
 
-Copyright (C) 2001-2011 Vinay Sajip. All Rights Reserved.
+Copyright (C) 2001-2012 Vinay Sajip. All Rights Reserved.
 
 To use, simply 'import logging' and log away!
 """
@@ -61,8 +61,6 @@ __date__    = "07 February 2010"
 #
 if hasattr(sys, 'frozen'): #support for py2exe
     _srcfile = "logging%s__init__%s" % (os.sep, __file__[-4:])
-elif __file__[-4:].lower() in ['.pyc', '.pyo']:
-    _srcfile = __file__[:-4] + '.py'
 else:
     _srcfile = __file__
 _srcfile = os.path.normcase(_srcfile)
@@ -296,7 +294,7 @@ class LogRecord(object):
                 # for an example
                 try:
                     self.processName = mp.current_process().name
-                except StandardError:
+                except Exception:
                     pass
         if logProcesses and hasattr(os, 'getpid'):
             self.process = os.getpid()
@@ -883,7 +881,7 @@ class Handler(Filterer):
         You could, however, replace this with a custom handler if you wish.
         The record which was being processed is passed in to this method.
         """
-        if raiseExceptions:
+        if raiseExceptions and sys.stderr:  # see issue 13807
             ei = sys.exc_info()
             try:
                 traceback.print_exception(ei[0], ei[1], ei[2],
@@ -919,8 +917,12 @@ class StreamHandler(Handler):
         """
         Flushes the stream.
         """
-        if self.stream and hasattr(self.stream, "flush"):
-            self.stream.flush()
+        self.acquire()
+        try:
+            if self.stream and hasattr(self.stream, "flush"):
+                self.stream.flush()
+        finally:
+            self.release()
 
     def emit(self, record):
         """
@@ -971,12 +973,16 @@ class FileHandler(StreamHandler):
         """
         Closes the stream.
         """
-        if self.stream:
-            self.flush()
-            if hasattr(self.stream, "close"):
-                self.stream.close()
-            StreamHandler.close(self)
-            self.stream = None
+        self.acquire()
+        try:
+            if self.stream:
+                self.flush()
+                if hasattr(self.stream, "close"):
+                    self.stream.close()
+                StreamHandler.close(self)
+                self.stream = None
+        finally:
+            self.release()
 
     def _open(self):
         """
@@ -1096,6 +1102,8 @@ class Manager(object):
         placeholder to now point to the logger.
         """
         rv = None
+        if not isinstance(name, str):
+            raise TypeError('A logger name must be a string')
         _acquireLock()
         try:
             if name in self.loggerDict:

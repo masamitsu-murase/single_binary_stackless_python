@@ -507,6 +507,13 @@ class TestsWithSourceFile(unittest.TestCase):
         except zipfile.BadZipFile:
             self.assertTrue(zipfp2.fp is None, 'zipfp is not closed')
 
+    def test_add_file_before_1980(self):
+        # Set atime and mtime to 1970-01-01
+        os.utime(TESTFN, (0, 0))
+        with zipfile.ZipFile(TESTFN2, "w") as zipfp:
+            self.assertRaises(ValueError, zipfp.write, TESTFN)
+
+
     @skipUnless(zlib, "requires zlib")
     def test_unicode_filenames(self):
         # bug #10801
@@ -965,6 +972,46 @@ class OtherTests(unittest.TestCase):
         with zipfile.ZipFile(TESTFN, mode="r") as zipfr:
             self.assertEqual(zipfr.comment, comment2)
 
+        # check that comments are correctly modified in append mode
+        with zipfile.ZipFile(TESTFN,mode="w") as zipf:
+            zipf.comment = b"original comment"
+            zipf.writestr("foo.txt", "O, for a Muse of Fire!")
+        with zipfile.ZipFile(TESTFN,mode="a") as zipf:
+            zipf.comment = b"an updated comment"
+        with zipfile.ZipFile(TESTFN,mode="r") as zipf:
+            self.assertEqual(zipf.comment, b"an updated comment")
+
+        # check that comments are correctly shortened in append mode
+        with zipfile.ZipFile(TESTFN,mode="w") as zipf:
+            zipf.comment = b"original comment that's longer"
+            zipf.writestr("foo.txt", "O, for a Muse of Fire!")
+        with zipfile.ZipFile(TESTFN,mode="a") as zipf:
+            zipf.comment = b"shorter comment"
+        with zipfile.ZipFile(TESTFN,mode="r") as zipf:
+            self.assertEqual(zipf.comment, b"shorter comment")
+
+    def test_unicode_comment(self):
+        with zipfile.ZipFile(TESTFN, "w", zipfile.ZIP_STORED) as zipf:
+            zipf.writestr("foo.txt", "O, for a Muse of Fire!")
+            with self.assertRaises(TypeError):
+                zipf.comment = "this is an error"
+
+    def test_change_comment_in_empty_archive(self):
+        with zipfile.ZipFile(TESTFN, "a", zipfile.ZIP_STORED) as zipf:
+            self.assertFalse(zipf.filelist)
+            zipf.comment = b"this is a comment"
+        with zipfile.ZipFile(TESTFN, "r") as zipf:
+            self.assertEqual(zipf.comment, b"this is a comment")
+
+    def test_change_comment_in_nonempty_archive(self):
+        with zipfile.ZipFile(TESTFN, "w", zipfile.ZIP_STORED) as zipf:
+            zipf.writestr("foo.txt", "O, for a Muse of Fire!")
+        with zipfile.ZipFile(TESTFN, "a", zipfile.ZIP_STORED) as zipf:
+            self.assertTrue(zipf.filelist)
+            zipf.comment = b"this is a comment"
+        with zipfile.ZipFile(TESTFN, "r") as zipf:
+            self.assertEqual(zipf.comment, b"this is a comment")
+
     def check_testzip_with_bad_crc(self, compression):
         """Tests that files with bad CRCs return their name from testzip."""
         zipdata = self.zips_with_bad_crc[compression]
@@ -1052,6 +1099,10 @@ class OtherTests(unittest.TestCase):
         f = open(TESTFN, 'w')
         f.close()
         self.assertRaises(zipfile.BadZipFile, zipfile.ZipFile, TESTFN, 'r')
+
+    def test_create_zipinfo_before_1980(self):
+        self.assertRaises(ValueError,
+                          zipfile.ZipInfo, 'seventies', (1979, 1, 1, 0, 0, 0))
 
     def tearDown(self):
         unlink(TESTFN)

@@ -99,6 +99,34 @@ class HeaderTests(TestCase):
                 conn.request('POST', '/', body, headers)
                 self.assertEqual(conn._buffer.count[header.lower()], 1)
 
+    def test_content_length_0(self):
+
+        class ContentLengthChecker(list):
+            def __init__(self):
+                list.__init__(self)
+                self.content_length = None
+            def append(self, item):
+                kv = item.split(b':', 1)
+                if len(kv) > 1 and kv[0].lower() == b'content-length':
+                    self.content_length = kv[1].strip()
+                list.append(self, item)
+
+        # POST with empty body
+        conn = client.HTTPConnection('example.com')
+        conn.sock = FakeSocket(None)
+        conn._buffer = ContentLengthChecker()
+        conn.request('POST', '/', '')
+        self.assertEqual(conn._buffer.content_length, b'0',
+                        'Header Content-Length not set')
+
+        # PUT request with empty body
+        conn = client.HTTPConnection('example.com')
+        conn.sock = FakeSocket(None)
+        conn._buffer = ContentLengthChecker()
+        conn.request('PUT', '/', '')
+        self.assertEqual(conn._buffer.content_length, b'0',
+                        'Header Content-Length not set')
+
     def test_putheader(self):
         conn = client.HTTPConnection('example.com')
         conn.sock = FakeSocket(None)
@@ -161,14 +189,16 @@ class BasicTest(TestCase):
     def test_host_port(self):
         # Check invalid host_port
 
-        for hp in ("www.python.org:abc", "www.python.org:"):
+        for hp in ("www.python.org:abc", "user:password@www.python.org"):
             self.assertRaises(client.InvalidURL, client.HTTPConnection, hp)
 
         for hp, h, p in (("[fe80::207:e9ff:fe9b]:8000",
                           "fe80::207:e9ff:fe9b", 8000),
                          ("www.python.org:80", "www.python.org", 80),
+                         ("www.python.org:", "www.python.org", 80),
                          ("www.python.org", "www.python.org", 80),
-                         ("[fe80::207:e9ff:fe9b]", "fe80::207:e9ff:fe9b", 80)):
+                         ("[fe80::207:e9ff:fe9b]", "fe80::207:e9ff:fe9b", 80),
+                         ("[fe80::207:e9ff:fe9b]:", "fe80::207:e9ff:fe9b", 80)):
             c = client.HTTPConnection(hp)
             self.assertEqual(h, c.host)
             self.assertEqual(p, c.port)
@@ -367,6 +397,15 @@ class BasicTest(TestCase):
         resp.begin()
         self.assertRaises(client.LineTooLong, resp.read)
 
+    def test_early_eof(self):
+        # Test httpresponse with no \r\n termination,
+        body = "HTTP/1.1 200 Ok"
+        sock = FakeSocket(body)
+        resp = client.HTTPResponse(sock)
+        resp.begin()
+        self.assertEqual(resp.read(), b'')
+        self.assertTrue(resp.isclosed())
+
 class OfflineTest(TestCase):
     def test_responses(self):
         self.assertEqual(client.responses[client.NOT_FOUND], "Not Found")
@@ -539,6 +578,26 @@ class HTTPSTest(TestCase):
         resp = h.getresponse()
         self.assertEqual(resp.status, 404)
 
+    @unittest.skipIf(not hasattr(client, 'HTTPSConnection'),
+                     'http.client.HTTPSConnection not available')
+    def test_host_port(self):
+        # Check invalid host_port
+
+        for hp in ("www.python.org:abc", "user:password@www.python.org"):
+            self.assertRaises(client.InvalidURL, client.HTTPSConnection, hp)
+
+        for hp, h, p in (("[fe80::207:e9ff:fe9b]:8000",
+                          "fe80::207:e9ff:fe9b", 8000),
+                         ("www.python.org:443", "www.python.org", 443),
+                         ("www.python.org:", "www.python.org", 443),
+                         ("www.python.org", "www.python.org", 443),
+                         ("[fe80::207:e9ff:fe9b]", "fe80::207:e9ff:fe9b", 443),
+                         ("[fe80::207:e9ff:fe9b]:", "fe80::207:e9ff:fe9b",
+                             443)):
+            c = client.HTTPSConnection(hp)
+            self.assertEqual(h, c.host)
+            self.assertEqual(p, c.port)
+
 
 class RequestBodyTest(TestCase):
     """Test cases where a request includes a message body."""
@@ -588,6 +647,7 @@ class RequestBodyTest(TestCase):
         self.assertEqual(b'body\xc1', f.read())
 
     def test_file_body(self):
+        self.addCleanup(support.unlink, support.TESTFN)
         with open(support.TESTFN, "w") as f:
             f.write("body")
         with open(support.TESTFN) as f:
@@ -599,6 +659,7 @@ class RequestBodyTest(TestCase):
             self.assertEqual(b'body', f.read())
 
     def test_binary_file_body(self):
+        self.addCleanup(support.unlink, support.TESTFN)
         with open(support.TESTFN, "wb") as f:
             f.write(b"body\xc1")
         with open(support.TESTFN, "rb") as f:

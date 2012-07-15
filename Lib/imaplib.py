@@ -22,7 +22,7 @@ Public functions:       Internaldate2tuple
 
 __version__ = "2.58"
 
-import binascii, errno, random, re, socket, subprocess, sys, time
+import binascii, errno, random, re, socket, subprocess, sys, time, calendar
 
 try:
     import ssl
@@ -1340,19 +1340,9 @@ def Internaldate2tuple(resp):
         zone = -zone
 
     tt = (year, mon, day, hour, min, sec, -1, -1, -1)
+    utc = calendar.timegm(tt) - zone
 
-    utc = time.mktime(tt)
-
-    # Following is necessary because the time module has no 'mkgmtime'.
-    # 'mktime' assumes arg in local timezone, so adds timezone/altzone.
-
-    lt = time.localtime(utc)
-    if time.daylight and lt[-1]:
-        zone = zone + time.altzone
-    else:
-        zone = zone + time.timezone
-
-    return time.localtime(utc - zone)
+    return time.localtime(utc)
 
 
 
@@ -1385,7 +1375,7 @@ def Time2Internaldate(date_time):
     """Convert date_time to IMAP4 INTERNALDATE representation.
 
     Return string in form: '"DD-Mmm-YYYY HH:MM:SS +HHMM"'.  The
-    date_time argument can be a number (int or float) represening
+    date_time argument can be a number (int or float) representing
     seconds since epoch (as returned by time.time()), a 9-tuple
     representing local time (as returned by time.localtime()), or a
     double-quoted string.  In the last case, it is assumed to already
