@@ -2120,7 +2120,7 @@ methw_setstate(PyObject *self, PyObject *args)
 }
 
 
-MAKE_WRAPPERTYPE(PyMethodWrapper_Type, methw, "method-wrapper", methw_reduce,
+MAKE_WRAPPERTYPE(_PyMethodWrapper_Type, methw, "method-wrapper", methw_reduce,
                  methw_new, methw_setstate)
 
 static int init_methodwrappertype(void)

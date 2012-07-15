@@ -52,6 +52,9 @@
 
 #include "pyatomic.h"
 
+/* comment this out if you don't want to be stackless */
+#include "stackless.h"
+
 /* Debug-mode build with pymalloc implies PYMALLOC_DEBUG.
  *  PYMALLOC_DEBUG is in error if pymalloc is not in use.
  */
@@ -64,9 +67,6 @@
 #include "pymath.h"
 #include "pytime.h"
 #include "pymem.h"
-
-/* comment this out if you don't want to be stackless */
-#include "stackless.h"
 
 #include "object.h"
 #include "objimpl.h"

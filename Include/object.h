@@ -429,7 +429,8 @@ typedef struct _typeobject {
                                       a given operator (e.g. __getitem__).
                                       see add_operators() in typeobject.c . */
     PyBufferProcs as_buffer;
-    PyObject *ht_name, *ht_slots;
+    PyObject *ht_name, *ht_slots, *ht_qualname;
+    struct _dictkeysobject *ht_cached_keys;
     /* here are optional user slots, followed by the members. */
 	slp_methodflags slpflags;
 #endif
