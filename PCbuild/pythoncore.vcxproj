@@ -703,12 +703,25 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\Stackless\platf\switch_x64_masm.asm">
+    <CustomBuild Include="..\Stackless\platf\switch_x64_masm.asm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='PGInstrument|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='PGUpdate|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-    </None>
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64 /nologo /c /Zi /Fo "$(IntDir)%(Filename) .obj" "%(FullPath)"</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Running ml64</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename) .obj;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='PGInstrument|x64'">ml64 /nologo /c /Zi /Fo "$(IntDir)%(Filename) .obj" "%(FullPath)"</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='PGInstrument|x64'">Running ml64</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='PGInstrument|x64'">$(IntDir)%(Filename) .obj;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='PGUpdate|x64'">ml64 /nologo /c /Zi /Fo "$(IntDir)%(Filename) .obj" "%(FullPath)"</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='PGUpdate|x64'">Running ml64</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='PGUpdate|x64'">$(IntDir)%(Filename) .obj;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64 /nologo /c /Zi /Fo "$(IntDir)%(Filename) .obj" "%(FullPath)"</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Running ml64</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename) .obj;%(Outputs)</Outputs>
+    </CustomBuild>
     <None Include="..\Stackless\readme.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

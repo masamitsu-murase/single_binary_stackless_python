@@ -1681,7 +1681,7 @@ setiter_reduce(setiterobject *it)
 {
     PyObject *list, *set, *elem;
     Py_ssize_t i;
-    long hash;
+    Py_hash_t hash;
 
     list = PyList_New(0);
     if (list == NULL)

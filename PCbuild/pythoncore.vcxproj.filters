@@ -1025,8 +1025,10 @@
     <None Include="..\Stackless\readme.txt">
       <Filter>Stackless</Filter>
     </None>
-    <None Include="..\Stackless\platf\switch_x64_masm.asm">
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\Stackless\platf\switch_x64_masm.asm">
       <Filter>Stackless\platf</Filter>
-    </None>
+    </CustomBuild>
   </ItemGroup>
 </Project>
