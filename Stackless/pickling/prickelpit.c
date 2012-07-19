@@ -136,7 +136,7 @@ static PyMethodDef prefix##_methods[] = { \
     {NULL, NULL} \
 }; \
  \
-static struct _typeobject wrap_##type = { \
+static PyTypeObject wrap_##type = { \
     PyObject_HEAD_INIT(&PyType_Type) \
     "stackless._wrap." name, \
     0, \
@@ -2038,7 +2038,7 @@ typedef struct {
     PyObject *self;
 } wrapperobject;
 
-static PyTypeObject wrap_PyMethodWrapper_Type;
+static PyTypeObject wrap__PyMethodWrapper_Type;
 
 static PyObject *
 methw_reduce(wrapperobject *w)
@@ -2049,7 +2049,7 @@ methw_reduce(wrapperobject *w)
 
     if (name != NULL) {
         tup = Py_BuildValue("(O()(OO))",
-                            &wrap_PyMethodWrapper_Type,
+                            &wrap__PyMethodWrapper_Type,
                             name,
                             w->self
                             );
@@ -2125,7 +2125,7 @@ MAKE_WRAPPERTYPE(_PyMethodWrapper_Type, methw, "method-wrapper", methw_reduce,
 
 static int init_methodwrappertype(void)
 {
-    return init_type(&wrap_PyMethodWrapper_Type, initchain);
+    return init_type(&wrap__PyMethodWrapper_Type, initchain);
 }
 #undef initchain
 #define initchain init_methodwrappertype
@@ -2150,7 +2150,7 @@ typedef struct {
     PyFrameObject *gi_frame;
 
     /* True if generator is being executed. */
-    int gi_running;
+    char gi_running;
 
     /* List of weak reference. */
     PyObject *gi_weakreflist;

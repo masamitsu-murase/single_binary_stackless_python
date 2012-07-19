@@ -521,7 +521,7 @@ typedef struct {
     PyFrameObject *gi_frame;
 
     /* True if generator is being executed. */
-    int gi_running;
+    char gi_running;
 
     /* List of weak reference. */
     PyObject *gi_weakreflist;
