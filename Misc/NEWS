@@ -10,6 +10,15 @@ What's New in Python 3.3.0 Beta 2?
 Core and Builtins
 -----------------
 
+- Issue #15394: An issue in PyModule_Create that caused references to
+  be leaked on some error paths has been fixed.  Patch by Julia Lawall.
+
+- Issue #15368: An issue that caused bytecode generation to be
+  non-deterministic has been fixed.
+
+- Issue #15202: Consistently use the name "follow_symlinks" for
+  new parameters in os and shutil functions.
+
 - Issue #15314: __main__.__loader__ is now set correctly during
   interpreter startup
 
@@ -37,6 +46,18 @@ Core and Builtins
   
 Library
 -------
+
+- Issue #15397: inspect.getmodulename() is now based directly on importlib
+  via a new importlib.machinery.all_suffixes() API.
+
+- Issue #14635: telnetlib will use poll() rather than select() when possible
+  to avoid failing due to the select() file descriptor limit.
+
+- Issue #15180: Clarify posixpath.join() error message when mixing str & bytes
+
+- Issue #15343: pkgutil now includes an iter_importer_modules implementation
+  for importlib.machinery.FileFinder (similar to the way it already handled
+  zipimport.zipimporter)
 
 - Issue #15314: runpy now sets __main__.__loader__ correctly
 
@@ -119,6 +140,9 @@ C API
 
 Extension Modules
 -----------------
+
+- Issue #6493: An issue in ctypes on Windows that caused structure bitfields
+  of type ctypes.c_uint32 and width 32 to incorrectly be set has been fixed.
 
 - Issue #15194: Update libffi to the 3.0.11 release.
 

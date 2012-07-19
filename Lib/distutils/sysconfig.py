@@ -101,10 +101,11 @@ def get_python_inc(plat_specific=0, prefix=None):
             base = _sys_home or os.path.dirname(os.path.abspath(sys.executable))
             if plat_specific:
                 return base
+            if _sys_home:
+                incdir = os.path.join(_sys_home, get_config_var('AST_H_DIR'))
             else:
-                incdir = os.path.join(_sys_home or get_config_var('srcdir'),
-                                      'Include')
-                return os.path.normpath(incdir)
+                incdir = os.path.join(get_config_var('srcdir'), 'Include')
+            return os.path.normpath(incdir)
         python_dir = 'python' + get_python_version() + build_flags
         return os.path.join(prefix, "include", python_dir)
     elif os.name == "nt":
@@ -624,7 +625,7 @@ def get_config_vars(*args):
                 # are in CFLAGS or LDFLAGS and remove them if they are.
                 # This is needed when building extensions on a 10.3 system
                 # using a universal build of python.
-                for key in ('LDFLAGS', 'BASECFLAGS',
+                for key in ('LDFLAGS', 'BASECFLAGS', 'LDSHARED',
                         # a number of derived variables. These need to be
                         # patched up as well.
                         'CFLAGS', 'PY_CFLAGS', 'BLDSHARED'):
@@ -669,15 +670,38 @@ def get_config_vars(*args):
                 # that OS release.
                 if 'ARCHFLAGS' in os.environ:
                     arch = os.environ['ARCHFLAGS']
-                    for key in ('LDFLAGS', 'BASECFLAGS',
+                    for key in ('LDFLAGS', 'BASECFLAGS', 'LDSHARED',
                         # a number of derived variables. These need to be
                         # patched up as well.
-                        'CFLAGS', 'PY_CFLAGS', 'BLDSHARED', 'LDSHARED'):
+                        'CFLAGS', 'PY_CFLAGS', 'BLDSHARED'):
 
                         flags = _config_vars[key]
                         flags = re.sub('-arch\s+\w+\s', ' ', flags)
                         flags = flags + ' ' + arch
                         _config_vars[key] = flags
+
+                # If we're on OSX 10.5 or later and the user tries to
+                # compiles an extension using an SDK that is not present
+                # on the current machine it is better to not use an SDK
+                # than to fail.
+                #
+                # The major usecase for this is users using a Python.org
+                # binary installer  on OSX 10.6: that installer uses
+                # the 10.4u SDK, but that SDK is not installed by default
+                # when you install Xcode.
+                #
+                m = re.search('-isysroot\s+(\S+)', _config_vars['CFLAGS'])
+                if m is not None:
+                    sdk = m.group(1)
+                    if not os.path.exists(sdk):
+                        for key in ('LDFLAGS', 'BASECFLAGS', 'LDSHARED',
+                             # a number of derived variables. These need to be
+                             # patched up as well.
+                            'CFLAGS', 'PY_CFLAGS', 'BLDSHARED'):
+
+                            flags = _config_vars[key]
+                            flags = re.sub('-isysroot\s+\S+(\s|$)', ' ', flags)
+                            _config_vars[key] = flags
 
     if args:
         vals = []

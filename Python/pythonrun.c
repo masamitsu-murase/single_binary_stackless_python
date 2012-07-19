@@ -1369,21 +1369,29 @@ maybe_pyc_file(FILE *fp, const char* filename, const char* ext, int closeit)
 }
 
 int
-set_main_loader(PyObject *d, const char *filename, const char *loader_name)
+static set_main_loader(PyObject *d, const char *filename, const char *loader_name)
 {
     PyInterpreterState *interp;
     PyThreadState *tstate;
-    PyObject *loader;
+    PyObject *loader_type, *loader;
+    int result = 0;
     /* Get current thread state and interpreter pointer */
     tstate = PyThreadState_GET();
     interp = tstate->interp;
-    loader = PyObject_GetAttrString(interp->importlib, loader_name);
-    if (loader == NULL ||
-        (PyDict_SetItemString(d, "__loader__", loader) < 0)) {
+    loader_type = PyObject_GetAttrString(interp->importlib, loader_name);
+    if (loader_type == NULL) {
         return -1;
     }
+    loader = PyObject_CallFunction(loader_type, "ss", "__main__", filename);
+    Py_DECREF(loader_type);
+    if (loader == NULL) {
+        return -1;
+    }
+    if (PyDict_SetItemString(d, "__loader__", loader) < 0) {
+        result = -1;
+    }
     Py_DECREF(loader);
-    return 0;
+    return result;
 }
 
 int

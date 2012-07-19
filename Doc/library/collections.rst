@@ -84,14 +84,15 @@ The class can be used to simulate nested scopes and is useful in templating.
         creating subcontexts that can be updated without altering values in any
         of the parent mappings.
 
-    .. method:: parents()
+    .. attribute:: parents
 
-        Returns a new :class:`ChainMap` containing all of the maps in the current
-        instance except the first one.  This is useful for skipping the first map
-        in the search.  The use-cases are similar to those for the
-        :keyword:`nonlocal` keyword used in :term:`nested scopes <nested scope>`.
-        The use-cases also parallel those for the builtin :func:`super` function.
-        A reference to  ``d.parents`` is equivalent to: ``ChainMap(*d.maps[1:])``.
+        Property returning a new :class:`ChainMap` containing all of the maps in
+        the current instance except the first one.  This is useful for skipping
+        the first map in the search.  Use cases are similar to those for the
+        :keyword:`nonlocal` keyword used in :term:`nested scopes <nested
+        scope>`.  The use cases also parallel those for the built-in
+        :func:`super` function.  A reference to ``d.parents`` is equivalent to:
+        ``ChainMap(*d.maps[1:])``.
 
 
 .. seealso::
@@ -129,16 +130,22 @@ Example of simulating Python's internal lookup chain::
         import builtins
         pylookup = ChainMap(locals(), globals(), vars(builtins))
 
-Example of letting user specified values take precedence over environment
-variables which in turn take precedence over default values::
+Example of letting user specified command-line arguments take precedence over
+environment variables which in turn take precedence over default values::
 
         import os, argparse
-        defaults = {'color': 'red', 'user': guest}
+
+        defaults = {'color': 'red', 'user': 'guest'}
+
         parser = argparse.ArgumentParser()
         parser.add_argument('-u', '--user')
         parser.add_argument('-c', '--color')
-        user_specified = vars(parser.parse_args())
-        combined = ChainMap(user_specified, os.environ, defaults)
+        namespace = parser.parse_args()
+        command_line_args = {k:v for k, v in vars(namespace).items() if v}
+
+        combined = ChainMap(command_line_args, os.environ, defaults)
+        print(combined['color'])
+        print(combined['user'])
 
 Example patterns for using the :class:`ChainMap` class to simulate nested
 contexts::

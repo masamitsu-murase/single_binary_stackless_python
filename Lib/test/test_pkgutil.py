@@ -9,7 +9,11 @@ import tempfile
 import shutil
 import zipfile
 
-
+# Note: pkgutil.walk_packages is currently tested in test_runpy. This is
+# a hack to get a major issue resolved for 3.3b2. Longer term, it should
+# be moved back here, perhaps by factoring out the helper code for
+# creating interesting package layouts to a separate module.
+# Issue #15348 declares this is indeed a dodgy hack ;)
 
 class PkgutilTests(unittest.TestCase):
 
@@ -281,8 +285,9 @@ class ImportlibMigrationTests(unittest.TestCase):
             self.assertEqual(len(w.warnings), 0)
 
     def test_get_importer_avoids_emulation(self):
+        # We use an illegal path so *none* of the path hooks should fire
         with check_warnings() as w:
-            self.assertIsNotNone(pkgutil.get_importer(sys.path[0]))
+            self.assertIsNone(pkgutil.get_importer("*??"))
             self.assertEqual(len(w.warnings), 0)
 
     def test_iter_importers_avoids_emulation(self):
