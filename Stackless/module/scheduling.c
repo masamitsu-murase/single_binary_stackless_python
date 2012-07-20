@@ -731,6 +731,12 @@ static void slp_schedule_soft_irq(PyThreadState *ts, PyTaskletObject *prev,
         return;
     }
 
+    /* Soft interrupt.  Signal that an interrupt took place by placing
+     * the "next" tasklet into interrupted (it would have been run) */
+    assert(ts->st.interrupted == NULL);
+    ts->st.interrupted = (PyObject*)next;
+    Py_INCREF(ts->st.interrupted);
+
     /* restore main.  insert it before the old next, so that the old next get
      * run after it
      */

@@ -234,6 +234,12 @@ interrupt_timeout_return(void)
     else
         current->flags.pending_irq = 0;
 
+    /* interrupt!  Signal that an interrupt has indeed taken place */
+    assert(ts->st.interrupted == NULL);
+    ts->st.interrupted = (PyObject*)ts->st.current;
+    Py_INCREF(ts->st.interrupted);
+
+    /* switch to main tasklet */
     return slp_schedule_task(ts->st.current, ts->st.main, 1, 0);
 }
 
@@ -293,18 +299,24 @@ PyStackless_RunWatchdogEx(long timeout, int flags)
 
     /*
      * back in main.
-     * We were either revived by slp_tasklet_end or the interrupt.
-     * If we were using hard interrupts (bit 1 in flags not set)
+     * If we were interrupted and using hard interrupts (bit 1 in flags not set)
      * we need to return the interrupted tasklet)
      */
-    if (ts->st.runcount > 1 && !(flags & PY_WATCHDOG_SOFT)) {
-        /* remove victim. It is sitting next to us. */
-        ts->st.current = (PyTaskletObject*)ts->st.main->next;
-        victim = slp_current_remove();
-        ts->st.current = (PyTaskletObject*)ts->st.main;
-        return (PyObject*) victim;
-    } else
-        Py_RETURN_NONE;
+    if (ts->st.interrupted) {
+        victim = (PyTaskletObject*)ts->st.interrupted;
+        ts->st.interrupted = NULL;
+        if (!(flags & PY_WATCHDOG_SOFT)) {
+            /* remove victim from runnable queue */
+            ts->st.current = victim;
+            slp_current_remove();
+            ts->st.current = (PyTaskletObject*)ts->st.main;
+            Py_DECREF(victim); /* the ref from the runqueue */
+            return (PyObject*) victim;
+        } else
+            /* soft interrupt just leave the victim in place */
+            Py_DECREF(victim);
+    }
+    Py_RETURN_NONE;
 }
 
 static PyObject *
