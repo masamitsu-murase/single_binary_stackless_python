@@ -1,8 +1,8 @@
+# We import importlib *ASAP* in order to test #15386
+import importlib
 import builtins
 import imp
-from importlib.test.import_ import test_suite as importlib_import_test_suite
-from importlib.test.import_ import util as importlib_util
-import importlib
+from test.test_importlib.import_ import util as importlib_util
 import marshal
 import os
 import platform
@@ -704,36 +704,34 @@ class PycacheTests(unittest.TestCase):
 
 class TestSymbolicallyLinkedPackage(unittest.TestCase):
     package_name = 'sample'
+    tagged = package_name + '-tagged'
 
     def setUp(self):
-        if os.path.exists(self.tagged):
-            shutil.rmtree(self.tagged)
-        if os.path.exists(self.package_name):
-            os.remove(self.package_name)
+        test.support.rmtree(self.tagged)
+        test.support.rmtree(self.package_name)
         self.orig_sys_path = sys.path[:]
 
         # create a sample package; imagine you have a package with a tag and
         #  you want to symbolically link it from its untagged name.
         os.mkdir(self.tagged)
+        self.addCleanup(test.support.rmtree, self.tagged)
         init_file = os.path.join(self.tagged, '__init__.py')
-        open(init_file, 'w').close()
-        self.assertEqual(os.path.exists(init_file), True)
+        test.support.create_empty_file(init_file)
+        assert os.path.exists(init_file)
 
         # now create a symlink to the tagged package
         # sample -> sample-tagged
         os.symlink(self.tagged, self.package_name)
+        self.addCleanup(test.support.unlink, self.package_name)
+        importlib.invalidate_caches()
 
         # disabled because os.isdir currently fails (see issue 15093)
         # self.assertEqual(os.path.isdir(self.package_name), True)
 
-        self.assertEqual(
-            os.path.isfile(os.path.join(self.package_name, '__init__.py')),
-            True,
-        )
+        assert os.path.isfile(os.path.join(self.package_name, '__init__.py'))
 
-    @property
-    def tagged(self):
-        return self.package_name + '-tagged'
+    def tearDown(self):
+        sys.path[:] = self.orig_sys_path
 
     # regression test for issue6727
     @unittest.skipUnless(
@@ -741,24 +739,14 @@ class TestSymbolicallyLinkedPackage(unittest.TestCase):
         or sys.getwindowsversion() >= (6, 0),
         "Windows Vista or later required")
     @test.support.skip_unless_symlink
-    @unittest.skipUnless(
-        sys.platform == 'win32',
-        "Test failing on Unix (see issue15091)"
-        )
     def test_symlinked_dir_importable(self):
         # make sure sample can only be imported from the current directory.
         sys.path[:] = ['.']
+        assert os.path.exists(self.package_name)
+        assert os.path.exists(os.path.join(self.package_name, '__init__.py'))
 
-        # and try to import the package
-        __import__(self.package_name)
-
-    def tearDown(self):
-        # now cleanup
-        if os.path.exists(self.package_name):
-            os.remove(self.package_name)
-        if os.path.exists(self.tagged):
-            shutil.rmtree(self.tagged)
-        sys.path[:] = self.orig_sys_path
+        # Try to import the package
+        importlib.import_module(self.package_name)
 
 
 @cpython_only
@@ -776,6 +764,15 @@ class ImportlibBootstrapTests(unittest.TestCase):
         self.assertEqual(mod.__name__, 'importlib._bootstrap')
         self.assertEqual(mod.__package__, 'importlib')
         self.assertTrue(mod.__file__.endswith('_bootstrap.py'), mod.__file__)
+
+    def test_there_can_be_only_one(self):
+        # Issue #15386 revealed a tricky loophole in the bootstrapping
+        # This test is technically redundant, since the bug caused importing
+        # this test module to crash completely, but it helps prove the point
+        from importlib import machinery
+        mod = sys.modules['_frozen_importlib']
+        self.assertIs(machinery.FileFinder, mod.FileFinder)
+        self.assertIs(imp.new_module, mod.new_module)
 
 
 class ImportTracebackTests(unittest.TestCase):
@@ -871,18 +868,12 @@ class ImportTracebackTests(unittest.TestCase):
 
 
 def test_main(verbose=None):
-    flag = importlib_util.using___import__
-    try:
-        importlib_util.using___import__ = True
-        run_unittest(ImportTests, PycacheTests,
-                     PycRewritingTests, PathsTests, RelativeImportTests,
-                     OverridingImportBuiltinTests,
-                     ImportlibBootstrapTests,
-                     TestSymbolicallyLinkedPackage,
-                     ImportTracebackTests,
-                     importlib_import_test_suite())
-    finally:
-        importlib_util.using___import__ = flag
+    run_unittest(ImportTests, PycacheTests,
+                 PycRewritingTests, PathsTests, RelativeImportTests,
+                 OverridingImportBuiltinTests,
+                 ImportlibBootstrapTests,
+                 TestSymbolicallyLinkedPackage,
+                 ImportTracebackTests)
 
 
 if __name__ == '__main__':
