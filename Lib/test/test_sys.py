@@ -875,13 +875,19 @@ class SizeofTest(unittest.TestCase):
         s = size(vh + 'P2P15Pl4PP9PP11PI')
         try:
             import stackless
+            # with stackless, this becomes the basic size, static types
+            # have the same size as dynamic types.
+            # (PyTypeObject + PyNumberMethods + PyMappingMethods +
+            #  PySequenceMethods + PyBufferProcs + 4P)
+            s = size(vh + 'P2P15Pl4PP9PP11PI') + size('34P 3P 10P 2P 4P')
+            
             # The number of byte entries in the generated 'slp_methodflags'.
             stacklessSize = 71
             # Make it a multiple of two.
-            stacklessSize = stacklessSize + stacklessSize % 2
-            s += stacklessSize
+            stacklessSize = stacklessSize + stacklessSize % 2            
         except:
-            pass
+            stacklessSize = 0
+        s += stacklessSize
 
         check(int, s)
         # (PyTypeObject + PyNumberMethods + PyMappingMethods +
@@ -889,6 +895,7 @@ class SizeofTest(unittest.TestCase):
         s = size(vh + 'P2P15Pl4PP9PP11PI') + size('34P 3P 10P 2P 4P')
         # Separate block for PyDictKeysObject with 4 entries
         s += size("PPPP") + 4*size("PPP")
+        s += stacklessSize
         # class
         class newstyleclass(object): pass
         check(newstyleclass, s)
