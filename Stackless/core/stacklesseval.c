@@ -631,19 +631,19 @@ gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result)
     f = gen->gi_frame;
     /* If the generator just returned (as opposed to yielding), signal
      * that the generator is exhausted. */
-    if (result == Py_None && f->f_stacktop == NULL) {
-        Py_DECREF(result);
-        result = NULL;
-        /* Set exception if not called by gen_iternext() */
-        if (arg)
+	if (result && f->f_stacktop == NULL) {
+        if (result == Py_None) {
+            /* Delay exception instantiation if we can */
             PyErr_SetNone(PyExc_StopIteration);
-        /* Stackless extra handling */
-        /* are we awaited by a for_iter or called by next() ? */
-        else if (ts->frame->f_execute != PyEval_EvalFrame_iter) {
-            /* do the missing part of the next call */
-            if (!PyErr_Occurred())
-                PyErr_SetNone(PyExc_StopIteration);
+        } else {
+            PyObject *e = PyObject_CallFunctionObjArgs(
+                               PyExc_StopIteration, result, NULL);
+            if (e != NULL) {
+                PyErr_SetObject(PyExc_StopIteration, e);
+                Py_DECREF(e);
+            }
         }
+        Py_CLEAR(result);
     }
 
     /* We hold references to things in the cframe, if we release it
