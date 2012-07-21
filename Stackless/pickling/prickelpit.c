@@ -1174,11 +1174,11 @@ module_reduce(PyObject * m)
                              PyModule_GetDict(m));
 
     if (import == NULL) {
-        import = run_script("ret = __import__", "ret");
+        import = run_script("import importlib\n" "ret = importlib.import_module\n", "ret");
         if (import == NULL)
             return NULL;
     }
-    return Py_BuildValue("(O(s()()(s)))", import, name, "");
+    return Py_BuildValue("O(s)", import, name);
     /* would be shorter, but the search result is quite arbitrary:
         tup = PyObject_GetAttrString(m, "__name__");
      */

@@ -56,7 +56,8 @@ def main():
         for switch in flags:
             stackless.enable_softswitch(switch)
             testSuite = makeSuite(abs(target), path)
-            unittest.TextTestRunner().run(testSuite)
+            verbosity = 1 # or 0 to 2
+            unittest.TextTestRunner(verbosity=verbosity).run(testSuite)
     finally:
         stackless.enable_softswitch(hold)
         
