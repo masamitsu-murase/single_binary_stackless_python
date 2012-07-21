@@ -1366,6 +1366,7 @@ static int init_methodtype(void)
 /******************************************************
 
   pickling of dictviews
+  TODO: Is this really necessary?  Native 3.3 seems to get by without it.
 
  ******************************************************/
 
@@ -1479,6 +1480,7 @@ static int init_dictitemsviewtype(void)
   pickling of dictiter
 
  ******************************************************/
+#if PY_VERSION_HEX < 0x03030000 /* Native support in python 3.3 and above */
 
 /*
  * unfortunately we have to copy here.
@@ -1653,12 +1655,14 @@ static int init_dictiteritemtype(void)
 #undef initchain
 #define initchain init_dictiteritemtype
 
+#endif  /* PY_VERSION_HEX < 0x03030000 */
 
 /******************************************************
 
   pickling of setiter
 
  ******************************************************/
+#if PY_VERSION_HEX < 0x03030000 /* Native support in python 3.3 and above */
 
 /*
  * unfortunately we have to copy here.
@@ -1720,6 +1724,7 @@ static int init_setitertype(void)
 }
 #undef initchain
 #define initchain init_setitertype
+#endif  /* PY_VERSION_HEX < 0x03030000 */
 
 /******************************************************
 
@@ -1727,7 +1732,8 @@ static int init_setitertype(void)
 
  ******************************************************/
 
-#if PY_VERSION_HEX >= 0x02030000
+#if PY_VERSION_HEX >= 0x02030000 && PY_VERSION_HEX < 0x03030000
+/* Native support in python 3.3 and above */
 
 /*
  * unfortunately we have to copy here.
@@ -1785,7 +1791,7 @@ static int init_enumtype(void)
 #undef initchain
 #define initchain init_enumtype
 
-#endif /* PY_VERSION_HEX >= 0x02030000 */
+#endif /* PY_VERSION_HEX >= 0x02030000 && PY_VERSION_HEX < 0x03030000 */
 
 /******************************************************
 
@@ -1793,7 +1799,8 @@ static int init_enumtype(void)
 
  ******************************************************/
 
-#if PY_VERSION_HEX >= 0x02030000
+#if PY_VERSION_HEX >= 0x02030000 && PY_VERSION_HEX < 0x03030000
+/* Native support in python 3.3 and above */
 
 /*
  * unfortunately we have to copy here.
@@ -1843,7 +1850,7 @@ static int init_listitertype(void)
 #undef initchain
 #define initchain init_listitertype
 
-#endif /* PY_VERSION_HEX >= 0x02030000 */
+#endif /* PY_VERSION_HEX >= 0x02030000 && PY_VERSION_HEX < 0x03030000 */
 
 
 /******************************************************
@@ -1852,7 +1859,8 @@ static int init_listitertype(void)
 
  ******************************************************/
 
-#if PY_VERSION_HEX >= 0x02030000
+#if PY_VERSION_HEX >= 0x02030000 && PY_VERSION_HEX < 0x03030000
+/* Native support in python 3.3 and above */
 
 /*
  * unfortunately we have to copy here.
@@ -1913,7 +1921,7 @@ static int init_rangeitertype(void)
 #undef initchain
 #define initchain init_rangeitertype
 
-#endif /* PY_VERSION_HEX >= 0x02030000 */
+#endif /* PY_VERSION_HEX >= 0x02030000 && PY_VERSION_HEX < 0x03030000*/
 
 
 /******************************************************
@@ -1922,7 +1930,8 @@ static int init_rangeitertype(void)
 
  ******************************************************/
 
-#if PY_VERSION_HEX >= 0x02030000
+#if PY_VERSION_HEX >= 0x02030000 && PY_VERSION_HEX < 0x03030000
+/* Native support in python 3.3 and above */
 
 /*
  * unfortunately we have to copy here.
@@ -1973,13 +1982,14 @@ static int init_tupleitertype(void)
 #undef initchain
 #define initchain init_tupleitertype
 
-#endif /* PY_VERSION_HEX >= 0x02030000 */
+#endif /* PY_VERSION_HEX >= 0x02030000 && PY_VERSION_HEX < 0x03030000 */
 
 /******************************************************
 
   pickling of xrange
 
  ******************************************************/
+#if PY_VERSION_HEX < 0x03030000 /* Native support in python 3.3 and above */
 
 /*
  * unfortunately we have to copy here.
@@ -2019,6 +2029,7 @@ static int init_rangetype(void)
 }
 #undef initchain
 #define initchain init_rangetype
+#endif /* PY_VERSION_HEX < 0x03030000 */
 
 
 /******************************************************
