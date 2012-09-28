@@ -424,6 +424,8 @@ PyAPI_FUNC(PyObject*) PyType_FromSpec(PyType_Spec*);
 #ifndef Py_LIMITED_API
 #ifdef STACKLESS
 
+#define VANILLA_PYTYPEOBJECT_SIZE ((size_t) &(((PyTypeObject *)0)->as_number))
+
 /* in Stackless, this is just a synonym */
 #define PyHeapTypeObject PyTypeObject
 
