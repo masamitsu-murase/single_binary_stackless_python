@@ -336,7 +336,15 @@ PyStructSequence_InitType(PyTypeObject *type, PyStructSequence_Desc *desc)
             n_unnamed_members++;
     n_members = i;
 
+#ifdef STACKLESS
+    if (PyType_HasFeature(type, Py_TPFLAGS_HAVE_STACKLESS_EXTENSION)) {
+        memcpy(type, &_struct_sequence_template, sizeof(PyTypeObject));
+    } else {
+        memcpy(type, &_struct_sequence_template, VANILLA_PYTYPEOBJECT_SIZE);
+    }
+#else
     memcpy(type, &_struct_sequence_template, sizeof(PyTypeObject));
+#endif
     type->tp_base = &PyTuple_Type;
     type->tp_name = desc->name;
     type->tp_doc = desc->doc;
