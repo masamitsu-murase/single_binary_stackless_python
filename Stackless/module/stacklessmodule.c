@@ -156,7 +156,11 @@ PyDoc_STRVAR(getcurrentid__doc__,
 long
 PyStackless_GetCurrentId(void)
 {
+#ifdef WITH_THREAD
     PyThreadState *ts = PyGILState_GetThisThreadState();
+#else
+    PyThreadState *ts = PyThreadState_GET();
+#endif
     PyTaskletObject *t = NULL;
     if (ts != NULL)
         t = ts->st.current;
