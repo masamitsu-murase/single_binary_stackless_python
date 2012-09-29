@@ -1,11 +1,16 @@
 import stackless
-import threading
+try:
+    import threading
+    withThreads = True
+except:
+    withThreads = False
 import unittest
 
 class StacklessTestCase(unittest.TestCase):
     def setUp(self):
         self.assertEqual(stackless.getruncount(), 1, "Leakage from other tests, with %d tasklets still in the scheduler" % (stackless.getruncount() - 1))        
-        self.assertEqual(threading.activeCount(), 1, "Leakage from other threads, with %d threads running (1 expected)" % (threading.activeCount()))
+        if withThreads:
+            self.assertEqual(threading.activeCount(), 1, "Leakage from other threads, with %d threads running (1 expected)" % (threading.activeCount()))
 
     def tearDown(self):
         # Tasklets created in pickling tests can be left in the scheduler when they finish.  We can feel free to
@@ -18,7 +23,7 @@ class StacklessTestCase(unittest.TestCase):
             current.kill()
             current = next
         self.assertEqual(stackless.getruncount(), 1, "Leakage from this test, with %d tasklets still in the scheduler" % (stackless.getruncount() - 1))
-        if threading.activeCount() > 1:
+        if withThreads and threading.activeCount() > 1:
             activeThreads = threading.enumerate()
             activeThreads.remove(threading.currentThread())
             if activeThreads:
