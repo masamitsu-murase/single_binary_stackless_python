@@ -1,6 +1,10 @@
 import unittest
 import stackless
-import threading
+try:
+    import threading
+    withThreads = True
+except ImportError:
+    withThreads = False
 import sys
 import traceback
 from support import StacklessTestCase
@@ -104,6 +108,7 @@ class TestChannels(StacklessTestCase):
         c = stackless.channel()
         self.assertRaises(RuntimeError, c.receive)
 
+    @unittest.skipUnless(withThreads, "Compiled without threading")
     def testInterthreadCommunication(self):
         ''' Test that tasklets in different threads sending over channels to each other work. '''    
         self.assertEqual(stackless.getruncount(), 1, "Leakage from other tests, with tasklets still in the scheduler.")
