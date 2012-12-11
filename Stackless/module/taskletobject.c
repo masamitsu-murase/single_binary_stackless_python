@@ -114,6 +114,7 @@ tasklet_clear(PyTaskletObject *t)
 static void
 tasklet_dealloc(PyTaskletObject *t)
 {
+    PyObject_GC_UnTrack(t);
     if (t->f.frame != NULL) {
         /*
          * we want to cleanly kill the tasklet in the case it
@@ -124,6 +125,7 @@ tasklet_dealloc(PyTaskletObject *t)
          */
         if (slp_resurrect_and_kill((PyObject *) t, kill_finally)) {
             /* the beast has grown new references */
+            PyObject_GC_Track(t);
             return;
         }
     }

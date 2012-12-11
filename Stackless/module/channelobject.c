@@ -59,10 +59,12 @@ static void
 channel_dealloc(PyObject *ob)
 {
     PyChannelObject *ch = (PyChannelObject *) ob;
+    PyObject_GC_UnTrack(ob);
 
     if (ch->balance) {
         if (slp_resurrect_and_kill(ob, channel_remove_all)) {
             /* the beast has grown new references */
+            PyObject_GC_Track(ob);
             return;
         }
     }
