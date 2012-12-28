@@ -651,8 +651,8 @@ channel_send_throw(PyObject *myself, PyObject *args)
     STACKLESS_GETARG();
 
     PyObject *typ;
-    PyObject *tb = NULL;
-    PyObject *val = NULL;
+    PyObject *tb = Py_None;
+    PyObject *val = Py_None;
     PyObject *retval;
     if (!PyArg_UnpackTuple(args, "send_throw", 1, 3, &typ, &val, &tb))
         return NULL;
