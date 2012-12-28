@@ -48,9 +48,7 @@ channel_remove_all(PyObject *ob)
      * if it will have the same direction. :-/
      */
     while (ch->balance) {
-        int dir = ch->balance > 0 ? 1 : -1;
-
-        ob = (PyObject *) slp_channel_remove(ch, dir);
+        ob = (PyObject *) slp_channel_remove(ch);
         Py_DECREF(ob);
     }
 }
@@ -73,48 +71,85 @@ channel_dealloc(PyObject *ob)
     ob->ob_type->tp_free(ob);
 }
 
-void
-slp_channel_insert(PyChannelObject *channel, PyTaskletObject *task, int dir)
+/* see if a tasklet is queued on a channel */
+static int
+slp_channel_has_tasklet(PyChannelObject *channel,
+                            PyTaskletObject *task)
 {
-    SLP_HEADCHAIN_INSERT(PyTaskletObject, channel, task, next, prev);
+    PyTaskletObject *t = channel->head;
+    while(PyTasklet_Check(t)) {
+        if (t == task)
+            return 1;
+        t = t->next;
+    }
+    return 0;
+}
+
+void
+slp_channel_insert_ex(PyChannelObject *channel, PyTaskletObject *task, int dir, PyTaskletObject *nexttask)
+{
+    if (nexttask)
+        assert(slp_channel_has_tasklet(channel, nexttask));
+    else
+        nexttask = (PyTaskletObject*)channel;
+    SLP_HEADCHAIN_INSERT(PyTaskletObject, nexttask, task, next, prev);
+    assert(dir == -1 || dir == 1);
+    assert(dir * channel->balance >= 0); /* we are going the right way */
     channel->balance += dir;
     task->flags.blocked = dir;
 }
 
-PyTaskletObject *
-slp_channel_remove(PyChannelObject *channel, int dir)
+void
+slp_channel_insert(PyChannelObject *channel, PyTaskletObject *task, int dir)
 {
-    PyTaskletObject *ret = channel->head;
-
-    assert(PyTasklet_Check(ret));
-
-    channel->balance -= dir;
-    SLP_HEADCHAIN_REMOVE(ret, next, prev);
-    ret->flags.blocked = 0;
-    return ret;
-};
+    /* insert at the end */
+    slp_channel_insert_ex(channel, task, dir, NULL);
+}
 
 /* the special case to remove a specific tasklet */
-
-PyTaskletObject *
-slp_channel_remove_specific(PyChannelObject *channel, int dir,
-                            PyTaskletObject *task)
+void
+slp_channel_remove_specific(PyChannelObject *channel,
+                            PyTaskletObject *task,
+                            int *dir_out,
+                            PyTaskletObject **next)
 {
     /* note: we assume that the task is in the channel! */
-
+    int dir = channel->balance > 0 ? 1 : -1;
+    assert(channel->balance);
     assert(PyTasklet_Check(task));
+    assert(slp_channel_has_tasklet(channel, task));
+    if (dir_out)
+        *dir_out = dir;
+    if (next)
+        *next = task->next;
     channel->balance -= dir;
     SLP_HEADCHAIN_REMOVE(task, next, prev);
     task->flags.blocked = 0;
-    return task;
 }
+
+PyTaskletObject *
+slp_channel_remove_ex(PyChannelObject *channel, int *dir_out, PyTaskletObject **next)
+{
+    PyTaskletObject *ret = channel->head;
+    slp_channel_remove_specific(channel, ret, dir_out, next);
+    return ret;
+};
+
+PyTaskletObject *
+slp_channel_remove(PyChannelObject *channel)
+{
+    return slp_channel_remove_ex(channel, NULL, NULL);
+}
+
 
 /* freeing a tasklet without an explicit channel */
 
-PyTaskletObject *
-slp_channel_remove_slow(PyTaskletObject *task)
+void
+slp_channel_remove_slow(PyTaskletObject *task,
+                            PyChannelObject **u_chan,
+                            int *u_dir,
+                            PyTaskletObject **u_next)
 {
-    int dir;
     PyChannelObject *channel;
     PyTaskletObject *prev = task->prev;
 
@@ -122,9 +157,9 @@ slp_channel_remove_slow(PyTaskletObject *task)
     while (!PyChannel_Check(prev))
         prev = prev->prev;
     channel = (PyChannelObject *) prev;
-    assert(channel->balance);
-    dir = channel->balance > 0 ? 1 : -1;
-    return slp_channel_remove_specific(channel, dir, task);;
+    if (u_chan)
+        *u_chan = channel;
+    slp_channel_remove_specific(channel, task, u_dir, u_next);
 }
 
 
@@ -432,7 +467,7 @@ generic_channel_action(PyChannelObject *self, PyObject *arg, int dir, int stackl
 
     if (cando) {
         /* communication 1): there is somebody waiting */
-        target = slp_channel_remove(self, -dir);
+        target = slp_channel_remove(self);
         /* exchange data */
         TASKLET_SWAPVAL(source, target);
 

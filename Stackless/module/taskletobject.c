@@ -33,6 +33,19 @@ slp_current_insert_after(PyTaskletObject *task)
     ++ts->st.runcount;
 }
 
+void
+slp_current_uninsert(PyTaskletObject *task)
+{
+    PyThreadState *ts = task->cstate->tstate;
+    PyTaskletObject *hold = ts->st.current;
+    PyTaskletObject **chain = &ts->st.current;
+    
+    *chain = task;
+    SLP_CHAIN_REMOVE(PyTaskletObject, chain, task, next, prev);
+    *chain = hold;
+    --ts->st.runcount;
+}
+
 PyTaskletObject *
 slp_current_remove(void)
 {
@@ -42,6 +55,14 @@ slp_current_remove(void)
     --ts->st.runcount;
     SLP_CHAIN_REMOVE(PyTaskletObject, chain, ret, next, prev);
     return ret;
+}
+
+void
+slp_current_unremove(PyTaskletObject* task)
+{
+    PyThreadState *ts = PyThreadState_GET();
+    slp_current_insert(task);
+    ts->st.current = task;
 }
 
 static int

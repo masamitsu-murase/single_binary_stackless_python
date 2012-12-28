@@ -691,7 +691,7 @@ static PyObject *schedule_task_interthread(PyTaskletObject *prev,
     /* put the next tasklet in the target thread's queue */
    if (next->flags.blocked) {
         /* unblock from channel */
-        slp_channel_remove_slow(next);
+        slp_channel_remove_slow(next, NULL, NULL, NULL);
         slp_current_insert(next);
     }
     else if (next->next == NULL) {
@@ -779,7 +779,7 @@ slp_schedule_task(PyTaskletObject *prev, PyTaskletObject *next, int stackless,
 
     if (next->flags.blocked) {
         /* unblock from channel */
-        slp_channel_remove_slow(next);
+        slp_channel_remove_slow(next, NULL, NULL, NULL);
         slp_current_insert(next);
     }
     else if (next->next == NULL) {
