@@ -40,7 +40,7 @@ slp_current_remove(void)
     PyTaskletObject **chain = &ts->st.current, *ret;
 
     --ts->st.runcount;
-    SLP_CHAIN_REMOVE(PyTaskletObject, chain, ret, next, prev)
+    SLP_CHAIN_REMOVE(PyTaskletObject, chain, ret, next, prev);
     return ret;
 }
 
