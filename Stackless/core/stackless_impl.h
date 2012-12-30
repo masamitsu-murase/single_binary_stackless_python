@@ -331,17 +331,11 @@ PyAPI_FUNC(void) slp_current_insert_after(PyTaskletObject *task);
 PyAPI_FUNC(void) slp_current_uninsert(PyTaskletObject *task);
 PyAPI_FUNC(PyTaskletObject *) slp_current_remove(void);
 PyAPI_FUNC(void) slp_current_unremove(PyTaskletObject *task);
-PyAPI_FUNC(void) slp_channel_insert(PyChannelObject *channel,
-                                    PyTaskletObject *task, int dir);
-PyAPI_FUNC(void) slp_channel_insert_ex(
+PyAPI_FUNC(void) slp_channel_insert(
                                     PyChannelObject *channel,
                                     PyTaskletObject *task,
                                     int dir, PyTaskletObject *next);
-PyAPI_FUNC(PyTaskletObject *) slp_channel_remove(PyChannelObject *channel);
-PyAPI_FUNC(PyTaskletObject *) slp_channel_remove_ex(
-                                    PyChannelObject *channel,
-                                    int *dir, PyTaskletObject **next);
-PyAPI_FUNC(void) slp_channel_remove_specific(
+PyAPI_FUNC(PyTaskletObject *) slp_channel_remove(
                                     PyChannelObject *channel,
                                     PyTaskletObject *task,
                                     int *dir, PyTaskletObject **next);

@@ -48,7 +48,7 @@ channel_remove_all(PyObject *ob)
      * if it will have the same direction. :-/
      */
     while (ch->balance) {
-        ob = (PyObject *) slp_channel_remove(ch);
+        ob = (PyObject *) slp_channel_remove(ch, NULL, NULL, NULL);
         Py_DECREF(ob);
     }
 }
@@ -86,7 +86,7 @@ slp_channel_has_tasklet(PyChannelObject *channel,
 }
 
 void
-slp_channel_insert_ex(PyChannelObject *channel, PyTaskletObject *task, int dir, PyTaskletObject *nexttask)
+slp_channel_insert(PyChannelObject *channel, PyTaskletObject *task, int dir, PyTaskletObject *nexttask)
 {
     if (nexttask)
         assert(slp_channel_has_tasklet(channel, nexttask));
@@ -99,16 +99,9 @@ slp_channel_insert_ex(PyChannelObject *channel, PyTaskletObject *task, int dir, 
     task->flags.blocked = dir;
 }
 
-void
-slp_channel_insert(PyChannelObject *channel, PyTaskletObject *task, int dir)
-{
-    /* insert at the end */
-    slp_channel_insert_ex(channel, task, dir, NULL);
-}
-
 /* the special case to remove a specific tasklet */
-void
-slp_channel_remove_specific(PyChannelObject *channel,
+PyTaskletObject *
+slp_channel_remove(PyChannelObject *channel,
                             PyTaskletObject *task,
                             int *dir_out,
                             PyTaskletObject **next)
@@ -116,8 +109,13 @@ slp_channel_remove_specific(PyChannelObject *channel,
     /* note: we assume that the task is in the channel! */
     int dir = channel->balance > 0 ? 1 : -1;
     assert(channel->balance);
-    assert(PyTasklet_Check(task));
-    assert(slp_channel_has_tasklet(channel, task));
+    if (task) {
+        assert(PyTasklet_Check(task));
+        assert(slp_channel_has_tasklet(channel, task));
+    } else {
+        task = channel->head;
+        assert(PyTasklet_Check(task));
+    }
     if (dir_out)
         *dir_out = dir;
     if (next)
@@ -125,20 +123,7 @@ slp_channel_remove_specific(PyChannelObject *channel,
     channel->balance -= dir;
     SLP_HEADCHAIN_REMOVE(task, next, prev);
     task->flags.blocked = 0;
-}
-
-PyTaskletObject *
-slp_channel_remove_ex(PyChannelObject *channel, int *dir_out, PyTaskletObject **next)
-{
-    PyTaskletObject *ret = channel->head;
-    slp_channel_remove_specific(channel, ret, dir_out, next);
-    return ret;
-};
-
-PyTaskletObject *
-slp_channel_remove(PyChannelObject *channel)
-{
-    return slp_channel_remove_ex(channel, NULL, NULL);
+    return task;
 }
 
 
@@ -159,7 +144,7 @@ slp_channel_remove_slow(PyTaskletObject *task,
     channel = (PyChannelObject *) prev;
     if (u_chan)
         *u_chan = channel;
-    slp_channel_remove_specific(channel, task, u_dir, u_next);
+    slp_channel_remove(channel, task, u_dir, u_next);
 }
 
 
@@ -467,7 +452,7 @@ generic_channel_action(PyChannelObject *self, PyObject *arg, int dir, int stackl
 
     if (cando) {
         /* communication 1): there is somebody waiting */
-        target = slp_channel_remove(self);
+        target = slp_channel_remove(self, NULL, NULL, NULL);
         /* exchange data */
         TASKLET_SWAPVAL(source, target);
 
@@ -510,7 +495,7 @@ generic_channel_action(PyChannelObject *self, PyObject *arg, int dir, int stackl
             return NULL;
         }
         slp_current_remove();
-        slp_channel_insert(self, source, dir);
+        slp_channel_insert(self, source, dir, NULL);
         target = ts->st.current;
 
         /* Make sure that the channel will exist past the actual switch, if
@@ -1118,7 +1103,7 @@ channel_setstate(PyObject *self, PyObject *args)
 
         if (PyTasklet_Check(t) && !t->flags.blocked) {
             Py_INCREF(t);
-            slp_channel_insert(ch, t, dir);
+            slp_channel_insert(ch, t, dir, NULL);
         }
     }
     Py_INCREF(self);
