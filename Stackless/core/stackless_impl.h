@@ -357,10 +357,12 @@ PyAPI_FUNC(int) slp_ensure_linkage(PyTaskletObject *task);
 PyAPI_FUNC(PyObject *) slp_tasklet_new(PyTypeObject *type, PyObject *args,
                                        PyObject *kwds);
 
-PyAPI_FUNC(PyObject *) slp_schedule_task(PyTaskletObject *prev,
-                                         PyTaskletObject *next,
-                                         int stackless,
-                                         int *did_switch);
+PyAPI_FUNC(int) slp_schedule_task(
+                                    PyObject **result,
+                                    PyTaskletObject *prev,
+                                    PyTaskletObject *next,
+                                    int stackless,
+                                    int *did_switch);
 
 PyAPI_FUNC(void) slp_thread_unblock(PyThreadState *ts);
 

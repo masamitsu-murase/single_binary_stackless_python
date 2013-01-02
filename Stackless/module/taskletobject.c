@@ -546,12 +546,14 @@ static TASKLET_RUN_HEAD(impl_tasklet_run)
 {
     STACKLESS_GETARG();
     PyThreadState *ts = PyThreadState_GET();
+    PyObject *ret;
 
     assert(PyTasklet_Check(task));
     if (ts->st.main == NULL) return PyTasklet_Run_M(task);
     if (PyTasklet_Insert(task))
         return NULL;
-    return slp_schedule_task(ts->st.current, task, stackless, 0);
+    slp_schedule_task(&ret, ts->st.current, task, stackless, 0);
+    return ret;
 }
 
 static TASKLET_RUN_HEAD(wrap_tasklet_run)
@@ -771,7 +773,7 @@ static TASKLET_RAISE_EXCEPTION_HEAD(impl_tasklet_raise_exception)
 {
     STACKLESS_GETARG();
     PyThreadState *ts = PyThreadState_GET();
-    PyObject *bomb;
+    PyObject *ret, *bomb;
 
     if (ts->st.main == NULL)
         return PyTasklet_RaiseException_M(self, klass, args);
@@ -784,7 +786,8 @@ static TASKLET_RAISE_EXCEPTION_HEAD(impl_tasklet_raise_exception)
         TASKLET_CLAIMVAL(self, &bomb);
         return slp_bomb_explode(bomb);
     }
-    return slp_schedule_task(ts->st.current, self, stackless, 0);
+    slp_schedule_task(&ret, ts->st.current, self, stackless, 0);
+    return ret;
 }
 
 
