@@ -44,12 +44,19 @@ PyStackless_Schedule(PyObject *retval, int remove)
     STACKLESS_GETARG();
     PyThreadState *ts = PyThreadState_GET();
     PyTaskletObject *prev = ts->st.current, *next = prev->next;
-    PyObject *ret = NULL;
-    int switched;
+    PyObject *tmpval, *ret = NULL;
+    int switched, fail;
 
     if (ts->st.main == NULL) return PyStackless_Schedule_M(retval, remove);
-    /* make sure we hold a reference to the previous tasklet */
+
+    /* make sure we hold a reference to the previous tasklet.
+     * this will be decrefed after the switch is complete
+     */
     Py_INCREF(prev);
+    assert(ts->st.del_post_switch == NULL);
+    ts->st.del_post_switch = (PyObject*)prev;
+
+    TASKLET_CLAIMVAL(prev, &tmpval);
     TASKLET_SETVAL(prev, retval);
     if (remove) {
         slp_current_remove();
@@ -57,21 +64,20 @@ PyStackless_Schedule(PyObject *retval, int remove)
         if (next == prev)
             next = 0; /* we were the last runnable tasklet */
     }
-    /* we mustn't DECREF prev here (after the slp_schedule_task().
-     * This could be the last reference, thus
-     * promting emergency reactivation of the tasklet,
-     * and soft switching isn't really done until we have unwound.
-     * Use the delayed release mechanism instead.
-     */
-    assert(ts->st.del_post_switch == NULL);
-    ts->st.del_post_switch = (PyObject*)prev;
 
-    slp_schedule_task(&ret, prev, next, stackless, &switched);
+    fail = slp_schedule_task(&ret, prev, next, stackless, &switched);
 
-    /* however, if this was a no-op (e.g. prev==next, or an error occurred)
-     * we need to decref prev ourselves
-     */
-    if (!switched)
+    if (fail) {
+        TASKLET_SETVAL_OWN(prev, tmpval);
+        if (remove) {
+            slp_current_unremove(prev);
+            Py_INCREF(prev);
+        }
+        ret = NULL;
+    } else
+        Py_DECREF(tmpval);
+    if (!switched || fail)
+        /* we must do this ourselves */
         Py_CLEAR(ts->st.del_post_switch);
     return ret;
 }
@@ -265,6 +271,7 @@ PyStackless_RunWatchdogEx(long timeout, int flags)
     PyThreadState *ts = PyThreadState_GET();
     PyTaskletObject *victim;
     PyObject *retval;
+    int fail;
 
     if (ts->st.main == NULL)
         return PyStackless_RunWatchdog_M(timeout, flags);
@@ -287,17 +294,23 @@ PyStackless_RunWatchdogEx(long timeout, int flags)
 
     /* now let them run until the end. */
     ts->st.runflags = flags;
-    slp_schedule_task(&retval, ts->st.main, ts->st.current, 0, 0);
+    fail = slp_schedule_task(&retval, ts->st.main, ts->st.current, 0, 0);
     ts->st.runflags = 0;
     ts->st.interrupt = NULL;
+
+    if (fail) {
+        /* Couldn't switch for whatever reason */
+        slp_current_unremove(ts->st.main);
+        Py_INCREF(ts->st.main);
+        retval = NULL;
+    } else if (retval == NULL)
+        return NULL; /* we were handed an exception */
 
     /* retval really should be PyNone here (or NULL).  Technically, it is the
      * tempval of some tasklet that has quit.  Even so, it is quite
      * useless to use.  run() must return None, or a tasklet
      */
-    Py_XDECREF(retval);
-    if (retval == NULL) /* an exception has occoured */
-        return NULL;
+    Py_DECREF(retval);
 
     /*
      * back in main.
