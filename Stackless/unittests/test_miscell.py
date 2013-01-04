@@ -194,6 +194,16 @@ class TestSwitchTrap(StacklessTestCase):
             self.assertRaisesRegex(RuntimeError, "switch_trap", s.kill)
         s.kill()
 
+    def test_run(self):
+        c = stackless.channel()
+        def foo():
+            pass
+        s = stackless.tasklet(foo)()
+        with self.switch_trap:
+            self.assertRaisesRegex(RuntimeError, "switch_trap", s.run)
+        s.run()
+
+
 #///////////////////////////////////////////////////////////////////////////////
 
 if __name__ == '__main__':

@@ -547,12 +547,22 @@ static TASKLET_RUN_HEAD(impl_tasklet_run)
     STACKLESS_GETARG();
     PyThreadState *ts = PyThreadState_GET();
     PyObject *ret;
+    int inserted, fail;
 
     assert(PyTasklet_Check(task));
     if (ts->st.main == NULL) return PyTasklet_Run_M(task);
+    inserted = task->next == NULL;
     if (PyTasklet_Insert(task))
         return NULL;
-    slp_schedule_task(&ret, ts->st.current, task, stackless, 0);
+    fail = slp_schedule_task(&ret, ts->st.current, task, stackless, 0);
+    if (fail) {
+        if (inserted) {
+            /* we must undo the insertion that we did */
+            slp_current_uninsert(task);
+            Py_DECREF(task);
+        }
+        ret = NULL;
+    }
     return ret;
 }
 
