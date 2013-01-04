@@ -1232,7 +1232,7 @@ static PyGetSetDef tasklet_getsetlist[] = {
 };
 
 #define PCF PyCFunction
-#define METH_KS METH_KEYWORDS | METH_STACKLESS
+#define METH_VS METH_VARARGS | METH_STACKLESS
 #define METH_NS METH_NOARGS | METH_STACKLESS
 
 static PyMethodDef tasklet_methods[] = {
@@ -1246,7 +1246,7 @@ static PyMethodDef tasklet_methods[] = {
      tasklet_set_atomic__doc__},
     {"set_ignore_nesting", (PCF)tasklet_set_ignore_nesting, METH_O,
      tasklet_set_ignore_nesting__doc__},
-    {"raise_exception",         (PCF)tasklet_raise_exception, METH_KS,
+    {"raise_exception",         (PCF)tasklet_raise_exception, METH_VS,
     tasklet_raise_exception__doc__},
     {"kill",                    (PCF)tasklet_kill,          METH_NS,
      tasklet_kill__doc__},
