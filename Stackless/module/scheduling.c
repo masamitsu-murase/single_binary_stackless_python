@@ -777,7 +777,7 @@ slp_schedule_task(PyObject **result, PyTaskletObject *prev, PyTaskletObject *nex
                   int *did_switch)
 {
     PyThreadState *ts = PyThreadState_GET();
-     PyChannelObject *u_chan = NULL;
+    PyChannelObject *u_chan = NULL;
     PyTaskletObject *u_next;
     int u_dir;
     int inserted = 0;

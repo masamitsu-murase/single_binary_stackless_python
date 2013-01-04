@@ -465,7 +465,6 @@ generic_channel_action(PyChannelObject *self, PyObject *arg, int dir, int stackl
 
     if (fail) {
         TASKLET_SETVAL_OWN(source, tmpval);
-        retval = NULL;
     }
     else
     {

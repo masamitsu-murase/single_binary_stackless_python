@@ -73,7 +73,6 @@ PyStackless_Schedule(PyObject *retval, int remove)
             slp_current_unremove(prev);
             Py_INCREF(prev);
         }
-        ret = NULL;
     } else
         Py_DECREF(tmpval);
     if (!switched || fail)
@@ -302,7 +301,6 @@ PyStackless_RunWatchdogEx(long timeout, int flags)
         /* Couldn't switch for whatever reason */
         slp_current_unremove(ts->st.main);
         Py_INCREF(ts->st.main);
-        retval = NULL;
     } else if (retval == NULL)
         return NULL; /* we were handed an exception */
 

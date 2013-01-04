@@ -561,7 +561,6 @@ static TASKLET_RUN_HEAD(impl_tasklet_run)
             slp_current_uninsert(task);
             Py_DECREF(task);
         }
-        ret = NULL;
     }
     return ret;
 }
@@ -798,10 +797,9 @@ static TASKLET_RAISE_EXCEPTION_HEAD(impl_tasklet_raise_exception)
     TASKLET_CLAIMVAL(self, &tmpval);
     TASKLET_SETVAL_OWN(self, bomb);
     fail = slp_schedule_task(&ret, ts->st.current, self, stackless, 0);
-    if (fail) {
+    if (fail)
         TASKLET_SETVAL_OWN(self, tmpval);
-        ret = NULL;
-    } else
+    else
         Py_DECREF(tmpval);
     return ret;
 }
