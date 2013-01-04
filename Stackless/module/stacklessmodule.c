@@ -393,6 +393,29 @@ slpmodule_reduce(PyObject *self)
     return PyObject_GetAttrString(slp_module, "__name__");
 }
 
+int
+PyStackless_AdjustSwitchTrap(int change)
+{
+    PyThreadState *ts = PyThreadState_GET();
+    int old = ts->st.switch_trap;
+    ts->st.switch_trap += change;
+    return old;
+}
+
+PyDoc_STRVAR(slpmodule_switch_trap__doc__,
+"switch_trap(change) -- Change the switch trap level of the thread. When non-zero, \n\
+tasklet switches won't take place. Instead, an exception is raised.\n\
+Returns the old trap value.  Defaults to 0.");
+
+static PyObject *
+slpmodule_switch_trap(PyObject *self, PyObject *args)
+{
+    int change = 0;
+    if (!PyArg_ParseTuple(args, "|i", &change))
+        return NULL;
+    return PyLong_FromLong(PyStackless_AdjustSwitchTrap(change));
+}
+
 /******************************************************
 
   some test functions
@@ -887,6 +910,8 @@ static PyMethodDef stackless_methods[] = {
      slp_pickle_moduledict__doc__},
     {"get_thread_info",             (PCF)get_thread_info,       METH_VARARGS,
      get_thread_info__doc__},
+    {"switch_trap",                 (PCF)slpmodule_switch_trap, METH_VARARGS,
+     slpmodule_switch_trap__doc__},
     {"_gc_untrack",                 (PCF)_gc_untrack,           METH_O,
     _gc_untrack__doc__},
     {"_gc_track",                   (PCF)_gc_track,             METH_O,

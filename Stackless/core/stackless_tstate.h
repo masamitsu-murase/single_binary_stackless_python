@@ -44,6 +44,7 @@ typedef struct _sts {
     int nesting_level;
     PyObject *del_post_switch;                  /* To decref after a switch */
     PyObject *interrupted;                      /* The interrupted tasklet in stackles.run() */
+    int switch_trap;                            /* if non-zero, switching is forbidden */
 } PyStacklessState;
 
 /* internal macro to temporarily disable soft interrupts */
@@ -67,7 +68,8 @@ typedef struct _sts {
     tstate->st.nesting_level = 0; \
     tstate->st.runflags = 0; \
     tstate->st.del_post_switch = NULL; \
-    tstate->st.interrupted = NULL;
+    tstate->st.interrupted = NULL; \
+    tstate->st.switch_trap = 0;
 
 
 /* note that the scheduler knows how to zap. It checks if it is in charge

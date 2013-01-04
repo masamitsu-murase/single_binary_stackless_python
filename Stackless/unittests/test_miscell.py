@@ -110,6 +110,70 @@ class TestWatchdog(StacklessTestCase):
         self.assertFalse(t.scheduled)
         self.assertEqual(t.recursion_depth, 0)
 
+class TestSwitchTrap(StacklessTestCase):
+    class SwitchTrap(object):
+        def __enter__(self):
+            stackless.switch_trap(1)
+        def __exit__(self, exc, val, tb):
+            stackless.switch_trap(-1)
+    switch_trap = SwitchTrap()
+
+    def _test_schedule(self):
+        s = stackless.tasklet(lambda:None)()
+        with self.switch_trap:
+            self.assertRaisesRegex(RuntimeError, "switch_trap", stackless.schedule)
+        stackless.run()
+
+    def _test_schedule_remove(self):
+        main = []
+        s = stackless.tasklet(lambda:stackless.insert(main[0]))()
+        with self.switch_trap:
+            self.assertRaisesRegex(RuntimeError, "switch_trap", stackless.schedule_remove)
+        main.append(stackless.getcurrent())
+        stackless.schedule_remove()
+        
+    def _test_run(self):
+        s = stackless.tasklet(lambda:None)()
+        with self.switch_trap:
+            self.assertRaisesRegex(RuntimeError, "switch_trap", stackless.run)
+        stackless.run()
+
+    def _test_run_specific(self):
+        s = stackless.tasklet(lambda:None)()
+        with self.switch_trap:
+            self.assertRaisesRegex(RuntimeError, "switch_trap", s.run)
+        s.run()
+
+    def test_send(self):
+        c = stackless.channel()
+        s = stackless.tasklet(lambda: c.receive())()
+        with self.switch_trap:
+            self.assertRaisesRegex(RuntimeError, "switch_trap", c.send, None)
+        c.send(None)
+
+    def test_send_throw(self):
+        c = stackless.channel()
+        def f():
+            self.assertRaises(NotImplementedError, c.receive)
+        s = stackless.tasklet(f)()
+        with self.switch_trap:
+            self.assertRaisesRegex(RuntimeError, "switch_trap", c.send_throw, NotImplementedError)
+        c.send_throw(NotImplementedError)
+
+    def test_receive(self):
+        c = stackless.channel()
+        s = stackless.tasklet(lambda: c.send(1))()
+        with self.switch_trap:
+            self.assertRaisesRegex(RuntimeError, "switch_trap", c.receive)
+        self.assertEqual(c.receive(), 1)
+
+    def test_receive_throw(self):
+        c = stackless.channel()
+        s = stackless.tasklet(lambda: c.send_throw(NotImplementedError))()
+        with self.switch_trap:
+            self.assertRaisesRegex(RuntimeError, "switch_trap", c.receive)
+        self.assertRaises(NotImplementedError, c.receive)
+
 #///////////////////////////////////////////////////////////////////////////////
 
 if __name__ == '__main__':

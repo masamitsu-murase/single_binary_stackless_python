@@ -797,6 +797,16 @@ slp_schedule_task(PyObject **result, PyTaskletObject *prev, PyTaskletObject *nex
     }
 #endif
 
+    /* switch trap. We don't trap on interthread switches because they
+     * don't cause a switch on the local thread.
+     */
+    if (ts->st.switch_trap) {
+        if (prev != next) {
+            PyErr_SetString(PyExc_RuntimeError, "switch_trap");
+            return -1;
+        }
+    }
+
     /* prepare the new tasklet */
     if (next->flags.blocked) {
         /* unblock from channel */
