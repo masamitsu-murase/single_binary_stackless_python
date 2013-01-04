@@ -773,20 +773,26 @@ static TASKLET_RAISE_EXCEPTION_HEAD(impl_tasklet_raise_exception)
 {
     STACKLESS_GETARG();
     PyThreadState *ts = PyThreadState_GET();
-    PyObject *ret, *bomb;
+    PyObject *ret, *bomb, *tmpval;
+    int fail;
 
     if (ts->st.main == NULL)
         return PyTasklet_RaiseException_M(self, klass, args);
     bomb = slp_make_bomb(klass, args, "tasklet.raise_exception");
     if (bomb == NULL)
         return NULL;
-    TASKLET_SETVAL_OWN(self, bomb);
     /* if the tasklet is dead, do not run it (no frame) but explode */
-    if (slp_get_frame(self) == NULL) {
-        TASKLET_CLAIMVAL(self, &bomb);
+    if (slp_get_frame(self) == NULL)
         return slp_bomb_explode(bomb);
-    }
-    slp_schedule_task(&ret, ts->st.current, self, stackless, 0);
+    
+    TASKLET_CLAIMVAL(self, &tmpval);
+    TASKLET_SETVAL_OWN(self, bomb);
+    fail = slp_schedule_task(&ret, ts->st.current, self, stackless, 0);
+    if (fail) {
+        TASKLET_SETVAL_OWN(self, tmpval);
+        ret = NULL;
+    } else
+        Py_DECREF(tmpval);
     return ret;
 }
 
