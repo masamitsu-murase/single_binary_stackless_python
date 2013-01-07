@@ -19,7 +19,7 @@ static _stackless_method _stackless_methtable[] = {
     /* from descrobject.c */
     {&PyMethodDescr_Type,        MFLAG_OFS(tp_call)},
     {&PyClassMethodDescr_Type,    MFLAG_OFS(tp_call)},
-    {&PyMethodWrapper_Type,        MFLAG_OFS(tp_call)},
+    {&_PyMethodWrapper_Type,        MFLAG_OFS(tp_call)},
     /* from funcobject.c */
     {&PyFunction_Type,        MFLAG_OFS(tp_call)},
     /* from genobject.c */

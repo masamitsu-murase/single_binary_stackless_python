@@ -116,8 +116,8 @@ PyAPI_FUNC(PyObject *) slp_gen_send_ex(PyGenObject *gen, PyObject *arg, int exc)
 PyAPI_DATA(PyTypeObject) PyMethodDescr_Type;
 PyAPI_DATA(PyTypeObject) PyClassMethodDescr_Type;
 
-PyAPI_DATA(PyTypeObject) PyMethodWrapper_Type;
-#define PyMethodWrapper_Check(op) PyObject_TypeCheck(op, &PyMethodWrapper_Type)
+PyAPI_DATA(PyTypeObject) _PyMethodWrapper_Type;
+#define PyMethodWrapper_Check(op) PyObject_TypeCheck(op, &_PyMethodWrapper_Type)
 
 /* fast (release) and safe (debug) access to the unwind token and retval */
 

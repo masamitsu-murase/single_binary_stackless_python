@@ -2425,9 +2425,18 @@ PyType_FromSpec(PyType_Spec *spec)
             memcpy(tp_doc, slot->pfunc, len);
 #ifdef STACKLESS
             res->tp_doc = tp_doc;
+        }
+    }
+    if (res->tp_dealloc == NULL) {
+        /* It's a heap type, so needs the heap types' dealloc.
+           subtype_dealloc will call the base type's tp_dealloc, if
+           necessary. */
+        res->tp_dealloc = subtype_dealloc;
+    }
+
+    if (PyType_Ready(res) < 0)
 #else
             res->ht_type.tp_doc = tp_doc;
-#endif
         }
     }
     if (res->ht_type.tp_dealloc == NULL) {
@@ -2438,6 +2447,7 @@ PyType_FromSpec(PyType_Spec *spec)
     }
 
     if (PyType_Ready(&res->ht_type) < 0)
+#endif
         goto fail;
 
     return (PyObject*)res;

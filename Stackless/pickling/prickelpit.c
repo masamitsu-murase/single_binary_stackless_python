@@ -2038,7 +2038,7 @@ typedef struct {
     PyObject *self;
 } wrapperobject;
 
-static PyTypeObject wrap_PyMethodWrapper_Type;
+static PyTypeObject wrap__PyMethodWrapper_Type;
 
 static PyObject *
 methw_reduce(wrapperobject *w)
@@ -2049,7 +2049,7 @@ methw_reduce(wrapperobject *w)
 
     if (name != NULL) {
         tup = Py_BuildValue("(O()(OO))",
-                            &wrap_PyMethodWrapper_Type,
+                            &wrap__PyMethodWrapper_Type,
                             name,
                             w->self
                             );
@@ -2120,12 +2120,12 @@ methw_setstate(PyObject *self, PyObject *args)
 }
 
 
-MAKE_WRAPPERTYPE(PyMethodWrapper_Type, methw, "method-wrapper", methw_reduce,
+MAKE_WRAPPERTYPE(_PyMethodWrapper_Type, methw, "method-wrapper", methw_reduce,
                  methw_new, methw_setstate)
 
 static int init_methodwrappertype(void)
 {
-    return init_type(&wrap_PyMethodWrapper_Type, initchain);
+    return init_type(&wrap__PyMethodWrapper_Type, initchain);
 }
 #undef initchain
 #define initchain init_methodwrappertype
