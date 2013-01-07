@@ -117,7 +117,26 @@ class TestWatchdog(StacklessTestCase):
         self.assertFalse(t.alive)
         self.assertFalse(t.scheduled)
         self.assertEqual(t.recursion_depth, 0)
-    
+
+class TestTaskletSwitching(StacklessTestCase):
+    """Test the tasklet's own scheduling methods"""
+    def test_raise_exception(self):
+        c = stackless.channel()
+        def foo():
+            self.assertRaises(IndexError, c.receive)
+        s = stackless.tasklet(foo)()
+        s.run() #necessary, since raise_exception won't automatically run it
+        s.raise_exception(IndexError)
+
+    def test_run(self):
+        c = stackless.channel()
+        flag = [False]
+        def foo():
+            flag[0] = True
+        s = stackless.tasklet(foo)()
+        s.run()
+        self.assertEqual(flag[0], True)
+
 #///////////////////////////////////////////////////////////////////////////////
 
 if __name__ == '__main__':
