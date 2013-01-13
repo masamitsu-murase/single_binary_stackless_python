@@ -262,7 +262,7 @@ PyAPI_DATA(PyTypeObject) _PyMethodWrapper_Type;
     deletion and insertion */
 
 #define SLP_CHAIN_INSERT(__objtype, __chain, __task, __next, __prev) \
-{ \
+do { \
     __objtype *l, *r; \
     assert((__task)->__next == NULL); \
     assert((__task)->__prev == NULL); \
@@ -278,10 +278,10 @@ PyAPI_DATA(PyTypeObject) _PyMethodWrapper_Type;
         (__task)->__prev = l; \
         (__task)->__next = r; \
     } \
-}
+} while(0)
 
 #define SLP_CHAIN_REMOVE(__objtype, __chain, __task, __next, __prev) \
-{ \
+do { \
     __objtype *l, *r; \
     if (*(__chain) == NULL) { \
         (__task) = NULL; \
@@ -299,12 +299,12 @@ PyAPI_DATA(PyTypeObject) _PyMethodWrapper_Type;
         (__task)->__prev = NULL; \
         (__task)->__next = NULL; \
     } \
-}
+} while(0)
 
 /* these versions operate on an embedded head, which channels use now */
 
 #define SLP_HEADCHAIN_INSERT(__objtype, __chan, __task, __next, __prev) \
-{ \
+do { \
     __objtype *__head = (__objtype *) __chan; \
     assert((__task)->__next == NULL); \
     assert((__task)->__prev == NULL); \
@@ -313,31 +313,37 @@ PyAPI_DATA(PyTypeObject) _PyMethodWrapper_Type;
     (__task)->__next = (__head); \
     (__head)->__prev->next = (__task); \
     (__head)->__prev = (__task); \
-}
+} while(0)
 
 #define SLP_HEADCHAIN_REMOVE(__task, __next, __prev) \
-{ \
+do { \
     assert((__task)->__next != NULL); \
     assert((__task)->__prev != NULL); \
     /* remove at front */ \
     (__task)->__next->__prev = (__task)->prev; \
     (__task)->__prev->__next = (__task)->next; \
     (__task)->__next = (__task)->__prev = NULL; \
-}
+} while(0)
 
 /* operations on chains */
 
 PyAPI_FUNC(void) slp_current_insert(PyTaskletObject *task);
 PyAPI_FUNC(void) slp_current_insert_after(PyTaskletObject *task);
+PyAPI_FUNC(void) slp_current_uninsert(PyTaskletObject *task);
 PyAPI_FUNC(PyTaskletObject *) slp_current_remove(void);
-PyAPI_FUNC(void) slp_channel_insert(PyChannelObject *channel,
-                                    PyTaskletObject *task, int dir);
-PyAPI_FUNC(PyTaskletObject *) slp_channel_remove(PyChannelObject *channel,
-                                                 int dir);
-PyAPI_FUNC(PyTaskletObject *) slp_channel_remove_specific(
+PyAPI_FUNC(void) slp_current_unremove(PyTaskletObject *task);
+PyAPI_FUNC(void) slp_channel_insert(
                                     PyChannelObject *channel,
-                                    int dir, PyTaskletObject *task);
-PyAPI_FUNC(PyTaskletObject *) slp_channel_remove_slow(PyTaskletObject *task);
+                                    PyTaskletObject *task,
+                                    int dir, PyTaskletObject *next);
+PyAPI_FUNC(PyTaskletObject *) slp_channel_remove(
+                                    PyChannelObject *channel,
+                                    PyTaskletObject *task,
+                                    int *dir, PyTaskletObject **next);
+PyAPI_FUNC(void) slp_channel_remove_slow(
+                                    PyTaskletObject *task,
+                                    PyChannelObject **u_chan,
+                                    int *dir, PyTaskletObject **next);									
 
 /* recording the main thread state */
 
@@ -352,10 +358,12 @@ PyAPI_FUNC(int) slp_ensure_linkage(PyTaskletObject *task);
 PyAPI_FUNC(PyObject *) slp_tasklet_new(PyTypeObject *type, PyObject *args,
                                        PyObject *kwds);
 
-PyAPI_FUNC(PyObject *) slp_schedule_task(PyTaskletObject *prev,
-                                         PyTaskletObject *next,
-                                         int stackless,
-                                         int *did_switch);
+PyAPI_FUNC(int) slp_schedule_task(
+                                    PyObject **result,
+                                    PyTaskletObject *prev,
+                                    PyTaskletObject *next,
+                                    int stackless,
+                                    int *did_switch);
 
 PyAPI_FUNC(void) slp_thread_unblock(PyThreadState *ts);
 
@@ -364,40 +372,42 @@ PyAPI_FUNC(int) initialize_main_and_current(void);
 /* setting the tasklet's tempval, optimized for no change */
 
 #define TASKLET_SETVAL(task, val) \
+do { \
     if ((task)->tempval != (PyObject *) val) { \
         Py_INCREF(val); \
         TASKLET_SETVAL_OWN(task, val); \
-    }
+    } \
+} while(0)
 
 /* ditto, without incref. Made no sense to optimize. */
 
 #define TASKLET_SETVAL_OWN(task, val) \
-    { \
-        PyObject *hold = (task)->tempval; \
-        assert(val != NULL); \
-        (task)->tempval = (PyObject *) val; \
-        Py_DECREF(hold); \
-    }
+do { \
+    PyObject *hold = (task)->tempval; \
+    assert(val != NULL); \
+    (task)->tempval = (PyObject *) val; \
+    Py_DECREF(hold); \
+} while(0)
 
 /* exchanging values with safety check */
 
 #define TASKLET_SWAPVAL(prev, next) \
-    { \
-        PyObject *hold = (prev)->tempval; \
-        assert((prev)->tempval != NULL); \
-        assert((next)->tempval != NULL); \
-        (prev)->tempval = (next)->tempval; \
-        (next)->tempval = hold; \
-    }
+do { \
+    PyObject *hold = (prev)->tempval; \
+    assert((prev)->tempval != NULL); \
+    assert((next)->tempval != NULL); \
+    (prev)->tempval = (next)->tempval; \
+    (next)->tempval = hold; \
+} while(0)
 
 /* Get the value and replace it with a None */
 
 #define TASKLET_CLAIMVAL(task, val) \
-    { \
-        *(val) = (task)->tempval; \
-        (task)->tempval = Py_None; \
-        Py_INCREF(Py_None); \
-    }
+do { \
+    *(val) = (task)->tempval; \
+    (task)->tempval = Py_None; \
+    Py_INCREF(Py_None); \
+} while(0)
 
 
 /* exception handling */
