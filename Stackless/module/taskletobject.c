@@ -33,6 +33,19 @@ slp_current_insert_after(PyTaskletObject *task)
     ++ts->st.runcount;
 }
 
+void
+slp_current_uninsert(PyTaskletObject *task)
+{
+    PyThreadState *ts = task->cstate->tstate;
+    PyTaskletObject *hold = ts->st.current;
+    PyTaskletObject **chain = &ts->st.current;
+    
+    *chain = task;
+    SLP_CHAIN_REMOVE(PyTaskletObject, chain, task, next, prev);
+    *chain = hold;
+    --ts->st.runcount;
+}
+
 PyTaskletObject *
 slp_current_remove(void)
 {
@@ -40,8 +53,16 @@ slp_current_remove(void)
     PyTaskletObject **chain = &ts->st.current, *ret;
 
     --ts->st.runcount;
-    SLP_CHAIN_REMOVE(PyTaskletObject, chain, ret, next, prev)
+    SLP_CHAIN_REMOVE(PyTaskletObject, chain, ret, next, prev);
     return ret;
+}
+
+void
+slp_current_unremove(PyTaskletObject* task)
+{
+    PyThreadState *ts = PyThreadState_GET();
+    slp_current_insert(task);
+    ts->st.current = task;
 }
 
 /*
@@ -555,12 +576,23 @@ static TASKLET_RUN_HEAD(impl_tasklet_run)
 {
     STACKLESS_GETARG();
     PyThreadState *ts = PyThreadState_GET();
+    PyObject *ret;
+    int inserted, fail;
 
     assert(PyTasklet_Check(task));
     if (ts->st.main == NULL) return PyTasklet_Run_M(task);
+    inserted = task->next == NULL;
     if (PyTasklet_Insert(task))
         return NULL;
-    return slp_schedule_task(ts->st.current, task, stackless, 0);
+    fail = slp_schedule_task(&ret, ts->st.current, task, stackless, 0);
+    if (fail) {
+        if (inserted) {
+            /* we must undo the insertion that we did */
+            slp_current_uninsert(task);
+            Py_DECREF(task);
+        }
+    }
+    return ret;
 }
 
 static TASKLET_RUN_HEAD(wrap_tasklet_run)
@@ -780,20 +812,26 @@ static TASKLET_RAISE_EXCEPTION_HEAD(impl_tasklet_raise_exception)
 {
     STACKLESS_GETARG();
     PyThreadState *ts = PyThreadState_GET();
-    PyObject *bomb;
+    PyObject *ret, *bomb, *tmpval;
+    int fail;
 
     if (ts->st.main == NULL)
         return PyTasklet_RaiseException_M(self, klass, args);
     bomb = slp_make_bomb(klass, args, "tasklet.raise_exception");
     if (bomb == NULL)
         return NULL;
-    TASKLET_SETVAL_OWN(self, bomb);
     /* if the tasklet is dead, do not run it (no frame) but explode */
-    if (slp_get_frame(self) == NULL) {
-        TASKLET_CLAIMVAL(self, &bomb);
+    if (slp_get_frame(self) == NULL)
         return slp_bomb_explode(bomb);
-    }
-    return slp_schedule_task(ts->st.current, self, stackless, 0);
+    
+    TASKLET_CLAIMVAL(self, &tmpval);
+    TASKLET_SETVAL_OWN(self, bomb);
+    fail = slp_schedule_task(&ret, ts->st.current, self, stackless, 0);
+    if (fail)
+        TASKLET_SETVAL_OWN(self, tmpval);
+    else
+        Py_DECREF(tmpval);
+    return ret;
 }
 
 
@@ -1237,7 +1275,7 @@ static PyGetSetDef tasklet_getsetlist[] = {
 };
 
 #define PCF PyCFunction
-#define METH_KS METH_KEYWORDS | METH_STACKLESS
+#define METH_VS METH_VARARGS | METH_STACKLESS
 #define METH_NS METH_NOARGS | METH_STACKLESS
 
 static PyMethodDef tasklet_methods[] = {
@@ -1251,7 +1289,7 @@ static PyMethodDef tasklet_methods[] = {
      tasklet_set_atomic__doc__},
     {"set_ignore_nesting", (PCF)tasklet_set_ignore_nesting, METH_O,
      tasklet_set_ignore_nesting__doc__},
-    {"raise_exception",         (PCF)tasklet_raise_exception, METH_KS,
+    {"raise_exception",         (PCF)tasklet_raise_exception, METH_VS,
     tasklet_raise_exception__doc__},
     {"kill",                    (PCF)tasklet_kill,          METH_NS,
      tasklet_kill__doc__},
