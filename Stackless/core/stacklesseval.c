@@ -302,7 +302,6 @@ slp_eval_frame(PyFrameObject *f)
         if (stackref > ts->st.cstack_base)
             return climb_stack_and_eval_frame(f);
 
-        ts->frame = f;
         returning = make_initial_stub();
         if (returning < 0)
             return NULL;
@@ -310,7 +309,7 @@ slp_eval_frame(PyFrameObject *f)
          * if this is the original call that just created the stub.
          * This can be useful for debugging
          */
-        return slp_run_tasklet();
+        return slp_run_tasklet(f);
     }
     Py_INCREF(Py_None);
     return slp_frame_dispatch(f, fprev, 0, Py_None);
