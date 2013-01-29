@@ -1222,7 +1222,7 @@ tasklet_end(PyObject *retval)
 */
 
 PyObject *
-slp_run_tasklet(void)
+slp_run_tasklet(PyFrameObject *f)
 {
     PyThreadState *ts = PyThreadState_GET();
     PyObject *retval;
@@ -1231,6 +1231,7 @@ slp_run_tasklet(void)
         ts->frame = NULL;
         return NULL;
     }
+    ts->frame = f;
 
     TASKLET_CLAIMVAL(ts->st.current, &retval);
 

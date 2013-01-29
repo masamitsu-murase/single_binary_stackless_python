@@ -418,7 +418,7 @@ PyAPI_FUNC(PyObject *) slp_bomb_explode(PyObject *bomb);
 
 /* tasklet startup */
 
-PyAPI_FUNC(PyObject *) slp_run_tasklet(void);
+PyAPI_FUNC(PyObject *) slp_run_tasklet(PyFrameObject *f);
 
 /* handy abbrevations */
 
