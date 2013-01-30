@@ -25,8 +25,8 @@ information, to locate itself relative to other aware objects.  An aware object
 is used to represent a specific moment in time that is not open to
 interpretation [#]_.
 
-+A naive object does not contain enough information to unambiguously locate
-+itself relative to other date/time objects.  Whether a naive object represents
+A naive object does not contain enough information to unambiguously locate
+itself relative to other date/time objects.  Whether a naive object represents
 Coordinated Universal Time (UTC), local time, or time in some other timezone is
 purely up to the program, just like it's up to the program whether a particular
 number represents metres, miles, or mass.  Naive objects are easy to understand
@@ -1154,7 +1154,7 @@ Using datetime with tzinfo:
 A time object represents a (local) time of day, independent of any particular
 day, and subject to adjustment via a :class:`tzinfo` object.
 
-.. class:: time(hour[, minute[, second[, microsecond[, tzinfo]]]])
+.. class:: time([hour[, minute[, second[, microsecond[, tzinfo]]]]])
 
    All arguments are optional.  *tzinfo* may be ``None``, or an instance of a
    :class:`tzinfo` subclass.  The remaining arguments may be ints or longs, in the
@@ -1533,7 +1533,7 @@ EST (fixed offset -5 hours), or only EDT (fixed offset -4 hours)).
 .. seealso::
 
    `pytz <http://pypi.python.org/pypi/pytz/>`_
-      The standard library has no :class:`tzinfo` instances except for UTC, but
+      The standard library has no :class:`tzinfo` instances, but
       there exists a third-party library which brings the *IANA timezone
       database* (also known as the Olson database) to Python: *pytz*.
 

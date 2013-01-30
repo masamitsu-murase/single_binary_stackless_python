@@ -349,7 +349,7 @@ extern int lstat(const char *, struct stat *);
 
 #if defined _MSC_VER && _MSC_VER >= 1400
 /* Microsoft CRT in VS2005 and higher will verify that a filehandle is
- * valid and throw an assertion if it isn't.
+ * valid and raise an assertion if it isn't.
  * Normally, an invalid fd is likely to be a C program error and therefore
  * an assertion can be useful, but it does contradict the POSIX standard
  * which for write(2) states:
@@ -441,9 +441,10 @@ _PyVerify_fd_dup2(int fd1, int fd2)
 #endif
 
 /* Return a dictionary corresponding to the POSIX environment table */
-#ifdef WITH_NEXT_FRAMEWORK
+#if defined(WITH_NEXT_FRAMEWORK) || (defined(__APPLE__) && defined(Py_ENABLE_SHARED))
 /* On Darwin/MacOSX a shared library or framework has no access to
-** environ directly, we must obtain it with _NSGetEnviron().
+** environ directly, we must obtain it with _NSGetEnviron(). See also
+** man environ(7).
 */
 #include <crt_externs.h>
 static char **environ;
@@ -463,7 +464,7 @@ convertenviron(void)
     d = PyDict_New();
     if (d == NULL)
         return NULL;
-#ifdef WITH_NEXT_FRAMEWORK
+#if defined(WITH_NEXT_FRAMEWORK) || (defined(__APPLE__) && defined(Py_ENABLE_SHARED))
     if (environ == NULL)
         environ = *_NSGetEnviron();
 #endif
@@ -1956,7 +1957,9 @@ PyDoc_STRVAR(posix_getcwd__doc__,
 "getcwd() -> path\n\n\
 Return a string representing the current working directory.");
 
-#if (defined(__sun) && defined(__SVR4)) || defined(__OpenBSD__)
+#if (defined(__sun) && defined(__SVR4)) || \
+     defined(__OpenBSD__)               || \
+     defined(__NetBSD__)
 /* Issue 9185: getcwd() returns NULL/ERANGE indefinitely. */
 static PyObject *
 posix_getcwd(PyObject *self, PyObject *noargs)
@@ -4226,6 +4229,7 @@ posix__isdir(PyObject *self, PyObject *args)
         return NULL;
 
     attributes = GetFileAttributesA(path);
+    PyMem_Free(path);
     if (attributes == INVALID_FILE_ATTRIBUTES)
         Py_RETURN_FALSE;
 

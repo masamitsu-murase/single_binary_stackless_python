@@ -95,12 +95,8 @@ class BasicSocketTests(unittest.TestCase):
             sys.stdout.write("\n RAND_status is %d (%s)\n"
                              % (v, (v and "sufficient randomness") or
                                 "insufficient randomness"))
-        try:
-            ssl.RAND_egd(1)
-        except TypeError:
-            pass
-        else:
-            print "didn't raise TypeError"
+        self.assertRaises(TypeError, ssl.RAND_egd, 1)
+        self.assertRaises(TypeError, ssl.RAND_egd, 'foo', 1)
         ssl.RAND_add("this is a random string", 75.0)
 
     def test_parse_cert(self):
@@ -281,6 +277,34 @@ class NetworkedTests(unittest.TestCase):
                             raise
                 # SSL established
                 self.assertTrue(s.getpeercert())
+            finally:
+                s.close()
+
+    def test_timeout_connect_ex(self):
+        # Issue #12065: on a timeout, connect_ex() should return the original
+        # errno (mimicking the behaviour of non-SSL sockets).
+        with test_support.transient_internet("svn.python.org"):
+            s = ssl.wrap_socket(socket.socket(socket.AF_INET),
+                                cert_reqs=ssl.CERT_REQUIRED,
+                                ca_certs=SVN_PYTHON_ORG_ROOT_CERT,
+                                do_handshake_on_connect=False)
+            try:
+                s.settimeout(0.0000001)
+                rc = s.connect_ex(('svn.python.org', 443))
+                if rc == 0:
+                    self.skipTest("svn.python.org responded too quickly")
+                self.assertIn(rc, (errno.EAGAIN, errno.EWOULDBLOCK))
+            finally:
+                s.close()
+
+    def test_connect_ex_error(self):
+        with test_support.transient_internet("svn.python.org"):
+            s = ssl.wrap_socket(socket.socket(socket.AF_INET),
+                                cert_reqs=ssl.CERT_REQUIRED,
+                                ca_certs=SVN_PYTHON_ORG_ROOT_CERT)
+            try:
+                self.assertEqual(errno.ECONNREFUSED,
+                                 s.connect_ex(("svn.python.org", 444)))
             finally:
                 s.close()
 

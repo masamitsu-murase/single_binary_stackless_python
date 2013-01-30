@@ -134,7 +134,7 @@ This is done as follows::
     >>> data['location'] = 'Northampton'
     >>> data['language'] = 'Python'
     >>> url_values = urllib.urlencode(data)
-    >>> print url_values
+    >>> print url_values  # The order may differ. #doctest: +SKIP
     name=Somebody+Here&language=Python&location=Northampton
     >>> url = 'http://www.example.com/example.cgi'
     >>> full_url = url + '?' + url_values
@@ -201,9 +201,9 @@ e.g. ::
 
     >>> req = urllib2.Request('http://www.pretend_server.org')
     >>> try: urllib2.urlopen(req)
-    >>> except URLError, e:
-    >>>    print e.reason
-    >>>
+    ... except URLError as e:
+    ...    print e.reason   #doctest: +SKIP
+    ...
     (4, 'getaddrinfo failed')
 
 
@@ -309,18 +309,18 @@ geturl, and info, methods. ::
 
     >>> req = urllib2.Request('http://www.python.org/fish.html')
     >>> try:
-    >>>     urllib2.urlopen(req)
-    >>> except HTTPError, e:
-    >>>     print e.code
-    >>>     print e.read()
-    >>>
+    ...     urllib2.urlopen(req)
+    ... except urllib2.HTTPError as e:
+    ...     print e.code
+    ...     print e.read() #doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
+    ...
     404
-    <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-        "http://www.w3.org/TR/html4/loose.dtd">
-    <?xml-stylesheet href="./css/ht2html.css"
-        type="text/css"?>
-    <html><head><title>Error 404: File Not Found</title>
-    ...... etc...
+    <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+    ...
+    <title>Page Not Found</title>
+    ...
+
 
 Wrapping it Up
 --------------
@@ -338,10 +338,10 @@ Number 1
     req = Request(someurl)
     try:
         response = urlopen(req)
-    except HTTPError, e:
+    except HTTPError as e:
         print 'The server couldn\'t fulfill the request.'
         print 'Error code: ', e.code
-    except URLError, e:
+    except URLError as e:
         print 'We failed to reach a server.'
         print 'Reason: ', e.reason
     else:
@@ -362,7 +362,7 @@ Number 2
     req = Request(someurl)
     try:
         response = urlopen(req)
-    except URLError, e:
+    except URLError as e:
         if hasattr(e, 'reason'):
             print 'We failed to reach a server.'
             print 'Reason: ', e.reason

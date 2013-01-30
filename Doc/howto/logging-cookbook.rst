@@ -295,17 +295,17 @@ the receiving end. A simple way of doing this is attaching a
    logger2.warning('Jail zesty vixen who grabbed pay from quack.')
    logger2.error('The five boxing wizards jump quickly.')
 
-At the receiving end, you can set up a receiver using the :mod:`socketserver`
+At the receiving end, you can set up a receiver using the :mod:`SocketServer`
 module. Here is a basic working example::
 
    import pickle
    import logging
    import logging.handlers
-   import socketserver
+   import SocketServer
    import struct
 
 
-   class LogRecordStreamHandler(socketserver.StreamRequestHandler):
+   class LogRecordStreamHandler(SocketServer.StreamRequestHandler):
        """Handler for a streaming logging request.
 
        This basically logs the record using whatever logging policy is
@@ -347,7 +347,7 @@ module. Here is a basic working example::
            # cycles and network bandwidth!
            logger.handle(record)
 
-   class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
+   class LogRecordSocketReceiver(SocketServer.ThreadingTCPServer):
        """
        Simple TCP socket-based logging receiver suitable for testing.
        """
@@ -357,7 +357,7 @@ module. Here is a basic working example::
        def __init__(self, host='localhost',
                     port=logging.handlers.DEFAULT_TCP_LOGGING_PORT,
                     handler=LogRecordStreamHandler):
-           socketserver.ThreadingTCPServer.__init__(self, (host, port), handler)
+           SocketServer.ThreadingTCPServer.__init__(self, (host, port), handler)
            self.abort = 0
            self.timeout = 1
            self.logname = None
@@ -763,7 +763,7 @@ appear before it.
 
 As this behaviour is broken, the incorrect BOM insertion code is being removed
 from Python 2.7.4 and later. However, it is not being replaced, and if you
-want to produce RFC 5424-compliant messages which includes a BOM, an optional
+want to produce RFC 5424-compliant messages which include a BOM, an optional
 pure-ASCII sequence before it and arbitrary Unicode after it, encoded using
 UTF-8, then you need to do the following:
 
@@ -781,12 +781,94 @@ UTF-8, then you need to do the following:
    way, it will remain unchanged after UTF-8 encoding).
 
 #. Replace the Unicode section with whatever placeholders you like; if the data
-   which appears there after substitution is Unicode, that's fine -- it will be
-   encoded using UTF-8.
+   which appears there after substitution contains characters outside the ASCII
+   range, that's fine -- it will be encoded using UTF-8.
 
 If the formatted message is Unicode, it *will* be encoded using UTF-8 encoding
 by ``SysLogHandler``. If you follow the above rules, you should be able to
 produce RFC 5424-compliant messages. If you don't, logging may not complain,
 but your messages will not be RFC 5424-compliant, and your syslog daemon may
 complain.
+
+
+Implementing structured logging
+-------------------------------
+
+Although most logging messages are intended for reading by humans, and thus not
+readily machine-parseable, there might be cirumstances where you want to output
+messages in a structured format which *is* capable of being parsed by a program
+(without needing complex regular expressions to parse the log message). This is
+straightforward to achieve using the logging package. There are a number of
+ways in which this could be achieved, but the following is a simple approach
+which uses JSON to serialise the event in a machine-parseable manner::
+
+    import json
+    import logging
+
+    class StructuredMessage(object):
+        def __init__(self, message, **kwargs):
+            self.message = message
+            self.kwargs = kwargs
+
+        def __str__(self):
+            return '%s >>> %s' % (self.message, json.dumps(self.kwargs))
+
+    _ = StructuredMessage   # optional, to improve readability
+
+    logging.basicConfig(level=logging.INFO, format='%(message)s')
+    logging.info(_('message 1', foo='bar', bar='baz', num=123, fnum=123.456))
+
+If the above script is run, it prints::
+
+    message 1 >>> {"fnum": 123.456, "num": 123, "bar": "baz", "foo": "bar"}
+
+Note that the order of items might be different according to the version of
+Python used.
+
+If you need more specialised processing, you can use a custom JSON encoder,
+as in the following complete example::
+
+    from __future__ import unicode_literals
+
+    import json
+    import logging
+
+    # This next bit is to ensure the script runs unchanged on 2.x and 3.x
+    try:
+        unicode
+    except NameError:
+        unicode = str
+
+    class Encoder(json.JSONEncoder):
+        def default(self, o):
+            if isinstance(o, set):
+                return tuple(o)
+            elif isinstance(o, unicode):
+                return o.encode('unicode_escape').decode('ascii')
+            return super(Encoder, self).default(o)
+
+    class StructuredMessage(object):
+        def __init__(self, message, **kwargs):
+            self.message = message
+            self.kwargs = kwargs
+
+        def __str__(self):
+            s = Encoder().encode(self.kwargs)
+            return '%s >>> %s' % (self.message, s)
+
+    _ = StructuredMessage   # optional, to improve readability
+
+    def main():
+        logging.basicConfig(level=logging.INFO, format='%(message)s')
+        logging.info(_('message 1', set_value=set([1, 2, 3]), snowman='\u2603'))
+
+    if __name__ == '__main__':
+        main()
+
+When the above script is run, it prints::
+
+    message 1 >>> {"snowman": "\u2603", "set_value": [1, 2, 3]}
+
+Note that the order of items might be different according to the version of
+Python used.
 

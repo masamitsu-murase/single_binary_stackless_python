@@ -761,7 +761,7 @@ new_sockobject(SOCKET_T fd, int family, int type, int proto)
 /* Lock to allow python interpreter to continue, but only allow one
    thread to be in gethostbyname or getaddrinfo */
 #if defined(USE_GETHOSTBYNAME_LOCK) || defined(USE_GETADDRINFO_LOCK)
-PyThread_type_lock netdb_lock;
+static PyThread_type_lock netdb_lock;
 #endif
 
 
@@ -1713,7 +1713,7 @@ info is a pair (hostaddr, port).");
 static PyObject *
 sock_setblocking(PySocketSockObject *s, PyObject *arg)
 {
-    int block;
+    long block;
 
     block = PyInt_AsLong(arg);
     if (block == -1 && PyErr_Occurred())
@@ -2243,7 +2243,7 @@ sock_listen(PySocketSockObject *s, PyObject *arg)
     int backlog;
     int res;
 
-    backlog = PyInt_AsLong(arg);
+    backlog = _PyInt_AsInt(arg);
     if (backlog == -1 && PyErr_Occurred())
         return NULL;
     Py_BEGIN_ALLOW_THREADS
@@ -2894,7 +2894,7 @@ sock_shutdown(PySocketSockObject *s, PyObject *arg)
     int how;
     int res;
 
-    how = PyInt_AsLong(arg);
+    how = _PyInt_AsInt(arg);
     if (how == -1 && PyErr_Occurred())
         return NULL;
     Py_BEGIN_ALLOW_THREADS
@@ -4090,15 +4090,19 @@ socket_getaddrinfo(PyObject *self, PyObject *args)
                         "getaddrinfo() argument 1 must be string or None");
         return NULL;
     }
-    if (PyInt_Check(pobj)) {
-        PyOS_snprintf(pbuf, sizeof(pbuf), "%ld", PyInt_AsLong(pobj));
+    if (PyInt_Check(pobj) || PyLong_Check(pobj)) {
+        long value = PyLong_AsLong(pobj);
+        if (value == -1 && PyErr_Occurred())
+            return NULL;
+        PyOS_snprintf(pbuf, sizeof(pbuf), "%ld", value);
         pptr = pbuf;
     } else if (PyString_Check(pobj)) {
         pptr = PyString_AsString(pobj);
     } else if (pobj == Py_None) {
         pptr = (char *)NULL;
     } else {
-        PyErr_SetString(socket_error, "Int or String expected");
+        PyErr_SetString(socket_error,
+                        "getaddrinfo() argument 2 must be integer or string");
         goto err;
     }
     memset(&hints, 0, sizeof(hints));

@@ -57,7 +57,7 @@ Module Contents
 The :mod:`csv` module defines the following functions:
 
 
-.. function:: reader(csvfile[, dialect='excel'][, fmtparam])
+.. function:: reader(csvfile, dialect='excel', **fmtparams)
 
    Return a reader object which will iterate over lines in the given *csvfile*.
    *csvfile* can be any object which supports the :term:`iterator` protocol and returns a
@@ -67,7 +67,7 @@ The :mod:`csv` module defines the following functions:
    *dialect* parameter can be given which is used to define a set of parameters
    specific to a particular CSV dialect.  It may be an instance of a subclass of
    the :class:`Dialect` class or one of the strings returned by the
-   :func:`list_dialects` function.  The other optional *fmtparam* keyword arguments
+   :func:`list_dialects` function.  The other optional *fmtparams* keyword arguments
    can be given to override individual formatting parameters in the current
    dialect.  For full details about the dialect and formatting parameters, see
    section :ref:`csv-fmt-params`.
@@ -78,9 +78,10 @@ The :mod:`csv` module defines the following functions:
    A short usage example::
 
       >>> import csv
-      >>> spamReader = csv.reader(open('eggs.csv', 'rb'), delimiter=' ', quotechar='|')
-      >>> for row in spamReader:
-      ...     print ', '.join(row)
+      >>> with open('eggs.csv', 'rb') as csvfile:
+      ...     spamreader = csv.reader(csvfile, delimiter=' ', quotechar='|')
+      ...     for row in spamreader:
+      ...         print ', '.join(row)
       Spam, Spam, Spam, Spam, Spam, Baked Beans
       Spam, Lovely Spam, Wonderful Spam
 
@@ -94,7 +95,7 @@ The :mod:`csv` module defines the following functions:
       be split into lines in a manner which preserves the newline characters.
 
 
-.. function:: writer(csvfile[, dialect='excel'][, fmtparam])
+.. function:: writer(csvfile, dialect='excel', **fmtparams)
 
    Return a writer object responsible for converting the user's data into delimited
    strings on the given file-like object.  *csvfile* can be any object with a
@@ -103,7 +104,7 @@ The :mod:`csv` module defines the following functions:
    parameter can be given which is used to define a set of parameters specific to a
    particular CSV dialect.  It may be an instance of a subclass of the
    :class:`Dialect` class or one of the strings returned by the
-   :func:`list_dialects` function.  The other optional *fmtparam* keyword arguments
+   :func:`list_dialects` function.  The other optional *fmtparams* keyword arguments
    can be given to override individual formatting parameters in the current
    dialect.  For full details about the dialect and formatting parameters, see
    section :ref:`csv-fmt-params`. To make it
@@ -115,18 +116,19 @@ The :mod:`csv` module defines the following functions:
 
    A short usage example::
 
-      >>> import csv
-      >>> spamWriter = csv.writer(open('eggs.csv', 'wb'), delimiter=' ',
-      ...                         quotechar='|', quoting=csv.QUOTE_MINIMAL)
-      >>> spamWriter.writerow(['Spam'] * 5 + ['Baked Beans'])
-      >>> spamWriter.writerow(['Spam', 'Lovely Spam', 'Wonderful Spam'])
+      import csv
+      with open('eggs.csv', 'wb') as csvfile:
+          spamwriter = csv.writer(csvfile, delimiter=' ',
+                                  quotechar='|', quoting=csv.QUOTE_MINIMAL)
+          spamwriter.writerow(['Spam'] * 5 + ['Baked Beans'])
+          spamwriter.writerow(['Spam', 'Lovely Spam', 'Wonderful Spam'])
 
 
-.. function:: register_dialect(name[, dialect][, fmtparam])
+.. function:: register_dialect(name[, dialect], **fmtparams)
 
    Associate *dialect* with *name*.  *name* must be a string or Unicode object. The
    dialect can be specified either by passing a sub-class of :class:`Dialect`, or
-   by *fmtparam* keyword arguments, or both, with keyword arguments overriding
+   by *fmtparams* keyword arguments, or both, with keyword arguments overriding
    parameters of the dialect. For full details about the dialect and formatting
    parameters, see section :ref:`csv-fmt-params`.
 
@@ -234,11 +236,11 @@ The :mod:`csv` module defines the following classes:
 
 An example for :class:`Sniffer` use::
 
-   csvfile = open("example.csv", "rb")
-   dialect = csv.Sniffer().sniff(csvfile.read(1024))
-   csvfile.seek(0)
-   reader = csv.reader(csvfile, dialect)
-   # ... process CSV file contents here ...
+   with open('example.csv', 'rb') as csvfile:
+       dialect = csv.Sniffer().sniff(csvfile.read(1024))
+       csvfile.seek(0)
+       reader = csv.reader(csvfile, dialect)
+       # ... process CSV file contents here ...
 
 
 The :mod:`csv` module defines the following constants:
@@ -352,6 +354,11 @@ Dialects support the following attributes:
    When :const:`True`, whitespace immediately following the *delimiter* is ignored.
    The default is :const:`False`.
 
+
+.. attribute:: Dialect.strict
+
+   When ``True``, raise exception :exc:`Error` on bad CSV input.
+   The default is ``False``.
 
 Reader Objects
 --------------
@@ -478,7 +485,7 @@ A slightly more advanced use of the reader --- catching and reporting errors::
        try:
            for row in reader:
                print row
-       except csv.Error, e:
+       except csv.Error as e:
            sys.exit('file %s, line %d: %s' % (filename, reader.line_num, e))
 
 And while the module doesn't directly support parsing strings, it can easily be

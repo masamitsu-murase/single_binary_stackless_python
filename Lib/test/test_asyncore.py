@@ -484,8 +484,9 @@ class TCPServer(asyncore.dispatcher):
         return self.socket.getsockname()[:2]
 
     def handle_accept(self):
-        sock, addr = self.accept()
-        self.handler(sock)
+        pair = self.accept()
+        if pair is not None:
+            self.handler(pair[0])
 
     def handle_error(self):
         raise
@@ -711,6 +712,7 @@ class BaseTestAPI(unittest.TestCase):
         server = TCPServer()
         t = threading.Thread(target=lambda: asyncore.loop(timeout=0.1, count=500))
         t.start()
+        self.addCleanup(t.join)
 
         for x in xrange(20):
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

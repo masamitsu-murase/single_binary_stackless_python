@@ -9,6 +9,8 @@ import unittest
 from array import array
 from weakref import proxy
 from functools import wraps
+from UserList import UserList
+import _testcapi
 
 from test.test_support import TESTFN, check_warnings, run_unittest, make_bad_fd
 from test.test_support import py3k_bytes as bytes
@@ -70,6 +72,26 @@ class AutoFileTests(unittest.TestCase):
         self.f = _FileIO(TESTFN, 'r')
         n = self.f.readinto(a)
         self.assertEqual(array(b'b', [1, 2]), a[:n])
+
+    def testWritelinesList(self):
+        l = [b'123', b'456']
+        self.f.writelines(l)
+        self.f.close()
+        self.f = _FileIO(TESTFN, 'rb')
+        buf = self.f.read()
+        self.assertEqual(buf, b'123456')
+
+    def testWritelinesUserList(self):
+        l = UserList([b'123', b'456'])
+        self.f.writelines(l)
+        self.f.close()
+        self.f = _FileIO(TESTFN, 'rb')
+        buf = self.f.read()
+        self.assertEqual(buf, b'123456')
+
+    def testWritelinesError(self):
+        self.assertRaises(TypeError, self.f.writelines, [1, 2, 3])
+        self.assertRaises(TypeError, self.f.writelines, None)
 
     def test_none_args(self):
         self.f.write(b"hi\nbye\nabc")
@@ -322,6 +344,9 @@ class OtherFileTests(unittest.TestCase):
         if sys.platform == 'win32':
             import msvcrt
             self.assertRaises(IOError, msvcrt.get_osfhandle, make_bad_fd())
+        # Issue 15989
+        self.assertRaises(TypeError, _FileIO, _testcapi.INT_MAX + 1)
+        self.assertRaises(TypeError, _FileIO, _testcapi.INT_MIN - 1)
 
     def testBadModeArgument(self):
         # verify that we get a sensible error message for bad mode argument

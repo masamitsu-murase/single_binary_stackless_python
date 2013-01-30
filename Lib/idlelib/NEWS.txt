@@ -1,6 +1,8 @@
 What's New in IDLE 2.7.4?
 =========================
 
+- Issue #15318: Prevent writing to sys.stdin.
+
 - Issue #13532, #15319: Check that arguments to sys.stdout.write are strings.
 
 - Issue # 12510: Attempt to get certain tool tips no longer crashes IDLE.
@@ -9,6 +11,12 @@ What's New in IDLE 2.7.4?
   parent window is closed while dialog is open.
 
 - Issue 14876: use user-selected font for highlight configuration.
+
+- Issue #14018: Update checks for unstable system Tcl/Tk versions on OS X
+  to include versions shipped with OS X 10.7 and 10.8 in addition to 10.6.
+
+- Issue #15853: Prevent IDLE crash on OS X when opening Preferences menu
+  with certain versions of Tk 8.5.  Initial patch by Kevin Walzer.
 
 
 What's New in IDLE 2.7.3?

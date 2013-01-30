@@ -726,6 +726,10 @@ PyObject *PyString_DecodeEscape(const char *s,
                              errors);
                 goto failed;
             }
+            /* skip \x */
+            if (s < end && isxdigit(Py_CHARMASK(s[0])))
+                s++; /* and a hexdigit */
+            break;
 #ifndef Py_USING_UNICODE
         case 'u':
         case 'U':
@@ -3799,7 +3803,7 @@ PyTypeObject PyBaseString_Type = {
 };
 
 PyDoc_STRVAR(string_doc,
-"str(object) -> string\n\
+"str(object='') -> string\n\
 \n\
 Return a nice string representation of the object.\n\
 If the argument is a string, the return value is the same object.");
@@ -4254,7 +4258,7 @@ PyString_Format(PyObject *format, PyObject *args)
         arglen = -1;
         argidx = -2;
     }
-    if (Py_TYPE(args)->tp_as_mapping && !PyTuple_Check(args) &&
+    if (PyMapping_Check(args) && !PyTuple_Check(args) &&
         !PyObject_TypeCheck(args, &PyBaseString_Type))
         dict = args;
     while (--fmtcnt >= 0) {
@@ -4355,7 +4359,9 @@ PyString_Format(PyObject *format, PyObject *args)
                                     "* wants int");
                     goto error;
                 }
-                width = PyInt_AsLong(v);
+                width = PyInt_AsSsize_t(v);
+                if (width == -1 && PyErr_Occurred())
+                    goto error;
                 if (width < 0) {
                     flags |= F_LJUST;
                     width = -width;
@@ -4369,7 +4375,7 @@ PyString_Format(PyObject *format, PyObject *args)
                     c = Py_CHARMASK(*fmt++);
                     if (!isdigit(c))
                         break;
-                    if ((width*10) / 10 != width) {
+                    if (width > (PY_SSIZE_T_MAX - ((int)c - '0')) / 10) {
                         PyErr_SetString(
                             PyExc_ValueError,
                             "width too big");
@@ -4392,7 +4398,9 @@ PyString_Format(PyObject *format, PyObject *args)
                             "* wants int");
                         goto error;
                     }
-                    prec = PyInt_AsLong(v);
+                    prec = _PyInt_AsInt(v);
+                    if (prec == -1 && PyErr_Occurred())
+                        goto error;
                     if (prec < 0)
                         prec = 0;
                     if (--fmtcnt >= 0)
@@ -4404,7 +4412,7 @@ PyString_Format(PyObject *format, PyObject *args)
                         c = Py_CHARMASK(*fmt++);
                         if (!isdigit(c))
                             break;
-                        if ((prec*10) / 10 != prec) {
+                        if (prec > (INT_MAX - ((int)c - '0')) / 10) {
                             PyErr_SetString(
                                 PyExc_ValueError,
                                 "prec too big");
@@ -4489,7 +4497,10 @@ PyString_Format(PyObject *format, PyObject *args)
                     }
                     else {
                         iobj = PyNumber_Int(v);
-                        if (iobj==NULL) iobj = PyNumber_Long(v);
+                        if (iobj==NULL) {
+                            PyErr_Clear();
+                            iobj = PyNumber_Long(v);
+                        }
                     }
                     if (iobj!=NULL) {
                         if (PyInt_Check(iobj)) {

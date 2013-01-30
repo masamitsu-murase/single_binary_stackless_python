@@ -47,7 +47,9 @@ def is_macosx_sdk_path(path):
     """
     Returns True if 'path' can be located in an OSX SDK
     """
-    return (path.startswith('/usr/') and not path.startswith('/usr/local')) or path.startswith('/System/')
+    return ( (path.startswith('/usr/') and not path.startswith('/usr/local'))
+                or path.startswith('/System/')
+                or path.startswith('/Library/') )
 
 def find_file(filename, std_dirs, paths):
     """Searches for the directory where a given file is located,
@@ -348,6 +350,27 @@ class PyBuildExt(build_ext):
     def add_multiarch_paths(self):
         # Debian/Ubuntu multiarch support.
         # https://wiki.ubuntu.com/MultiarchSpec
+        cc = sysconfig.get_config_var('CC')
+        tmpfile = os.path.join(self.build_temp, 'multiarch')
+        if not os.path.exists(self.build_temp):
+            os.makedirs(self.build_temp)
+        ret = os.system(
+            '%s -print-multiarch > %s 2> /dev/null' % (cc, tmpfile))
+        multiarch_path_component = ''
+        try:
+            if ret >> 8 == 0:
+                with open(tmpfile) as fp:
+                    multiarch_path_component = fp.readline().strip()
+        finally:
+            os.unlink(tmpfile)
+
+        if multiarch_path_component != '':
+            add_dir_to_list(self.compiler.library_dirs,
+                            '/usr/lib/' + multiarch_path_component)
+            add_dir_to_list(self.compiler.include_dirs,
+                            '/usr/include/' + multiarch_path_component)
+            return
+
         if not find_executable('dpkg-architecture'):
             return
         tmpfile = os.path.join(self.build_temp, 'multiarch')
@@ -1025,12 +1048,12 @@ class PyBuildExt(build_ext):
         if sys.platform == 'darwin':
             sysroot = macosx_sdk_root()
 
-        for d in inc_dirs + sqlite_inc_paths:
-            f = os.path.join(d, "sqlite3.h")
-
+        for d_ in inc_dirs + sqlite_inc_paths:
+            d = d_
             if sys.platform == 'darwin' and is_macosx_sdk_path(d):
-                f = os.path.join(sysroot, d[1:], "sqlite3.h")
+                d = os.path.join(sysroot, d[1:])
 
+            f = os.path.join(d, "sqlite3.h")
             if os.path.exists(f):
                 if sqlite_setup_debug: print "sqlite: found %s"%f
                 incf = open(f).read()
@@ -1869,6 +1892,8 @@ class PyBuildExt(build_ext):
                 from distutils.dir_util import mkpath
                 mkpath(ffi_builddir)
                 config_args = []
+                if not self.verbose:
+                    config_args.append("-q")
 
                 # Pass empty CFLAGS because we'll just append the resulting
                 # CFLAGS to Python's; -g or -O2 is to be avoided.

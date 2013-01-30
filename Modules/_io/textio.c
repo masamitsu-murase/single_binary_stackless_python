@@ -622,15 +622,22 @@ PyDoc_STRVAR(textiowrapper_doc,
     "errors determines the strictness of encoding and decoding (see the\n"
     "codecs.register) and defaults to \"strict\".\n"
     "\n"
-    "newline can be None, '', '\\n', '\\r', or '\\r\\n'.  It controls the\n"
-    "handling of line endings. If it is None, universal newlines is\n"
-    "enabled.  With this enabled, on input, the lines endings '\\n', '\\r',\n"
-    "or '\\r\\n' are translated to '\\n' before being returned to the\n"
-    "caller. Conversely, on output, '\\n' is translated to the system\n"
-    "default line separator, os.linesep. If newline is any other of its\n"
-    "legal values, that newline becomes the newline when the file is read\n"
-    "and it is returned untranslated. On output, '\\n' is converted to the\n"
-    "newline.\n"
+    "newline controls how line endings are handled. It can be None, '',\n"
+    "'\\n', '\\r', and '\\r\\n'.  It works as follows:\n"
+    "\n"
+    "* On input, if newline is None, universal newlines mode is\n"
+    "  enabled. Lines in the input can end in '\\n', '\\r', or '\\r\\n', and\n"
+    "  these are translated into '\\n' before being returned to the\n"
+    "  caller. If it is '', universal newline mode is enabled, but line\n"
+    "  endings are returned to the caller untranslated. If it has any of\n"
+    "  the other legal values, input lines are only terminated by the given\n"
+    "  string, and the line ending is returned to the caller untranslated.\n"
+    "\n"
+    "* On output, if newline is None, any '\\n' characters written are\n"
+    "  translated to the system default line separator, os.linesep. If\n"
+    "  newline is '', no translation takes place. If newline is any of the\n"
+    "  other legal values, any '\\n' characters written are translated to\n"
+    "  the given string.\n"
     "\n"
     "If line_buffering is True, a call to flush is implied when a call to\n"
     "write contains a newline character."
@@ -1006,8 +1013,11 @@ textiowrapper_init(textio *self, PyObject *args, PyObject *kwds)
     res = PyObject_CallMethod(buffer, "seekable", NULL);
     if (res == NULL)
         goto error;
-    self->seekable = self->telling = PyObject_IsTrue(res);
+    r = PyObject_IsTrue(res);
     Py_DECREF(res);
+    if (r < 0)
+        goto error;
+    self->seekable = self->telling = r;
 
     self->encoding_start_of_stream = 0;
     if (self->seekable && self->encoder) {
@@ -1508,8 +1518,14 @@ textiowrapper_read(textio *self, PyObject *args)
         /* Keep reading chunks until we have n characters to return */
         while (remaining > 0) {
             res = textiowrapper_read_chunk(self);
-            if (res < 0)
+            if (res < 0) {
+                /* NOTE: PyErr_SetFromErrno() calls PyErr_CheckSignals()
+                   when EINTR occurs so we needn't do it ourselves. */
+                if (_PyIO_trap_eintr()) {
+                    continue;
+                }
                 goto fail;
+            }
             if (res == 0)  /* EOF */
                 break;
             if (chunks == NULL) {
@@ -1668,8 +1684,14 @@ _textiowrapper_readline(textio *self, Py_ssize_t limit)
         while (!self->decoded_chars ||
                !PyUnicode_GET_SIZE(self->decoded_chars)) {
             res = textiowrapper_read_chunk(self);
-            if (res < 0)
+            if (res < 0) {
+                /* NOTE: PyErr_SetFromErrno() calls PyErr_CheckSignals()
+                   when EINTR occurs so we needn't do it ourselves. */
+                if (_PyIO_trap_eintr()) {
+                    continue;
+                }
                 goto error;
+            }
             if (res == 0)
                 break;
         }
@@ -2420,14 +2442,26 @@ textiowrapper_close(textio *self, PyObject *args)
         Py_RETURN_NONE; /* stream already closed */
     }
     else {
+        PyObject *exc = NULL, *val, *tb;
         res = PyObject_CallMethod((PyObject *)self, "flush", NULL);
-        if (res == NULL) {
-            return NULL;
-        }
+        if (res == NULL)
+            PyErr_Fetch(&exc, &val, &tb);
         else
             Py_DECREF(res);
 
-        return PyObject_CallMethod(self->buffer, "close", NULL);
+        res = PyObject_CallMethod(self->buffer, "close", NULL);
+        if (exc != NULL) {
+            if (res != NULL) {
+                Py_CLEAR(res);
+                PyErr_Restore(exc, val, tb);
+            }
+            else {
+                Py_DECREF(exc);
+                Py_XDECREF(val);
+                Py_XDECREF(tb);
+            }
+        }
+        return res;
     }
 }
 
