@@ -194,8 +194,10 @@ PyTuple_Pack(Py_ssize_t n, ...)
 
     va_start(vargs, n);
     result = PyTuple_New(n);
-    if (result == NULL)
+    if (result == NULL) {
+        va_end(vargs);
         return NULL;
+    }
     items = ((PyTupleObject *)result)->ob_item;
     for (i = 0; i < n; i++) {
         o = va_arg(vargs, PyObject *);
@@ -313,11 +315,12 @@ error:
 static Py_hash_t
 tuplehash(PyTupleObject *v)
 {
-    register Py_hash_t x, y;
+    register Py_uhash_t x;  /* Unsigned for defined overflow behavior. */
+    register Py_hash_t y;
     register Py_ssize_t len = Py_SIZE(v);
     register PyObject **p;
-    Py_hash_t mult = _PyHASH_MULTIPLIER;
-    x = 0x345678L;
+    Py_uhash_t mult = _PyHASH_MULTIPLIER;
+    x = 0x345678UL;
     p = v->ob_item;
     while (--len >= 0) {
         y = PyObject_Hash(*p++);
@@ -325,9 +328,9 @@ tuplehash(PyTupleObject *v)
             return -1;
         x = (x ^ y) * mult;
         /* the cast might truncate len; that doesn't change hash stability */
-        mult += (Py_hash_t)(82520L + len + len);
+        mult += (Py_uhash_t)(82520UL + len + len);
     }
-    x += 97531L;
+    x += 97531UL;
     if (x == -1)
         x = -2;
     return x;

@@ -47,9 +47,9 @@ static PyObject *parsestrplus(struct compiling *, const node *n,
 #define COMP_SETCOMP  2
 
 static identifier
-new_identifier(const char* n, PyArena *arena)
+new_identifier(const char *n, PyArena *arena)
 {
-    PyObject* id = PyUnicode_DecodeUTF8(n, strlen(n), NULL);
+    PyObject *id = PyUnicode_DecodeUTF8(n, strlen(n), NULL);
     Py_UNICODE *u;
     if (!id)
         return NULL;
@@ -89,10 +89,18 @@ new_identifier(const char* n, PyArena *arena)
 static int
 ast_error(const node *n, const char *errstr)
 {
-    PyObject *u = Py_BuildValue("zii", errstr, LINENO(n), n->n_col_offset);
+    PyObject *u = Py_BuildValue("zii", errstr, LINENO(n), n->n_col_offset), *save;
     if (!u)
         return 0;
+    /*
+     * Prevent the error from being chained. PyErr_SetObject will normalize the
+     * exception in order to chain it. ast_error_finish, however, requires the
+     * error not to be normalized.
+     */
+    save = PyThreadState_GET()->exc_value;
+    PyThreadState_GET()->exc_value = NULL;
     PyErr_SetObject(PyExc_SyntaxError, u);
+    PyThreadState_GET()->exc_value = save;
     Py_DECREF(u);
     return 0;
 }
@@ -3387,6 +3395,7 @@ parsestrplus(struct compiling *c, const node *n, int *bytesmode)
                 goto onError;
             if (*bytesmode != subbm) {
                 ast_error(n, "cannot mix bytes and nonbytes literals");
+                Py_DECREF(s);
                 goto onError;
             }
             if (PyBytes_Check(v) && PyBytes_Check(s)) {

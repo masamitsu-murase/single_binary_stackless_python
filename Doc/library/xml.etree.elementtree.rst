@@ -101,8 +101,9 @@ Functions
    and ``"end-ns"`` (the "ns" events are used to get detailed namespace
    information).  If *events* is omitted, only ``"end"`` events are reported.
    *parser* is an optional parser instance.  If not given, the standard
-   :class:`XMLParser` parser is used.  Returns an :term:`iterator` providing
-   ``(event, elem)`` pairs.
+   :class:`XMLParser` parser is used.  *parser* is not supported by
+   ``cElementTree``.  Returns an :term:`iterator` providing ``(event, elem)``
+   pairs.
 
    .. note::
 
@@ -468,16 +469,18 @@ ElementTree Objects
       root element.
 
 
-   .. method:: write(file, encoding="us-ascii", xml_declaration=None, method="xml")
+   .. method:: write(file, encoding="us-ascii", xml_declaration=None, \
+                     default_namespace=None, method="xml")
 
       Writes the element tree to a file, as XML.  *file* is a file name, or a
-      :term:`file object` opened for writing.  *encoding* [1]_ is the output encoding
-      (default is US-ASCII).  Use ``encoding="unicode"`` to write a Unicode string.
-      *xml_declaration* controls if an XML declaration
+      :term:`file object` opened for writing.  *encoding* [1]_ is the output
+      encoding (default is US-ASCII).  Use ``encoding="unicode"`` to write a
+      Unicode string.  *xml_declaration* controls if an XML declaration
       should be added to the file.  Use False for never, True for always, None
-      for only if not US-ASCII or UTF-8 or Unicode (default is None).  *method* is
-      either ``"xml"``, ``"html"`` or ``"text"`` (default is ``"xml"``).
-      Returns an (optionally) encoded string.
+      for only if not US-ASCII or UTF-8 or Unicode (default is None).
+      *default_namespace* sets the default XML namespace (for "xmlns").
+      *method* is either ``"xml"``, ``"html"`` or ``"text"`` (default is
+      ``"xml"``).  Returns an (optionally) encoded string.
 
 This is the XML file that is going to be manipulated::
 

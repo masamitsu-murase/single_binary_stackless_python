@@ -341,11 +341,15 @@ type_set_abstractmethods(PyTypeObject *type, PyObject *value, void *context)
        abc.ABCMeta.__new__, so this function doesn't do anything
        special to update subclasses.
     */
-    int res;
+    int abstract, res;
     if (value != NULL) {
+        abstract = PyObject_IsTrue(value);
+        if (abstract < 0)
+            return -1;
         res = PyDict_SetItemString(type->tp_dict, "__abstractmethods__", value);
     }
     else {
+        abstract = 0;
         res = PyDict_DelItemString(type->tp_dict, "__abstractmethods__");
         if (res && PyErr_ExceptionMatches(PyExc_KeyError)) {
             PyErr_SetString(PyExc_AttributeError, "__abstractmethods__");
@@ -354,12 +358,10 @@ type_set_abstractmethods(PyTypeObject *type, PyObject *value, void *context)
     }
     if (res == 0) {
         PyType_Modified(type);
-        if (value && PyObject_IsTrue(value)) {
+        if (abstract)
             type->tp_flags |= Py_TPFLAGS_IS_ABSTRACT;
-        }
-        else {
+        else
             type->tp_flags &= ~Py_TPFLAGS_IS_ABSTRACT;
-        }
     }
     return res;
 }
@@ -646,8 +648,10 @@ type_repr(PyTypeObject *type)
         mod = NULL;
     }
     name = type_name(type, NULL);
-    if (name == NULL)
+    if (name == NULL) {
+        Py_XDECREF(mod);
         return NULL;
+    }
 
     if (mod != NULL && PyUnicode_CompareWithASCIIString(mod, "builtins"))
         rtn = PyUnicode_FromFormat("<class '%U.%U'>", mod, name);
@@ -846,6 +850,7 @@ subtype_dealloc(PyObject *self)
 {
     PyTypeObject *type, *base;
     destructor basedealloc;
+    PyThreadState *tstate = PyThreadState_GET();
 
     /* Extract the type; we expect it to be a heap type */
     type = Py_TYPE(self);
@@ -895,8 +900,10 @@ subtype_dealloc(PyObject *self)
     /* See explanation at end of function for full disclosure */
     PyObject_GC_UnTrack(self);
     ++_PyTrash_delete_nesting;
+    ++ tstate->trash_delete_nesting;
     Py_TRASHCAN_SAFE_BEGIN(self);
     --_PyTrash_delete_nesting;
+    -- tstate->trash_delete_nesting;
     /* DO NOT restore GC tracking at this point.  weakref callbacks
      * (if any, and whether directly here or indirectly in something we
      * call) may trigger GC, and if self is tracked at that point, it
@@ -975,8 +982,10 @@ subtype_dealloc(PyObject *self)
 
   endlabel:
     ++_PyTrash_delete_nesting;
+    ++ tstate->trash_delete_nesting;
     Py_TRASHCAN_SAFE_END(self);
     --_PyTrash_delete_nesting;
+    -- tstate->trash_delete_nesting;
 
     /* Explanation of the weirdness around the trashcan macros:
 
@@ -2979,8 +2988,10 @@ object_repr(PyObject *self)
         mod = NULL;
     }
     name = type_name(type, NULL);
-    if (name == NULL)
+    if (name == NULL) {
+        Py_XDECREF(mod);
         return NULL;
+    }
     if (mod != NULL && PyUnicode_CompareWithASCIIString(mod, "builtins"))
         rtn = PyUnicode_FromFormat("<%U.%U object at %p>", mod, name, self);
     else
@@ -5943,7 +5954,7 @@ update_one_slot(PyTypeObject *type, slotdef *p)
         descr = _PyType_Lookup(type, p->name_strobj);
         if (descr == NULL) {
             if (ptr == (void**)&type->tp_iternext) {
-                specific = _PyObject_NextNotImplemented;
+                specific = (void *)_PyObject_NextNotImplemented;
             }
             continue;
         }
@@ -5990,7 +6001,7 @@ update_one_slot(PyTypeObject *type, slotdef *p)
             /* We specifically allow __hash__ to be set to None
                to prevent inheritance of the default
                implementation from object.__hash__ */
-            specific = PyObject_HashNotImplemented;
+            specific = (void *)PyObject_HashNotImplemented;
         }
         else {
             use_generic = 1;
@@ -6205,7 +6216,7 @@ add_operators(PyTypeObject *type)
             continue;
         if (PyDict_GetItem(dict, p->name_strobj))
             continue;
-        if (*ptr == PyObject_HashNotImplemented) {
+        if (*ptr == (void *)PyObject_HashNotImplemented) {
             /* Classes may prevent the inheritance of the tp_hash
                slot by storing PyObject_HashNotImplemented in it. Make it
                visible as a None value for the __hash__ attribute. */

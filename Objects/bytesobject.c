@@ -484,6 +484,10 @@ PyObject *PyBytes_DecodeEscape(const char *s,
                              errors);
                 goto failed;
             }
+            /* skip \x */
+            if (s < end && Py_ISXDIGIT(s[0]))
+                s++; /* and a hexdigit */
+            break;
         default:
             *p++ = '\\';
             s--;
@@ -873,7 +877,7 @@ bytes_hash(PyBytesObject *a)
 {
     register Py_ssize_t len;
     register unsigned char *p;
-    register Py_hash_t x;
+    register Py_uhash_t x;  /* Unsigned for defined overflow behavior. */
 
 #ifdef Py_DEBUG
     assert(_Py_HashSecret_Initialized);

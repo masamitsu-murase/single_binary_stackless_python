@@ -98,7 +98,7 @@ process and user.
 
 .. data:: environ
 
-   A mapping object representing the string environment. For example,
+   A :term:`mapping` object representing the string environment. For example,
    ``environ['HOME']`` is the pathname of your home directory (on some platforms),
    and is equivalent to ``getenv("HOME")`` in C.
 
@@ -138,7 +138,7 @@ process and user.
 
 .. data:: environb
 
-   Bytes version of :data:`environ`: a mapping object representing the
+   Bytes version of :data:`environ`: a :term:`mapping` object representing the
    environment as byte strings. :data:`environ` and :data:`environb` are
    synchronized (modify :data:`environb` updates :data:`environ`, and vice
    versa).
@@ -1183,18 +1183,21 @@ Files and Directories
       single: UNC paths; and os.makedirs()
 
    Recursive directory creation function.  Like :func:`mkdir`, but makes all
-   intermediate-level directories needed to contain the leaf directory.  If
-   the target directory with the same mode as specified already exists,
-   raises an :exc:`OSError` exception if *exist_ok* is False, otherwise no
-   exception is raised.  If the directory cannot be created in other cases,
-   raises an :exc:`OSError` exception.  The default *mode* is ``0o777`` (octal).
-   On some systems, *mode* is ignored.  Where it is used, the current umask
-   value is first masked out.
+   intermediate-level directories needed to contain the leaf directory.
+
+   The default *mode* is ``0o777`` (octal).  On some systems, *mode* is
+   ignored.  Where it is used, the current umask value is first masked out.
+
+   If *exists_ok* is ``False`` (the default), an :exc:`OSError` is raised if
+   the target directory already exists.  If *exists_ok* is ``True`` an
+   :exc:`OSError` is still raised if the umask-masked *mode* is different from
+   the existing mode, on systems where the mode is used.  :exc:`OSError` will
+   also be raised if the directory creation fails.
 
    .. note::
 
       :func:`makedirs` will become confused if the path elements to create
-      include :data:`pardir`.
+      include :data:`pardir` (eg. ".." on UNIX systems).
 
    This function handles UNC paths correctly.
 
@@ -2072,7 +2075,7 @@ written in Python, such as a mail server's external command delivery program.
    with :const:`P_NOWAIT` return suitable process handles.
 
 
-.. function:: wait3([options])
+.. function:: wait3(options)
 
    Similar to :func:`waitpid`, except no process id argument is given and a
    3-element tuple containing the child's process id, exit status indication, and

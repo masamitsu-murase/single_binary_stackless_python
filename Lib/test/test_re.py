@@ -1,4 +1,4 @@
-from test.support import verbose, run_unittest, gc_collect
+from test.support import verbose, run_unittest, gc_collect, bigmemtest, _2G
 import io
 import re
 from re import Scanner
@@ -6,6 +6,9 @@ import sys
 import string
 import traceback
 from weakref import proxy
+
+from test.test_bigmem import character_size
+
 
 # Misc tests from Tim Peters' re.doc
 
@@ -161,11 +164,31 @@ class ReTests(unittest.TestCase):
         self.assertEqual(re.sub('x*', '-', 'abxd'), '-a-b-d-')
         self.assertEqual(re.sub('x+', '-', 'abxd'), 'ab-d')
 
+    def test_symbolic_groups(self):
+        re.compile('(?P<a>x)(?P=a)(?(a)y)')
+        re.compile('(?P<a1>x)(?P=a1)(?(a1)y)')
+        self.assertRaises(re.error, re.compile, '(?P<a>)(?P<a>)')
+        self.assertRaises(re.error, re.compile, '(?Px)')
+        self.assertRaises(re.error, re.compile, '(?P=)')
+        self.assertRaises(re.error, re.compile, '(?P=1)')
+        self.assertRaises(re.error, re.compile, '(?P=a)')
+        self.assertRaises(re.error, re.compile, '(?P=a1)')
+        self.assertRaises(re.error, re.compile, '(?P=a.)')
+        self.assertRaises(re.error, re.compile, '(?P<)')
+        self.assertRaises(re.error, re.compile, '(?P<>)')
+        self.assertRaises(re.error, re.compile, '(?P<1>)')
+        self.assertRaises(re.error, re.compile, '(?P<a.>)')
+        self.assertRaises(re.error, re.compile, '(?())')
+        self.assertRaises(re.error, re.compile, '(?(a))')
+        self.assertRaises(re.error, re.compile, '(?(1a))')
+        self.assertRaises(re.error, re.compile, '(?(a.))')
+
     def test_symbolic_refs(self):
         self.assertRaises(re.error, re.sub, '(?P<a>x)', '\g<a', 'xx')
         self.assertRaises(re.error, re.sub, '(?P<a>x)', '\g<', 'xx')
         self.assertRaises(re.error, re.sub, '(?P<a>x)', '\g', 'xx')
         self.assertRaises(re.error, re.sub, '(?P<a>x)', '\g<a a>', 'xx')
+        self.assertRaises(re.error, re.sub, '(?P<a>x)', '\g<>', 'xx')
         self.assertRaises(re.error, re.sub, '(?P<a>x)', '\g<1a1>', 'xx')
         self.assertRaises(IndexError, re.sub, '(?P<a>x)', '\g<ab>', 'xx')
         self.assertRaises(re.error, re.sub, '(?P<a>x)|(?P<b>y)', '\g<b>', 'xx')
@@ -398,6 +421,12 @@ class ReTests(unittest.TestCase):
                                   "\u2222").group(1), "\u2222")
         self.assertEqual(re.match("([\u2222\u2223])",
                                   "\u2222", re.UNICODE).group(1), "\u2222")
+
+    def test_big_codesize(self):
+        # Issue #1160
+        r = re.compile('|'.join(('%d'%x for x in range(10000))))
+        self.assertIsNotNone(r.match('1000'))
+        self.assertIsNotNone(r.match('9999'))
 
     def test_anyall(self):
         self.assertEqual(re.match("a.b", "a\nb", re.DOTALL).group(0),
@@ -827,6 +856,32 @@ class ReTests(unittest.TestCase):
         self.assertIs(same_pattern, pattern)
         # Test behaviour when not given a string or pattern as parameter
         self.assertRaises(TypeError, re.compile, 0)
+
+    def test_bug_13899(self):
+        # Issue #13899: re pattern r"[\A]" should work like "A" but matches
+        # nothing. Ditto B and Z.
+        self.assertEqual(re.findall(r'[\A\B\b\C\Z]', 'AB\bCZ'),
+                         ['A', 'B', '\b', 'C', 'Z'])
+
+    @bigmemtest(size=_2G, memuse=character_size)
+    def test_large_search(self, size):
+        # Issue #10182: indices were 32-bit-truncated.
+        s = 'a' * size
+        m = re.search('$', s)
+        self.assertIsNotNone(m)
+        self.assertEqual(m.start(), size)
+        self.assertEqual(m.end(), size)
+
+    # The huge memuse is because of re.sub() using a list and a join()
+    # to create the replacement result.
+    @bigmemtest(size=_2G, memuse=16 + 2 * character_size)
+    def test_large_subn(self, size):
+        # Issue #10182: indices were 32-bit-truncated.
+        s = 'a' * size
+        r, n = re.subn('', '', s)
+        self.assertEqual(r, s)
+        self.assertEqual(n, size + 1)
+
 
 def run_re_tests():
     from test.re_tests import tests, SUCCEED, FAIL, SYNTAX_ERROR

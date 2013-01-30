@@ -103,12 +103,8 @@ class BasicSocketTests(unittest.TestCase):
             sys.stdout.write("\n RAND_status is %d (%s)\n"
                              % (v, (v and "sufficient randomness") or
                                 "insufficient randomness"))
-        try:
-            ssl.RAND_egd(1)
-        except TypeError:
-            pass
-        else:
-            print("didn't raise TypeError")
+        self.assertRaises(TypeError, ssl.RAND_egd, 1)
+        self.assertRaises(TypeError, ssl.RAND_egd, 'foo', 1)
         ssl.RAND_add("this is a random string", 75.0)
 
     def test_parse_cert(self):
@@ -559,6 +555,17 @@ class NetworkedTests(unittest.TestCase):
                 if rc == 0:
                     self.skipTest("svn.python.org responded too quickly")
                 self.assertIn(rc, (errno.EAGAIN, errno.EWOULDBLOCK))
+            finally:
+                s.close()
+
+    def test_connect_ex_error(self):
+        with support.transient_internet("svn.python.org"):
+            s = ssl.wrap_socket(socket.socket(socket.AF_INET),
+                                cert_reqs=ssl.CERT_REQUIRED,
+                                ca_certs=SVN_PYTHON_ORG_ROOT_CERT)
+            try:
+                self.assertEqual(errno.ECONNREFUSED,
+                                 s.connect_ex(("svn.python.org", 444)))
             finally:
                 s.close()
 
@@ -1613,6 +1620,42 @@ else:
                 finish = True
                 t.join()
                 server.close()
+
+        def test_server_accept(self):
+            # Issue #16357: accept() on a SSLSocket created through
+            # SSLContext.wrap_socket().
+            context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+            context.verify_mode = ssl.CERT_REQUIRED
+            context.load_verify_locations(CERTFILE)
+            context.load_cert_chain(CERTFILE)
+            server = socket.socket(socket.AF_INET)
+            host = "127.0.0.1"
+            port = support.bind_port(server)
+            server = context.wrap_socket(server, server_side=True)
+
+            evt = threading.Event()
+            remote = None
+            peer = None
+            def serve():
+                nonlocal remote, peer
+                server.listen(5)
+                # Block on the accept and wait on the connection to close.
+                evt.set()
+                remote, peer = server.accept()
+                remote.recv(1)
+
+            t = threading.Thread(target=serve)
+            t.start()
+            # Client wait until server setup and perform a connect.
+            evt.wait()
+            client = context.wrap_socket(socket.socket())
+            client.connect((host, port))
+            client_addr = client.getsockname()
+            client.close()
+            t.join()
+            # Sanity checks.
+            self.assertIsInstance(remote, ssl.SSLSocket)
+            self.assertEqual(peer, client_addr)
 
         def test_default_ciphers(self):
             context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)

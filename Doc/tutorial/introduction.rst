@@ -94,8 +94,7 @@ A value can be assigned to several variables simultaneously::
 Variables must be "defined" (assigned a value) before they can be used, or an
 error will occur::
 
-   >>> # try to access an undefined variable
-   ... n
+   >>> n  # try to access an undefined variable
    Traceback (most recent call last):
      File "<stdin>", line 1, in <module>
    NameError: name 'n' is not defined
@@ -413,7 +412,7 @@ The built-in function :func:`len` returns the length of a string::
 About Unicode
 -------------
 
-.. sectionauthor:: Marc-Andre Lemburg <mal@lemburg.com>
+.. sectionauthor:: Marc-André Lemburg <mal@lemburg.com>
 
 
 Starting with Python 3.0 all strings support Unicode (see

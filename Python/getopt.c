@@ -90,18 +90,18 @@ int _PyOS_GetOpt(int argc, wchar_t **argv, wchar_t *optstring)
         opt_ptr = &argv[_PyOS_optind++][1];
     }
 
-    if ( (option = *opt_ptr++) == L'\0')
+    if ((option = *opt_ptr++) == L'\0')
         return -1;
 
     if (option == 'J') {
-        fprintf(stderr, "-J is reserved for Jython\n");
+        if (_PyOS_opterr)
+            fprintf(stderr, "-J is reserved for Jython\n");
         return '_';
     }
 
     if ((ptr = wcschr(optstring, option)) == NULL) {
         if (_PyOS_opterr)
-          fprintf(stderr, "Unknown option: -%c\n", (char)option);
-
+            fprintf(stderr, "Unknown option: -%c\n", (char)option);
         return '_';
     }
 

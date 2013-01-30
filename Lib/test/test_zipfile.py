@@ -19,7 +19,8 @@ from tempfile import TemporaryFile
 from random import randint, random
 from unittest import skipUnless
 
-from test.support import TESTFN, run_unittest, findfile, unlink
+from test.support import (TESTFN, run_unittest, findfile, unlink,
+                            captured_stdout)
 
 TESTFN2 = TESTFN + "2"
 TESTFNDIR = TESTFN + "d"
@@ -735,6 +736,28 @@ class PyZipFileTests(unittest.TestCase):
             self.assertRaises(RuntimeError, zipfp.writepy, TESTFN)
             os.remove(TESTFN)
 
+    def test_write_pyfile_bad_syntax(self):
+        os.mkdir(TESTFN2)
+        try:
+            with open(os.path.join(TESTFN2, "mod1.py"), "w") as fp:
+                fp.write("Bad syntax in python file\n")
+
+            with TemporaryFile() as t, zipfile.PyZipFile(t, "w") as zipfp:
+                # syntax errors are printed to stdout
+                with captured_stdout() as s:
+                    zipfp.writepy(os.path.join(TESTFN2, "mod1.py"))
+
+                self.assertIn("SyntaxError", s.getvalue())
+
+                # as it will not have compiled the python file, it will
+                # include the .py file not .pyc or .pyo
+                names = zipfp.namelist()
+                self.assertIn('mod1.py', names)
+                self.assertNotIn('mod1.pyc', names)
+                self.assertNotIn('mod1.pyo', names)
+
+        finally:
+            shutil.rmtree(TESTFN2)
 
 class OtherTests(unittest.TestCase):
     zips_with_bad_crc = {
@@ -873,7 +896,7 @@ class OtherTests(unittest.TestCase):
         with zipfile.ZipFile(data, mode="w") as zipf:
             zipf.writestr("foo.txt", "O, for a Muse of Fire!")
 
-        # This is correct; calling .read on a closed ZipFile should throw
+        # This is correct; calling .read on a closed ZipFile should raise
         # a RuntimeError, and so should calling .testzip.  An earlier
         # version of .testzip would swallow this exception (and any other)
         # and report that the first file in the archive was corrupt.
@@ -921,6 +944,17 @@ class OtherTests(unittest.TestCase):
         """Check that bad compression methods passed to ZipFile.open are
         caught."""
         self.assertRaises(RuntimeError, zipfile.ZipFile, TESTFN, "w", -1)
+
+    def test_unsupported_compression(self):
+        # data is declared as shrunk, but actually deflated
+        data = (b'PK\x03\x04.\x00\x00\x00\x01\x00\xe4C\xa1@\x00\x00\x00'
+        b'\x00\x02\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00x\x03\x00PK\x01'
+        b'\x02.\x03.\x00\x00\x00\x01\x00\xe4C\xa1@\x00\x00\x00\x00\x02\x00\x00'
+        b'\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        b'\x80\x01\x00\x00\x00\x00xPK\x05\x06\x00\x00\x00\x00\x01\x00\x01\x00'
+        b'/\x00\x00\x00!\x00\x00\x00\x00\x00')
+        with zipfile.ZipFile(io.BytesIO(data), 'r') as zipf:
+            self.assertRaises(NotImplementedError, zipf.open, 'x')
 
     def test_null_byte_in_filename(self):
         """Check that a filename containing a null byte is properly

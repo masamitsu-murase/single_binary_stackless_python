@@ -401,14 +401,31 @@ teedataobject_traverse(teedataobject *tdo, visitproc visit, void * arg)
     return 0;
 }
 
+static void
+teedataobject_safe_decref(PyObject *obj)
+{
+    while (obj && Py_TYPE(obj) == &teedataobject_type &&
+           Py_REFCNT(obj) == 1) {
+        PyObject *nextlink = ((teedataobject *)obj)->nextlink;
+        ((teedataobject *)obj)->nextlink = NULL;
+        Py_DECREF(obj);
+        obj = nextlink;
+    }
+    Py_XDECREF(obj);
+}
+
 static int
 teedataobject_clear(teedataobject *tdo)
 {
     int i;
+    PyObject *tmp;
+
     Py_CLEAR(tdo->it);
     for (i=0 ; i<tdo->numread ; i++)
         Py_CLEAR(tdo->values[i]);
-    Py_CLEAR(tdo->nextlink);
+    tmp = tdo->nextlink;
+    tdo->nextlink = NULL;
+    teedataobject_safe_decref(tmp);
     return 0;
 }
 
@@ -475,6 +492,8 @@ tee_next(teeobject *to)
 
     if (to->index >= LINKCELLS) {
         link = teedataobject_jumplink(to->dataobj);
+        if (link == NULL)
+            return NULL;
         Py_DECREF(to->dataobj);
         to->dataobj = (teedataobject *)link;
         to->index = 0;
@@ -903,11 +922,13 @@ dropwhile_next(dropwhileobject *lz)
         }
         ok = PyObject_IsTrue(good);
         Py_DECREF(good);
-        if (!ok) {
+        if (ok == 0) {
             lz->start = 1;
             return item;
         }
         Py_DECREF(item);
+        if (ok < 0)
+            return NULL;
     }
 }
 
@@ -1043,10 +1064,11 @@ takewhile_next(takewhileobject *lz)
     }
     ok = PyObject_IsTrue(good);
     Py_DECREF(good);
-    if (ok)
+    if (ok > 0)
         return item;
     Py_DECREF(item);
-    lz->stop = 1;
+    if (ok == 0)
+        lz->stop = 1;
     return NULL;
 }
 
@@ -2645,17 +2667,17 @@ static PyObject *
 accumulate_next(accumulateobject *lz)
 {
     PyObject *val, *oldtotal, *newtotal;
-    
+
     val = PyIter_Next(lz->it);
     if (val == NULL)
         return NULL;
- 
+
     if (lz->total == NULL) {
         Py_INCREF(val);
         lz->total = val;
         return lz->total;
     }
-   
+
     newtotal = PyNumber_Add(lz->total, val);
     Py_DECREF(val);
     if (newtotal == NULL)
@@ -2664,7 +2686,7 @@ accumulate_next(accumulateobject *lz)
     oldtotal = lz->total;
     lz->total = newtotal;
     Py_DECREF(oldtotal);
-    
+
     Py_INCREF(newtotal);
     return newtotal;
 }
@@ -2959,9 +2981,11 @@ filterfalse_next(filterfalseobject *lz)
             ok = PyObject_IsTrue(good);
             Py_DECREF(good);
         }
-        if (!ok)
+        if (ok == 0)
             return item;
         Py_DECREF(item);
+        if (ok < 0)
+            return NULL;
     }
 }
 

@@ -121,6 +121,7 @@ For example::
             >>> c = Counter(a=4, b=2, c=0, d=-2)
             >>> d = Counter(a=1, b=2, c=3, d=4)
             >>> c.subtract(d)
+            >>> c
             Counter({'a': 3, 'b': 0, 'c': -3, 'd': -6})
 
       .. versionadded:: 3.2
@@ -878,7 +879,7 @@ are deleted.  But when new keys are added, the keys are appended
 to the end and the sort is not maintained.
 
 It is also straight-forward to create an ordered dictionary variant
-that the remembers the order the keys were *last* inserted.
+that remembers the order the keys were *last* inserted.
 If a new entry overwrites an existing entry, the
 original insertion position is changed and moved to the end::
 
@@ -1056,7 +1057,7 @@ ABC                        Inherits from          Abstract Methods        Mixin 
 
 .. class:: Iterator
 
-   ABC for classes that provide the :meth:`__iter__` and :meth:`next` methods.
+   ABC for classes that provide the :meth:`__iter__` and :meth:`__next__` methods.
    See also the definition of :term:`iterator`.
 
 .. class:: Sequence

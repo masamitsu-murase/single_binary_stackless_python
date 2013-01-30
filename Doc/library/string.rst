@@ -91,8 +91,8 @@ implementation as the built-in :meth:`format` method.
 
    .. method:: format(format_string, *args, **kwargs)
 
-      :meth:`format` is the primary API method.  It takes a format template
-      string, and an arbitrary set of positional and keyword argument.
+      :meth:`format` is the primary API method.  It takes a format string and
+      an arbitrary set of positional and keyword arguments.
       :meth:`format` is just a wrapper that calls :meth:`vformat`.
 
    .. method:: vformat(format_string, args, kwargs)
@@ -100,9 +100,9 @@ implementation as the built-in :meth:`format` method.
       This function does the actual work of formatting.  It is exposed as a
       separate function for cases where you want to pass in a predefined
       dictionary of arguments, rather than unpacking and repacking the
-      dictionary as individual arguments using the ``*args`` and ``**kwds``
-      syntax.  :meth:`vformat` does the work of breaking up the format template
-      string into character data and replacement fields.  It calls the various
+      dictionary as individual arguments using the ``*args`` and ``**kwargs``
+      syntax.  :meth:`vformat` does the work of breaking up the format string
+      into character data and replacement fields.  It calls the various
       methods described below.
 
    In addition, the :class:`Formatter` defines a number of methods that are
@@ -173,7 +173,8 @@ implementation as the built-in :meth:`format` method.
 
       Converts the value (returned by :meth:`get_field`) given a conversion type
       (as in the tuple returned by the :meth:`parse` method).  The default
-      version understands 'r' (repr) and 's' (str) conversion types.
+      version understands 's' (str), 'r' (repr) and 'a' (ascii) conversion
+      types.
 
 
 .. _formatstrings:
@@ -368,9 +369,9 @@ instead.
 *width* is a decimal integer defining the minimum field width.  If not
 specified, then the field width will be determined by the content.
 
-If the *width* field is preceded by a zero (``'0'``) character, this enables
-zero-padding.  This is equivalent to an *alignment* type of ``'='`` and a *fill*
-character of ``'0'``.
+Preceding the *width* field by a zero (``'0'``) character enables
+sign-aware zero-padding for numeric types.  This is equivalent to a *fill*
+character of ``'0'`` with an *alignment* type of ``'='``.
 
 The *precision* is a decimal number indicating how many digits should be
 displayed after the decimal point for a floating point value formatted with
@@ -609,7 +610,7 @@ Nesting arguments and more complex examples::
    3232235521
    >>>
    >>> width = 5
-   >>> for num in range(5,12):
+   >>> for num in range(5,12): #doctest: +NORMALIZE_WHITESPACE
    ...     for base in 'dXob':
    ...         print('{0:{width}{base}}'.format(num, base=base, width=width), end=' ')
    ...     print()
@@ -697,7 +698,7 @@ Here is an example of how to use a Template:
    >>> Template('Give $who $100').substitute(d)
    Traceback (most recent call last):
    [...]
-   ValueError: Invalid placeholder in string: line 1, col 10
+   ValueError: Invalid placeholder in string: line 1, col 11
    >>> Template('$who likes $what').substitute(d)
    Traceback (most recent call last):
    [...]

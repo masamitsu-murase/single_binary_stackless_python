@@ -181,7 +181,7 @@ We can obtain the same result with::
 
    squares = [x**2 for x in range(10)]
 
-This is also equivalent to ``squares = map(lambda x: x**2, range(10))``,
+This is also equivalent to ``squares = list(map(lambda x: x**2, range(10)))``,
 but it's more concise and readable.
 
 A list comprehension consists of brackets containing an expression followed
@@ -292,7 +292,7 @@ which, in turn, is the same as::
 In the real world, you should prefer built-in functions to complex flow statements.
 The :func:`zip` function would do a great job for this use case::
 
-   >>> zip(*matrix)
+   >>> list(zip(*matrix))
    [(1, 5, 9), (2, 6, 10), (3, 7, 11), (4, 8, 12)]
 
 See :ref:`tut-unpacking-arguments` for details on the asterisk in this line.
@@ -413,7 +413,7 @@ with no duplicate elements.  Basic uses include membership testing and
 eliminating duplicate entries.  Set objects also support mathematical operations
 like union, intersection, difference, and symmetric difference.
 
-Curly braces or the :func:`set` function can be used to create sets.  Note: To
+Curly braces or the :func:`set` function can be used to create sets.  Note: to
 create an empty set you have to use ``set()``, not ``{}``; the latter creates an
 empty dictionary, a data structure that we discuss in the next section.
 
@@ -442,12 +442,12 @@ Here is a brief demonstration::
    >>> a ^ b                              # letters in a or b but not both
    {'r', 'd', 'b', 'm', 'z', 'l'}
 
-Like :ref:`for lists <tut-listcomps>`, there is a set comprehension syntax::
+Similarly to :ref:`list comprehensions <tut-listcomps>`, set comprehensions
+are also supported::
 
    >>> a = {x for x in 'abracadabra' if x not in 'abc'}
    >>> a
    {'r', 'd'}
-
 
 
 .. _tut-dictionaries:
@@ -583,6 +583,19 @@ returns a new sorted list while leaving the source unaltered. ::
    banana
    orange
    pear
+
+To change a sequence you are iterating over while inside the loop (for
+example to duplicate certain items), it is recommended that you first make
+a copy.  Looping over a sequence does not implicitly make a copy.  The slice
+notation makes this especially convenient::
+
+   >>> words = ['cat', 'window', 'defenestrate']
+   >>> for w in words[:]:  # Loop over a slice copy of the entire list.
+   ...     if len(w) > 6:
+   ...         words.insert(0, w)
+   ...
+   >>> words
+   ['defenestrate', 'cat', 'window', 'defenestrate']
 
 
 .. _tut-conditions:

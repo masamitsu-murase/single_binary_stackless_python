@@ -135,7 +135,8 @@ range_new(PyTypeObject *type, PyObject *args, PyObject *kw)
 }
 
 PyDoc_STRVAR(range_doc,
-"range([start,] stop[, step]) -> range object\n\
+"range(stop) -> range object\n\
+range(start, stop[, step]) -> range object\n\
 \n\
 Returns a virtual sequence of numbers from start to stop by step.");
 
@@ -329,11 +330,11 @@ compute_slice_element(PyObject *obj)
         if (PyIndex_Check(obj)) {
             result = PyNumber_Index(obj);
         }
-    }
-    if (result == NULL) {
-        PyErr_SetString(PyExc_TypeError,
-                        "slice indices must be integers or "
-                        "None or have an __index__ method");
+        else {
+            PyErr_SetString(PyExc_TypeError,
+                            "slice indices must be integers or "
+                            "None or have an __index__ method");
+        }
     }
     return result;
 }

@@ -130,9 +130,12 @@ command-line arguments from :data:`sys.argv`.
 ArgumentParser objects
 ----------------------
 
-.. class:: ArgumentParser([description], [epilog], [prog], [usage], [add_help], \
-                          [argument_default], [parents], [prefix_chars], \
-                          [conflict_handler], [formatter_class])
+.. class:: ArgumentParser(prog=None, usage=None, description=None, \
+                          epilog=None, parents=[], \
+                          formatter_class=argparse.HelpFormatter, \
+                          prefix_chars='-', fromfile_prefix_chars=None, \
+                          argument_default=None, conflict_handler='error', \
+                          add_help=True)
 
    Create a new :class:`ArgumentParser` object.  Each parameter has its own more
    detailed description below, but in short they are:
@@ -747,7 +750,7 @@ the Action API.  The easiest way to do this is to extend
 
 * ``values`` - The associated command-line arguments, with any type conversions
   applied.  (Type conversions are specified with the type_ keyword argument to
-  :meth:`~ArgumentParser.add_argument`.
+  :meth:`~ArgumentParser.add_argument`.)
 
 * ``option_string`` - The option string that was used to invoke this action.
   The ``option_string`` argument is optional, and will be absent if the action
@@ -901,6 +904,17 @@ was not present at the command line::
    >>> parser.parse_args(''.split())
    Namespace(foo=42)
 
+If the ``default`` value is a string, the parser parses the value as if it
+were a command-line argument.  In particular, the parser applies any type_
+conversion argument, if provided, before setting the attribute on the
+:class:`Namespace` return value.  Otherwise, the parser uses the value as is::
+
+   >>> parser = argparse.ArgumentParser()
+   >>> parser.add_argument('--length', default='10', type=int)
+   >>> parser.add_argument('--width', default=10.5, type=int)
+   >>> parser.parse_args()
+   Namespace(length=10, width=10.5)
+
 For positional arguments with nargs_ equal to ``?`` or ``*``, the ``default`` value
 is used when no command-line argument was present::
 
@@ -938,6 +952,9 @@ types and functions can be used directly as the value of the ``type`` argument::
    >>> parser.add_argument('bar', type=open)
    >>> parser.parse_args('2 temp.txt'.split())
    Namespace(bar=<_io.TextIOWrapper name='temp.txt' encoding='UTF-8'>, foo=2)
+
+See the section on the default_ keyword argument for information on when the
+``type`` argument is applied to default arguments.
 
 To ease the use of various types of files, the argparse module provides the
 factory FileType which takes the ``mode=`` and ``bufsize=`` arguments of the
@@ -986,32 +1003,33 @@ choices
 ^^^^^^^
 
 Some command-line arguments should be selected from a restricted set of values.
-These can be handled by passing a container object as the ``choices`` keyword
+These can be handled by passing a container object as the *choices* keyword
 argument to :meth:`~ArgumentParser.add_argument`.  When the command line is
-parsed, argument values will be checked, and an error message will be displayed if
-the argument was not one of the acceptable values::
+parsed, argument values will be checked, and an error message will be displayed
+if the argument was not one of the acceptable values::
 
-   >>> parser = argparse.ArgumentParser(prog='PROG')
-   >>> parser.add_argument('foo', choices='abc')
-   >>> parser.parse_args('c'.split())
-   Namespace(foo='c')
-   >>> parser.parse_args('X'.split())
-   usage: PROG [-h] {a,b,c}
-   PROG: error: argument foo: invalid choice: 'X' (choose from 'a', 'b', 'c')
+   >>> parser = argparse.ArgumentParser(prog='game.py')
+   >>> parser.add_argument('move', choices=['rock', 'paper', 'scissors'])
+   >>> parser.parse_args(['rock'])
+   Namespace(move='rock')
+   >>> parser.parse_args(['fire'])
+   usage: game.py [-h] {rock,paper,scissors}
+   game.py: error: argument move: invalid choice: 'fire' (choose from 'rock',
+   'paper', 'scissors')
 
-Note that inclusion in the ``choices`` container is checked after any type_
-conversions have been performed, so the type of the objects in the ``choices``
+Note that inclusion in the *choices* container is checked after any type_
+conversions have been performed, so the type of the objects in the *choices*
 container should match the type_ specified::
 
-   >>> parser = argparse.ArgumentParser(prog='PROG')
-   >>> parser.add_argument('foo', type=complex, choices=[1, 1j])
-   >>> parser.parse_args('1j'.split())
-   Namespace(foo=1j)
-   >>> parser.parse_args('-- -4'.split())
-   usage: PROG [-h] {1,1j}
-   PROG: error: argument foo: invalid choice: (-4+0j) (choose from 1, 1j)
+   >>> parser = argparse.ArgumentParser(prog='doors.py')
+   >>> parser.add_argument('door', type=int, choices=range(1, 4))
+   >>> print(parser.parse_args(['3']))
+   Namespace(door=3)
+   >>> parser.parse_args(['4'])
+   usage: doors.py [-h] {1,2,3}
+   doors.py: error: argument door: invalid choice: 4 (choose from 1, 2, 3)
 
-Any object that supports the ``in`` operator can be passed as the ``choices``
+Any object that supports the ``in`` operator can be passed as the *choices*
 value, so :class:`dict` objects, :class:`set` objects, custom containers,
 etc. are all supported.
 
@@ -1100,7 +1118,7 @@ setting the ``help`` value to ``argparse.SUPPRESS``::
 metavar
 ^^^^^^^
 
-When :class:`ArgumentParser` generates help messages, it need some way to refer
+When :class:`ArgumentParser` generates help messages, it needs some way to refer
 to each expected argument.  By default, ArgumentParser objects use the dest_
 value as the "name" of each object.  By default, for positional argument
 actions, the dest_ value is used directly, and for optional argument actions,
@@ -1423,7 +1441,7 @@ Sub-commands
    different functions which require different kinds of command-line arguments.
    :class:`ArgumentParser` supports the creation of such sub-commands with the
    :meth:`add_subparsers` method.  The :meth:`add_subparsers` method is normally
-   called with no arguments and returns an special action object.  This object
+   called with no arguments and returns a special action object.  This object
    has a single method, :meth:`~ArgumentParser.add_parser`, which takes a
    command name and any :class:`ArgumentParser` constructor arguments, and
    returns an :class:`ArgumentParser` object that can be modified as usual.
@@ -1469,8 +1487,8 @@ Sub-commands
 
      positional arguments:
        {a,b}   sub-command help
-     a     a help
-     b     b help
+         a     a help
+         b     b help
 
      optional arguments:
        -h, --help  show this help message and exit

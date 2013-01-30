@@ -33,7 +33,7 @@ Verbosity
 
 Selecting tests
 
--r/--random     -- randomize test execution order (see below)
+-r/--randomize  -- randomize test execution order (see below)
    --randseed   -- pass a random seed to reproduce a previous random run
 -f/--fromfile   -- read names of tests to run from a file (see below)
 -x/--exclude    -- arguments are tests to *exclude*
@@ -274,11 +274,11 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
     try:
         opts, args = getopt.getopt(sys.argv[1:], 'hvqxsoS:rf:lu:t:TD:NLR:FdwWM:nj:Gm:',
             ['help', 'verbose', 'verbose2', 'verbose3', 'quiet',
-             'exclude', 'single', 'slow', 'random', 'fromfile', 'findleaks',
+             'exclude', 'single', 'slow', 'randomize', 'fromfile=', 'findleaks',
              'use=', 'threshold=', 'coverdir=', 'nocoverdir',
              'runleaks', 'huntrleaks=', 'memlimit=', 'randseed=',
              'multiprocess=', 'coverage', 'slaveargs=', 'forever', 'debug',
-             'start=', 'nowindows', 'header', 'failfast', 'match'])
+             'start=', 'nowindows', 'header', 'failfast', 'match='])
     except getopt.error as msg:
         usage(msg)
 
@@ -489,10 +489,10 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
             next_single_test = alltests[alltests.index(selected[0])+1]
         except IndexError:
             next_single_test = None
-    # Remove all the tests that precede start if it's set.
+    # Remove all the selected tests that precede start if it's set.
     if start:
         try:
-            del tests[:tests.index(start)]
+            del selected[:selected.index(start)]
         except ValueError:
             print("Couldn't find starting test (%s), using all tests" % start)
     if randomize:
@@ -550,16 +550,7 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
         from subprocess import Popen, PIPE
         debug_output_pat = re.compile(r"\[\d+ refs\]$")
         output = Queue()
-        def tests_and_args():
-            for test in tests:
-                args_tuple = (
-                    (test, verbose, quiet),
-                    dict(huntrleaks=huntrleaks, use_resources=use_resources,
-                         debug=debug, output_on_failure=verbose3,
-                         failfast=failfast, match_tests=match_tests)
-                )
-                yield (test, args_tuple)
-        pending = tests_and_args()
+        pending = MultiprocessTests(tests)
         opt_args = support.args_from_interpreter_flags()
         base_cmd = [sys.executable] + opt_args + ['-m', 'test.regrtest']
         def work():
@@ -567,10 +558,16 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
             try:
                 while True:
                     try:
-                        test, args_tuple = next(pending)
+                        test = next(pending)
                     except StopIteration:
                         output.put((None, None, None, None))
                         return
+                    args_tuple = (
+                        (test, verbose, quiet),
+                        dict(huntrleaks=huntrleaks, use_resources=use_resources,
+                             debug=debug, output_on_failure=verbose3,
+                             failfast=failfast, match_tests=match_tests)
+                    )
                     # -E is needed by some tests, e.g. test_import
                     # Running the child from the same working directory ensures
                     # that TEMPDIR for the child is the same when
@@ -622,7 +619,7 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
                 test_index += 1
         except KeyboardInterrupt:
             interrupted = True
-            pending.close()
+            pending.interrupted = True
         for worker in workers:
             worker.join()
     else:
@@ -765,6 +762,25 @@ def findtests(testdir=None, stdtests=STDTESTS, nottests=NOTTESTS):
         if modname[:5] == "test_" and ext == ".py" and modname not in others:
             tests.append(modname)
     return stdtests + sorted(tests)
+
+# We do not use a generator so multiple threads can call next().
+class MultiprocessTests(object):
+
+    """A thread-safe iterator over tests for multiprocess mode."""
+
+    def __init__(self, tests):
+        self.interrupted = False
+        self.lock = threading.Lock()
+        self.tests = tests
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        with self.lock:
+            if self.interrupted:
+                raise StopIteration('tests interrupted')
+            return next(self.tests)
 
 def replace_stdout():
     """Set stdout encoder error handler to backslashreplace (as stderr error

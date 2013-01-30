@@ -99,9 +99,10 @@ need to derive from a specific class.
 
    The script :file:`Tools/unittestgui/unittestgui.py` in the Python source distribution is
    a GUI tool for test discovery and execution.  This is intended largely for ease of use
-   for those new to unit testing.  For production environments it is recommended that
-   tests be driven by a continuous integration system such as `Hudson <http://hudson-ci.org/>`_
-   or `Buildbot <http://buildbot.net/trac>`_.
+   for those new to unit testing.  For production environments it is
+   recommended that tests be driven by a continuous integration system such as
+   `Buildbot <http://buildbot.net/trac>`_, `Jenkins <http://jenkins-ci.org>`_
+   or  `Hudson <http://hudson-ci.org/>`_.
 
 
 .. _unittest-minimal-example:
@@ -1271,7 +1272,7 @@ Test cases
    .. method:: assertListEqual(first, second, msg=None)
                assertTupleEqual(first, second, msg=None)
 
-      Tests that two lists or tuples are equal.  If not an error message is
+      Tests that two lists or tuples are equal.  If not, an error message is
       constructed that shows only the differences between the two.  An error
       is also raised if either of the parameters are of the wrong type.
       These methods are used by default when comparing lists or tuples with

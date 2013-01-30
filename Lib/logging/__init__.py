@@ -711,7 +711,8 @@ def _removeHandlerRef(wr):
     # This function can be called during module teardown, when globals are
     # set to None. If _acquireLock is None, assume this is the case and do
     # nothing.
-    if _acquireLock is not None:
+    if (_acquireLock is not None and _handlerList is not None and
+        _releaseLock is not None):
         _acquireLock()
         try:
             if wr in _handlerList:
@@ -1355,7 +1356,7 @@ class Logger(Filterer):
         """
         sinfo = None
         if _srcfile:
-            #IronPython doesn't track Python frames, so findCaller throws an
+            #IronPython doesn't track Python frames, so findCaller raises an
             #exception on some versions of IronPython. We trap it here so that
             #IronPython can use logging.
             try:
@@ -1674,22 +1675,25 @@ def basicConfig(**kwargs):
     _acquireLock()
     try:
         if len(root.handlers) == 0:
-            filename = kwargs.get("filename")
+            filename = kwargs.pop("filename", None)
             if filename:
-                mode = kwargs.get("filemode", 'a')
+                mode = kwargs.pop("filemode", 'a')
                 hdlr = FileHandler(filename, mode)
             else:
-                stream = kwargs.get("stream")
+                stream = kwargs.pop("stream", None)
                 hdlr = StreamHandler(stream)
-            fs = kwargs.get("format", BASIC_FORMAT)
-            dfs = kwargs.get("datefmt", None)
-            style = kwargs.get("style", '%')
+            fs = kwargs.pop("format", BASIC_FORMAT)
+            dfs = kwargs.pop("datefmt", None)
+            style = kwargs.pop("style", '%')
             fmt = Formatter(fs, dfs, style)
             hdlr.setFormatter(fmt)
             root.addHandler(hdlr)
-            level = kwargs.get("level")
+            level = kwargs.pop("level", None)
             if level is not None:
                 root.setLevel(level)
+            if kwargs:
+                s = ', '.join(kwargs.keys())
+                raise ValueError('Unexpected in keyword arguments: %s' % s)
     finally:
         _releaseLock()
 

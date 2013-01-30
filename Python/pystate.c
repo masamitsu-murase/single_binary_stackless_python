@@ -218,8 +218,12 @@ new_threadstate(PyInterpreterState *interp, int init)
         tstate->c_tracefunc = NULL;
         tstate->c_profileobj = NULL;
         tstate->c_traceobj = NULL;
+
+        tstate->trash_delete_nesting = 0;
+        tstate->trash_delete_later = NULL;
+
 #ifdef STACKLESS
-		STACKLESS_PYSTATE_NEW;
+        STACKLESS_PYSTATE_NEW;
 #endif
 
         if (init)
@@ -264,7 +268,7 @@ PyState_FindModule(struct PyModuleDef* m)
         return NULL;
     if (state->modules_by_index == NULL)
         return NULL;
-    if (index > PyList_GET_SIZE(state->modules_by_index))
+    if (index >= PyList_GET_SIZE(state->modules_by_index))
         return NULL;
     res = PyList_GET_ITEM(state->modules_by_index, index);
     return res==Py_None ? NULL : res;

@@ -775,9 +775,9 @@ specific sequence types, dictionaries, and other more specialized forms.  The
 specific types are not important beyond their implementation of the iterator
 protocol.
 
-Once an iterator's :meth:`__next__` method raises :exc:`StopIteration`, it must
-continue to do so on subsequent calls.  Implementations that do not obey this
-property are deemed broken.
+Once an iterator's :meth:`~iterator.__next__` method raises
+:exc:`StopIteration`, it must continue to do so on subsequent calls.
+Implementations that do not obey this property are deemed broken.
 
 
 .. _generator-types:
@@ -788,10 +788,14 @@ Generator Types
 Python's :term:`generator`\s provide a convenient way to implement the iterator
 protocol.  If a container object's :meth:`__iter__` method is implemented as a
 generator, it will automatically return an iterator object (technically, a
-generator object) supplying the :meth:`__iter__` and :meth:`__next__` methods.
+generator object) supplying the :meth:`__iter__` and :meth:`~generator.__next__`
+methods.
 More information about generators can be found in :ref:`the documentation for
 the yield expression <yieldexpr>`.
 
+
+.. index::
+   single: string; sequence types
 
 .. _typesseq:
 
@@ -803,17 +807,20 @@ byte arrays (:class:`bytearray` objects), lists, tuples, and range objects.  For
 other containers see the built in :class:`dict` and :class:`set` classes, and
 the :mod:`collections` module.
 
-
 .. index::
    object: sequence
-   object: string
    object: bytes
    object: bytearray
    object: tuple
    object: list
    object: range
+   object: string
+   single: string
+   single: str() (built-in function); (see also string)
 
-Strings contain Unicode characters.  Their literals are written in single or
+Textual data in Python is handled with :class:`str` objects, or :dfn:`strings`.
+Strings are immutable :ref:`sequences <typesseq>` of Unicode code points.
+String literals are written in single or
 double quotes: ``'xyzzy'``, ``"frobozz"``.  See :ref:`strings` for more about
 string literals.  In addition to the functionality described here, there are
 also string-specific methods described in the :ref:`string-methods` section.
@@ -1325,17 +1332,23 @@ functions based on regular expressions.
    ``'  1  2   3  '.split(None, 1)`` returns ``['1', '2   3  ']``.
 
 
+.. index::
+   single: universal newlines; str.splitlines method
+
 .. method:: str.splitlines([keepends])
 
-   Return a list of the lines in the string, breaking at line boundaries.  Line
-   breaks are not included in the resulting list unless *keepends* is given and
-   true. This method uses the universal newlines approach to splitting lines.
-   Unlike :meth:`~str.split`, if the string ends with line boundary characters
-   the returned list does ``not`` have an empty last element.
+   Return a list of the lines in the string, breaking at line boundaries.
+   This method uses the :term:`universal newlines` approach to splitting lines.
+   Line breaks are not included in the resulting list unless *keepends* is
+   given and true.
 
    For example, ``'ab c\n\nde fg\rkl\r\n'.splitlines()`` returns
    ``['ab c', '', 'de fg', 'kl']``, while the same call with ``splitlines(True)``
-   returns ``['ab c\n', '\n, 'de fg\r', 'kl\r\n']``.
+   returns ``['ab c\n', '\n', 'de fg\r', 'kl\r\n']``.
+
+   Unlike :meth:`~str.split` when a delimiter string *sep* is given, this
+   method returns an empty list for the empty string, and a terminal line
+   break does not result in an extra line.
 
 
 .. method:: str.startswith(prefix[, start[, end]])
@@ -1383,11 +1396,11 @@ functions based on regular expressions.
 
         >>> import re
         >>> def titlecase(s):
-                return re.sub(r"[A-Za-z]+('[A-Za-z]+)?",
-                              lambda mo: mo.group(0)[0].upper() +
-                                         mo.group(0)[1:].lower(),
-                              s)
-
+        ...     return re.sub(r"[A-Za-z]+('[A-Za-z]+)?",
+        ...                   lambda mo: mo.group(0)[0].upper() +
+        ...                              mo.group(0)[1:].lower(),
+        ...                   s)
+        ...
         >>> titlecase("they're bill's friends.")
         "They're Bill's Friends."
 
@@ -1947,7 +1960,7 @@ The constructors for both classes work the same:
 
    .. method:: set < other
 
-      Test whether the set is a true subset of *other*, that is,
+      Test whether the set is a proper subset of *other*, that is,
       ``set <= other and set != other``.
 
    .. method:: issuperset(other)
@@ -1957,7 +1970,7 @@ The constructors for both classes work the same:
 
    .. method:: set > other
 
-      Test whether the set is a true superset of *other*, that is, ``set >=
+      Test whether the set is a proper superset of *other*, that is, ``set >=
       other and set != other``.
 
    .. method:: union(other, ...)
@@ -2088,7 +2101,7 @@ Mapping Types --- :class:`dict`
    statement: del
    builtin: len
 
-A :dfn:`mapping` object maps :term:`hashable` values to arbitrary objects.
+A :term:`mapping` object maps :term:`hashable` values to arbitrary objects.
 Mappings are mutable objects.  There is currently only one standard mapping
 type, the :dfn:`dictionary`.  (For other containers see the built in
 :class:`list`, :class:`set`, and :class:`tuple` classes, and the
@@ -2107,33 +2120,41 @@ Dictionaries can be created by placing a comma-separated list of ``key: value``
 pairs within braces, for example: ``{'jack': 4098, 'sjoerd': 4127}`` or ``{4098:
 'jack', 4127: 'sjoerd'}``, or by the :class:`dict` constructor.
 
-.. class:: dict([arg])
+.. class:: dict(**kwarg)
+           dict(mapping, **kwarg)
+           dict(iterable, **kwarg)
 
-   Return a new dictionary initialized from an optional positional argument or
-   from a set of keyword arguments.  If no arguments are given, return a new
-   empty dictionary.  If the positional argument *arg* is a mapping object,
-   return a dictionary mapping the same keys to the same values as does the
-   mapping object.  Otherwise the positional argument must be a sequence, a
-   container that supports iteration, or an iterator object.  The elements of
-   the argument must each also be of one of those kinds, and each must in turn
-   contain exactly two objects.  The first is used as a key in the new
-   dictionary, and the second as the key's value.  If a given key is seen more
-   than once, the last value associated with it is retained in the new
+   Return a new dictionary initialized from an optional positional argument
+   and a possibly empty set of keyword arguments.
+
+   If no positional argument is given, an empty dictionary is created.
+   If a positional argument is given and it is a mapping object, a dictionary
+   is created with the same key-value pairs as the mapping object.  Otherwise,
+   the positional argument must be an :term:`iterator` object.  Each item in
+   the iterable must itself be an iterator with exactly two objects.  The
+   first object of each item becomes a key in the new dictionary, and the
+   second object the corresponding value.  If a key occurs more than once, the
+   last value for that key becomes the corresponding value in the new
    dictionary.
 
-   If keyword arguments are given, the keywords themselves with their associated
-   values are added as items to the dictionary.  If a key is specified both in
-   the positional argument and as a keyword argument, the value associated with
-   the keyword is retained in the dictionary.  For example, these all return a
-   dictionary equal to ``{"one": 1, "two": 2}``:
+   If keyword arguments are given, the keyword arguments and their values are
+   added to the dictionary created from the positional argument.  If a key
+   being added is already present, the value from the keyword argument
+   replaces the value from the positional argument.
 
-   * ``dict(one=1, two=2)``
-   * ``dict({'one': 1, 'two': 2})``
-   * ``dict(zip(('one', 'two'), (1, 2)))``
-   * ``dict([['two', 2], ['one', 1]])``
+   To illustrate, the following examples all return a dictionary equal to
+   ``{"one": 1, "two": 2, "three": 3}``::
 
-   The first example only works for keys that are valid Python identifiers; the
-   others work with any valid keys.
+      >>> a = dict(one=1, two=2, three=3)
+      >>> b = {'one': 1, 'two': 2, 'three': 3}
+      >>> c = dict(zip(['one', 'two', 'three'], [1, 2, 3]))
+      >>> d = dict([('two', 2), ('one', 1), ('three', 3)])
+      >>> e = dict({'three': 3, 'one': 1, 'two': 2})
+      >>> a == b == c == d == e
+      True
+
+   Providing keyword arguments as in the first example only works for keys that
+   are valid Python identifiers.  Otherwise, any valid keys can be used.
 
 
    These are the operations that dictionaries support (and therefore, custom
@@ -2644,16 +2665,22 @@ arg-n)``.
 Like function objects, bound method objects support getting arbitrary
 attributes.  However, since method attributes are actually stored on the
 underlying function object (``meth.__func__``), setting method attributes on
-bound methods is disallowed.  Attempting to set a method attribute results in a
-:exc:`TypeError` being raised.  In order to set a method attribute, you need to
-explicitly set it on the underlying function object::
+bound methods is disallowed.  Attempting to set an attribute on a method
+results in an :exc:`AttributeError` being raised.  In order to set a method
+attribute, you need to explicitly set it on the underlying function object::
 
-   class C:
-       def method(self):
-           pass
-
-   c = C()
-   c.method.__func__.whoami = 'my name is c'
+   >>> class C:
+   ...     def method(self):
+   ...         pass
+   ...
+   >>> c = C()
+   >>> c.method.whoami = 'my name is method'  # can't set on the method
+   Traceback (most recent call last):
+     File "<stdin>", line 1, in <module>
+   AttributeError: 'method' object has no attribute 'whoami'
+   >>> c.method.__func__.whoami = 'my name is method'
+   >>> c.method.whoami
+   'my name is method'
 
 See :ref:`types` for more information.
 

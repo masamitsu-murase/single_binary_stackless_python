@@ -349,7 +349,7 @@ static int win32_can_symlink = 0;
 
 #if defined _MSC_VER && _MSC_VER >= 1400
 /* Microsoft CRT in VS2005 and higher will verify that a filehandle is
- * valid and throw an assertion if it isn't.
+ * valid and raise an assertion if it isn't.
  * Normally, an invalid fd is likely to be a C program error and therefore
  * an assertion can be useful, but it does contradict the POSIX standard
  * which for write(2) states:
@@ -501,9 +501,10 @@ win32_get_reparse_tag(HANDLE reparse_point_handle, ULONG *reparse_tag)
 #endif /* MS_WINDOWS */
 
 /* Return a dictionary corresponding to the POSIX environment table */
-#ifdef WITH_NEXT_FRAMEWORK
+#if defined(WITH_NEXT_FRAMEWORK) || (defined(__APPLE__) && defined(Py_ENABLE_SHARED))
 /* On Darwin/MacOSX a shared library or framework has no access to
-** environ directly, we must obtain it with _NSGetEnviron().
+** environ directly, we must obtain it with _NSGetEnviron(). See also
+** man environ(7).
 */
 #include <crt_externs.h>
 static char **environ;
@@ -528,7 +529,7 @@ convertenviron(void)
     d = PyDict_New();
     if (d == NULL)
         return NULL;
-#ifdef WITH_NEXT_FRAMEWORK
+#if defined(WITH_NEXT_FRAMEWORK) || (defined(__APPLE__) && defined(Py_ENABLE_SHARED))
     if (environ == NULL)
         environ = *_NSGetEnviron();
 #endif
@@ -6463,18 +6464,22 @@ Perform a statvfs system call on the given path.");
 static PyObject *
 posix_statvfs(PyObject *self, PyObject *args)
 {
+    PyObject *opath, *result = NULL;
     char *path;
     int res;
     struct statvfs st;
-    if (!PyArg_ParseTuple(args, "s:statvfs", &path))
+    if (!PyArg_ParseTuple(args, "O&:statvfs", PyUnicode_FSConverter, &opath))
         return NULL;
+    path = PyBytes_AS_STRING(opath);
     Py_BEGIN_ALLOW_THREADS
     res = statvfs(path, &st);
     Py_END_ALLOW_THREADS
     if (res != 0)
-        return posix_error_with_filename(path);
+        return posix_error_with_allocated_filename(opath);
 
-    return _pystatvfs_fromstructstatvfs(st);
+    result = _pystatvfs_fromstructstatvfs(st);
+    Py_DECREF(opath);
+    return result;
 }
 #endif /* HAVE_STATVFS */
 

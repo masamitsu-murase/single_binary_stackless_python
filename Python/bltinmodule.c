@@ -431,9 +431,11 @@ filter_next(filterobject *lz)
             ok = PyObject_IsTrue(good);
             Py_DECREF(good);
         }
-        if (ok)
+        if (ok > 0)
             return item;
         Py_DECREF(item);
+        if (ok < 0)
+            return NULL;
     }
 }
 
@@ -632,6 +634,8 @@ builtin_compile(PyObject *self, PyObject *args, PyObject *kwds)
             mod_ty mod;
 
             arena = PyArena_New();
+            if (arena == NULL)
+                goto error;
             mod = PyAST_obj2mod(cmd, arena, mode);
             if (mod == NULL) {
                 PyArena_Free(arena);
@@ -797,7 +801,6 @@ builtin_exec(PyObject *self, PyObject *args)
 	STACKLESS_GETARG();
     PyObject *v;
     PyObject *prog, *globals = Py_None, *locals = Py_None;
-    int plain = 0;
 
     if (!PyArg_UnpackTuple(args, "exec", 1, 3, &prog, &globals, &locals))
         return NULL;
@@ -806,7 +809,6 @@ builtin_exec(PyObject *self, PyObject *args)
         globals = PyEval_GetGlobals();
         if (locals == Py_None) {
             locals = PyEval_GetLocals();
-            plain = 1;
         }
         if (!globals || !locals) {
             PyErr_SetString(PyExc_SystemError,

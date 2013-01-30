@@ -7,8 +7,8 @@ import pickle
 import weakref
 import errno
 
-from test.support import (TESTFN, unlink, run_unittest, captured_output,
-                          gc_collect, cpython_only)
+from test.support import (TESTFN, captured_output, check_impl_detail,
+                          cpython_only, gc_collect, run_unittest, unlink)
 
 # XXX This is not really enough, each *operation* should be tested!
 
@@ -493,6 +493,9 @@ class ExceptionTests(unittest.TestCase):
             e.__context__ = None
             obj = None
             obj = wr()
+            # guarantee no ref cycles on CPython (don't gc_collect)
+            if check_impl_detail(cpython=False):
+                gc_collect()
             self.assertTrue(obj is None, "%s" % obj)
 
         # Some complicated construct
@@ -509,6 +512,8 @@ class ExceptionTests(unittest.TestCase):
             except MyException:
                 pass
         obj = None
+        if check_impl_detail(cpython=False):
+            gc_collect()
         obj = wr()
         self.assertTrue(obj is None, "%s" % obj)
 
@@ -523,6 +528,8 @@ class ExceptionTests(unittest.TestCase):
         with Context():
             inner_raising_func()
         obj = None
+        if check_impl_detail(cpython=False):
+            gc_collect()
         obj = wr()
         self.assertTrue(obj is None, "%s" % obj)
 

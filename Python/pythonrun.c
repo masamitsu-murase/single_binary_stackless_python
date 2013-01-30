@@ -888,12 +888,15 @@ create_stdio(PyObject* io,
     Py_CLEAR(raw);
     Py_CLEAR(text);
 
-    newline = "\n";
 #ifdef MS_WINDOWS
-    if (!write_mode) {
-        /* translate \r\n to \n for sys.stdin on Windows */
-        newline = NULL;
-    }
+    /* sys.stdin: enable universal newline mode, translate "\r\n" and "\r"
+       newlines to "\n".
+       sys.stdout and sys.stderr: translate "\n" to "\r\n". */
+    newline = NULL;
+#else
+    /* sys.stdin: split lines at "\n".
+       sys.stdout and sys.stderr: don't translate newlines (use "\n"). */
+    newline = "\n";
 #endif
 
     stream = PyObject_CallMethod(io, "TextIOWrapper", "OsssO",
@@ -1272,25 +1275,26 @@ PyRun_SimpleFileExFlags(FILE *fp, const char *filename, int closeit,
 {
     PyObject *m, *d, *v;
     const char *ext;
-    int set_file_name = 0, ret;
+    int set_file_name = 0, ret = -1;
     size_t len;
 
     m = PyImport_AddModule("__main__");
     if (m == NULL)
         return -1;
+    Py_INCREF(m);
     d = PyModule_GetDict(m);
     if (PyDict_GetItemString(d, "__file__") == NULL) {
         PyObject *f;
         f = PyUnicode_DecodeFSDefault(filename);
         if (f == NULL)
-            return -1;
+            goto done;
         if (PyDict_SetItemString(d, "__file__", f) < 0) {
             Py_DECREF(f);
-            return -1;
+            goto done;
         }
         if (PyDict_SetItemString(d, "__cached__", Py_None) < 0) {
             Py_DECREF(f);
-            return -1;
+            goto done;
         }
         set_file_name = 1;
         Py_DECREF(f);
@@ -1303,7 +1307,6 @@ PyRun_SimpleFileExFlags(FILE *fp, const char *filename, int closeit,
             fclose(fp);
         if ((fp = fopen(filename, "rb")) == NULL) {
             fprintf(stderr, "python: Can't reopen .pyc file\n");
-            ret = -1;
             goto done;
         }
         /* Turn on optimization if a .pyo file is given */
@@ -1317,7 +1320,6 @@ PyRun_SimpleFileExFlags(FILE *fp, const char *filename, int closeit,
     flush_io();
     if (v == NULL) {
         PyErr_Print();
-        ret = -1;
         goto done;
     }
     Py_DECREF(v);
@@ -1325,6 +1327,7 @@ PyRun_SimpleFileExFlags(FILE *fp, const char *filename, int closeit,
   done:
     if (set_file_name && PyDict_DelItemString(d, "__file__"))
         PyErr_Clear();
+    Py_DECREF(m);
     return ret;
 }
 

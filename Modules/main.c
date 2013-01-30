@@ -339,6 +339,7 @@ Py_Main(int argc, wchar_t **argv)
 
     /* Hash randomization needed early for all string operations
        (including -W and -X options). */
+    _PyOS_opterr = 0;  /* prevent printing the error in 1st pass */
     while ((c = _PyOS_GetOpt(argc, argv, PROGRAM_OPTS)) != EOF) {
         if (c == 'm' || c == 'c') {
             /* -c / -m is the last option: following arguments are
@@ -616,7 +617,7 @@ Py_Main(int argc, wchar_t **argv)
        script. */
     if ((p = Py_GETENV("PYTHONEXECUTABLE")) && *p != '\0') {
         wchar_t* buffer;
-        size_t len = strlen(p);
+        size_t len = strlen(p) + 1;
         size_t r;
 
         buffer = malloc(len * sizeof(wchar_t));

@@ -164,33 +164,33 @@ class StatAttributeTests(unittest.TestCase):
 
         try:
             result[200]
-            self.fail("No exception thrown")
+            self.fail("No exception raised")
         except IndexError:
             pass
 
         # Make sure that assignment fails
         try:
             result.st_mode = 1
-            self.fail("No exception thrown")
+            self.fail("No exception raised")
         except AttributeError:
             pass
 
         try:
             result.st_rdev = 1
-            self.fail("No exception thrown")
+            self.fail("No exception raised")
         except (AttributeError, TypeError):
             pass
 
         try:
             result.parrot = 1
-            self.fail("No exception thrown")
+            self.fail("No exception raised")
         except AttributeError:
             pass
 
         # Use the stat_result constructor with a too-short tuple.
         try:
             result2 = os.stat_result((10,))
-            self.fail("No exception thrown")
+            self.fail("No exception raised")
         except TypeError:
             pass
 
@@ -233,20 +233,20 @@ class StatAttributeTests(unittest.TestCase):
         # Make sure that assignment really fails
         try:
             result.f_bfree = 1
-            self.fail("No exception thrown")
+            self.fail("No exception raised")
         except AttributeError:
             pass
 
         try:
             result.parrot = 1
-            self.fail("No exception thrown")
+            self.fail("No exception raised")
         except AttributeError:
             pass
 
         # Use the constructor with a too-short tuple.
         try:
             result2 = os.statvfs_result((10,))
-            self.fail("No exception thrown")
+            self.fail("No exception raised")
         except TypeError:
             pass
 
@@ -592,7 +592,10 @@ class MakedirTests(unittest.TestCase):
         try:
             existing_testfn_mode = stat.S_IMODE(
                     os.lstat(support.TESTFN).st_mode)
-            os.chmod(support.TESTFN, existing_testfn_mode | S_ISGID)
+            try:
+                os.chmod(support.TESTFN, existing_testfn_mode | S_ISGID)
+            except OSError:
+                raise unittest.SkipTest('Cannot set S_ISGID for dir.')
             if (os.lstat(support.TESTFN).st_mode & S_ISGID != S_ISGID):
                 raise unittest.SkipTest('No support for S_ISGID dir mode.')
             # The os should apply S_ISGID from the parent dir for us, but
@@ -631,6 +634,50 @@ class MakedirTests(unittest.TestCase):
 
         os.removedirs(path)
 
+
+class RemoveDirsTests(unittest.TestCase):
+    def setUp(self):
+        os.makedirs(support.TESTFN)
+
+    def tearDown(self):
+        support.rmtree(support.TESTFN)
+
+    def test_remove_all(self):
+        dira = os.path.join(support.TESTFN, 'dira')
+        os.mkdir(dira)
+        dirb = os.path.join(dira, 'dirb')
+        os.mkdir(dirb)
+        os.removedirs(dirb)
+        self.assertFalse(os.path.exists(dirb))
+        self.assertFalse(os.path.exists(dira))
+        self.assertFalse(os.path.exists(support.TESTFN))
+
+    def test_remove_partial(self):
+        dira = os.path.join(support.TESTFN, 'dira')
+        os.mkdir(dira)
+        dirb = os.path.join(dira, 'dirb')
+        os.mkdir(dirb)
+        with open(os.path.join(dira, 'file.txt'), 'w') as f:
+            f.write('text')
+        os.removedirs(dirb)
+        self.assertFalse(os.path.exists(dirb))
+        self.assertTrue(os.path.exists(dira))
+        self.assertTrue(os.path.exists(support.TESTFN))
+
+    def test_remove_nothing(self):
+        dira = os.path.join(support.TESTFN, 'dira')
+        os.mkdir(dira)
+        dirb = os.path.join(dira, 'dirb')
+        os.mkdir(dirb)
+        with open(os.path.join(dirb, 'file.txt'), 'w') as f:
+            f.write('text')
+        with self.assertRaises(OSError):
+            os.removedirs(dirb)
+        self.assertTrue(os.path.exists(dirb))
+        self.assertTrue(os.path.exists(dira))
+        self.assertTrue(os.path.exists(support.TESTFN))
+
+
 class DevNullTests(unittest.TestCase):
     def test_devnull(self):
         with open(os.devnull, 'wb') as f:
@@ -638,6 +685,7 @@ class DevNullTests(unittest.TestCase):
             f.close()
         with open(os.devnull, 'rb') as f:
             self.assertEqual(f.read(), b'')
+
 
 class URandomTests(unittest.TestCase):
     def test_urandom_length(self):
@@ -965,6 +1013,8 @@ if sys.platform != 'win32':
         def setUp(self):
             if support.TESTFN_UNENCODABLE:
                 self.dir = support.TESTFN_UNENCODABLE
+            elif support.TESTFN_NONASCII:
+                self.dir = support.TESTFN_NONASCII
             else:
                 self.dir = support.TESTFN
             self.bdir = os.fsencode(self.dir)
@@ -979,6 +1029,8 @@ if sys.platform != 'win32':
             add_filename(support.TESTFN_UNICODE)
             if support.TESTFN_UNENCODABLE:
                 add_filename(support.TESTFN_UNENCODABLE)
+            if support.TESTFN_NONASCII:
+                add_filename(support.TESTFN_NONASCII)
             if not bytesfn:
                 self.skipTest("couldn't create any non-ascii filename")
 
@@ -1008,6 +1060,15 @@ if sys.platform != 'win32':
             for fn in self.unicodefn:
                 f = open(os.path.join(self.dir, fn), 'rb')
                 f.close()
+
+        @unittest.skipUnless(hasattr(os, 'statvfs'),
+                             "need os.statvfs()")
+        def test_statvfs(self):
+            # issue #9645
+            for fn in self.unicodefn:
+                # should not fail with file not found error
+                fullname = os.path.join(self.dir, fn)
+                os.statvfs(fullname)
 
         def test_stat(self):
             for fn in self.unicodefn:
@@ -1307,6 +1368,7 @@ def test_main():
         PidTests,
         LoginTests,
         LinkTests,
+        RemoveDirsTests,
     )
 
 if __name__ == "__main__":

@@ -610,6 +610,9 @@ hp*|HP*)
     esac;;
 esac
 
+MULTIARCH=$($CC --print-multiarch 2>/dev/null)
+AC_SUBST(MULTIARCH)
+
 
 AC_SUBST(LIBRARY)
 AC_MSG_CHECKING(LIBRARY)
@@ -847,6 +850,22 @@ else
 	SVNVERSION="echo Unversioned directory"
 fi
 
+AC_SUBST(BASECPPFLAGS)
+if test "$abs_srcdir" != "$abs_builddir"; then
+    # If we're building out-of-tree, we need to make sure the following
+    # resources get picked up before their $srcdir counterparts.
+    #   Objects/ -> typeslots.inc
+    #   Include/ -> Python-ast.h, graminit.h
+    #   Python/  -> importlib.h
+    # (A side effect of this is that these resources will automatically be
+    #  regenerated when building out-of-tree, regardless of whether or not
+    #  the $srcdir counterpart is up-to-date.  This is an acceptable trade
+    #  off.)
+    BASECPPFLAGS="-IObjects -IInclude -IPython"
+else
+    BASECPPFLAGS=""
+fi
+
 AC_SUBST(HGVERSION)
 AC_SUBST(HGTAG)
 AC_SUBST(HGBRANCH)
@@ -868,12 +887,12 @@ else
     HGBRANCH=""
 fi
 
-AC_SUBST(DISABLE_ASDLGEN)
-DISABLE_ASDLGEN=""
-AC_CHECK_PROG(HAS_PYTHON, python, found, not-found)
-if test $HAS_HG != found -o $HAS_PYTHON != found
-then
-    DISABLE_ASDLGEN="@echo hg: $HAS_HG, python: $HAS_PYTHON! cannot run \$(srcdir)/Parser/asdl_c.py #"
+AC_SUBST(ASDLGEN)
+AC_CHECK_PROGS(PYTHON, python$PACKAGE_VERSION python3 python, not-found)
+if test "$PYTHON" = not-found; then
+    ASDLGEN="@echo python: $PYTHON! cannot run \$(srcdir)/Parser/asdl_c.py #"
+else
+    ASDLGEN="$PYTHON"
 fi
 
 
@@ -886,6 +905,7 @@ bsdos*|hp*|HP*)
 	fi
 esac
 AC_PROG_INSTALL
+AC_PROG_MKDIR_P
 
 # Not every filesystem supports hard links
 AC_SUBST(LN)
@@ -1281,7 +1301,7 @@ then
 # so we need to run a program to see whether it really made the
 # function available.
 AC_MSG_CHECKING(whether $CC accepts -pthread)
-AC_CACHE_VAL(ac_cv_thread,
+AC_CACHE_VAL(ac_cv_pthread,
 [ac_save_cc="$CC"
 CC="$CC -pthread"
 AC_RUN_IFELSE([AC_LANG_SOURCE([[
@@ -1470,10 +1490,30 @@ AC_TYPE_PID_T
 AC_DEFINE_UNQUOTED([RETSIGTYPE],[void],[assume C89 semantics that RETSIGTYPE is always void])
 AC_TYPE_SIZE_T
 AC_TYPE_UID_T
+
+# There are two separate checks for each of the exact-width integer types we
+# need.  First we check whether the type is available using the usual
+# AC_CHECK_TYPE macro with the default includes (which includes <inttypes.h>
+# and <stdint.h> where available).  We then also use the special type checks of
+# the form AC_TYPE_UINT32_T, which in the case that uint32_t is not available
+# directly, #define's uint32_t to be a suitable type.
+
+AC_CHECK_TYPE(uint32_t,
+  AC_DEFINE(HAVE_UINT32_T, 1, [Define if your compiler provides uint32_t.]),,)
 AC_TYPE_UINT32_T
+
+AC_CHECK_TYPE(uint64_t,
+  AC_DEFINE(HAVE_UINT64_T, 1, [Define if your compiler provides uint64_t.]),,)
 AC_TYPE_UINT64_T
+
+AC_CHECK_TYPE(int32_t,
+  AC_DEFINE(HAVE_INT32_T, 1, [Define if your compiler provides int32_t.]),,)
 AC_TYPE_INT32_T
+
+AC_CHECK_TYPE(int64_t,
+  AC_DEFINE(HAVE_INT64_T, 1, [Define if your compiler provides int64_t.]),,)
 AC_TYPE_INT64_T
+
 AC_CHECK_TYPE(ssize_t,
   AC_DEFINE(HAVE_SSIZE_T, 1, [Define if your compiler provides ssize_t]),,)
 
@@ -2327,22 +2367,12 @@ AC_ARG_ENABLE(ipv6,
 
 [
 dnl the check does not work on cross compilation case...
-  AC_RUN_IFELSE([AC_LANG_SOURCE([[ /* AF_INET6 available check */
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[ /* AF_INET6 available check */
 #include <sys/types.h>
-#include <sys/socket.h>
-main()
-{
- if (socket(AF_INET6, SOCK_STREAM, 0) < 0)
-   exit(1);
- else
-   exit(0);
-}
-]])],[
+#include <sys/socket.h>]],
+[[int domain = AF_INET6;]])],[
   AC_MSG_RESULT(yes)
   ipv6=yes
-],[
-  AC_MSG_RESULT(no)
-  ipv6=no
 ],[
   AC_MSG_RESULT(no)
   ipv6=no

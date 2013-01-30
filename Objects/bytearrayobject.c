@@ -589,8 +589,14 @@ bytearray_ass_subscript(PyByteArrayObject *self, PyObject *index, PyObject *valu
         needed = 0;
     }
     else if (values == (PyObject *)self || !PyByteArray_Check(values)) {
-        /* Make a copy and call this function recursively */
         int err;
+        if (PyNumber_Check(values) || PyUnicode_Check(values)) {
+            PyErr_SetString(PyExc_TypeError,
+                            "can assign only bytes, buffers, or iterables "
+                            "of ints in range(0, 256)");
+            return -1;
+        }
+        /* Make a copy and call this function recursively */
         values = PyByteArray_FromObject(values);
         if (values == NULL)
             return -1;

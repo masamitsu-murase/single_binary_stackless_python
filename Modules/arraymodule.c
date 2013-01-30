@@ -1461,7 +1461,7 @@ array_fromunicode(arrayobject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "u#:fromunicode", &ustr, &n))
         return NULL;
     typecode = self->ob_descr->typecode;
-    if ((typecode != 'u')) {
+    if (typecode != 'u') {
         PyErr_SetString(PyExc_ValueError,
             "fromunicode() may only be called on "
             "unicode type arrays");
@@ -1493,7 +1493,7 @@ array_tounicode(arrayobject *self, PyObject *unused)
 {
     Py_UNICODE typecode;
     typecode = self->ob_descr->typecode;
-    if ((typecode != 'u')) {
+    if (typecode != 'u') {
         PyErr_SetString(PyExc_ValueError,
              "tounicode() may only be called on unicode type arrays");
         return NULL;
@@ -1509,6 +1509,19 @@ a unicode type array; otherwise a ValueError is raised.  Use\n\
 array.tobytes().decode() to obtain a unicode string from\n\
 an array of some other type.");
 
+
+static PyObject *
+array_sizeof(arrayobject *self, PyObject *unused)
+{
+    Py_ssize_t res;
+    res = sizeof(arrayobject) + self->allocated * self->ob_descr->itemsize;
+    return PyLong_FromSsize_t(res);
+}
+
+PyDoc_STRVAR(sizeof_doc,
+"__sizeof__() -> int\n\
+\n\
+Size of the array in memory, in bytes.");
 
 
 /*********************** Pickling support ************************/
@@ -2077,6 +2090,8 @@ static PyMethodDef array_methods[] = {
      tobytes_doc},
     {"tounicode",   (PyCFunction)array_tounicode,       METH_NOARGS,
      tounicode_doc},
+    {"__sizeof__",      (PyCFunction)array_sizeof,      METH_NOARGS,
+     sizeof_doc},
     {NULL,              NULL}           /* sentinel */
 };
 
@@ -2092,10 +2107,11 @@ array_repr(arrayobject *a)
     if (len == 0) {
         return PyUnicode_FromFormat("array('%c')", (int)typecode);
     }
-    if ((typecode == 'u'))
+    if (typecode == 'u') {
         v = array_tounicode(a, NULL);
-    else
+    } else {
         v = array_tolist(a, NULL);
+    }
 
     s = PyUnicode_FromFormat("array('%c', %R)", (int)typecode, v);
     Py_DECREF(v);

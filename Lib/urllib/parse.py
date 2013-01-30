@@ -46,7 +46,17 @@ uses_netloc = ['ftp', 'http', 'gopher', 'nntp', 'telnet',
                'svn', 'svn+ssh', 'sftp', 'nfs', 'git', 'git+ssh']
 uses_params = ['ftp', 'hdl', 'prospero', 'http', 'imap',
                'https', 'shttp', 'rtsp', 'rtspu', 'sip', 'sips',
-               'mms', '', 'sftp']
+               'mms', '', 'sftp', 'tel']
+
+# These are not actually used anymore, but should stay for backwards
+# compatibility.  (They are undocumented, but have a public-looking name.)
+non_hierarchical = ['gopher', 'hdl', 'mailto', 'news',
+                    'telnet', 'wais', 'imap', 'snews', 'sip', 'sips']
+uses_query = ['http', 'wais', 'imap', 'https', 'shttp', 'mms',
+              'gopher', 'rtsp', 'rtspu', 'sip', 'sips', '']
+uses_fragment = ['ftp', 'hdl', 'http', 'gopher', 'news',
+                 'nntp', 'wais', 'https', 'shttp', 'snews',
+                 'file', 'prospero', '']
 
 # Characters valid in scheme names
 scheme_chars = ('abcdefghijklmnopqrstuvwxyz'

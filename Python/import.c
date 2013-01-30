@@ -1172,15 +1172,21 @@ write_compiled_module(PyCodeObject *co, char *cpathname, struct stat *srcstat)
     FILE *fp;
     char *dirpath;
     time_t mtime = srcstat->st_mtime;
+    int saved;
 #ifdef MS_WINDOWS   /* since Windows uses different permissions  */
     mode_t mode = srcstat->st_mode & ~S_IEXEC;
+    /* Issue #6074: We ensure user write access, so we can delete it later
+     * when the source file changes. (On POSIX, this only requires write
+     * access to the directory, on Windows, we need write access to the file
+     * as well)
+     */
+    mode |= _S_IWRITE;
 #else
     mode_t mode = srcstat->st_mode & ~S_IXUSR & ~S_IXGRP & ~S_IXOTH;
     mode_t dirmode = (srcstat->st_mode |
                       S_IXUSR | S_IXGRP | S_IXOTH |
                       S_IWUSR | S_IWGRP | S_IWOTH);
 #endif
-    int saved;
 
     /* Ensure that the __pycache__ directory exists. */
     dirpath = rightmost_sep(cpathname);
@@ -1338,7 +1344,10 @@ load_source_module(char *name, char *pathname, FILE *fp)
                 name, pathname);
         if (cpathname) {
             PyObject *ro = PySys_GetObject("dont_write_bytecode");
-            if (ro == NULL || !PyObject_IsTrue(ro))
+            int b = (ro == NULL) ? 0 : PyObject_IsTrue(ro);
+            if (b < 0)
+                goto error_exit;
+            if (!b)
                 write_compiled_module(co, cpathname, &st);
         }
     }
@@ -2504,7 +2513,13 @@ import_module_level(char *name, PyObject *globals, PyObject *locals,
     }
 
     if (fromlist != NULL) {
-        if (fromlist == Py_None || !PyObject_IsTrue(fromlist))
+        int b = (fromlist == Py_None) ? 0 : PyObject_IsTrue(fromlist);
+        if (b < 0) {
+            Py_DECREF(tail);
+            Py_DECREF(head);
+            goto error_exit;
+        }
+        if (!b)
             fromlist = NULL;
     }
 
