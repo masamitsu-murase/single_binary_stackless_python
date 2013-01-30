@@ -643,7 +643,7 @@ class SizeofTest(unittest.TestCase):
             slxtra = 'i'
         except:
             slxtra = ''
-        check(int.__add__, size(h + '2P2P') + slxtra)
+        check(int.__add__, size('2P2P' + slxtra))
         # method-wrapper (descriptor object)
         check({}.__iter__, size('2P'))
         # dict
