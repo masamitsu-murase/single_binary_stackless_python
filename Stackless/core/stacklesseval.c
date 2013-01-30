@@ -307,8 +307,13 @@ slp_eval_frame(PyFrameObject *f)
             return NULL;
         /* returning will be 1 if we "switched back" to this stub, and 0
          * if this is the original call that just created the stub.
-         * This can be useful for debugging
+         * If the stub is being reused, the argument, i.e. the frame,
+         * is in ts->frame
          */
+        if (returning == 1) {
+            f = ts->frame;
+            ts->frame = NULL;
+        }
         return slp_run_tasklet(f);
     }
     Py_INCREF(Py_None);
