@@ -115,7 +115,7 @@ static const struct filedescr _PyImport_StandardFiletab[] = {
 #endif
 
 #ifdef MS_WINDOWS
-int isdir(char *path) {
+static int isdir(char *path) {
     DWORD rv;
     /* see issue1293 and issue3677:
      * stat() on Windows doesn't recognise paths like
@@ -128,7 +128,7 @@ int isdir(char *path) {
 }
 #else
 #ifdef HAVE_STAT
-int isdir(char *path) {
+static int isdir(char *path) {
     struct stat statbuf;
     return stat(path, &statbuf) == 0 && S_ISDIR(statbuf.st_mode);
 }
@@ -904,12 +904,17 @@ open_exclusive(char *filename, mode_t mode)
    remove the file. */
 
 static void
-write_compiled_module(PyCodeObject *co, char *cpathname, struct stat *srcstat)
+write_compiled_module(PyCodeObject *co, char *cpathname, struct stat *srcstat, time_t mtime)
 {
     FILE *fp;
-    time_t mtime = srcstat->st_mtime;
 #ifdef MS_WINDOWS   /* since Windows uses different permissions  */
     mode_t mode = srcstat->st_mode & ~S_IEXEC;
+    /* Issue #6074: We ensure user write access, so we can delete it later
+     * when the source file changes. (On POSIX, this only requires write
+     * access to the directory, on Windows, we need write access to the file
+     * as well)
+     */
+    mode |= _S_IWRITE;
 #else
     mode_t mode = srcstat->st_mode & ~S_IXUSR & ~S_IXGRP & ~S_IXOTH;
 #endif
@@ -987,6 +992,38 @@ update_compiled_module(PyCodeObject *co, char *pathname)
     return 1;
 }
 
+#ifdef MS_WINDOWS
+
+/* Seconds between 1.1.1601 and 1.1.1970 */
+static __int64 secs_between_epochs = 11644473600;
+
+/* Get mtime from file pointer. */
+
+static time_t
+win32_mtime(FILE *fp, char *pathname)
+{
+    __int64 filetime;
+    HANDLE fh;
+    BY_HANDLE_FILE_INFORMATION file_information;
+
+    fh = (HANDLE)_get_osfhandle(fileno(fp));
+    if (fh == INVALID_HANDLE_VALUE ||
+        !GetFileInformationByHandle(fh, &file_information)) {
+        PyErr_Format(PyExc_RuntimeError,
+                     "unable to get file status from '%s'",
+                     pathname);
+        return -1;
+    }
+    /* filetime represents the number of 100ns intervals since
+       1.1.1601 (UTC).  Convert to seconds since 1.1.1970 (UTC). */
+    filetime = (__int64)file_information.ftLastWriteTime.dwHighDateTime << 32 |
+               file_information.ftLastWriteTime.dwLowDateTime;
+    return filetime / 10000000 - secs_between_epochs;
+}
+
+#endif  /* #ifdef MS_WINDOWS */
+
+
 /* Load a source module from a given file and return its module
    object WITH INCREMENTED REFERENCE COUNT.  If there's a matching
    byte-compiled file, use that instead. */
@@ -1000,6 +1037,7 @@ load_source_module(char *name, char *pathname, FILE *fp)
     char *cpathname;
     PyCodeObject *co = NULL;
     PyObject *m;
+    time_t mtime;
 
     if (fstat(fileno(fp), &st) != 0) {
         PyErr_Format(PyExc_RuntimeError,
@@ -1007,13 +1045,21 @@ load_source_module(char *name, char *pathname, FILE *fp)
                      pathname);
         return NULL;
     }
-    if (sizeof st.st_mtime > 4) {
+
+#ifdef MS_WINDOWS
+    mtime = win32_mtime(fp, pathname);
+    if (mtime == (time_t)-1 && PyErr_Occurred())
+        return NULL;
+#else
+    mtime = st.st_mtime;
+#endif
+    if (sizeof mtime > 4) {
         /* Python's .pyc timestamp handling presumes that the timestamp fits
            in 4 bytes. Since the code only does an equality comparison,
            ordering is not important and we can safely ignore the higher bits
            (collisions are extremely unlikely).
          */
-        st.st_mtime &= 0xFFFFFFFF;
+        mtime &= 0xFFFFFFFF;
     }
     buf = PyMem_MALLOC(MAXPATHLEN+1);
     if (buf == NULL) {
@@ -1022,7 +1068,7 @@ load_source_module(char *name, char *pathname, FILE *fp)
     cpathname = make_compiled_pathname(pathname, buf,
                                        (size_t)MAXPATHLEN + 1);
     if (cpathname != NULL &&
-        (fpc = check_compiled_module(pathname, st.st_mtime, cpathname))) {
+        (fpc = check_compiled_module(pathname, mtime, cpathname))) {
         co = read_compiled_module(cpathname, fpc);
         fclose(fpc);
         if (co == NULL)
@@ -1043,8 +1089,11 @@ load_source_module(char *name, char *pathname, FILE *fp)
                 name, pathname);
         if (cpathname) {
             PyObject *ro = PySys_GetObject("dont_write_bytecode");
-            if (ro == NULL || !PyObject_IsTrue(ro))
-                write_compiled_module(co, cpathname, &st);
+            int b = (ro == NULL) ? 0 : PyObject_IsTrue(ro);
+            if (b < 0)
+                goto error_exit;
+            if (!b)
+                write_compiled_module(co, cpathname, &st, mtime);
         }
     }
     m = PyImport_ExecCodeModuleEx(name, (PyObject *)co, pathname);
@@ -2200,7 +2249,13 @@ import_module_level(char *name, PyObject *globals, PyObject *locals,
     }
 
     if (fromlist != NULL) {
-        if (fromlist == Py_None || !PyObject_IsTrue(fromlist))
+        int b = (fromlist == Py_None) ? 0 : PyObject_IsTrue(fromlist);
+        if (b < 0) {
+            Py_DECREF(tail);
+            Py_DECREF(head);
+            goto error_exit;
+        }
+        if (!b)
             fromlist = NULL;
     }
 

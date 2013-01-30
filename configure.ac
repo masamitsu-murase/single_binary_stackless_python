@@ -525,6 +525,39 @@ then
 (it is also a good idea to do 'make clean' before compiling)])
 fi
 
+if test "$MACHDEP" = "irix6" && test "$CC" != "gcc"; then
+    # Normally, MIPSpro CC treats #error directives as warnings, which means
+    # a successful exit code is returned (0).  This is a problem because IRIX
+    # has a bunch of system headers with this guard at the top:
+    #
+    #  #ifndef __c99
+    #  #error This header file is to be used only for c99 mode compilations
+    #  #else
+    #
+    # When autoconf tests for such a header, like stdint.h, this happens:
+    #
+    #  configure:4619: cc -c   conftest.c >&5
+    #  cc-1035 cc: WARNING File = /usr/include/stdint.h, Line = 5
+    #    #error directive:  This header file is to be used only for c99 mode
+    #            compilations
+    #
+    #    #error This header file is to be used only for c99 mode compilations
+    #     ^
+    #
+    #  configure:4619: $? = 0
+    #  configure:4619: result: yes
+    #
+    # Therefore, we use `-diag_error 1035` to have the compiler treat the
+    # warning as an error, which causes cc to return a non-zero result,
+    # which autoconf can interpret correctly.
+    CFLAGS="$CFLAGS -diag_error 1035"
+    # Whilst we're here, we might as well make sure CXX defaults to something
+    # sensible if we're not using gcc.
+    if test -z "$CXX"; then
+        CXX="CC"
+    fi
+fi
+
 # If the user set CFLAGS, use this instead of the automatically
 # determined setting
 preset_cflags="$CFLAGS"
@@ -587,6 +620,9 @@ then
   If this is not intended, then set CXX on the configure command line.
   ])
 fi
+
+MULTIARCH=$($CC --print-multiarch 2>/dev/null)
+AC_SUBST(MULTIARCH)
 
 
 # checks for UNIX variants that set C preprocessor variables
@@ -872,6 +908,20 @@ else
 	SVNVERSION="echo Unversioned directory"
 fi
 
+AC_SUBST(BASECPPFLAGS)
+if test "$abs_srcdir" != "$abs_builddir"; then
+    # If we're building out-of-tree make sure Include (in the current dir)
+    # gets picked up before its $srcdir counterpart in order for Python-ast.h
+    # and graminit.h to get picked up from the correct directory.
+    # (A side effect of this is that these resources will automatically be
+    #  regenerated when building out-of-tree, regardless of whether or not
+    #  the $srcdir counterpart is up-to-date.  This is an acceptable trade
+    #  off.)
+    BASECPPFLAGS="-IInclude"
+else
+    BASECPPFLAGS=""
+fi
+
 AC_SUBST(HGVERSION)
 AC_SUBST(HGTAG)
 AC_SUBST(HGBRANCH)
@@ -896,6 +946,7 @@ bsdos*|hp*|HP*)
 	fi
 esac
 AC_PROG_INSTALL
+AC_PROG_MKDIR_P
 
 # Not every filesystem supports hard links
 AC_SUBST(LN)
@@ -1185,6 +1236,11 @@ if test $ac_cv_opt_olimit_ok = yes; then
 	# environment?
         Darwin*)
 	    ;;
+        # XXX thankfully this useless troublemaker of a flag has been
+        # eradicated in the 3.x line.  For now, make sure it isn't picked
+        # up by any of our other platforms that use CC.
+        AIX*|SunOS*|HP-UX*|IRIX*)
+            ;;
         *)
 	    BASECFLAGS="$BASECFLAGS -OPT:Olimit=0"
 	    ;;
@@ -1202,7 +1258,14 @@ else
   CC="$ac_save_cc"])
   AC_MSG_RESULT($ac_cv_olimit_ok)
   if test $ac_cv_olimit_ok = yes; then
-    BASECFLAGS="$BASECFLAGS -Olimit 1500"
+    case $ac_sys_system in
+        # Issue #16534: On HP-UX ac_cv_olimit_ok=yes is a false positive.
+        HP-UX*)
+            ;;
+        *)
+            BASECFLAGS="$BASECFLAGS -Olimit 1500"
+            ;;
+    esac
   fi
 fi
 
@@ -1232,6 +1295,7 @@ fi
 AC_MSG_CHECKING(whether pthreads are available without options)
 AC_CACHE_VAL(ac_cv_pthread_is_default,
 [AC_RUN_IFELSE([AC_LANG_SOURCE([[
+#include <stdio.h>
 #include <pthread.h>
 
 void* routine(void* p){return NULL;}
@@ -1266,6 +1330,7 @@ AC_CACHE_VAL(ac_cv_kpthread,
 [ac_save_cc="$CC"
 CC="$CC -Kpthread"
 AC_RUN_IFELSE([AC_LANG_SOURCE([[
+#include <stdio.h>
 #include <pthread.h>
 
 void* routine(void* p){return NULL;}
@@ -1294,6 +1359,7 @@ AC_CACHE_VAL(ac_cv_kthread,
 [ac_save_cc="$CC"
 CC="$CC -Kthread"
 AC_RUN_IFELSE([AC_LANG_SOURCE([[
+#include <stdio.h>
 #include <pthread.h>
 
 void* routine(void* p){return NULL;}
@@ -1318,10 +1384,11 @@ then
 # so we need to run a program to see whether it really made the
 # function available.
 AC_MSG_CHECKING(whether $CC accepts -pthread)
-AC_CACHE_VAL(ac_cv_thread,
+AC_CACHE_VAL(ac_cv_pthread,
 [ac_save_cc="$CC"
 CC="$CC -pthread"
 AC_RUN_IFELSE([AC_LANG_SOURCE([[
+#include <stdio.h>
 #include <pthread.h>
 
 void* routine(void* p){return NULL;}
@@ -1505,10 +1572,30 @@ AC_TYPE_PID_T
 AC_DEFINE_UNQUOTED([RETSIGTYPE],[void],[assume C89 semantics that RETSIGTYPE is always void])
 AC_TYPE_SIZE_T
 AC_TYPE_UID_T
+
+# There are two separate checks for each of the exact-width integer types we
+# need.  First we check whether the type is available using the usual
+# AC_CHECK_TYPE macro with the default includes (which includes <inttypes.h>
+# and <stdint.h> where available).  We then also use the special type checks of
+# the form AC_TYPE_UINT32_T, which in the case that uint32_t is not available
+# directly, #define's uint32_t to be a suitable type.
+
+AC_CHECK_TYPE(uint32_t,
+  AC_DEFINE(HAVE_UINT32_T, 1, [Define if your compiler provides uint32_t.]),,)
 AC_TYPE_UINT32_T
+
+AC_CHECK_TYPE(uint64_t,
+  AC_DEFINE(HAVE_UINT64_T, 1, [Define if your compiler provides uint64_t.]),,)
 AC_TYPE_UINT64_T
+
+AC_CHECK_TYPE(int32_t,
+  AC_DEFINE(HAVE_INT32_T, 1, [Define if your compiler provides int32_t.]),,)
 AC_TYPE_INT32_T
+
+AC_CHECK_TYPE(int64_t,
+  AC_DEFINE(HAVE_INT64_T, 1, [Define if your compiler provides int64_t.]),,)
 AC_TYPE_INT64_T
+
 AC_CHECK_TYPE(ssize_t,
   AC_DEFINE(HAVE_SSIZE_T, 1, [Define if your compiler provides ssize_t]),,)
 
@@ -2316,7 +2403,9 @@ yes
     _libs=$LIBS
     LIBS="$LIBS -lpthread"
     AC_MSG_CHECKING([for pthread_create in -lpthread])
-    AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <pthread.h>
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+#include <stdio.h>
+#include <pthread.h>
 
 void * start_routine (void *arg) { exit (0); }]], [[
 pthread_create (NULL, NULL, start_routine, NULL)]])],[
@@ -2399,7 +2488,9 @@ if test "$posix_threads" = "yes"; then
 
       AC_MSG_CHECKING(if PTHREAD_SCOPE_SYSTEM is supported)
       AC_CACHE_VAL(ac_cv_pthread_system_supported,
-      [AC_RUN_IFELSE([AC_LANG_SOURCE([[#include <pthread.h>
+      [AC_RUN_IFELSE([AC_LANG_SOURCE([[
+      #include <stdio.h>
+      #include <pthread.h>
       void *foo(void *parm) {
         return NULL;
       }
@@ -2448,22 +2539,12 @@ AC_ARG_ENABLE(ipv6,
 
 [
 dnl the check does not work on cross compilation case...
-  AC_RUN_IFELSE([AC_LANG_SOURCE([[ /* AF_INET6 available check */
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[ /* AF_INET6 available check */
 #include <sys/types.h>
-#include <sys/socket.h>
-main()
-{
- if (socket(AF_INET6, SOCK_STREAM, 0) < 0)
-   exit(1);
- else
-   exit(0);
-}
-]])],[
+#include <sys/socket.h>]],
+[[int domain = AF_INET6;]])],[
   AC_MSG_RESULT(yes)
   ipv6=yes
-],[
-  AC_MSG_RESULT(no)
-  ipv6=no
 ],[
   AC_MSG_RESULT(no)
   ipv6=no
@@ -3065,6 +3146,7 @@ then
   AC_MSG_CHECKING(getaddrinfo bug)
   AC_CACHE_VAL(ac_cv_buggy_getaddrinfo,
   AC_RUN_IFELSE([AC_LANG_SOURCE([[[
+#include <stdio.h>
 #include <sys/types.h>
 #include <netdb.h>
 #include <string.h>

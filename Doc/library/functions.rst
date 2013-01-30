@@ -275,14 +275,17 @@ available.  They are listed here in alphabetical order.
 
 
 .. _func-dict:
-.. function:: dict([arg])
+.. function:: dict(**kwarg)
+              dict(mapping, **kwarg)
+              dict(iterable, **kwarg)
    :noindex:
 
-   Create a new data dictionary, optionally with items taken from *arg*.
-   The dictionary type is described in :ref:`typesmapping`.
+   Create a new dictionary.  The :class:`dict` object is the dictionary class.
+   See :class:`dict` and :ref:`typesmapping` for documentation about this
+   class.
 
-   For other containers see the built in :class:`list`, :class:`set`, and
-   :class:`tuple` classes, and the :mod:`collections` module.
+   For other containers see the built-in :class:`list`, :class:`set`, and
+   :class:`tuple` classes, as well as the :mod:`collections` module.
 
 
 .. function:: dir([object])
@@ -451,7 +454,7 @@ available.  They are listed here in alphabetical order.
       used reliably to modify a function's locals.
 
 
-.. function:: file(filename[, mode[, bufsize]])
+.. function:: file(name[, mode[, buffering]])
 
    Constructor function for the :class:`file` type, described further in section
    :ref:`bltin-file-objects`.  The constructor's arguments are the same as those
@@ -530,11 +533,13 @@ available.  They are listed here in alphabetical order.
 .. function:: frozenset([iterable])
    :noindex:
 
-   Return a frozenset object, optionally with elements taken from *iterable*.
-   The frozenset type is described in :ref:`types-set`.
+   Return a new :class:`frozenset` object, optionally with elements taken from
+   *iterable*.  ``frozenset`` is a built-in class.  See :class:`frozenset` and
+   :ref:`types-set` for documentation about this class.
 
-   For other containers see the built in :class:`dict`, :class:`list`, and
-   :class:`tuple` classes, and the :mod:`collections` module.
+   For other containers see the built-in :class:`set`, :class:`list`,
+   :class:`tuple`, and :class:`dict` classes, as well as the :mod:`collections`
+   module.
 
    .. versionadded:: 2.4
 
@@ -623,20 +628,26 @@ available.  They are listed here in alphabetical order.
    Consider using the :func:`raw_input` function for general input from users.
 
 
-.. function:: int([x[, base]])
+.. function:: int(x=0)
+              int(x, base=10)
 
-   Convert a string or number to a plain integer.  If the argument is a string,
-   it must contain a possibly signed decimal number representable as a Python
-   integer, possibly embedded in whitespace.  The *base* parameter gives the
-   base for the conversion (which is 10 by default) and may be any integer in
-   the range [2, 36], or zero.  If *base* is zero, the proper radix is
-   determined based on the contents of string; the interpretation is the same as
-   for integer literals.  (See :ref:`numbers`.)  If *base* is specified and *x*
-   is not a string, :exc:`TypeError` is raised. Otherwise, the argument may be a
-   plain or long integer or a floating point number.  Conversion of floating
-   point numbers to integers truncates (towards zero).  If the argument is
-   outside the integer range a long object will be returned instead.  If no
-   arguments are given, returns ``0``.
+   Convert a number or string *x* to an integer, or return ``0`` if no
+   arguments are given.  If *x* is a number, it can be a plain integer, a long
+   integer, or a floating point number.  If *x* is floating point, the conversion
+   truncates towards zero.  If the argument is outside the integer range, the
+   function returns a long object instead.
+
+   If *x* is not a number or if *base* is given, then *x* must be a string or
+   Unicode object representing an :ref:`integer literal <integers>` in radix
+   *base*.  Optionally, the literal can be
+   preceded by ``+`` or ``-`` (with no space in between) and surrounded by
+   whitespace.  A base-n literal consists of the digits 0 to n-1, with ``a``
+   to ``z`` (or ``A`` to ``Z``) having
+   values 10 to 35.  The default *base* is 10. The allowed values are 0 and 2-36.
+   Base-2, -8, and -16 literals can be optionally prefixed with ``0b``/``0B``,
+   ``0o``/``0O``/``0``, or ``0x``/``0X``, as with integer literals in code.
+   Base 0 means to interpret the string exactly as an integer literal, so that
+   the actual base is 2, 8, 10, or 16.
 
    The integer type is described in :ref:`typesnumeric`.
 
@@ -727,7 +738,8 @@ available.  They are listed here in alphabetical order.
       affect the values of local and free variables used by the interpreter.
 
 
-.. function:: long([x[, base]])
+.. function:: long(x=0)
+              long(x, base=10)
 
    Convert a string or number to a long integer.  If the argument is a string, it
    must contain a possibly signed number of arbitrary size, possibly embedded in
@@ -753,11 +765,16 @@ available.  They are listed here in alphabetical order.
    the result is always a list.
 
 
-.. function:: max(iterable[, args...][key])
+.. function:: max(iterable[, key])
+              max(arg1, arg2, *args[, key])
 
-   With a single argument *iterable*, return the largest item of a non-empty
-   iterable (such as a string, tuple or list).  With more than one argument, return
-   the largest of the arguments.
+   Return the largest item in an iterable or the largest of two or more
+   arguments.
+
+   If one positional argument is provided, *iterable* must be a non-empty
+   iterable (such as a non-empty string, tuple or list).  The largest item
+   in the iterable is returned.  If two or more positional arguments are
+   provided, the largest of the positional arguments is returned.
 
    The optional *key* argument specifies a one-argument ordering function like that
    used for :meth:`list.sort`.  The *key* argument, if supplied, must be in keyword
@@ -774,11 +791,16 @@ available.  They are listed here in alphabetical order.
    :ref:`typememoryview` for more information.
 
 
-.. function:: min(iterable[, args...][key])
+.. function:: min(iterable[, key])
+              min(arg1, arg2, *args[, key])
 
-   With a single argument *iterable*, return the smallest item of a non-empty
-   iterable (such as a string, tuple or list).  With more than one argument, return
-   the smallest of the arguments.
+   Return the smallest item in an iterable or the smallest of two or more
+   arguments.
+
+   If one positional argument is provided, *iterable* must be a non-empty
+   iterable (such as a non-empty string, tuple or list).  The smallest item
+   in the iterable is returned.  If two or more positional arguments are
+   provided, the smallest of the positional arguments is returned.
 
    The optional *key* argument specifies a one-argument ordering function like that
    used for :meth:`list.sort`.  The *key* argument, if supplied, must be in keyword
@@ -859,17 +881,20 @@ available.  They are listed here in alphabetical order.
    binary mode, on systems that differentiate between binary and text files; on
    systems that don't have this distinction, adding the ``'b'`` has no effect.
 
+   .. index::
+      single: universal newlines; open() built-in function
+
    In addition to the standard :c:func:`fopen` values *mode* may be ``'U'`` or
-   ``'rU'``.  Python is usually built with universal newline support; supplying
-   ``'U'`` opens the file as a text file, but lines may be terminated by any of the
-   following: the Unix end-of-line convention ``'\n'``,  the Macintosh convention
-   ``'\r'``, or the Windows convention ``'\r\n'``. All of these external
-   representations are seen as ``'\n'`` by the Python program. If Python is built
-   without universal newline support a *mode* with ``'U'`` is the same as normal
-   text mode.  Note that file objects so opened also have an attribute called
-   :attr:`newlines` which has a value of ``None`` (if no newlines have yet been
-   seen), ``'\n'``, ``'\r'``, ``'\r\n'``, or a tuple containing all the newline
-   types seen.
+   ``'rU'``.  Python is usually built with :term:`universal newlines` support;
+   supplying ``'U'`` opens the file as a text file, but lines may be terminated
+   by any of the following: the Unix end-of-line convention ``'\n'``,  the
+   Macintosh convention ``'\r'``, or the Windows convention ``'\r\n'``. All of
+   these external representations are seen as ``'\n'`` by the Python program.
+   If Python is built without universal newlines support a *mode* with ``'U'``
+   is the same as normal text mode.  Note that file objects so opened also have
+   an attribute called :attr:`newlines` which has a value of ``None`` (if no
+   newlines have yet been seen), ``'\n'``, ``'\r'``, ``'\r\n'``, or a tuple
+   containing all the newline types seen.
 
    Python enforces that the mode, after stripping ``'U'``, begins with ``'r'``,
    ``'w'`` or ``'a'``.
@@ -915,16 +940,16 @@ available.  They are listed here in alphabetical order.
    accidents.)
 
 
-.. function:: print([object, ...], sep=' ', end='\\n', file=sys.stdout)
+.. function:: print(*objects, sep=' ', end='\\n', file=sys.stdout)
 
-   Print *object*\(s) to the stream *file*, separated by *sep* and followed by
+   Print *objects* to the stream *file*, separated by *sep* and followed by
    *end*.  *sep*, *end* and *file*, if present, must be given as keyword
    arguments.
 
    All non-keyword arguments are converted to strings like :func:`str` does and
    written to the stream, separated by *sep* and followed by *end*.  Both *sep*
    and *end* must be strings; they can also be ``None``, which means to use the
-   default values.  If no *object* is given, :func:`print` will just write
+   default values.  If no *objects* are given, :func:`print` will just write
    *end*.
 
    The *file* argument must be an object with a ``write(string)`` method; if it
@@ -1022,7 +1047,8 @@ available.  They are listed here in alphabetical order.
       The ``getter``, ``setter``, and ``deleter`` attributes were added.
 
 
-.. function:: range([start,] stop[, step])
+.. function:: range(stop)
+              range(start, stop[, step])
 
    This is a versatile function to create lists containing arithmetic progressions.
    It is most often used in :keyword:`for` loops.  The arguments must be plain
@@ -1086,7 +1112,7 @@ available.  They are listed here in alphabetical order.
               except StopIteration:
                   raise TypeError('reduce() of empty sequence with no initial value')
           accum_value = initializer
-          for x in iterable:
+          for x in it:
               accum_value = function(accum_value, x)
           return accum_value
 
@@ -1178,13 +1204,14 @@ available.  They are listed here in alphabetical order.
       Added the possibility to write a custom :meth:`__reversed__` method.
 
 
-.. function:: round(x[, n])
+.. function:: round(number[, ndigits])
 
-   Return the floating point value *x* rounded to *n* digits after the decimal
-   point.  If *n* is omitted, it defaults to zero. The result is a floating point
-   number.  Values are rounded to the closest multiple of 10 to the power minus
-   *n*; if two multiples are equally close, rounding is done away from 0 (so. for
-   example, ``round(0.5)`` is ``1.0`` and ``round(-0.5)`` is ``-1.0``).
+   Return the floating point value *number* rounded to *ndigits* digits after
+   the decimal point.  If *ndigits* is omitted, it defaults to zero. The result
+   is a floating point number.  Values are rounded to the closest multiple of
+   10 to the power minus *ndigits*; if two multiples are equally close,
+   rounding is done away from 0 (so. for example, ``round(0.5)`` is ``1.0`` and
+   ``round(-0.5)`` is ``-1.0``).
 
 
    .. note::
@@ -1200,11 +1227,13 @@ available.  They are listed here in alphabetical order.
 .. function:: set([iterable])
    :noindex:
 
-   Return a new set, optionally with elements taken from *iterable*.
-   The set type is described in :ref:`types-set`.
+   Return a new :class:`set` object, optionally with elements taken from
+   *iterable*.  ``set`` is a built-in class.  See :class:`set` and
+   :ref:`types-set` for documentation about this class.
 
-   For other containers see the built in :class:`dict`, :class:`list`, and
-   :class:`tuple` classes, and the :mod:`collections` module.
+   For other containers see the built-in :class:`frozenset`, :class:`list`,
+   :class:`tuple`, and :class:`dict` classes, as well as the :mod:`collections`
+   module.
 
    .. versionadded:: 2.4
 
@@ -1218,7 +1247,8 @@ available.  They are listed here in alphabetical order.
    ``x.foobar = 123``.
 
 
-.. function:: slice([start,] stop[, step])
+.. function:: slice(stop)
+              slice(start, stop[, step])
 
    .. index:: single: Numerical Python
 
@@ -1296,7 +1326,7 @@ available.  They are listed here in alphabetical order.
       Function decorator syntax added.
 
 
-.. function:: str([object])
+.. function:: str(object='')
 
    Return a string containing a nicely printable representation of an object.  For
    strings, this returns the string itself.  The difference with ``repr(object)``
@@ -1400,26 +1430,21 @@ available.  They are listed here in alphabetical order.
 
 
 .. function:: type(object)
+              type(name, bases, dict)
 
    .. index:: object: type
 
-   Return the type of an *object*.  The return value is a type object.  The
-   :func:`isinstance` built-in function is recommended for testing the type of an
-   object.
+   With one argument, return the type of an *object*.  The return value is a
+   type object.  The :func:`isinstance` built-in function is recommended for
+   testing the type of an object.
 
-   With three arguments, :func:`type` functions as a constructor as detailed below.
-
-
-.. function:: type(name, bases, dict)
-   :noindex:
-
-   Return a new type object.  This is essentially a dynamic form of the
-   :keyword:`class` statement. The *name* string is the class name and becomes the
-   :attr:`__name__` attribute; the *bases* tuple itemizes the base classes and
-   becomes the :attr:`__bases__` attribute; and the *dict* dictionary is the
-   namespace containing definitions for class body and becomes the :attr:`__dict__`
-   attribute.  For example, the following two statements create identical
-   :class:`type` objects:
+   With three arguments, return a new type object.  This is essentially a
+   dynamic form of the :keyword:`class` statement. The *name* string is the
+   class name and becomes the :attr:`__name__` attribute; the *bases* tuple
+   itemizes the base classes and becomes the :attr:`__bases__` attribute;
+   and the *dict* dictionary is the namespace containing definitions for class
+   body and becomes the :attr:`__dict__`  attribute.  For example, the
+   following two statements create identical :class:`type` objects:
 
       >>> class X(object):
       ...     a = 1
@@ -1441,7 +1466,8 @@ available.  They are listed here in alphabetical order.
    .. versionadded:: 2.0
 
 
-.. function:: unicode([object[, encoding [, errors]]])
+.. function:: unicode(object='')
+              unicode(object[, encoding [, errors]])
 
    Return the Unicode string version of *object* using one of the following modes:
 
@@ -1494,16 +1520,19 @@ available.  They are listed here in alphabetical order.
    dictionary are ignored.
 
 
-.. function:: xrange([start,] stop[, step])
+.. function:: xrange(stop)
+              xrange(start, stop[, step])
 
-   This function is very similar to :func:`range`, but returns an "xrange object"
+   This function is very similar to :func:`range`, but returns an :ref:`xrange
+   object <typesseq-xrange>`
    instead of a list.  This is an opaque sequence type which yields the same values
    as the corresponding list, without actually storing them all simultaneously.
    The advantage of :func:`xrange` over :func:`range` is minimal (since
    :func:`xrange` still has to create the values when asked for them) except when a
    very large range is used on a memory-starved machine or when all of the range's
    elements are never used (such as when the loop is usually terminated with
-   :keyword:`break`).
+   :keyword:`break`).  For more information on xrange objects, see
+   :ref:`typesseq-xrange` and :ref:`typesseq`.
 
    .. impl-detail::
 
@@ -1647,7 +1676,8 @@ bypass these functions without concerns about missing something important.
    ``function(*args, **keywords)``.
 
    .. deprecated:: 2.3
-      Use the extended call syntax with ``*args`` and ``**keywords`` instead.
+      Use ``function(*args, **keywords)`` instead of
+      ``apply(function, args, keywords)`` (see :ref:`tut-unpacking-arguments`).
 
 
 .. function:: buffer(object[, offset[, size]])

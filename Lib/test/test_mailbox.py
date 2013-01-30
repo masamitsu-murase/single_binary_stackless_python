@@ -8,6 +8,7 @@ import email.message
 import re
 import shutil
 import StringIO
+import tempfile
 from test import test_support
 import unittest
 import mailbox
@@ -47,7 +48,7 @@ class TestBase:
 class TestMailbox(TestBase):
 
     _factory = None     # Overridden by subclasses to reuse tests
-    _template = 'From: foo\n\n%s'
+    _template = 'From: foo\n\n%s\n'
 
     def setUp(self):
         self._path = test_support.TESTFN
@@ -74,6 +75,18 @@ class TestMailbox(TestBase):
         self.assertEqual(self._box.get_string(keys[0]), self._template % 0)
         for i in (1, 2, 3, 4):
             self._check_sample(self._box[keys[i]])
+
+    def test_add_file(self):
+        with tempfile.TemporaryFile('w+') as f:
+            f.write(_sample_message)
+            f.seek(0)
+            key = self._box.add(f)
+        self.assertEqual(self._box.get_string(key).split('\n'),
+            _sample_message.split('\n'))
+
+    def test_add_StringIO(self):
+        key = self._box.add(StringIO.StringIO(self._template % "0"))
+        self.assertEqual(self._box.get_string(key), self._template % "0")
 
     def test_remove(self):
         # Remove messages using remove()
@@ -124,7 +137,7 @@ class TestMailbox(TestBase):
         key0 = self._box.add(self._template % 0)
         msg = self._box.get(key0)
         self.assertEqual(msg['from'], 'foo')
-        self.assertEqual(msg.get_payload(), '0')
+        self.assertEqual(msg.get_payload(), '0\n')
         self.assertIs(self._box.get('foo'), None)
         self.assertFalse(self._box.get('foo', False))
         self._box.close()
@@ -132,14 +145,15 @@ class TestMailbox(TestBase):
         key1 = self._box.add(self._template % 1)
         msg = self._box.get(key1)
         self.assertEqual(msg['from'], 'foo')
-        self.assertEqual(msg.fp.read(), '1')
+        self.assertEqual(msg.fp.read(), '1' + os.linesep)
+        msg.fp.close()
 
     def test_getitem(self):
         # Retrieve message using __getitem__()
         key0 = self._box.add(self._template % 0)
         msg = self._box[key0]
         self.assertEqual(msg['from'], 'foo')
-        self.assertEqual(msg.get_payload(), '0')
+        self.assertEqual(msg.get_payload(), '0\n')
         self.assertRaises(KeyError, lambda: self._box['foo'])
         self._box.discard(key0)
         self.assertRaises(KeyError, lambda: self._box[key0])
@@ -151,7 +165,7 @@ class TestMailbox(TestBase):
         msg0 = self._box.get_message(key0)
         self.assertIsInstance(msg0, mailbox.Message)
         self.assertEqual(msg0['from'], 'foo')
-        self.assertEqual(msg0.get_payload(), '0')
+        self.assertEqual(msg0.get_payload(), '0\n')
         self._check_sample(self._box.get_message(key1))
 
     def test_get_string(self):
@@ -165,10 +179,14 @@ class TestMailbox(TestBase):
         # Get file representations of messages
         key0 = self._box.add(self._template % 0)
         key1 = self._box.add(_sample_message)
-        self.assertEqual(self._box.get_file(key0).read().replace(os.linesep, '\n'),
+        msg0 = self._box.get_file(key0)
+        self.assertEqual(msg0.read().replace(os.linesep, '\n'),
                          self._template % 0)
-        self.assertEqual(self._box.get_file(key1).read().replace(os.linesep, '\n'),
+        msg1 = self._box.get_file(key1)
+        self.assertEqual(msg1.read().replace(os.linesep, '\n'),
                          _sample_message)
+        msg0.close()
+        msg1.close()
 
     def test_get_file_can_be_closed_twice(self):
         # Issue 11700
@@ -320,15 +338,15 @@ class TestMailbox(TestBase):
         self.assertIn(key0, self._box)
         key1 = self._box.add(self._template % 1)
         self.assertIn(key1, self._box)
-        self.assertEqual(self._box.pop(key0).get_payload(), '0')
+        self.assertEqual(self._box.pop(key0).get_payload(), '0\n')
         self.assertNotIn(key0, self._box)
         self.assertIn(key1, self._box)
         key2 = self._box.add(self._template % 2)
         self.assertIn(key2, self._box)
-        self.assertEqual(self._box.pop(key2).get_payload(), '2')
+        self.assertEqual(self._box.pop(key2).get_payload(), '2\n')
         self.assertNotIn(key2, self._box)
         self.assertIn(key1, self._box)
-        self.assertEqual(self._box.pop(key1).get_payload(), '1')
+        self.assertEqual(self._box.pop(key1).get_payload(), '1\n')
         self.assertNotIn(key1, self._box)
         self.assertEqual(len(self._box), 0)
 
@@ -414,6 +432,7 @@ class TestMailbox(TestBase):
         self._box.add(contents[0])
         self._box.add(contents[1])
         self._box.add(contents[2])
+        oldbox = self._box
         method()
         if should_call_close:
             self._box.close()
@@ -422,6 +441,7 @@ class TestMailbox(TestBase):
         self.assertEqual(len(keys), 3)
         for key in keys:
             self.assertIn(self._box.get_string(key), contents)
+        oldbox.close()
 
     def test_dump_message(self):
         # Write message representations to disk
@@ -517,7 +537,7 @@ class TestMaildir(TestMailbox, unittest.TestCase):
         msg_returned = self._box.get_message(key)
         self.assertEqual(msg_returned.get_subdir(), 'new')
         self.assertEqual(msg_returned.get_flags(), '')
-        self.assertEqual(msg_returned.get_payload(), '1')
+        self.assertEqual(msg_returned.get_payload(), '1\n')
         msg2 = mailbox.MaildirMessage(self._template % 2)
         msg2.set_info('2,S')
         self._box[key] = msg2
@@ -525,7 +545,7 @@ class TestMaildir(TestMailbox, unittest.TestCase):
         msg_returned = self._box.get_message(key)
         self.assertEqual(msg_returned.get_subdir(), 'new')
         self.assertEqual(msg_returned.get_flags(), 'S')
-        self.assertEqual(msg_returned.get_payload(), '3')
+        self.assertEqual(msg_returned.get_payload(), '3\n')
 
     def test_consistent_factory(self):
         # Add a message.
@@ -647,13 +667,13 @@ class TestMaildir(TestMailbox, unittest.TestCase):
             self.assertTrue(match is not None, "Invalid file name: '%s'" % tail)
             groups = match.groups()
             if previous_groups is not None:
-                self.assertTrue(int(groups[0] >= previous_groups[0]),
+                self.assertGreaterEqual(int(groups[0]), int(previous_groups[0]),
                              "Non-monotonic seconds: '%s' before '%s'" %
                              (previous_groups[0], groups[0]))
-                self.assertTrue(int(groups[1] >= previous_groups[1]) or
-                             groups[0] != groups[1],
-                             "Non-monotonic milliseconds: '%s' before '%s'" %
-                             (previous_groups[1], groups[1]))
+                if int(groups[0]) == int(previous_groups[0]):
+                    self.assertGreaterEqual(int(groups[1]), int(previous_groups[1]),
+                                "Non-monotonic milliseconds: '%s' before '%s'" %
+                                (previous_groups[1], groups[1]))
                 self.assertTrue(int(groups[2]) == pid,
                              "Process ID mismatch: '%s' should be '%s'" %
                              (groups[2], pid))
@@ -876,14 +896,14 @@ class _TestMboxMMDF(_TestSingleFile):
 
     def test_add_from_string(self):
         # Add a string starting with 'From ' to the mailbox
-        key = self._box.add('From foo@bar blah\nFrom: foo\n\n0')
+        key = self._box.add('From foo@bar blah\nFrom: foo\n\n0\n')
         self.assertEqual(self._box[key].get_from(), 'foo@bar blah')
-        self.assertEqual(self._box[key].get_payload(), '0')
+        self.assertEqual(self._box[key].get_payload(), '0\n')
 
     def test_add_mbox_or_mmdf_message(self):
         # Add an mboxMessage or MMDFMessage
         for class_ in (mailbox.mboxMessage, mailbox.MMDFMessage):
-            msg = class_('From foo@bar blah\nFrom: foo\n\n0')
+            msg = class_('From foo@bar blah\nFrom: foo\n\n0\n')
             key = self._box.add(msg)
 
     def test_open_close_open(self):
@@ -989,6 +1009,29 @@ class TestMbox(_TestMboxMMDF, unittest.TestCase):
             st = os.stat(self._path)
             perms = st.st_mode
             self.assertFalse((perms & 0111)) # Execute bits should all be off.
+
+    def test_terminating_newline(self):
+        message = email.message.Message()
+        message['From'] = 'john@example.com'
+        message.set_payload('No newline at the end')
+        i = self._box.add(message)
+
+        # A newline should have been appended to the payload
+        message = self._box.get(i)
+        self.assertEqual(message.get_payload(), 'No newline at the end\n')
+
+    def test_message_separator(self):
+        # Check there's always a single blank line after each message
+        self._box.add('From: foo\n\n0')  # No newline at the end
+        with open(self._path) as f:
+            data = f.read()
+            self.assertEqual(data[-3:], '0\n\n')
+
+        self._box.add('From: foo\n\n0\n')  # Newline at the end
+        with open(self._path) as f:
+            data = f.read()
+            self.assertEqual(data[-3:], '0\n\n')
+
 
 class TestMMDF(_TestMboxMMDF, unittest.TestCase):
 
@@ -1932,7 +1975,9 @@ class MaildirTestCase(unittest.TestCase):
         self.createMessage("cur")
         self.mbox = mailbox.Maildir(test_support.TESTFN)
         #self.assertTrue(len(self.mbox.boxes) == 1)
-        self.assertIsNot(self.mbox.next(), None)
+        msg = self.mbox.next()
+        self.assertIsNot(msg, None)
+        msg.fp.close()
         self.assertIs(self.mbox.next(), None)
         self.assertIs(self.mbox.next(), None)
 
@@ -1940,7 +1985,9 @@ class MaildirTestCase(unittest.TestCase):
         self.createMessage("new")
         self.mbox = mailbox.Maildir(test_support.TESTFN)
         #self.assertTrue(len(self.mbox.boxes) == 1)
-        self.assertIsNot(self.mbox.next(), None)
+        msg = self.mbox.next()
+        self.assertIsNot(msg, None)
+        msg.fp.close()
         self.assertIs(self.mbox.next(), None)
         self.assertIs(self.mbox.next(), None)
 
@@ -1949,8 +1996,12 @@ class MaildirTestCase(unittest.TestCase):
         self.createMessage("new")
         self.mbox = mailbox.Maildir(test_support.TESTFN)
         #self.assertTrue(len(self.mbox.boxes) == 2)
-        self.assertIsNot(self.mbox.next(), None)
-        self.assertIsNot(self.mbox.next(), None)
+        msg = self.mbox.next()
+        self.assertIsNot(msg, None)
+        msg.fp.close()
+        msg = self.mbox.next()
+        self.assertIsNot(msg, None)
+        msg.fp.close()
         self.assertIs(self.mbox.next(), None)
         self.assertIs(self.mbox.next(), None)
 
@@ -1959,11 +2010,13 @@ class MaildirTestCase(unittest.TestCase):
         import email.parser
         fname = self.createMessage("cur", True)
         n = 0
-        for msg in mailbox.PortableUnixMailbox(open(fname),
+        fid = open(fname)
+        for msg in mailbox.PortableUnixMailbox(fid,
                                                email.parser.Parser().parse):
             n += 1
             self.assertEqual(msg["subject"], "Simple Test")
             self.assertEqual(len(str(msg)), len(FROM_)+len(DUMMY_MESSAGE))
+        fid.close()
         self.assertEqual(n, 1)
 
 ## End: classes from the original module (for backward compatibility).

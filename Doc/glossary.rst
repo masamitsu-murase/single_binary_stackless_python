@@ -39,16 +39,34 @@ Glossary
       create your own ABCs with the :mod:`abc` module.
 
    argument
-      A value passed to a function or method, assigned to a named local
-      variable in the function body.  A function or method may have both
-      positional arguments and keyword arguments in its definition.
-      Positional and keyword arguments may be variable-length: ``*`` accepts
-      or passes (if in the function definition or call) several positional
-      arguments in a list, while ``**`` does the same for keyword arguments
-      in a dictionary.
+      A value passed to a :term:`function` (or :term:`method`) when calling the
+      function.  There are two types of arguments:
 
-      Any expression may be used within the argument list, and the evaluated
-      value is passed to the local variable.
+      * :dfn:`keyword argument`: an argument preceded by an identifier (e.g.
+        ``name=``) in a function call or passed as a value in a dictionary
+        preceded by ``**``.  For example, ``3`` and ``5`` are both keyword
+        arguments in the following calls to :func:`complex`::
+
+           complex(real=3, imag=5)
+           complex(**{'real': 3, 'imag': 5})
+
+      * :dfn:`positional argument`: an argument that is not a keyword argument.
+        Positional arguments can appear at the beginning of an argument list
+        and/or be passed as elements of an :term:`iterable` preceded by ``*``.
+        For example, ``3`` and ``5`` are both positional arguments in the
+        following calls::
+
+           complex(3, 5)
+           complex(*(3, 5))
+
+      Arguments are assigned to the named local variables in a function body.
+      See the :ref:`calls` section for the rules governing this assignment.
+      Syntactically, any expression can be used to represent an argument; the
+      evaluated value is assigned to the local variable.
+
+      See also the :term:`parameter` glossary entry and the FAQ question on
+      :ref:`the difference between arguments and parameters
+      <faq-argument-vs-parameter>`.
 
    attribute
       A value associated with an object which is referenced by name using
@@ -227,8 +245,9 @@ Glossary
 
    function
       A series of statements which returns some value to a caller. It can also
-      be passed zero or more arguments which may be used in the execution of
-      the body. See also :term:`argument` and :term:`method`.
+      be passed zero or more :term:`arguments <argument>` which may be used in
+      the execution of the body. See also :term:`parameter`, :term:`method`,
+      and the :ref:`function` section.
 
    __future__
       A pseudo-module which programmers can use to enable new language features
@@ -359,17 +378,17 @@ Glossary
       slowly.  See also :term:`interactive`.
 
    iterable
-      An object capable of returning its members one at a
-      time. Examples of iterables include all sequence types (such as
-      :class:`list`, :class:`str`, and :class:`tuple`) and some non-sequence
-      types like :class:`dict` and :class:`file` and objects of any classes you
-      define with an :meth:`__iter__` or :meth:`__getitem__` method.  Iterables
-      can be used in a :keyword:`for` loop and in many other places where a
-      sequence is needed (:func:`zip`, :func:`map`, ...).  When an iterable
-      object is passed as an argument to the built-in function :func:`iter`, it
-      returns an iterator for the object.  This iterator is good for one pass
-      over the set of values.  When using iterables, it is usually not necessary
-      to call :func:`iter` or deal with iterator objects yourself.  The ``for``
+      An object capable of returning its members one at a time. Examples of
+      iterables include all sequence types (such as :class:`list`, :class:`str`,
+      and :class:`tuple`) and some non-sequence types like :class:`dict`
+      and :class:`file` and objects of any classes you define
+      with an :meth:`__iter__` or :meth:`__getitem__` method.  Iterables can be
+      used in a :keyword:`for` loop and in many other places where a sequence is
+      needed (:func:`zip`, :func:`map`, ...).  When an iterable object is passed
+      as an argument to the built-in function :func:`iter`, it returns an
+      iterator for the object.  This iterator is good for one pass over the set
+      of values.  When using iterables, it is usually not necessary to call
+      :func:`iter` or deal with iterator objects yourself.  The ``for``
       statement does that automatically for you, creating a temporary unnamed
       variable to hold the iterator for the duration of the loop.  See also
       :term:`iterator`, :term:`sequence`, and :term:`generator`.
@@ -412,10 +431,7 @@ Glossary
       <sortinghowto>` for examples of how to create and use key functions.
 
    keyword argument
-      Arguments which are preceded with a ``variable_name=`` in the call.
-      The variable name designates the local name in the function to which the
-      value is assigned.  ``**`` is used to accept or pass a dictionary of
-      keyword arguments.  See :term:`argument`.
+      See :term:`argument`.
 
    lambda
       An anonymous inline function consisting of a single :term:`expression`
@@ -537,12 +553,46 @@ Glossary
       (methods).  Also the ultimate base class of any :term:`new-style
       class`.
 
+   parameter
+      A named entity in a :term:`function` (or method) definition that
+      specifies an :term:`argument` (or in some cases, arguments) that the
+      function can accept.  There are four types of parameters:
+
+      * :dfn:`positional-or-keyword`: specifies an argument that can be passed
+        either :term:`positionally <argument>` or as a :term:`keyword argument
+        <argument>`.  This is the default kind of parameter, for example *foo*
+        and *bar* in the following::
+
+           def func(foo, bar=None): ...
+
+      * :dfn:`positional-only`: specifies an argument that can be supplied only
+        by position.  Python has no syntax for defining positional-only
+        parameters.  However, some built-in functions have positional-only
+        parameters (e.g. :func:`abs`).
+
+      * :dfn:`var-positional`: specifies that an arbitrary sequence of
+        positional arguments can be provided (in addition to any positional
+        arguments already accepted by other parameters).  Such a parameter can
+        be defined by prepending the parameter name with ``*``, for example
+        *args* in the following::
+
+           def func(*args, **kwargs): ...
+
+      * :dfn:`var-keyword`: specifies that arbitrarily many keyword arguments
+        can be provided (in addition to any keyword arguments already accepted
+        by other parameters).  Such a parameter can be defined by prepending
+        the parameter name with ``**``, for example *kwargs* in the example
+        above.
+
+      Parameters can specify both optional and required arguments, as well as
+      default values for some optional arguments.
+
+      See also the :term:`argument` glossary entry, the FAQ question on
+      :ref:`the difference between arguments and parameters
+      <faq-argument-vs-parameter>`, and the :ref:`function` section.
+
    positional argument
-      The arguments assigned to local names inside a function or method,
-      determined by the order in which they were given in the call.  ``*`` is
-      used to either accept multiple positional arguments (when in the
-      definition), or pass several arguments as a list to a function.  See
-      :term:`argument`.
+      See :term:`argument`.
 
    Python 3000
       Nickname for the Python 3.x release line (coined long ago when the release
@@ -629,6 +679,13 @@ Glossary
       The type of a Python object determines what kind of object it is; every
       object has a type.  An object's type is accessible as its
       :attr:`__class__` attribute or can be retrieved with ``type(obj)``.
+
+   universal newlines
+      A manner of interpreting text streams in which all of the following are
+      recognized as ending a line: the Unix end-of-line convention ``'\n'``,
+      the Windows convention ``'\r\n'``, and the old Macintosh convention
+      ``'\r'``.  See :pep:`278` and :pep:`3116`, as well as
+      :func:`str.splitlines` for an additional use.
 
    view
       The objects returned from :meth:`dict.viewkeys`, :meth:`dict.viewvalues`,

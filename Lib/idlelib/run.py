@@ -15,6 +15,8 @@ from idlelib import RemoteDebugger
 from idlelib import RemoteObjectBrowser
 from idlelib import StackViewer
 from idlelib import rpc
+from idlelib import PyShell
+from idlelib import IOBinding
 
 import __main__
 
@@ -249,42 +251,19 @@ class MyRPCServer(rpc.RPCServer):
             quitting = True
             thread.interrupt_main()
 
-class _RPCFile(io.TextIOBase):
-    """Wrapper class for the RPC proxy to typecheck arguments
-    that may not support pickling. The base class is there only
-    to support type tests; all implementations come from the remote
-    object."""
-
-    def __init__(self, rpc):
-        super.__setattr__(self, 'rpc', rpc)
-
-    def __getattribute__(self, name):
-        # When accessing the 'rpc' attribute, or 'write', use ours
-        if name in ('rpc', 'write'):
-            return io.TextIOBase.__getattribute__(self, name)
-        # Else only look into the remote object only
-        return getattr(self.rpc, name)
-
-    def __setattr__(self, name, value):
-        return setattr(self.rpc, name, value)
-
-    def write(self, s):
-        if not isinstance(s, (basestring, bytearray)):
-            raise TypeError('must be string, not ' + type(s).__name__)
-        return self.rpc.write(s)
-
 class MyHandler(rpc.RPCHandler):
 
     def handle(self):
         """Override base method"""
         executive = Executive(self)
         self.register("exec", executive)
-        sys.stdin = self.console = self.get_remote_proxy("stdin")
-        sys.stdout = _RPCFile(self.get_remote_proxy("stdout"))
-        sys.stderr = _RPCFile(self.get_remote_proxy("stderr"))
-        from idlelib import IOBinding
-        sys.stdin.encoding = sys.stdout.encoding = \
-                             sys.stderr.encoding = IOBinding.encoding
+        self.console = self.get_remote_proxy("console")
+        sys.stdin = PyShell.PseudoInputFile(self.console, "stdin",
+                IOBinding.encoding)
+        sys.stdout = PyShell.PseudoOutputFile(self.console, "stdout",
+                IOBinding.encoding)
+        sys.stderr = PyShell.PseudoOutputFile(self.console, "stderr",
+                IOBinding.encoding)
         self.interp = self.get_remote_proxy("interp")
         rpc.RPCHandler.getresponse(self, myseq=None, wait=0.05)
 

@@ -72,7 +72,7 @@ process and user.
 
 .. data:: environ
 
-   A mapping object representing the string environment. For example,
+   A :term:`mapping` object representing the string environment. For example,
    ``environ['HOME']`` is the pathname of your home directory (on some platforms),
    and is equivalent to ``getenv("HOME")`` in C.
 
@@ -2226,7 +2226,7 @@ written in Python, such as a mail server's external command delivery program.
    with :const:`P_NOWAIT` return suitable process handles.
 
 
-.. function:: wait3([options])
+.. function:: wait3(options)
 
    Similar to :func:`waitpid`, except no process id argument is given and a
    3-element tuple containing the child's process id, exit status indication, and
@@ -2506,5 +2506,7 @@ Miscellaneous Functions
    system this will query /dev/urandom, and on Windows it will use CryptGenRandom.
    If a randomness source is not found, :exc:`NotImplementedError` will be raised.
 
-   .. versionadded:: 2.4
+   For an easy-to-use interface to the random number generator
+   provided by your platform, please see :class:`random.SystemRandom`.
 
+   .. versionadded:: 2.4

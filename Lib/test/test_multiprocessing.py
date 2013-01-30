@@ -16,6 +16,7 @@ import socket
 import random
 import logging
 import errno
+import test.script_helper
 from test import test_support
 from StringIO import StringIO
 _multiprocessing = test_support.import_module('_multiprocessing')
@@ -1512,6 +1513,7 @@ class _TestConnection(BaseTestCase):
         self.assertTimingAlmostEqual(poll.elapsed, TIMEOUT1)
 
         conn.send(None)
+        time.sleep(.1)
 
         self.assertEqual(poll(TIMEOUT1), True)
         self.assertTimingAlmostEqual(poll.elapsed, 0)
@@ -2315,8 +2317,62 @@ class TestStdinBadfiledescriptor(unittest.TestCase):
         flike.flush()
         assert sio.getvalue() == 'foo'
 
+#
+# Test interaction with socket timeouts - see Issue #6056
+#
+
+class TestTimeouts(unittest.TestCase):
+    @classmethod
+    def _test_timeout(cls, child, address):
+        time.sleep(1)
+        child.send(123)
+        child.close()
+        conn = multiprocessing.connection.Client(address)
+        conn.send(456)
+        conn.close()
+
+    def test_timeout(self):
+        old_timeout = socket.getdefaulttimeout()
+        try:
+            socket.setdefaulttimeout(0.1)
+            parent, child = multiprocessing.Pipe(duplex=True)
+            l = multiprocessing.connection.Listener(family='AF_INET')
+            p = multiprocessing.Process(target=self._test_timeout,
+                                        args=(child, l.address))
+            p.start()
+            child.close()
+            self.assertEqual(parent.recv(), 123)
+            parent.close()
+            conn = l.accept()
+            self.assertEqual(conn.recv(), 456)
+            conn.close()
+            l.close()
+            p.join(10)
+        finally:
+            socket.setdefaulttimeout(old_timeout)
+
+#
+# Test what happens with no "if __name__ == '__main__'"
+#
+
+class TestNoForkBomb(unittest.TestCase):
+    def test_noforkbomb(self):
+        name = os.path.join(os.path.dirname(__file__), 'mp_fork_bomb.py')
+        if WIN32:
+            rc, out, err = test.script_helper.assert_python_failure(name)
+            self.assertEqual('', out.decode('ascii'))
+            self.assertIn('RuntimeError', err.decode('ascii'))
+        else:
+            rc, out, err = test.script_helper.assert_python_ok(name)
+            self.assertEqual('123', out.decode('ascii').rstrip())
+            self.assertEqual('', err.decode('ascii'))
+
+#
+#
+#
+
 testcases_other = [OtherTest, TestInvalidHandle, TestInitializers,
-                   TestStdinBadfiledescriptor]
+                   TestStdinBadfiledescriptor, TestTimeouts, TestNoForkBomb]
 
 #
 #

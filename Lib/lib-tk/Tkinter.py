@@ -41,6 +41,7 @@ tkinter = _tkinter # b/w compat for export
 TclError = _tkinter.TclError
 from types import *
 from Tkconstants import *
+import re
 
 wantobjects = 1
 
@@ -57,6 +58,37 @@ except AttributeError: _tkinter.createfilehandler = None
 try: _tkinter.deletefilehandler
 except AttributeError: _tkinter.deletefilehandler = None
 
+
+_magic_re = re.compile(r'([\\{}])')
+_space_re = re.compile(r'([\s])')
+
+def _join(value):
+    """Internal function."""
+    return ' '.join(map(_stringify, value))
+
+def _stringify(value):
+    """Internal function."""
+    if isinstance(value, (list, tuple)):
+        if len(value) == 1:
+            value = _stringify(value[0])
+            if value[0] == '{':
+                value = '{%s}' % value
+        else:
+            value = '{%s}' % _join(value)
+    else:
+        if isinstance(value, basestring):
+            value = unicode(value)
+        else:
+            value = str(value)
+        if not value:
+            value = '{}'
+        elif _magic_re.search(value):
+            # add '\' before special characters and spaces
+            value = _magic_re.sub(r'\\\1', value)
+            value = _space_re.sub(r'\\\1', value)
+        elif value[0] == '"' or _space_re.search(value):
+            value = '{%s}' % value
+    return value
 
 def _flatten(tuple):
     """Internal function."""
@@ -154,8 +186,12 @@ def _tkerror(err):
     """Internal function."""
     pass
 
-def _exit(code='0'):
-    """Internal function. Calling it will throw the exception SystemExit."""
+def _exit(code=0):
+    """Internal function. Calling it will raise the exception SystemExit."""
+    try:
+        code = int(code)
+    except ValueError:
+        pass
     raise SystemExit, code
 
 _varnum = 0
@@ -1082,7 +1118,7 @@ class Misc:
                             nv.append('%d' % item)
                         else:
                             # format it to proper Tcl code if it contains space
-                            nv.append(('{%s}' if ' ' in item else '%s') % item)
+                            nv.append(_stringify(item))
                     else:
                         v = ' '.join(nv)
                 res = res + ('-'+k, v)
@@ -1709,7 +1745,9 @@ class Tk(Misc, Wm):
         self.tk = _tkinter.create(screenName, baseName, className, interactive, wantobjects, useTk, sync, use)
         if useTk:
             self._loadtk()
-        self.readprofile(baseName, className)
+        if not sys.flags.ignore_environment:
+            # Issue #16248: Honor the -E flag to avoid code injection.
+            self.readprofile(baseName, className)
     def loadtk(self):
         if not self._tkloaded:
             self.tk.loadtk()

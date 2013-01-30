@@ -328,11 +328,15 @@ type_set_abstractmethods(PyTypeObject *type, PyObject *value, void *context)
        abc.ABCMeta.__new__, so this function doesn't do anything
        special to update subclasses.
     */
-    int res;
+    int abstract, res;
     if (value != NULL) {
+        abstract = PyObject_IsTrue(value);
+        if (abstract < 0)
+            return -1;
         res = PyDict_SetItemString(type->tp_dict, "__abstractmethods__", value);
     }
     else {
+        abstract = 0;
         res = PyDict_DelItemString(type->tp_dict, "__abstractmethods__");
         if (res && PyErr_ExceptionMatches(PyExc_KeyError)) {
             PyErr_SetString(PyExc_AttributeError, "__abstractmethods__");
@@ -341,12 +345,10 @@ type_set_abstractmethods(PyTypeObject *type, PyObject *value, void *context)
     }
     if (res == 0) {
         PyType_Modified(type);
-        if (value && PyObject_IsTrue(value)) {
+        if (abstract)
             type->tp_flags |= Py_TPFLAGS_IS_ABSTRACT;
-        }
-        else {
+        else
             type->tp_flags &= ~Py_TPFLAGS_IS_ABSTRACT;
-        }
     }
     return res;
 }
@@ -685,8 +687,10 @@ type_repr(PyTypeObject *type)
         mod = NULL;
     }
     name = type_name(type, NULL);
-    if (name == NULL)
+    if (name == NULL) {
+        Py_XDECREF(mod);
         return NULL;
+    }
 
     if (type->tp_flags & Py_TPFLAGS_HEAPTYPE)
         kind = "class";
@@ -895,6 +899,7 @@ subtype_dealloc(PyObject *self)
 {
     PyTypeObject *type, *base;
     destructor basedealloc;
+    PyThreadState *tstate = PyThreadState_GET();
 
     /* Extract the type; we expect it to be a heap type */
     type = Py_TYPE(self);
@@ -944,8 +949,10 @@ subtype_dealloc(PyObject *self)
     /* See explanation at end of function for full disclosure */
     PyObject_GC_UnTrack(self);
     ++_PyTrash_delete_nesting;
+    ++ tstate->trash_delete_nesting;
     Py_TRASHCAN_SAFE_BEGIN(self);
     --_PyTrash_delete_nesting;
+    -- tstate->trash_delete_nesting;
     /* DO NOT restore GC tracking at this point.  weakref callbacks
      * (if any, and whether directly here or indirectly in something we
      * call) may trigger GC, and if self is tracked at that point, it
@@ -1024,8 +1031,10 @@ subtype_dealloc(PyObject *self)
 
   endlabel:
     ++_PyTrash_delete_nesting;
+    ++ tstate->trash_delete_nesting;
     Py_TRASHCAN_SAFE_END(self);
     --_PyTrash_delete_nesting;
+    -- tstate->trash_delete_nesting;
 
     /* Explanation of the weirdness around the trashcan macros:
 
@@ -3014,8 +3023,10 @@ object_repr(PyObject *self)
         mod = NULL;
     }
     name = type_name(type, NULL);
-    if (name == NULL)
+    if (name == NULL) {
+        Py_XDECREF(mod);
         return NULL;
+    }
     if (mod != NULL && strcmp(PyString_AS_STRING(mod), "__builtin__"))
         rtn = PyString_FromFormat("<%s.%s object at %p>",
                                   PyString_AS_STRING(mod),
@@ -6838,8 +6849,8 @@ super_init(PyObject *self, PyObject *args, PyObject *kwds)
 }
 
 PyDoc_STRVAR(super_doc,
-"super(type) -> unbound super object\n"
 "super(type, obj) -> bound super object; requires isinstance(obj, type)\n"
+"super(type) -> unbound super object\n"
 "super(type, type2) -> bound super object; requires issubclass(type2, type)\n"
 "Typical use to call a cooperative superclass method:\n"
 "class C(B):\n"
