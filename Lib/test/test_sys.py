@@ -621,10 +621,10 @@ class SizeofTest(unittest.TestCase):
                  ncells + nfrees - 1
         if haveStackless:
             # One extra pointer in the structure.
-            stacklessSize = size("1P")
+            stacklessSize = "1P"
         else:
-            stacklessSize = 0
-        check(x, vsize('12P3i' + CO_MAXBLOCKS*'3i' + 'P' + extras*'P') + stacklessSize)
+            stacklessSize = ""
+        check(x, vsize('12P3i' + CO_MAXBLOCKS*'3i' + 'P' + extras*'P' + stacklessSize))
         # function
         def func(): pass
         check(func, size('9P'))
@@ -730,10 +730,10 @@ class SizeofTest(unittest.TestCase):
         #  PySequenceMethods + PyBufferProcs)
         if haveStackless:
             # The number of byte entries in the generated 'slp_methodflags'.
-            stacklessSize = ' 83c'
+            stacklessSize = '83c 0P'
         else:
             stacklessSize = ''
-        s = vsize('P2P15Pl4PP9PP11PI') + struct.calcsize('41P 10P 3P 6P + stacklessSize')
+        s = vsize('P2P15Pl4PP9PP11PI') + struct.calcsize('41P 10P 3P 6P' + stacklessSize)
         class newstyleclass(object):
             pass
         check(newstyleclass, s)
