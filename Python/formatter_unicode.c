@@ -802,9 +802,6 @@ done:
 /*********** long formatting ********************************************/
 /************************************************************************/
 
-typedef PyObject*
-(*IntOrLongToString)(PyObject *value, int base);
-
 static int
 format_long_internal(PyObject *value, const InternalFormatSpec *format,
                      _PyUnicodeWriter *writer)
@@ -1102,7 +1099,7 @@ format_float_internal(PyObject *value,
                          &locale, 0);
 
 done:
-    Py_DECREF(unicode_tmp);
+    Py_XDECREF(unicode_tmp);
     free_locale_info(&locale);
     return result;
 }

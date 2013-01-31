@@ -9,7 +9,7 @@ functionality over this module.
 from _imp import (lock_held, acquire_lock, release_lock,
                   load_dynamic, get_frozen_object, is_frozen_package,
                   init_builtin, init_frozen, is_builtin, is_frozen,
-                  _fix_co_filename, extension_suffixes)
+                  _fix_co_filename)
 
 # Directly exposed by this module
 from importlib._bootstrap import new_module
@@ -51,7 +51,7 @@ def get_suffixes():
     warnings.warn('imp.get_suffixes() is deprecated; use the constants '
                   'defined on importlib.machinery instead',
                   DeprecationWarning, 2)
-    extensions = [(s, 'rb', C_EXTENSION) for s in extension_suffixes()]
+    extensions = [(s, 'rb', C_EXTENSION) for s in machinery.EXTENSION_SUFFIXES]
     source = [(s, 'U', PY_SOURCE) for s in machinery.SOURCE_SUFFIXES]
     bytecode = [(s, 'rb', PY_COMPILED) for s in machinery.BYTECODE_SUFFIXES]
 
@@ -153,13 +153,15 @@ def load_module(name, file, filename, details):
         warnings.simplefilter('ignore')
         if mode and (not mode.startswith(('r', 'U')) or '+' in mode):
             raise ValueError('invalid file open mode {!r}'.format(mode))
-        elif file is None and type_ in {PY_SOURCE, PY_COMPILED}:
+        elif file is None and type_ in {PY_SOURCE, PY_COMPILED, C_EXTENSION}:
             msg = 'file object required for import (type code {})'.format(type_)
             raise ValueError(msg)
         elif type_ == PY_SOURCE:
             return load_source(name, filename, file)
         elif type_ == PY_COMPILED:
             return load_compiled(name, filename, file)
+        elif type_ == C_EXTENSION:
+            return load_dynamic(name, filename, file)
         elif type_ == PKG_DIRECTORY:
             return load_package(name, filename)
         elif type_ == C_BUILTIN:
@@ -167,7 +169,7 @@ def load_module(name, file, filename, details):
         elif type_ == PY_FROZEN:
             return init_frozen(name)
         else:
-            msg =  "Don't know how to import {} (type code {}".format(name, type_)
+            msg =  "Don't know how to import {} (type code {})".format(name, type_)
             raise ImportError(msg, name=name)
 
 

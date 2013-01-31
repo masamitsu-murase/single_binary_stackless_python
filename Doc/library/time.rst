@@ -309,7 +309,7 @@ The module defines the following functions and data items:
 
    On Windows versions older than Vista, :func:`monotonic` detects
    :c:func:`GetTickCount` integer overflow (32 bits, roll-over after 49.7 days).
-   It increases an internal epoch (reference time by) 2\ :sup:`32` each time
+   It increases an internal epoch (reference time) by 2\ :sup:`32` each time
    that an overflow is detected.  The epoch is stored in the process-local state
    and so the value of :func:`monotonic` may be different in two Python
    processes running for more than 49 days. On more recent versions of Windows
@@ -557,7 +557,7 @@ The module defines the following functions and data items:
    :exc:`TypeError` is raised.
 
   .. versionchanged:: 3.3
-     :attr:`tm_gmtoff` and :attr:`tm_zone` attributes are avaliable on platforms
+     :attr:`tm_gmtoff` and :attr:`tm_zone` attributes are available on platforms
      with C library supporting the corresponding fields in ``struct tm``.
 
 .. function:: time()

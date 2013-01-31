@@ -356,7 +356,7 @@ child_exec(char *const exec_array[],
            PyObject *preexec_fn,
            PyObject *preexec_fn_args_tuple)
 {
-    int i, saved_errno, unused;
+    int i, saved_errno, unused, reached_preexec = 0;
     PyObject *result;
     const char* err_msg = "";
     /* Buffer large enough to hold a hex integer.  We can't malloc. */
@@ -440,6 +440,7 @@ child_exec(char *const exec_array[],
         POSIX_CALL(setsid());
 #endif
 
+    reached_preexec = 1;
     if (preexec_fn != Py_None && preexec_fn_args_tuple) {
         /* This is where the user has asked us to deadlock their program. */
         result = PyObject_Call(preexec_fn, preexec_fn_args_tuple, NULL);
@@ -489,6 +490,10 @@ error:
         }
         unused = write(errpipe_write, cur, hex_errno + sizeof(hex_errno) - cur);
         unused = write(errpipe_write, ":", 1);
+        if (!reached_preexec) {
+            /* Indicate to the parent that the error happened before exec(). */
+            unused = write(errpipe_write, "noexec", 6);
+        }
         /* We can't call strerror(saved_errno).  It is not async signal safe.
          * The parent process will look the error message up. */
     } else {
@@ -503,7 +508,7 @@ static PyObject *
 subprocess_fork_exec(PyObject* self, PyObject *args)
 {
     PyObject *gc_module = NULL;
-    PyObject *executable_list, *py_close_fds, *py_fds_to_keep;
+    PyObject *executable_list, *py_fds_to_keep;
     PyObject *env_list, *preexec_fn;
     PyObject *process_args, *converted_args = NULL, *fast_args = NULL;
     PyObject *preexec_fn_args_tuple = NULL;
@@ -518,15 +523,14 @@ subprocess_fork_exec(PyObject* self, PyObject *args)
     Py_ssize_t arg_num;
 
     if (!PyArg_ParseTuple(
-            args, "OOOOOOiiiiiiiiiiO:fork_exec",
-            &process_args, &executable_list, &py_close_fds, &py_fds_to_keep,
+            args, "OOpOOOiiiiiiiiiiO:fork_exec",
+            &process_args, &executable_list, &close_fds, &py_fds_to_keep,
             &cwd_obj, &env_list,
             &p2cread, &p2cwrite, &c2pread, &c2pwrite,
             &errread, &errwrite, &errpipe_read, &errpipe_write,
             &restore_signals, &call_setsid, &preexec_fn))
         return NULL;
 
-    close_fds = PyObject_IsTrue(py_close_fds);
     if (close_fds && errpipe_write < 3) {  /* precondition */
         PyErr_SetString(PyExc_ValueError, "errpipe_write must be >= 3");
         return NULL;
@@ -569,8 +573,10 @@ subprocess_fork_exec(PyObject* self, PyObject *args)
     }
 
     exec_array = _PySequence_BytesToCharpArray(executable_list);
-    if (!exec_array)
+    if (!exec_array) {
+        Py_XDECREF(gc_module);
         return NULL;
+    }
 
     /* Convert args and env into appropriate arguments for exec() */
     /* These conversions are done in the parent process to avoid allocating
@@ -580,6 +586,8 @@ subprocess_fork_exec(PyObject* self, PyObject *args)
         /* Equivalent to:  */
         /*  tuple(PyUnicode_FSConverter(arg) for arg in process_args)  */
         fast_args = PySequence_Fast(process_args, "argv must be a tuple");
+        if (fast_args == NULL)
+            goto cleanup;
         num_args = PySequence_Fast_GET_SIZE(fast_args);
         converted_args = PyTuple_New(num_args);
         if (converted_args == NULL)

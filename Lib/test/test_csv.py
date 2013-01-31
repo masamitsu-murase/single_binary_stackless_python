@@ -197,6 +197,17 @@ class Test_Csv(unittest.TestCase):
             fileobj.seek(0)
             self.assertEqual(fileobj.read(), "a,b\r\nc,d\r\n")
 
+    @support.cpython_only
+    def test_writerows_legacy_strings(self):
+        import _testcapi
+
+        c = _testcapi.unicode_legacy_string('a')
+        with TemporaryFile("w+", newline='') as fileobj:
+            writer = csv.writer(fileobj)
+            writer.writerows([[c]])
+            fileobj.seek(0)
+            self.assertEqual(fileobj.read(), "a\r\n")
+
     def _read_test(self, input, expect, **kwargs):
         reader = csv.reader(input, **kwargs)
         result = list(reader)
@@ -224,6 +235,15 @@ class Test_Csv(unittest.TestCase):
         self.assertRaises(csv.Error, self._read_test, ['a,b\rc,d'], [])
         self.assertRaises(csv.Error, self._read_test, ['a,b\nc,d'], [])
         self.assertRaises(csv.Error, self._read_test, ['a,b\r\nc,d'], [])
+
+    def test_read_eof(self):
+        self._read_test(['a,"'], [['a', '']])
+        self._read_test(['"a'], [['a']])
+        self._read_test(['^'], [['\n']], escapechar='^')
+        self.assertRaises(csv.Error, self._read_test, ['a,"'], [], strict=True)
+        self.assertRaises(csv.Error, self._read_test, ['"a'], [], strict=True)
+        self.assertRaises(csv.Error, self._read_test,
+                          ['^'], [], escapechar='^', strict=True)
 
     def test_read_escape(self):
         self._read_test(['a,\\b,c'], [['a', 'b', 'c']], escapechar='\\')

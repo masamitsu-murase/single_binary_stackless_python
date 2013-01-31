@@ -364,10 +364,6 @@ _Py_InitializeEx_Private(int install_sigs, int install_importlib)
 
     _PyImportHooks_Init();
 
-    /* initialize the faulthandler module */
-    if (_PyFaulthandler_Init())
-        Py_FatalError("Py_Initialize: can't initialize faulthandler");
-
     /* Initialize _warnings. */
     _PyWarnings_Init();
 
@@ -375,6 +371,10 @@ _Py_InitializeEx_Private(int install_sigs, int install_importlib)
         return;
 
     import_init(interp, sysmod);
+
+    /* initialize the faulthandler module */
+    if (_PyFaulthandler_Init())
+        Py_FatalError("Py_Initialize: can't initialize faulthandler");
 
     _PyTime_Init();
 
@@ -989,12 +989,15 @@ create_stdio(PyObject* io,
     Py_CLEAR(raw);
     Py_CLEAR(text);
 
-    newline = "\n";
 #ifdef MS_WINDOWS
-    if (!write_mode) {
-        /* translate \r\n to \n for sys.stdin on Windows */
-        newline = NULL;
-    }
+    /* sys.stdin: enable universal newline mode, translate "\r\n" and "\r"
+       newlines to "\n".
+       sys.stdout and sys.stderr: translate "\n" to "\r\n". */
+    newline = NULL;
+#else
+    /* sys.stdin: split lines at "\n".
+       sys.stdout and sys.stderr: don't translate newlines (use "\n"). */
+    newline = "\n";
 #endif
 
     stream = _PyObject_CallMethodId(io, &PyId_TextIOWrapper, "OsssO",
@@ -1373,16 +1376,21 @@ static set_main_loader(PyObject *d, const char *filename, const char *loader_nam
 {
     PyInterpreterState *interp;
     PyThreadState *tstate;
-    PyObject *loader_type, *loader;
+    PyObject *filename_obj, *loader_type, *loader;
     int result = 0;
+
+    filename_obj = PyUnicode_DecodeFSDefault(filename);
+    if (filename_obj == NULL)
+        return -1;
     /* Get current thread state and interpreter pointer */
     tstate = PyThreadState_GET();
     interp = tstate->interp;
     loader_type = PyObject_GetAttrString(interp->importlib, loader_name);
     if (loader_type == NULL) {
+        Py_DECREF(filename_obj);
         return -1;
     }
-    loader = PyObject_CallFunction(loader_type, "ss", "__main__", filename);
+    loader = PyObject_CallFunction(loader_type, "sN", "__main__", filename_obj);
     Py_DECREF(loader_type);
     if (loader == NULL) {
         return -1;
@@ -1400,25 +1408,26 @@ PyRun_SimpleFileExFlags(FILE *fp, const char *filename, int closeit,
 {
     PyObject *m, *d, *v;
     const char *ext;
-    int set_file_name = 0, ret;
+    int set_file_name = 0, ret = -1;
     size_t len;
 
     m = PyImport_AddModule("__main__");
     if (m == NULL)
         return -1;
+    Py_INCREF(m);
     d = PyModule_GetDict(m);
     if (PyDict_GetItemString(d, "__file__") == NULL) {
         PyObject *f;
         f = PyUnicode_DecodeFSDefault(filename);
         if (f == NULL)
-            return -1;
+            goto done;
         if (PyDict_SetItemString(d, "__file__", f) < 0) {
             Py_DECREF(f);
-            return -1;
+            goto done;
         }
         if (PyDict_SetItemString(d, "__cached__", Py_None) < 0) {
             Py_DECREF(f);
-            return -1;
+            goto done;
         }
         set_file_name = 1;
         Py_DECREF(f);
@@ -1426,12 +1435,12 @@ PyRun_SimpleFileExFlags(FILE *fp, const char *filename, int closeit,
     len = strlen(filename);
     ext = filename + len - (len > 4 ? 4 : 0);
     if (maybe_pyc_file(fp, filename, ext, closeit)) {
+        FILE *pyc_fp;
         /* Try to run a pyc file. First, re-open in binary */
         if (closeit)
             fclose(fp);
-        if ((fp = fopen(filename, "rb")) == NULL) {
+        if ((pyc_fp = fopen(filename, "rb")) == NULL) {
             fprintf(stderr, "python: Can't reopen .pyc file\n");
-            ret = -1;
             goto done;
         }
         /* Turn on optimization if a .pyo file is given */
@@ -1441,9 +1450,11 @@ PyRun_SimpleFileExFlags(FILE *fp, const char *filename, int closeit,
         if (set_main_loader(d, filename, "SourcelessFileLoader") < 0) {
             fprintf(stderr, "python: failed to set __main__.__loader__\n");
             ret = -1;
+            fclose(pyc_fp);
             goto done;
         }
-        v = run_pyc_file(fp, filename, d, d, flags);
+        v = run_pyc_file(pyc_fp, filename, d, d, flags);
+        fclose(pyc_fp);
     } else {
         /* When running from stdin, leave __main__.__loader__ alone */
         if (strcmp(filename, "<stdin>") != 0 &&
@@ -1458,7 +1469,6 @@ PyRun_SimpleFileExFlags(FILE *fp, const char *filename, int closeit,
     flush_io();
     if (v == NULL) {
         PyErr_Print();
-        ret = -1;
         goto done;
     }
     Py_DECREF(v);
@@ -1466,6 +1476,7 @@ PyRun_SimpleFileExFlags(FILE *fp, const char *filename, int closeit,
   done:
     if (set_file_name && PyDict_DelItemString(d, "__file__"))
         PyErr_Clear();
+    Py_DECREF(m);
     return ret;
 }
 
@@ -2033,7 +2044,6 @@ run_pyc_file(FILE *fp, const char *filename, PyObject *globals,
     (void) PyMarshal_ReadLongFromFile(fp);
     (void) PyMarshal_ReadLongFromFile(fp);
     v = PyMarshal_ReadLastObjectFromFile(fp);
-    fclose(fp);
     if (v == NULL || !PyCode_Check(v)) {
         Py_XDECREF(v);
         PyErr_SetString(PyExc_RuntimeError,

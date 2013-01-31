@@ -39,17 +39,31 @@ When raising (or re-raising) an exception in an :keyword:`except` clause
 new exception is not handled the traceback that is eventually displayed will
 include the originating exception(s) and the final exception.
 
-This implicit exception chain can be made explicit by using :keyword:`from` with
-:keyword:`raise`.  The single argument to :keyword:`from` must be an exception
-or ``None``. It will be set as :attr:`__cause__` on the raised exception.
-Setting :attr:`__cause__` implicitly sets the :attr:`__suppress_context__` to
-``True``. If :attr:`__cause__` is an exception, it will be displayed. If
-:attr:`__cause__` is present or :attr:`__suppress_context__` has a true value,
-:attr:`__context__` will not be displayed.
+When raising a new exception (rather than using a bare ``raise`` to re-raise
+the exception currently being handled), the implicit exception context can be
+supplemented with an explicit cause by using :keyword:`from` with
+:keyword:`raise`::
 
-In either case, the default exception handling code will not display any of the
-remaining links in the :attr:`__context__` chain if :attr:`__cause__` has been
-set.
+   raise new_exc from original_exc
+
+The expression following :keyword:`from` must be an exception or ``None``. It
+will be set as :attr:`__cause__` on the raised exception. Setting
+:attr:`__cause__` also implicitly sets the :attr:`__suppress_context__`
+attribute to ``True``, so that using ``raise new_exc from None``
+effectively replaces the old exception with the new one for display
+purposes (e.g. converting :exc:`KeyError` to :exc:`AttributeError`, while
+leaving the old exception available in :attr:`__context__` for introspection
+when debugging.
+
+The default traceback display code shows these chained exceptions in
+addition to the traceback for the exception itself. An explicitly chained
+exception in :attr:`__cause__` is always shown when present. An implicitly
+chained exception in :attr:`__context__` is shown only if :attr:`__cause__`
+is :const:`None` and :attr:`__suppress_context__` is false.
+
+In either case, the exception itself is always shown after any chained
+exceptions so that the final line of the traceback always shows the last
+exception that was raised.
 
 
 Base classes
@@ -275,8 +289,8 @@ The following exceptions are the exceptions that are usually raised.
 .. exception:: StopIteration
 
    Raised by built-in function :func:`next` and an :term:`iterator`\'s
-   :meth:`__next__` method to signal that there are no further items to be
-   produced by the iterator.
+   :meth:`~iterator.__next__` method to signal that there are no further
+   items produced by the iterator.
 
    The exception object has a single attribute :attr:`value`, which is
    given as an argument when constructing the exception, and defaults
@@ -371,6 +385,30 @@ The following exceptions are the exceptions that are usually raised.
    Raised when a Unicode-related encoding or decoding error occurs.  It is a
    subclass of :exc:`ValueError`.
 
+   :exc:`UnicodeError` has attributes that describe the encoding or decoding
+   error.  For example, ``err.object[err.start:err.end]`` gives the particular
+   invalid input that the codec failed on.
+
+   .. attribute:: encoding
+
+       The name of the encoding that raised the error.
+
+   .. attribute:: reason
+
+       A string describing the specific codec error.
+
+   .. attribute:: object
+
+       The object the codec was attempting to encode or decode.
+
+   .. attribute:: start
+
+       The first index of invalid data in :attr:`object`.
+
+   .. attribute:: end
+
+       The index after the last invalid data in :attr:`object`.
+
 
 .. exception:: UnicodeEncodeError
 
@@ -449,34 +487,35 @@ depending on the system error code.
 
 .. exception:: ConnectionError
 
-   A base class for connection-related issues.  Subclasses are
-   :exc:`BrokenPipeError`, :exc:`ConnectionAbortedError`,
+   A base class for connection-related issues.
+
+   Subclasses are :exc:`BrokenPipeError`, :exc:`ConnectionAbortedError`,
    :exc:`ConnectionRefusedError` and :exc:`ConnectionResetError`.
 
-   .. exception:: BrokenPipeError
+.. exception:: BrokenPipeError
 
-      A subclass of :exc:`ConnectionError`, raised when trying to write on a
-      pipe while the other end has been closed, or trying to write on a socket
-      which has been shutdown for writing.
-      Corresponds to :c:data:`errno` ``EPIPE`` and ``ESHUTDOWN``.
+   A subclass of :exc:`ConnectionError`, raised when trying to write on a
+   pipe while the other end has been closed, or trying to write on a socket
+   which has been shutdown for writing.
+   Corresponds to :c:data:`errno` ``EPIPE`` and ``ESHUTDOWN``.
 
-   .. exception:: ConnectionAbortedError
+.. exception:: ConnectionAbortedError
 
-      A subclass of :exc:`ConnectionError`, raised when a connection attempt
-      is aborted by the peer.
-      Corresponds to :c:data:`errno` ``ECONNABORTED``.
+   A subclass of :exc:`ConnectionError`, raised when a connection attempt
+   is aborted by the peer.
+   Corresponds to :c:data:`errno` ``ECONNABORTED``.
 
-   .. exception:: ConnectionRefusedError
+.. exception:: ConnectionRefusedError
 
-      A subclass of :exc:`ConnectionError`, raised when a connection attempt
-      is refused by the peer.
-      Corresponds to :c:data:`errno` ``ECONNREFUSED``.
+   A subclass of :exc:`ConnectionError`, raised when a connection attempt
+   is refused by the peer.
+   Corresponds to :c:data:`errno` ``ECONNREFUSED``.
 
-   .. exception:: ConnectionResetError
+.. exception:: ConnectionResetError
 
-      A subclass of :exc:`ConnectionError`, raised when a connection is
-      reset by the peer.
-      Corresponds to :c:data:`errno` ``ECONNRESET``.
+   A subclass of :exc:`ConnectionError`, raised when a connection is
+   reset by the peer.
+   Corresponds to :c:data:`errno` ``ECONNRESET``.
 
 .. exception:: FileExistsError
 
@@ -491,7 +530,7 @@ depending on the system error code.
 .. exception:: InterruptedError
 
    Raised when a system call is interrupted by an incoming signal.
-   Corresponds to :c:data:`errno` ``EEINTR``.
+   Corresponds to :c:data:`errno` ``EINTR``.
 
 .. exception:: IsADirectoryError
 

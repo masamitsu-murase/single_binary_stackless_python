@@ -542,10 +542,10 @@ class TestCase(object):
             return  '%s : %s' % (safe_repr(standardMsg), safe_repr(msg))
 
     def assertRaises(self, excClass, callableObj=None, *args, **kwargs):
-        """Fail unless an exception of class excClass is thrown
+        """Fail unless an exception of class excClass is raised
            by callableObj when invoked with arguments args and keyword
            arguments kwargs. If a different type of exception is
-           thrown, it will not be caught, and the test case will be
+           raised, it will not be caught, and the test case will be
            deemed to have suffered an error, exactly as for an
            unexpected exception.
 
@@ -642,7 +642,7 @@ class TestCase(object):
         assertion_func(first, second, msg=msg)
 
     def assertNotEqual(self, first, second, msg=None):
-        """Fail if the two objects are equal as determined by the '=='
+        """Fail if the two objects are equal as determined by the '!='
            operator.
         """
         if not first != second:
@@ -736,7 +736,7 @@ class TestCase(object):
             msg: Optional message to use on failure instead of a list of
                     differences.
         """
-        if seq_type != None:
+        if seq_type is not None:
             seq_type_name = seq_type.__name__
             if not isinstance(seq1, seq_type):
                 raise self.failureException('First sequence is not a %s: %s'

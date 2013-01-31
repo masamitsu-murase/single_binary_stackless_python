@@ -273,7 +273,7 @@ unicodedata_category(PyObject *self, PyObject *args)
 PyDoc_STRVAR(unicodedata_bidirectional__doc__,
 "bidirectional(unichr)\n\
 \n\
-Returns the bidirectional category assigned to the Unicode character\n\
+Returns the bidirectional class assigned to the Unicode character\n\
 unichr as string. If no such value is defined, an empty string is\n\
 returned.");
 
@@ -1236,8 +1236,8 @@ unicodedata_lookup(PyObject* self, PyObject* args)
         PyErr_Format(PyExc_KeyError, "undefined character name '%s'", name);
         return NULL;
     }
-    // check if code is in the PUA range that we use for named sequences
-    // and convert it
+    /* check if code is in the PUA range that we use for named sequences
+       and convert it */
     if (IS_NAMED_SEQ(code)) {
         index = code-named_sequences_start;
         return PyUnicode_FromKindAndData(PyUnicode_2BYTE_KIND,

@@ -660,10 +660,10 @@ the more significant byte last.
 
 .. opcode:: FOR_ITER (delta)
 
-   ``TOS`` is an :term:`iterator`.  Call its :meth:`__next__` method.  If this
-   yields a new value, push it on the stack (leaving the iterator below it).  If
-   the iterator indicates it is exhausted ``TOS`` is popped, and the byte code
-   counter is incremented by *delta*.
+   ``TOS`` is an :term:`iterator`.  Call its :meth:`~iterator.__next__` method.
+   If this yields a new value, push it on the stack (leaving the iterator below
+   it).  If the iterator indicates it is exhausted ``TOS`` is popped, and the
+   byte code counter is incremented by *delta*.
 
 
 .. opcode:: LOAD_GLOBAL (namei)
@@ -763,9 +763,10 @@ the more significant byte last.
 .. opcode:: MAKE_CLOSURE (argc)
 
    Creates a new function object, sets its *__closure__* slot, and pushes it on
-   the stack.  TOS is the code associated with the function, TOS1 the tuple
-   containing cells for the closure's free variables.  The function also has
-   *argc* default parameters, which are found below the cells.
+   the stack.  TOS is the :term:`qualified name` of the function, TOS1 is the
+   code associated with the function, and TOS2 is the tuple containing cells for
+   the closure's free variables.  The function also has *argc* default parameters,
+   which are found below the cells.
 
 
 .. opcode:: BUILD_SLICE (argc)

@@ -5,6 +5,7 @@ Common tests shared by test_str, test_unicode, test_userstring and test_string.
 import unittest, string, sys, struct
 from test import support
 from collections import UserList
+import _testcapi
 
 class Sequence:
     def __init__(self, seq='wxyz'): self.seq = seq
@@ -19,7 +20,7 @@ class BadSeq2(Sequence):
     def __init__(self): self.seq = ['a', 'b', 'c']
     def __len__(self): return 8
 
-class BaseTest(unittest.TestCase):
+class BaseTest:
     # These tests are for buffers of values (bytes) and not
     # specific to character interpretation, used for bytes objects
     # and various string implementations
@@ -261,6 +262,9 @@ class BaseTest(unittest.TestCase):
 
         # issue 7458
         self.checkequal(-1, 'ab', 'rfind', 'xxx', sys.maxsize + 1, 0)
+
+        # issue #15534
+        self.checkequal(0, '<......\u043c...', "rfind", "<")
 
     def test_index(self):
         self.checkequal(0, 'abcdefghiabc', 'index', '')
@@ -597,6 +601,8 @@ class BaseTest(unittest.TestCase):
         EQ("ReyKKjavik", "Reykjavik", "replace", "k", "KK", 1)
         EQ("Reykjavik", "Reykjavik", "replace", "k", "KK", 0)
         EQ("A----B----C----", "A.B.C.", "replace", ".", "----")
+        # issue #15534
+        EQ('...\u043c......&lt;', '...\u043c......<', "replace", "<", "&lt;")
 
         EQ("Reykjavik", "Reykjavik", "replace", "q", "KK")
 
@@ -1201,6 +1207,19 @@ class MixinStrUnicodeUserStringTest:
         self.checkraises(ValueError, '%%%df' % (2**64), '__mod__', (3.2))
         self.checkraises(ValueError, '%%.%df' % (2**64), '__mod__', (3.2))
 
+        self.checkraises(OverflowError, '%*s', '__mod__',
+                         (_testcapi.PY_SSIZE_T_MAX + 1, ''))
+        self.checkraises(OverflowError, '%.*f', '__mod__',
+                         (_testcapi.INT_MAX + 1, 1. / 7))
+        # Issue 15989
+        self.checkraises(OverflowError, '%*s', '__mod__',
+                         (1 << (_testcapi.PY_SSIZE_T_MAX.bit_length() + 1), ''))
+        self.checkraises(OverflowError, '%.*f', '__mod__',
+                         (_testcapi.UINT_MAX + 1, 1. / 7))
+
+        class X(object): pass
+        self.checkraises(TypeError, 'abc', '__mod__', X())
+
     def test_floatformatting(self):
         # float formatting
         for prec in range(100):
@@ -1315,6 +1334,9 @@ class MixinStrUnicodeUserStringTest:
                                 x, None, None, None)
         self.assertRaisesRegex(TypeError, r'^endswith\(', s.endswith,
                                 x, None, None, None)
+
+        # issue #15534
+        self.checkequal(10, "...\u043c......<", "find", "<")
 
 
 class MixinStrUnicodeTest:

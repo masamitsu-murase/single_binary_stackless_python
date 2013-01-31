@@ -229,23 +229,22 @@ Miscellaneous options
 
 .. cmdoption:: -R
 
-   Turn on hash randomization, so that the :meth:`__hash__` values of str, bytes
-   and datetime objects are "salted" with an unpredictable random value.
-   Although they remain constant within an individual Python process, they are
-   not predictable between repeated invocations of Python.
+   Kept for compatibility.  On Python 3.3 and greater, hash randomization is
+   turned on by default.
 
-   This is intended to provide protection against a denial-of-service caused by
-   carefully-chosen inputs that exploit the worst case performance of a dict
-   construction, O(n^2) complexity.  See
+   On previous versions of Python, this option turns on hash randomization,
+   so that the :meth:`__hash__` values of str, bytes and datetime
+   are "salted" with an unpredictable random value.  Although they remain
+   constant within an individual Python process, they are not predictable
+   between repeated invocations of Python.
+
+   Hash randomization is intended to provide protection against a
+   denial-of-service caused by carefully-chosen inputs that exploit the worst
+   case performance of a dict construction, O(n^2) complexity.  See
    http://www.ocert.org/advisories/ocert-2011-003.html for details.
 
-   Changing hash values affects the order in which keys are retrieved from a
-   dict.  Although Python has never made guarantees about this ordering (and it
-   typically varies between 32-bit and 64-bit builds), enough real-world code
-   implicitly relies on this non-guaranteed behavior that the randomization is
-   disabled by default.
-
-   See also :envvar:`PYTHONHASHSEED`.
+   :envvar:`PYTHONHASHSEED` allows you to set a fixed value for the hash
+   seed secret.
 
    .. versionadded:: 3.2.3
 
@@ -359,7 +358,8 @@ Miscellaneous options
 .. cmdoption:: -X
 
    Reserved for various implementation-specific options.  CPython currently
-   defines none of them, but allows to pass arbitrary values and retrieve
+   defines just one, you can use ``-X faulthander`` to enable
+   :data:`faulthandler`. It also allows to pass arbitrary values and retrieve
    them through the :data:`sys._xoptions` dictionary.
 
    .. versionchanged:: 3.2
@@ -381,7 +381,10 @@ Options you shouldn't use
 Environment variables
 ---------------------
 
-These environment variables influence Python's behavior.
+These environment variables influence Python's behavior, they are processed
+before the command-line switches other than -E.  It is customary that
+command-line switches override environmental variables where there is a
+conflict.
 
 .. envvar:: PYTHONHOME
 
@@ -486,8 +489,8 @@ These environment variables influence Python's behavior.
 
 .. envvar:: PYTHONHASHSEED
 
-   If this variable is set to ``random``, a random value is used to seed the
-   hashes of str, bytes and datetime objects.
+   If this variable is not set or set to ``random``, a random value is used
+   to seed the hashes of str, bytes and datetime objects.
 
    If :envvar:`PYTHONHASHSEED` is set to an integer value, it is used as a fixed
    seed for generating the hash() of the types covered by the hash
@@ -578,4 +581,3 @@ if Python was configured with the ``--with-pydebug`` build option.
 
    If set, Python will print memory allocation statistics every time a new
    object arena is created, and on shutdown.
-

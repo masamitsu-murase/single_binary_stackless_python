@@ -58,24 +58,24 @@ they appear in the sequence.  For example (no pun intended):
 ::
 
    >>> # Measure some strings:
-   ... a = ['cat', 'window', 'defenestrate']
-   >>> for x in a:
-   ...     print(x, len(x))
+   ... words = ['cat', 'window', 'defenestrate']
+   >>> for w in words:
+   ...     print(w, len(w))
    ...
    cat 3
    window 6
    defenestrate 12
 
-It is not safe to modify the sequence being iterated over in the loop (this can
-only happen for mutable sequence types, such as lists).  If you need to modify
-the list you are iterating over (for example, to duplicate selected items) you
-must iterate over a copy.  The slice notation makes this particularly
-convenient::
+If you need to modify the sequence you are iterating over while inside the loop
+(for example to duplicate selected items), it is recommended that you first
+make a copy.  Iterating over a sequence does not implicitly make a copy.  The
+slice notation makes this especially convenient::
 
-   >>> for x in a[:]: # make a slice copy of the entire list
-   ...    if len(x) > 6: a.insert(0, x)
+   >>> for w in words[:]:  # Loop over a slice copy of the entire list.
+   ...     if len(w) > 6:
+   ...         words.insert(0, w)
    ...
-   >>> a
+   >>> words
    ['defenestrate', 'cat', 'window', 'defenestrate']
 
 
@@ -157,9 +157,6 @@ Later we will see more functions that return iterables and take iterables as arg
 The :keyword:`break` statement, like in C, breaks out of the smallest enclosing
 :keyword:`for` or :keyword:`while` loop.
 
-The :keyword:`continue` statement, also borrowed from C, continues with the next
-iteration of the loop.
-
 Loop statements may have an ``else`` clause; it is executed when the loop
 terminates through exhaustion of the list (with :keyword:`for`) or when the
 condition becomes false (with :keyword:`while`), but not when the loop is
@@ -194,6 +191,22 @@ when no exception occurs, and a loop's ``else`` clause runs when no ``break``
 occurs. For more on the :keyword:`try` statement and exceptions, see
 :ref:`tut-handling`.
 
+The :keyword:`continue` statement, also borrowed from C, continues with the next
+iteration of the loop::
+
+    >>> for num in range(2, 10):
+    ...     if num % 2 == 0:
+    ...         print("Found an even number", num)
+    ...         continue
+    ...     print("Found a number", num)
+    Found an even number 2
+    Found a number 3
+    Found an even number 4
+    Found a number 5
+    Found an even number 6
+    Found a number 7
+    Found an even number 8
+    Found a number 9
 
 .. _tut-pass:
 
@@ -641,6 +654,40 @@ Here is an example of a multi-line docstring::
    Do nothing, but document it.
 
        No, really, it doesn't do anything.
+
+
+.. _tut-annotations:
+
+Function Annotations
+--------------------
+
+.. sectionauthor:: Zachary Ware <zachary.ware@gmail.com>
+.. index::
+   pair: function; annotations
+   single: -> (return annotation assignment)
+
+:ref:`Function annotations <function>` are completely optional,
+arbitrary metadata information about user-defined functions.  Neither Python
+itself nor the standard library use function annotations in any way; this
+section just shows the syntax. Third-party projects are free to use function
+annotations for documentation, type checking, and other uses.
+
+Annotations are stored in the :attr:`__annotations__` attribute of the function
+as a dictionary and have no effect on any other part of the function.  Parameter
+annotations are defined by a colon after the parameter name, followed by an
+expression evaluating to the value of the annotation.  Return annotations are
+defined by a literal ``->``, followed by an expression, between the parameter
+list and the colon denoting the end of the :keyword:`def` statement.  The
+following example has a positional argument, a keyword argument, and the return
+value annotated with nonsense::
+
+   >>> def f(ham: 42, eggs: int = 'spam') -> "Nothing to see here":
+   ...     print("Annotations:", f.__annotations__)
+   ...     print("Arguments:", ham, eggs)
+   ...
+   >>> f('wonderful')
+   Annotations: {'eggs': <class 'int'>, 'return': 'Nothing to see here', 'ham': 42}
+   Arguments: wonderful spam
 
 
 .. _tut-codingstyle:

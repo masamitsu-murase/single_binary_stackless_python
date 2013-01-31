@@ -303,7 +303,9 @@ class Element:
         self._children.insert(index, element)
 
     def _assert_is_element(self, e):
-        if not isinstance(e, Element):
+        # Need to refer to the actual Python implementation, not the
+        # shadowing C implementation.
+        if not isinstance(e, _Element):
             raise TypeError('expected an Element, not %s' % type(e).__name__)
 
     ##
@@ -787,11 +789,12 @@ class ElementTree:
     # @param **options Options, given as keyword arguments.
     # @keyparam encoding Optional output encoding (default is US-ASCII).
     #     Use "unicode" to return a Unicode string.
-    # @keyparam method Optional output method ("xml", "html", "text" or
-    #     "c14n"; default is "xml").
     # @keyparam xml_declaration Controls if an XML declaration should
     #     be added to the file.  Use False for never, True for always,
     #     None for only if not US-ASCII or UTF-8 or Unicode.  None is default.
+    # @keyparam default_namespace Sets the default XML namespace (for "xmlns").
+    # @keyparam method Optional output method ("xml", "html", "text" or
+    #     "c14n"; default is "xml").
 
     def write(self, file_or_filename,
               encoding=None,
@@ -995,7 +998,7 @@ def _serialize_xml(write, elem, qnames, namespaces):
         write(_escape_cdata(elem.tail))
 
 HTML_EMPTY = ("area", "base", "basefont", "br", "col", "frame", "hr",
-              "img", "input", "isindex", "link", "meta" "param")
+              "img", "input", "isindex", "link", "meta", "param")
 
 try:
     HTML_EMPTY = set(HTML_EMPTY)
@@ -1734,8 +1737,20 @@ else:
                     source.close()
 
     class iterparse:
+        """Parses an XML section into an element tree incrementally.
+
+        Reports what’s going on to the user. 'source' is a filename or file
+        object containing XML data. 'events' is a list of events to report back.
+        The supported events are the strings "start", "end", "start-ns" and
+        "end-ns" (the "ns" events are used to get detailed namespace
+        information). If 'events' is omitted, only "end" events are reported.
+        'parser' is an optional parser instance. If not given, the standard
+        XMLParser parser is used. Returns an iterator providing
+        (event, elem) pairs.
+        """
+
         root = None
-        def __init__(self, file, events=None):
+        def __init__(self, file, events=None, parser=None):
             self._close_file = False
             if not hasattr(file, 'read'):
                 file = open(file, 'rb')
@@ -1745,8 +1760,9 @@ else:
             self._index = 0
             self._error = None
             self.root = self._root = None
-            b = TreeBuilder()
-            self._parser = XMLParser(b)
+            if parser is None:
+                parser = XMLParser(target=TreeBuilder())
+            self._parser = parser
             self._parser._setevents(self._events, events)
 
         def __next__(self):

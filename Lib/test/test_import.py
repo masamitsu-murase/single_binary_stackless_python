@@ -14,6 +14,7 @@ import unittest
 import textwrap
 import errno
 import shutil
+import contextlib
 
 import test.support
 from test.support import (
@@ -31,6 +32,24 @@ def remove_files(name):
               name + "$py.class"):
         unlink(f)
     rmtree('__pycache__')
+
+
+@contextlib.contextmanager
+def _ready_to_import(name=None, source=""):
+    # sets up a temporary directory and removes it
+    # creates the module file
+    # temporarily clears the module from sys.modules (if any)
+    name = name or "spam"
+    with script_helper.temp_dir() as tempdir:
+        path = script_helper.make_script(tempdir, name, source)
+        old_module = sys.modules.pop(name, None)
+        try:
+            sys.path.insert(0, tempdir)
+            yield name, path
+            sys.path.remove(tempdir)
+        finally:
+            if old_module is not None:
+                sys.modules[name] = old_module
 
 
 class ImportTests(unittest.TestCase):
@@ -100,50 +119,6 @@ class ImportTests(unittest.TestCase):
                     test_with_extension(ext)
         finally:
             del sys.path[0]
-
-    @unittest.skipUnless(os.name == 'posix',
-                         "test meaningful only on posix systems")
-    def test_creation_mode(self):
-        mask = 0o022
-        with temp_umask(mask):
-            sys.path.insert(0, os.curdir)
-            try:
-                fname = TESTFN + os.extsep + "py"
-                create_empty_file(fname)
-                fn = imp.cache_from_source(fname)
-                unlink(fn)
-                importlib.invalidate_caches()
-                __import__(TESTFN)
-                if not os.path.exists(fn):
-                    self.fail("__import__ did not result in creation of "
-                              "either a .pyc or .pyo file")
-                s = os.stat(fn)
-                # Check that the umask is respected, and the executable bits
-                # aren't set.
-                self.assertEqual(stat.S_IMODE(s.st_mode), 0o666 & ~mask)
-            finally:
-                del sys.path[0]
-                remove_files(TESTFN)
-                unload(TESTFN)
-
-    def test_imp_module(self):
-        # Verify that the imp module can correctly load and find .py files
-        # XXX (ncoghlan): It would be nice to use support.CleanImport
-        # here, but that breaks because the os module registers some
-        # handlers in copy_reg on import. Since CleanImport doesn't
-        # revert that registration, the module is left in a broken
-        # state after reversion. Reinitialising the module contents
-        # and just reverting os.environ to its previous state is an OK
-        # workaround
-        orig_path = os.path
-        orig_getenv = os.getenv
-        with EnvironmentVarGuard():
-            x = imp.find_module("os")
-            self.addCleanup(x[0].close)
-            new_os = imp.load_module("os", *x)
-            self.assertIs(os, new_os)
-            self.assertIs(orig_path, new_os.path)
-            self.assertIsNot(orig_getenv, new_os.getenv)
 
     def test_bug7732(self):
         source = TESTFN + '.py'
@@ -333,6 +308,98 @@ class ImportTests(unittest.TestCase):
         finally:
             del sys.path[0]
             remove_files(TESTFN)
+
+    def test_bogus_fromlist(self):
+        try:
+            __import__('http', fromlist=['blah'])
+        except ImportError:
+            self.fail("fromlist must allow bogus names")
+
+
+class FilePermissionTests(unittest.TestCase):
+    # tests for file mode on cached .pyc/.pyo files
+
+    @unittest.skipUnless(os.name == 'posix',
+                         "test meaningful only on posix systems")
+    def test_creation_mode(self):
+        mask = 0o022
+        with temp_umask(mask), _ready_to_import() as (name, path):
+            cached_path = imp.cache_from_source(path)
+            module = __import__(name)
+            if not os.path.exists(cached_path):
+                self.fail("__import__ did not result in creation of "
+                          "either a .pyc or .pyo file")
+            stat_info = os.stat(cached_path)
+
+        # Check that the umask is respected, and the executable bits
+        # aren't set.
+        self.assertEqual(oct(stat.S_IMODE(stat_info.st_mode)),
+                         oct(0o666 & ~mask))
+
+    @unittest.skipUnless(os.name == 'posix',
+                         "test meaningful only on posix systems")
+    def test_cached_mode_issue_2051(self):
+        # permissions of .pyc should match those of .py, regardless of mask
+        mode = 0o600
+        with temp_umask(0o022), _ready_to_import() as (name, path):
+            cached_path = imp.cache_from_source(path)
+            os.chmod(path, mode)
+            __import__(name)
+            if not os.path.exists(cached_path):
+                self.fail("__import__ did not result in creation of "
+                          "either a .pyc or .pyo file")
+            stat_info = os.stat(cached_path)
+
+        self.assertEqual(oct(stat.S_IMODE(stat_info.st_mode)), oct(mode))
+
+    @unittest.skipUnless(os.name == 'posix',
+                         "test meaningful only on posix systems")
+    def test_cached_readonly(self):
+        mode = 0o400
+        with temp_umask(0o022), _ready_to_import() as (name, path):
+            cached_path = imp.cache_from_source(path)
+            os.chmod(path, mode)
+            __import__(name)
+            if not os.path.exists(cached_path):
+                self.fail("__import__ did not result in creation of "
+                          "either a .pyc or .pyo file")
+            stat_info = os.stat(cached_path)
+
+        expected = mode | 0o200 # Account for fix for issue #6074
+        self.assertEqual(oct(stat.S_IMODE(stat_info.st_mode)), oct(expected))
+
+    def test_pyc_always_writable(self):
+        # Initially read-only .pyc files on Windows used to cause problems
+        # with later updates, see issue #6074 for details
+        with _ready_to_import() as (name, path):
+            # Write a Python file, make it read-only and import it
+            with open(path, 'w') as f:
+                f.write("x = 'original'\n")
+            # Tweak the mtime of the source to ensure pyc gets updated later
+            s = os.stat(path)
+            os.utime(path, (s.st_atime, s.st_mtime-100000000))
+            os.chmod(path, 0o400)
+            m = __import__(name)
+            self.assertEqual(m.x, 'original')
+            # Change the file and then reimport it
+            os.chmod(path, 0o600)
+            with open(path, 'w') as f:
+                f.write("x = 'rewritten'\n")
+            unload(name)
+            importlib.invalidate_caches()
+            m = __import__(name)
+            self.assertEqual(m.x, 'rewritten')
+            # Now delete the source file and check the pyc was rewritten
+            unlink(path)
+            unload(name)
+            importlib.invalidate_caches()
+            if __debug__:
+                bytecode_only = path + "c"
+            else:
+                bytecode_only = path + "o"
+            os.rename(imp.cache_from_source(path), bytecode_only)
+            m = __import__(name)
+            self.assertEqual(m.x, 'rewritten')
 
 
 class PycRewritingTests(unittest.TestCase):
@@ -581,7 +648,7 @@ class PycacheTests(unittest.TestCase):
         self.assertTrue(os.path.exists('__pycache__'))
         self.assertTrue(os.path.exists(os.path.join(
             '__pycache__', '{}.{}.py{}'.format(
-            TESTFN, self.tag, __debug__ and 'c' or 'o'))))
+            TESTFN, self.tag, 'c' if __debug__ else 'o'))))
 
     @unittest.skipUnless(os.name == 'posix',
                          "test meaningful only on posix systems")
@@ -721,12 +788,11 @@ class TestSymbolicallyLinkedPackage(unittest.TestCase):
 
         # now create a symlink to the tagged package
         # sample -> sample-tagged
-        os.symlink(self.tagged, self.package_name)
+        os.symlink(self.tagged, self.package_name, target_is_directory=True)
         self.addCleanup(test.support.unlink, self.package_name)
         importlib.invalidate_caches()
 
-        # disabled because os.isdir currently fails (see issue 15093)
-        # self.assertEqual(os.path.isdir(self.package_name), True)
+        self.assertEqual(os.path.isdir(self.package_name), True)
 
         assert os.path.isfile(os.path.join(self.package_name, '__init__.py'))
 
@@ -786,11 +852,13 @@ class ImportTracebackTests(unittest.TestCase):
         sys.path[:] = self.old_path
         rmtree(TESTFN)
 
-    def create_module(self, mod, contents):
-        with open(os.path.join(TESTFN, mod + ".py"), "w") as f:
+    def create_module(self, mod, contents, ext=".py"):
+        fname = os.path.join(TESTFN, mod + ext)
+        with open(fname, "w") as f:
             f.write(contents)
         self.addCleanup(unload, mod)
         importlib.invalidate_caches()
+        return fname
 
     def assert_traceback(self, tb, files):
         deduped_files = []
@@ -845,6 +913,72 @@ class ImportTracebackTests(unittest.TestCase):
             self.fail("ZeroDivisionError should have been raised")
         self.assert_traceback(tb, [__file__, 'foo.py', 'bar.py'])
 
+    # A few more examples from issue #15425
+    def test_syntax_error(self):
+        self.create_module("foo", "invalid syntax is invalid")
+        try:
+            import foo
+        except SyntaxError as e:
+            tb = e.__traceback__
+        else:
+            self.fail("SyntaxError should have been raised")
+        self.assert_traceback(tb, [__file__])
+
+    def _setup_broken_package(self, parent, child):
+        pkg_name = "_parent_foo"
+        self.addCleanup(unload, pkg_name)
+        pkg_path = os.path.join(TESTFN, pkg_name)
+        os.mkdir(pkg_path)
+        # Touch the __init__.py
+        init_path = os.path.join(pkg_path, '__init__.py')
+        with open(init_path, 'w') as f:
+            f.write(parent)
+        bar_path = os.path.join(pkg_path, 'bar.py')
+        with open(bar_path, 'w') as f:
+            f.write(child)
+        importlib.invalidate_caches()
+        return init_path, bar_path
+
+    def test_broken_submodule(self):
+        init_path, bar_path = self._setup_broken_package("", "1/0")
+        try:
+            import _parent_foo.bar
+        except ZeroDivisionError as e:
+            tb = e.__traceback__
+        else:
+            self.fail("ZeroDivisionError should have been raised")
+        self.assert_traceback(tb, [__file__, bar_path])
+
+    def test_broken_from(self):
+        init_path, bar_path = self._setup_broken_package("", "1/0")
+        try:
+            from _parent_foo import bar
+        except ZeroDivisionError as e:
+            tb = e.__traceback__
+        else:
+            self.fail("ImportError should have been raised")
+        self.assert_traceback(tb, [__file__, bar_path])
+
+    def test_broken_parent(self):
+        init_path, bar_path = self._setup_broken_package("1/0", "")
+        try:
+            import _parent_foo.bar
+        except ZeroDivisionError as e:
+            tb = e.__traceback__
+        else:
+            self.fail("ZeroDivisionError should have been raised")
+        self.assert_traceback(tb, [__file__, init_path])
+
+    def test_broken_parent_from(self):
+        init_path, bar_path = self._setup_broken_package("1/0", "")
+        try:
+            from _parent_foo import bar
+        except ZeroDivisionError as e:
+            tb = e.__traceback__
+        else:
+            self.fail("ZeroDivisionError should have been raised")
+        self.assert_traceback(tb, [__file__, init_path])
+
     @cpython_only
     def test_import_bug(self):
         # We simulate a bug in importlib and check that it's not stripped
@@ -868,7 +1002,7 @@ class ImportTracebackTests(unittest.TestCase):
 
 
 def test_main(verbose=None):
-    run_unittest(ImportTests, PycacheTests,
+    run_unittest(ImportTests, PycacheTests, FilePermissionTests,
                  PycRewritingTests, PathsTests, RelativeImportTests,
                  OverridingImportBuiltinTests,
                  ImportlibBootstrapTests,

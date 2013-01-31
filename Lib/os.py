@@ -260,7 +260,10 @@ def makedirs(name, mode=0o777, exist_ok=False):
             # be happy if someone already created the path
             if e.errno != errno.EEXIST:
                 raise
-        if tail == curdir:           # xxx/newdir/. exists if xxx/newdir exists
+        cdir = curdir
+        if isinstance(tail, bytes):
+            cdir = bytes(curdir, 'ASCII')
+        if tail == cdir:           # xxx/newdir/. exists if xxx/newdir exists
             return
     try:
         mkdir(name, mode)
@@ -985,7 +988,7 @@ def popen(cmd, mode="r", buffering=-1):
         raise TypeError("invalid cmd type (%s, expected string)" % type(cmd))
     if mode not in ("r", "w"):
         raise ValueError("invalid mode %r" % mode)
-    if buffering == 0 or buffering == None:
+    if buffering == 0 or buffering is None:
         raise ValueError("popen() does not support unbuffered streams")
     import subprocess, io
     if mode == "r":

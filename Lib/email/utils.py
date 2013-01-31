@@ -37,10 +37,7 @@ from email._parseaddr import quote
 from email._parseaddr import AddressList as _AddressList
 from email._parseaddr import mktime_tz
 
-# We need wormarounds for bugs in these methods in older Pythons (see below)
-from email._parseaddr import parsedate as _parsedate
-from email._parseaddr import parsedate_tz as _parsedate_tz
-from email._parseaddr import _parsedate_tz as __parsedate_tz
+from email._parseaddr import parsedate, parsedate_tz, _parsedate_tz
 
 from quopri import decodestring as _qdecode
 
@@ -86,7 +83,7 @@ def formataddr(pair, charset='utf-8'):
     'utf-8'.
     """
     name, address = pair
-    # The address MUST (per RFC) be ascii, so throw a UnicodeError if it isn't.
+    # The address MUST (per RFC) be ascii, so raise an UnicodeError if it isn't.
     address.encode('ascii')
     if name:
         try:
@@ -222,25 +219,8 @@ def make_msgid(idstring=None, domain=None):
     return msgid
 
 
-
-# These functions are in the standalone mimelib version only because they've
-# subsequently been fixed in the latest Python versions.  We use this to worm
-# around broken older Pythons.
-def parsedate(data):
-    if not data:
-        return None
-    return _parsedate(data)
-
-
-def parsedate_tz(data):
-    if not data:
-        return None
-    return _parsedate_tz(data)
-
 def parsedate_to_datetime(data):
-    if not data:
-        return None
-    *dtuple, tz = __parsedate_tz(data)
+    *dtuple, tz = _parsedate_tz(data)
     if tz is None:
         return datetime.datetime(*dtuple[:6])
     return datetime.datetime(*dtuple[:6],
@@ -386,33 +366,26 @@ def localtime(dt=None, isdst=-1):
 
     """
     if dt is None:
-        seconds = time.time()
-    else:
-        if dt.tzinfo is None:
-            # A naive datetime is given.  Convert to a (localtime)
-            # timetuple and pass to system mktime together with
-            # the isdst hint.  System mktime will return seconds
-            # sysce epoch.
-            tm = dt.timetuple()[:-1] + (isdst,)
-            seconds = time.mktime(tm)
+        return datetime.datetime.now(datetime.timezone.utc).astimezone()
+    if dt.tzinfo is not None:
+        return dt.astimezone()
+    # We have a naive datetime.  Convert to a (localtime) timetuple and pass to
+    # system mktime together with the isdst hint.  System mktime will return
+    # seconds since epoch.
+    tm = dt.timetuple()[:-1] + (isdst,)
+    seconds = time.mktime(tm)
+    localtm = time.localtime(seconds)
+    try:
+        delta = datetime.timedelta(seconds=localtm.tm_gmtoff)
+        tz = datetime.timezone(delta, localtm.tm_zone)
+    except AttributeError:
+        # Compute UTC offset and compare with the value implied by tm_isdst.
+        # If the values match, use the zone name implied by tm_isdst.
+        delta = dt - datetime.datetime(*time.gmtime(seconds)[:6])
+        dst = time.daylight and localtm.tm_isdst > 0
+        gmtoff = -(time.altzone if dst else time.timezone)
+        if delta == datetime.timedelta(seconds=gmtoff):
+            tz = datetime.timezone(delta, time.tzname[dst])
         else:
-            # An aware datetime is given.  Use aware datetime
-            # arithmetics to find seconds since epoch.
-            delta = dt - datetime.datetime(1970, 1, 1,
-                                           tzinfo=datetime.timezone.utc)
-            seconds = delta.total_seconds()
-    tm = time.localtime(seconds)
-
-    # XXX: The following logic may not work correctly if UTC
-    # offset has changed since time provided in dt.  This will be
-    # corrected in C implementation for platforms that support
-    # tm_gmtoff.
-    if time.daylight and tm.tm_isdst:
-        offset = time.altzone
-        tzname = time.tzname[1]
-    else:
-        offset = time.timezone
-        tzname = time.tzname[0]
-
-    tz = datetime.timezone(datetime.timedelta(seconds=-offset), tzname)
-    return datetime.datetime.fromtimestamp(seconds, tz)
+            tz = datetime.timezone(delta)
+    return dt.replace(tzinfo=tz)

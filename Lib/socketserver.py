@@ -562,7 +562,7 @@ class ForkingMixIn:
         self.collect_children()
 
     def service_actions(self):
-        """Collect the zombie child processes regularly in the ForkingMixin.
+        """Collect the zombie child processes regularly in the ForkingMixIn.
 
         service_actions is called in the BaseServer's serve_forver loop.
         """
@@ -718,7 +718,12 @@ class StreamRequestHandler(BaseRequestHandler):
 
     def finish(self):
         if not self.wfile.closed:
-            self.wfile.flush()
+            try:
+                self.wfile.flush()
+            except socket.error:
+                # An final socket error may have occurred here, such as
+                # the local error ECONNABORTED.
+                pass
         self.wfile.close()
         self.rfile.close()
 

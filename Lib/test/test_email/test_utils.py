@@ -3,6 +3,7 @@ from email import utils
 import test.support
 import time
 import unittest
+import sys
 
 class DateTimeTests(unittest.TestCase):
 
@@ -87,32 +88,49 @@ class LocaltimeTests(unittest.TestCase):
         t2 = utils.localtime(t1)
         self.assertEqual(t1, t2)
 
+    @test.support.run_with_tz('EST+05EDT,M3.2.0,M11.1.0')
     def test_localtime_epoch_utc_daylight_true(self):
         test.support.patch(self, time, 'daylight', True)
-        t0 = datetime.datetime(1970, 1, 1, tzinfo = datetime.timezone.utc)
+        t0 = datetime.datetime(1990, 1, 1, tzinfo = datetime.timezone.utc)
         t1 = utils.localtime(t0)
-        self.assertEqual(t0, t1)
+        t2 = t0 - datetime.timedelta(hours=5)
+        t2 = t2.replace(tzinfo = datetime.timezone(datetime.timedelta(hours=-5)))
+        self.assertEqual(t1, t2)
 
+    @test.support.run_with_tz('EST+05EDT,M3.2.0,M11.1.0')
     def test_localtime_epoch_utc_daylight_false(self):
         test.support.patch(self, time, 'daylight', False)
-        t0 = datetime.datetime(1970, 1, 1, tzinfo = datetime.timezone.utc)
+        t0 = datetime.datetime(1990, 1, 1, tzinfo = datetime.timezone.utc)
         t1 = utils.localtime(t0)
-        self.assertEqual(t0, t1)
+        t2 = t0 - datetime.timedelta(hours=5)
+        t2 = t2.replace(tzinfo = datetime.timezone(datetime.timedelta(hours=-5)))
+        self.assertEqual(t1, t2)
 
     def test_localtime_epoch_notz_daylight_true(self):
         test.support.patch(self, time, 'daylight', True)
-        t0 = datetime.datetime(1970, 1, 1)
+        t0 = datetime.datetime(1990, 1, 1)
         t1 = utils.localtime(t0)
         t2 = utils.localtime(t0.replace(tzinfo=None))
         self.assertEqual(t1, t2)
 
     def test_localtime_epoch_notz_daylight_false(self):
         test.support.patch(self, time, 'daylight', False)
-        t0 = datetime.datetime(1970, 1, 1)
+        t0 = datetime.datetime(1990, 1, 1)
         t1 = utils.localtime(t0)
         t2 = utils.localtime(t0.replace(tzinfo=None))
         self.assertEqual(t1, t2)
 
+    # XXX: Need a more robust test for Olson's tzdata
+    @unittest.skipIf(sys.platform.startswith('win'),
+                     "Windows does not use Olson's TZ database")
+    @test.support.run_with_tz('Europe/Kiev')
+    def test_variable_tzname(self):
+        t0 = datetime.datetime(1984, 1, 1, tzinfo=datetime.timezone.utc)
+        t1 = utils.localtime(t0)
+        self.assertEqual(t1.tzname(), 'MSK')
+        t0 = datetime.datetime(1994, 1, 1, tzinfo=datetime.timezone.utc)
+        t1 = utils.localtime(t0)
+        self.assertEqual(t1.tzname(), 'EET')
 
 if __name__ == '__main__':
     unittest.main()

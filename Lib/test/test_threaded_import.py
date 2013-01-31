@@ -7,6 +7,7 @@
 
 import os
 import imp
+import importlib
 import sys
 import time
 import shutil
@@ -68,10 +69,11 @@ class Finder:
         # Simulate some thread-unsafe behaviour. If calls to find_module()
         # are properly serialized, `x` will end up the same as `numcalls`.
         # Otherwise not.
+        assert imp.lock_held()
         with self.lock:
             self.numcalls += 1
         x = self.x
-        time.sleep(0.1)
+        time.sleep(0.01)
         self.x = x + 1
 
 class FlushingFinder:
@@ -116,7 +118,7 @@ class ThreadedImportTests(unittest.TestCase):
                 t = threading.Thread(target=task,
                                      args=(N, done, done_tasks, errors,))
                 t.start()
-            done.wait(60)
+            self.assertTrue(done.wait(60))
             self.assertFalse(errors)
             if verbose:
                 print("OK.")
@@ -189,6 +191,7 @@ class ThreadedImportTests(unittest.TestCase):
                 f.write(contents.encode('utf-8'))
             self.addCleanup(forget, name)
 
+        importlib.invalidate_caches()
         results = []
         def import_ab():
             import A
@@ -219,12 +222,23 @@ class ThreadedImportTests(unittest.TestCase):
             f.write(code.encode('utf-8'))
         self.addCleanup(unlink, filename)
         self.addCleanup(forget, TESTFN)
+        importlib.invalidate_caches()
         __import__(TESTFN)
 
 
 @reap_threads
 def test_main():
-    run_unittest(ThreadedImportTests)
+    old_switchinterval = None
+    try:
+        old_switchinterval = sys.getswitchinterval()
+        sys.setswitchinterval(1e-5)
+    except AttributeError:
+        pass
+    try:
+        run_unittest(ThreadedImportTests)
+    finally:
+        if old_switchinterval is not None:
+            sys.setswitchinterval(old_switchinterval)
 
 if __name__ == "__main__":
     test_main()

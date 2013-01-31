@@ -405,7 +405,7 @@ class Connection(_ConnectionBase):
         return self._recv(size)
 
     def _poll(self, timeout):
-        r = wait([self._handle], timeout)
+        r = wait([self], timeout)
         return bool(r)
 
 
@@ -497,6 +497,8 @@ if sys.platform != 'win32':
         '''
         if duplex:
             s1, s2 = socket.socketpair()
+            s1.setblocking(True)
+            s2.setblocking(True)
             c1 = Connection(s1.detach())
             c2 = Connection(s2.detach())
         else:
@@ -561,6 +563,7 @@ class SocketListener(object):
             if os.name == 'posix':
                 self._socket.setsockopt(socket.SOL_SOCKET,
                                         socket.SO_REUSEADDR, 1)
+            self._socket.setblocking(True)
             self._socket.bind(address)
             self._socket.listen(backlog)
             self._address = self._socket.getsockname()
@@ -579,6 +582,7 @@ class SocketListener(object):
 
     def accept(self):
         s, self._last_accepted = self._socket.accept()
+        s.setblocking(True)
         return Connection(s.detach())
 
     def close(self):
@@ -593,6 +597,7 @@ def SocketClient(address):
     '''
     family = address_type(address)
     with socket.socket( getattr(socket, family) ) as s:
+        s.setblocking(True)
         s.connect(address)
         return Connection(s.detach())
 
@@ -857,6 +862,29 @@ if sys.platform == 'win32':
 
 else:
 
+    if hasattr(select, 'poll'):
+        def _poll(fds, timeout):
+            if timeout is not None:
+                timeout = int(timeout) * 1000  # timeout is in milliseconds
+            fd_map = {}
+            pollster = select.poll()
+            for fd in fds:
+                pollster.register(fd, select.POLLIN)
+                if hasattr(fd, 'fileno'):
+                    fd_map[fd.fileno()] = fd
+                else:
+                    fd_map[fd] = fd
+            ls = []
+            for fd, event in pollster.poll(timeout):
+                if event & select.POLLNVAL:
+                    raise ValueError('invalid file descriptor %i' % fd)
+                ls.append(fd_map[fd])
+            return ls
+    else:
+        def _poll(fds, timeout):
+            return select.select(fds, [], [], timeout)[0]
+
+
     def wait(object_list, timeout=None):
         '''
         Wait till an object in object_list is ready/readable.
@@ -865,12 +893,12 @@ else:
         '''
         if timeout is not None:
             if timeout <= 0:
-                return select.select(object_list, [], [], 0)[0]
+                return _poll(object_list, 0)
             else:
                 deadline = time.time() + timeout
         while True:
             try:
-                return select.select(object_list, [], [], timeout)[0]
+                return _poll(object_list, timeout)
             except OSError as e:
                 if e.errno != errno.EINTR:
                     raise

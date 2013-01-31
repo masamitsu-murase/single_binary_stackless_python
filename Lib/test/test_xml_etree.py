@@ -16,13 +16,20 @@
 
 import html
 import io
+import operator
+import pickle
 import sys
 import unittest
 import weakref
 
+from itertools import product
 from test import support
 from test.support import TESTFN, findfile, unlink, import_fresh_module, gc_collect
 
+# pyET is the pure-Python implementation.
+#
+# ET is pyET in test_xml_etree and is the C accelerated version in
+# test_xml_etree_c.
 pyET = None
 ET = None
 
@@ -170,6 +177,38 @@ def check_element(element):
     for elem in element:
         check_element(elem)
 
+class ElementTestCase:
+    @classmethod
+    def setUpClass(cls):
+        cls.modules = {pyET, ET}
+
+    def pickleRoundTrip(self, obj, name, dumper, loader):
+        save_m = sys.modules[name]
+        try:
+            sys.modules[name] = dumper
+            temp = pickle.dumps(obj)
+            sys.modules[name] = loader
+            result = pickle.loads(temp)
+        except pickle.PicklingError as pe:
+            # pyET must be second, because pyET may be (equal to) ET.
+            human = dict([(ET, "cET"), (pyET, "pyET")])
+            raise support.TestFailed("Failed to round-trip %r from %r to %r"
+                                     % (obj,
+                                        human.get(dumper, dumper),
+                                        human.get(loader, loader))) from pe
+        finally:
+            sys.modules[name] = save_m
+        return result
+
+    def assertEqualElements(self, alice, bob):
+        self.assertIsInstance(alice, (ET.Element, pyET.Element))
+        self.assertIsInstance(bob, (ET.Element, pyET.Element))
+        self.assertEqual(len(list(alice)), len(list(bob)))
+        for x, y in zip(alice, bob):
+            self.assertEqualElements(x, y)
+        properties = operator.attrgetter('tag', 'tail', 'text', 'attrib')
+        self.assertEqual(properties(alice), properties(bob))
+
 # --------------------------------------------------------------------
 # element tree tests
 
@@ -290,128 +329,6 @@ def cdata():
     '<tag>hello</tag>'
     """
 
-def find():
-    """
-    Test find methods (including xpath syntax).
-
-    >>> elem = ET.XML(SAMPLE_XML)
-    >>> elem.find("tag").tag
-    'tag'
-    >>> ET.ElementTree(elem).find("tag").tag
-    'tag'
-    >>> elem.find("section/tag").tag
-    'tag'
-    >>> elem.find("./tag").tag
-    'tag'
-    >>> ET.ElementTree(elem).find("./tag").tag
-    'tag'
-    >>> ET.ElementTree(elem).find("/tag").tag
-    'tag'
-    >>> elem[2] = ET.XML(SAMPLE_SECTION)
-    >>> elem.find("section/nexttag").tag
-    'nexttag'
-    >>> ET.ElementTree(elem).find("section/tag").tag
-    'tag'
-    >>> ET.ElementTree(elem).find("tog")
-    >>> ET.ElementTree(elem).find("tog/foo")
-    >>> elem.findtext("tag")
-    'text'
-    >>> elem.findtext("section/nexttag")
-    ''
-    >>> elem.findtext("section/nexttag", "default")
-    ''
-    >>> elem.findtext("tog")
-    >>> elem.findtext("tog", "default")
-    'default'
-    >>> ET.ElementTree(elem).findtext("tag")
-    'text'
-    >>> ET.ElementTree(elem).findtext("tog/foo")
-    >>> ET.ElementTree(elem).findtext("tog/foo", "default")
-    'default'
-    >>> ET.ElementTree(elem).findtext("./tag")
-    'text'
-    >>> ET.ElementTree(elem).findtext("/tag")
-    'text'
-    >>> elem.findtext("section/tag")
-    'subtext'
-    >>> ET.ElementTree(elem).findtext("section/tag")
-    'subtext'
-    >>> summarize_list(elem.findall("."))
-    ['body']
-    >>> summarize_list(elem.findall("tag"))
-    ['tag', 'tag']
-    >>> summarize_list(elem.findall("tog"))
-    []
-    >>> summarize_list(elem.findall("tog/foo"))
-    []
-    >>> summarize_list(elem.findall("*"))
-    ['tag', 'tag', 'section']
-    >>> summarize_list(elem.findall(".//tag"))
-    ['tag', 'tag', 'tag', 'tag']
-    >>> summarize_list(elem.findall("section/tag"))
-    ['tag']
-    >>> summarize_list(elem.findall("section//tag"))
-    ['tag', 'tag']
-    >>> summarize_list(elem.findall("section/*"))
-    ['tag', 'nexttag', 'nextsection']
-    >>> summarize_list(elem.findall("section//*"))
-    ['tag', 'nexttag', 'nextsection', 'tag']
-    >>> summarize_list(elem.findall("section/.//*"))
-    ['tag', 'nexttag', 'nextsection', 'tag']
-    >>> summarize_list(elem.findall("*/*"))
-    ['tag', 'nexttag', 'nextsection']
-    >>> summarize_list(elem.findall("*//*"))
-    ['tag', 'nexttag', 'nextsection', 'tag']
-    >>> summarize_list(elem.findall("*/tag"))
-    ['tag']
-    >>> summarize_list(elem.findall("*/./tag"))
-    ['tag']
-    >>> summarize_list(elem.findall("./tag"))
-    ['tag', 'tag']
-    >>> summarize_list(elem.findall(".//tag"))
-    ['tag', 'tag', 'tag', 'tag']
-    >>> summarize_list(elem.findall("././tag"))
-    ['tag', 'tag']
-    >>> summarize_list(elem.findall(".//tag[@class]"))
-    ['tag', 'tag', 'tag']
-    >>> summarize_list(elem.findall(".//tag[@class='a']"))
-    ['tag']
-    >>> summarize_list(elem.findall(".//tag[@class='b']"))
-    ['tag', 'tag']
-    >>> summarize_list(elem.findall(".//tag[@id]"))
-    ['tag']
-    >>> summarize_list(elem.findall(".//section[tag]"))
-    ['section']
-    >>> summarize_list(elem.findall(".//section[element]"))
-    []
-    >>> summarize_list(elem.findall("../tag"))
-    []
-    >>> summarize_list(elem.findall("section/../tag"))
-    ['tag', 'tag']
-    >>> summarize_list(ET.ElementTree(elem).findall("./tag"))
-    ['tag', 'tag']
-
-    Following example is invalid in 1.2.
-    A leading '*' is assumed in 1.3.
-
-    >>> elem.findall("section//") == elem.findall("section//*")
-    True
-
-    ET's Path module handles this case incorrectly; this gives
-    a warning in 1.3, and the behaviour will be modified in 1.4.
-
-    >>> summarize_list(ET.ElementTree(elem).findall("/tag"))
-    ['tag', 'tag']
-
-    >>> elem = ET.XML(SAMPLE_XML_NS)
-    >>> summarize_list(elem.findall("tag"))
-    []
-    >>> summarize_list(elem.findall("{http://effbot.org/ns}tag"))
-    ['{http://effbot.org/ns}tag', '{http://effbot.org/ns}tag']
-    >>> summarize_list(elem.findall(".//{http://effbot.org/ns}tag"))
-    ['{http://effbot.org/ns}tag', '{http://effbot.org/ns}tag', '{http://effbot.org/ns}tag']
-    """
-
 def file_init():
     """
     >>> import io
@@ -428,16 +345,6 @@ def file_init():
     'element'
     >>> tree.find("element/../empty-element").tag
     'empty-element'
-    """
-
-def bad_find():
-    """
-    Check bad or unsupported path expressions.
-
-    >>> elem = ET.XML(SAMPLE_XML)
-    >>> elem.findall("/tag")
-    Traceback (most recent call last):
-    SyntaxError: cannot use absolute path on element
     """
 
 def path_cache():
@@ -1714,7 +1621,7 @@ def check_issue10777():
 # --------------------------------------------------------------------
 
 
-class BasicElementTest(unittest.TestCase):
+class BasicElementTest(ElementTestCase, unittest.TestCase):
     def test_augmentation_type_errors(self):
         e = ET.Element('joe')
         self.assertRaises(TypeError, e.append, 'b')
@@ -1768,6 +1675,28 @@ class BasicElementTest(unittest.TestCase):
         self.assertEqual(flag, True)
         self.assertEqual(wref(), None)
 
+    def test_get_keyword_args(self):
+        e1 = ET.Element('foo' , x=1, y=2, z=3)
+        self.assertEqual(e1.get('x', default=7), 1)
+        self.assertEqual(e1.get('w', default=7), 7)
+
+    def test_pickle(self):
+        # issue #16076: the C implementation wasn't pickleable.
+        for dumper, loader in product(self.modules, repeat=2):
+            e = dumper.Element('foo', bar=42)
+            e.text = "text goes here"
+            e.tail = "opposite of head"
+            dumper.SubElement(e, 'child').append(dumper.Element('grandchild'))
+            e.append(dumper.Element('child'))
+            e.findall('.//grandchild')[0].set('attr', 'other value')
+
+            e2 = self.pickleRoundTrip(e, 'xml.etree.ElementTree',
+                                      dumper, loader)
+
+            self.assertEqual(e2.tag, 'foo')
+            self.assertEqual(e2.attrib['bar'], 42)
+            self.assertEqual(len(e2), 2)
+            self.assertEqualElements(e, e2)
 
 class ElementTreeTest(unittest.TestCase):
     def test_istype(self):
@@ -1809,6 +1738,130 @@ class ElementTreeTest(unittest.TestCase):
         mye = MyElement('joe')
         self.assertEqual(mye.newmethod(), 'joe')
 
+    def test_html_empty_elems_serialization(self):
+        # issue 15970
+        # from http://www.w3.org/TR/html401/index/elements.html
+        for element in ['AREA', 'BASE', 'BASEFONT', 'BR', 'COL', 'FRAME', 'HR',
+                        'IMG', 'INPUT', 'ISINDEX', 'LINK', 'META', 'PARAM']:
+            for elem in [element, element.lower()]:
+                expected = '<%s>' % elem
+                serialized = serialize(ET.XML('<%s />' % elem), method='html')
+                self.assertEqual(serialized, expected)
+                serialized = serialize(ET.XML('<%s></%s>' % (elem,elem)),
+                                       method='html')
+                self.assertEqual(serialized, expected)
+
+
+class ElementFindTest(unittest.TestCase):
+    def test_find_simple(self):
+        e = ET.XML(SAMPLE_XML)
+        self.assertEqual(e.find('tag').tag, 'tag')
+        self.assertEqual(e.find('section/tag').tag, 'tag')
+        self.assertEqual(e.find('./tag').tag, 'tag')
+
+        e[2] = ET.XML(SAMPLE_SECTION)
+        self.assertEqual(e.find('section/nexttag').tag, 'nexttag')
+
+        self.assertEqual(e.findtext('./tag'), 'text')
+        self.assertEqual(e.findtext('section/tag'), 'subtext')
+
+        # section/nexttag is found but has no text
+        self.assertEqual(e.findtext('section/nexttag'), '')
+        self.assertEqual(e.findtext('section/nexttag', 'default'), '')
+
+        # tog doesn't exist and 'default' kicks in
+        self.assertIsNone(e.findtext('tog'))
+        self.assertEqual(e.findtext('tog', 'default'), 'default')
+
+        # Issue #16922
+        self.assertEqual(ET.XML('<tag><empty /></tag>').findtext('empty'), '')
+
+    def test_find_xpath(self):
+        LINEAR_XML = '''
+        <body>
+            <tag class='a'/>
+            <tag class='b'/>
+            <tag class='c'/>
+            <tag class='d'/>
+        </body>'''
+        e = ET.XML(LINEAR_XML)
+
+        # Test for numeric indexing and last()
+        self.assertEqual(e.find('./tag[1]').attrib['class'], 'a')
+        self.assertEqual(e.find('./tag[2]').attrib['class'], 'b')
+        self.assertEqual(e.find('./tag[last()]').attrib['class'], 'd')
+        self.assertEqual(e.find('./tag[last()-1]').attrib['class'], 'c')
+        self.assertEqual(e.find('./tag[last()-2]').attrib['class'], 'b')
+
+    def test_findall(self):
+        e = ET.XML(SAMPLE_XML)
+        e[2] = ET.XML(SAMPLE_SECTION)
+        self.assertEqual(summarize_list(e.findall('.')), ['body'])
+        self.assertEqual(summarize_list(e.findall('tag')), ['tag', 'tag'])
+        self.assertEqual(summarize_list(e.findall('tog')), [])
+        self.assertEqual(summarize_list(e.findall('tog/foo')), [])
+        self.assertEqual(summarize_list(e.findall('*')),
+            ['tag', 'tag', 'section'])
+        self.assertEqual(summarize_list(e.findall('.//tag')),
+            ['tag'] * 4)
+        self.assertEqual(summarize_list(e.findall('section/tag')), ['tag'])
+        self.assertEqual(summarize_list(e.findall('section//tag')), ['tag'] * 2)
+        self.assertEqual(summarize_list(e.findall('section/*')),
+            ['tag', 'nexttag', 'nextsection'])
+        self.assertEqual(summarize_list(e.findall('section//*')),
+            ['tag', 'nexttag', 'nextsection', 'tag'])
+        self.assertEqual(summarize_list(e.findall('section/.//*')),
+            ['tag', 'nexttag', 'nextsection', 'tag'])
+        self.assertEqual(summarize_list(e.findall('*/*')),
+            ['tag', 'nexttag', 'nextsection'])
+        self.assertEqual(summarize_list(e.findall('*//*')),
+            ['tag', 'nexttag', 'nextsection', 'tag'])
+        self.assertEqual(summarize_list(e.findall('*/tag')), ['tag'])
+        self.assertEqual(summarize_list(e.findall('*/./tag')), ['tag'])
+        self.assertEqual(summarize_list(e.findall('./tag')), ['tag'] * 2)
+        self.assertEqual(summarize_list(e.findall('././tag')), ['tag'] * 2)
+
+        self.assertEqual(summarize_list(e.findall('.//tag[@class]')),
+            ['tag'] * 3)
+        self.assertEqual(summarize_list(e.findall('.//tag[@class="a"]')),
+            ['tag'])
+        self.assertEqual(summarize_list(e.findall('.//tag[@class="b"]')),
+            ['tag'] * 2)
+        self.assertEqual(summarize_list(e.findall('.//tag[@id]')),
+            ['tag'])
+        self.assertEqual(summarize_list(e.findall('.//section[tag]')),
+            ['section'])
+        self.assertEqual(summarize_list(e.findall('.//section[element]')), [])
+        self.assertEqual(summarize_list(e.findall('../tag')), [])
+        self.assertEqual(summarize_list(e.findall('section/../tag')),
+            ['tag'] * 2)
+        self.assertEqual(e.findall('section//'), e.findall('section//*'))
+
+    def test_test_find_with_ns(self):
+        e = ET.XML(SAMPLE_XML_NS)
+        self.assertEqual(summarize_list(e.findall('tag')), [])
+        self.assertEqual(
+            summarize_list(e.findall("{http://effbot.org/ns}tag")),
+            ['{http://effbot.org/ns}tag'] * 2)
+        self.assertEqual(
+            summarize_list(e.findall(".//{http://effbot.org/ns}tag")),
+            ['{http://effbot.org/ns}tag'] * 3)
+
+    def test_bad_find(self):
+        e = ET.XML(SAMPLE_XML)
+        with self.assertRaisesRegex(SyntaxError, 'cannot use absolute path'):
+            e.findall('/tag')
+
+    def test_find_through_ElementTree(self):
+        e = ET.XML(SAMPLE_XML)
+        self.assertEqual(ET.ElementTree(e).find('tag').tag, 'tag')
+        self.assertEqual(ET.ElementTree(e).findtext('tag'), 'text')
+        self.assertEqual(summarize_list(ET.ElementTree(e).findall('tag')),
+            ['tag'] * 2)
+        # this produces a warning
+        self.assertEqual(summarize_list(ET.ElementTree(e).findall('//tag')),
+            ['tag'] * 3)
+
 
 class ElementIterTest(unittest.TestCase):
     def _ilist(self, elem, tag=None):
@@ -1828,8 +1881,18 @@ class ElementIterTest(unittest.TestCase):
         sourcefile = serialize(doc, to_string=False)
         self.assertEqual(next(ET.iterparse(sourcefile))[0], 'end')
 
+        # With an explitit parser too (issue #9708)
+        sourcefile = serialize(doc, to_string=False)
+        parser = ET.XMLParser(target=ET.TreeBuilder())
+        self.assertEqual(next(ET.iterparse(sourcefile, parser=parser))[0],
+                         'end')
+
         tree = ET.ElementTree(None)
         self.assertRaises(AttributeError, tree.iter)
+
+        # Issue #16913
+        doc = ET.XML("<root>a&amp;<sub>b&amp;</sub>c&amp;</root>")
+        self.assertEqual(''.join(doc.itertext()), 'a&b&c&')
 
     def test_corners(self):
         # single root, no subelements
@@ -1870,6 +1933,11 @@ class ElementIterTest(unittest.TestCase):
         self.assertEqual(self._ilist(doc, 'room'), ['room'] * 3)
         self.assertEqual(self._ilist(doc, 'house'), ['house'] * 2)
 
+        # test that iter also accepts 'tag' as a keyword arg
+        self.assertEqual(
+            summarize_list(doc.iter(tag='room')),
+            ['room'] * 3)
+
         # make sure both tag=None and tag='*' return all tags
         all_tags = ['document', 'house', 'room', 'room',
                     'shed', 'house', 'room']
@@ -1881,9 +1949,22 @@ class TreeBuilderTest(unittest.TestCase):
     sample1 = ('<!DOCTYPE html PUBLIC'
         ' "-//W3C//DTD XHTML 1.0 Transitional//EN"'
         ' "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">'
-        '<html>text</html>')
+        '<html>text<div>subtext</div>tail</html>')
 
     sample2 = '''<toplevel>sometext</toplevel>'''
+
+    def _check_sample1_element(self, e):
+        self.assertEqual(e.tag, 'html')
+        self.assertEqual(e.text, 'text')
+        self.assertEqual(e.tail, None)
+        self.assertEqual(e.attrib, {})
+        children = list(e)
+        self.assertEqual(len(children), 1)
+        child = children[0]
+        self.assertEqual(child.tag, 'div')
+        self.assertEqual(child.text, 'subtext')
+        self.assertEqual(child.tail, 'tail')
+        self.assertEqual(child.attrib, {})
 
     def test_dummy_builder(self):
         class BaseDummyBuilder:
@@ -1917,7 +1998,7 @@ class TreeBuilderTest(unittest.TestCase):
         parser.feed(self.sample1)
 
         e = parser.close()
-        self.assertEqual(e.tag, 'html')
+        self._check_sample1_element(e)
 
     def test_element_factory(self):
         lst = []
@@ -1932,6 +2013,33 @@ class TreeBuilderTest(unittest.TestCase):
         parser.close()
 
         self.assertEqual(lst, ['toplevel'])
+
+    def _check_element_factory_class(self, cls):
+        tb = ET.TreeBuilder(element_factory=cls)
+
+        parser = ET.XMLParser(target=tb)
+        parser.feed(self.sample1)
+        e = parser.close()
+        self.assertIsInstance(e, cls)
+        self._check_sample1_element(e)
+
+    def test_element_factory_subclass(self):
+        class MyElement(ET.Element):
+            pass
+        self._check_element_factory_class(MyElement)
+
+    def test_element_factory_pure_python_subclass(self):
+        # Mimick SimpleTAL's behaviour (issue #16089): both versions of
+        # TreeBuilder should be able to cope with a subclass of the
+        # pure Python Element class.
+        base = ET._Element
+        # Not from a C extension
+        self.assertEqual(base.__module__, 'xml.etree.ElementTree')
+        # Force some multiple inheritance with a C class to make things
+        # more interesting.
+        class MyElement(base, ValueError):
+            pass
+        self._check_element_factory_class(MyElement)
 
     def test_doctype(self):
         class DoctypeParser:
@@ -2353,8 +2461,11 @@ class KeywordArgsTest(unittest.TestCase):
 
 # --------------------------------------------------------------------
 
-@unittest.skipUnless(pyET, 'only for the Python version')
 class NoAcceleratorTest(unittest.TestCase):
+    def setUp(self):
+        if not pyET:
+            raise unittest.SkipTest('only for the Python version')
+
     # Test that the C accelerator was not imported for pyET
     def test_correct_import_pyET(self):
         self.assertEqual(pyET.Element.__module__, 'xml.etree.ElementTree')
@@ -2406,10 +2517,10 @@ class CleanContext(object):
 def test_main(module=None):
     # When invoked without a module, runs the Python ET tests by loading pyET.
     # Otherwise, uses the given module as the ET.
+    global pyET
+    pyET = import_fresh_module('xml.etree.ElementTree',
+                               blocked=['_elementtree'])
     if module is None:
-        global pyET
-        pyET = import_fresh_module('xml.etree.ElementTree',
-                                   blocked=['_elementtree'])
         module = pyET
 
     global ET
@@ -2422,6 +2533,7 @@ def test_main(module=None):
         ParseErrorTest,
         XincludeTest,
         ElementTreeTest,
+        ElementFindTest,
         ElementIterTest,
         TreeBuilderTest,
         ]
@@ -2429,16 +2541,15 @@ def test_main(module=None):
     # These tests will only run for the pure-Python version that doesn't import
     # _elementtree. We can't use skipUnless here, because pyET is filled in only
     # after the module is loaded.
-    if pyET:
+    if pyET is not ET:
         test_classes.extend([
             NoAcceleratorTest,
             ])
 
     try:
-        support.run_unittest(*test_classes)
-
         # XXX the C module should give the same warnings as the Python module
-        with CleanContext(quiet=(module is not pyET)):
+        with CleanContext(quiet=(pyET is not ET)):
+            support.run_unittest(*test_classes)
             support.run_doctest(sys.modules[__name__], verbosity=True)
     finally:
         # don't interfere with subsequent tests

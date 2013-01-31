@@ -107,7 +107,7 @@ static inline void _mpd_qpow_uint(mpd_t *result, const mpd_t *base,
                                   mpd_uint_t exp, uint8_t resultsign,
                                   const mpd_context_t *ctx, uint32_t *status);
 
-mpd_uint_t mpd_qsshiftr(mpd_t *result, const mpd_t *a, mpd_ssize_t n);
+static mpd_uint_t mpd_qsshiftr(mpd_t *result, const mpd_t *a, mpd_ssize_t n);
 
 
 /******************************************************************************/
@@ -2084,7 +2084,7 @@ mpd_qcmp(const mpd_t *a, const mpd_t *b, uint32_t *status)
 }
 
 /*
- * Compare a and b, convert the the usual integer result to a decimal and
+ * Compare a and b, convert the usual integer result to a decimal and
  * store it in 'result'. For convenience, the integer result of the comparison
  * is returned. Comparisons involving NaNs return NaN/INT_MAX.
  */
@@ -2301,7 +2301,7 @@ _mpd_get_rnd(const mpd_uint_t *data, mpd_ssize_t len, int use_msd)
  * It is the caller's responsibility to ensure that the coefficient is big
  * enough. The function cannot fail.
  */
-mpd_uint_t
+static mpd_uint_t
 mpd_qsshiftr(mpd_t *result, const mpd_t *a, mpd_ssize_t n)
 {
     mpd_uint_t rnd;
@@ -3119,7 +3119,7 @@ _mpd_qaddsub(mpd_t *result, const mpd_t *a, const mpd_t *b, uint8_t sign_b,
                  *     ----------XX1234  ->  sdigits
                  *     ----------X1      ->  tiny-digits
                  *     |- prec -|
-                 *     
+                 *
                  *      OR
                  *
                  *   bdigits > prec AND
@@ -3513,8 +3513,7 @@ _mpd_qdiv(int action, mpd_t *q, const mpd_t *a, const mpd_t *b,
     if (b->len == 1) {
         rem = _mpd_shortdiv(q->data, a->data, a->len, b->data[0]);
     }
-    else if (a->len < 2*MPD_NEWTONDIV_CUTOFF &&
-             b->len < MPD_NEWTONDIV_CUTOFF) {
+    else if (b->len <= MPD_NEWTONDIV_CUTOFF) {
         int ret = _mpd_basedivmod(q->data, NULL, a->data, b->data,
                                   a->len, b->len);
         if (ret < 0) {
@@ -3667,8 +3666,7 @@ _mpd_qdivmod(mpd_t *q, mpd_t *r, const mpd_t *a, const mpd_t *b,
             r->data[0] = _mpd_shortdiv(q->data, a->data, a->len, b->data[0]);
         }
     }
-    else if (a->len < 2*MPD_NEWTONDIV_CUTOFF &&
-             b->len < MPD_NEWTONDIV_CUTOFF) {
+    else if (b->len <= MPD_NEWTONDIV_CUTOFF) {
         int ret;
         ret = _mpd_basedivmod(q->data, r->data, a->data, b->data,
                               a->len, b->len);
@@ -5065,28 +5063,28 @@ _karatsuba_rec(mpd_uint_t *c, const mpd_uint_t *a, const mpd_uint_t *b,
         return;
     }
 
-    m = (la+1)/2;  // ceil(la/2)
+    m = (la+1)/2;  /* ceil(la/2) */
 
     /* lb <= m < la */
     if (lb <= m) {
 
         /* lb can now be larger than la-m */
         if (lb > la-m) {
-            lt = lb + lb + 1;       // space needed for result array
-            mpd_uint_zero(w, lt);   // clear result array
-            _karatsuba_rec(w, b, a+m, w+lt, lb, la-m); // b*ah
+            lt = lb + lb + 1;       /* space needed for result array */
+            mpd_uint_zero(w, lt);   /* clear result array */
+            _karatsuba_rec(w, b, a+m, w+lt, lb, la-m); /* b*ah */
         }
         else {
-            lt = (la-m) + (la-m) + 1;  // space needed for result array
-            mpd_uint_zero(w, lt);      // clear result array
-            _karatsuba_rec(w, a+m, b, w+lt, la-m, lb); // ah*b
+            lt = (la-m) + (la-m) + 1;  /* space needed for result array */
+            mpd_uint_zero(w, lt);      /* clear result array */
+            _karatsuba_rec(w, a+m, b, w+lt, la-m, lb); /* ah*b */
         }
-        _mpd_baseaddto(c+m, w, (la-m)+lb);      // add ah*b*B**m
+        _mpd_baseaddto(c+m, w, (la-m)+lb);      /* add ah*b*B**m */
 
-        lt = m + m + 1;         // space needed for the result array
-        mpd_uint_zero(w, lt);   // clear result array
-        _karatsuba_rec(w, a, b, w+lt, m, lb);  // al*b
-        _mpd_baseaddto(c, w, m+lb);    // add al*b
+        lt = m + m + 1;         /* space needed for the result array */
+        mpd_uint_zero(w, lt);   /* clear result array */
+        _karatsuba_rec(w, a, b, w+lt, m, lb);  /* al*b */
+        _mpd_baseaddto(c, w, m+lb);    /* add al*b */
 
         return;
     }
@@ -5125,7 +5123,7 @@ _karatsuba_rec(mpd_uint_t *c, const mpd_uint_t *a, const mpd_uint_t *b,
  * to the result or NULL in case of failure (malloc error).
  * Conditions: ulen >= vlen, ulen >= 4
  */
-mpd_uint_t *
+static mpd_uint_t *
 _mpd_kmul(const mpd_uint_t *u, const mpd_uint_t *v,
           mpd_size_t ulen, mpd_size_t vlen,
           mpd_size_t *rsize)
@@ -5210,7 +5208,7 @@ _mpd_set_control87(unsigned short cw)
 }
 #endif
 
-unsigned int
+static unsigned int
 mpd_set_fenv(void)
 {
     unsigned int cw;
@@ -5230,7 +5228,7 @@ mpd_set_fenv(void)
     return cw;
 }
 
-void
+static void
 mpd_restore_fenv(unsigned int cw)
 {
 #ifdef _MSC_VER
@@ -5248,7 +5246,7 @@ mpd_restore_fenv(unsigned int cw)
  * Multiply u and v, using the fast number theoretic transform. Returns
  * a pointer to the result or NULL in case of failure (malloc error).
  */
-mpd_uint_t *
+static mpd_uint_t *
 _mpd_fntmul(const mpd_uint_t *u, const mpd_uint_t *v,
             mpd_size_t ulen, mpd_size_t vlen,
             mpd_size_t *rsize)
@@ -5362,34 +5360,34 @@ _karatsuba_rec_fnt(mpd_uint_t *c, const mpd_uint_t *a, const mpd_uint_t *b,
         return 1;
     }
 
-    m = (la+1)/2;  // ceil(la/2)
+    m = (la+1)/2;  /* ceil(la/2) */
 
     /* lb <= m < la */
     if (lb <= m) {
 
         /* lb can now be larger than la-m */
         if (lb > la-m) {
-            lt = lb + lb + 1;       // space needed for result array
-            mpd_uint_zero(w, lt);   // clear result array
-            if (!_karatsuba_rec_fnt(w, b, a+m, w+lt, lb, la-m)) { // b*ah
+            lt = lb + lb + 1;       /* space needed for result array */
+            mpd_uint_zero(w, lt);   /* clear result array */
+            if (!_karatsuba_rec_fnt(w, b, a+m, w+lt, lb, la-m)) { /* b*ah */
                 return 0; /* GCOV_UNLIKELY */
             }
         }
         else {
-            lt = (la-m) + (la-m) + 1;  // space needed for result array
-            mpd_uint_zero(w, lt);      // clear result array
-            if (!_karatsuba_rec_fnt(w, a+m, b, w+lt, la-m, lb)) { // ah*b
+            lt = (la-m) + (la-m) + 1;  /* space needed for result array */
+            mpd_uint_zero(w, lt);      /* clear result array */
+            if (!_karatsuba_rec_fnt(w, a+m, b, w+lt, la-m, lb)) { /* ah*b */
                 return 0; /* GCOV_UNLIKELY */
             }
         }
-        _mpd_baseaddto(c+m, w, (la-m)+lb); // add ah*b*B**m
+        _mpd_baseaddto(c+m, w, (la-m)+lb); /* add ah*b*B**m */
 
-        lt = m + m + 1;         // space needed for the result array
-        mpd_uint_zero(w, lt);   // clear result array
-        if (!_karatsuba_rec_fnt(w, a, b, w+lt, m, lb)) {  // al*b
+        lt = m + m + 1;         /* space needed for the result array */
+        mpd_uint_zero(w, lt);   /* clear result array */
+        if (!_karatsuba_rec_fnt(w, a, b, w+lt, m, lb)) {  /* al*b */
             return 0; /* GCOV_UNLIKELY */
         }
-        _mpd_baseaddto(c, w, m+lb);       // add al*b
+        _mpd_baseaddto(c, w, m+lb);       /* add al*b */
 
         return 1;
     }
@@ -5434,7 +5432,7 @@ _karatsuba_rec_fnt(mpd_uint_t *c, const mpd_uint_t *a, const mpd_uint_t *b,
  * base case. Returns a pointer to the result or NULL in case of failure
  * (malloc error). Conditions: ulen >= vlen, ulen >= 4.
  */
-mpd_uint_t *
+static mpd_uint_t *
 _mpd_kmul_fnt(const mpd_uint_t *u, const mpd_uint_t *v,
               mpd_size_t ulen, mpd_size_t vlen,
               mpd_size_t *rsize)
@@ -5544,10 +5542,15 @@ _mpd_qmul(mpd_t *result, const mpd_t *a, const mpd_t *b,
     }
 
 
-    if (small->len == 1) {
+    if (small->len <= 256) {
         rdata = mpd_calloc(rsize, sizeof *rdata);
         if (rdata != NULL) {
-            _mpd_shortmul(rdata, big->data, big->len, small->data[0]);
+            if (small->len == 1) {
+                _mpd_shortmul(rdata, big->data, big->len, small->data[0]);
+            }
+            else {
+                _mpd_basemul(rdata, small->data, big->data, small->len, big->len);
+            }
         }
     }
     else if (rsize <= 1024) {
@@ -5980,7 +5983,7 @@ finish:
     mpd_qfinalize(result, ctx, status);
 }
 
-/* 
+/*
  * If the exponent is infinite and base equals one, the result is one
  * with a coefficient of length prec. Otherwise, result is undefined.
  * Return the value of the comparison against one.
@@ -6369,7 +6372,7 @@ mpd_qpow(mpd_t *result, const mpd_t *base, const mpd_t *exp,
  */
 static inline void
 _mpd_qpowmod_uint(mpd_t *result, mpd_t *base, mpd_uint_t exp,
-                  mpd_t *mod, uint32_t *status)
+                  const mpd_t *mod, uint32_t *status)
 {
     mpd_context_t maxcontext;
 
@@ -6380,10 +6383,10 @@ _mpd_qpowmod_uint(mpd_t *result, mpd_t *base, mpd_uint_t exp,
 
     while (exp > 0) {
         if (exp & 1) {
-            mpd_qmul(result, result, base, &maxcontext, status);
+            _mpd_qmul_exact(result, result, base, &maxcontext, status);
             mpd_qrem(result, result, mod, &maxcontext, status);
         }
-        mpd_qmul(base, base, base, &maxcontext, status);
+        _mpd_qmul_exact(base, base, base, &maxcontext, status);
         mpd_qrem(base, base, mod, &maxcontext, status);
         exp >>= 1;
     }
@@ -6449,27 +6452,30 @@ mpd_qpowmod(mpd_t *result, const mpd_t *base, const mpd_t *exp,
         return;
     }
 
-    if (!mpd_qcopy(&tmod, mod, status)) {
-        goto mpd_errors;
-    }
-    mpd_set_positive(&tmod);
-
     mpd_maxcontext(&maxcontext);
 
-    mpd_qround_to_int(&tbase, base, &maxcontext, status);
-    mpd_qround_to_int(&texp, exp, &maxcontext, status);
-    mpd_qround_to_int(&tmod, &tmod, &maxcontext, status);
+    mpd_qrescale(&tmod, mod, 0, &maxcontext, &maxcontext.status);
+    if (maxcontext.status&MPD_Errors) {
+        mpd_seterror(result, maxcontext.status&MPD_Errors, status);
+        goto out;
+    }
+    maxcontext.status = 0;
+    mpd_set_positive(&tmod);
 
+    mpd_qround_to_int(&tbase, base, &maxcontext, status);
+    mpd_set_positive(&tbase);
     tbase_exp = tbase.exp;
     tbase.exp = 0;
+
+    mpd_qround_to_int(&texp, exp, &maxcontext, status);
     texp_exp = texp.exp;
     texp.exp = 0;
 
     /* base = (base.int % modulo * pow(10, base.exp, modulo)) % modulo */
     mpd_qrem(&tbase, &tbase, &tmod, &maxcontext, status);
-    _settriple(result, MPD_POS, 1, tbase_exp);
+    mpd_qshiftl(result, &one, tbase_exp, status);
     mpd_qrem(result, result, &tmod, &maxcontext, status);
-    mpd_qmul(&tbase, &tbase, result, &maxcontext, status);
+    _mpd_qmul_exact(&tbase, &tbase, result, &maxcontext, status);
     mpd_qrem(&tbase, &tbase, &tmod, &maxcontext, status);
     if (mpd_isspecial(&tbase) ||
         mpd_isspecial(&texp) ||
@@ -6491,10 +6497,10 @@ mpd_qpowmod(mpd_t *result, const mpd_t *base, const mpd_t *exp,
     mpd_qcopy(result, &one, status);
     while (mpd_isfinite(&texp) && !mpd_iszero(&texp)) {
         if (mpd_isodd(&texp)) {
-            mpd_qmul(result, result, &tbase, &maxcontext, status);
+            _mpd_qmul_exact(result, result, &tbase, &maxcontext, status);
             mpd_qrem(result, result, &tmod, &maxcontext, status);
         }
-        mpd_qmul(&tbase, &tbase, &tbase, &maxcontext, status);
+        _mpd_qmul_exact(&tbase, &tbase, &tbase, &maxcontext, status);
         mpd_qrem(&tbase, &tbase, &tmod, &maxcontext, status);
         mpd_qdivint(&texp, &texp, &two, &maxcontext, status);
     }
@@ -6512,7 +6518,6 @@ out:
     mpd_del(&texp);
     mpd_del(&tmod);
     mpd_del(&tmp);
-    mpd_qfinalize(result, ctx, status);
     return;
 
 mpd_errors:
@@ -7124,7 +7129,7 @@ _mpd_base_ndivmod(mpd_t *q, mpd_t *r, const mpd_t *a, const mpd_t *b,
         goto nanresult;
     }
 
-    /* Let x := _mpd_qreciprocal(b, prec) 
+    /* Let x := _mpd_qreciprocal(b, prec)
      * Then x is bounded by:
      *    1) 1/b - 10**(-prec - bdigits) < x < 1/b + 10**(-prec - bdigits)
      *    2) 1/b - 10**(-adigits - 4) < x < 1/b + 10**(-adigits - 4)

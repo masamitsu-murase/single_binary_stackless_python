@@ -9,6 +9,22 @@ AC_PREREQ(2.65)
 
 AC_INIT(python, PYTHON_VERSION, http://bugs.python.org/)
 
+AC_SUBST(BASECPPFLAGS)
+if test "$abs_srcdir" != "$abs_builddir"; then
+    # If we're building out-of-tree, we need to make sure the following
+    # resources get picked up before their $srcdir counterparts.
+    #   Objects/ -> typeslots.inc
+    #   Include/ -> Python-ast.h, graminit.h
+    #   Python/  -> importlib.h
+    # (A side effect of this is that these resources will automatically be
+    #  regenerated when building out-of-tree, regardless of whether or not
+    #  the $srcdir counterpart is up-to-date.  This is an acceptable trade
+    #  off.)
+    BASECPPFLAGS="-IObjects -IInclude -IPython"
+else
+    BASECPPFLAGS=""
+fi
+
 AC_SUBST(HGVERSION)
 AC_SUBST(HGTAG)
 AC_SUBST(HGBRANCH)
@@ -34,6 +50,8 @@ AC_CONFIG_SRCDIR([Include/object.h])
 AC_CONFIG_HEADER(pyconfig.h)
 
 AC_CANONICAL_HOST
+AC_SUBST(build)
+AC_SUBST(host)
 
 if test "$cross_compiling" = yes; then
     AC_MSG_CHECKING([for python interpreter for cross build])
@@ -49,8 +67,10 @@ if test "$cross_compiling" = yes; then
 	    AC_MSG_ERROR([python$PACKAGE_VERSION interpreter not found])
 	fi
         AC_MSG_RESULT($interp)
-	PYTHON_FOR_BUILD="_PYTHON_PROJECT_BASE=$srcdir"' _PYTHON_HOST_PLATFORM=$(_PYTHON_HOST_PLATFORM) PYTHONPATH=$(srcdir)/Lib:$(srcdir)/Lib/plat-$(MACHDEP) '$interp
+	PYTHON_FOR_BUILD='_PYTHON_PROJECT_BASE=$(abs_builddir) _PYTHON_HOST_PLATFORM=$(_PYTHON_HOST_PLATFORM) PYTHONPATH=$(shell test -f pybuilddir.txt && echo $(abs_builddir)/`cat pybuilddir.txt`:)$(srcdir)/Lib:$(srcdir)/Lib/$(PLATDIR) '$interp
     fi
+elif test "$cross_compiling" = maybe; then
+    AC_MSG_ERROR([Cross compiling required --host=HOST-TUPLE and --build=ARCH])
 else
     PYTHON_FOR_BUILD='./$(BUILDPYTHON) -E'
 fi
@@ -334,15 +354,15 @@ AC_SUBST(FRAMEWORKINSTALLAPPSPREFIX)
 ##                           [Use (OpenStep|Rhapsody) dynamic linker]))
 ##
 # Set name for machine-dependent library files
-AC_SUBST(MACHDEP)
+AC_ARG_VAR([MACHDEP], [name for machine-dependent library files])
 AC_MSG_CHECKING(MACHDEP)
 if test -z "$MACHDEP"
 then
     # avoid using uname for cross builds
     if test "$cross_compiling" = yes; then
-       # ac_sys_system and ac_sys_release are only used for setting
-       # `define_xopen_source' in the case statement below. For the
-       # current supported cross builds, this macro is not adjusted.
+       # ac_sys_system and ac_sys_release are used for setting
+       # a lot of different things including 'define_xopen_source'
+       # in the case statement below.
 	case "$host" in
 	*-*-linux*)
 		ac_sys_system=Linux
@@ -763,6 +783,9 @@ hp*|HP*)
     esac;;
 esac
 
+MULTIARCH=$($CC --print-multiarch 2>/dev/null)
+AC_SUBST(MULTIARCH)
+
 
 AC_SUBST(LIBRARY)
 AC_MSG_CHECKING(LIBRARY)
@@ -1001,12 +1024,12 @@ if test "$cross_compiling" = yes; then
 fi
 AC_SUBST(READELF)
 
-AC_SUBST(DISABLE_ASDLGEN)
-DISABLE_ASDLGEN=""
-AC_CHECK_PROG(HAS_PYTHON, python, found, not-found)
-if test $HAS_HG != found -o $HAS_PYTHON != found
-then
-    DISABLE_ASDLGEN="@echo hg: $HAS_HG, python: $HAS_PYTHON! cannot run \$(srcdir)/Parser/asdl_c.py #"
+AC_SUBST(ASDLGEN)
+AC_CHECK_PROGS(PYTHON, python$PACKAGE_VERSION python3 python, not-found)
+if test "$PYTHON" = not-found; then
+    ASDLGEN="@echo python: $PYTHON! cannot run \$(srcdir)/Parser/asdl_c.py #"
+else
+    ASDLGEN="$PYTHON"
 fi
 
 
@@ -1347,6 +1370,7 @@ fi
 AC_MSG_CHECKING(whether pthreads are available without options)
 AC_CACHE_VAL(ac_cv_pthread_is_default,
 [AC_RUN_IFELSE([AC_LANG_SOURCE([[
+#include <stdio.h>
 #include <pthread.h>
 
 void* routine(void* p){return NULL;}
@@ -1381,6 +1405,7 @@ AC_CACHE_VAL(ac_cv_kpthread,
 [ac_save_cc="$CC"
 CC="$CC -Kpthread"
 AC_RUN_IFELSE([AC_LANG_SOURCE([[
+#include <stdio.h>
 #include <pthread.h>
 
 void* routine(void* p){return NULL;}
@@ -1409,6 +1434,7 @@ AC_CACHE_VAL(ac_cv_kthread,
 [ac_save_cc="$CC"
 CC="$CC -Kthread"
 AC_RUN_IFELSE([AC_LANG_SOURCE([[
+#include <stdio.h>
 #include <pthread.h>
 
 void* routine(void* p){return NULL;}
@@ -1433,10 +1459,11 @@ then
 # so we need to run a program to see whether it really made the
 # function available.
 AC_MSG_CHECKING(whether $CC accepts -pthread)
-AC_CACHE_VAL(ac_cv_thread,
+AC_CACHE_VAL(ac_cv_pthread,
 [ac_save_cc="$CC"
 CC="$CC -pthread"
 AC_RUN_IFELSE([AC_LANG_SOURCE([[
+#include <stdio.h>
 #include <pthread.h>
 
 void* routine(void* p){return NULL;}
@@ -1636,10 +1663,30 @@ AC_TYPE_PID_T
 AC_DEFINE_UNQUOTED([RETSIGTYPE],[void],[assume C89 semantics that RETSIGTYPE is always void])
 AC_TYPE_SIZE_T
 AC_TYPE_UID_T
+
+# There are two separate checks for each of the exact-width integer types we
+# need.  First we check whether the type is available using the usual
+# AC_CHECK_TYPE macro with the default includes (which includes <inttypes.h>
+# and <stdint.h> where available).  We then also use the special type checks of
+# the form AC_TYPE_UINT32_T, which in the case that uint32_t is not available
+# directly, #define's uint32_t to be a suitable type.
+
+AC_CHECK_TYPE(uint32_t,
+  AC_DEFINE(HAVE_UINT32_T, 1, [Define if your compiler provides uint32_t.]),,)
 AC_TYPE_UINT32_T
+
+AC_CHECK_TYPE(uint64_t,
+  AC_DEFINE(HAVE_UINT64_T, 1, [Define if your compiler provides uint64_t.]),,)
 AC_TYPE_UINT64_T
+
+AC_CHECK_TYPE(int32_t,
+  AC_DEFINE(HAVE_INT32_T, 1, [Define if your compiler provides int32_t.]),,)
 AC_TYPE_INT32_T
+
+AC_CHECK_TYPE(int64_t,
+  AC_DEFINE(HAVE_INT64_T, 1, [Define if your compiler provides int64_t.]),,)
 AC_TYPE_INT64_T
+
 AC_CHECK_TYPE(ssize_t,
   AC_DEFINE(HAVE_SSIZE_T, 1, [Define if your compiler provides ssize_t]),,)
 AC_CHECK_TYPE(__uint128_t,
@@ -1874,7 +1921,6 @@ AC_SUBST(BLDSHARED)
 AC_SUBST(CCSHARED)
 AC_SUBST(LINKFORSHARED)
 
-AC_DEFINE_UNQUOTED(SHLIB_EXT, "$SO", [Define this to be extension of shared libraries (including the dot!).])
 # LDSHARED is the ld *command* used to create shared library
 # -- "cc -G" on SunOS 5.x, "ld -shared" on IRIX 5
 # (Shared libraries in this instance are shared modules to be loaded into
@@ -2358,7 +2404,9 @@ yes
     _libs=$LIBS
     LIBS="$LIBS -lpthread"
     AC_MSG_CHECKING([for pthread_create in -lpthread])
-    AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <pthread.h>
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+#include <stdio.h>
+#include <pthread.h>
 
 void * start_routine (void *arg) { exit (0); }]], [[
 pthread_create (NULL, NULL, start_routine, NULL)]])],[
@@ -2424,7 +2472,9 @@ if test "$posix_threads" = "yes"; then
 
       AC_MSG_CHECKING(if PTHREAD_SCOPE_SYSTEM is supported)
       AC_CACHE_VAL(ac_cv_pthread_system_supported,
-      [AC_RUN_IFELSE([AC_LANG_SOURCE([[#include <pthread.h>
+      [AC_RUN_IFELSE([AC_LANG_SOURCE([[
+      #include <stdio.h>
+      #include <pthread.h>
       void *foo(void *parm) {
         return NULL;
       }
@@ -2473,22 +2523,12 @@ AC_ARG_ENABLE(ipv6,
 
 [
 dnl the check does not work on cross compilation case...
-  AC_RUN_IFELSE([AC_LANG_SOURCE([[ /* AF_INET6 available check */
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[ /* AF_INET6 available check */
 #include <sys/types.h>
-#include <sys/socket.h>
-main()
-{
- if (socket(AF_INET6, SOCK_STREAM, 0) < 0)
-   exit(1);
- else
-   exit(0);
-}
-]])],[
+#include <sys/socket.h>]],
+[[int domain = AF_INET6;]])],[
   AC_MSG_RESULT(yes)
   ipv6=yes
-],[
-  AC_MSG_RESULT(no)
-  ipv6=no
 ],[
   AC_MSG_RESULT(no)
   ipv6=no
@@ -3113,6 +3153,7 @@ then
   AC_MSG_CHECKING(getaddrinfo bug)
   AC_CACHE_VAL(ac_cv_buggy_getaddrinfo,
   AC_RUN_IFELSE([AC_LANG_SOURCE([[[
+#include <stdio.h>
 #include <sys/types.h>
 #include <netdb.h>
 #include <string.h>
@@ -3937,6 +3978,8 @@ else
 fi
 AC_MSG_RESULT($SO)
 
+AC_DEFINE_UNQUOTED(SHLIB_EXT, "$SO", [Define this to be extension of shared libraries (including the dot!).])
+
 # Check whether right shifting a negative integer extends the sign bit
 # or fills with zeros (like the Cray J90, according to Tim Peters).
 AC_MSG_CHECKING(whether right shift extends the sign bit)
@@ -4441,6 +4484,7 @@ AC_CHECK_TYPE(socklen_t,,
 AC_MSG_CHECKING(for broken mbstowcs)
 AC_CACHE_VAL(ac_cv_broken_mbstowcs,
 AC_RUN_IFELSE([AC_LANG_SOURCE([[
+#include <stdio.h>
 #include<stdlib.h>
 int main() {
     size_t len = -1;

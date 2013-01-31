@@ -233,6 +233,7 @@ else:
                 self.returncode = None
                 self._handle = hp
                 self.sentinel = int(hp)
+                util.Finalize(self, _winapi.CloseHandle, (self.sentinel,))
 
                 # send information to child
                 Popen._tls.process_handle = int(hp)
@@ -273,8 +274,8 @@ else:
             if self.returncode is None:
                 try:
                     _winapi.TerminateProcess(int(self._handle), TERMINATE)
-                except WindowsError:
-                    if self.wait(timeout=0.1) is None:
+                except OSError:
+                    if self.wait(timeout=1.0) is None:
                         raise
 
     #
@@ -305,7 +306,7 @@ else:
         '''
         Returns prefix of command line used for spawning a child process
         '''
-        if process.current_process()._identity==() and is_forking(sys.argv):
+        if getattr(process.current_process(), '_inheriting', False):
             raise RuntimeError('''
             Attempt to start a new process before the current process
             has finished its bootstrapping phase.

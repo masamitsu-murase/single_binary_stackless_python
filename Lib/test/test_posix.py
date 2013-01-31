@@ -17,6 +17,7 @@ import stat
 import tempfile
 import unittest
 import warnings
+import _testcapi
 
 _DUMMY_SYMLINK = os.path.join(tempfile.gettempdir(),
                               support.TESTFN + '-dummy-symlink')
@@ -358,12 +359,28 @@ class PosixTester(unittest.TestCase):
             try:
                 self.assertTrue(posix.fstat(fp.fileno()))
                 self.assertTrue(posix.stat(fp.fileno()))
+
+                self.assertRaisesRegex(TypeError,
+                        'should be string, bytes or integer, not',
+                        posix.stat, float(fp.fileno()))
             finally:
                 fp.close()
 
     def test_stat(self):
         if hasattr(posix, 'stat'):
             self.assertTrue(posix.stat(support.TESTFN))
+            self.assertTrue(posix.stat(os.fsencode(support.TESTFN)))
+            self.assertTrue(posix.stat(bytearray(os.fsencode(support.TESTFN))))
+
+            self.assertRaisesRegex(TypeError,
+                    'can\'t specify None for path argument',
+                    posix.stat, None)
+            self.assertRaisesRegex(TypeError,
+                    'should be string, bytes or integer, not',
+                    posix.stat, list(support.TESTFN))
+            self.assertRaisesRegex(TypeError,
+                    'should be string, bytes or integer, not',
+                    posix.stat, list(os.fsencode(support.TESTFN)))
 
     @unittest.skipUnless(hasattr(posix, 'mkfifo'), "don't have mkfifo()")
     def test_mkfifo(self):
@@ -521,6 +538,10 @@ class PosixTester(unittest.TestCase):
         except OSError:
             pass
 
+        # Issue 15989
+        self.assertRaises(OverflowError, os.pipe2, _testcapi.INT_MAX + 1)
+        self.assertRaises(OverflowError, os.pipe2, _testcapi.UINT_MAX + 1)
+
     def test_utime(self):
         if hasattr(posix, 'utime'):
             now = time.time()
@@ -534,7 +555,17 @@ class PosixTester(unittest.TestCase):
     def _test_chflags_regular_file(self, chflags_func, target_file, **kwargs):
         st = os.stat(target_file)
         self.assertTrue(hasattr(st, 'st_flags'))
-        chflags_func(target_file, st.st_flags | stat.UF_IMMUTABLE, **kwargs)
+
+        # ZFS returns EOPNOTSUPP when attempting to set flag UF_IMMUTABLE.
+        flags = st.st_flags | stat.UF_IMMUTABLE
+        try:
+            chflags_func(target_file, flags, **kwargs)
+        except OSError as err:
+            if err.errno != errno.EOPNOTSUPP:
+                raise
+            msg = 'chflag UF_IMMUTABLE not supported by underlying fs'
+            self.skipTest(msg)
+
         try:
             new_st = os.stat(target_file)
             self.assertEqual(st.st_flags | stat.UF_IMMUTABLE, new_st.st_flags)
@@ -568,8 +599,15 @@ class PosixTester(unittest.TestCase):
             return posix.chflags(path, flags, follow_symlinks=False)
 
         for fn in (posix.lchflags, chflags_nofollow):
-            fn(_DUMMY_SYMLINK,
-                           dummy_symlink_st.st_flags | stat.UF_IMMUTABLE)
+            # ZFS returns EOPNOTSUPP when attempting to set flag UF_IMMUTABLE.
+            flags = dummy_symlink_st.st_flags | stat.UF_IMMUTABLE
+            try:
+                fn(_DUMMY_SYMLINK, flags)
+            except OSError as err:
+                if err.errno != errno.EOPNOTSUPP:
+                    raise
+                msg = 'chflag UF_IMMUTABLE not supported by underlying fs'
+                self.skipTest(msg)
             try:
                 new_testfn_st = os.stat(support.TESTFN)
                 new_dummy_symlink_st = os.lstat(_DUMMY_SYMLINK)
@@ -630,17 +668,10 @@ class PosixTester(unittest.TestCase):
     @unittest.skipUnless(hasattr(pwd, 'getpwuid'), "test needs pwd.getpwuid()")
     @unittest.skipUnless(hasattr(os, 'getuid'), "test needs os.getuid()")
     def test_getgrouplist(self):
-        with os.popen('id -G') as idg:
-            groups = idg.read().strip()
-            ret = idg.close()
+        user = pwd.getpwuid(os.getuid())[0]
+        group = pwd.getpwuid(os.getuid())[3]
+        self.assertIn(group, posix.getgrouplist(user, group))
 
-        if ret != None or not groups:
-            raise unittest.SkipTest("need working 'id -G'")
-
-        self.assertEqual(
-            set([int(x) for x in groups.split()]),
-            set(posix.getgrouplist(pwd.getpwuid(os.getuid())[0],
-                pwd.getpwuid(os.getuid())[3])))
 
     @unittest.skipUnless(hasattr(os, 'getegid'), "test needs os.getegid()")
     def test_getgroups(self):
@@ -648,7 +679,7 @@ class PosixTester(unittest.TestCase):
             groups = idg.read().strip()
             ret = idg.close()
 
-        if ret != None or not groups:
+        if ret is not None or not groups:
             raise unittest.SkipTest("need working 'id -G'")
 
         # 'id -G' and 'os.getgroups()' should return the same
@@ -704,6 +735,14 @@ class PosixTester(unittest.TestCase):
             s1 = posix.stat(support.TESTFN)
             s2 = posix.stat(support.TESTFN, dir_fd=f)
             self.assertEqual(s1, s2)
+            s2 = posix.stat(support.TESTFN, dir_fd=None)
+            self.assertEqual(s1, s2)
+            self.assertRaisesRegex(TypeError, 'should be integer, not',
+                    posix.stat, support.TESTFN, dir_fd=posix.getcwd())
+            self.assertRaisesRegex(TypeError, 'should be integer, not',
+                    posix.stat, support.TESTFN, dir_fd=float(f))
+            self.assertRaises(OverflowError,
+                    posix.stat, support.TESTFN, dir_fd=10**20)
         finally:
             posix.close(f)
 
@@ -814,7 +853,7 @@ class PosixTester(unittest.TestCase):
             posix.rename(support.TESTFN + 'ren', support.TESTFN)
             raise
         else:
-            posix.stat(support.TESTFN) # should not throw exception
+            posix.stat(support.TESTFN) # should not raise exception
         finally:
             posix.close(f)
 
@@ -832,7 +871,7 @@ class PosixTester(unittest.TestCase):
     def test_unlink_dir_fd(self):
         f = posix.open(posix.getcwd(), posix.O_RDONLY)
         support.create_empty_file(support.TESTFN + 'del')
-        posix.stat(support.TESTFN + 'del') # should not throw exception
+        posix.stat(support.TESTFN + 'del') # should not raise exception
         try:
             posix.unlink(support.TESTFN + 'del', dir_fd=f)
         except:
@@ -855,7 +894,7 @@ class PosixTester(unittest.TestCase):
 
     requires_sched_h = unittest.skipUnless(hasattr(posix, 'sched_yield'),
                                            "don't have scheduling support")
-    requires_sched_affinity = unittest.skipUnless(hasattr(posix, 'cpu_set'),
+    requires_sched_affinity = unittest.skipUnless(hasattr(posix, 'sched_setaffinity'),
                                                   "don't have sched affinity support")
 
     @requires_sched_h
@@ -896,17 +935,17 @@ class PosixTester(unittest.TestCase):
         self.assertRaises(OSError, posix.sched_getparam, -1)
         param = posix.sched_getparam(0)
         self.assertIsInstance(param.sched_priority, int)
-        try:
-            posix.sched_setscheduler(0, mine, param)
-        except OSError as e:
-            if e.errno != errno.EPERM:
-                raise
 
-        # POSIX states that calling sched_setparam() on a process with a
-        # scheduling policy other than SCHED_FIFO or SCHED_RR is
-        # implementation-defined: FreeBSD returns EINVAL.
-        if not sys.platform.startswith('freebsd'):
-            posix.sched_setparam(0, param)
+        # POSIX states that calling sched_setparam() or sched_setscheduler() on
+        # a process with a scheduling policy other than SCHED_FIFO or SCHED_RR
+        # is implementation-defined: NetBSD and FreeBSD can return EINVAL.
+        if not sys.platform.startswith(('freebsd', 'netbsd')):
+            try:
+                posix.sched_setscheduler(0, mine, param)
+                posix.sched_setparam(0, param)
+            except OSError as e:
+                if e.errno != errno.EPERM:
+                    raise
             self.assertRaises(OSError, posix.sched_setparam, -1, param)
 
         self.assertRaises(OSError, posix.sched_setscheduler, -1, mine, param)
@@ -936,77 +975,28 @@ class PosixTester(unittest.TestCase):
         self.assertLess(interval, 1.)
 
     @requires_sched_affinity
-    def test_sched_affinity(self):
-        mask = posix.sched_getaffinity(0, 1024)
-        self.assertGreaterEqual(mask.count(), 1)
-        self.assertIsInstance(mask, posix.cpu_set)
-        self.assertRaises(OSError, posix.sched_getaffinity, -1, 1024)
-        empty = posix.cpu_set(10)
+    def test_sched_getaffinity(self):
+        mask = posix.sched_getaffinity(0)
+        self.assertIsInstance(mask, set)
+        self.assertGreaterEqual(len(mask), 1)
+        self.assertRaises(OSError, posix.sched_getaffinity, -1)
+        for cpu in mask:
+            self.assertIsInstance(cpu, int)
+            self.assertGreaterEqual(cpu, 0)
+            self.assertLess(cpu, 1 << 32)
+
+    @requires_sched_affinity
+    def test_sched_setaffinity(self):
+        mask = posix.sched_getaffinity(0)
+        if len(mask) > 1:
+            # Empty masks are forbidden
+            mask.pop()
         posix.sched_setaffinity(0, mask)
-        self.assertRaises(OSError, posix.sched_setaffinity, 0, empty)
+        self.assertEqual(posix.sched_getaffinity(0), mask)
+        self.assertRaises(OSError, posix.sched_setaffinity, 0, [])
+        self.assertRaises(ValueError, posix.sched_setaffinity, 0, [-10])
+        self.assertRaises(OverflowError, posix.sched_setaffinity, 0, [1<<128])
         self.assertRaises(OSError, posix.sched_setaffinity, -1, mask)
-
-    @requires_sched_affinity
-    def test_cpu_set_basic(self):
-        s = posix.cpu_set(10)
-        self.assertEqual(len(s), 10)
-        self.assertEqual(s.count(), 0)
-        s.set(0)
-        s.set(9)
-        self.assertTrue(s.isset(0))
-        self.assertTrue(s.isset(9))
-        self.assertFalse(s.isset(5))
-        self.assertEqual(s.count(), 2)
-        s.clear(0)
-        self.assertFalse(s.isset(0))
-        self.assertEqual(s.count(), 1)
-        s.zero()
-        self.assertFalse(s.isset(0))
-        self.assertFalse(s.isset(9))
-        self.assertEqual(s.count(), 0)
-        self.assertRaises(ValueError, s.set, -1)
-        self.assertRaises(ValueError, s.set, 10)
-        self.assertRaises(ValueError, s.clear, -1)
-        self.assertRaises(ValueError, s.clear, 10)
-        self.assertRaises(ValueError, s.isset, -1)
-        self.assertRaises(ValueError, s.isset, 10)
-
-    @requires_sched_affinity
-    def test_cpu_set_cmp(self):
-        self.assertNotEqual(posix.cpu_set(11), posix.cpu_set(12))
-        l = posix.cpu_set(10)
-        r = posix.cpu_set(10)
-        self.assertEqual(l, r)
-        l.set(1)
-        self.assertNotEqual(l, r)
-        r.set(1)
-        self.assertEqual(l, r)
-
-    @requires_sched_affinity
-    def test_cpu_set_bitwise(self):
-        l = posix.cpu_set(5)
-        l.set(0)
-        l.set(1)
-        r = posix.cpu_set(5)
-        r.set(1)
-        r.set(2)
-        b = l & r
-        self.assertEqual(b.count(), 1)
-        self.assertTrue(b.isset(1))
-        b = l | r
-        self.assertEqual(b.count(), 3)
-        self.assertTrue(b.isset(0))
-        self.assertTrue(b.isset(1))
-        self.assertTrue(b.isset(2))
-        b = l ^ r
-        self.assertEqual(b.count(), 2)
-        self.assertTrue(b.isset(0))
-        self.assertFalse(b.isset(1))
-        self.assertTrue(b.isset(2))
-        b = l
-        b |= r
-        self.assertIs(b, l)
-        self.assertEqual(l.count(), 3)
 
     def test_rtld_constants(self):
         # check presence of major RTLD_* constants

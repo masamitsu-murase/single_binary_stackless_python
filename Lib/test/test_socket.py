@@ -1245,17 +1245,34 @@ class GeneralModuleTests(unittest.TestCase):
             fp.close()
             self.assertEqual(repr(fp), "<_io.BufferedReader name=-1>")
 
+    def test_unusable_closed_socketio(self):
+        with socket.socket() as sock:
+            fp = sock.makefile("rb", buffering=0)
+            self.assertTrue(fp.readable())
+            self.assertFalse(fp.writable())
+            self.assertFalse(fp.seekable())
+            fp.close()
+            self.assertRaises(ValueError, fp.readable)
+            self.assertRaises(ValueError, fp.writable)
+            self.assertRaises(ValueError, fp.seekable)
+
     def test_pickle(self):
         sock = socket.socket()
         with sock:
             for protocol in range(pickle.HIGHEST_PROTOCOL + 1):
                 self.assertRaises(TypeError, pickle.dumps, sock, protocol)
 
-    def test_listen_backlog0(self):
+    def test_listen_backlog(self):
+        for backlog in 0, -1:
+            srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            srv.bind((HOST, 0))
+            srv.listen(backlog)
+            srv.close()
+
+        # Issue 15989
         srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         srv.bind((HOST, 0))
-        # backlog = 0
-        srv.listen(0)
+        self.assertRaises(OverflowError, srv.listen, _testcapi.INT_MAX + 1)
         srv.close()
 
     @unittest.skipUnless(support.IPV6_ENABLED, 'IPv6 required for this test.')
@@ -1571,6 +1588,11 @@ class BasicTCPTest(SocketConnectedTest):
 
     def _testShutdown(self):
         self.serv_conn.send(MSG)
+        # Issue 15989
+        self.assertRaises(OverflowError, self.serv_conn.shutdown,
+                          _testcapi.INT_MAX + 1)
+        self.assertRaises(OverflowError, self.serv_conn.shutdown,
+                          2 + (_testcapi.UINT_MAX + 1))
         self.serv_conn.shutdown(2)
 
     def testDetach(self):
@@ -3280,14 +3302,28 @@ class SendmsgSCTPStreamTest(SendmsgStreamTests, SendrecvmsgSCTPStreamTestBase):
 @unittest.skipUnless(thread, 'Threading required for this test.')
 class RecvmsgSCTPStreamTest(RecvmsgTests, RecvmsgGenericStreamTests,
                             SendrecvmsgSCTPStreamTestBase):
-    pass
+
+    def testRecvmsgEOF(self):
+        try:
+            super(RecvmsgSCTPStreamTest, self).testRecvmsgEOF()
+        except OSError as e:
+            if e.errno != errno.ENOTCONN:
+                raise
+            self.skipTest("sporadic ENOTCONN (kernel issue?) - see issue #13876")
 
 @requireAttrs(socket.socket, "recvmsg_into")
 @requireSocket("AF_INET", "SOCK_STREAM", "IPPROTO_SCTP")
 @unittest.skipUnless(thread, 'Threading required for this test.')
 class RecvmsgIntoSCTPStreamTest(RecvmsgIntoTests, RecvmsgGenericStreamTests,
                                 SendrecvmsgSCTPStreamTestBase):
-    pass
+
+    def testRecvmsgEOF(self):
+        try:
+            super(RecvmsgIntoSCTPStreamTest, self).testRecvmsgEOF()
+        except OSError as e:
+            if e.errno != errno.ENOTCONN:
+                raise
+            self.skipTest("sporadic ENOTCONN (kernel issue?) - see issue #13876")
 
 
 class SendrecvmsgUnixStreamTestBase(SendrecvmsgConnectedBase,
@@ -3530,7 +3566,10 @@ class NonBlockingTCPTests(ThreadedTCPSocketTest):
 
     def testSetBlocking(self):
         # Testing whether set blocking works
-        self.serv.setblocking(0)
+        self.serv.setblocking(True)
+        self.assertIsNone(self.serv.gettimeout())
+        self.serv.setblocking(False)
+        self.assertEqual(self.serv.gettimeout(), 0.0)
         start = time.time()
         try:
             self.serv.accept()
@@ -3538,6 +3577,10 @@ class NonBlockingTCPTests(ThreadedTCPSocketTest):
             pass
         end = time.time()
         self.assertTrue((end - start) < 1.0, "Error setting non-blocking mode.")
+        # Issue 15989
+        if _testcapi.UINT_MAX < _testcapi.ULONG_MAX:
+            self.serv.setblocking(_testcapi.UINT_MAX + 1)
+            self.assertIsNone(self.serv.gettimeout())
 
     def _testSetBlocking(self):
         pass
@@ -4098,7 +4141,26 @@ class NetworkConnectionNoServer(unittest.TestCase):
         port = support.find_unused_port()
         with self.assertRaises(socket.error) as cm:
             socket.create_connection((HOST, port))
-        self.assertEqual(cm.exception.errno, errno.ECONNREFUSED)
+
+        # Issue #16257: create_connection() calls getaddrinfo() against
+        # 'localhost'.  This may result in an IPV6 addr being returned
+        # as well as an IPV4 one:
+        #   >>> socket.getaddrinfo('localhost', port, 0, SOCK_STREAM)
+        #   >>> [(2,  2, 0, '', ('127.0.0.1', 41230)),
+        #        (26, 2, 0, '', ('::1', 41230, 0, 0))]
+        #
+        # create_connection() enumerates through all the addresses returned
+        # and if it doesn't successfully bind to any of them, it propagates
+        # the last exception it encountered.
+        #
+        # On Solaris, ENETUNREACH is returned in this circumstance instead
+        # of ECONNREFUSED.  So, if that errno exists, add it to our list of
+        # expected errnos.
+        expected_errnos = [ errno.ECONNREFUSED, ]
+        if hasattr(errno, 'ENETUNREACH'):
+            expected_errnos.append(errno.ENETUNREACH)
+
+        self.assertIn(cm.exception.errno, expected_errnos)
 
     def test_create_connection_timeout(self):
         # Issue #9792: create_connection() should not recast timeout errors

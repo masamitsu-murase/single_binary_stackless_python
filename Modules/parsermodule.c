@@ -167,6 +167,7 @@ typedef struct {
 
 
 static void parser_free(PyST_Object *st);
+static PyObject* parser_sizeof(PyST_Object *, void *);
 static PyObject* parser_richcompare(PyObject *left, PyObject *right, int op);
 static PyObject* parser_compilest(PyST_Object *, PyObject *, PyObject *);
 static PyObject* parser_isexpr(PyST_Object *, PyObject *, PyObject *);
@@ -187,7 +188,8 @@ static PyMethodDef parser_methods[] = {
         PyDoc_STR("Creates a list-tree representation of this ST.")},
     {"totuple",         (PyCFunction)parser_st2tuple,   PUBLIC_METHOD_TYPE,
         PyDoc_STR("Creates a tuple-tree representation of this ST.")},
-
+    {"__sizeof__",      (PyCFunction)parser_sizeof,     METH_NOARGS,
+        PyDoc_STR("Returns size in memory, in bytes.")},
     {NULL, NULL, 0, NULL}
 };
 
@@ -361,6 +363,15 @@ parser_free(PyST_Object *st)
     PyObject_Del(st);
 }
 
+static PyObject *
+parser_sizeof(PyST_Object *st, void *unused)
+{
+    Py_ssize_t res;
+
+    res = sizeof(PyST_Object) + _PyNode_SizeOf(st->st_node);
+    return PyLong_FromSsize_t(res);
+}
+
 
 /*  parser_st2tuple(PyObject* self, PyObject* args, PyObject* kw)
  *
@@ -371,36 +382,28 @@ parser_free(PyST_Object *st)
 static PyObject*
 parser_st2tuple(PyST_Object *self, PyObject *args, PyObject *kw)
 {
-    PyObject *line_option = 0;
-    PyObject *col_option = 0;
+    int line_info = 0;
+    int col_info = 0;
     PyObject *res = 0;
     int ok;
 
     static char *keywords[] = {"st", "line_info", "col_info", NULL};
 
     if (self == NULL || PyModule_Check(self)) {
-        ok = PyArg_ParseTupleAndKeywords(args, kw, "O!|OO:st2tuple", keywords,
-                                         &PyST_Type, &self, &line_option,
-                                         &col_option);
+        ok = PyArg_ParseTupleAndKeywords(args, kw, "O!|pp:st2tuple", keywords,
+                                         &PyST_Type, &self, &line_info,
+                                         &col_info);
     }
     else
-        ok = PyArg_ParseTupleAndKeywords(args, kw, "|OO:totuple", &keywords[1],
-                                         &line_option, &col_option);
+        ok = PyArg_ParseTupleAndKeywords(args, kw, "|pp:totuple", &keywords[1],
+                                         &line_info, &col_info);
     if (ok != 0) {
-        int lineno = 0;
-        int col_offset = 0;
-        if (line_option != NULL) {
-            lineno = (PyObject_IsTrue(line_option) != 0) ? 1 : 0;
-        }
-        if (col_option != NULL) {
-            col_offset = (PyObject_IsTrue(col_option) != 0) ? 1 : 0;
-        }
         /*
          *  Convert ST into a tuple representation.  Use Guido's function,
          *  since it's known to work already.
          */
         res = node2tuple(((PyST_Object*)self)->st_node,
-                         PyTuple_New, PyTuple_SetItem, lineno, col_offset);
+                         PyTuple_New, PyTuple_SetItem, line_info, col_info);
     }
     return (res);
 }
@@ -415,35 +418,27 @@ parser_st2tuple(PyST_Object *self, PyObject *args, PyObject *kw)
 static PyObject*
 parser_st2list(PyST_Object *self, PyObject *args, PyObject *kw)
 {
-    PyObject *line_option = 0;
-    PyObject *col_option = 0;
+    int line_info = 0;
+    int col_info = 0;
     PyObject *res = 0;
     int ok;
 
     static char *keywords[] = {"st", "line_info", "col_info", NULL};
 
     if (self == NULL || PyModule_Check(self))
-        ok = PyArg_ParseTupleAndKeywords(args, kw, "O!|OO:st2list", keywords,
-                                         &PyST_Type, &self, &line_option,
-                                         &col_option);
+        ok = PyArg_ParseTupleAndKeywords(args, kw, "O!|pp:st2list", keywords,
+                                         &PyST_Type, &self, &line_info,
+                                         &col_info);
     else
-        ok = PyArg_ParseTupleAndKeywords(args, kw, "|OO:tolist", &keywords[1],
-                                         &line_option, &col_option);
+        ok = PyArg_ParseTupleAndKeywords(args, kw, "|pp:tolist", &keywords[1],
+                                         &line_info, &col_info);
     if (ok) {
-        int lineno = 0;
-        int col_offset = 0;
-        if (line_option != 0) {
-            lineno = PyObject_IsTrue(line_option) ? 1 : 0;
-        }
-        if (col_option != NULL) {
-            col_offset = (PyObject_IsTrue(col_option) != 0) ? 1 : 0;
-        }
         /*
          *  Convert ST into a tuple representation.  Use Guido's function,
          *  since it's known to work already.
          */
         res = node2tuple(self->st_node,
-                         PyList_New, PyList_SetItem, lineno, col_offset);
+                         PyList_New, PyList_SetItem, line_info, col_info);
     }
     return (res);
 }
@@ -701,7 +696,7 @@ parser_tuple2st(PyST_Object *self, PyObject *args, PyObject *kw)
             err_string("parse tree does not use a valid start symbol");
         }
     }
-    /*  Make sure we throw an exception on all errors.  We should never
+    /*  Make sure we raise an exception on all errors.  We should never
      *  get this, but we'd do well to be sure something is done.
      */
     if (st == NULL && !PyErr_Occurred())
@@ -730,7 +725,7 @@ build_node_children(PyObject *tuple, node *root, int *line_num)
         /* elem must always be a sequence, however simple */
         PyObject* elem = PySequence_GetItem(tuple, i);
         int ok = elem != NULL;
-        long  type = 0;
+        int type = 0;
         char *strn = 0;
 
         if (ok)
@@ -741,8 +736,14 @@ build_node_children(PyObject *tuple, node *root, int *line_num)
                 ok = 0;
             else {
                 ok = PyLong_Check(temp);
-                if (ok)
-                    type = PyLong_AS_LONG(temp);
+                if (ok) {
+                    type = _PyLong_AsInt(temp);
+                    if (type == -1 && PyErr_Occurred()) {
+                        Py_DECREF(temp);
+                        Py_DECREF(elem);
+                        return 0;
+                    }
+                }
                 Py_DECREF(temp);
             }
         }
@@ -778,8 +779,16 @@ build_node_children(PyObject *tuple, node *root, int *line_num)
             if (len == 3) {
                 PyObject *o = PySequence_GetItem(elem, 2);
                 if (o != NULL) {
-                    if (PyLong_Check(o))
-                        *line_num = PyLong_AS_LONG(o);
+                    if (PyLong_Check(o)) {
+                        int num = _PyLong_AsInt(o);
+                        if (num == -1 && PyErr_Occurred()) {
+                            Py_DECREF(o);
+                            Py_DECREF(temp);
+                            Py_DECREF(elem);
+                            return 0;
+                        }
+                        *line_num = num;
+                    }
                     else {
                         PyErr_Format(parser_error,
                                      "third item in terminal node must be an"
@@ -807,7 +816,7 @@ build_node_children(PyObject *tuple, node *root, int *line_num)
         else if (!ISNONTERMINAL(type)) {
             /*
              *  It has to be one or the other; this is an error.
-             *  Throw an exception.
+             *  Raise an exception.
              */
             PyObject *err = Py_BuildValue("os", elem, "unknown node type.");
             PyErr_SetObject(parser_error, err);
@@ -859,7 +868,7 @@ build_node_tree(PyObject *tuple)
     if (ISTERMINAL(num)) {
         /*
          *  The tuple is simple, but it doesn't start with a start symbol.
-         *  Throw an exception now and be done with it.
+         *  Raise an exception now and be done with it.
          */
         tuple = Py_BuildValue("os", tuple,
                     "Illegal syntax-tree; cannot start with terminal symbol.");

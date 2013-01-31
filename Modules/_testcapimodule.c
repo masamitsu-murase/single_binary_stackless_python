@@ -1210,7 +1210,7 @@ parse_tuple_and_keywords(PyObject *self, PyObject *args)
     int result;
     PyObject *return_value = NULL;
 
-    char buffers[32][8];
+    double buffers[8][4]; /* double ensures alignment where necessary */
 
     if (!PyArg_ParseTuple(args, "OOyO:parse_tuple_and_keywords",
         &sub_args, &sub_kwargs,
@@ -1238,7 +1238,7 @@ parse_tuple_and_keywords(PyObject *self, PyObject *args)
         o = PySequence_Fast_GET_ITEM(sub_keywords, i);
         if (!PyUnicode_FSConverter(o, (void *)(converted + i))) {
             PyErr_Format(PyExc_ValueError,
-                "parse_tuple_and_keywords: could not convert keywords[%s] to narrow string", i);
+                "parse_tuple_and_keywords: could not convert keywords[%zd] to narrow string", i);
             goto exit;
         }
         keywords[i] = PyBytes_AS_STRING(converted[i]);
@@ -1518,6 +1518,29 @@ unicode_transformdecimaltoascii(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "u#|s", &unicode, &length))
         return NULL;
     return PyUnicode_TransformDecimalToASCII(unicode, length);
+}
+
+static PyObject *
+unicode_legacy_string(PyObject *self, PyObject *args)
+{
+    Py_UNICODE *data;
+    Py_ssize_t len;
+    PyObject *u;
+
+    if (!PyArg_ParseTuple(args, "u#", &data, &len))
+        return NULL;
+
+    u = PyUnicode_FromUnicode(NULL, len);
+    if (u == NULL)
+        return NULL;
+
+    memcpy(PyUnicode_AS_UNICODE(u), data, len * sizeof(Py_UNICODE));
+
+    if (len > 0) { /* The empty string is always ready. */
+        assert(!PyUnicode_IS_READY(u));
+    }
+
+    return u;
 }
 
 static PyObject *
@@ -2506,6 +2529,7 @@ static PyMethodDef TestMethods[] = {
     {"unicode_aswidecharstring",unicode_aswidecharstring,        METH_VARARGS},
     {"unicode_encodedecimal",   unicode_encodedecimal,           METH_VARARGS},
     {"unicode_transformdecimaltoascii", unicode_transformdecimaltoascii, METH_VARARGS},
+    {"unicode_legacy_string",   unicode_legacy_string,           METH_VARARGS},
 #ifdef WITH_THREAD
     {"_test_thread_state",      test_thread_state,               METH_VARARGS},
     {"_pending_threadfunc",     pending_threadfunc,              METH_VARARGS},

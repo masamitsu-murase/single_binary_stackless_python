@@ -30,7 +30,7 @@
 */
 static PyLongObject small_ints[NSMALLNEGINTS + NSMALLPOSINTS];
 #ifdef COUNT_ALLOCS
-int quick_int_allocs, quick_neg_int_allocs;
+Py_ssize_t quick_int_allocs, quick_neg_int_allocs;
 #endif
 
 static PyObject *
@@ -434,6 +434,24 @@ PyLong_AsLong(PyObject *obj)
     return result;
 }
 
+/* Get a C int from a long int object or any object that has an __int__
+   method.  Return -1 and set an error if overflow occurs. */
+
+int
+_PyLong_AsInt(PyObject *obj)
+{
+    int overflow;
+    long result = PyLong_AsLongAndOverflow(obj, &overflow);
+    if (overflow || result > INT_MAX || result < INT_MIN) {
+        /* XXX: could be cute and give a different
+           message for overflow == -1 */
+        PyErr_SetString(PyExc_OverflowError,
+                        "Python int too large to convert to C int");
+        return -1;
+    }
+    return (int)result;
+}
+
 /* Get a Py_ssize_t from a long int object.
    Returns -1 and sets an error condition if overflow occurs. */
 
@@ -668,10 +686,9 @@ _PyLong_NumBits(PyObject *vv)
     assert(ndigits == 0 || v->ob_digit[ndigits - 1] != 0);
     if (ndigits > 0) {
         digit msd = v->ob_digit[ndigits - 1];
-
-        result = (ndigits - 1) * PyLong_SHIFT;
-        if (result / PyLong_SHIFT != (size_t)(ndigits - 1))
+        if ((size_t)(ndigits - 1) > PY_SIZE_MAX / (size_t)PyLong_SHIFT)
             goto Overflow;
+        result = (size_t)(ndigits - 1) * (size_t)PyLong_SHIFT;
         do {
             ++result;
             if (result == 0)
@@ -936,6 +953,13 @@ _PyLong_AsByteArray(PyLongObject* v,
 PyObject *
 PyLong_FromVoidPtr(void *p)
 {
+#if SIZEOF_VOID_P <= SIZEOF_LONG
+    /* special-case null pointer */
+    if (!p)
+        return PyLong_FromLong(0);
+    return PyLong_FromUnsignedLong((unsigned long)(Py_uintptr_t)p);
+#else
+
 #ifndef HAVE_LONG_LONG
 #   error "PyLong_FromVoidPtr: sizeof(void*) > sizeof(long), but no long long"
 #endif
@@ -946,6 +970,7 @@ PyLong_FromVoidPtr(void *p)
     if (!p)
         return PyLong_FromLong(0);
     return PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG)(Py_uintptr_t)p);
+#endif /* SIZEOF_VOID_P <= SIZEOF_LONG */
 
 }
 
@@ -1628,8 +1653,10 @@ long_to_decimal_string_internal(PyObject *aa,
         strlen++;
     }
     if (writer) {
-        if (_PyUnicodeWriter_Prepare(writer, strlen, '9') == -1)
+        if (_PyUnicodeWriter_Prepare(writer, strlen, '9') == -1) {
+            Py_DECREF(scratch);
             return -1;
+        }
         kind = writer->kind;
         str = NULL;
     }
@@ -4258,8 +4285,14 @@ long_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OO:int", kwlist,
                                      &x, &obase))
         return NULL;
-    if (x == NULL)
+    if (x == NULL) {
+        if (obase != NULL) {
+            PyErr_SetString(PyExc_TypeError,
+                            "int() missing string argument");
+            return NULL;
+        }
         return PyLong_FromLong(0L);
+    }
     if (obase == NULL)
         return PyNumber_Long(x);
 
@@ -4268,7 +4301,7 @@ long_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
         return NULL;
     if (overflow || (base != 0 && base < 2) || base > 36) {
         PyErr_SetString(PyExc_ValueError,
-                        "int() arg 2 must be >= 2 and <= 36");
+                        "int() base must be >= 2 and <= 36");
         return NULL;
     }
 
@@ -4283,8 +4316,8 @@ long_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
             string = PyByteArray_AS_STRING(x);
         else
             string = PyBytes_AS_STRING(x);
-        if (strlen(string) != (size_t)size) {
-            /* We only see this if there's a null byte in x,
+        if (strlen(string) != (size_t)size || !size) {
+            /* We only see this if there's a null byte in x or x is empty,
                x is a bytes or buffer, *and* a base is given. */
             PyErr_Format(PyExc_ValueError,
                          "invalid literal for int() with base %d: %R",
@@ -4847,13 +4880,20 @@ static PyGetSetDef long_getset[] = {
 };
 
 PyDoc_STRVAR(long_doc,
-"int(x[, base]) -> integer\n\
+"int(x=0) -> integer\n\
+int(x, base=10) -> integer\n\
 \n\
-Convert a string or number to an integer, if possible.  A floating\n\
-point argument will be truncated towards zero (this does not include a\n\
-string representation of a floating point number!)  When converting a\n\
-string, use the optional base.  It is an error to supply a base when\n\
-converting a non-string.");
+Convert a number or string to an integer, or return 0 if no arguments\n\
+are given.  If x is a number, return x.__int__().  For floating point\n\
+numbers, this truncates towards zero.\n\
+\n\
+If x is not a number or if base is given, then x must be a string,\n\
+bytes, or bytearray instance representing an integer literal in the\n\
+given base.  The literal can be preceded by '+' or '-' and be surrounded\n\
+by whitespace.  The base defaults to 10.  Valid bases are 0 and 2-36.\n\
+Base 0 means to interpret the base from the string as an integer literal.\n\
+>>> int('0b100', base=0)\n\
+4");
 
 static PyNumberMethods long_as_number = {
     (binaryfunc)long_add,       /*nb_add*/

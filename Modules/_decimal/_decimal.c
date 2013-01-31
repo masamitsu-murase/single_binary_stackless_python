@@ -202,6 +202,13 @@ static const char *dec_signal_string[MPD_NUM_FLAGS] = {
     "Underflow",
 };
 
+#ifdef EXTRA_FUNCTIONALITY
+  #define _PY_DEC_ROUND_GUARD MPD_ROUND_GUARD
+#else
+  #define _PY_DEC_ROUND_GUARD (MPD_ROUND_GUARD-1)
+#endif
+static PyObject *round_map[_PY_DEC_ROUND_GUARD];
+
 static const char *invalid_rounding_err =
 "valid values for rounding are:\n\
   [ROUND_CEILING, ROUND_FLOOR, ROUND_UP, ROUND_DOWN,\n\
@@ -247,13 +254,6 @@ type_error_int(const char *mesg)
 {
     PyErr_SetString(PyExc_TypeError, mesg);
     return -1;
-}
-
-static PyObject *
-type_error_ptr(const char *mesg)
-{
-    PyErr_SetString(PyExc_TypeError, mesg);
-    return NULL;
 }
 
 static int
@@ -502,6 +502,27 @@ dec_addstatus(PyObject *context, uint32_t status)
     return 0;
 }
 
+static int
+getround(PyObject *v)
+{
+    int i;
+
+    if (PyUnicode_Check(v)) {
+        for (i = 0; i < _PY_DEC_ROUND_GUARD; i++) {
+            if (v == round_map[i]) {
+                return i;
+            }
+        }
+        for (i = 0; i < _PY_DEC_ROUND_GUARD; i++) {
+            if (PyUnicode_Compare(v, round_map[i]) == 0) {
+                return i;
+            }
+        }
+    }
+
+    return type_error_int(invalid_rounding_err);
+}
+
 
 /******************************************************************************/
 /*                            SignalDict Object                               */
@@ -632,7 +653,7 @@ signaldict_richcompare(PyObject *v, PyObject *w, int op)
 }
 
 static PyObject *
-signaldict_copy(PyObject *self)
+signaldict_copy(PyObject *self, PyObject *args UNUSED)
 {
     return flags_as_dict(SdFlags(self));
 }
@@ -715,13 +736,21 @@ context_get##mem(PyObject *self, void *closure UNUSED)       \
 Dec_CONTEXT_GET_SSIZE(prec)
 Dec_CONTEXT_GET_SSIZE(emax)
 Dec_CONTEXT_GET_SSIZE(emin)
-Dec_CONTEXT_GET_SSIZE(round)
 Dec_CONTEXT_GET_SSIZE(clamp)
 
 #ifdef EXTRA_FUNCTIONALITY
 Dec_CONTEXT_GET_ULONG(traps)
 Dec_CONTEXT_GET_ULONG(status)
 #endif
+
+static PyObject *
+context_getround(PyObject *self, void *closure UNUSED)
+{
+    int i = mpd_getround(CTX(self));
+
+    Py_INCREF(round_map[i]);
+    return round_map[i];
+}
 
 static PyObject *
 context_getcapitals(PyObject *self, void *closure UNUSED)
@@ -875,17 +904,16 @@ static int
 context_setround(PyObject *self, PyObject *value, void *closure UNUSED)
 {
     mpd_context_t *ctx;
-    mpd_ssize_t x;
+    int x;
 
-    x = PyLong_AsSsize_t(value);
-    if (x == -1 && PyErr_Occurred()) {
+    x = getround(value);
+    if (x == -1) {
         return -1;
     }
-    BOUNDS_CHECK(x, INT_MIN, INT_MAX);
 
     ctx = CTX(self);
-    if (!mpd_qsetround(ctx, (int)x)) {
-        return type_error_int(invalid_rounding_err);
+    if (!mpd_qsetround(ctx, x)) {
+        INTERNAL_ERROR_INT("context_setround"); /* GCOV_NOT_REACHED */
     }
 
     return 0;
@@ -1208,83 +1236,52 @@ context_dealloc(PyDecContextObject *self)
 }
 
 static int
-getround(PyObject *v)
-{
-    const char *s;
-    long x;
-    int i;
-
-    if (PyLong_Check(v)) {
-        x = PyLong_AsLong(v);
-        if (x == -1 && PyErr_Occurred()) {
-            return -1;
-        }
-        BOUNDS_CHECK(x, 0, INT_MAX);
-        return (int)x;
-    }
-    else if (PyUnicode_Check(v)) {
-        for (i = 0; i < MPD_ROUND_GUARD; i++) {
-            s = mpd_round_string[i];
-            if (PyUnicode_CompareWithASCIIString(v, s) == 0) {
-                return i;
-            }
-        }
-    }
-
-    return type_error_int("invalid rounding mode");
-}
-
-static int
 context_init(PyObject *self, PyObject *args, PyObject *kwds)
 {
     static char *kwlist[] = {
       "prec", "rounding", "Emin", "Emax", "capitals", "clamp",
       "flags", "traps", NULL
     };
-    PyObject *rounding = NULL;
-    PyObject *traps = NULL;
-    PyObject *status = NULL;
-    mpd_context_t *ctx, t;
-    int capitals = 1;
+    PyObject *prec = Py_None;
+    PyObject *rounding = Py_None;
+    PyObject *emin = Py_None;
+    PyObject *emax = Py_None;
+    PyObject *capitals = Py_None;
+    PyObject *clamp = Py_None;
+    PyObject *status = Py_None;
+    PyObject *traps = Py_None;
     int ret;
 
     assert(PyTuple_Check(args));
-    ctx = CTX(self);
 
-    t = *ctx;
     if (!PyArg_ParseTupleAndKeywords(
             args, kwds,
-            "|nOnniiOO", kwlist,
-            &t.prec, &rounding, &t.emin, &t.emax, &capitals, &t.clamp,
-            &status, &traps
+            "|OOOOOOOO", kwlist,
+            &prec, &rounding, &emin, &emax, &capitals, &clamp, &status, &traps
          )) {
         return -1;
     }
-    if (rounding != NULL) {
-        t.round = getround(rounding);
-        if (t.round < 0) {
-            return -1;
-        }
+
+    if (prec != Py_None && context_setprec(self, prec, NULL) < 0) {
+        return -1;
+    }
+    if (rounding != Py_None && context_setround(self, rounding, NULL) < 0) {
+        return -1;
+    }
+    if (emin != Py_None && context_setemin(self, emin, NULL) < 0) {
+        return -1;
+    }
+    if (emax != Py_None && context_setemax(self, emax, NULL) < 0) {
+        return -1;
+    }
+    if (capitals != Py_None && context_setcapitals(self, capitals, NULL) < 0) {
+        return -1;
+    }
+    if (clamp != Py_None && context_setclamp(self, clamp, NULL) < 0) {
+       return -1;
     }
 
-    if (!mpd_qsetprec(ctx, t.prec) ||
-        !mpd_qsetemin(ctx, t.emin) ||
-        !mpd_qsetemax(ctx, t.emax) ||
-        !mpd_qsetclamp(ctx, t.clamp)) {
-        return value_error_int("invalid context");
-    }
-    if (!mpd_qsetround(ctx, t.round) ||
-        !mpd_qsettraps(ctx, t.traps) ||
-        !mpd_qsetstatus(ctx, t.status)) {
-        return type_error_int("invalid context");
-    }
-
-    if (capitals != 0 && capitals != 1) {
-        return value_error_int("invalid context");
-    }
-    CtxCaps(self) = capitals;
-
-    if (traps != NULL) {
+    if (traps != Py_None) {
         if (PyList_Check(traps)) {
             ret = context_settraps_list(self, traps);
         }
@@ -1300,7 +1297,7 @@ context_init(PyObject *self, PyObject *args, PyObject *kwds)
             return ret;
         }
     }
-    if (status != NULL) {
+    if (status != Py_None) {
         if (PyList_Check(status)) {
             ret = context_setstatus_list(self, status);
         }
@@ -1412,7 +1409,7 @@ error:
 #endif
 
 static PyObject *
-context_copy(PyObject *self)
+context_copy(PyObject *self, PyObject *args UNUSED)
 {
     PyObject *copy;
 
@@ -1486,7 +1483,10 @@ static PyGetSetDef context_getsets [] =
     }
 
 #define CONTEXT_CHECK_VA(obj) \
-    if (!PyDecContext_Check(obj)) {                 \
+    if (obj == Py_None) {                           \
+        CURRENT_CONTEXT(obj);                       \
+    }                                               \
+    else if (!PyDecContext_Check(obj)) {            \
         PyErr_SetString(PyExc_TypeError,            \
             "optional argument must be a context"); \
         return NULL;                                \
@@ -1530,7 +1530,7 @@ current_context(void)
 
 /* Return a new reference to the current context */
 static PyObject *
-PyDec_GetCurrentContext(void)
+PyDec_GetCurrentContext(PyObject *self UNUSED, PyObject *args UNUSED)
 {
     PyObject *context;
 
@@ -1551,7 +1551,7 @@ PyDec_SetCurrentContext(PyObject *self UNUSED, PyObject *v)
     if (v == default_context_template ||
         v == basic_context_template ||
         v == extended_context_template) {
-        v = context_copy(v);
+        v = context_copy(v, NULL);
         if (v == NULL) {
             return NULL;
         }
@@ -1600,7 +1600,7 @@ current_context_from_dict(void)
         }
 
         /* Set up a new thread local context. */
-        tl_context = context_copy(default_context_template);
+        tl_context = context_copy(default_context_template, NULL);
         if (tl_context == NULL) {
             return NULL;
         }
@@ -1657,7 +1657,7 @@ current_context(void)
 
 /* Return a new reference to the current context */
 static PyObject *
-PyDec_GetCurrentContext(void)
+PyDec_GetCurrentContext(PyObject *self UNUSED, PyObject *args UNUSED)
 {
     PyObject *context;
 
@@ -1690,7 +1690,7 @@ PyDec_SetCurrentContext(PyObject *self UNUSED, PyObject *v)
     if (v == default_context_template ||
         v == basic_context_template ||
         v == extended_context_template) {
-        v = context_copy(v);
+        v = context_copy(v, NULL);
         if (v == NULL) {
             return NULL;
         }
@@ -1715,18 +1715,25 @@ PyDec_SetCurrentContext(PyObject *self UNUSED, PyObject *v)
  * owns one reference to the global (outer) context and one
  * to the local (inner) context. */
 static PyObject *
-ctxmanager_new(PyTypeObject *type UNUSED, PyObject *args)
+ctxmanager_new(PyTypeObject *type UNUSED, PyObject *args, PyObject *kwds)
 {
+    static char *kwlist[] = {"ctx", NULL};
     PyDecContextManagerObject *self;
-    PyObject *local;
+    PyObject *local = Py_None;
     PyObject *global;
 
     CURRENT_CONTEXT(global);
-    local = global;
-    if (!PyArg_ParseTuple(args, "|O", &local)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O", kwlist, &local)) {
         return NULL;
     }
-    CONTEXT_CHECK_VA(local);
+    if (local == Py_None) {
+        local = global;
+    }
+    else if (!PyDecContext_Check(local)) {
+        PyErr_SetString(PyExc_TypeError,
+            "optional argument must be a context");
+        return NULL;
+    }
 
     self = PyObject_New(PyDecContextManagerObject,
                         &PyDecContextManager_Type);
@@ -1734,7 +1741,7 @@ ctxmanager_new(PyTypeObject *type UNUSED, PyObject *args)
         return NULL;
     }
 
-    self->local = context_copy(local);
+    self->local = context_copy(local, NULL);
     if (self->local == NULL) {
         self->global = NULL;
         Py_DECREF(self);
@@ -1892,7 +1899,9 @@ numeric_as_ascii(const PyObject *u, int strip_ws)
     Py_ssize_t j, len;
     int d;
 
-    assert(PyUnicode_IS_READY(u));
+    if (PyUnicode_READY(u) == -1) {
+        return NULL;
+    }
 
     kind = PyUnicode_KIND(u);
     data = PyUnicode_DATA(u);
@@ -2338,6 +2347,32 @@ PyDecType_FromFloat(PyTypeObject *type, PyObject *v,
     return dec;
 }
 
+/* Return a new PyDecObject or a subtype from a Decimal. */
+static PyObject *
+PyDecType_FromDecimalExact(PyTypeObject *type, PyObject *v, PyObject *context)
+{
+    PyObject *dec;
+    uint32_t status = 0;
+
+    if (type == &PyDec_Type && PyDec_CheckExact(v)) {
+        Py_INCREF(v);
+        return v;
+    }
+
+    dec = PyDecType_New(type);
+    if (dec == NULL) {
+        return NULL;
+    }
+
+    mpd_qcopy(MPD(dec), MPD(v), &status);
+    if (dec_addstatus(context, status)) {
+        Py_DECREF(dec);
+        return NULL;
+    }
+
+    return dec;
+}
+
 static PyObject *
 sequence_as_tuple(PyObject *v, PyObject *ex, const char *mesg)
 {
@@ -2364,6 +2399,7 @@ dectuple_as_str(PyObject *dectuple)
     long sign, l;
     mpd_ssize_t exp = 0;
     Py_ssize_t i, mem, tsize;
+    int is_infinite = 0;
     int n;
 
     assert(PyTuple_Check(dectuple));
@@ -2399,6 +2435,7 @@ dectuple_as_str(PyObject *dectuple)
         /* special */
         if (PyUnicode_CompareWithASCIIString(tmp, "F") == 0) {
             strcat(sign_special, "Inf");
+            is_infinite = 1;
         }
         else if (PyUnicode_CompareWithASCIIString(tmp, "n") == 0) {
             strcat(sign_special, "NaN");
@@ -2469,6 +2506,11 @@ dectuple_as_str(PyObject *dectuple)
             PyErr_SetString(PyExc_ValueError,
                 "coefficient must be a tuple of digits");
             goto error;
+        }
+        if (is_infinite) {
+            /* accept but ignore any well-formed coefficient for compatibility
+               with decimal.py */
+            continue;
         }
         *cp++ = (char)l + '0';
     }
@@ -2635,8 +2677,7 @@ PyDecType_FromObjectExact(PyTypeObject *type, PyObject *v, PyObject *context)
         return PyDecType_FromSsizeExact(type, 0, context);
     }
     else if (PyDec_Check(v)) {
-        Py_INCREF(v);
-        return v;
+        return PyDecType_FromDecimalExact(type, v, context);
     }
     else if (PyUnicode_Check(v)) {
         return PyDecType_FromUnicodeExactWS(type, v, context);
@@ -2715,9 +2756,8 @@ dec_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
     static char *kwlist[] = {"value", "context", NULL};
     PyObject *v = NULL;
-    PyObject *context;
+    PyObject *context = Py_None;
 
-    CURRENT_CONTEXT(context);
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OO", kwlist,
                                      &v, &context)) {
         return NULL;
@@ -3182,7 +3222,13 @@ dec_format(PyObject *dec, PyObject *args)
 
     decstring = mpd_qformat_spec(MPD(dec), &spec, CTX(context), &status);
     if (decstring == NULL) {
-        dec_addstatus(context, status);
+        if (status & MPD_Malloc_error) {
+            PyErr_NoMemory();
+        }
+        else {
+            PyErr_SetString(PyExc_ValueError,
+                "format specification exceeds internal limits of _decimal");
+        }
         goto finish;
     }
     result = PyUnicode_DecodeUTF8(decstring, strlen(decstring), NULL);
@@ -3281,22 +3327,25 @@ PyDec_ToIntegralValue(PyObject *dec, PyObject *args, PyObject *kwds)
 {
     static char *kwlist[] = {"rounding", "context", NULL};
     PyObject *result;
-    PyObject *context;
+    PyObject *rounding = Py_None;
+    PyObject *context = Py_None;
     uint32_t status = 0;
     mpd_context_t workctx;
-    int round = -1;
 
-    CURRENT_CONTEXT(context);
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|iO", kwlist,
-                                     &round, &context)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OO", kwlist,
+                                     &rounding, &context)) {
         return NULL;
     }
     CONTEXT_CHECK_VA(context);
 
     workctx = *CTX(context);
-    if (round >= 0) {
+    if (rounding != Py_None) {
+        int round = getround(rounding);
+        if (round < 0) {
+            return NULL;
+        }
         if (!mpd_qsetround(&workctx, round)) {
-            return type_error_ptr(invalid_rounding_err);
+            INTERNAL_ERROR_PTR("PyDec_ToIntegralValue"); /* GCOV_NOT_REACHED */
         }
     }
 
@@ -3319,22 +3368,25 @@ PyDec_ToIntegralExact(PyObject *dec, PyObject *args, PyObject *kwds)
 {
     static char *kwlist[] = {"rounding", "context", NULL};
     PyObject *result;
-    PyObject *context;
+    PyObject *rounding = Py_None;
+    PyObject *context = Py_None;
     uint32_t status = 0;
     mpd_context_t workctx;
-    int round = -1;
 
-    CURRENT_CONTEXT(context);
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|iO", kwlist,
-                                     &round, &context)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OO", kwlist,
+                                     &rounding, &context)) {
         return NULL;
     }
     CONTEXT_CHECK_VA(context);
 
     workctx = *CTX(context);
-    if (round >= 0) {
+    if (rounding != Py_None) {
+        int round = getround(rounding);
+        if (round < 0) {
+            return NULL;
+        }
         if (!mpd_qsetround(&workctx, round)) {
-            return type_error_ptr(invalid_rounding_err);
+            INTERNAL_ERROR_PTR("PyDec_ToIntegralExact"); /* GCOV_NOT_REACHED */
         }
     }
 
@@ -3357,7 +3409,23 @@ PyDec_AsFloat(PyObject *dec)
 {
     PyObject *f, *s;
 
-    s = dec_str(dec);
+    if (mpd_isnan(MPD(dec))) {
+        if (mpd_issnan(MPD(dec))) {
+            PyErr_SetString(PyExc_ValueError,
+                "cannot convert signaling NaN to float");
+            return NULL;
+        }
+        if (mpd_isnegative(MPD(dec))) {
+            s = PyUnicode_FromString("-nan");
+        }
+        else {
+            s = PyUnicode_FromString("nan");
+        }
+    }
+    else {
+        s = dec_str(dec);
+    }
+
     if (s == NULL) {
         return NULL;
     }
@@ -3416,7 +3484,7 @@ PyDec_Round(PyObject *dec, PyObject *args)
     }
 }
 
-PyObject *DecimalTuple = NULL;
+static PyObject *DecimalTuple = NULL;
 /* Return the DecimalTuple representation of a PyDecObject. */
 static PyObject *
 PyDec_AsTuple(PyObject *dec, PyObject *dummy UNUSED)
@@ -3583,9 +3651,8 @@ static PyObject *                                                         \
 dec_##MPDFUNC(PyObject *self, PyObject *args, PyObject *kwds)             \
 {                                                                         \
     static char *kwlist[] = {"context", NULL};                            \
-    PyObject *context;                                                    \
+    PyObject *context = Py_None;                                          \
                                                                           \
-    CURRENT_CONTEXT(context);                                             \
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O", kwlist,            \
                                      &context)) {                         \
         return NULL;                                                      \
@@ -3602,10 +3669,9 @@ dec_##MPDFUNC(PyObject *self, PyObject *args, PyObject *kwds)  \
 {                                                              \
     static char *kwlist[] = {"context", NULL};                 \
     PyObject *result;                                          \
-    PyObject *context;                                         \
+    PyObject *context = Py_None;                               \
     uint32_t status = 0;                                       \
                                                                \
-    CURRENT_CONTEXT(context);                                  \
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O", kwlist, \
                                      &context)) {              \
         return NULL;                                           \
@@ -3625,49 +3691,18 @@ dec_##MPDFUNC(PyObject *self, PyObject *args, PyObject *kwds)  \
     return result;                                             \
 }
 
-/* Unary function with an optional context arg. The actual MPDFUNC
-   only takes a status parameter. */
-#define Dec_UnaryFuncVA_NO_CTX(MPDFUNC) \
-static PyObject *                                              \
-dec_##MPDFUNC(PyObject *self, PyObject *args, PyObject *kwds)  \
-{                                                              \
-    static char *kwlist[] = {"context", NULL};                 \
-    PyObject *result;                                          \
-    PyObject *context;                                         \
-    uint32_t status = 0;                                       \
-                                                               \
-    CURRENT_CONTEXT(context);                                  \
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O", kwlist, \
-                                     &context)) {              \
-        return NULL;                                           \
-    }                                                          \
-    CONTEXT_CHECK_VA(context);                                 \
-                                                               \
-    if ((result = dec_alloc()) == NULL) {                      \
-        return NULL;                                           \
-    }                                                          \
-                                                               \
-    MPDFUNC(MPD(result), MPD(self), &status);                  \
-    if (dec_addstatus(context, status)) {                      \
-        Py_DECREF(result);                                     \
-        return NULL;                                           \
-    }                                                          \
-                                                               \
-    return result;                                             \
-}
-
 /* Binary function with an optional context arg. */
 #define Dec_BinaryFuncVA(MPDFUNC) \
 static PyObject *                                                \
 dec_##MPDFUNC(PyObject *self, PyObject *args, PyObject *kwds)    \
 {                                                                \
     static char *kwlist[] = {"other", "context", NULL};          \
-    PyObject *other, *context;                                   \
+    PyObject *other;                                             \
     PyObject *a, *b;                                             \
     PyObject *result;                                            \
+    PyObject *context = Py_None;                                 \
     uint32_t status = 0;                                         \
                                                                  \
-    CURRENT_CONTEXT(context);                                    \
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|O", kwlist,  \
                                      &other, &context)) {        \
         return NULL;                                             \
@@ -3700,11 +3735,11 @@ static PyObject *                                               \
 dec_##MPDFUNC(PyObject *self, PyObject *args, PyObject *kwds)   \
 {                                                               \
     static char *kwlist[] = {"other", "context", NULL};         \
-    PyObject *other, *context;                                  \
+    PyObject *context = Py_None;                                \
+    PyObject *other;                                            \
     PyObject *a, *b;                                            \
     PyObject *result;                                           \
                                                                 \
-    CURRENT_CONTEXT(context);                                   \
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|O", kwlist, \
                                      &other, &context)) {       \
         return NULL;                                            \
@@ -3731,12 +3766,12 @@ static PyObject *                                                        \
 dec_##MPDFUNC(PyObject *self, PyObject *args, PyObject *kwds)            \
 {                                                                        \
     static char *kwlist[] = {"other", "third", "context", NULL};         \
-    PyObject *other, *third, *context;                                   \
+    PyObject *other, *third;                                             \
     PyObject *a, *b, *c;                                                 \
     PyObject *result;                                                    \
+    PyObject *context = Py_None;                                         \
     uint32_t status = 0;                                                 \
                                                                          \
-    CURRENT_CONTEXT(context);                                            \
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|O", kwlist,         \
                                      &other, &third, &context)) {        \
         return NULL;                                                     \
@@ -3872,10 +3907,6 @@ nm_mpd_qpow(PyObject *base, PyObject *exp, PyObject *mod)
     else {
         mpd_qpowmod(MPD(result), MPD(a), MPD(b), MPD(c),
                     CTX(context), &status);
-        status = (status == MPD_Clamped) ? 0 : status;
-        /* remove ideal exponent for compatibility with decimal.py */
-        mpd_qquantize(MPD(result), MPD(result), &zero,
-                      CTX(context), &status);
         Py_DECREF(c);
     }
     Py_DECREF(a);
@@ -3973,9 +4004,45 @@ dec_mpd_radix(PyObject *self UNUSED, PyObject *dummy UNUSED)
     return result;
 }
 
-/* Unary functions, optional context arg for conversion errors */
-Dec_UnaryFuncVA_NO_CTX(mpd_qcopy_abs)
-Dec_UnaryFuncVA_NO_CTX(mpd_qcopy_negate)
+static PyObject *
+dec_mpd_qcopy_abs(PyObject *self, PyObject *dummy UNUSED)
+{
+    PyObject *result;
+    uint32_t status = 0;
+
+    if ((result = dec_alloc()) == NULL) {
+        return NULL;
+    }
+
+    mpd_qcopy_abs(MPD(result), MPD(self), &status);
+    if (status & MPD_Malloc_error) {
+        Py_DECREF(result);
+        PyErr_NoMemory();
+        return NULL;
+    }
+
+    return result;
+}
+
+static PyObject *
+dec_mpd_qcopy_negate(PyObject *self, PyObject *dummy UNUSED)
+{
+    PyObject *result;
+    uint32_t status = 0;
+
+    if ((result = dec_alloc()) == NULL) {
+        return NULL;
+    }
+
+    mpd_qcopy_negate(MPD(result), MPD(self), &status);
+    if (status & MPD_Malloc_error) {
+        Py_DECREF(result);
+        PyErr_NoMemory();
+        return NULL;
+    }
+
+    return result;
+}
 
 /* Unary functions, optional context arg */
 Dec_UnaryFuncVA(mpd_qinvert)
@@ -3985,10 +4052,9 @@ static PyObject *
 dec_mpd_class(PyObject *self, PyObject *args, PyObject *kwds)
 {
     static char *kwlist[] = {"context", NULL};
-    PyObject *context;
+    PyObject *context = Py_None;
     const char *cp;
 
-    CURRENT_CONTEXT(context);
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O", kwlist,
                                      &context)) {
         return NULL;
@@ -4004,11 +4070,10 @@ dec_mpd_to_eng(PyObject *self, PyObject *args, PyObject *kwds)
 {
     static char *kwlist[] = {"context", NULL};
     PyObject *result;
-    PyObject *context;
+    PyObject *context = Py_None;
     mpd_ssize_t size;
     char *s;
 
-    CURRENT_CONTEXT(context);
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O", kwlist,
                                      &context)) {
         return NULL;
@@ -4035,12 +4100,12 @@ static PyObject *
 dec_mpd_qcopy_sign(PyObject *self, PyObject *args, PyObject *kwds)
 {
     static char *kwlist[] = {"other", "context", NULL};
-    PyObject *other, *context;
+    PyObject *other;
     PyObject *a, *b;
     PyObject *result;
+    PyObject *context = Py_None;
     uint32_t status = 0;
 
-    CURRENT_CONTEXT(context);
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|O", kwlist,
                                      &other, &context)) {
         return NULL;
@@ -4070,11 +4135,11 @@ static PyObject *
 dec_mpd_same_quantum(PyObject *self, PyObject *args, PyObject *kwds)
 {
     static char *kwlist[] = {"other", "context", NULL};
-    PyObject *other, *context;
+    PyObject *other;
     PyObject *a, *b;
     PyObject *result;
+    PyObject *context = Py_None;
 
-    CURRENT_CONTEXT(context);
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|O", kwlist,
                                      &other, &context)) {
         return NULL;
@@ -4102,24 +4167,27 @@ static PyObject *
 dec_mpd_qquantize(PyObject *v, PyObject *args, PyObject *kwds)
 {
     static char *kwlist[] = {"exp", "rounding", "context", NULL};
-    PyObject *w, *context;
-    PyObject *a, *b;
+    PyObject *rounding = Py_None;
+    PyObject *context = Py_None;
+    PyObject *w, *a, *b;
     PyObject *result;
     uint32_t status = 0;
     mpd_context_t workctx;
-    int round = -1;
 
-    CURRENT_CONTEXT(context);
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iO", kwlist,
-                                     &w, &round, &context)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|OO", kwlist,
+                                     &w, &rounding, &context)) {
         return NULL;
     }
     CONTEXT_CHECK_VA(context);
 
     workctx = *CTX(context);
-    if (round >= 0) {
+    if (rounding != Py_None) {
+        int round = getround(rounding);
+        if (round < 0) {
+            return NULL;
+        }
         if (!mpd_qsetround(&workctx, round)) {
-            return type_error_ptr(invalid_rounding_err);
+            INTERNAL_ERROR_PTR("dec_mpd_qquantize"); /* GCOV_NOT_REACHED */
         }
     }
 
@@ -4338,6 +4406,11 @@ _dec_hash(PyDecObject *v)
     }
     tmp->exp = 0;
     mpd_set_positive(tmp);
+
+    maxctx.prec = MPD_MAX_PREC + 21;
+    maxctx.emax = MPD_MAX_EMAX + 21;
+    maxctx.emin = MPD_MIN_EMIN - 21;
+
     mpd_qmul(tmp, tmp, exp_hash, &maxctx, &status);
     mpd_qrem(tmp, tmp, &p, &maxctx, &status);
 
@@ -4346,11 +4419,14 @@ _dec_hash(PyDecObject *v)
     result = (result == -1) ? -2 : result;
 
     if (status != 0) {
-        status |= MPD_Invalid_operation;
-        if (dec_addstatus(context, status)) {
-            result = -1;
-            goto finish;
+        if (status & MPD_Malloc_error) {
+            goto malloc_error;
         }
+        else {
+            PyErr_SetString(PyExc_RuntimeError,
+                "dec_hash: internal error: please report");
+        }
+        result = -1;
     }
 
 
@@ -4531,8 +4607,8 @@ static PyMethodDef dec_methods [] =
   { "radix", dec_mpd_radix, METH_NOARGS, doc_radix },
 
   /* Unary functions, optional context arg for conversion errors */
-  { "copy_abs", (PyCFunction)dec_mpd_qcopy_abs, METH_VARARGS|METH_KEYWORDS, doc_copy_abs },
-  { "copy_negate", (PyCFunction)dec_mpd_qcopy_negate, METH_VARARGS|METH_KEYWORDS, doc_copy_negate },
+  { "copy_abs", dec_mpd_qcopy_abs, METH_NOARGS, doc_copy_abs },
+  { "copy_negate", dec_mpd_qcopy_negate, METH_NOARGS, doc_copy_negate },
 
   /* Unary functions, optional context arg */
   { "logb", (PyCFunction)dec_mpd_qlogb, METH_VARARGS|METH_KEYWORDS, doc_logb },
@@ -4862,7 +4938,7 @@ static PyObject *
 ctx_mpd_qpow(PyObject *context, PyObject *args, PyObject *kwds)
 {
     static char *kwlist[] = {"a", "b", "modulo", NULL};
-    PyObject *base, *exp, *mod = NULL;
+    PyObject *base, *exp, *mod = Py_None;
     PyObject *a, *b, *c = NULL;
     PyObject *result;
     uint32_t status = 0;
@@ -4874,7 +4950,7 @@ ctx_mpd_qpow(PyObject *context, PyObject *args, PyObject *kwds)
 
     CONVERT_BINOP_RAISE(&a, &b, base, exp, context);
 
-    if (mod != NULL) {
+    if (mod != Py_None) {
         if (!convert_op(TYPE_ERR, &c, mod, context)) {
             Py_DECREF(a);
             Py_DECREF(b);
@@ -4897,10 +4973,6 @@ ctx_mpd_qpow(PyObject *context, PyObject *args, PyObject *kwds)
     else {
         mpd_qpowmod(MPD(result), MPD(a), MPD(b), MPD(c),
                     CTX(context), &status);
-        status = (status == MPD_Clamped) ? 0 : status;
-        /* remove ideal exponent for compatibility with decimal.py */
-        mpd_qquantize(MPD(result), MPD(result), &zero,
-                      CTX(context), &status);
         Py_DECREF(c);
     }
     Py_DECREF(a);
@@ -5311,7 +5383,7 @@ static PyMethodDef _decimal_methods [] =
 {
   { "getcontext", (PyCFunction)PyDec_GetCurrentContext, METH_NOARGS, doc_getcontext},
   { "setcontext", (PyCFunction)PyDec_SetCurrentContext, METH_O, doc_setcontext},
-  { "localcontext", (PyCFunction)ctxmanager_new, METH_VARARGS, doc_localcontext},
+  { "localcontext", (PyCFunction)ctxmanager_new, METH_VARARGS|METH_KEYWORDS, doc_localcontext},
 #ifdef EXTRA_FUNCTIONALITY
   { "IEEEContext", (PyCFunction)ieee_context, METH_O, doc_ieee_context},
 #endif
@@ -5347,17 +5419,6 @@ static struct int_constmap int_constants [] = {
     {"DECIMAL64", MPD_DECIMAL64},
     {"DECIMAL128", MPD_DECIMAL128},
     {"IEEE_CONTEXT_MAX_BITS", MPD_IEEE_CONTEXT_MAX_BITS},
-#endif
-    {"ROUND_CEILING", MPD_ROUND_CEILING},
-    {"ROUND_FLOOR", MPD_ROUND_FLOOR},
-    {"ROUND_UP", MPD_ROUND_UP},
-    {"ROUND_DOWN", MPD_ROUND_DOWN},
-    {"ROUND_HALF_UP", MPD_ROUND_HALF_UP},
-    {"ROUND_HALF_DOWN", MPD_ROUND_HALF_DOWN},
-    {"ROUND_HALF_EVEN", MPD_ROUND_HALF_EVEN},
-    {"ROUND_05UP", MPD_ROUND_05UP},
-#ifdef EXTRA_FUNCTIONALITY
-    {"ROUND_TRUNC", MPD_ROUND_TRUNC},
     /* int condition flags */
     {"DecClamped", MPD_Clamped},
     {"DecConversionSyntax", MPD_Conversion_syntax},
@@ -5606,6 +5667,13 @@ PyInit__decimal(void)
     for (int_cm = int_constants; int_cm->name != NULL; int_cm++) {
         CHECK_INT(PyModule_AddIntConstant(m, int_cm->name,
                                           int_cm->val));
+    }
+
+    /* Init string constants */
+    for (i = 0; i < _PY_DEC_ROUND_GUARD; i++) {
+        ASSIGN_PTR(round_map[i], PyUnicode_InternFromString(mpd_round_string[i]));
+        Py_INCREF(round_map[i]);
+        CHECK_INT(PyModule_AddObject(m, mpd_round_string[i], round_map[i]));
     }
 
     /* Add specification version number */

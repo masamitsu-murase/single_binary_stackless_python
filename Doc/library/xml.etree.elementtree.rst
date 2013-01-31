@@ -35,12 +35,13 @@ and its sub-elements are done on the :class:`Element` level.
 Parsing XML
 ^^^^^^^^^^^
 
-We'll be using the following XML document contained in a Python string as the
-sample data for this section::
+We'll be using the following XML document as the sample data for this section:
 
-   countrydata = r'''<?xml version="1.0"?>
+.. code-block:: xml
+
+   <?xml version="1.0"?>
    <data>
-       <country name="Liechtenshtein">
+       <country name="Liechtenstein">
            <rank>1</rank>
            <year>2008</year>
            <gdppc>141100</gdppc>
@@ -61,18 +62,20 @@ sample data for this section::
            <neighbor name="Colombia" direction="E"/>
        </country>
    </data>
-   '''
 
-First, import the module and parse the data::
+We can import this data by reading from a file::
 
    import xml.etree.ElementTree as ET
+   tree = ET.parse('country_data.xml')
+   root = tree.getroot()
 
-   root = ET.fromstring(countrydata)
+Or directly from a string::
+
+   root = ET.fromstring(country_data_as_string)
 
 :func:`fromstring` parses XML from a string directly into an :class:`Element`,
 which is the root element of the parsed tree.  Other parsing functions may
-create an :class:`ElementTree`.  Make sure to check the documentation to be
-sure.
+create an :class:`ElementTree`.  Check the documentation to be sure.
 
 As an :class:`Element`, ``root`` has a tag and a dictionary of attributes::
 
@@ -86,7 +89,7 @@ It also has children nodes over which we can iterate::
    >>> for child in root:
    ...   print(child.tag, child.attrib)
    ...
-   country {'name': 'Liechtenshtein'}
+   country {'name': 'Liechtenstein'}
    country {'name': 'Singapore'}
    country {'name': 'Panama'}
 
@@ -111,19 +114,105 @@ the sub-tree below it (its children, their children, and so on).  For example,
    {'name': 'Costa Rica', 'direction': 'W'}
    {'name': 'Colombia', 'direction': 'E'}
 
+:meth:`Element.findall` finds only elements with a tag which are direct
+children of the current element.  :meth:`Element.find` finds the *first* child
+with a particular tag, and :meth:`Element.text` accesses the element's text
+content.  :meth:`Element.get` accesses the element's attributes::
+
+   >>> for country in root.findall('country'):
+   ...   rank = country.find('rank').text
+   ...   name = country.get('name')
+   ...   print(name, rank)
+   ...
+   Liechtenstein 1
+   Singapore 4
+   Panama 68
+
 More sophisticated specification of which elements to look for is possible by
 using :ref:`XPath <elementtree-xpath>`.
 
-Building XML documents
-^^^^^^^^^^^^^^^^^^^^^^
+Modifying an XML File
+^^^^^^^^^^^^^^^^^^^^^
 
-``ET`` provides a simple way to build XML documents and write them to files.
+:class:`ElementTree` provides a simple way to build XML documents and write them to files.
 The :meth:`ElementTree.write` method serves this purpose.
 
 Once created, an :class:`Element` object may be manipulated by directly changing
 its fields (such as :attr:`Element.text`), adding and modifying attributes
 (:meth:`Element.set` method), as well as adding new children (for example
 with :meth:`Element.append`).
+
+Let's say we want to add one to each country's rank, and add an ``updated``
+attribute to the rank element::
+
+   >>> for rank in root.iter('rank'):
+   ...   new_rank = int(rank.text) + 1
+   ...   rank.text = str(new_rank)
+   ...   rank.set('updated', 'yes')
+   ...
+   >>> tree.write('output.xml')
+
+Our XML now looks like this:
+
+.. code-block:: xml
+
+   <?xml version="1.0"?>
+   <data>
+       <country name="Liechtenstein">
+           <rank updated="yes">2</rank>
+           <year>2008</year>
+           <gdppc>141100</gdppc>
+           <neighbor name="Austria" direction="E"/>
+           <neighbor name="Switzerland" direction="W"/>
+       </country>
+       <country name="Singapore">
+           <rank updated="yes">5</rank>
+           <year>2011</year>
+           <gdppc>59900</gdppc>
+           <neighbor name="Malaysia" direction="N"/>
+       </country>
+       <country name="Panama">
+           <rank updated="yes">69</rank>
+           <year>2011</year>
+           <gdppc>13600</gdppc>
+           <neighbor name="Costa Rica" direction="W"/>
+           <neighbor name="Colombia" direction="E"/>
+       </country>
+   </data>
+
+We can remove elements using :meth:`Element.remove`.  Let's say we want to
+remove all countries with a rank higher than 50::
+
+   >>> for country in root.findall('country'):
+   ...   rank = int(country.find('rank').text)
+   ...   if rank > 50:
+   ...     root.remove(country)
+   ...
+   >>> tree.write('output.xml')
+
+Our XML now looks like this:
+
+.. code-block:: xml
+
+   <?xml version="1.0"?>
+   <data>
+       <country name="Liechtenstein">
+           <rank updated="yes">2</rank>
+           <year>2008</year>
+           <gdppc>141100</gdppc>
+           <neighbor name="Austria" direction="E"/>
+           <neighbor name="Switzerland" direction="W"/>
+       </country>
+       <country name="Singapore">
+           <rank updated="yes">5</rank>
+           <year>2011</year>
+           <gdppc>59900</gdppc>
+           <neighbor name="Malaysia" direction="N"/>
+       </country>
+   </data>
+
+Building XML documents
+^^^^^^^^^^^^^^^^^^^^^^
 
 The :func:`SubElement` function also provides a convenient way to create new
 sub-elements for a given element::
@@ -202,7 +291,9 @@ Supported XPath syntax
 |                       | current  element.  For example, ``.//egg`` selects   |
 |                       | all ``egg`` elements in the entire tree.             |
 +-----------------------+------------------------------------------------------+
-| ``..``                | Selects the parent element.                          |
+| ``..``                | Selects the parent element.  Returns ``None`` if the |
+|                       | path attempts to reach the ancestors of the start    |
+|                       | element (the element ``find`` was called on).        |
 +-----------------------+------------------------------------------------------+
 | ``[@attrib]``         | Selects all elements that have the given attribute.  |
 +-----------------------+------------------------------------------------------+
@@ -342,9 +433,9 @@ Functions
    Generates a string representation of an XML element, including all
    subelements.  *element* is an :class:`Element` instance.  *encoding* [1]_ is
    the output encoding (default is US-ASCII).  Use ``encoding="unicode"`` to
-   generate a Unicode string.  *method* is either ``"xml"``,
-   ``"html"`` or ``"text"`` (default is ``"xml"``).  Returns an (optionally)
-   encoded string containing the XML data.
+   generate a Unicode string (otherwise, a bytestring is generated).  *method*
+   is either ``"xml"``, ``"html"`` or ``"text"`` (default is ``"xml"``).
+   Returns an (optionally) encoded string containing the XML data.
 
 
 .. function:: tostringlist(element, encoding="us-ascii", method="xml")
@@ -352,11 +443,11 @@ Functions
    Generates a string representation of an XML element, including all
    subelements.  *element* is an :class:`Element` instance.  *encoding* [1]_ is
    the output encoding (default is US-ASCII).  Use ``encoding="unicode"`` to
-   generate a Unicode string.  *method* is either ``"xml"``,
-   ``"html"`` or ``"text"`` (default is ``"xml"``).  Returns a list of
-   (optionally) encoded strings containing the XML data.  It does not guarantee
-   any specific sequence, except that ``"".join(tostringlist(element)) ==
-   tostring(element)``.
+   generate a Unicode string (otherwise, a bytestring is generated).  *method*
+   is either ``"xml"``, ``"html"`` or ``"text"`` (default is ``"xml"``).
+   Returns a list of (optionally) encoded strings containing the XML data.
+   It does not guarantee any specific sequence, except that
+   ``"".join(tostringlist(element)) == tostring(element)``.
 
    .. versionadded:: 3.2
 
@@ -432,7 +523,7 @@ Element Objects
    .. method:: clear()
 
       Resets an element.  This function removes all subelements, clears all
-      attributes, and sets the text and tail attributes to None.
+      attributes, and sets the text and tail attributes to ``None``.
 
 
    .. method:: get(key, default=None)
@@ -651,7 +742,7 @@ ElementTree Objects
 
 
    .. method:: write(file, encoding="us-ascii", xml_declaration=None, \
-                     method="xml")
+                     default_namespace=None, method="xml")
 
       Writes the element tree to a file, as XML.  *file* is a file name, or a
       :term:`file object` opened for writing.  *encoding* [1]_ is the output
@@ -659,6 +750,7 @@ ElementTree Objects
       *xml_declaration* controls if an XML declaration should be added to the
       file.  Use ``False`` for never, ``True`` for always, ``None``
       for only if not US-ASCII or UTF-8 or Unicode (default is ``None``).
+      *default_namespace* sets the default XML namespace (for "xmlns").
       *method* is either ``"xml"``, ``"html"`` or ``"text"`` (default is
       ``"xml"``).
 

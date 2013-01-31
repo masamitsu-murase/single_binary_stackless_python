@@ -7,8 +7,18 @@ import pickle
 import weakref
 import errno
 
-from test.support import (TESTFN, unlink, run_unittest, captured_output,
-                          gc_collect, cpython_only, no_tracing)
+from test.support import (TESTFN, captured_output, check_impl_detail,
+                          cpython_only, gc_collect, run_unittest, no_tracing,
+                          unlink)
+
+class NaiveException(Exception):
+    def __init__(self, x):
+        self.x = x
+
+class SlottedNaiveException(Exception):
+    __slots__ = ('x',)
+    def __init__(self, x):
+        self.x = x
 
 # XXX This is not really enough, each *operation* should be tested!
 
@@ -207,14 +217,14 @@ class ExceptionTests(unittest.TestCase):
             self.assertEqual(w.winerror, 3)
             self.assertEqual(w.strerror, 'foo')
             self.assertEqual(w.filename, 'bar')
-            self.assertEqual(str(w), "[Error 3] foo: 'bar'")
+            self.assertEqual(str(w), "[WinError 3] foo: 'bar'")
             # Unknown win error becomes EINVAL (22)
             w = OSError(0, 'foo', None, 1001)
             self.assertEqual(w.errno, 22)
             self.assertEqual(w.winerror, 1001)
             self.assertEqual(w.strerror, 'foo')
             self.assertEqual(w.filename, None)
-            self.assertEqual(str(w), "[Error 1001] foo")
+            self.assertEqual(str(w), "[WinError 1001] foo")
             # Non-numeric "errno"
             w = OSError('bar', 'foo')
             self.assertEqual(w.errno, 'bar')
@@ -296,6 +306,10 @@ class ExceptionTests(unittest.TestCase):
                 {'args' : ('\u3042', 0, 1, 'ouch'),
                  'object' : '\u3042', 'reason' : 'ouch',
                  'start' : 0, 'end' : 1}),
+            (NaiveException, ('foo',),
+                {'args': ('foo',), 'x': 'foo'}),
+            (SlottedNaiveException, ('foo',),
+                {'args': ('foo',), 'x': 'foo'}),
         ]
         try:
             # More tests are in test_WindowsError
@@ -316,7 +330,8 @@ class ExceptionTests(unittest.TestCase):
                 raise
             else:
                 # Verify module name
-                self.assertEqual(type(e).__module__, 'builtins')
+                if not type(e).__name__.endswith('NaiveException'):
+                    self.assertEqual(type(e).__module__, 'builtins')
                 # Verify no ref leaks in Exc_str()
                 s = str(e)
                 for checkArgName in expected:
@@ -537,6 +552,9 @@ class ExceptionTests(unittest.TestCase):
             e.__context__ = None
             obj = None
             obj = wr()
+            # guarantee no ref cycles on CPython (don't gc_collect)
+            if check_impl_detail(cpython=False):
+                gc_collect()
             self.assertTrue(obj is None, "%s" % obj)
 
         # Some complicated construct
@@ -553,6 +571,8 @@ class ExceptionTests(unittest.TestCase):
             except MyException:
                 pass
         obj = None
+        if check_impl_detail(cpython=False):
+            gc_collect()
         obj = wr()
         self.assertTrue(obj is None, "%s" % obj)
 
@@ -567,6 +587,8 @@ class ExceptionTests(unittest.TestCase):
         with Context():
             inner_raising_func()
         obj = None
+        if check_impl_detail(cpython=False):
+            gc_collect()
         obj = wr()
         self.assertTrue(obj is None, "%s" % obj)
 
@@ -923,6 +945,11 @@ class ImportErrorTests(unittest.TestCase):
         self.assertEqual(exc.name, 'somename')
         self.assertEqual(exc.path, 'somepath')
 
+    def test_non_str_argument(self):
+        # Issue #15778
+        arg = b'abc'
+        exc = ImportError(arg)
+        self.assertEqual(str(arg), str(exc))
 
 
 def test_main():

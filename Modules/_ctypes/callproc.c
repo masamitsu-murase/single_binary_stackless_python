@@ -817,11 +817,11 @@ static int _call_function_pointer(int flags,
         space[0] = errno;
         errno = temp;
     }
-    Py_XDECREF(error_object);
 #ifdef WITH_THREAD
     if ((flags & FUNCFLAG_PYTHONAPI) == 0)
         Py_BLOCK_THREADS
 #endif
+    Py_XDECREF(error_object);
 #ifdef MS_WIN32
 #ifndef DONT_USE_SEH
     if (dwExceptionCode) {
@@ -1658,7 +1658,7 @@ resize(PyObject *self, PyObject *args)
         obj->b_size = size;
         goto done;
     }
-    if (obj->b_size <= sizeof(obj->b_value)) {
+    if (!_CDataObject_HasExternalBuffer(obj)) {
         /* We are currently using the objects default buffer, but it
            isn't large enough any more. */
         void *ptr = PyMem_Malloc(size);

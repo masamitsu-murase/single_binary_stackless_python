@@ -635,15 +635,22 @@ PyDoc_STRVAR(textiowrapper_doc,
     "errors determines the strictness of encoding and decoding (see the\n"
     "codecs.register) and defaults to \"strict\".\n"
     "\n"
-    "newline can be None, '', '\\n', '\\r', or '\\r\\n'.  It controls the\n"
-    "handling of line endings. If it is None, universal newlines is\n"
-    "enabled.  With this enabled, on input, the lines endings '\\n', '\\r',\n"
-    "or '\\r\\n' are translated to '\\n' before being returned to the\n"
-    "caller. Conversely, on output, '\\n' is translated to the system\n"
-    "default line separator, os.linesep. If newline is any other of its\n"
-    "legal values, that newline becomes the newline when the file is read\n"
-    "and it is returned untranslated. On output, '\\n' is converted to the\n"
-    "newline.\n"
+    "newline controls how line endings are handled. It can be None, '',\n"
+    "'\\n', '\\r', and '\\r\\n'.  It works as follows:\n"
+    "\n"
+    "* On input, if newline is None, universal newlines mode is\n"
+    "  enabled. Lines in the input can end in '\\n', '\\r', or '\\r\\n', and\n"
+    "  these are translated into '\\n' before being returned to the\n"
+    "  caller. If it is '', universal newline mode is enabled, but line\n"
+    "  endings are returned to the caller untranslated. If it has any of\n"
+    "  the other legal values, input lines are only terminated by the given\n"
+    "  string, and the line ending is returned to the caller untranslated.\n"
+    "\n"
+    "* On output, if newline is None, any '\\n' characters written are\n"
+    "  translated to the system default line separator, os.linesep. If\n"
+    "  newline is '' or '\\n', no translation takes place. If newline is any\n"
+    "  of the other legal values, any '\\n' characters written are translated\n"
+    "  to the given string.\n"
     "\n"
     "If line_buffering is True, a call to flush is implied when a call to\n"
     "write contains a newline character."
@@ -874,7 +881,7 @@ textiowrapper_init(textio *self, PyObject *args, PyObject *kwds)
             }
         }
         else {
-            int fd = (int) PyLong_AsLong(fileno);
+            int fd = _PyLong_AsInt(fileno);
             Py_DECREF(fileno);
             if (fd == -1 && PyErr_Occurred()) {
                 goto error;
@@ -1049,8 +1056,11 @@ textiowrapper_init(textio *self, PyObject *args, PyObject *kwds)
     res = _PyObject_CallMethodId(buffer, &PyId_seekable, NULL);
     if (res == NULL)
         goto error;
-    self->seekable = self->telling = PyObject_IsTrue(res);
+    r = PyObject_IsTrue(res);
     Py_DECREF(res);
+    if (r < 0)
+        goto error;
+    self->seekable = self->telling = r;
 
     self->has_read1 = _PyObject_HasAttrId(buffer, &PyId_read1);
 
@@ -2544,6 +2554,7 @@ textiowrapper_close(textio *self, PyObject *args)
         Py_RETURN_NONE; /* stream already closed */
     }
     else {
+        PyObject *exc = NULL, *val, *tb;
         if (self->deallocating) {
             res = _PyObject_CallMethodId(self->buffer, &PyId__dealloc_warn, "O", self);
             if (res)
@@ -2552,13 +2563,28 @@ textiowrapper_close(textio *self, PyObject *args)
                 PyErr_Clear();
         }
         res = _PyObject_CallMethodId((PyObject *)self, &PyId_flush, NULL);
-        if (res == NULL) {
-            return NULL;
-        }
+        if (res == NULL)
+            PyErr_Fetch(&exc, &val, &tb);
         else
             Py_DECREF(res);
 
-        return _PyObject_CallMethodId(self->buffer, &PyId_close, NULL);
+        res = _PyObject_CallMethodId(self->buffer, &PyId_close, NULL);
+        if (exc != NULL) {
+            if (res != NULL) {
+                Py_CLEAR(res);
+                PyErr_Restore(exc, val, tb);
+            }
+            else {
+                PyObject *val2;
+                Py_DECREF(exc);
+                Py_XDECREF(tb);
+                PyErr_Fetch(&exc, &val2, &tb);
+                PyErr_NormalizeException(&exc, &val2, &tb);
+                PyException_SetContext(val2, val);
+                PyErr_Restore(exc, val2, tb);
+            }
+        }
+        return res;
     }
 }
 

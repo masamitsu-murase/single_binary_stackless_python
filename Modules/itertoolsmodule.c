@@ -473,14 +473,31 @@ teedataobject_traverse(teedataobject *tdo, visitproc visit, void * arg)
     return 0;
 }
 
+static void
+teedataobject_safe_decref(PyObject *obj)
+{
+    while (obj && Py_TYPE(obj) == &teedataobject_type &&
+           Py_REFCNT(obj) == 1) {
+        PyObject *nextlink = ((teedataobject *)obj)->nextlink;
+        ((teedataobject *)obj)->nextlink = NULL;
+        Py_DECREF(obj);
+        obj = nextlink;
+    }
+    Py_XDECREF(obj);
+}
+
 static int
 teedataobject_clear(teedataobject *tdo)
 {
     int i;
+    PyObject *tmp;
+
     Py_CLEAR(tdo->it);
     for (i=0 ; i<tdo->numread ; i++)
         Py_CLEAR(tdo->values[i]);
-    Py_CLEAR(tdo->nextlink);
+    tmp = tdo->nextlink;
+    tdo->nextlink = NULL;
+    teedataobject_safe_decref(tmp);
     return 0;
 }
 
@@ -617,6 +634,8 @@ tee_next(teeobject *to)
 
     if (to->index >= LINKCELLS) {
         link = teedataobject_jumplink(to->dataobj);
+        if (link == NULL)
+            return NULL;
         Py_DECREF(to->dataobj);
         to->dataobj = (teedataobject *)link;
         to->index = 0;
@@ -945,7 +964,7 @@ cycle_reduce(cycleobject *lz)
     /* Create a new cycle with the iterator tuple, then set
      * the saved state on it.
      */
-    return Py_BuildValue("O(O)(Oi)", Py_TYPE(lz), 
+    return Py_BuildValue("O(O)(Oi)", Py_TYPE(lz),
         lz->it, lz->saved, lz->firstpass);
     }
 
@@ -1105,11 +1124,13 @@ dropwhile_next(dropwhileobject *lz)
         }
         ok = PyObject_IsTrue(good);
         Py_DECREF(good);
-        if (!ok) {
+        if (ok == 0) {
             lz->start = 1;
             return item;
         }
         Py_DECREF(item);
+        if (ok < 0)
+            return NULL;
     }
 }
 
@@ -1124,7 +1145,7 @@ static PyObject *
 dropwhile_setstate(dropwhileobject *lz, PyObject *state)
 {
     int start = PyObject_IsTrue(state);
-    if (start == -1)
+    if (start < 0)
         return NULL;
     lz->start = start;
     Py_RETURN_NONE;
@@ -1270,10 +1291,11 @@ takewhile_next(takewhileobject *lz)
     }
     ok = PyObject_IsTrue(good);
     Py_DECREF(good);
-    if (ok)
+    if (ok == 1)
         return item;
     Py_DECREF(item);
-    lz->stop = 1;
+    if (ok == 0)
+        lz->stop = 1;
     return NULL;
 }
 
@@ -1288,7 +1310,7 @@ static PyObject *
 takewhile_reduce_setstate(takewhileobject *lz, PyObject *state)
 {
     int stop = PyObject_IsTrue(state);
-    if (stop == -1)
+    if (stop < 0)
         return NULL;
     lz->stop = stop;
     Py_RETURN_NONE;
@@ -3132,7 +3154,7 @@ permutations_reduce(permutationsobject *po)
                 goto err;
             PyTuple_SET_ITEM(indices, i, index);
         }
-            
+
         cycles = PyTuple_New(po->r);
         if (cycles == NULL)
             goto err;
@@ -3158,7 +3180,7 @@ permutations_setstate(permutationsobject *po, PyObject *state)
 {
     PyObject *indices, *cycles, *result;
     Py_ssize_t n, i;
-    
+
     if (!PyArg_ParseTuple(state, "O!O!",
                           &PyTuple_Type, &indices,
                           &PyTuple_Type, &cycles))
@@ -3337,18 +3359,18 @@ static PyObject *
 accumulate_next(accumulateobject *lz)
 {
     PyObject *val, *oldtotal, *newtotal;
-    
+
     val = PyIter_Next(lz->it);
     if (val == NULL)
         return NULL;
- 
+
     if (lz->total == NULL) {
         Py_INCREF(val);
         lz->total = val;
         return lz->total;
     }
 
-    if (lz->binop == NULL) 
+    if (lz->binop == NULL)
         newtotal = PyNumber_Add(lz->total, val);
     else
         newtotal = PyObject_CallFunctionObjArgs(lz->binop, lz->total, val, NULL);
@@ -3359,7 +3381,7 @@ accumulate_next(accumulateobject *lz)
     oldtotal = lz->total;
     lz->total = newtotal;
     Py_DECREF(oldtotal);
-    
+
     Py_INCREF(newtotal);
     return newtotal;
 }
@@ -3536,7 +3558,7 @@ compress_next(compressobject *lz)
         if (ok == 1)
             return datum;
         Py_DECREF(datum);
-        if (ok == -1)
+        if (ok < 0)
             return NULL;
     }
 }
@@ -3692,9 +3714,11 @@ filterfalse_next(filterfalseobject *lz)
             ok = PyObject_IsTrue(good);
             Py_DECREF(good);
         }
-        if (!ok)
+        if (ok == 0)
             return item;
         Py_DECREF(item);
+        if (ok < 0)
+            return NULL;
     }
 }
 
@@ -4327,7 +4351,7 @@ zip_longest_next(ziplongestobject *lz)
 static PyObject *
 zip_longest_reduce(ziplongestobject *lz)
 {
-    
+
     /* Create a new tuple with empty sequences where appropriate to pickle.
      * Then use setstate to set the fillvalue
      */

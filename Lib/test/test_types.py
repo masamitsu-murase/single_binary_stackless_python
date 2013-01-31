@@ -791,7 +791,7 @@ class ClassCreationTests(unittest.TestCase):
         self.assertEqual(C.y, 1)
         self.assertEqual(C.z, 2)
 
-    def test_new_class_exec_body(self):
+    def test_new_class_metaclass_keywords(self):
         #Test that keywords are passed to the metaclass:
         def meta_func(name, bases, ns, **kw):
             return name, bases, ns, kw
@@ -1134,6 +1134,15 @@ class SimpleNamespaceTests(unittest.TestCase):
             'spam' in ns
         with self.assertRaises(TypeError):
             ns['spam']
+
+    def test_subclass(self):
+        class Spam(types.SimpleNamespace):
+            pass
+
+        spam = Spam(ham=8, eggs=9)
+
+        self.assertIs(type(spam), Spam)
+        self.assertEqual(vars(spam), {'ham': 8, 'eggs': 9})
 
 
 def test_main():

@@ -13,8 +13,6 @@ module instead.
 #include "Python.h"
 #include "structmember.h"
 
-#define IS_BASESTRING(o) \
-    PyUnicode_Check(o)
 
 typedef struct {
     PyObject *error_obj;   /* CSV exception */
@@ -196,8 +194,12 @@ _set_bool(const char *name, int *target, PyObject *src, int dflt)
 {
     if (src == NULL)
         *target = dflt;
-    else
-        *target = PyObject_IsTrue(src);
+    else {
+        int b = PyObject_IsTrue(src);
+        if (b < 0)
+            return -1;
+        *target = b;
+    }
     return 0;
 }
 
@@ -244,6 +246,7 @@ _set_char(const char *name, Py_UCS4 *target, PyObject *src, Py_UCS4 dflt)
                     name);
                 return -1;
             }
+            /* PyUnicode_READY() is called in PyUnicode_GetLength() */
             if (len > 0)
                 *target = PyUnicode_READ_CHAR(src, 0);
         }
@@ -259,12 +262,14 @@ _set_str(const char *name, PyObject **target, PyObject *src, const char *dflt)
     else {
         if (src == Py_None)
             *target = NULL;
-        else if (!IS_BASESTRING(src)) {
+        else if (!PyUnicode_Check(src)) {
             PyErr_Format(PyExc_TypeError,
                          "\"%s\" must be a string", name);
             return -1;
         }
         else {
+            if (PyUnicode_READY(src) == -1)
+                return -1;
             Py_XDECREF(*target);
             Py_INCREF(src);
             *target = src;
@@ -353,7 +358,7 @@ dialect_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
         return NULL;
 
     if (dialect != NULL) {
-        if (IS_BASESTRING(dialect)) {
+        if (PyUnicode_Check(dialect)) {
             dialect = get_dialect_from_registry(dialect);
             if (dialect == NULL)
                 return NULL;
@@ -784,9 +789,14 @@ Reader_iternext(ReaderObj *self)
         lineobj = PyIter_Next(self->input_iter);
         if (lineobj == NULL) {
             /* End of input OR exception */
-            if (!PyErr_Occurred() && self->field_len != 0)
-                PyErr_Format(_csvstate_global->error_obj,
-                             "newline inside string");
+            if (!PyErr_Occurred() && (self->field_len != 0 ||
+                                      self->state == IN_QUOTED_FIELD)) {
+                if (self->dialect->strict)
+                    PyErr_SetString(_csvstate_global->error_obj,
+                                    "unexpected end of data");
+                else if (parse_save_field(self) >= 0)
+                    break;
+            }
             return NULL;
         }
         if (!PyUnicode_Check(lineobj)) {
@@ -796,6 +806,10 @@ Reader_iternext(ReaderObj *self)
                          "(did you open the file in text mode?)",
                          lineobj->ob_type->tp_name
                 );
+            Py_DECREF(lineobj);
+            return NULL;
+        }
+        if (PyUnicode_READY(lineobj) == -1) {
             Py_DECREF(lineobj);
             return NULL;
         }
@@ -1099,6 +1113,8 @@ join_append(WriterObj *self, PyObject *field, int *quoted, int quote_empty)
     Py_ssize_t rec_len;
 
     if (field != NULL) {
+        if (PyUnicode_READY(field) == -1)
+            return 0;
         field_kind = PyUnicode_KIND(field);
         field_data = PyUnicode_DATA(field);
         field_len = PyUnicode_GET_LENGTH(field);
@@ -1394,11 +1410,13 @@ csv_register_dialect(PyObject *module, PyObject *args, PyObject *kwargs)
 
     if (!PyArg_UnpackTuple(args, "", 1, 2, &name_obj, &dialect_obj))
         return NULL;
-    if (!IS_BASESTRING(name_obj)) {
+    if (!PyUnicode_Check(name_obj)) {
         PyErr_SetString(PyExc_TypeError,
-                        "dialect name must be a string or unicode");
+                        "dialect name must be a string");
         return NULL;
     }
+    if (PyUnicode_READY(name_obj) == -1)
+        return NULL;
     dialect = _call_dialect(dialect_obj, kwargs);
     if (dialect == NULL)
         return NULL;

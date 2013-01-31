@@ -1,7 +1,7 @@
 import sys
 
 import unittest
-from test.support import run_unittest
+from test import support
 
 L = [
         ('0', 0),
@@ -99,10 +99,6 @@ class IntTestCases(unittest.TestCase):
 
         self.assertRaises(ValueError, int, "0b", 2)
         self.assertRaises(ValueError, int, "0b", 0)
-
-        # Bug #3236: Return small longs from PyLong_FromString
-        self.assertTrue(int("10") is 10)
-        self.assertTrue(int("-1") is -1)
 
         # SF bug 1334662: int(string, base) wrong answers
         # Various representations of 2**32 evaluated to 0
@@ -221,6 +217,46 @@ class IntTestCases(unittest.TestCase):
         self.assertEqual(int('2br45qc', 35), 4294967297)
         self.assertEqual(int('1z141z5', 36), 4294967297)
 
+    @support.cpython_only
+    def test_small_ints(self):
+        # Bug #3236: Return small longs from PyLong_FromString
+        self.assertIs(int('10'), 10)
+        self.assertIs(int('-1'), -1)
+        self.assertIs(int(b'10'), 10)
+        self.assertIs(int(b'-1'), -1)
+
+    def test_no_args(self):
+        self.assertEqual(int(), 0)
+
+    def test_keyword_args(self):
+        # Test invoking int() using keyword arguments.
+        self.assertEqual(int(x=1.2), 1)
+        self.assertEqual(int('100', base=2), 4)
+        self.assertEqual(int(x='100', base=2), 4)
+        self.assertRaises(TypeError, int, base=10)
+        self.assertRaises(TypeError, int, base=0)
+
+    def test_non_numeric_input_types(self):
+        # Test possible non-numeric types for the argument x, including
+        # subclasses of the explicitly documented accepted types.
+        class CustomStr(str): pass
+        class CustomBytes(bytes): pass
+        class CustomByteArray(bytearray): pass
+
+        values = [b'100',
+                  bytearray(b'100'),
+                  CustomStr('100'),
+                  CustomBytes(b'100'),
+                  CustomByteArray(b'100')]
+
+        for x in values:
+            msg = 'x has type %s' % type(x).__name__
+            self.assertEqual(int(x), 100, msg=msg)
+            self.assertEqual(int(x, 2), 4, msg=msg)
+
+    def test_string_float(self):
+        self.assertRaises(ValueError, int, '1.2')
+
     def test_intconversion(self):
         # Test __int__()
         class ClassicMissingMethods:
@@ -305,6 +341,18 @@ class IntTestCases(unittest.TestCase):
                     self.fail("Failed to raise TypeError with %s" %
                               ((base, trunc_result_base),))
 
+                # Regression test for bugs.python.org/issue16060.
+                class BadInt(trunc_result_base):
+                    def __int__(self):
+                        return 42.0
+
+                class TruncReturnsBadInt(base):
+                    def __trunc__(self):
+                        return BadInt()
+
+                with self.assertRaises(TypeError):
+                    int(TruncReturnsBadInt())
+
     def test_error_message(self):
         testlist = ('\xbd', '123\xbd', '  123 456  ')
         for s in testlist:
@@ -316,7 +364,7 @@ class IntTestCases(unittest.TestCase):
                 self.fail("Expected int(%r) to raise a ValueError", s)
 
 def test_main():
-    run_unittest(IntTestCases)
+    support.run_unittest(IntTestCases)
 
 if __name__ == "__main__":
     test_main()

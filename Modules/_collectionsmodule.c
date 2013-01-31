@@ -588,7 +588,7 @@ deque_remove(dequeobject *deque, PyObject *value)
 PyDoc_STRVAR(remove_doc,
 "D.remove(value) -- remove first occurrence of value.");
 
-static int
+static void
 deque_clear(dequeobject *deque)
 {
     PyObject *item;
@@ -601,7 +601,6 @@ deque_clear(dequeobject *deque)
     assert(deque->leftblock == deque->rightblock &&
            deque->leftindex - 1 == deque->rightindex &&
            deque->len == 0);
-    return 0;
 }
 
 static PyObject *
@@ -704,10 +703,7 @@ deque_ass_item(dequeobject *deque, Py_ssize_t i, PyObject *v)
 static PyObject *
 deque_clearmethod(dequeobject *deque)
 {
-    int rv;
-
-    rv = deque_clear(deque);
-    assert (rv != -1);
+    deque_clear(deque);
     Py_RETURN_NONE;
 }
 
@@ -933,6 +929,23 @@ deque_init(dequeobject *deque, PyObject *args, PyObject *kwdargs)
 }
 
 static PyObject *
+deque_sizeof(dequeobject *deque, void *unused)
+{
+    Py_ssize_t res;
+    Py_ssize_t blocks;
+
+    res = sizeof(dequeobject);
+    blocks = (deque->leftindex + deque->len + BLOCKLEN - 1) / BLOCKLEN;
+    assert(deque->leftindex + deque->len - 1 ==
+           (blocks - 1) * BLOCKLEN + deque->rightindex);
+    res += blocks * sizeof(block);
+    return PyLong_FromSsize_t(res);
+}
+
+PyDoc_STRVAR(sizeof_doc,
+"D.__sizeof__() -- size of D in memory, in bytes");
+
+static PyObject *
 deque_get_maxlen(dequeobject *deque)
 {
     if (deque->maxlen == -1)
@@ -995,12 +1008,14 @@ static PyMethodDef deque_methods[] = {
     {"reverse",                 (PyCFunction)deque_reverse,
         METH_NOARGS,             reverse_doc},
     {"rotate",                  (PyCFunction)deque_rotate,
-        METH_VARARGS,           rotate_doc},
+        METH_VARARGS,            rotate_doc},
+    {"__sizeof__",              (PyCFunction)deque_sizeof,
+        METH_NOARGS,             sizeof_doc},
     {NULL,              NULL}   /* sentinel */
 };
 
 PyDoc_STRVAR(deque_doc,
-"deque(iterable[, maxlen]) --> deque object\n\
+"deque([iterable[, maxlen]]) --> deque object\n\
 \n\
 Build an ordered collection with optimized access from its endpoints.");
 

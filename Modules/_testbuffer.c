@@ -16,6 +16,7 @@ PyObject *calcsize = NULL;
 static const char *simple_fmt = "B";
 PyObject *simple_format = NULL;
 #define SIMPLE_FORMAT(fmt) (fmt == NULL || strcmp(fmt, "B") == 0)
+#define FIX_FORMAT(fmt) (fmt == NULL ? "B" : fmt)
 
 
 /**************************************************************************/
@@ -513,10 +514,8 @@ static int
 cmp_structure(Py_buffer *dest, Py_buffer *src)
 {
     Py_ssize_t i;
-    int same_fmt = ((dest->format == NULL && src->format == NULL) || \
-                    (strcmp(dest->format, src->format) == 0));
 
-    if (!same_fmt ||
+    if (strcmp(FIX_FORMAT(dest->format), FIX_FORMAT(src->format)) != 0 ||
         dest->itemsize != src->itemsize ||
         dest->ndim != src->ndim)
         return -1;
@@ -2362,6 +2361,13 @@ get_ascii_order(PyObject *order)
 
     ord = PyBytes_AS_STRING(ascii_order)[0];
     Py_DECREF(ascii_order);
+
+    if (ord != 'C' && ord != 'F' && ord != 'A') {
+        PyErr_SetString(PyExc_ValueError,
+            "invalid order, must be C, F or A");
+        return CHAR_MAX;
+    }
+
     return ord;
 }
 
@@ -2384,17 +2390,65 @@ get_contiguous(PyObject *self, PyObject *args)
             "buffertype must be PyBUF_READ or PyBUF_WRITE");
         return NULL;
     }
+
     type = PyLong_AsLong(buffertype);
     if (type == -1 && PyErr_Occurred()) {
+        return NULL;
+    }
+    if (type != PyBUF_READ && type != PyBUF_WRITE) {
+        PyErr_SetString(PyExc_ValueError,
+            "invalid buffer type");
+        return NULL;
+    }
+
+    ord = get_ascii_order(order);
+    if (ord == CHAR_MAX)
+        return NULL;
+
+    return PyMemoryView_GetContiguous(obj, (int)type, ord);
+}
+
+/* PyBuffer_ToContiguous() */
+static PyObject *
+py_buffer_to_contiguous(PyObject *self, PyObject *args)
+{
+    PyObject *obj;
+    PyObject *order;
+    PyObject *ret = NULL;
+    int flags;
+    char ord;
+    Py_buffer view;
+    char *buf = NULL;
+
+    if (!PyArg_ParseTuple(args, "OOi", &obj, &order, &flags)) {
+        return NULL;
+    }
+
+    if (PyObject_GetBuffer(obj, &view, flags) < 0) {
         return NULL;
     }
 
     ord = get_ascii_order(order);
     if (ord == CHAR_MAX) {
-        return NULL;
+        goto out;
     }
 
-    return PyMemoryView_GetContiguous(obj, (int)type, ord);
+    buf = PyMem_Malloc(view.len);
+    if (buf == NULL) {
+        PyErr_NoMemory();
+        goto out;
+    }
+
+    if (PyBuffer_ToContiguous(buf, &view, view.len, ord) < 0) {
+        goto out;
+    }
+
+    ret = PyBytes_FromStringAndSize(buf, view.len);
+
+out:
+    PyBuffer_Release(&view);
+    PyMem_XFree(buf);
+    return ret;
 }
 
 static int
@@ -2734,6 +2788,7 @@ static struct PyMethodDef _testbuffer_functions[] = {
     {"get_pointer", get_pointer, METH_VARARGS, NULL},
     {"get_sizeof_void_p", (PyCFunction)get_sizeof_void_p, METH_NOARGS, NULL},
     {"get_contiguous", get_contiguous, METH_VARARGS, NULL},
+    {"py_buffer_to_contiguous", py_buffer_to_contiguous, METH_VARARGS, NULL},
     {"is_contiguous", is_contiguous, METH_VARARGS, NULL},
     {"cmp_contig", cmp_contig, METH_VARARGS, NULL},
     {NULL, NULL}

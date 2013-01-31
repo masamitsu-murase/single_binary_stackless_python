@@ -398,6 +398,17 @@ buffered_dealloc(buffered *self)
     Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
+static PyObject *
+buffered_sizeof(buffered *self, void *unused)
+{
+    Py_ssize_t res;
+
+    res = sizeof(buffered);
+    if (self->buffer)
+        res += self->buffer_size;
+    return PyLong_FromSsize_t(res);
+}
+
 static int
 buffered_traverse(buffered *self, visitproc visit, void *arg)
 {
@@ -473,7 +484,7 @@ buffered_closed_get(buffered *self, void *context)
 static PyObject *
 buffered_close(buffered *self, PyObject *args)
 {
-    PyObject *res = NULL;
+    PyObject *res = NULL, *exc = NULL, *val, *tb;
     int r;
 
     CHECK_INITIALIZED(self)
@@ -501,12 +512,28 @@ buffered_close(buffered *self, PyObject *args)
     res = PyObject_CallMethodObjArgs((PyObject *)self, _PyIO_str_flush, NULL);
     if (!ENTER_BUFFERED(self))
         return NULL;
-    if (res == NULL) {
-        goto end;
-    }
-    Py_XDECREF(res);
+    if (res == NULL)
+        PyErr_Fetch(&exc, &val, &tb);
+    else
+        Py_DECREF(res);
 
     res = PyObject_CallMethodObjArgs(self->raw, _PyIO_str_close, NULL);
+
+    if (exc != NULL) {
+        if (res != NULL) {
+            Py_CLEAR(res);
+            PyErr_Restore(exc, val, tb);
+        }
+        else {
+            PyObject *val2;
+            Py_DECREF(exc);
+            Py_XDECREF(tb);
+            PyErr_Fetch(&exc, &val2, &tb);
+            PyErr_NormalizeException(&exc, &val2, &tb);
+            PyException_SetContext(val2, val);
+            PyErr_Restore(exc, val2, tb);
+        }
+    }
 
 end:
     LEAVE_BUFFERED(self)
@@ -1488,8 +1515,10 @@ _bufferedreader_read_all(buffered *self)
     }
 
     chunks = PyList_New(0);
-    if (chunks == NULL)
+    if (chunks == NULL) {
+        Py_XDECREF(data);
         return NULL;
+    }
 
     while (1) {
         if (data) {
@@ -1699,6 +1728,7 @@ static PyMethodDef bufferedreader_methods[] = {
     {"seek", (PyCFunction)buffered_seek, METH_VARARGS},
     {"tell", (PyCFunction)buffered_tell, METH_NOARGS},
     {"truncate", (PyCFunction)buffered_truncate, METH_VARARGS},
+    {"__sizeof__", (PyCFunction)buffered_sizeof, METH_NOARGS},
     {NULL, NULL}
 };
 
@@ -2079,6 +2109,7 @@ static PyMethodDef bufferedwriter_methods[] = {
     {"flush", (PyCFunction)buffered_flush, METH_NOARGS},
     {"seek", (PyCFunction)buffered_seek, METH_VARARGS},
     {"tell", (PyCFunction)buffered_tell, METH_NOARGS},
+    {"__sizeof__", (PyCFunction)buffered_sizeof, METH_NOARGS},
     {NULL, NULL}
 };
 
@@ -2470,6 +2501,7 @@ static PyMethodDef bufferedrandom_methods[] = {
     {"readline", (PyCFunction)buffered_readline, METH_VARARGS},
     {"peek", (PyCFunction)buffered_peek, METH_VARARGS},
     {"write", (PyCFunction)bufferedwriter_write, METH_VARARGS},
+    {"__sizeof__", (PyCFunction)buffered_sizeof, METH_NOARGS},
     {NULL, NULL}
 };
 

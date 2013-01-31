@@ -11,6 +11,10 @@ import time
 import unittest
 from test import support
 try:
+    import _posixsubprocess
+except ImportError:
+    _posixsubprocess = None
+try:
     import threading
 except ImportError:
     threading = None
@@ -77,6 +81,33 @@ class CAPITest(unittest.TestCase):
             self.assertSequenceEqual(new_sys_exc_info, new_exc_info)
         else:
             self.assertTrue(False)
+
+    @unittest.skipUnless(_posixsubprocess, '_posixsubprocess required for this test.')
+    def test_seq_bytes_to_charp_array(self):
+        # Issue #15732: crash in _PySequence_BytesToCharpArray()
+        class Z(object):
+            def __len__(self):
+                return 1
+        self.assertRaises(TypeError, _posixsubprocess.fork_exec,
+                          1,Z(),3,[1, 2],5,6,7,8,9,10,11,12,13,14,15,16,17)
+        # Issue #15736: overflow in _PySequence_BytesToCharpArray()
+        class Z(object):
+            def __len__(self):
+                return sys.maxsize
+            def __getitem__(self, i):
+                return b'x'
+        self.assertRaises(MemoryError, _posixsubprocess.fork_exec,
+                          1,Z(),3,[1, 2],5,6,7,8,9,10,11,12,13,14,15,16,17)
+
+    @unittest.skipUnless(_posixsubprocess, '_posixsubprocess required for this test.')
+    def test_subprocess_fork_exec(self):
+        class Z(object):
+            def __len__(self):
+                return 1
+
+        # Issue #15738: crash in subprocess_fork_exec()
+        self.assertRaises(TypeError, _posixsubprocess.fork_exec,
+                          Z(),[b'1'],3,[1, 2],5,6,7,8,9,10,11,12,13,14,15,16,17)
 
 @unittest.skipUnless(threading, 'Threading required for this test.')
 class TestPendingCalls(unittest.TestCase):
@@ -162,7 +193,6 @@ class TestPendingCalls(unittest.TestCase):
         self.pendingcalls_wait(l, n)
 
     def test_subinterps(self):
-        # XXX this test leaks in refleak runs
         import builtins
         r, w = os.pipe()
         code = """if 1:
@@ -284,6 +314,17 @@ class SkipitemTest(unittest.TestCase):
                 "for format unit '{}' ({}), not skipped {}, skipped {}".format(
                     c, i, when_skipped, when_not_skipped))
             self.assertIs(when_skipped, when_not_skipped, message)
+
+    def test_parse_tuple_and_keywords(self):
+        # parse_tuple_and_keywords error handling tests
+        self.assertRaises(TypeError, _testcapi.parse_tuple_and_keywords,
+                          (), {}, 42, [])
+        self.assertRaises(ValueError, _testcapi.parse_tuple_and_keywords,
+                          (), {}, b'', 42)
+        self.assertRaises(ValueError, _testcapi.parse_tuple_and_keywords,
+                          (), {}, b'', [''] * 42)
+        self.assertRaises(ValueError, _testcapi.parse_tuple_and_keywords,
+                          (), {}, b'', [42])
 
 def test_main():
     support.run_unittest(CAPITest, TestPendingCalls,

@@ -32,7 +32,7 @@ class SortedDict(collections.UserDict):
     __iter__ = iterkeys
 
 
-class CfgParserTestCaseClass(unittest.TestCase):
+class CfgParserTestCaseClass:
     allow_no_value = False
     delimiters = ('=', ':')
     comment_prefixes = (';', '#')
@@ -770,13 +770,72 @@ boolean {0[0]} NO
         with self.assertRaises(configparser.NoSectionError):
             cf.items("no such section")
 
+    def test_popitem(self):
+        cf = self.fromstring("""
+            [section1]
+            name1 {0[0]} value1
+            [section2]
+            name2 {0[0]} value2
+            [section3]
+            name3 {0[0]} value3
+        """.format(self.delimiters), defaults={"default": "<default>"})
+        self.assertEqual(cf.popitem()[0], 'section1')
+        self.assertEqual(cf.popitem()[0], 'section2')
+        self.assertEqual(cf.popitem()[0], 'section3')
+        with self.assertRaises(KeyError):
+            cf.popitem()
 
-class StrictTestCase(BasicTestCase):
+    def test_clear(self):
+        cf = self.newconfig({"foo": "Bar"})
+        self.assertEqual(
+            cf.get(self.default_section, "Foo"), "Bar",
+            "could not locate option, expecting case-insensitive option names")
+        cf['zing'] = {'option1': 'value1', 'option2': 'value2'}
+        self.assertEqual(cf.sections(), ['zing'])
+        self.assertEqual(set(cf['zing'].keys()), {'option1', 'option2', 'foo'})
+        cf.clear()
+        self.assertEqual(set(cf.sections()), set())
+        self.assertEqual(set(cf[self.default_section].keys()), {'foo'})
+
+    def test_setitem(self):
+        cf = self.fromstring("""
+            [section1]
+            name1 {0[0]} value1
+            [section2]
+            name2 {0[0]} value2
+            [section3]
+            name3 {0[0]} value3
+        """.format(self.delimiters), defaults={"nameD": "valueD"})
+        self.assertEqual(set(cf['section1'].keys()), {'name1', 'named'})
+        self.assertEqual(set(cf['section2'].keys()), {'name2', 'named'})
+        self.assertEqual(set(cf['section3'].keys()), {'name3', 'named'})
+        self.assertEqual(cf['section1']['name1'], 'value1')
+        self.assertEqual(cf['section2']['name2'], 'value2')
+        self.assertEqual(cf['section3']['name3'], 'value3')
+        self.assertEqual(cf.sections(), ['section1', 'section2', 'section3'])
+        cf['section2'] = {'name22': 'value22'}
+        self.assertEqual(set(cf['section2'].keys()), {'name22', 'named'})
+        self.assertEqual(cf['section2']['name22'], 'value22')
+        self.assertNotIn('name2', cf['section2'])
+        self.assertEqual(cf.sections(), ['section1', 'section2', 'section3'])
+        cf['section3'] = {}
+        self.assertEqual(set(cf['section3'].keys()), {'named'})
+        self.assertNotIn('name3', cf['section3'])
+        self.assertEqual(cf.sections(), ['section1', 'section2', 'section3'])
+        cf[self.default_section] = {}
+        self.assertEqual(set(cf[self.default_section].keys()), set())
+        self.assertEqual(set(cf['section1'].keys()), {'name1'})
+        self.assertEqual(set(cf['section2'].keys()), {'name22'})
+        self.assertEqual(set(cf['section3'].keys()), set())
+        self.assertEqual(cf.sections(), ['section1', 'section2', 'section3'])
+
+
+class StrictTestCase(BasicTestCase, unittest.TestCase):
     config_class = configparser.RawConfigParser
     strict = True
 
 
-class ConfigParserTestCase(BasicTestCase):
+class ConfigParserTestCase(BasicTestCase, unittest.TestCase):
     config_class = configparser.ConfigParser
 
     def test_interpolation(self):
@@ -865,7 +924,7 @@ class ConfigParserTestCase(BasicTestCase):
         self.assertRaises(ValueError, cf.add_section, self.default_section)
 
 
-class ConfigParserTestCaseNoInterpolation(BasicTestCase):
+class ConfigParserTestCaseNoInterpolation(BasicTestCase, unittest.TestCase):
     config_class = configparser.ConfigParser
     interpolation = None
     ini = textwrap.dedent("""
@@ -930,7 +989,7 @@ class ConfigParserTestCaseNonStandardDelimiters(ConfigParserTestCase):
 class ConfigParserTestCaseNonStandardDefaultSection(ConfigParserTestCase):
     default_section = 'general'
 
-class MultilineValuesTestCase(BasicTestCase):
+class MultilineValuesTestCase(BasicTestCase, unittest.TestCase):
     config_class = configparser.ConfigParser
     wonderful_spam = ("I'm having spam spam spam spam "
                       "spam spam spam beaked beans spam "
@@ -958,7 +1017,7 @@ class MultilineValuesTestCase(BasicTestCase):
         self.assertEqual(cf_from_file.get('section8', 'lovely_spam4'),
                          self.wonderful_spam.replace('\t\n', '\n'))
 
-class RawConfigParserTestCase(BasicTestCase):
+class RawConfigParserTestCase(BasicTestCase, unittest.TestCase):
     config_class = configparser.RawConfigParser
 
     def test_interpolation(self):
@@ -1005,7 +1064,7 @@ class RawConfigParserTestCaseNonStandardDelimiters(RawConfigParserTestCase):
     comment_prefixes = ('//', '"')
     inline_comment_prefixes = ('//', '"')
 
-class RawConfigParserTestSambaConf(CfgParserTestCaseClass):
+class RawConfigParserTestSambaConf(CfgParserTestCaseClass, unittest.TestCase):
     config_class = configparser.RawConfigParser
     comment_prefixes = ('#', ';', '----')
     inline_comment_prefixes = ('//',)
@@ -1025,7 +1084,7 @@ class RawConfigParserTestSambaConf(CfgParserTestCaseClass):
         self.assertEqual(cf.get("global", "hosts allow"), "127.")
         self.assertEqual(cf.get("tmp", "echo command"), "cat %s; rm %s")
 
-class ConfigParserTestCaseExtendedInterpolation(BasicTestCase):
+class ConfigParserTestCaseExtendedInterpolation(BasicTestCase, unittest.TestCase):
     config_class = configparser.ConfigParser
     interpolation = configparser.ExtendedInterpolation()
     default_section = 'common'
@@ -1199,7 +1258,7 @@ class ConfigParserTestCaseExtendedInterpolation(BasicTestCase):
 class ConfigParserTestCaseNoValue(ConfigParserTestCase):
     allow_no_value = True
 
-class ConfigParserTestCaseTrickyFile(CfgParserTestCaseClass):
+class ConfigParserTestCaseTrickyFile(CfgParserTestCaseClass, unittest.TestCase):
     config_class = configparser.ConfigParser
     delimiters = {'='}
     comment_prefixes = {'#'}
@@ -1296,7 +1355,7 @@ class SortedTestCase(RawConfigParserTestCase):
                          "o4 = 1\n\n")
 
 
-class CompatibleTestCase(CfgParserTestCaseClass):
+class CompatibleTestCase(CfgParserTestCaseClass, unittest.TestCase):
     config_class = configparser.RawConfigParser
     comment_prefixes = '#;'
     inline_comment_prefixes = ';'
@@ -1318,7 +1377,7 @@ class CompatibleTestCase(CfgParserTestCaseClass):
         self.assertEqual(cf.get('Commented Bar', 'quirk'),
                          'this;is not a comment')
 
-class CopyTestCase(BasicTestCase):
+class CopyTestCase(BasicTestCase, unittest.TestCase):
     config_class = configparser.ConfigParser
 
     def fromstring(self, string, defaults=None):
@@ -1654,27 +1713,5 @@ class InlineCommentStrippingTestCase(unittest.TestCase):
         self.assertEqual(s['k3'], 'v3;#//still v3# and still v3')
 
 
-def test_main():
-    support.run_unittest(
-        ConfigParserTestCase,
-        ConfigParserTestCaseNonStandardDelimiters,
-        ConfigParserTestCaseNoValue,
-        ConfigParserTestCaseExtendedInterpolation,
-        ConfigParserTestCaseLegacyInterpolation,
-        ConfigParserTestCaseNoInterpolation,
-        ConfigParserTestCaseTrickyFile,
-        MultilineValuesTestCase,
-        RawConfigParserTestCase,
-        RawConfigParserTestCaseNonStandardDelimiters,
-        RawConfigParserTestSambaConf,
-        SortedTestCase,
-        Issue7005TestCase,
-        StrictTestCase,
-        CompatibleTestCase,
-        CopyTestCase,
-        ConfigParserTestCaseNonStandardDefaultSection,
-        ReadFileTestCase,
-        CoverageOneHundredTestCase,
-        ExceptionPicklingTestCase,
-        InlineCommentStrippingTestCase,
-        )
+if __name__ == '__main__':
+    unittest.main()

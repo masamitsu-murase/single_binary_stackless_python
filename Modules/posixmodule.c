@@ -414,32 +414,37 @@ win32_warn_bytes_api()
 
 
 #ifdef AT_FDCWD
-#define DEFAULT_DIR_FD AT_FDCWD
+/*
+ * Why the (int) cast?  Solaris 10 defines AT_FDCWD as 0xffd19553 (-3041965);
+ * without the int cast, the value gets interpreted as uint (4291925331),
+ * which doesn't play nicely with all the initializer lines in this file that
+ * look like this:
+ *      int dir_fd = DEFAULT_DIR_FD;
+ */
+#define DEFAULT_DIR_FD (int)AT_FDCWD
 #else
 #define DEFAULT_DIR_FD (-100)
 #endif
 
 static int
-_fd_converter(PyObject *o, int *p, int default_value) {
-    long long_value;
-    if (o == Py_None) {
-        *p = default_value;
-        return 1;
-    }
-    if (PyFloat_Check(o)) {
-        PyErr_SetString(PyExc_TypeError,
-                        "integer argument expected, got float" );
+_fd_converter(PyObject *o, int *p, const char *allowed)
+{
+    int overflow;
+    long long_value = PyLong_AsLongAndOverflow(o, &overflow);
+    if (PyFloat_Check(o) ||
+        (long_value == -1 && !overflow && PyErr_Occurred())) {
+        PyErr_Clear();
+        PyErr_Format(PyExc_TypeError,
+                        "argument should be %s, not %.200s",
+                        allowed, Py_TYPE(o)->tp_name);
         return 0;
     }
-    long_value = PyLong_AsLong(o);
-    if (long_value == -1 && PyErr_Occurred())
-        return 0;
-    if (long_value > INT_MAX) {
+    if (overflow > 0 || long_value > INT_MAX) {
         PyErr_SetString(PyExc_OverflowError,
                         "signed integer is greater than maximum");
         return 0;
     }
-    if (long_value < INT_MIN) {
+    if (overflow < 0 || long_value < INT_MIN) {
         PyErr_SetString(PyExc_OverflowError,
                         "signed integer is less than minimum");
         return 0;
@@ -449,8 +454,13 @@ _fd_converter(PyObject *o, int *p, int default_value) {
 }
 
 static int
-dir_fd_converter(PyObject *o, void *p) {
-    return _fd_converter(o, (int *)p, DEFAULT_DIR_FD);
+dir_fd_converter(PyObject *o, void *p)
+{
+    if (o == Py_None) {
+        *(int *)p = DEFAULT_DIR_FD;
+        return 1;
+    }
+    return _fd_converter(o, (int *)p, "integer");
 }
 
 
@@ -627,17 +637,16 @@ path_converter(PyObject *o, void *p) {
     }
     else {
         PyErr_Clear();
-        bytes = PyBytes_FromObject(o);
+        if (PyObject_CheckBuffer(o))
+            bytes = PyBytes_FromObject(o);
+        else
+            bytes = NULL;
         if (!bytes) {
             PyErr_Clear();
             if (path->allow_fd) {
                 int fd;
-                /*
-                 * note: _fd_converter always permits None.
-                 * but we've already done our None check.
-                 * so o cannot be None at this point.
-                 */
-                int result = _fd_converter(o, &fd, -1);
+                int result = _fd_converter(o, &fd,
+                        "string, bytes or integer");
                 if (result) {
                     path->wide = NULL;
                     path->narrow = NULL;
@@ -698,15 +707,17 @@ argument_unavailable_error(char *function_name, char *argument_name) {
 }
 
 static int
-dir_fd_unavailable(PyObject *o, void *p) {
-    int *dir_fd = (int *)p;
-    int return_value = _fd_converter(o, dir_fd, DEFAULT_DIR_FD);
-    if (!return_value)
+dir_fd_unavailable(PyObject *o, void *p)
+{
+    int dir_fd;
+    if (!dir_fd_converter(o, &dir_fd))
         return 0;
-    if (*dir_fd == DEFAULT_DIR_FD)
-        return 1;
-    argument_unavailable_error(NULL, "dir_fd");
-    return 0;
+    if (dir_fd != DEFAULT_DIR_FD) {
+        argument_unavailable_error(NULL, "dir_fd");
+        return 0;
+    }
+    *(int *)p = dir_fd;
+    return 1;
 }
 
 static int
@@ -791,7 +802,7 @@ _parse_off_t(PyObject* arg, void* addr)
 
 #if defined _MSC_VER && _MSC_VER >= 1400
 /* Microsoft CRT in VS2005 and higher will verify that a filehandle is
- * valid and throw an assertion if it isn't.
+ * valid and raise an assertion if it isn't.
  * Normally, an invalid fd is likely to be a C program error and therefore
  * an assertion can be useful, but it does contradict the POSIX standard
  * which for write(2) states:
@@ -944,9 +955,10 @@ win32_get_reparse_tag(HANDLE reparse_point_handle, ULONG *reparse_tag)
 #endif /* MS_WINDOWS */
 
 /* Return a dictionary corresponding to the POSIX environment table */
-#ifdef WITH_NEXT_FRAMEWORK
+#if defined(WITH_NEXT_FRAMEWORK) || (defined(__APPLE__) && defined(Py_ENABLE_SHARED))
 /* On Darwin/MacOSX a shared library or framework has no access to
-** environ directly, we must obtain it with _NSGetEnviron().
+** environ directly, we must obtain it with _NSGetEnviron(). See also
+** man environ(7).
 */
 #include <crt_externs.h>
 static char **environ;
@@ -971,7 +983,7 @@ convertenviron(void)
     d = PyDict_New();
     if (d == NULL)
         return NULL;
-#ifdef WITH_NEXT_FRAMEWORK
+#if defined(WITH_NEXT_FRAMEWORK) || (defined(__APPLE__) && defined(Py_ENABLE_SHARED))
     if (environ == NULL)
         environ = *_NSGetEnviron();
 #endif
@@ -2561,7 +2573,7 @@ posix_chdir(PyObject *self, PyObject *args, PyObject *kwargs)
         result = win32_wchdir(path.wide);
     else
         result = win32_chdir(path.narrow);
-	result = !result; /* on unix, success = 0, on windows, success = !0 */
+    result = !result; /* on unix, success = 0, on windows, success = !0 */
 #elif defined(PYOS_OS2) && defined(PYCC_GCC)
     result = _chdir2(path.narrow);
 #else
@@ -5720,290 +5732,8 @@ posix_sched_yield(PyObject *self, PyObject *noargs)
 
 #ifdef HAVE_SCHED_SETAFFINITY
 
-typedef struct {
-    PyObject_HEAD;
-    Py_ssize_t size;
-    int ncpus;
-    cpu_set_t *set;
-} Py_cpu_set;
-
-static PyTypeObject cpu_set_type;
-
-static void
-cpu_set_dealloc(Py_cpu_set *set)
-{
-    assert(set->set);
-    CPU_FREE(set->set);
-    Py_TYPE(set)->tp_free(set);
-}
-
-static Py_cpu_set *
-make_new_cpu_set(PyTypeObject *type, Py_ssize_t size)
-{
-    Py_cpu_set *set;
-
-    if (size < 0) {
-        PyErr_SetString(PyExc_ValueError, "negative size");
-        return NULL;
-    }
-    set = (Py_cpu_set *)type->tp_alloc(type, 0);
-    if (!set)
-        return NULL;
-    set->ncpus = size;
-    set->size = CPU_ALLOC_SIZE(size);
-    set->set = CPU_ALLOC(size);
-    if (!set->set) {
-        type->tp_free(set);
-        PyErr_NoMemory();
-        return NULL;
-    }
-    CPU_ZERO_S(set->size, set->set);
-    return set;
-}
-
-static PyObject *
-cpu_set_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
-{
-    int size;
-
-    if (!_PyArg_NoKeywords("cpu_set()", kwargs) ||
-        !PyArg_ParseTuple(args, "i:cpu_set", &size))
-        return NULL;
-    return (PyObject *)make_new_cpu_set(type, size);
-}
-
-static PyObject *
-cpu_set_repr(Py_cpu_set *set)
-{
-    return PyUnicode_FromFormat("<cpu_set with %li entries>", set->ncpus);
-}
-
-static Py_ssize_t
-cpu_set_len(Py_cpu_set *set)
-{
-    return set->ncpus;
-}
-
-static int
-_get_cpu(Py_cpu_set *set, const char *requester, PyObject *args)
-{
-    int cpu;
-    if (!PyArg_ParseTuple(args, requester, &cpu))
-        return -1;
-    if (cpu < 0) {
-        PyErr_SetString(PyExc_ValueError, "cpu < 0 not valid");
-        return -1;
-    }
-    if (cpu >= set->ncpus) {
-        PyErr_SetString(PyExc_ValueError, "cpu too large for set");
-        return -1;
-    }
-    return cpu;
-}
-
-PyDoc_STRVAR(cpu_set_set_doc,
-"cpu_set.set(i)\n\n\
-Add CPU *i* to the set.");
-
-static PyObject *
-cpu_set_set(Py_cpu_set *set, PyObject *args)
-{
-    int cpu = _get_cpu(set, "i|set", args);
-    if (cpu == -1)
-        return NULL;
-    CPU_SET_S(cpu, set->size, set->set);
-    Py_RETURN_NONE;
-}
-
-PyDoc_STRVAR(cpu_set_count_doc,
-"cpu_set.count() -> int\n\n\
-Return the number of CPUs active in the set.");
-
-static PyObject *
-cpu_set_count(Py_cpu_set *set, PyObject *noargs)
-{
-    return PyLong_FromLong(CPU_COUNT_S(set->size, set->set));
-}
-
-PyDoc_STRVAR(cpu_set_clear_doc,
-"cpu_set.clear(i)\n\n\
-Remove CPU *i* from the set.");
-
-static PyObject *
-cpu_set_clear(Py_cpu_set *set, PyObject *args)
-{
-    int cpu = _get_cpu(set, "i|clear", args);
-    if (cpu == -1)
-        return NULL;
-    CPU_CLR_S(cpu, set->size, set->set);
-    Py_RETURN_NONE;
-}
-
-PyDoc_STRVAR(cpu_set_isset_doc,
-"cpu_set.isset(i) -> bool\n\n\
-Test if CPU *i* is in the set.");
-
-static PyObject *
-cpu_set_isset(Py_cpu_set *set, PyObject *args)
-{
-    int cpu = _get_cpu(set, "i|isset", args);
-    if (cpu == -1)
-        return NULL;
-    if (CPU_ISSET_S(cpu, set->size, set->set))
-        Py_RETURN_TRUE;
-    Py_RETURN_FALSE;
-}
-
-PyDoc_STRVAR(cpu_set_zero_doc,
-"cpu_set.zero()\n\n\
-Clear the cpu_set.");
-
-static PyObject *
-cpu_set_zero(Py_cpu_set *set, PyObject *noargs)
-{
-    CPU_ZERO_S(set->size, set->set);
-    Py_RETURN_NONE;
-}
-
-static PyObject *
-cpu_set_richcompare(Py_cpu_set *set, Py_cpu_set *other, int op)
-{
-    int eq;
-
-    if ((op != Py_EQ && op != Py_NE) || Py_TYPE(other) != &cpu_set_type)
-        Py_RETURN_NOTIMPLEMENTED;
-
-    eq = set->ncpus == other->ncpus && CPU_EQUAL_S(set->size, set->set, other->set);
-    if ((op == Py_EQ) ? eq : !eq)
-        Py_RETURN_TRUE;
-    else
-        Py_RETURN_FALSE;
-}
-
-#define CPU_SET_BINOP(name, op) \
-    static PyObject * \
-    do_cpu_set_##name(Py_cpu_set *left, Py_cpu_set *right, Py_cpu_set *res) { \
-        if (res) { \
-            Py_INCREF(res); \
-        } \
-        else { \
-            res = make_new_cpu_set(&cpu_set_type, left->ncpus); \
-            if (!res) \
-                return NULL; \
-        } \
-        if (Py_TYPE(right) != &cpu_set_type || left->ncpus != right->ncpus) { \
-            Py_DECREF(res); \
-            Py_RETURN_NOTIMPLEMENTED; \
-        } \
-        assert(left->size == right->size && right->size == res->size); \
-        op(res->size, res->set, left->set, right->set); \
-        return (PyObject *)res; \
-    } \
-    static PyObject * \
-    cpu_set_##name(Py_cpu_set *left, Py_cpu_set *right) { \
-        return do_cpu_set_##name(left, right, NULL); \
-    } \
-    static PyObject * \
-    cpu_set_i##name(Py_cpu_set *left, Py_cpu_set *right) { \
-        return do_cpu_set_##name(left, right, left); \
-    } \
-
-CPU_SET_BINOP(and, CPU_AND_S)
-CPU_SET_BINOP(or, CPU_OR_S)
-CPU_SET_BINOP(xor, CPU_XOR_S)
-#undef CPU_SET_BINOP
-
-PyDoc_STRVAR(cpu_set_doc,
-"cpu_set(size)\n\n\
-Create an empty mask of CPUs.");
-
-static PyNumberMethods cpu_set_as_number = {
-    0,                                  /*nb_add*/
-    0,                                  /*nb_subtract*/
-    0,                                  /*nb_multiply*/
-    0,                                  /*nb_remainder*/
-    0,                                  /*nb_divmod*/
-    0,                                  /*nb_power*/
-    0,                                  /*nb_negative*/
-    0,                                  /*nb_positive*/
-    0,                                  /*nb_absolute*/
-    0,                                  /*nb_bool*/
-    0,                                  /*nb_invert*/
-    0,                                  /*nb_lshift*/
-    0,                                  /*nb_rshift*/
-    (binaryfunc)cpu_set_and,            /*nb_and*/
-    (binaryfunc)cpu_set_xor,            /*nb_xor*/
-    (binaryfunc)cpu_set_or,             /*nb_or*/
-    0,                                  /*nb_int*/
-    0,                                  /*nb_reserved*/
-    0,                                  /*nb_float*/
-    0,                                  /*nb_inplace_add*/
-    0,                                  /*nb_inplace_subtract*/
-    0,                                  /*nb_inplace_multiply*/
-    0,                                  /*nb_inplace_remainder*/
-    0,                                  /*nb_inplace_power*/
-    0,                                  /*nb_inplace_lshift*/
-    0,                                  /*nb_inplace_rshift*/
-    (binaryfunc)cpu_set_iand,           /*nb_inplace_and*/
-    (binaryfunc)cpu_set_ixor,           /*nb_inplace_xor*/
-    (binaryfunc)cpu_set_ior,            /*nb_inplace_or*/
-};
-
-static PySequenceMethods cpu_set_as_sequence = {
-    (lenfunc)cpu_set_len,                            /* sq_length */
-};
-
-static PyMethodDef cpu_set_methods[] = {
-    {"clear", (PyCFunction)cpu_set_clear, METH_VARARGS, cpu_set_clear_doc},
-    {"count", (PyCFunction)cpu_set_count, METH_NOARGS, cpu_set_count_doc},
-    {"isset", (PyCFunction)cpu_set_isset, METH_VARARGS, cpu_set_isset_doc},
-    {"set", (PyCFunction)cpu_set_set, METH_VARARGS, cpu_set_set_doc},
-    {"zero", (PyCFunction)cpu_set_zero, METH_NOARGS, cpu_set_zero_doc},
-    {NULL, NULL}   /* sentinel */
-};
-
-static PyTypeObject cpu_set_type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
-    "posix.cpu_set",                    /* tp_name */
-    sizeof(Py_cpu_set),                 /* tp_basicsize */
-    0,                                  /* tp_itemsize */
-    /* methods */
-    (destructor)cpu_set_dealloc,        /* tp_dealloc */
-    0,                                  /* tp_print */
-    0,                                  /* tp_getattr */
-    0,                                  /* tp_setattr */
-    0,                                  /* tp_reserved */
-    (reprfunc)cpu_set_repr,             /* tp_repr */
-    &cpu_set_as_number,                 /* tp_as_number */
-    &cpu_set_as_sequence,               /* tp_as_sequence */
-    0,                                  /* tp_as_mapping */
-    PyObject_HashNotImplemented,        /* tp_hash */
-    0,                                  /* tp_call */
-    0,                                  /* tp_str */
-    PyObject_GenericGetAttr,            /* tp_getattro */
-    0,                                  /* tp_setattro */
-    0,                                  /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,                 /* tp_flags */
-    cpu_set_doc,                        /* tp_doc */
-    0,                                  /* tp_traverse */
-    0,                                  /* tp_clear */
-    (richcmpfunc)cpu_set_richcompare,   /* tp_richcompare */
-    0,                                  /* tp_weaklistoffset */
-    0,                                  /* tp_iter */
-    0,                                  /* tp_iternext */
-    cpu_set_methods,                    /* tp_methods */
-    0,                                  /* tp_members */
-    0,                                  /* tp_getset */
-    0,                                  /* tp_base */
-    0,                                  /* tp_dict */
-    0,                                  /* tp_descr_get */
-    0,                                  /* tp_descr_set */
-    0,                                  /* tp_dictoffset */
-    0,                                  /* tp_init */
-    PyType_GenericAlloc,                /* tp_alloc */
-    cpu_set_new,                        /* tp_new */
-    PyObject_Del,                       /* tp_free */
-};
+/* The minimum number of CPUs allocated in a cpu_set_t */
+static const int NCPUS_START = sizeof(unsigned long) * CHAR_BIT;
 
 PyDoc_STRVAR(posix_sched_setaffinity__doc__,
 "sched_setaffinity(pid, cpu_set)\n\n\
@@ -6013,14 +5743,89 @@ static PyObject *
 posix_sched_setaffinity(PyObject *self, PyObject *args)
 {
     pid_t pid;
-    Py_cpu_set *cpu_set;
+    int ncpus;
+    size_t setsize;
+    cpu_set_t *mask = NULL;
+    PyObject *iterable, *iterator = NULL, *item;
 
-    if (!PyArg_ParseTuple(args, _Py_PARSE_PID "O!:sched_setaffinity",
-                          &pid, &cpu_set_type, &cpu_set))
+    if (!PyArg_ParseTuple(args, _Py_PARSE_PID "O:sched_setaffinity",
+                          &pid, &iterable))
         return NULL;
-    if (sched_setaffinity(pid, cpu_set->size, cpu_set->set))
-        return posix_error();
+
+    iterator = PyObject_GetIter(iterable);
+    if (iterator == NULL)
+        return NULL;
+
+    ncpus = NCPUS_START;
+    setsize = CPU_ALLOC_SIZE(ncpus);
+    mask = CPU_ALLOC(ncpus);
+    if (mask == NULL) {
+        PyErr_NoMemory();
+        goto error;
+    }
+    CPU_ZERO_S(setsize, mask);
+
+    while ((item = PyIter_Next(iterator))) {
+        long cpu;
+        if (!PyLong_Check(item)) {
+            PyErr_Format(PyExc_TypeError,
+                        "expected an iterator of ints, "
+                        "but iterator yielded %R",
+                        Py_TYPE(item));
+            Py_DECREF(item);
+            goto error;
+        }
+        cpu = PyLong_AsLong(item);
+        Py_DECREF(item);
+        if (cpu < 0) {
+            if (!PyErr_Occurred())
+                PyErr_SetString(PyExc_ValueError, "negative CPU number");
+            goto error;
+        }
+        if (cpu > INT_MAX - 1) {
+            PyErr_SetString(PyExc_OverflowError, "CPU number too large");
+            goto error;
+        }
+        if (cpu >= ncpus) {
+            /* Grow CPU mask to fit the CPU number */
+            int newncpus = ncpus;
+            cpu_set_t *newmask;
+            size_t newsetsize;
+            while (newncpus <= cpu) {
+                if (newncpus > INT_MAX / 2)
+                    newncpus = cpu + 1;
+                else
+                    newncpus = newncpus * 2;
+            }
+            newmask = CPU_ALLOC(newncpus);
+            if (newmask == NULL) {
+                PyErr_NoMemory();
+                goto error;
+            }
+            newsetsize = CPU_ALLOC_SIZE(newncpus);
+            CPU_ZERO_S(newsetsize, newmask);
+            memcpy(newmask, mask, setsize);
+            CPU_FREE(mask);
+            setsize = newsetsize;
+            mask = newmask;
+            ncpus = newncpus;
+        }
+        CPU_SET_S(cpu, setsize, mask);
+    }
+    Py_CLEAR(iterator);
+
+    if (sched_setaffinity(pid, setsize, mask)) {
+        posix_error();
+        goto error;
+    }
+    CPU_FREE(mask);
     Py_RETURN_NONE;
+
+error:
+    if (mask)
+        CPU_FREE(mask);
+    Py_XDECREF(iterator);
+    return NULL;
 }
 
 PyDoc_STRVAR(posix_sched_getaffinity__doc__,
@@ -6032,20 +5837,58 @@ static PyObject *
 posix_sched_getaffinity(PyObject *self, PyObject *args)
 {
     pid_t pid;
-    int ncpus;
-    Py_cpu_set *res;
+    int cpu, ncpus, count;
+    size_t setsize;
+    cpu_set_t *mask = NULL;
+    PyObject *res = NULL;
 
-    if (!PyArg_ParseTuple(args, _Py_PARSE_PID "i:sched_getaffinity",
-                          &pid, &ncpus))
+    if (!PyArg_ParseTuple(args, _Py_PARSE_PID ":sched_getaffinity",
+                          &pid))
         return NULL;
-    res = make_new_cpu_set(&cpu_set_type, ncpus);
-    if (!res)
-        return NULL;
-    if (sched_getaffinity(pid, res->size, res->set)) {
-        Py_DECREF(res);
-        return posix_error();
+
+    ncpus = NCPUS_START;
+    while (1) {
+        setsize = CPU_ALLOC_SIZE(ncpus);
+        mask = CPU_ALLOC(ncpus);
+        if (mask == NULL)
+            return PyErr_NoMemory();
+        if (sched_getaffinity(pid, setsize, mask) == 0)
+            break;
+        CPU_FREE(mask);
+        if (errno != EINVAL)
+            return posix_error();
+        if (ncpus > INT_MAX / 2) {
+            PyErr_SetString(PyExc_OverflowError, "could not allocate "
+                            "a large enough CPU set");
+            return NULL;
+        }
+        ncpus = ncpus * 2;
     }
-    return (PyObject *)res;
+
+    res = PySet_New(NULL);
+    if (res == NULL)
+        goto error;
+    for (cpu = 0, count = CPU_COUNT_S(setsize, mask); count; cpu++) {
+        if (CPU_ISSET_S(cpu, setsize, mask)) {
+            PyObject *cpu_num = PyLong_FromLong(cpu);
+            --count;
+            if (cpu_num == NULL)
+                goto error;
+            if (PySet_Add(res, cpu_num)) {
+                Py_DECREF(cpu_num);
+                goto error;
+            }
+            Py_DECREF(cpu_num);
+        }
+    }
+    CPU_FREE(mask);
+    return res;
+
+error:
+    if (mask)
+        CPU_FREE(mask);
+    Py_XDECREF(res);
+    return NULL;
 }
 
 #endif /* HAVE_SCHED_SETAFFINITY */
@@ -7278,12 +7121,12 @@ posix_symlink(PyObject *self, PyObject *args, PyObject *kwargs)
     if (!check_CreateSymbolicLink()) {
         PyErr_SetString(PyExc_NotImplementedError,
             "CreateSymbolicLink functions not found");
-		return NULL;
-	}
+                return NULL;
+        }
     if (!win32_can_symlink) {
         PyErr_SetString(PyExc_OSError, "symbolic link privilege not held");
-		return NULL;
-	}
+                return NULL;
+        }
 #endif
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O&O&|i$O&:symlink",
@@ -7359,7 +7202,7 @@ win_readlink(PyObject *self, PyObject *args, PyObject *kwargs)
     DWORD n_bytes_returned;
     DWORD io_result;
     PyObject *po, *result;
-	int dir_fd;
+        int dir_fd;
     HANDLE reparse_point_handle;
 
     char target_buffer[MAXIMUM_REPARSE_DATA_BUFFER_SIZE];
@@ -7453,8 +7296,11 @@ static PyStructSequence_Desc times_result_desc = {
 
 static PyTypeObject TimesResultType;
 
+#ifdef MS_WINDOWS
+#define HAVE_TIMES  /* mandatory, for the method table */
+#endif
 
-#if defined(HAVE_TIMES) || defined(MS_WINDOWS)
+#ifdef HAVE_TIMES
 
 static PyObject *
 build_times_result(double user, double system,
@@ -7492,10 +7338,6 @@ Return an object containing floating point numbers indicating process\n\
 times.  The object behaves like a named tuple with these fields:\n\
   (utime, stime, cutime, cstime, elapsed_time)");
 
-#endif
-
-
-#ifdef HAVE_TIMES
 #if defined(PYCC_VACPP) && defined(PYOS_OS2)
 static long
 system_uptime(void)
@@ -7520,26 +7362,6 @@ posix_times(PyObject *self, PyObject *noargs)
                          (double)0 /* t.tms_cstime / HZ */,
                          (double)system_uptime() / 1000);
 }
-#else /* not OS2 */
-#define NEED_TICKS_PER_SECOND
-static long ticks_per_second = -1;
-static PyObject *
-posix_times(PyObject *self, PyObject *noargs)
-{
-    struct tms t;
-    clock_t c;
-    errno = 0;
-    c = times(&t);
-    if (c == (clock_t) -1)
-        return posix_error();
-    return build_times_result(
-                         (double)t.tms_utime / ticks_per_second,
-                         (double)t.tms_stime / ticks_per_second,
-                         (double)t.tms_cutime / ticks_per_second,
-                         (double)t.tms_cstime / ticks_per_second,
-                         (double)c / ticks_per_second);
-}
-#endif /* not OS2 */
 #elif defined(MS_WINDOWS)
 static PyObject *
 posix_times(PyObject *self, PyObject *noargs)
@@ -7562,7 +7384,28 @@ posix_times(PyObject *self, PyObject *noargs)
         (double)0,
         (double)0);
 }
+#else /* Neither Windows nor OS/2 */
+#define NEED_TICKS_PER_SECOND
+static long ticks_per_second = -1;
+static PyObject *
+posix_times(PyObject *self, PyObject *noargs)
+{
+    struct tms t;
+    clock_t c;
+    errno = 0;
+    c = times(&t);
+    if (c == (clock_t) -1)
+        return posix_error();
+    return build_times_result(
+                         (double)t.tms_utime / ticks_per_second,
+                         (double)t.tms_stime / ticks_per_second,
+                         (double)t.tms_cutime / ticks_per_second,
+                         (double)t.tms_cstime / ticks_per_second,
+                         (double)c / ticks_per_second);
+}
 #endif
+
+#endif /* HAVE_TIMES */
 
 
 #ifdef HAVE_GETSID
@@ -8332,7 +8175,7 @@ posix_pipe2(PyObject *self, PyObject *arg)
     int fds[2];
     int res;
 
-    flags = PyLong_AsLong(arg);
+    flags = _PyLong_AsInt(arg);
     if (flags == -1 && PyErr_Occurred())
         return NULL;
 
@@ -10657,7 +10500,7 @@ posix_listxattr(PyObject *self, PyObject *args, PyObject *kwargs)
         static Py_ssize_t buffer_sizes[] = { 256, XATTR_LIST_MAX, 0 };
         Py_ssize_t buffer_size = buffer_sizes[i];
         if (!buffer_size) {
-            // ERANGE
+            /* ERANGE */
             path_error("listxattr", &path);
             break;
         }
@@ -11982,13 +11825,6 @@ INITFUNC(void)
     Py_INCREF(PyExc_OSError);
     PyModule_AddObject(m, "error", PyExc_OSError);
 
-#ifdef HAVE_SCHED_SETAFFINITY
-    if (PyType_Ready(&cpu_set_type) < 0)
-        return NULL;
-    Py_INCREF(&cpu_set_type);
-    PyModule_AddObject(m, "cpu_set", (PyObject *)&cpu_set_type);
-#endif
-
 #ifdef HAVE_PUTENV
     if (posix_putenv_garbage == NULL)
         posix_putenv_garbage = PyDict_New();
@@ -12028,7 +11864,6 @@ INITFUNC(void)
 
         /* initialize TerminalSize_info */
         PyStructSequence_InitType(&TerminalSizeType, &TerminalSize_desc);
-        Py_INCREF(&TerminalSizeType);
     }
 #if defined(HAVE_WAITID) && !defined(__APPLE__)
     Py_INCREF((PyObject*) &WaitidResultType);
@@ -12091,6 +11926,7 @@ INITFUNC(void)
 
 #endif /* __APPLE__ */
 
+    Py_INCREF(&TerminalSizeType);
     PyModule_AddObject(m, "terminal_size", (PyObject*) &TerminalSizeType);
 
     billion = PyLong_FromLong(1000000000);

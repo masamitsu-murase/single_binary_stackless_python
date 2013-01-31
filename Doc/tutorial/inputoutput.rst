@@ -37,7 +37,7 @@ or :func:`str` functions.
 The :func:`str` function is meant to return representations of values which are
 fairly human-readable, while :func:`repr` is meant to generate representations
 which can be read by the interpreter (or will force a :exc:`SyntaxError` if
-there is not equivalent syntax).  For objects which don't have a particular
+there is no equivalent syntax).  For objects which don't have a particular
 representation for human consumption, :func:`str` will return the same value as
 :func:`repr`.  Many values, such as numbers or structures like lists and
 dictionaries, have the same representation using either function.  Strings, in
@@ -184,7 +184,7 @@ square brackets ``'[]'`` to access the keys ::
 
    >>> table = {'Sjoerd': 4127, 'Jack': 4098, 'Dcab': 8637678}
    >>> print('Jack: {0[Jack]:d}; Sjoerd: {0[Sjoerd]:d}; '
-             'Dcab: {0[Dcab]:d}'.format(table))
+   ...       'Dcab: {0[Dcab]:d}'.format(table))
    Jack: 4098; Sjoerd: 4127; Dcab: 8637678
 
 This could also be done by passing the table as keyword arguments with the '**'
@@ -256,9 +256,10 @@ default being UTF-8).  ``'b'`` appended to the mode opens the file in
 :dfn:`binary mode`: now the data is read and written in the form of bytes
 objects.  This mode should be used for all files that don't contain text.
 
-In text mode, the default is to convert platform-specific line endings (``\n``
-on Unix, ``\r\n`` on Windows) to just ``\n`` on reading and ``\n`` back to
-platform-specific line endings on writing.  This behind-the-scenes modification
+In text mode, the default when reading is to convert platform-specific line
+endings (``\n`` on Unix, ``\r\n`` on Windows) to just ``\n``.  When writing in
+text mode, the default is to convert occurrences of ``\n`` back to
+platform-specific line endings.  This behind-the-scenes modification
 to file data is fine for text files, but will corrupt binary data like that in
 :file:`JPEG` or :file:`EXE` files.  Be very careful to use binary mode when
 reading and writing such files.

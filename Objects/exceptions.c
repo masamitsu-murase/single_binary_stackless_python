@@ -44,6 +44,12 @@ BaseException_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     self->traceback = self->cause = self->context = NULL;
     self->suppress_context = 0;
 
+    if (args) {
+        self->args = args;
+        Py_INCREF(args);
+        return (PyObject *)self;
+    }
+
     self->args = PyTuple_New(0);
     if (!self->args) {
         Py_DECREF(self);
@@ -56,12 +62,15 @@ BaseException_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 static int
 BaseException_init(PyBaseExceptionObject *self, PyObject *args, PyObject *kwds)
 {
+    PyObject *tmp;
+
     if (!_PyArg_NoKeywords(Py_TYPE(self)->tp_name, kwds))
         return -1;
 
-    Py_XDECREF(self->args);
+    tmp = self->args;
     self->args = args;
     Py_INCREF(self->args);
+    Py_XDECREF(tmp);
 
     return 0;
 }
@@ -678,7 +687,7 @@ ImportError_traverse(PyImportErrorObject *self, visitproc visit, void *arg)
 static PyObject *
 ImportError_str(PyImportErrorObject *self)
 {
-    if (self->msg) {
+    if (self->msg && PyUnicode_CheckExact(self->msg)) {
         Py_INCREF(self->msg);
         return self->msg;
     }
@@ -1015,12 +1024,12 @@ OSError_str(PyOSErrorObject *self)
 #ifdef MS_WINDOWS
     /* If available, winerror has the priority over myerrno */
     if (self->winerror && self->filename)
-        return PyUnicode_FromFormat("[Error %S] %S: %R",
+        return PyUnicode_FromFormat("[WinError %S] %S: %R",
                                     self->winerror ? self->winerror: Py_None,
                                     self->strerror ? self->strerror: Py_None,
                                     self->filename);
     if (self->winerror && self->strerror)
-        return PyUnicode_FromFormat("[Error %S] %S",
+        return PyUnicode_FromFormat("[WinError %S] %S",
                                     self->winerror ? self->winerror: Py_None,
                                     self->strerror ? self->strerror: Py_None);
 #endif

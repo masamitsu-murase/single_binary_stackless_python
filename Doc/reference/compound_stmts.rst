@@ -307,12 +307,23 @@ If :keyword:`finally` is present, it specifies a 'cleanup' handler.  The
 :keyword:`try` clause is executed, including any :keyword:`except` and
 :keyword:`else` clauses.  If an exception occurs in any of the clauses and is
 not handled, the exception is temporarily saved. The :keyword:`finally` clause
-is executed.  If there is a saved exception, it is re-raised at the end of the
-:keyword:`finally` clause. If the :keyword:`finally` clause raises another
-exception or executes a :keyword:`return` or :keyword:`break` statement, the
-saved exception is set as the context of the new exception.  The exception
-information is not available to the program during execution of the
-:keyword:`finally` clause.
+is executed.  If there is a saved exception it is re-raised at the end of the
+:keyword:`finally` clause.  If the :keyword:`finally` clause raises another
+exception, the saved exception is set as the context of the new exception.
+If the :keyword:`finally` clause executes a :keyword:`return` or :keyword:`break`
+statement, the saved exception is discarded::
+
+    def f():
+        try:
+            1/0
+        finally:
+            return 42
+
+    >>> f()
+    42
+
+The exception information is not available to the program during execution of
+the :keyword:`finally` clause.
 
 .. index::
    statement: return
@@ -406,6 +417,9 @@ is equivalent to ::
       statement.
 
 
+.. index::
+   single: parameter; function definition
+
 .. _function:
 .. _def:
 
@@ -431,8 +445,7 @@ A function definition defines a user-defined function object (see section
    decorator: "@" `dotted_name` ["(" [`parameter_list` [","]] ")"] NEWLINE
    dotted_name: `identifier` ("." `identifier`)*
    parameter_list: (`defparameter` ",")*
-                 : (  "*" [`parameter`] ("," `defparameter`)*
-                 : [, "**" `parameter`]
+                 : ( "*" [`parameter`] ("," `defparameter`)* ["," "**" `parameter`]
                  : | "**" `parameter`
                  : | `defparameter` [","] )
    parameter: `identifier` [":" `expression`]
@@ -468,11 +481,14 @@ is equivalent to ::
    def func(): pass
    func = f1(arg)(f2(func))
 
-.. index:: triple: default; parameter; value
+.. index::
+   triple: default; parameter; value
+   single: argument; function definition
 
-When one or more parameters have the form *parameter* ``=`` *expression*, the
-function is said to have "default parameter values."  For a parameter with a
-default value, the corresponding argument may be omitted from a call, in which
+When one or more :term:`parameters <parameter>` have the form *parameter* ``=``
+*expression*, the function is said to have "default parameter values."  For a
+parameter with a default value, the corresponding :term:`argument` may be
+omitted from a call, in which
 case the parameter's default value is substituted.  If a parameter has a default
 value, all following parameters up until the "``*``" must also have a default
 value --- this is a syntactic restriction that is not expressed by the grammar.

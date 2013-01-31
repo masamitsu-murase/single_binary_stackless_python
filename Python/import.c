@@ -169,6 +169,7 @@ _PyImport_AcquireLock(void)
         PyThread_acquire_lock(import_lock, 1);
         PyEval_RestoreThread(tstate);
     }
+    assert(import_lock_level == 0);
     import_lock_thread = me;
     import_lock_level = 1;
 }
@@ -182,6 +183,7 @@ _PyImport_ReleaseLock(void)
     if (import_lock_thread != me)
         return -1;
     import_lock_level--;
+    assert(import_lock_level >= 0);
     if (import_lock_level == 0) {
         import_lock_thread = -1;
         PyThread_release_lock(import_lock);
@@ -1153,15 +1155,15 @@ static void
 remove_importlib_frames(void)
 {
     const char *importlib_filename = "<frozen importlib._bootstrap>";
-    const char *exec_funcname = "_exec_module";
+    const char *remove_frames = "_call_with_frames_removed";
     int always_trim = 0;
     int in_importlib = 0;
     PyObject *exception, *value, *base_tb, *tb;
     PyObject **prev_link, **outer_link = NULL;
 
     /* Synopsis: if it's an ImportError, we trim all importlib chunks
-       from the traceback.  Otherwise, we trim only those chunks which
-       end with a call to "_exec_module". */
+       from the traceback. We always trim chunks
+       which end with a call to "_call_with_frames_removed". */
 
     PyErr_Fetch(&exception, &value, &base_tb);
     if (!exception || Py_VerboseFlag)
@@ -1192,7 +1194,7 @@ remove_importlib_frames(void)
         if (in_importlib &&
             (always_trim ||
              PyUnicode_CompareWithASCIIString(code->co_name,
-                                              exec_funcname) == 0)) {
+                                              remove_frames) == 0)) {
             PyObject *tmp = *outer_link;
             *outer_link = next;
             Py_XINCREF(next);
@@ -1243,7 +1245,7 @@ PyImport_ImportModuleLevelObject(PyObject *name, PyObject *given_globals,
     }
     else {
         /* Only have to care what given_globals is if it will be used
-           fortsomething. */
+           for something. */
         if (level > 0 && !PyDict_Check(given_globals)) {
             PyErr_SetString(PyExc_TypeError, "globals must be a dict");
             goto error;
@@ -1408,7 +1410,11 @@ PyImport_ImportModuleLevelObject(PyObject *name, PyObject *given_globals,
         int initializing = 0;
 
         Py_INCREF(mod);
-        /* Only call _bootstrap._lock_unlock_module() if __initializing__ is true. */
+        /* Optimization: only call _bootstrap._lock_unlock_module() if
+           __initializing__ is true.
+           NOTE: because of this, __initializing__ must be set *before*
+           stuffing the new module in sys.modules.
+         */
         value = _PyObject_GetAttrId(mod, &PyId___initializing__);
         if (value == NULL)
             PyErr_Clear();

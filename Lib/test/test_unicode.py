@@ -33,7 +33,8 @@ codecs.register(search_function)
 
 class UnicodeTest(string_tests.CommonTest,
         string_tests.MixinStrUnicodeUserStringTest,
-        string_tests.MixinStrUnicodeTest):
+        string_tests.MixinStrUnicodeTest,
+        unittest.TestCase):
 
     type2test = str
 
@@ -572,6 +573,7 @@ class UnicodeTest(string_tests.CommonTest,
         self.assertEqual('ﬁ'.casefold(), 'fi')
         self.assertEqual('\u03a3'.casefold(), '\u03c3')
         self.assertEqual('A\u0345\u03a3'.casefold(), 'a\u03b9\u03c3')
+        self.assertEqual('\u00b5'.casefold(), '\u03bc')
 
     def test_upper(self):
         string_tests.CommonTest.test_upper(self)
@@ -980,6 +982,21 @@ class UnicodeTest(string_tests.CommonTest,
         self.assertRaises(ValueError, '{}'.format_map, 'a')
         self.assertRaises(ValueError, '{a} {}'.format_map, {"a" : 2, "b" : 1})
 
+    def test_format_huge_precision(self):
+        format_string = ".{}f".format(sys.maxsize + 1)
+        with self.assertRaises(ValueError):
+            result = format(2.34, format_string)
+
+    def test_format_huge_width(self):
+        format_string = "{}f".format(sys.maxsize + 1)
+        with self.assertRaises(ValueError):
+            result = format(2.34, format_string)
+
+    def test_format_huge_item_number(self):
+        format_string = "{{{}:.6f}}".format(sys.maxsize + 1)
+        with self.assertRaises(ValueError):
+            result = format_string.format(2.34)
+
     def test_format_auto_numbering(self):
         class C:
             def __init__(self, x=100):
@@ -1068,6 +1085,18 @@ class UnicodeTest(string_tests.CommonTest,
         self.assertEqual('%.1s' % "a\xe9\u20ac", 'a')
         self.assertEqual('%.2s' % "a\xe9\u20ac", 'a\xe9')
 
+    @support.cpython_only
+    def test_formatting_huge_precision(self):
+        from _testcapi import INT_MAX
+        format_string = "%.{}f".format(INT_MAX + 1)
+        with self.assertRaises(ValueError):
+            result = format_string % 2.34
+
+    def test_formatting_huge_width(self):
+        format_string = "%{}f".format(sys.maxsize + 1)
+        with self.assertRaises(ValueError):
+            result = format_string % 2.34
+
     def test_startswith_endswith_errors(self):
         for meth in ('foo'.startswith, 'foo'.endswith):
             with self.assertRaises(TypeError) as cm:
@@ -1153,6 +1182,26 @@ class UnicodeTest(string_tests.CommonTest,
             )
 
         self.assertRaises(TypeError, str, 42, 42, 42)
+
+    def test_constructor_keyword_args(self):
+        """Pass various keyword argument combinations to the constructor."""
+        # The object argument can be passed as a keyword.
+        self.assertEqual(str(object='foo'), 'foo')
+        self.assertEqual(str(object=b'foo', encoding='utf-8'), 'foo')
+        # The errors argument without encoding triggers "decode" mode.
+        self.assertEqual(str(b'foo', errors='strict'), 'foo')  # not "b'foo'"
+        self.assertEqual(str(object=b'foo', errors='strict'), 'foo')
+
+    def test_constructor_defaults(self):
+        """Check the constructor argument defaults."""
+        # The object argument defaults to '' or b''.
+        self.assertEqual(str(), '')
+        self.assertEqual(str(errors='strict'), '')
+        utf8_cent = '¢'.encode('utf-8')
+        # The encoding argument defaults to utf-8.
+        self.assertEqual(str(utf8_cent, errors='strict'), '¢')
+        # The errors argument defaults to strict.
+        self.assertRaises(UnicodeDecodeError, str, utf8_cent, encoding='ascii')
 
     def test_codecs_utf7(self):
         utfTests = [
@@ -1321,7 +1370,7 @@ class UnicodeTest(string_tests.CommonTest,
             # with start byte of a 2-byte sequence
             (b'\xc2', FFFD), # only the start byte
             (b'\xc2\xc2', FFFD*2), # 2 start bytes
-            (b'\xc2\xc2\xc2', FFFD*3), # 2 start bytes
+            (b'\xc2\xc2\xc2', FFFD*3), # 3 start bytes
             (b'\xc2\x41', FFFD+'A'), # invalid continuation byte
             # with start byte of a 3-byte sequence
             (b'\xe1', FFFD), # only the start byte
@@ -1390,6 +1439,226 @@ class UnicodeTest(string_tests.CommonTest,
             self.assertEqual((seq+b'b').decode('utf-8', 'replace'), res+'b')
             self.assertEqual(seq.decode('utf-8', 'ignore'),
                              res.replace('\uFFFD', ''))
+
+    def to_bytestring(self, seq):
+        return bytes(int(c, 16) for c in seq.split())
+
+    def assertCorrectUTF8Decoding(self, seq, res, err):
+        """
+        Check that an invalid UTF-8 sequence raises an UnicodeDecodeError when
+        'strict' is used, returns res when 'replace' is used, and that doesn't
+        return anything when 'ignore' is used.
+        """
+        with self.assertRaises(UnicodeDecodeError) as cm:
+            seq.decode('utf-8')
+        exc = cm.exception
+
+        self.assertIn(err, str(exc))
+        self.assertEqual(seq.decode('utf-8', 'replace'), res)
+        self.assertEqual((b'aaaa' + seq + b'bbbb').decode('utf-8', 'replace'),
+                         'aaaa' + res + 'bbbb')
+        res = res.replace('\ufffd', '')
+        self.assertEqual(seq.decode('utf-8', 'ignore'), res)
+        self.assertEqual((b'aaaa' + seq + b'bbbb').decode('utf-8', 'ignore'),
+                          'aaaa' + res + 'bbbb')
+
+    def test_invalid_start_byte(self):
+        """
+        Test that an 'invalid start byte' error is raised when the first byte
+        is not in the ASCII range or is not a valid start byte of a 2-, 3-, or
+        4-bytes sequence. The invalid start byte is replaced with a single
+        U+FFFD when errors='replace'.
+        E.g. <80> is a continuation byte and can appear only after a start byte.
+        """
+        FFFD = '\ufffd'
+        for byte in b'\x80\xA0\x9F\xBF\xC0\xC1\xF5\xFF':
+            self.assertCorrectUTF8Decoding(bytes([byte]), '\ufffd',
+                                           'invalid start byte')
+
+    def test_unexpected_end_of_data(self):
+        """
+        Test that an 'unexpected end of data' error is raised when the string
+        ends after a start byte of a 2-, 3-, or 4-bytes sequence without having
+        enough continuation bytes.  The incomplete sequence is replaced with a
+        single U+FFFD when errors='replace'.
+        E.g. in the sequence <F3 80 80>, F3 is the start byte of a 4-bytes
+        sequence, but it's followed by only 2 valid continuation bytes and the
+        last continuation bytes is missing.
+        Note: the continuation bytes must be all valid, if one of them is
+        invalid another error will be raised.
+        """
+        sequences = [
+            'C2', 'DF',
+            'E0 A0', 'E0 BF', 'E1 80', 'E1 BF', 'EC 80', 'EC BF',
+            'ED 80', 'ED 9F', 'EE 80', 'EE BF', 'EF 80', 'EF BF',
+            'F0 90', 'F0 BF', 'F0 90 80', 'F0 90 BF', 'F0 BF 80', 'F0 BF BF',
+            'F1 80', 'F1 BF', 'F1 80 80', 'F1 80 BF', 'F1 BF 80', 'F1 BF BF',
+            'F3 80', 'F3 BF', 'F3 80 80', 'F3 80 BF', 'F3 BF 80', 'F3 BF BF',
+            'F4 80', 'F4 8F', 'F4 80 80', 'F4 80 BF', 'F4 8F 80', 'F4 8F BF'
+        ]
+        FFFD = '\ufffd'
+        for seq in sequences:
+            self.assertCorrectUTF8Decoding(self.to_bytestring(seq), '\ufffd',
+                                           'unexpected end of data')
+
+    def test_invalid_cb_for_2bytes_seq(self):
+        """
+        Test that an 'invalid continuation byte' error is raised when the
+        continuation byte of a 2-bytes sequence is invalid.  The start byte
+        is replaced by a single U+FFFD and the second byte is handled
+        separately when errors='replace'.
+        E.g. in the sequence <C2 41>, C2 is the start byte of a 2-bytes
+        sequence, but 41 is not a valid continuation byte because it's the
+        ASCII letter 'A'.
+        """
+        FFFD = '\ufffd'
+        FFFDx2 = FFFD * 2
+        sequences = [
+            ('C2 00', FFFD+'\x00'), ('C2 7F', FFFD+'\x7f'),
+            ('C2 C0', FFFDx2), ('C2 FF', FFFDx2),
+            ('DF 00', FFFD+'\x00'), ('DF 7F', FFFD+'\x7f'),
+            ('DF C0', FFFDx2), ('DF FF', FFFDx2),
+        ]
+        for seq, res in sequences:
+            self.assertCorrectUTF8Decoding(self.to_bytestring(seq), res,
+                                           'invalid continuation byte')
+
+    def test_invalid_cb_for_3bytes_seq(self):
+        """
+        Test that an 'invalid continuation byte' error is raised when the
+        continuation byte(s) of a 3-bytes sequence are invalid.  When
+        errors='replace', if the first continuation byte is valid, the first
+        two bytes (start byte + 1st cb) are replaced by a single U+FFFD and the
+        third byte is handled separately, otherwise only the start byte is
+        replaced with a U+FFFD and the other continuation bytes are handled
+        separately.
+        E.g. in the sequence <E1 80 41>, E1 is the start byte of a 3-bytes
+        sequence, 80 is a valid continuation byte, but 41 is not a valid cb
+        because it's the ASCII letter 'A'.
+        Note: when the start byte is E0 or ED, the valid ranges for the first
+        continuation byte are limited to A0..BF and 80..9F respectively.
+        Python 2 used to consider all the bytes in range 80..BF valid when the
+        start byte was ED.  This is fixed in Python 3.
+        """
+        FFFD = '\ufffd'
+        FFFDx2 = FFFD * 2
+        sequences = [
+            ('E0 00', FFFD+'\x00'), ('E0 7F', FFFD+'\x7f'), ('E0 80', FFFDx2),
+            ('E0 9F', FFFDx2), ('E0 C0', FFFDx2), ('E0 FF', FFFDx2),
+            ('E0 A0 00', FFFD+'\x00'), ('E0 A0 7F', FFFD+'\x7f'),
+            ('E0 A0 C0', FFFDx2), ('E0 A0 FF', FFFDx2),
+            ('E0 BF 00', FFFD+'\x00'), ('E0 BF 7F', FFFD+'\x7f'),
+            ('E0 BF C0', FFFDx2), ('E0 BF FF', FFFDx2), ('E1 00', FFFD+'\x00'),
+            ('E1 7F', FFFD+'\x7f'), ('E1 C0', FFFDx2), ('E1 FF', FFFDx2),
+            ('E1 80 00', FFFD+'\x00'), ('E1 80 7F', FFFD+'\x7f'),
+            ('E1 80 C0', FFFDx2), ('E1 80 FF', FFFDx2),
+            ('E1 BF 00', FFFD+'\x00'), ('E1 BF 7F', FFFD+'\x7f'),
+            ('E1 BF C0', FFFDx2), ('E1 BF FF', FFFDx2), ('EC 00', FFFD+'\x00'),
+            ('EC 7F', FFFD+'\x7f'), ('EC C0', FFFDx2), ('EC FF', FFFDx2),
+            ('EC 80 00', FFFD+'\x00'), ('EC 80 7F', FFFD+'\x7f'),
+            ('EC 80 C0', FFFDx2), ('EC 80 FF', FFFDx2),
+            ('EC BF 00', FFFD+'\x00'), ('EC BF 7F', FFFD+'\x7f'),
+            ('EC BF C0', FFFDx2), ('EC BF FF', FFFDx2), ('ED 00', FFFD+'\x00'),
+            ('ED 7F', FFFD+'\x7f'),
+            ('ED A0', FFFDx2), ('ED BF', FFFDx2), # see note ^
+            ('ED C0', FFFDx2), ('ED FF', FFFDx2), ('ED 80 00', FFFD+'\x00'),
+            ('ED 80 7F', FFFD+'\x7f'), ('ED 80 C0', FFFDx2),
+            ('ED 80 FF', FFFDx2), ('ED 9F 00', FFFD+'\x00'),
+            ('ED 9F 7F', FFFD+'\x7f'), ('ED 9F C0', FFFDx2),
+            ('ED 9F FF', FFFDx2), ('EE 00', FFFD+'\x00'),
+            ('EE 7F', FFFD+'\x7f'), ('EE C0', FFFDx2), ('EE FF', FFFDx2),
+            ('EE 80 00', FFFD+'\x00'), ('EE 80 7F', FFFD+'\x7f'),
+            ('EE 80 C0', FFFDx2), ('EE 80 FF', FFFDx2),
+            ('EE BF 00', FFFD+'\x00'), ('EE BF 7F', FFFD+'\x7f'),
+            ('EE BF C0', FFFDx2), ('EE BF FF', FFFDx2), ('EF 00', FFFD+'\x00'),
+            ('EF 7F', FFFD+'\x7f'), ('EF C0', FFFDx2), ('EF FF', FFFDx2),
+            ('EF 80 00', FFFD+'\x00'), ('EF 80 7F', FFFD+'\x7f'),
+            ('EF 80 C0', FFFDx2), ('EF 80 FF', FFFDx2),
+            ('EF BF 00', FFFD+'\x00'), ('EF BF 7F', FFFD+'\x7f'),
+            ('EF BF C0', FFFDx2), ('EF BF FF', FFFDx2),
+        ]
+        for seq, res in sequences:
+            self.assertCorrectUTF8Decoding(self.to_bytestring(seq), res,
+                                           'invalid continuation byte')
+
+    def test_invalid_cb_for_4bytes_seq(self):
+        """
+        Test that an 'invalid continuation byte' error is raised when the
+        continuation byte(s) of a 4-bytes sequence are invalid.  When
+        errors='replace',the start byte and all the following valid
+        continuation bytes are replaced with a single U+FFFD, and all the bytes
+        starting from the first invalid continuation bytes (included) are
+        handled separately.
+        E.g. in the sequence <E1 80 41>, E1 is the start byte of a 3-bytes
+        sequence, 80 is a valid continuation byte, but 41 is not a valid cb
+        because it's the ASCII letter 'A'.
+        Note: when the start byte is E0 or ED, the valid ranges for the first
+        continuation byte are limited to A0..BF and 80..9F respectively.
+        However, when the start byte is ED, Python 2 considers all the bytes
+        in range 80..BF valid.  This is fixed in Python 3.
+        """
+        FFFD = '\ufffd'
+        FFFDx2 = FFFD * 2
+        sequences = [
+            ('F0 00', FFFD+'\x00'), ('F0 7F', FFFD+'\x7f'), ('F0 80', FFFDx2),
+            ('F0 8F', FFFDx2), ('F0 C0', FFFDx2), ('F0 FF', FFFDx2),
+            ('F0 90 00', FFFD+'\x00'), ('F0 90 7F', FFFD+'\x7f'),
+            ('F0 90 C0', FFFDx2), ('F0 90 FF', FFFDx2),
+            ('F0 BF 00', FFFD+'\x00'), ('F0 BF 7F', FFFD+'\x7f'),
+            ('F0 BF C0', FFFDx2), ('F0 BF FF', FFFDx2),
+            ('F0 90 80 00', FFFD+'\x00'), ('F0 90 80 7F', FFFD+'\x7f'),
+            ('F0 90 80 C0', FFFDx2), ('F0 90 80 FF', FFFDx2),
+            ('F0 90 BF 00', FFFD+'\x00'), ('F0 90 BF 7F', FFFD+'\x7f'),
+            ('F0 90 BF C0', FFFDx2), ('F0 90 BF FF', FFFDx2),
+            ('F0 BF 80 00', FFFD+'\x00'), ('F0 BF 80 7F', FFFD+'\x7f'),
+            ('F0 BF 80 C0', FFFDx2), ('F0 BF 80 FF', FFFDx2),
+            ('F0 BF BF 00', FFFD+'\x00'), ('F0 BF BF 7F', FFFD+'\x7f'),
+            ('F0 BF BF C0', FFFDx2), ('F0 BF BF FF', FFFDx2),
+            ('F1 00', FFFD+'\x00'), ('F1 7F', FFFD+'\x7f'), ('F1 C0', FFFDx2),
+            ('F1 FF', FFFDx2), ('F1 80 00', FFFD+'\x00'),
+            ('F1 80 7F', FFFD+'\x7f'), ('F1 80 C0', FFFDx2),
+            ('F1 80 FF', FFFDx2), ('F1 BF 00', FFFD+'\x00'),
+            ('F1 BF 7F', FFFD+'\x7f'), ('F1 BF C0', FFFDx2),
+            ('F1 BF FF', FFFDx2), ('F1 80 80 00', FFFD+'\x00'),
+            ('F1 80 80 7F', FFFD+'\x7f'), ('F1 80 80 C0', FFFDx2),
+            ('F1 80 80 FF', FFFDx2), ('F1 80 BF 00', FFFD+'\x00'),
+            ('F1 80 BF 7F', FFFD+'\x7f'), ('F1 80 BF C0', FFFDx2),
+            ('F1 80 BF FF', FFFDx2), ('F1 BF 80 00', FFFD+'\x00'),
+            ('F1 BF 80 7F', FFFD+'\x7f'), ('F1 BF 80 C0', FFFDx2),
+            ('F1 BF 80 FF', FFFDx2), ('F1 BF BF 00', FFFD+'\x00'),
+            ('F1 BF BF 7F', FFFD+'\x7f'), ('F1 BF BF C0', FFFDx2),
+            ('F1 BF BF FF', FFFDx2), ('F3 00', FFFD+'\x00'),
+            ('F3 7F', FFFD+'\x7f'), ('F3 C0', FFFDx2), ('F3 FF', FFFDx2),
+            ('F3 80 00', FFFD+'\x00'), ('F3 80 7F', FFFD+'\x7f'),
+            ('F3 80 C0', FFFDx2), ('F3 80 FF', FFFDx2),
+            ('F3 BF 00', FFFD+'\x00'), ('F3 BF 7F', FFFD+'\x7f'),
+            ('F3 BF C0', FFFDx2), ('F3 BF FF', FFFDx2),
+            ('F3 80 80 00', FFFD+'\x00'), ('F3 80 80 7F', FFFD+'\x7f'),
+            ('F3 80 80 C0', FFFDx2), ('F3 80 80 FF', FFFDx2),
+            ('F3 80 BF 00', FFFD+'\x00'), ('F3 80 BF 7F', FFFD+'\x7f'),
+            ('F3 80 BF C0', FFFDx2), ('F3 80 BF FF', FFFDx2),
+            ('F3 BF 80 00', FFFD+'\x00'), ('F3 BF 80 7F', FFFD+'\x7f'),
+            ('F3 BF 80 C0', FFFDx2), ('F3 BF 80 FF', FFFDx2),
+            ('F3 BF BF 00', FFFD+'\x00'), ('F3 BF BF 7F', FFFD+'\x7f'),
+            ('F3 BF BF C0', FFFDx2), ('F3 BF BF FF', FFFDx2),
+            ('F4 00', FFFD+'\x00'), ('F4 7F', FFFD+'\x7f'), ('F4 90', FFFDx2),
+            ('F4 BF', FFFDx2), ('F4 C0', FFFDx2), ('F4 FF', FFFDx2),
+            ('F4 80 00', FFFD+'\x00'), ('F4 80 7F', FFFD+'\x7f'),
+            ('F4 80 C0', FFFDx2), ('F4 80 FF', FFFDx2),
+            ('F4 8F 00', FFFD+'\x00'), ('F4 8F 7F', FFFD+'\x7f'),
+            ('F4 8F C0', FFFDx2), ('F4 8F FF', FFFDx2),
+            ('F4 80 80 00', FFFD+'\x00'), ('F4 80 80 7F', FFFD+'\x7f'),
+            ('F4 80 80 C0', FFFDx2), ('F4 80 80 FF', FFFDx2),
+            ('F4 80 BF 00', FFFD+'\x00'), ('F4 80 BF 7F', FFFD+'\x7f'),
+            ('F4 80 BF C0', FFFDx2), ('F4 80 BF FF', FFFDx2),
+            ('F4 8F 80 00', FFFD+'\x00'), ('F4 8F 80 7F', FFFD+'\x7f'),
+            ('F4 8F 80 C0', FFFDx2), ('F4 8F 80 FF', FFFDx2),
+            ('F4 8F BF 00', FFFD+'\x00'), ('F4 8F BF 7F', FFFD+'\x7f'),
+            ('F4 8F BF C0', FFFDx2), ('F4 8F BF FF', FFFDx2)
+        ]
+        for seq, res in sequences:
+            self.assertCorrectUTF8Decoding(self.to_bytestring(seq), res,
+                                           'invalid continuation byte')
 
     def test_codecs_idna(self):
         # Test whether trailing dot is preserved
@@ -1950,8 +2219,5 @@ class StringModuleTest(unittest.TestCase):
         self.assertRaises(TypeError, _string.formatter_field_name_split, 1)
 
 
-def test_main():
-    support.run_unittest(__name__)
-
 if __name__ == "__main__":
-    test_main()
+    unittest.main()

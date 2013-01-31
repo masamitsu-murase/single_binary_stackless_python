@@ -4,9 +4,6 @@
   The Python Standard Library
 ###############################
 
-:Release: |version|
-:Date: |today|
-
 While :ref:`reference-index` describes the exact syntax and
 semantics of the Python language, this library reference manual
 describes the standard library that is distributed with Python. It also
@@ -46,7 +43,8 @@ the `Python Package Index <http://pypi.python.org/pypi>`_.
    stdtypes.rst
    exceptions.rst
 
-   strings.rst
+   text.rst
+   binary.rst
    datatypes.rst
    numeric.rst
    functional.rst
@@ -56,7 +54,7 @@ the `Python Package Index <http://pypi.python.org/pypi>`_.
    fileformats.rst
    crypto.rst
    allos.rst
-   someos.rst
+   concurrency.rst
    ipc.rst
    netdata.rst
    markup.rst

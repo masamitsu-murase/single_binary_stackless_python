@@ -87,9 +87,12 @@ Used in:  PY_LONG_LONG
  * uint32_t to be such a type unless stdint.h or inttypes.h defines uint32_t.
  * However, it doesn't set HAVE_UINT32_T, so we do that here.
  */
-#if (defined UINT32_MAX || defined uint32_t)
-#ifndef PY_UINT32_T
+#ifdef uint32_t
 #define HAVE_UINT32_T 1
+#endif
+
+#ifdef HAVE_UINT32_T
+#ifndef PY_UINT32_T
 #define PY_UINT32_T uint32_t
 #endif
 #endif
@@ -97,23 +100,33 @@ Used in:  PY_LONG_LONG
 /* Macros for a 64-bit unsigned integer type; used for type 'twodigits' in the
  * long integer implementation, when 30-bit digits are enabled.
  */
-#if (defined UINT64_MAX || defined uint64_t)
-#ifndef PY_UINT64_T
+#ifdef uint64_t
 #define HAVE_UINT64_T 1
+#endif
+
+#ifdef HAVE_UINT64_T
+#ifndef PY_UINT64_T
 #define PY_UINT64_T uint64_t
 #endif
 #endif
 
 /* Signed variants of the above */
-#if (defined INT32_MAX || defined int32_t)
-#ifndef PY_INT32_T
+#ifdef int32_t
 #define HAVE_INT32_T 1
+#endif
+
+#ifdef HAVE_INT32_T
+#ifndef PY_INT32_T
 #define PY_INT32_T int32_t
 #endif
 #endif
-#if (defined INT64_MAX || defined int64_t)
-#ifndef PY_INT64_T
+
+#ifdef int64_t
 #define HAVE_INT64_T 1
+#endif
+
+#ifdef HAVE_INT64_T
+#ifndef PY_INT64_T
 #define PY_INT64_T int64_t
 #endif
 #endif
@@ -132,7 +145,7 @@ Used in:  PY_LONG_LONG
 #endif
 
 /* Prime multiplier used in string and various other hashes. */
-#define _PyHASH_MULTIPLIER 1000003  /* 0xf4243 */
+#define _PyHASH_MULTIPLIER 1000003UL  /* 0xf4243 */
 
 /* Parameters used for the numeric hash implementation.  See notes for
    _Py_HashDouble in Objects/object.c.  Numeric hashes are based on
@@ -649,7 +662,7 @@ extern char * _getpty(int *, int, mode_t, int);
 /* On QNX 6, struct termio must be declared by including sys/termio.h
    if TCGETA, TCSETA, TCSETAW, or TCSETAF are used.  sys/termio.h must
    be included before termios.h or it will generate an error. */
-#ifdef HAVE_SYS_TERMIO_H
+#if defined(HAVE_SYS_TERMIO_H) && !defined(__hpux)
 #include <sys/termio.h>
 #endif
 

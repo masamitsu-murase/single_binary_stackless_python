@@ -21,7 +21,7 @@ import email.policy
 from email.charset import Charset
 from email.header import Header, decode_header, make_header
 from email.parser import Parser, HeaderParser
-from email.generator import Generator, DecodedGenerator
+from email.generator import Generator, DecodedGenerator, BytesGenerator
 from email.message import Message
 from email.mime.application import MIMEApplication
 from email.mime.audio import MIMEAudio
@@ -1283,6 +1283,42 @@ From the desk of A.A.A.:
 Blah blah blah
 """)
 
+    def test_mangle_from_in_preamble_and_epilog(self):
+        s = StringIO()
+        g = Generator(s, mangle_from_=True)
+        msg = email.message_from_string(textwrap.dedent("""\
+            From: foo@bar.com
+            Mime-Version: 1.0
+            Content-Type: multipart/mixed; boundary=XXX
+
+            From somewhere unknown
+
+            --XXX
+            Content-Type: text/plain
+
+            foo
+
+            --XXX--
+
+            From somewhere unknowable
+            """))
+        g.flatten(msg)
+        self.assertEqual(len([1 for x in s.getvalue().split('\n')
+                                  if x.startswith('>From ')]), 2)
+
+    def test_mangled_from_with_bad_bytes(self):
+        source = textwrap.dedent("""\
+            Content-Type: text/plain; charset="utf-8"
+            MIME-Version: 1.0
+            Content-Transfer-Encoding: 8bit
+            From: aaa@bbb.org
+
+        """).encode('utf-8')
+        msg = email.message_from_bytes(source + b'From R\xc3\xb6lli\n')
+        b = BytesIO()
+        g = BytesGenerator(b, mangle_from_=True)
+        g.flatten(msg)
+        self.assertEqual(b.getvalue(), source + b'>From R\xc3\xb6lli\n')
 
 
 # Test the basic MIMEAudio class
@@ -2682,8 +2718,17 @@ class TestMiscellaneous(TestEmailBase):
             utils.formatdate(now, localtime=False, usegmt=True),
             time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(now)))
 
-    def test_parsedate_none(self):
-        self.assertEqual(utils.parsedate(''), None)
+    # parsedate and parsedate_tz will become deprecated interfaces someday
+    def test_parsedate_returns_None_for_invalid_strings(self):
+        self.assertIsNone(utils.parsedate(''))
+        self.assertIsNone(utils.parsedate_tz(''))
+        self.assertIsNone(utils.parsedate('0'))
+        self.assertIsNone(utils.parsedate_tz('0'))
+        self.assertIsNone(utils.parsedate('A Complete Waste of Time'))
+        self.assertIsNone(utils.parsedate_tz('A Complete Waste of Time'))
+        # Not a part of the spec but, but this has historically worked:
+        self.assertIsNone(utils.parsedate(None))
+        self.assertIsNone(utils.parsedate_tz(None))
 
     def test_parsedate_compact(self):
         # The FWS after the comma is optional

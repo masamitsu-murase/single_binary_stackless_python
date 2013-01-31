@@ -38,9 +38,9 @@ from ._bootstrap import __import__
 
 
 def invalidate_caches():
-    """Call the invalidate_caches() method on all finders stored in
-    sys.path_importer_caches (where implemented)."""
-    for finder in sys.path_importer_cache.values():
+    """Call the invalidate_caches() method on all meta path finders stored in
+    sys.meta_path (where implemented)."""
+    for finder in sys.meta_path:
         if hasattr(finder, 'invalidate_caches'):
             finder.invalidate_caches()
 
@@ -55,7 +55,9 @@ def find_loader(name, path=None):
     value of 'path' given to the finders. None is returned if no loader could
     be found.
 
-    Dotted names do not have their parent packages implicitly imported.
+    Dotted names do not have their parent packages implicitly imported. You will
+    most likely need to explicitly import all parent packages in the proper
+    order for a submodule to get the correct loader.
 
     """
     try:

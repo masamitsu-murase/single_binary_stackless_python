@@ -1332,7 +1332,7 @@ that this python file is installed to the same path as the library (or its
   /usr/lib/debug/usr/lib/libpython2.6.so.1.0.debug-gdb.py
 """
 def register (obj):
-    if obj == None:
+    if obj is None:
         obj = gdb
 
     # Wire up the pretty-printer
@@ -1463,7 +1463,7 @@ class Frame(object):
             return name.startswith('pthread_cond_timedwait')
 
     def is_gc_collect(self):
-        '''Is this frame "collect" within the the garbage-collector?'''
+        '''Is this frame "collect" within the garbage-collector?'''
         return self._gdbframe.name() == 'collect'
 
     def get_pyop(self):

@@ -126,6 +126,15 @@ class TestShutil(unittest.TestCase):
         os.symlink(dir_, link)
         self.assertRaises(OSError, shutil.rmtree, link)
         self.assertTrue(os.path.exists(dir_))
+        self.assertTrue(os.path.lexists(link))
+        errors = []
+        def onerror(*args):
+            errors.append(args)
+        shutil.rmtree(link, onerror=onerror)
+        self.assertEqual(len(errors), 1)
+        self.assertIs(errors[0][0], os.path.islink)
+        self.assertEqual(errors[0][1], link)
+        self.assertIsInstance(errors[0][2][1], OSError)
 
     @support.skip_unless_symlink
     def test_rmtree_works_on_symlinks(self):
@@ -152,7 +161,38 @@ class TestShutil(unittest.TestCase):
     def test_rmtree_errors(self):
         # filename is guaranteed not to exist
         filename = tempfile.mktemp()
-        self.assertRaises(OSError, shutil.rmtree, filename)
+        self.assertRaises(FileNotFoundError, shutil.rmtree, filename)
+        # test that ignore_errors option is honored
+        shutil.rmtree(filename, ignore_errors=True)
+
+        # existing file
+        tmpdir = self.mkdtemp()
+        write_file((tmpdir, "tstfile"), "")
+        filename = os.path.join(tmpdir, "tstfile")
+        with self.assertRaises(NotADirectoryError) as cm:
+            shutil.rmtree(filename)
+        # The reason for this rather odd construct is that Windows sprinkles
+        # a \*.* at the end of file names. But only sometimes on some buildbots
+        possible_args = [filename, os.path.join(filename, '*.*')]
+        self.assertIn(cm.exception.filename, possible_args)
+        self.assertTrue(os.path.exists(filename))
+        # test that ignore_errors option is honored
+        shutil.rmtree(filename, ignore_errors=True)
+        self.assertTrue(os.path.exists(filename))
+        errors = []
+        def onerror(*args):
+            errors.append(args)
+        shutil.rmtree(filename, onerror=onerror)
+        self.assertEqual(len(errors), 2)
+        self.assertIs(errors[0][0], os.listdir)
+        self.assertEqual(errors[0][1], filename)
+        self.assertIsInstance(errors[0][2][1], NotADirectoryError)
+        self.assertIn(errors[0][2][1].filename, possible_args)
+        self.assertIs(errors[1][0], os.rmdir)
+        self.assertEqual(errors[1][1], filename)
+        self.assertIsInstance(errors[1][2][1], NotADirectoryError)
+        self.assertIn(errors[1][2][1].filename, possible_args)
+
 
     # See bug #1071513 for why we don't run this on cygwin
     # and bug #1076467 for why we don't run this as root.
@@ -1229,12 +1269,13 @@ class TestShutil(unittest.TestCase):
 class TestWhich(unittest.TestCase):
 
     def setUp(self):
-        self.temp_dir = tempfile.mkdtemp()
+        self.temp_dir = tempfile.mkdtemp(prefix="Tmp")
         self.addCleanup(shutil.rmtree, self.temp_dir, True)
         # Give the temp_file an ".exe" suffix for all.
         # It's needed on Windows and not harmful on other platforms.
         self.temp_file = tempfile.NamedTemporaryFile(dir=self.temp_dir,
-                                                     suffix=".exe")
+                                                     prefix="Tmp",
+                                                     suffix=".Exe")
         os.chmod(self.temp_file.name, stat.S_IXUSR)
         self.addCleanup(self.temp_file.close)
         self.dir, self.file = os.path.split(self.temp_file.name)
@@ -1244,11 +1285,36 @@ class TestWhich(unittest.TestCase):
         rv = shutil.which(self.file, path=self.dir)
         self.assertEqual(rv, self.temp_file.name)
 
-    def test_full_path_short_circuit(self):
+    def test_absolute_cmd(self):
         # When given the fully qualified path to an executable that exists,
         # it should be returned.
         rv = shutil.which(self.temp_file.name, path=self.temp_dir)
-        self.assertEqual(self.temp_file.name, rv)
+        self.assertEqual(rv, self.temp_file.name)
+
+    def test_relative_cmd(self):
+        # When given the relative path with a directory part to an executable
+        # that exists, it should be returned.
+        base_dir, tail_dir = os.path.split(self.dir)
+        relpath = os.path.join(tail_dir, self.file)
+        with support.temp_cwd(path=base_dir):
+            rv = shutil.which(relpath, path=self.temp_dir)
+            self.assertEqual(rv, relpath)
+        # But it shouldn't be searched in PATH directories (issue #16957).
+        with support.temp_cwd(path=self.dir):
+            rv = shutil.which(relpath, path=base_dir)
+            self.assertIsNone(rv)
+
+    def test_cwd(self):
+        # Issue #16957
+        base_dir = os.path.dirname(self.dir)
+        with support.temp_cwd(path=self.dir):
+            rv = shutil.which(self.file, path=base_dir)
+            if sys.platform == "win32":
+                # Windows: current directory implicitly on PATH
+                self.assertEqual(rv, os.path.join(os.curdir, self.file))
+            else:
+                # Other platforms: shouldn't match in the current directory.
+                self.assertIsNone(rv)
 
     def test_non_matching_mode(self):
         # Set the file read-only and ask for writeable files.
@@ -1256,15 +1322,11 @@ class TestWhich(unittest.TestCase):
         rv = shutil.which(self.file, path=self.dir, mode=os.W_OK)
         self.assertIsNone(rv)
 
-    def test_relative(self):
-        old_cwd = os.getcwd()
+    def test_relative_path(self):
         base_dir, tail_dir = os.path.split(self.dir)
-        os.chdir(base_dir)
-        try:
+        with support.temp_cwd(path=base_dir):
             rv = shutil.which(self.file, path=tail_dir)
             self.assertEqual(rv, os.path.join(tail_dir, self.file))
-        finally:
-            os.chdir(old_cwd)
 
     def test_nonexistent_file(self):
         # Return None when no matching executable file is found on the path.
@@ -1276,8 +1338,8 @@ class TestWhich(unittest.TestCase):
     def test_pathext_checking(self):
         # Ask for the file without the ".exe" extension, then ensure that
         # it gets found properly with the extension.
-        rv = shutil.which(self.temp_file.name[:-4], path=self.dir)
-        self.assertEqual(self.temp_file.name, rv)
+        rv = shutil.which(self.file[:-4], path=self.dir)
+        self.assertEqual(rv, self.temp_file.name[:-4] + ".EXE")
 
 
 class TestMove(unittest.TestCase):

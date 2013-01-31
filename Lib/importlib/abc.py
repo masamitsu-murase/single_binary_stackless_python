@@ -23,6 +23,72 @@ def _register(abstract_cls, *classes):
             abstract_cls.register(frozen_cls)
 
 
+class Finder(metaclass=abc.ABCMeta):
+
+    """Legacy abstract base class for import finders.
+
+    It may be subclassed for compatibility with legacy third party
+    reimplementations of the import system.  Otherwise, finder
+    implementations should derive from the more specific MetaPathFinder
+    or PathEntryFinder ABCs.
+    """
+
+    @abc.abstractmethod
+    def find_module(self, fullname, path=None):
+        """An abstract method that should find a module.
+        The fullname is a str and the optional path is a str or None.
+        Returns a Loader object.
+        """
+        raise NotImplementedError
+
+
+class MetaPathFinder(Finder):
+
+    """Abstract base class for import finders on sys.meta_path."""
+
+    @abc.abstractmethod
+    def find_module(self, fullname, path):
+        """Abstract method which, when implemented, should find a module.
+        The fullname is a str and the path is a str or None.
+        Returns a Loader object.
+        """
+        raise NotImplementedError
+
+    def invalidate_caches(self):
+        """An optional method for clearing the finder's cache, if any.
+        This method is used by importlib.invalidate_caches().
+        """
+        return NotImplemented
+
+_register(MetaPathFinder, machinery.BuiltinImporter, machinery.FrozenImporter,
+          machinery.PathFinder, machinery.WindowsRegistryFinder)
+
+
+class PathEntryFinder(Finder):
+
+    """Abstract base class for path entry finders used by PathFinder."""
+
+    @abc.abstractmethod
+    def find_loader(self, fullname):
+        """Abstract method which, when implemented, returns a module loader.
+        The fullname is a str.  Returns a 2-tuple of (Loader, portion) where
+        portion is a sequence of file system locations contributing to part of
+        a namespace package.  The sequence may be empty and the loader may be
+        None.
+        """
+        raise NotImplementedError
+
+    find_module = _bootstrap._find_module_shim
+
+    def invalidate_caches(self):
+        """An optional method for clearing the finder's cache, if any.
+        This method is used by PathFinder.invalidate_caches().
+        """
+        return NotImplemented
+
+_register(PathEntryFinder, machinery.FileFinder)
+
+
 class Loader(metaclass=abc.ABCMeta):
 
     """Abstract base class for import loaders."""
@@ -33,21 +99,11 @@ class Loader(metaclass=abc.ABCMeta):
         The fullname is a str."""
         raise NotImplementedError
 
-
-class Finder(metaclass=abc.ABCMeta):
-
-    """Abstract base class for import finders."""
-
     @abc.abstractmethod
-    def find_module(self, fullname, path=None):
-        """Abstract method which when implemented should find a module.
-        The fullname is a str and the optional path is a str or None.
-        Returns a Loader object.
-        """
+    def module_repr(self, module):
+        """Abstract method which when implemented calculates and returns the
+        given module's repr."""
         raise NotImplementedError
-
-_register(Finder, machinery.BuiltinImporter, machinery.FrozenImporter,
-          machinery.PathFinder, machinery.FileFinder)
 
 
 class ResourceLoader(Loader):

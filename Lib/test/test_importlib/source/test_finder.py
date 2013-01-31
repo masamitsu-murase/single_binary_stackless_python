@@ -6,6 +6,9 @@ import errno
 import imp
 import os
 import py_compile
+import stat
+import sys
+import tempfile
 from test.support import make_legacy_pyc
 import unittest
 import warnings
@@ -35,13 +38,15 @@ class FinderTests(abc.FinderTests):
 
     """
 
-    def import_(self, root, module):
+    def get_finder(self, root):
         loader_details = [(machinery.SourceFileLoader,
-                            machinery.SOURCE_SUFFIXES, True),
+                            machinery.SOURCE_SUFFIXES),
                           (machinery.SourcelessFileLoader,
-                            machinery.BYTECODE_SUFFIXES, True)]
-        finder = machinery.FileFinder(root, *loader_details)
-        return finder.find_module(module)
+                            machinery.BYTECODE_SUFFIXES)]
+        return machinery.FileFinder(root, *loader_details)
+
+    def import_(self, root, module):
+        return self.get_finder(root).find_module(module)
 
     def run_test(self, test, create=None, *, compile_=None, unlink=None):
         """Test the finding of 'test' with the creation of modules listed in
@@ -120,7 +125,7 @@ class FinderTests(abc.FinderTests):
     def test_empty_string_for_dir(self):
         # The empty string from sys.path means to search in the cwd.
         finder = machinery.FileFinder('', (machinery.SourceFileLoader,
-            machinery.SOURCE_SUFFIXES, True))
+            machinery.SOURCE_SUFFIXES))
         with open('mod.py', 'w') as file:
             file.write("# test file for importlib")
         try:
@@ -132,10 +137,49 @@ class FinderTests(abc.FinderTests):
     def test_invalidate_caches(self):
         # invalidate_caches() should reset the mtime.
         finder = machinery.FileFinder('', (machinery.SourceFileLoader,
-            machinery.SOURCE_SUFFIXES, True))
+            machinery.SOURCE_SUFFIXES))
         finder._path_mtime = 42
         finder.invalidate_caches()
         self.assertEqual(finder._path_mtime, -1)
+
+    # Regression test for http://bugs.python.org/issue14846
+    def test_dir_removal_handling(self):
+        mod = 'mod'
+        with source_util.create_modules(mod) as mapping:
+            finder = self.get_finder(mapping['.root'])
+            self.assertIsNotNone(finder.find_module(mod))
+        self.assertIsNone(finder.find_module(mod))
+
+    @unittest.skipUnless(sys.platform != 'win32',
+            'os.chmod() does not support the needed arguments under Windows')
+    def test_no_read_directory(self):
+        # Issue #16730
+        tempdir = tempfile.TemporaryDirectory()
+        original_mode = os.stat(tempdir.name).st_mode
+        def cleanup(tempdir):
+            """Cleanup function for the temporary directory.
+
+            Since we muck with the permissions, we want to set them back to
+            their original values to make sure the directory can be properly
+            cleaned up.
+
+            """
+            os.chmod(tempdir.name, original_mode)
+            # If this is not explicitly called then the __del__ method is used,
+            # but since already mucking around might as well explicitly clean
+            # up.
+            tempdir.__exit__(None, None, None)
+        self.addCleanup(cleanup, tempdir)
+        os.chmod(tempdir.name, stat.S_IWUSR | stat.S_IXUSR)
+        finder = self.get_finder(tempdir.name)
+        self.assertEqual((None, []), finder.find_loader('doesnotexist'))
+
+    def test_ignore_file(self):
+        # If a directory got changed to a file from underneath us, then don't
+        # worry about looking for submodules.
+        with tempfile.NamedTemporaryFile() as file_obj:
+            finder = self.get_finder(file_obj.name)
+            self.assertEqual((None, []), finder.find_loader('doesnotexist'))
 
 
 def test_main():

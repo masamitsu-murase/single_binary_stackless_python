@@ -274,11 +274,13 @@ Sequences
 
       The following types are immutable sequences:
 
+      .. index::
+         single: string; immutable sequences
+
       Strings
          .. index::
             builtin: chr
             builtin: ord
-            builtin: str
             single: character
             single: integer
             single: Unicode
@@ -312,7 +314,7 @@ Sequences
 
          A bytes object is an immutable array.  The items are 8-bit bytes,
          represented by integers in the range 0 <= x < 256.  Bytes literals
-         (like ``b'abc'`` and the built-in function :func:`bytes` can be used to
+         (like ``b'abc'``) and the built-in function :func:`bytes` can be used to
          construct bytes objects.  Also, bytes objects can be decoded to strings
          via the :meth:`decode` method.
 
@@ -600,9 +602,9 @@ Callable types
       A function or method which uses the :keyword:`yield` statement (see section
       :ref:`yield`) is called a :dfn:`generator function`.  Such a function, when
       called, always returns an iterator object which can be used to execute the
-      body of the function:  calling the iterator's :meth:`__next__` method will
-      cause the function to execute until it provides a value using the
-      :keyword:`yield` statement.  When the function executes a
+      body of the function:  calling the iterator's :meth:`iterator__next__`
+      method will cause the function to execute until it provides a value
+      using the :keyword:`yield` statement.  When the function executes a
       :keyword:`return` statement or falls off the end, a :exc:`StopIteration`
       exception is raised and the iterator will have reached the end of the set of
       values to be returned.
@@ -651,17 +653,20 @@ Modules
       statement: import
       object: module
 
-   Modules are imported by the :keyword:`import` statement (see section
-   :ref:`import`). A module object has a
-   namespace implemented by a dictionary object (this is the dictionary referenced
-   by the __globals__ attribute of functions defined in the module).  Attribute
-   references are translated to lookups in this dictionary, e.g., ``m.x`` is
-   equivalent to ``m.__dict__["x"]``. A module object does not contain the code
-   object used to initialize the module (since it isn't needed once the
-   initialization is done).
+   Modules are a basic organizational unit of Python code, and are created by
+   the :ref:`import system <importsystem>` as invoked either by the
+   :keyword:`import` statement (see :keyword:`import`), or by calling
+   functions such as :func:`importlib.import_module` and built-in
+   :func:`__import__`.  A module object has a namespace implemented by a
+   dictionary object (this is the dictionary referenced by the ``__globals__``
+   attribute of functions defined in the module).  Attribute references are
+   translated to lookups in this dictionary, e.g., ``m.x`` is equivalent to
+   ``m.__dict__["x"]``. A module object does not contain the code object used
+   to initialize the module (since it isn't needed once the initialization is
+   done).
 
-   Attribute assignment updates the module's namespace dictionary, e.g., ``m.x =
-   1`` is equivalent to ``m.__dict__["x"] = 1``.
+   Attribute assignment updates the module's namespace dictionary, e.g.,
+   ``m.x = 1`` is equivalent to ``m.__dict__["x"] = 1``.
 
    .. index:: single: __dict__ (module attribute)
 
@@ -683,11 +688,12 @@ Modules
 
    Predefined (writable) attributes: :attr:`__name__` is the module's name;
    :attr:`__doc__` is the module's documentation string, or ``None`` if
-   unavailable; :attr:`__file__` is the pathname of the file from which the module
-   was loaded, if it was loaded from a file. The :attr:`__file__` attribute is not
-   present for C modules that are statically linked into the interpreter; for
-   extension modules loaded dynamically from a shared library, it is the pathname
-   of the shared library file.
+   unavailable; :attr:`__file__` is the pathname of the file from which the
+   module was loaded, if it was loaded from a file. The :attr:`__file__`
+   attribute may be missing for certain types of modules, such as C modules
+   that are statically linked into the interpreter; for extension modules
+   loaded dynamically from a shared library, it is the pathname of the shared
+   library file.
 
 Custom classes
    Custom class types are typically created by class definitions (see section
@@ -1136,10 +1142,11 @@ Basic customization
       modules are still available at the time when the :meth:`__del__` method is
       called.
 
+      .. index::
+         single: repr() (built-in function); __repr__() (object method)
+
 
 .. method:: object.__repr__(self)
-
-   .. index:: builtin: repr
 
    Called by the :func:`repr` built-in function to compute the "official" string
    representation of an object.  If at all possible, this should look like a
@@ -1153,18 +1160,25 @@ Basic customization
    This is typically used for debugging, so it is important that the representation
    is information-rich and unambiguous.
 
+   .. index::
+      single: string; __str__() (object method)
+      single: format() (built-in function); __str__() (object method)
+      single: print() (built-in function); __str__() (object method)
+
 
 .. method:: object.__str__(self)
 
-   .. index::
-      builtin: str
-      builtin: print
+   Called by :func:`str(object) <str>` and the built-in functions
+   :func:`format` and :func:`print` to compute the "informal" or nicely
+   printable string representation of an object.  The return value must be a
+   :ref:`string <textseq>` object.
 
-   Called by the :func:`str` built-in function and by the :func:`print` function
-   to compute the "informal" string representation of an object.  This differs
-   from :meth:`__repr__` in that it does not have to be a valid Python
-   expression: a more convenient or concise representation may be used instead.
-   The return value must be a string object.
+   This method differs from :meth:`object.__repr__` in that there is no
+   expectation that :meth:`__str__` return a valid Python expression: a more
+   convenient or concise representation can be used.
+
+   The default implementation defined by the built-in type :class:`object`
+   calls :meth:`object.__repr__`.
 
    .. XXX what about subclasses of string?
 
@@ -1176,16 +1190,16 @@ Basic customization
    Called by :func:`bytes` to compute a byte-string representation of an
    object. This should return a ``bytes`` object.
 
+   .. index::
+      single: string; __format__() (object method)
+      pair: string; conversion
+      builtin: print
+
 
 .. method:: object.__format__(self, format_spec)
 
-   .. index::
-      pair: string; conversion
-      builtin: str
-      builtin: print
-
    Called by the :func:`format` built-in function (and by extension, the
-   :meth:`format` method of class :class:`str`) to produce a "formatted"
+   :meth:`str.format` method of class :class:`str`) to produce a "formatted"
    string representation of an object. The ``format_spec`` argument is
    a string that contains a description of the formatting options desired.
    The interpretation of the ``format_spec`` argument is up to the type
@@ -1267,27 +1281,27 @@ Basic customization
    and ``x.__hash__()`` returns an appropriate value such that ``x == y``
    implies both that ``x is y`` and ``hash(x) == hash(y)``.
 
-   Classes which inherit a :meth:`__hash__` method from a parent class but
-   change the meaning of :meth:`__eq__` such that the hash value returned is no
-   longer appropriate (e.g. by switching to a value-based concept of equality
-   instead of the default identity based equality) can explicitly flag
-   themselves as being unhashable by setting ``__hash__ = None`` in the class
-   definition. Doing so means that not only will instances of the class raise an
-   appropriate :exc:`TypeError` when a program attempts to retrieve their hash
-   value, but they will also be correctly identified as unhashable when checking
-   ``isinstance(obj, collections.Hashable)`` (unlike classes which define their
-   own :meth:`__hash__` to explicitly raise :exc:`TypeError`).
+   A class that overrides :meth:`__eq__` and does not define :meth:`__hash__`
+   will have its :meth:`__hash__` implicitly set to ``None``.  When the
+   :meth:`__hash__` method of a class is ``None``, instances of the class will
+   raise an appropriate :exc:`TypeError` when a program attempts to retrieve
+   their hash value, and will also be correctly identified as unhashable when
+   checking ``isinstance(obj, collections.Hashable``).
 
    If a class that overrides :meth:`__eq__` needs to retain the implementation
    of :meth:`__hash__` from a parent class, the interpreter must be told this
-   explicitly by setting ``__hash__ = <ParentClass>.__hash__``. Otherwise the
-   inheritance of :meth:`__hash__` will be blocked, just as if :attr:`__hash__`
-   had been explicitly set to :const:`None`.
+   explicitly by setting ``__hash__ = <ParentClass>.__hash__``.
+
+   If a class that does not override :meth:`__eq__` wishes to suppress hash
+   support, it should include ``__hash__ = None`` in the class definition.
+   A class which defines its own :meth:`__hash__` that explicitly raises
+   a :exc:`TypeError` would be incorrectly identified as hashable by
+   an ``isinstance(obj, collections.Hashable)`` call.
 
 
    .. note::
 
-      Note by default the :meth:`__hash__` values of str, bytes and datetime
+      By default, the :meth:`__hash__` values of str, bytes and datetime
       objects are "salted" with an unpredictable random value.  Although they
       remain constant within an individual Python process, they are not
       predictable between repeated invocations of Python.
@@ -1297,9 +1311,9 @@ Basic customization
       dict insertion, O(n^2) complexity.  See
       http://www.ocert.org/advisories/ocert-2011-003.html for details.
 
-      Changing hash values affects the order in which keys are retrieved from a
-      dict.  Note Python has never made guarantees about this ordering (and it
-      typically varies between 32-bit and 64-bit builds).
+      Changing hash values affects the iteration order of dicts, sets and
+      other mappings.  Python has never made guarantees about this ordering
+      (and it typically varies between 32-bit and 64-bit builds).
 
       See also :envvar:`PYTHONHASHSEED`.
 

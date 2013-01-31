@@ -20,12 +20,14 @@ import random
 import logging
 import struct
 import test.support
+import test.script_helper
 
 try:
     import stackless
     usingStackless = True
 except ImportError:
     usingStackless = False
+
 
 # Skip tests if _multiprocessing wasn't built.
 _multiprocessing = test.support.import_module('_multiprocessing')
@@ -1646,6 +1648,23 @@ class _TestPool(BaseTestCase):
         self.assertEqual(self.pool.starmap_async(mul, tuples).get(),
                          list(itertools.starmap(mul, tuples)))
 
+    def test_map_async(self):
+        self.assertEqual(self.pool.map_async(sqr, list(range(10))).get(),
+                         list(map(sqr, list(range(10)))))
+
+    def test_map_async_callbacks(self):
+        call_args = self.manager.list() if self.TYPE == 'manager' else []
+        self.pool.map_async(int, ['1'],
+                            callback=call_args.append,
+                            error_callback=call_args.append).wait()
+        self.assertEqual(1, len(call_args))
+        self.assertEqual([1], call_args[0])
+        self.pool.map_async(int, ['a'],
+                            callback=call_args.append,
+                            error_callback=call_args.append).wait()
+        self.assertEqual(2, len(call_args))
+        self.assertIsInstance(call_args[1], ValueError)
+
     def test_map_chunksize(self):
         try:
             self.pool.map_async(sqr, [], chunksize=1).get(timeout=TIMEOUT1)
@@ -1731,7 +1750,8 @@ class _TestPool(BaseTestCase):
             with multiprocessing.Pool(2) as p:
                 r = p.map_async(sqr, L)
                 self.assertEqual(r.get(), expected)
-            self.assertRaises(AssertionError, p.map_async, sqr, L)
+            print(p._state)
+            self.assertRaises(ValueError, p.map_async, sqr, L)
 
 def raising():
     raise KeyError("key")
@@ -2114,6 +2134,7 @@ class _TestConnection(BaseTestCase):
         self.assertTimingAlmostEqual(poll.elapsed, TIMEOUT1)
 
         conn.send(None)
+        time.sleep(.1)
 
         self.assertEqual(poll(TIMEOUT1), True)
         self.assertTimingAlmostEqual(poll.elapsed, 0)
@@ -2369,6 +2390,17 @@ class _TestListenerClient(BaseTestCase):
         p.join()
         l.close()
 
+    def test_issue16955(self):
+        for fam in self.connection.families:
+            l = self.connection.Listener(family=fam)
+            c = self.connection.Client(l.address)
+            a = l.accept()
+            a.send_bytes(b"hello")
+            self.assertTrue(c.poll(1))
+            a.close()
+            c.close()
+            l.close()
+
 class _TestPoll(unittest.TestCase):
 
     ALLOWED_TYPES = ('processes', 'threads')
@@ -2451,8 +2483,6 @@ class _TestPoll(unittest.TestCase):
 # Test of sending connection and socket objects between processes
 #
 
-# Intermittent fails on Mac OS X -- see Issue14669 and Issue12958
-@unittest.skipIf(sys.platform == "darwin", "fd passing unreliable on Mac OS X")
 @unittest.skipUnless(HAS_REDUCTION, "test needs multiprocessing.reduction")
 class _TestPicklingConnections(BaseTestCase):
 
@@ -3221,6 +3251,7 @@ class TestWait(unittest.TestCase):
         from multiprocessing.connection import wait
 
         expected = 3
+        sorted_ = lambda l: sorted(l, key=lambda x: id(x))
         sem = multiprocessing.Semaphore(0)
         a, b = multiprocessing.Pipe()
         p = multiprocessing.Process(target=self.signal_and_sleep,
@@ -3244,7 +3275,7 @@ class TestWait(unittest.TestCase):
         res = wait([a, p.sentinel, b], 20)
         delta = time.time() - start
 
-        self.assertEqual(res, [p.sentinel, b])
+        self.assertEqual(sorted_(res), sorted_([p.sentinel, b]))
         self.assertLess(delta, 0.4)
 
         b.send(None)
@@ -3253,7 +3284,7 @@ class TestWait(unittest.TestCase):
         res = wait([a, p.sentinel, b], 20)
         delta = time.time() - start
 
-        self.assertEqual(res, [a, p.sentinel, b])
+        self.assertEqual(sorted_(res), sorted_([a, p.sentinel, b]))
         self.assertLess(delta, 0.4)
 
         p.terminate()
@@ -3318,9 +3349,63 @@ class TestFlags(unittest.TestCase):
         child_flags, grandchild_flags = json.loads(data.decode('ascii'))
         self.assertEqual(child_flags, grandchild_flags)
 
+#
+# Test interaction with socket timeouts - see Issue #6056
+#
+
+class TestTimeouts(unittest.TestCase):
+    @classmethod
+    def _test_timeout(cls, child, address):
+        time.sleep(1)
+        child.send(123)
+        child.close()
+        conn = multiprocessing.connection.Client(address)
+        conn.send(456)
+        conn.close()
+
+    def test_timeout(self):
+        old_timeout = socket.getdefaulttimeout()
+        try:
+            socket.setdefaulttimeout(0.1)
+            parent, child = multiprocessing.Pipe(duplex=True)
+            l = multiprocessing.connection.Listener(family='AF_INET')
+            p = multiprocessing.Process(target=self._test_timeout,
+                                        args=(child, l.address))
+            p.start()
+            child.close()
+            self.assertEqual(parent.recv(), 123)
+            parent.close()
+            conn = l.accept()
+            self.assertEqual(conn.recv(), 456)
+            conn.close()
+            l.close()
+            p.join(10)
+        finally:
+            socket.setdefaulttimeout(old_timeout)
+
+#
+# Test what happens with no "if __name__ == '__main__'"
+#
+
+class TestNoForkBomb(unittest.TestCase):
+    def test_noforkbomb(self):
+        name = os.path.join(os.path.dirname(__file__), 'mp_fork_bomb.py')
+        if WIN32:
+            rc, out, err = test.script_helper.assert_python_failure(name)
+            self.assertEqual('', out.decode('ascii'))
+            self.assertIn('RuntimeError', err.decode('ascii'))
+        else:
+            rc, out, err = test.script_helper.assert_python_ok(name)
+            self.assertEqual('123', out.decode('ascii').rstrip())
+            self.assertEqual('', err.decode('ascii'))
+
+#
+#
+#
+
 testcases_other = [OtherTest, TestInvalidHandle, TestInitializers,
                    TestStdinBadfiledescriptor, TestWait, TestInvalidFamily,
-                   TestFlags]
+                   TestFlags, TestTimeouts, TestNoForkBomb]
 
 #
 #

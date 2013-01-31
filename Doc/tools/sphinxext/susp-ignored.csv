@@ -64,6 +64,10 @@ howto/ipaddress,,:ffff,IPv6Address('::ffff:ffff')
 howto/ipaddress,,::,IPv6Address('2001::1')
 howto/ipaddress,,::,IPv6Address('2001::ffff:ffff')
 howto/ipaddress,,:ffff,IPv6Address('2001::ffff:ffff')
+howto/ipaddress,,:db8,'2001:db8::'
+howto/ipaddress,,::,'2001:db8::'
+howto/ipaddress,,:db8,'2001:db8::/96'
+howto/ipaddress,,::,'2001:db8::/96'
 howto/logging,,:And,"WARNING:And this, too"
 howto/logging,,:And,"WARNING:root:And this, too"
 howto/logging,,:Doing,INFO:root:Doing something
@@ -120,11 +124,13 @@ library/functions,,:step,a[start:stop:step]
 library/functions,,:stop,"a[start:stop, i]"
 library/functions,,:stop,a[start:stop:step]
 library/hotshot,,:lineno,"ncalls  tottime  percall  cumtime  percall filename:lineno(function)"
-library/http.client,52,:port,host:port
+library/http.client,,:port,host:port
 library/http.cookies,,`,!#$%&'*+-.^_`|~:
-library/httplib,,:port,host:port
 library/imaplib,,:MM,"""DD-Mmm-YYYY HH:MM:SS"
 library/imaplib,,:SS,"""DD-Mmm-YYYY HH:MM:SS"
+library/inspect,,:int,">>> def foo(a, *, b:int, **kwargs):"
+library/inspect,,:int,"'(a, *, b:int, **kwargs)'"
+library/inspect,,:int,'b:int'
 library/ipaddress,,:db8,>>> ipaddress.ip_address('2001:db8::')
 library/ipaddress,,::,>>> ipaddress.ip_address('2001:db8::')
 library/ipaddress,,:db8,IPv6Address('2001:db8::')
@@ -151,6 +157,20 @@ library/ipaddress,,:ffff,IPv6Address('ffff:ffff:ffff:ffff:ffff:ffff::')
 library/ipaddress,,::,IPv6Address('ffff:ffff:ffff:ffff:ffff:ffff::')
 library/ipaddress,,:db8,">>> ipaddress.IPv6Network('2001:db8::1000/96', strict=False)"
 library/ipaddress,,::,">>> ipaddress.IPv6Network('2001:db8::1000/96', strict=False)"
+library/ipaddress,,::,"""::abc:7:def"""
+library/ipaddress,,:def,"""::abc:7:def"""
+library/ipaddress,,::,::FFFF/96
+library/ipaddress,,::,2002::/16
+library/ipaddress,,::,2001::/32
+library/ipaddress,,::,>>> str(ipaddress.IPv6Address('::1'))
+library/ipaddress,,::,'::1'
+library/ipaddress,,::,>>> int(ipaddress.IPv6Address('::1'))
+library/ipaddress,,:ff00,ffff:ff00::
+library/ipaddress,,:db00,2001:db00::0/24
+library/ipaddress,,::,2001:db00::0/24
+library/ipaddress,,:db00,2001:db00::0/ffff:ff00::
+library/ipaddress,,::,2001:db00::0/ffff:ff00::
+library/ipaddress,,:ff00,2001:db00::0/ffff:ff00::
 library/itertools,,:step,elements from seq[start:stop:step]
 library/itertools,,:stop,elements from seq[start:stop:step]
 library/linecache,,:sys,"sys:x:3:3:sys:/dev:/bin/sh"
@@ -241,6 +261,7 @@ library/stdtypes,,:end,s[start:end]
 library/stdtypes,,::,>>> hash(v[::-2]) == hash(b'abcefg'[::-2])
 library/stdtypes,,:len,s[len(s):len(s)]
 library/stdtypes,,::,>>> y = m[::2]
+library/stdtypes,,::,>>> z = y[::-2]
 library/string,,:end,s[start:end]
 library/subprocess,,`,"output=`dmesg | grep hda`"
 library/subprocess,,`,"output=`mycmd myarg`"
@@ -336,3 +357,15 @@ whatsnew/3.2,,:location,... zope9-location = ${zope9:location}
 whatsnew/3.2,,:location,zope9-location = ${zope9:location}
 whatsnew/3.2,,:prefix,... zope-conf = ${custom:prefix}/etc/zope.conf
 whatsnew/3.2,,:prefix,zope-conf = ${custom:prefix}/etc/zope.conf
+whatsnew/news,,:platform,:platform:
+whatsnew/news,,:password,: Unquote before b64encoding user:password during Basic
+whatsnew/news,,:close,Connection:close header.
+whatsnew/news,,:PythonCmd,"With Tk < 8.5 _tkinter.c:PythonCmd() raised UnicodeDecodeError, caused"
+whatsnew/news,,:close,: Connection:close header is sent by requests using URLOpener
+whatsnew/news,,::,": Fix FTP tests for IPv6, bind to ""::1"" instead of ""localhost""."
+whatsnew/news,,:test,: test_subprocess:test_leaking_fds_on_error no longer gives a
+whatsnew/news,,:test,: Fix test_posix:test_getgroups failure under Solaris.  Patch
+whatsnew/news,,:Olimit,Drop -OPT:Olimit compiler option.
+whatsnew/news,,:MAXYEAR,timedelta from date or datetime falls outside of the MINYEAR:MAXYEAR range.
+whatsnew/news,,:bz2,with mode 'r' or 'r:bz2' and a fileobj argument that contained no data or
+whatsnew/news,,:db2,: Add configure option --with-dbmliborder=db1:db2:... to specify

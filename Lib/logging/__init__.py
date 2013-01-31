@@ -708,7 +708,8 @@ def _removeHandlerRef(wr):
     # This function can be called during module teardown, when globals are
     # set to None. If _acquireLock is None, assume this is the case and do
     # nothing.
-    if _acquireLock is not None:
+    if (_acquireLock is not None and _handlerList is not None and
+        _releaseLock is not None):
         _acquireLock()
         try:
             if wr in _handlerList:
@@ -1349,7 +1350,7 @@ class Logger(Filterer):
         """
         sinfo = None
         if _srcfile:
-            #IronPython doesn't track Python frames, so findCaller throws an
+            #IronPython doesn't track Python frames, so findCaller raises an
             #exception on some versions of IronPython. We trap it here so that
             #IronPython can use logging.
             try:

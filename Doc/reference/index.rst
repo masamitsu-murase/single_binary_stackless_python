@@ -4,9 +4,6 @@
   The Python Language Reference
 #################################
 
-:Release: |version|
-:Date: |today|
-
 This reference manual describes the syntax and "core semantics" of the
 language. It is terse, but attempts to be exact and complete. The semantics of
 non-essential built-in object types and of the built-in functions and modules
@@ -24,6 +21,7 @@ interfaces available to C/C++ programmers in detail.
    lexical_analysis.rst
    datamodel.rst
    executionmodel.rst
+   import.rst
    expressions.rst
    simple_stmts.rst
    compound_stmts.rst

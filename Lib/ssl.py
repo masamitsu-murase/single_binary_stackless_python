@@ -553,16 +553,11 @@ class SSLSocket(socket):
         SSL channel, and the address of the remote client."""
 
         newsock, addr = socket.accept(self)
-        return (SSLSocket(sock=newsock,
-                          keyfile=self.keyfile, certfile=self.certfile,
-                          server_side=True,
-                          cert_reqs=self.cert_reqs,
-                          ssl_version=self.ssl_version,
-                          ca_certs=self.ca_certs,
-                          ciphers=self.ciphers,
-                          do_handshake_on_connect=
-                              self.do_handshake_on_connect),
-                addr)
+        newsock = self.context.wrap_socket(newsock,
+                    do_handshake_on_connect=self.do_handshake_on_connect,
+                    suppress_ragged_eofs=self.suppress_ragged_eofs,
+                    server_side=True)
+        return newsock, addr
 
     def get_channel_binding(self, cb_type="tls-unique"):
         """Get channel binding data for current connection.  Raise ValueError
@@ -578,10 +573,6 @@ class SSLSocket(socket):
         if self._sslobj is None:
             return None
         return self._sslobj.tls_unique_cb()
-
-    def __del__(self):
-        # sys.stderr.write("__del__ on %s\n" % repr(self))
-        self._real_close()
 
 
 def wrap_socket(sock, keyfile=None, certfile=None,

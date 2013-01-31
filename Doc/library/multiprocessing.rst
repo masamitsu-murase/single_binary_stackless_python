@@ -29,7 +29,7 @@ Windows.
     Functionality within this package requires that the ``__main__`` module be
     importable by the children. This is covered in :ref:`multiprocessing-programming`
     however it is worth pointing out here. This means that some examples, such
-    as the :class:`multiprocessing.Pool` examples will not work in the
+    as the :class:`multiprocessing.pool.Pool` examples will not work in the
     interactive interpreter. For example::
 
         >>> from multiprocessing import Pool
@@ -279,7 +279,7 @@ For example::
        return x*x
 
    if __name__ == '__main__':
-       with Pool(processes=4) as pool         # start 4 worker processes
+       with Pool(processes=4) as pool:        # start 4 worker processes
            result = pool.apply_async(f, [10]) # evaluate "f(10)" asynchronously
            print(result.get(timeout=1))       # prints "100" unless your computer is *very* slow
            print(pool.map(f, range(10)))      # prints "[0, 1, 4,..., 81]"
@@ -295,7 +295,8 @@ The :mod:`multiprocessing` package mostly replicates the API of the
 :class:`Process` and exceptions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. class:: Process([group[, target[, name[, args[, kwargs]]]]], *, daemon=None)
+.. class:: Process(group=None, target=None, name=None, args=(), kwargs={}, \
+                   *, daemon=None)
 
    Process objects represent activity that is run in a separate process. The
    :class:`Process` class has equivalents of all the methods of
@@ -915,7 +916,7 @@ object -- see :ref:`multiprocessing-managers`.
 
 .. class:: Condition([lock])
 
-   A condition variable: a clone of :class:`threading.Condition`.
+   A condition variable: an alias for :class:`threading.Condition`.
 
    If *lock* is specified then it should be a :class:`Lock` or :class:`RLock`
    object from :mod:`multiprocessing`.
@@ -1147,7 +1148,7 @@ process::
 
        n = Value('i', 7)
        x = Value(c_double, 1.0/3.0, lock=False)
-       s = Array('c', 'hello world', lock=lock)
+       s = Array('c', b'hello world', lock=lock)
        A = Array(Point, [(1.875,-6.25), (-5.75,2.0), (2.375,9.5)], lock=lock)
 
        p = Process(target=modify, args=(n, x, s, A))
@@ -1207,10 +1208,10 @@ their parent process exits.  The manager classes are defined in the
    *address* is the address on which the manager process listens for new
    connections.  If *address* is ``None`` then an arbitrary one is chosen.
 
-   *authkey* is the authentication key which will be used to check the validity
-   of incoming connections to the server process.  If *authkey* is ``None`` then
-   ``current_process().authkey``.  Otherwise *authkey* is used and it
-   must be a string.
+   *authkey* is the authentication key which will be used to check the
+   validity of incoming connections to the server process.  If
+   *authkey* is ``None`` then ``current_process().authkey`` is used.
+   Otherwise *authkey* is used and it must be a byte string.
 
    .. method:: start([initializer[, initargs]])
 
@@ -1224,7 +1225,7 @@ their parent process exits.  The manager classes are defined in the
       :meth:`serve_forever` method::
 
       >>> from multiprocessing.managers import BaseManager
-      >>> manager = BaseManager(address=('', 50000), authkey='abc')
+      >>> manager = BaseManager(address=('', 50000), authkey=b'abc')
       >>> server = manager.get_server()
       >>> server.serve_forever()
 
@@ -1235,7 +1236,7 @@ their parent process exits.  The manager classes are defined in the
       Connect a local manager object to a remote manager process::
 
       >>> from multiprocessing.managers import BaseManager
-      >>> m = BaseManager(address=('127.0.0.1', 5000), authkey='abc')
+      >>> m = BaseManager(address=('127.0.0.1', 5000), authkey=b'abc')
       >>> m.connect()
 
    .. method:: shutdown()
@@ -1454,7 +1455,7 @@ remote clients can access::
    >>> queue = queue.Queue()
    >>> class QueueManager(BaseManager): pass
    >>> QueueManager.register('get_queue', callable=lambda:queue)
-   >>> m = QueueManager(address=('', 50000), authkey='abracadabra')
+   >>> m = QueueManager(address=('', 50000), authkey=b'abracadabra')
    >>> s = m.get_server()
    >>> s.serve_forever()
 
@@ -1463,7 +1464,7 @@ One client can access the server as follows::
    >>> from multiprocessing.managers import BaseManager
    >>> class QueueManager(BaseManager): pass
    >>> QueueManager.register('get_queue')
-   >>> m = QueueManager(address=('foo.bar.org', 50000), authkey='abracadabra')
+   >>> m = QueueManager(address=('foo.bar.org', 50000), authkey=b'abracadabra')
    >>> m.connect()
    >>> queue = m.get_queue()
    >>> queue.put('hello')
@@ -1473,7 +1474,7 @@ Another client can also use it::
    >>> from multiprocessing.managers import BaseManager
    >>> class QueueManager(BaseManager): pass
    >>> QueueManager.register('get_queue')
-   >>> m = QueueManager(address=('foo.bar.org', 50000), authkey='abracadabra')
+   >>> m = QueueManager(address=('foo.bar.org', 50000), authkey=b'abracadabra')
    >>> m.connect()
    >>> queue = m.get_queue()
    >>> queue.get()
@@ -1497,7 +1498,7 @@ client to access it remotely::
     >>> class QueueManager(BaseManager): pass
     ...
     >>> QueueManager.register('get_queue', callable=lambda: queue)
-    >>> m = QueueManager(address=('', 50000), authkey='abracadabra')
+    >>> m = QueueManager(address=('', 50000), authkey=b'abracadabra')
     >>> s = m.get_server()
     >>> s.serve_forever()
 
@@ -1637,7 +1638,7 @@ Process Pools
 One can create a pool of processes which will carry out tasks submitted to it
 with the :class:`Pool` class.
 
-.. class:: multiprocessing.Pool([processes[, initializer[, initargs[, maxtasksperchild]]]])
+.. class:: Pool([processes[, initializer[, initargs[, maxtasksperchild]]]])
 
    A process pool object which controls a pool of worker processes to which jobs
    can be submitted.  It supports asynchronous results with timeouts and
@@ -1865,9 +1866,9 @@ multiple connections at the same time.
    generally be omitted since it can usually be inferred from the format of
    *address*. (See :ref:`multiprocessing-address-formats`)
 
-   If *authenticate* is ``True`` or *authkey* is a string then digest
+   If *authenticate* is ``True`` or *authkey* is a byte string then digest
    authentication is used.  The key used for authentication will be either
-   *authkey* or ``current_process().authkey)`` if *authkey* is ``None``.
+   *authkey* or ``current_process().authkey`` if *authkey* is ``None``.
    If authentication fails then
    :exc:`~multiprocessing.AuthenticationError` is raised.  See
    :ref:`multiprocessing-auth-keys`.
@@ -1903,8 +1904,8 @@ multiple connections at the same time.
    If *authenticate* is ``True`` (``False`` by default) or *authkey* is not
    ``None`` then digest authentication is used.
 
-   If *authkey* is a string then it will be used as the authentication key;
-   otherwise it must be *None*.
+   If *authkey* is a byte string then it will be used as the
+   authentication key; otherwise it must be *None*.
 
    If *authkey* is ``None`` and *authenticate* is ``True`` then
    ``current_process().authkey`` is used as the authentication key.  If
@@ -2081,12 +2082,13 @@ unpickled.  Unfortunately unpickling data from an untrusted source is a security
 risk.  Therefore :class:`Listener` and :func:`Client` use the :mod:`hmac` module
 to provide digest authentication.
 
-An authentication key is a string which can be thought of as a password: once a
-connection is established both ends will demand proof that the other knows the
-authentication key.  (Demonstrating that both ends are using the same key does
-**not** involve sending the key over the connection.)
+An authentication key is a byte string which can be thought of as a
+password: once a connection is established both ends will demand proof
+that the other knows the authentication key.  (Demonstrating that both
+ends are using the same key does **not** involve sending the key over
+the connection.)
 
-If authentication is requested but do authentication key is specified then the
+If authentication is requested but no authentication key is specified then the
 return value of ``current_process().authkey`` is used (see
 :class:`~multiprocessing.Process`).  This value will automatically inherited by
 any :class:`~multiprocessing.Process` object that the current process creates.

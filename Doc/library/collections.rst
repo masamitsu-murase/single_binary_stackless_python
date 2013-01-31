@@ -98,7 +98,7 @@ The class can be used to simulate nested scopes and is useful in templating.
 .. seealso::
 
     * The `MultiContext class
-      <http://svn.enthought.com/svn/enthought/CodeTools/trunk/enthought/contexts/multi_context.py>`_
+      <https://github.com/enthought/codetools/blob/4.0.0/codetools/contexts/multi_context.py>`_
       in the Enthought `CodeTools package
       <https://github.com/enthought/codetools>`_ has options to support
       writing to any mapping in the chain.
@@ -159,7 +159,7 @@ contexts::
 
         d['x']                # Get first key in the chain of contexts
         d['x'] = 1            # Set value in current context
-        del['x']              # Delete from current context
+        del d['x']            # Delete from current context
         list(d)               # All nested values
         k in d                # Check all nested values
         len(d)                # Number of nested values
@@ -279,6 +279,7 @@ For example::
             >>> c = Counter(a=4, b=2, c=0, d=-2)
             >>> d = Counter(a=1, b=2, c=3, d=4)
             >>> c.subtract(d)
+            >>> c
             Counter({'a': 3, 'b': 0, 'c': -3, 'd': -6})
 
         .. versionadded:: 3.2
@@ -347,24 +348,24 @@ or subtracting from an empty counter.
     this section documents the minimum range and type restrictions.
 
     * The :class:`Counter` class itself is a dictionary subclass with no
-        restrictions on its keys and values.  The values are intended to be numbers
-        representing counts, but you *could* store anything in the value field.
+      restrictions on its keys and values.  The values are intended to be numbers
+      representing counts, but you *could* store anything in the value field.
 
     * The :meth:`most_common` method requires only that the values be orderable.
 
     * For in-place operations such as ``c[key] += 1``, the value type need only
-        support addition and subtraction.  So fractions, floats, and decimals would
-        work and negative values are supported.  The same is also true for
-        :meth:`update` and :meth:`subtract` which allow negative and zero values
-        for both inputs and outputs.
+      support addition and subtraction.  So fractions, floats, and decimals would
+      work and negative values are supported.  The same is also true for
+      :meth:`update` and :meth:`subtract` which allow negative and zero values
+      for both inputs and outputs.
 
     * The multiset methods are designed only for use cases with positive values.
-        The inputs may be negative or zero, but only outputs with positive values
-        are created.  There are no type restrictions, but the value type needs to
-        support addition, subtraction, and comparison.
+      The inputs may be negative or zero, but only outputs with positive values
+      are created.  There are no type restrictions, but the value type needs to
+      support addition, subtraction, and comparison.
 
     * The :meth:`elements` method requires integer counts.  It ignores zero and
-        negative counts.
+      negative counts.
 
 .. seealso::
 
@@ -1012,7 +1013,7 @@ are deleted.  But when new keys are added, the keys are appended
 to the end and the sort is not maintained.
 
 It is also straight-forward to create an ordered dictionary variant
-that the remembers the order the keys were *last* inserted.
+that remembers the order the keys were *last* inserted.
 If a new entry overwrites an existing entry, the
 original insertion position is changed and moved to the end::
 

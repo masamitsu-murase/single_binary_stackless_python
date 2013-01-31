@@ -3,7 +3,7 @@
 
 .. module:: platform
    :synopsis: Retrieves as much platform identifying data as possible.
-.. moduleauthor:: Marc-Andre Lemburg <mal@egenix.com>
+.. moduleauthor:: Marc-André Lemburg <mal@egenix.com>
 .. sectionauthor:: Bjorn Pettersen <bpettersen@corp.fairisaac.com>
 
 **Source code:** :source:`Lib/platform.py`
@@ -30,8 +30,8 @@ Cross Platform
    returned as strings.
 
    Values that cannot be determined are returned as given by the parameter presets.
-   If bits is given as ``''``, the :c:func:`sizeof(pointer)` (or
-   :c:func:`sizeof(long)` on Python version < 1.5.2) is used as indicator for the
+   If bits is given as ``''``, the ``sizeof(pointer)`` (or
+   ``sizeof(long)`` on Python version < 1.5.2) is used as indicator for the
    supported pointer size.
 
    The function relies on the system's :file:`file` command to do the actual work.

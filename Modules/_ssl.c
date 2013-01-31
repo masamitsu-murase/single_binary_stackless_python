@@ -1037,15 +1037,15 @@ PySSL_peercert(PySSLSocket *self, PyObject *args)
     PyObject *retval = NULL;
     int len;
     int verification;
-    PyObject *binary_mode = Py_None;
+    int binary_mode = 0;
 
-    if (!PyArg_ParseTuple(args, "|O:peer_certificate", &binary_mode))
+    if (!PyArg_ParseTuple(args, "|p:peer_certificate", &binary_mode))
         return NULL;
 
     if (!self->peer_cert)
         Py_RETURN_NONE;
 
-    if (PyObject_IsTrue(binary_mode)) {
+    if (binary_mode) {
         /* return cert in DER-encoded format */
 
         unsigned char *bytes_buf = NULL;
@@ -1713,6 +1713,9 @@ context_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
         return NULL;
     }
     self->ctx = ctx;
+#ifdef OPENSSL_NPN_NEGOTIATED
+    self->npn_protocols = NULL;
+#endif
     /* Defaults */
     SSL_CTX_set_verify(self->ctx, SSL_VERIFY_NONE, NULL);
     SSL_CTX_set_options(self->ctx,
@@ -1811,6 +1814,10 @@ _set_npn_protocols(PySSLContext *self, PyObject *args)
 
     if (!PyArg_ParseTuple(args, "y*:set_npn_protocols", &protos))
         return NULL;
+
+    if (self->npn_protocols != NULL) {
+        PyMem_Free(self->npn_protocols);
+    }
 
     self->npn_protocols = PyMem_Malloc(protos.len);
     if (self->npn_protocols == NULL) {
@@ -2170,6 +2177,7 @@ load_dh_params(PySSLContext *self, PyObject *filepath)
     errno = 0;
     PySSL_BEGIN_ALLOW_THREADS
     dh = PEM_read_DHparams(f, NULL, NULL, NULL);
+    fclose(f);
     PySSL_END_ALLOW_THREADS
     if (dh == NULL) {
         if (errno != 0) {
@@ -2481,7 +2489,7 @@ PySSL_RAND_egd(PyObject *self, PyObject *args)
     PyObject *path;
     int bytes;
 
-    if (!PyArg_ParseTuple(args, "O&|i:RAND_egd",
+    if (!PyArg_ParseTuple(args, "O&:RAND_egd",
                           PyUnicode_FSConverter, &path))
         return NULL;
 

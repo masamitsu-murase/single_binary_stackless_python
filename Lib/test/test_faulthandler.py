@@ -7,6 +7,7 @@ import signal
 import subprocess
 import sys
 from test import support, script_helper
+from test.script_helper import assert_python_ok
 import tempfile
 import unittest
 
@@ -256,6 +257,20 @@ faulthandler._read_null()
         finally:
             sys.stderr = orig_stderr
 
+    def test_disabled_by_default(self):
+        # By default, the module should be disabled
+        code = "import faulthandler; print(faulthandler.is_enabled())"
+        rc, stdout, stderr = assert_python_ok("-c", code)
+        stdout = (stdout + stderr).strip()
+        self.assertEqual(stdout, b"False")
+
+    def test_sys_xoptions(self):
+        # Test python -X faulthandler
+        code = "import faulthandler; print(faulthandler.is_enabled())"
+        rc, stdout, stderr = assert_python_ok("-X", "faulthandler", "-c", code)
+        stdout = (stdout + stderr).strip()
+        self.assertEqual(stdout, b"True")
+
     def check_dump_traceback(self, filename):
         """
         Explicitly call dump_traceback() function and check its output.
@@ -300,6 +315,30 @@ funcA()
     def test_dump_traceback_file(self):
         with temporary_filename() as filename:
             self.check_dump_traceback(filename)
+
+    def test_truncate(self):
+        maxlen = 500
+        func_name = 'x' * (maxlen + 50)
+        truncated = 'x' * maxlen + '...'
+        code = """
+import faulthandler
+
+def {func_name}():
+    faulthandler.dump_traceback(all_threads=False)
+
+{func_name}()
+""".strip()
+        code = code.format(
+            func_name=func_name,
+        )
+        expected = [
+            'Traceback (most recent call first):',
+            '  File "<string>", line 4 in %s' % truncated,
+            '  File "<string>", line 6 in <module>'
+        ]
+        trace, exitcode = self.get_output(code)
+        self.assertEqual(trace, expected)
+        self.assertEqual(exitcode, 0)
 
     @unittest.skipIf(not HAVE_THREADS, 'need threads')
     def check_dump_traceback_threads(self, filename):
@@ -368,7 +407,7 @@ Current thread XXX:
         with temporary_filename() as filename:
             self.check_dump_traceback_threads(filename)
 
-    def _check_dump_tracebacks_later(self, repeat, cancel, filename, loops):
+    def _check_dump_traceback_later(self, repeat, cancel, filename, loops):
         """
         Check how many times the traceback is written in timeout x 2.5 seconds,
         or timeout x 3.5 seconds if cancel is True: 1, 2 or 3 times depending
@@ -383,11 +422,11 @@ import time
 
 def func(timeout, repeat, cancel, file, loops):
     for loop in range(loops):
-        faulthandler.dump_tracebacks_later(timeout, repeat=repeat, file=file)
+        faulthandler.dump_traceback_later(timeout, repeat=repeat, file=file)
         if cancel:
-            faulthandler.cancel_dump_tracebacks_later()
+            faulthandler.cancel_dump_traceback_later()
         time.sleep(timeout * 5)
-        faulthandler.cancel_dump_tracebacks_later()
+        faulthandler.cancel_dump_traceback_later()
 
 timeout = {timeout}
 repeat = {repeat}
@@ -423,9 +462,9 @@ if file is not None:
             self.assertEqual(trace, '')
         self.assertEqual(exitcode, 0)
 
-    @unittest.skipIf(not hasattr(faulthandler, 'dump_tracebacks_later'),
-                     'need faulthandler.dump_tracebacks_later()')
-    def check_dump_tracebacks_later(self, repeat=False, cancel=False,
+    @unittest.skipIf(not hasattr(faulthandler, 'dump_traceback_later'),
+                     'need faulthandler.dump_traceback_later()')
+    def check_dump_traceback_later(self, repeat=False, cancel=False,
                                     file=False, twice=False):
         if twice:
             loops = 2
@@ -433,25 +472,25 @@ if file is not None:
             loops = 1
         if file:
             with temporary_filename() as filename:
-                self._check_dump_tracebacks_later(repeat, cancel,
+                self._check_dump_traceback_later(repeat, cancel,
                                                   filename, loops)
         else:
-            self._check_dump_tracebacks_later(repeat, cancel, None, loops)
+            self._check_dump_traceback_later(repeat, cancel, None, loops)
 
-    def test_dump_tracebacks_later(self):
-        self.check_dump_tracebacks_later()
+    def test_dump_traceback_later(self):
+        self.check_dump_traceback_later()
 
-    def test_dump_tracebacks_later_repeat(self):
-        self.check_dump_tracebacks_later(repeat=True)
+    def test_dump_traceback_later_repeat(self):
+        self.check_dump_traceback_later(repeat=True)
 
-    def test_dump_tracebacks_later_cancel(self):
-        self.check_dump_tracebacks_later(cancel=True)
+    def test_dump_traceback_later_cancel(self):
+        self.check_dump_traceback_later(cancel=True)
 
-    def test_dump_tracebacks_later_file(self):
-        self.check_dump_tracebacks_later(file=True)
+    def test_dump_traceback_later_file(self):
+        self.check_dump_traceback_later(file=True)
 
-    def test_dump_tracebacks_later_twice(self):
-        self.check_dump_tracebacks_later(twice=True)
+    def test_dump_traceback_later_twice(self):
+        self.check_dump_traceback_later(twice=True)
 
     @unittest.skipIf(not hasattr(faulthandler, "register"),
                      "need faulthandler.register")

@@ -7,6 +7,7 @@
 import unittest
 import re
 import contextlib
+import operator
 import ipaddress
 
 class BaseTestCase(unittest.TestCase):
@@ -71,6 +72,14 @@ class CommonTestMixin:
     def test_floats_rejected(self):
         with self.assertAddressError(re.escape(repr("1.0"))):
             self.factory(1.0)
+
+    def test_not_an_index_issue15559(self):
+        # Implementing __index__ makes for a very nasty interaction with the
+        # bytes constructor. Thus, we disallow implicit use as an integer
+        self.assertRaises(TypeError, operator.index, self.factory(1))
+        self.assertRaises(TypeError, hex, self.factory(1))
+        self.assertRaises(TypeError, bytes, self.factory(1))
+
 
 class CommonTestMixin_v4(CommonTestMixin):
 
@@ -599,7 +608,6 @@ class IpaddrUnitTest(unittest.TestCase):
         self.assertEqual(first, last)
         self.assertEqual(128, ipaddress._count_righthand_zero_bits(0, 128))
         self.assertEqual("IPv4Network('1.2.3.0/24')", repr(self.ipv4_network))
-        self.assertEqual('0x1020318', hex(self.ipv4_network))
 
     def testMissingAddressVersion(self):
         class Broken(ipaddress._BaseAddress):
@@ -639,8 +647,8 @@ class IpaddrUnitTest(unittest.TestCase):
 
         ipv4 = ipaddress.ip_network('1.2.3.4')
         ipv6 = ipaddress.ip_network('2001:658:22a:cafe:200:0:0:1')
-        self.assertEqual(ipv4, ipaddress.ip_network(int(ipv4)))
-        self.assertEqual(ipv6, ipaddress.ip_network(int(ipv6)))
+        self.assertEqual(ipv4, ipaddress.ip_network(int(ipv4.network_address)))
+        self.assertEqual(ipv6, ipaddress.ip_network(int(ipv6.network_address)))
 
         v6_int = 42540616829182469433547762482097946625
         self.assertEqual(self.ipv6_interface._ip,
@@ -723,8 +731,8 @@ class IpaddrUnitTest(unittest.TestCase):
                          '2001:658:22a:cafe:ffff:ffff:ffff:ffff')
 
     def testGetPrefixlen(self):
-        self.assertEqual(self.ipv4_interface.prefixlen, 24)
-        self.assertEqual(self.ipv6_interface.prefixlen, 64)
+        self.assertEqual(self.ipv4_interface.network.prefixlen, 24)
+        self.assertEqual(self.ipv6_interface.network.prefixlen, 64)
 
     def testGetSupernet(self):
         self.assertEqual(self.ipv4_network.supernet().prefixlen, 23)
@@ -1545,33 +1553,24 @@ class IpaddrUnitTest(unittest.TestCase):
         self.assertEqual(42540616829182469433547762482097946625,
                          int(self.ipv6_address))
 
-    def testHexRepresentation(self):
-        self.assertEqual(hex(0x1020304),
-                         hex(self.ipv4_address))
-
-        self.assertEqual(hex(0x20010658022ACAFE0200000000000001),
-                         hex(self.ipv6_address))
-
     def testForceVersion(self):
         self.assertEqual(ipaddress.ip_network(1).version, 4)
         self.assertEqual(ipaddress.IPv6Network(1).version, 6)
 
     def testWithStar(self):
-        self.assertEqual(str(self.ipv4_interface.with_prefixlen), "1.2.3.4/24")
-        self.assertEqual(str(self.ipv4_interface.with_netmask),
+        self.assertEqual(self.ipv4_interface.with_prefixlen, "1.2.3.4/24")
+        self.assertEqual(self.ipv4_interface.with_netmask,
                          "1.2.3.4/255.255.255.0")
-        self.assertEqual(str(self.ipv4_interface.with_hostmask),
+        self.assertEqual(self.ipv4_interface.with_hostmask,
                          "1.2.3.4/0.0.0.255")
 
-        self.assertEqual(str(self.ipv6_interface.with_prefixlen),
+        self.assertEqual(self.ipv6_interface.with_prefixlen,
                          '2001:658:22a:cafe:200::1/64')
-        # rfc3513 sec 2.3 says that ipv6 only uses cidr notation for
-        # subnets
-        self.assertEqual(str(self.ipv6_interface.with_netmask),
-                         '2001:658:22a:cafe:200::1/64')
+        self.assertEqual(self.ipv6_interface.with_netmask,
+                         '2001:658:22a:cafe:200::1/ffff:ffff:ffff:ffff::')
         # this probably don't make much sense, but it's included for
         # compatibility with ipv4
-        self.assertEqual(str(self.ipv6_interface.with_hostmask),
+        self.assertEqual(self.ipv6_interface.with_hostmask,
                          '2001:658:22a:cafe:200::1/::ffff:ffff:ffff:ffff')
 
     def testNetworkElementCaching(self):

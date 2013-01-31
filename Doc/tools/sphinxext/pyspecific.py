@@ -10,7 +10,7 @@
 """
 
 ISSUE_URI = 'http://bugs.python.org/issue%s'
-SOURCE_URI = 'http://hg.python.org/cpython/file/default/%s'
+SOURCE_URI = 'http://hg.python.org/cpython/file/3.3/%s'
 
 from docutils import nodes, utils
 from sphinx.util.nodes import split_explicit_title
@@ -33,9 +33,38 @@ def new_visit_versionmodified(self, node):
     self.body.append('<span class="versionmodified">%s</span> ' % text)
 
 from sphinx.writers.html import HTMLTranslator
+from sphinx.writers.latex import LaTeXTranslator
 from sphinx.locale import versionlabels
 HTMLTranslator.visit_versionmodified = new_visit_versionmodified
+HTMLTranslator.visit_versionmodified = new_visit_versionmodified
 
+# monkey-patch HTML and LaTeX translators to keep doctest blocks in the
+# doctest docs themselves
+orig_visit_literal_block = HTMLTranslator.visit_literal_block
+def new_visit_literal_block(self, node):
+    meta = self.builder.env.metadata[self.builder.current_docname]
+    old_trim_doctest_flags = self.highlighter.trim_doctest_flags
+    if 'keepdoctest' in meta:
+        self.highlighter.trim_doctest_flags = False
+    try:
+        orig_visit_literal_block(self, node)
+    finally:
+        self.highlighter.trim_doctest_flags = old_trim_doctest_flags
+
+HTMLTranslator.visit_literal_block = new_visit_literal_block
+
+orig_depart_literal_block = LaTeXTranslator.depart_literal_block
+def new_depart_literal_block(self, node):
+    meta = self.builder.env.metadata[self.curfilestack[-1]]
+    old_trim_doctest_flags = self.highlighter.trim_doctest_flags
+    if 'keepdoctest' in meta:
+        self.highlighter.trim_doctest_flags = False
+    try:
+        orig_depart_literal_block(self, node)
+    finally:
+        self.highlighter.trim_doctest_flags = old_trim_doctest_flags
+
+LaTeXTranslator.depart_literal_block = new_depart_literal_block
 
 # Support for marking up and linking to bugs.python.org issues
 
@@ -143,6 +172,47 @@ class DeprecatedRemoved(Directive):
         env = self.state.document.settings.env
         env.note_versionchange('deprecated', version[0], node, self.lineno)
         return ret
+
+
+# Support for including Misc/NEWS
+
+import re
+import codecs
+
+issue_re = re.compile('([Ii])ssue #([0-9]+)')
+whatsnew_re = re.compile(r"(?im)^what's new in (.*?)\??$")
+
+class MiscNews(Directive):
+    has_content = False
+    required_arguments = 1
+    optional_arguments = 0
+    final_argument_whitespace = False
+    option_spec = {}
+
+    def run(self):
+        fname = self.arguments[0]
+        source = self.state_machine.input_lines.source(
+            self.lineno - self.state_machine.input_offset - 1)
+        source_dir = path.dirname(path.abspath(source))
+        fpath = path.join(source_dir, fname)
+        self.state.document.settings.record_dependencies.add(fpath)
+        try:
+            fp = codecs.open(fpath, encoding='utf-8')
+            try:
+                content = fp.read()
+            finally:
+                fp.close()
+        except Exception:
+            text = 'The NEWS file is not available.'
+            node = nodes.strong(text, text)
+            return [node]
+        content = issue_re.sub(r'`\1ssue #\2 <http://bugs.python.org/\2>`__',
+                               content)
+        content = whatsnew_re.sub(r'\1', content)
+        # remove first 3 lines as they are the main heading
+        lines = ['.. default-role:: obj', ''] + content.splitlines()[3:]
+        self.state_machine.insert_input(lines, fname)
+        return []
 
 
 # Support for building "topic help" for pydoc
@@ -276,3 +346,4 @@ def setup(app):
     app.add_description_unit('2to3fixer', '2to3fixer', '%s (2to3 fixer)')
     app.add_directive_to_domain('py', 'decorator', PyDecoratorFunction)
     app.add_directive_to_domain('py', 'decoratormethod', PyDecoratorMethod)
+    app.add_directive('miscnews', MiscNews)

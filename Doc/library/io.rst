@@ -16,11 +16,15 @@
 Overview
 --------
 
-The :mod:`io` module provides Python's main facilities for dealing for various
-types of I/O.  There are three main types of I/O: *text I/O*, *binary I/O*, *raw
-I/O*.  These are generic categories, and various backing stores can be used for
-each of them.  Concrete objects belonging to any of these categories will often
-be called *streams*; another common term is *file-like objects*.
+.. index::
+   single: file object; io module
+
+The :mod:`io` module provides Python's main facilities for dealing with various
+types of I/O.  There are three main types of I/O: *text I/O*, *binary I/O*
+and *raw I/O*.  These are generic categories, and various backing stores can
+be used for each of them.  A concrete object belonging to any of these
+categories is called a :term:`file object`.  Other common terms are *stream*
+and *file-like object*.
 
 Independently of its category, each concrete stream object will also have
 various capabilities: it can be read-only, write-only, or read-write. It can
@@ -181,6 +185,25 @@ interface to a buffered raw stream (:class:`BufferedIOBase`). Finally,
 Argument names are not part of the specification, and only the arguments of
 :func:`open` are intended to be used as keyword arguments.
 
+The following table summarizes the ABCs provided by the :mod:`io` module:
+
+=========================  ==================  ========================  ==================================================
+ABC                        Inherits            Stub Methods              Mixin Methods and Properties
+=========================  ==================  ========================  ==================================================
+:class:`IOBase`                                ``fileno``, ``seek``,     ``close``, ``closed``, ``__enter__``,
+                                               and ``truncate``          ``__exit__``, ``flush``, ``isatty``, ``__iter__``,
+                                                                         ``__next__``, ``readable``, ``readline``,
+                                                                         ``readlines``, ``seekable``, ``tell``,
+                                                                         ``writable``, and ``writelines``
+:class:`RawIOBase`         :class:`IOBase`     ``readinto`` and          Inherited :class:`IOBase` methods, ``read``,
+                                               ``write``                 and ``readall``
+:class:`BufferedIOBase`    :class:`IOBase`     ``detach``, ``read``,     Inherited :class:`IOBase` methods, ``readinto``
+                                               ``read1``, and ``write``
+:class:`TextIOBase`        :class:`IOBase`     ``detach``, ``read``,     Inherited :class:`IOBase` methods, ``encoding``,
+                                               ``readline``, and         ``errors``, and ``newlines``
+                                               ``write``
+=========================  ==================  ========================  ==================================================
+
 
 I/O Base Classes
 ^^^^^^^^^^^^^^^^
@@ -209,7 +232,7 @@ I/O Base Classes
    Note that calling any method (even inquiries) on a closed stream is
    undefined.  Implementations may raise :exc:`ValueError` in this case.
 
-   :class:`IOBase` (and its subclasses) support the iterator protocol, meaning
+   :class:`IOBase` (and its subclasses) supports the iterator protocol, meaning
    that an :class:`IOBase` object can be iterated over yielding the lines in a
    stream.  Lines are defined slightly differently depending on whether the
    stream is a binary stream (yielding bytes), or a text stream (yielding
@@ -494,6 +517,9 @@ Raw File I/O
    :mod:`os.open` as *opener* results in functionality similar to passing
    ``None``).
 
+   See the :func:`open` built-in function for examples on using the *opener*
+   parameter.
+
    .. versionchanged:: 3.3
       The *opener* parameter was added.
       The ``'x'`` mode was added.
@@ -708,10 +734,12 @@ Text I/O
       Read and return at most *n* characters from the stream as a single
       :class:`str`.  If *n* is negative or ``None``, reads until EOF.
 
-   .. method:: readline()
+   .. method:: readline(limit=-1)
 
       Read until newline or EOF and return a single ``str``.  If the stream is
       already at EOF, an empty string is returned.
+
+      If *limit* is specified, at most *limit* characters will be read.
 
    .. method:: seek(offset, whence=SEEK_SET)
 
@@ -752,7 +780,8 @@ Text I/O
    It inherits :class:`TextIOBase`.
 
    *encoding* gives the name of the encoding that the stream will be decoded or
-   encoded with.  It defaults to ``locale.getpreferredencoding(False)``.
+   encoded with.  It defaults to
+   :func:`locale.getpreferredencoding(False) <locale.getpreferredencoding>`.
 
    *errors* is an optional string that specifies how encoding and decoding
    errors are to be handled.  Pass ``'strict'`` to raise a :exc:`ValueError`
@@ -765,14 +794,26 @@ Text I/O
    sequences) can be used.  Any other error handling name that has been
    registered with :func:`codecs.register_error` is also valid.
 
-   *newline* can be ``None``, ``''``, ``'\n'``, ``'\r'``, or ``'\r\n'``.  It
-   controls the handling of line endings.  If it is ``None``, universal newlines
-   is enabled.  With this enabled, on input, the lines endings ``'\n'``,
-   ``'\r'``, or ``'\r\n'`` are translated to ``'\n'`` before being returned to
-   the caller.  Conversely, on output, ``'\n'`` is translated to the system
-   default line separator, :data:`os.linesep`.  If *newline* is any other of its
-   legal values, that newline becomes the newline when the file is read and it
-   is returned untranslated.  On output, ``'\n'`` is converted to the *newline*.
+   .. index::
+      single: universal newlines; io.TextIOWrapper class
+
+   *newline* controls how line endings are handled.  It can be ``None``,
+   ``''``, ``'\n'``, ``'\r'``, and ``'\r\n'``.  It works as follows:
+
+   * When reading input from the stream, if *newline* is ``None``,
+     :term:`universal newlines` mode is enabled.  Lines in the input can end in
+     ``'\n'``, ``'\r'``, or ``'\r\n'``, and these are translated into ``'\n'``
+     before being returned to the caller.  If it is ``''``, universal newlines
+     mode is enabled, but line endings are returned to the caller untranslated.
+     If it has any of the other legal values, input lines are only terminated
+     by the given string, and the line ending is returned to the caller
+     untranslated.
+
+   * When writing output to the stream, if *newline* is ``None``, any ``'\n'``
+     characters written are translated to the system default line separator,
+     :data:`os.linesep`.  If *newline* is ``''`` or ``'\n'``, no translation
+     takes place.  If *newline* is any of the other legal values, any ``'\n'``
+     characters written are translated to the given string.
 
    If *line_buffering* is ``True``, :meth:`flush` is implied when a call to
    write contains a newline character.
@@ -832,10 +873,13 @@ Text I/O
       output.close()
 
 
+.. index::
+   single: universal newlines; io.IncrementalNewlineDecoder class
+
 .. class:: IncrementalNewlineDecoder
 
-   A helper codec that decodes newlines for universal newlines mode.  It
-   inherits :class:`codecs.IncrementalDecoder`.
+   A helper codec that decodes newlines for :term:`universal newlines` mode.
+   It inherits :class:`codecs.IncrementalDecoder`.
 
 
 Performance

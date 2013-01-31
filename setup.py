@@ -33,10 +33,6 @@ COMPILED_WITH_PYDEBUG = ('--with-pydebug' in sysconfig.get_config_var("CONFIG_AR
 # This global variable is used to hold the list of modules to be disabled.
 disabled_module_list = []
 
-# File which contains the directory for shared mods (for sys.path fixup
-# when running from the build dir, see Modules/getpath.c)
-_BUILDDIR_COOKIE = "pybuilddir.txt"
-
 def add_dir_to_list(dirlist, dir):
     """Add the directory 'dir' to the list 'dirlist' (after any relative
     directories) if:
@@ -69,7 +65,9 @@ def is_macosx_sdk_path(path):
     """
     Returns True if 'path' can be located in an OSX SDK
     """
-    return (path.startswith('/usr/') and not path.startswith('/usr/local')) or path.startswith('/System/')
+    return ( (path.startswith('/usr/') and not path.startswith('/usr/local'))
+                or path.startswith('/System/')
+                or path.startswith('/Library/') )
 
 def find_file(filename, std_dirs, paths):
     """Searches for the directory where a given file is located,
@@ -250,16 +248,6 @@ class PyBuildExt(build_ext):
             args['compiler_so'] = compiler + ' ' + ccshared + ' ' + cflags
         self.compiler.set_executables(**args)
 
-        # Not only do we write the builddir cookie, but we manually install
-        # the shared modules directory if it isn't already in sys.path.
-        # Otherwise trying to import the extensions after building them
-        # will fail.
-        with open(_BUILDDIR_COOKIE, "wb") as f:
-            f.write(self.build_lib.encode('utf-8', 'surrogateescape'))
-        abs_build_lib = os.path.join(os.getcwd(), self.build_lib)
-        if abs_build_lib not in sys.path:
-            sys.path.append(abs_build_lib)
-
         build_ext.build_extensions(self)
 
         longest = max([len(e.name) for e in self.extensions])
@@ -377,6 +365,27 @@ class PyBuildExt(build_ext):
     def add_multiarch_paths(self):
         # Debian/Ubuntu multiarch support.
         # https://wiki.ubuntu.com/MultiarchSpec
+        cc = sysconfig.get_config_var('CC')
+        tmpfile = os.path.join(self.build_temp, 'multiarch')
+        if not os.path.exists(self.build_temp):
+            os.makedirs(self.build_temp)
+        ret = os.system(
+            '%s -print-multiarch > %s 2> /dev/null' % (cc, tmpfile))
+        multiarch_path_component = ''
+        try:
+            if ret >> 8 == 0:
+                with open(tmpfile) as fp:
+                    multiarch_path_component = fp.readline().strip()
+        finally:
+            os.unlink(tmpfile)
+
+        if multiarch_path_component != '':
+            add_dir_to_list(self.compiler.library_dirs,
+                            '/usr/lib/' + multiarch_path_component)
+            add_dir_to_list(self.compiler.include_dirs,
+                            '/usr/include/' + multiarch_path_component)
+            return
+
         if not find_executable('dpkg-architecture'):
             return
         opt = ''
@@ -497,6 +506,9 @@ class PyBuildExt(build_ext):
                 '/lib', '/usr/lib',
                 ]
             inc_dirs = self.compiler.include_dirs + ['/usr/include']
+        else:
+            lib_dirs = self.compiler.library_dirs[:]
+            inc_dirs = self.compiler.include_dirs[:]
         exts = []
         missing = []
 
@@ -1039,12 +1051,12 @@ class PyBuildExt(build_ext):
         if host_platform == 'darwin':
             sysroot = macosx_sdk_root()
 
-        for d in inc_dirs + sqlite_inc_paths:
-            f = os.path.join(d, "sqlite3.h")
-
+        for d_ in inc_dirs + sqlite_inc_paths:
+            d = d_
             if host_platform == 'darwin' and is_macosx_sdk_path(d):
-                f = os.path.join(sysroot, d[1:], "sqlite3.h")
+                d = os.path.join(sysroot, d[1:])
 
+            f = os.path.join(d, "sqlite3.h")
             if os.path.exists(f):
                 if sqlite_setup_debug: print("sqlite: found %s"%f)
                 with open(f) as file:
@@ -1765,6 +1777,8 @@ class PyBuildExt(build_ext):
                 mkpath(ffi_builddir)
                 config_args = [arg for arg in sysconfig.get_config_var("CONFIG_ARGS").split()
                                if (('--host=' in arg) or ('--build=' in arg))]
+                if not self.verbose:
+                    config_args.append("-q")
 
                 # Pass empty CFLAGS because we'll just append the resulting
                 # CFLAGS to Python's; -g or -O2 is to be avoided.
@@ -1874,7 +1888,7 @@ class PyBuildExt(build_ext):
 
     def _decimal_ext(self):
         extra_compile_args = []
-        undef_macros = ['NDEBUG']
+        undef_macros = []
         if '--with-system-libmpdec' in sysconfig.get_config_var("CONFIG_ARGS"):
             include_dirs = []
             libraries = ['mpdec']
@@ -1960,6 +1974,7 @@ class PyBuildExt(build_ext):
                 # solaris: problems with register allocation.
                 # icc >= 11.0 works as well.
                 define_macros = config['ppro']
+                extra_compile_args.append('-Wno-unknown-pragmas')
             else:
                 define_macros = config['ansi32']
         else:
@@ -1979,6 +1994,15 @@ class PyBuildExt(build_ext):
         # Faster version without thread local contexts:
         if not sysconfig.get_config_var('WITH_THREAD'):
             define_macros.append(('WITHOUT_THREADS', 1))
+
+        # Increase warning level for gcc:
+        if 'gcc' in cc:
+            cmd = ("echo '' | gcc -Wextra -Wno-missing-field-initializers -E - "
+                   "> /dev/null 2>&1")
+            ret = os.system(cmd)
+            if ret >> 8 == 0:
+                extra_compile_args.extend(['-Wextra',
+                                           '-Wno-missing-field-initializers'])
 
         # Uncomment for extra functionality:
         #define_macros.append(('EXTRA_FUNCTIONALITY', 1))

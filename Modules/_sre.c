@@ -427,7 +427,7 @@ SRE_CHARSET(SRE_CODE* set, SRE_CODE ch)
             }
             else {
                 /* <CHARSET> <bitmap> (32 bits per code word) */
-                if (ch < 256 && (set[ch >> 5] & (1 << (ch & 31))))
+                if (ch < 256 && (set[ch >> 5] & (1u << (ch & 31))))
                     return ok;
                 set += 8;
             }
@@ -466,7 +466,7 @@ SRE_CHARSET(SRE_CODE* set, SRE_CODE ch)
                     block = -1;
                 set += 64;
                 if (block >=0 &&
-                    (set[block*8 + ((ch & 255)>>5)] & (1 << (ch & 31))))
+                    (set[block*8 + ((ch & 255)>>5)] & (1u << (ch & 31))))
                     return ok;
                 set += count*8;
             }
@@ -492,7 +492,7 @@ SRE_COUNT(SRE_STATE* state, SRE_CODE* pattern, Py_ssize_t maxcount)
     Py_ssize_t i;
 
     /* adjust end */
-    if (maxcount < end - ptr && maxcount != 65535)
+    if (maxcount < (end - ptr) / state->charsize && maxcount != 65535)
         end = ptr + maxcount*state->charsize;
 
     switch (pattern[0]) {
@@ -583,7 +583,7 @@ SRE_INFO(SRE_STATE* state, SRE_CODE* pattern)
     Py_ssize_t i;
 
     /* check minimal length */
-    if (pattern[3] && (end - ptr) < pattern[3])
+    if (pattern[3] && (end - ptr)/state->charsize < pattern[3])
         return 0;
 
     /* check known prefix */
@@ -801,7 +801,7 @@ entrance:
         /* <INFO> <1=skip> <2=flags> <3=min> ... */
         if (ctx->pattern[3] && (end - ctx->ptr)/state->charsize < ctx->pattern[3]) {
             TRACE(("reject (got %d chars, need %d)\n",
-                   (end - ctx->ptr), ctx->pattern[3]));
+                   (end - ctx->ptr)/state->charsize, ctx->pattern[3]));
             RETURN_FAILURE;
         }
         ctx->pattern += ctx->pattern[1] + 1;
@@ -1329,9 +1329,10 @@ entrance:
                         RETURN_FAILURE;
                     while (p < e) {
                         if (ctx->ptr >= end ||
-                            state->lower(SRE_CHARGET(state, ctx->ptr, 0)) != state->lower(*p))
+                            state->lower(SRE_CHARGET(state, ctx->ptr, 0)) !=
+                            state->lower(SRE_CHARGET(state, p, 0)))
                             RETURN_FAILURE;
-                        p++;
+                        p += state->charsize;
                         ctx->ptr += state->charsize;
                     }
                 }
@@ -1618,7 +1619,7 @@ sre_literal_template(int charsize, char* ptr, Py_ssize_t len)
 static PyObject *
 sre_codesize(PyObject* self, PyObject *unused)
 {
-    return Py_BuildValue("l", sizeof(SRE_CODE));
+    return PyLong_FromSize_t(sizeof(SRE_CODE));
 }
 
 static PyObject *
@@ -2435,7 +2436,7 @@ next:
         return NULL;
 
     if (subn)
-        return Py_BuildValue("Ni", item, n);
+        return Py_BuildValue("Nn", item, n);
 
     return item;
 
@@ -2527,35 +2528,35 @@ pattern_deepcopy(PatternObject* self, PyObject* memo)
 }
 
 PyDoc_STRVAR(pattern_match_doc,
-"match(string[, pos[, endpos]]) --> match object or None.\n\
+"match(string[, pos[, endpos]]) -> match object or None.\n\
     Matches zero or more characters at the beginning of the string");
 
 PyDoc_STRVAR(pattern_search_doc,
-"search(string[, pos[, endpos]]) --> match object or None.\n\
+"search(string[, pos[, endpos]]) -> match object or None.\n\
     Scan through string looking for a match, and return a corresponding\n\
-    MatchObject instance. Return None if no position in the string matches.");
+    match object instance. Return None if no position in the string matches.");
 
 PyDoc_STRVAR(pattern_split_doc,
-"split(string[, maxsplit = 0])  --> list.\n\
+"split(string[, maxsplit = 0])  -> list.\n\
     Split string by the occurrences of pattern.");
 
 PyDoc_STRVAR(pattern_findall_doc,
-"findall(string[, pos[, endpos]]) --> list.\n\
+"findall(string[, pos[, endpos]]) -> list.\n\
    Return a list of all non-overlapping matches of pattern in string.");
 
 PyDoc_STRVAR(pattern_finditer_doc,
-"finditer(string[, pos[, endpos]]) --> iterator.\n\
+"finditer(string[, pos[, endpos]]) -> iterator.\n\
     Return an iterator over all non-overlapping matches for the \n\
     RE pattern in string. For each match, the iterator returns a\n\
     match object.");
 
 PyDoc_STRVAR(pattern_sub_doc,
-"sub(repl, string[, count = 0]) --> newstring\n\
+"sub(repl, string[, count = 0]) -> newstring.\n\
     Return the string obtained by replacing the leftmost non-overlapping\n\
     occurrences of pattern in string by the replacement repl.");
 
 PyDoc_STRVAR(pattern_subn_doc,
-"subn(repl, string[, count = 0]) --> (newstring, number of subs)\n\
+"subn(repl, string[, count = 0]) -> (newstring, number of subs)\n\
     Return the tuple (new_string, number_of_subs_made) found by replacing\n\
     the leftmost non-overlapping occurrences of pattern with the\n\
     replacement repl.");
@@ -3387,7 +3388,7 @@ match_start(MatchObject* self, PyObject* args)
     }
 
     /* mark is -1 if group is undefined */
-    return Py_BuildValue("i", self->mark[index*2]);
+    return PyLong_FromSsize_t(self->mark[index*2]);
 }
 
 static PyObject*
@@ -3410,7 +3411,7 @@ match_end(MatchObject* self, PyObject* args)
     }
 
     /* mark is -1 if group is undefined */
-    return Py_BuildValue("i", self->mark[index*2+1]);
+    return PyLong_FromSsize_t(self->mark[index*2+1]);
 }
 
 LOCAL(PyObject*)
@@ -3543,14 +3544,54 @@ match_deepcopy(MatchObject* self, PyObject* memo)
 #endif
 }
 
+PyDoc_STRVAR(match_doc,
+"The result of re.match() and re.search().\n\
+Match objects always have a boolean value of True.");
+
+PyDoc_STRVAR(match_group_doc,
+"group([group1, ...]) -> str or tuple.\n\
+    Return subgroup(s) of the match by indices or names.\n\
+    For 0 returns the entire match.");
+
+PyDoc_STRVAR(match_start_doc,
+"start([group=0]) -> int.\n\
+    Return index of the start of the substring matched by group.");
+
+PyDoc_STRVAR(match_end_doc,
+"end([group=0]) -> int.\n\
+    Return index of the end of the substring matched by group.");
+
+PyDoc_STRVAR(match_span_doc,
+"span([group]) -> tuple.\n\
+    For MatchObject m, return the 2-tuple (m.start(group), m.end(group)).");
+
+PyDoc_STRVAR(match_groups_doc,
+"groups([default=None]) -> tuple.\n\
+    Return a tuple containing all the subgroups of the match, from 1.\n\
+    The default argument is used for groups\n\
+    that did not participate in the match");
+
+PyDoc_STRVAR(match_groupdict_doc,
+"groupdict([default=None]) -> dict.\n\
+    Return a dictionary containing all the named subgroups of the match,\n\
+    keyed by the subgroup name. The default argument is used for groups\n\
+    that did not participate in the match");
+
+PyDoc_STRVAR(match_expand_doc,
+"expand(template) -> str.\n\
+    Return the string obtained by doing backslash substitution\n\
+    on the string template, as done by the sub() method.");
+
 static PyMethodDef match_methods[] = {
-    {"group", (PyCFunction) match_group, METH_VARARGS},
-    {"start", (PyCFunction) match_start, METH_VARARGS},
-    {"end", (PyCFunction) match_end, METH_VARARGS},
-    {"span", (PyCFunction) match_span, METH_VARARGS},
-    {"groups", (PyCFunction) match_groups, METH_VARARGS|METH_KEYWORDS},
-    {"groupdict", (PyCFunction) match_groupdict, METH_VARARGS|METH_KEYWORDS},
-    {"expand", (PyCFunction) match_expand, METH_O},
+    {"group", (PyCFunction) match_group, METH_VARARGS, match_group_doc},
+    {"start", (PyCFunction) match_start, METH_VARARGS, match_start_doc},
+    {"end", (PyCFunction) match_end, METH_VARARGS, match_end_doc},
+    {"span", (PyCFunction) match_span, METH_VARARGS, match_span_doc},
+    {"groups", (PyCFunction) match_groups, METH_VARARGS|METH_KEYWORDS,
+        match_groups_doc},
+    {"groupdict", (PyCFunction) match_groupdict, METH_VARARGS|METH_KEYWORDS,
+        match_groupdict_doc},
+    {"expand", (PyCFunction) match_expand, METH_O, match_expand_doc},
     {"__copy__", (PyCFunction) match_copy, METH_NOARGS},
     {"__deepcopy__", (PyCFunction) match_deepcopy, METH_O},
     {NULL, NULL}
@@ -3560,7 +3601,7 @@ static PyObject *
 match_lastindex_get(MatchObject *self)
 {
     if (self->lastindex >= 0)
-        return Py_BuildValue("i", self->lastindex);
+        return PyLong_FromSsize_t(self->lastindex);
     Py_INCREF(Py_None);
     return Py_None;
 }
@@ -3629,7 +3670,7 @@ static PyTypeObject Match_Type = {
     0,                          /* tp_setattro */
     0,                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT,         /* tp_flags */
-    0,                          /* tp_doc */
+    match_doc,                  /* tp_doc */
     0,                          /* tp_traverse */
     0,                          /* tp_clear */
     0,                          /* tp_richcompare */

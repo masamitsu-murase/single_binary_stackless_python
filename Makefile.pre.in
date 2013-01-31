@@ -27,6 +27,9 @@ MODLIBS=        _MODLIBS_
 VERSION=	@VERSION@
 srcdir=		@srcdir@
 VPATH=		@srcdir@
+abs_srcdir=	@abs_srcdir@
+abs_builddir=	@abs_builddir@
+
 
 CC=		@CC@
 CXX=		@CXX@
@@ -66,6 +69,7 @@ MAKESETUP=      $(srcdir)/Modules/makesetup
 # Compiler options
 OPT=		@OPT@
 BASECFLAGS=	@BASECFLAGS@
+BASECPPFLAGS=	@BASECPPFLAGS@
 CONFIGURE_CFLAGS=	@CFLAGS@
 CONFIGURE_CPPFLAGS=	@CPPFLAGS@
 CONFIGURE_LDFLAGS=	@LDFLAGS@
@@ -76,7 +80,7 @@ PY_CFLAGS=	-I. -IInclude -I$(srcdir)/Include -I$(srcdir)/Stackless  $(BASECFLAGS
 # Both CPPFLAGS and LDFLAGS need to contain the shell's value for setup.py to
 # be able to build extension modules using the directories specified in the
 # environment variables
-PY_CPPFLAGS=	-I. -I$(srcdir)/Include $(CONFIGURE_CPPFLAGS) $(CPPFLAGS)
+PY_CPPFLAGS=	$(BASECPPFLAGS) -I. -IInclude -I$(srcdir)/Include $(CONFIGURE_CPPFLAGS) $(CPPFLAGS)
 PY_LDFLAGS=	$(CONFIGURE_LDFLAGS) $(LDFLAGS)
 NO_AS_NEEDED=	@NO_AS_NEEDED@
 LDLAST=		@LDLAST@
@@ -93,6 +97,9 @@ SLPFLAGS=	@SLPFLAGS@
 
 # Machine-dependent subdirectories
 MACHDEP=	@MACHDEP@
+
+# Multiarch directory (may be empty)
+MULTIARCH=	@MULTIARCH@
 
 # Install prefix for architecture-independent files
 prefix=		@prefix@
@@ -203,7 +210,8 @@ BUILDPYTHON=	python$(BUILDEXE)
 
 PYTHON_FOR_BUILD=@PYTHON_FOR_BUILD@
 _PYTHON_HOST_PLATFORM=@_PYTHON_HOST_PLATFORM@
-HOST_GNU_TYPE=  @host@
+BUILD_GNU_TYPE=	@build@
+HOST_GNU_TYPE=	@host@
 
 # The task to run while instrument when building the profile-opt target
 PROFILE_TASK=	$(srcdir)/Tools/pybench/pybench.py -n 2 --with-gc --with-syscheck
@@ -236,8 +244,8 @@ IO_OBJS=	\
 
 ##########################################################################
 # Grammar
-GRAMMAR_H=	$(srcdir)/Include/graminit.h
-GRAMMAR_C=	$(srcdir)/Python/graminit.c
+GRAMMAR_H=	Include/graminit.h
+GRAMMAR_C=	Python/graminit.c
 GRAMMAR_INPUT=	$(srcdir)/Grammar/Grammar
 
 
@@ -303,21 +311,21 @@ PGENOBJS=	$(POBJS) $(PGOBJS)
 
 ##########################################################################
 # AST
-AST_H_DIR=	$(srcdir)/Include
+AST_H_DIR=	Include
 AST_H=		$(AST_H_DIR)/Python-ast.h
-AST_C_DIR=	$(srcdir)/Python
+AST_C_DIR=	Python
 AST_C=		$(AST_C_DIR)/Python-ast.c
 AST_ASDL=	$(srcdir)/Parser/Python.asdl
 
 ASDLGEN_FILES=	$(srcdir)/Parser/asdl.py $(srcdir)/Parser/asdl_c.py
 # XXX Note that a build now requires Python exist before the build starts
-ASDLGEN=	@DISABLE_ASDLGEN@ $(srcdir)/Parser/asdl_c.py
+ASDLGEN=	@ASDLGEN@ $(srcdir)/Parser/asdl_c.py
 
 ##########################################################################
 # Python
 
 OPCODETARGETS_H= \
-		$(srcdir)/Python/opcode_targets.h
+		Python/opcode_targets.h
 
 OPCODETARGETGEN= \
 		$(srcdir)/Python/makeopcodetargets.py
@@ -428,8 +436,6 @@ OBJECT_OBJS=	\
 		Objects/unicodectype.o \
 		Objects/weakrefobject.o
 
-SYSCONFIGDATA=$(srcdir)/Lib/_sysconfigdata.py
-
 ##########################################################################
 # objects that get linked into the Python library
 LIBRARY_OBJS_OMIT_FROZEN=	\
@@ -450,7 +456,7 @@ LIBRARY_OBJS=	\
 
 # Default target
 all:		build_all
-build_all:	$(BUILDPYTHON) $(SYSCONFIGDATA) oldsharedmods sharedmods gdbhooks Modules/_testembed
+build_all:	$(BUILDPYTHON) oldsharedmods sharedmods gdbhooks Modules/_testembed
 
 # Compile a binary with gcc profile guided optimization.
 profile-opt:
@@ -484,16 +490,24 @@ coverage:
 $(BUILDPYTHON):	Modules/python.o $(LIBRARY) $(LDLIBRARY) $(PY3LIBRARY)
 	$(LINKCC) $(PY_LDFLAGS) $(LINKFORSHARED) -o $@ Modules/python.o $(BLDLIBRARY) $(LIBS) $(MODLIBS) $(SYSLIBS) $(LDLAST)
 
-platform: $(BUILDPYTHON) $(SYSCONFIGDATA)
+platform: $(BUILDPYTHON) pybuilddir.txt
 	$(RUNSHARED) $(PYTHON_FOR_BUILD) -c 'import sys ; from sysconfig import get_platform ; print(get_platform()+"-"+sys.version[0:3])' >platform
 
-# Generate the sysconfig build-time data
-$(SYSCONFIGDATA): $(BUILDPYTHON)
+# Create build directory and generate the sysconfig build-time data there.
+# pybuilddir.txt contains the name of the build dir and is used for
+# sys.path fixup -- see Modules/getpath.c.
+pybuilddir.txt: $(BUILDPYTHON)
 	$(RUNSHARED) $(PYTHON_FOR_BUILD) -S -m sysconfig --generate-posix-vars
 
 # Build the shared modules
-sharedmods: $(BUILDPYTHON) $(SYSCONFIGDATA)
-	case $$MAKEFLAGS in *s*) quiet=-q; esac; \
+# Under GNU make, MAKEFLAGS are sorted and normalized; the 's' for
+# -s, --silent or --quiet is always the first char.
+# Under BSD make, MAKEFLAGS might be " -s -v x=y".
+sharedmods: $(BUILDPYTHON) pybuilddir.txt
+	@case "$$MAKEFLAGS" in \
+	    *\ -s*|s*) quiet="-q";; \
+	    *) quiet="";; \
+	esac; \
 	$(RUNSHARED) CC='$(CC)' LDSHARED='$(BLDSHARED)' OPT='$(OPT)' \
 		$(PYTHON_FOR_BUILD) $(srcdir)/setup.py $$quiet build
 
@@ -678,9 +692,11 @@ Parser/printgrammar.o: $(srcdir)/Parser/printgrammar.c
 Parser/pgenmain.o:	$(srcdir)/Include/parsetok.h
 
 $(AST_H): $(AST_ASDL) $(ASDLGEN_FILES)
+	$(MKDIR_P) $(AST_H_DIR)
 	$(ASDLGEN) -h $(AST_H_DIR) $(AST_ASDL)
 
 $(AST_C): $(AST_H) $(AST_ASDL) $(ASDLGEN_FILES)
+	$(MKDIR_P) $(AST_C_DIR)
 	$(ASDLGEN) -c $(AST_C_DIR) $(AST_ASDL)
 
 Python/compile.o Python/symtable.o Python/ast.o: $(GRAMMAR_H) $(AST_H)
@@ -736,11 +752,11 @@ Python/ceval.o: $(OPCODETARGETS_H) $(srcdir)/Python/ceval_gil.h
 Python/formatter_unicode.o: $(srcdir)/Python/formatter_unicode.c \
 				$(BYTESTR_DEPS)
 
-Python/frozen.o: $(srcdir)/Python/importlib.h
+Python/frozen.o: Python/importlib.h
 
-Objects/typeobject.o: $(srcdir)/Objects/typeslots.inc
-$(srcdir)/Objects/typeslots.inc: $(srcdir)/Include/typeslots.h $(srcdir)/Objects/typeslots.py
-	$(PYTHON) $(srcdir)/Objects/typeslots.py < $(srcdir)/Include/typeslots.h > $(srcdir)/Objects/typeslots.inc
+Objects/typeobject.o: Objects/typeslots.inc
+Objects/typeslots.inc: $(srcdir)/Include/typeslots.h $(srcdir)/Objects/typeslots.py
+	$(PYTHON) $(srcdir)/Objects/typeslots.py < $(srcdir)/Include/typeslots.h > Objects/typeslots.inc
 
 Stackless/core/slp_transfer.o: $(srcdir)/Stackless/core/slp_transfer.c
 		$(CC) -c $(PY_CFLAGS) $(SLPFLAGS) -I$(DLINCLDIR) -o $@ $(srcdir)/Stackless/core/slp_transfer.c
@@ -1079,7 +1095,7 @@ libinstall:	build_all $(srcdir)/Lib/$(PLATDIR) $(srcdir)/Modules/xxmodule.c
 		else	true; \
 		fi; \
 	done
-	@for i in $(srcdir)/Lib/*.py ; \
+	@for i in $(srcdir)/Lib/*.py `cat pybuilddir.txt`/_sysconfigdata.py; \
 	do \
 		if test -x $$i; then \
 			$(INSTALL_SCRIPT) $$i $(DESTDIR)$(LIBDEST); \
@@ -1138,7 +1154,9 @@ libinstall:	build_all $(srcdir)/Lib/$(PLATDIR) $(srcdir)/Modules/xxmodule.c
 		-d $(LIBDEST)/site-packages -f \
 		-x badsyntax $(DESTDIR)$(LIBDEST)/site-packages
 	-PYTHONPATH=$(DESTDIR)$(LIBDEST) $(RUNSHARED) \
-		$(PYTHON_FOR_BUILD) -Wi -c "import lib2to3.pygram, lib2to3.patcomp;lib2to3.patcomp.PatternCompiler()"
+		$(PYTHON_FOR_BUILD) -m lib2to3.pgen2.driver $(DESTDIR)$(LIBDEST)/lib2to3/Grammar.txt
+	-PYTHONPATH=$(DESTDIR)$(LIBDEST) $(RUNSHARED) \
+		$(PYTHON_FOR_BUILD) -m lib2to3.pgen2.driver $(DESTDIR)$(LIBDEST)/lib2to3/PatternGrammar.txt
 
 # Create the PLATDIR source directory, if one wasn't distributed..
 $(srcdir)/Lib/$(PLATDIR):
@@ -1148,6 +1166,13 @@ $(srcdir)/Lib/$(PLATDIR):
 	export PYTHONPATH; PYTHONPATH="`pwd`/Lib"; \
 	export DYLD_FRAMEWORK_PATH; DYLD_FRAMEWORK_PATH="`pwd`"; \
 	export EXE; EXE="$(BUILDEXE)"; \
+	if [ -n "$(MULTIARCH)" ]; then export MULTIARCH; MULTIARCH=$(MULTIARCH); fi; \
+	export PYTHON_FOR_BUILD; \
+	if [ "$(BUILD_GNU_TYPE)" = "$(HOST_GNU_TYPE)" ]; then \
+	  PYTHON_FOR_BUILD="$(BUILDPYTHON)"; \
+	else \
+	  PYTHON_FOR_BUILD="$(PYTHON_FOR_BUILD)"; \
+	fi; \
 	cd $(srcdir)/Lib/$(PLATDIR); $(RUNSHARED) ./regen
 
 python-config: $(srcdir)/Misc/python-config.in
@@ -1250,6 +1275,8 @@ sharedinstall: sharedmods
 		--install-scripts=$(BINDIR) \
 		--install-platlib=$(DESTSHARED) \
 		--root=$(DESTDIR)/
+	-rm $(DESTDIR)$(DESTSHARED)/_sysconfigdata.py
+	-rm -r $(DESTDIR)$(DESTSHARED)/__pycache__
 
 # Here are a couple of targets for MacOSX again, to install a full
 # framework-based Python. frameworkinstall installs everything, the
@@ -1294,8 +1321,11 @@ frameworkinstallstructure:	$(LDLIBRARY)
 # Install a number of symlinks to keep software that expects a normal unix
 # install (which includes python-config) happy.
 frameworkinstallmaclib:
+	ln -fs "../../../$(PYTHONFRAMEWORK)" "$(DESTDIR)$(prefix)/lib/python$(VERSION)/config-$(LDVERSION)/libpython$(LDVERSION).a"
+	ln -fs "../../../$(PYTHONFRAMEWORK)" "$(DESTDIR)$(prefix)/lib/python$(VERSION)/config-$(LDVERSION)/libpython$(LDVERSION).dylib"
 	ln -fs "../../../$(PYTHONFRAMEWORK)" "$(DESTDIR)$(prefix)/lib/python$(VERSION)/config-$(LDVERSION)/libpython$(VERSION).a"
 	ln -fs "../../../$(PYTHONFRAMEWORK)" "$(DESTDIR)$(prefix)/lib/python$(VERSION)/config-$(LDVERSION)/libpython$(VERSION).dylib"
+	ln -fs "../$(PYTHONFRAMEWORK)" "$(DESTDIR)$(prefix)/lib/libpython$(LDVERSION).dylib"
 	ln -fs "../$(PYTHONFRAMEWORK)" "$(DESTDIR)$(prefix)/lib/libpython$(VERSION).dylib"
 
 # This installs the IDE, the Launcher and other apps into /Applications
@@ -1392,9 +1422,10 @@ clean: pycremoval
 	find . -name '*.s[ol]' -exec rm -f {} ';'
 	find . -name '*.so.[0-9]*.[0-9]*' -exec rm -f {} ';'
 	find build -name 'fficonfig.h' -exec rm -f {} ';' || true
-	find build -name 'fficonfig.py' -exec rm -f {} ';' || true
+	find build -name '*.py' -exec rm -f {} ';' || true
+	find build -name '*.py[co]' -exec rm -f {} ';' || true
+	-rm -f pybuilddir.txt
 	-rm -f Lib/lib2to3/*Grammar*.pickle
-	-rm -f $(SYSCONFIGDATA)
 	-rm -f Modules/_testembed Modules/_freeze_importlib
 
 profile-removal:
@@ -1418,7 +1449,6 @@ distclean: clobber
 		Modules/Setup Modules/Setup.local Modules/Setup.config \
 		Modules/ld_so_aix Modules/python.exp Misc/python.pc
 	-rm -f python*-gdb.py
-	-rm -f pybuilddir.txt
 	find $(srcdir) '(' -name '*.fdc' -o -name '*~' \
 			   -o -name '[@,#]*' -o -name '*.old' \
 			   -o -name '*.orig' -o -name '*.rej' \

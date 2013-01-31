@@ -96,15 +96,11 @@ PyTuple_New(register Py_ssize_t size)
     else
 #endif
     {
-        Py_ssize_t nbytes = size * sizeof(PyObject *);
         /* Check for overflow */
-        if (nbytes / sizeof(PyObject *) != (size_t)size ||
-            (nbytes > PY_SSIZE_T_MAX - sizeof(PyTupleObject) - sizeof(PyObject *)))
-        {
+        if (size > (PY_SSIZE_T_MAX - sizeof(PyTupleObject) -
+                    sizeof(PyObject *)) / sizeof(PyObject *)) {
             return PyErr_NoMemory();
         }
-        /* nbytes += sizeof(PyTupleObject) - sizeof(PyObject *); */
-
         op = PyObject_GC_NewVar(PyTupleObject, &PyTuple_Type, size);
         if (op == NULL)
             return NULL;
@@ -210,8 +206,10 @@ PyTuple_Pack(Py_ssize_t n, ...)
 
     va_start(vargs, n);
     result = PyTuple_New(n);
-    if (result == NULL)
+    if (result == NULL) {
+        va_end(vargs);
         return NULL;
+    }
     items = ((PyTupleObject *)result)->ob_item;
     for (i = 0; i < n; i++) {
         o = va_arg(vargs, PyObject *);
@@ -329,12 +327,12 @@ error:
 static Py_hash_t
 tuplehash(PyTupleObject *v)
 {
-    register Py_uhash_t x;
+    register Py_uhash_t x;  /* Unsigned for defined overflow behavior. */
     register Py_hash_t y;
     register Py_ssize_t len = Py_SIZE(v);
     register PyObject **p;
     Py_uhash_t mult = _PyHASH_MULTIPLIER;
-    x = 0x345678;
+    x = 0x345678UL;
     p = v->ob_item;
     while (--len >= 0) {
         y = PyObject_Hash(*p++);
@@ -342,9 +340,9 @@ tuplehash(PyTupleObject *v)
             return -1;
         x = (x ^ y) * mult;
         /* the cast might truncate len; that doesn't change hash stability */
-        mult += (Py_hash_t)(82520L + len + len);
+        mult += (Py_hash_t)(82520UL + len + len);
     }
-    x += 97531L;
+    x += 97531UL;
     if (x == (Py_uhash_t)-1)
         x = -2;
     return x;
@@ -479,9 +477,9 @@ tuplerepeat(PyTupleObject *a, Py_ssize_t n)
         if (Py_SIZE(a) == 0)
             return PyTuple_New(0);
     }
-    size = Py_SIZE(a) * n;
-    if (size/Py_SIZE(a) != n)
+    if (n > PY_SSIZE_T_MAX / Py_SIZE(a))
         return PyErr_NoMemory();
+    size = Py_SIZE(a) * n;
     np = (PyTupleObject *) PyTuple_New(size);
     if (np == NULL)
         return NULL;

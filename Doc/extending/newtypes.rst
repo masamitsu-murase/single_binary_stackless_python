@@ -982,12 +982,12 @@ done.  This can be done using the :c:func:`PyErr_Fetch` and
    }
 
 
+.. index::
+   single: string; object representation
+   builtin: repr
+
 Object Presentation
 -------------------
-
-.. index::
-   builtin: repr
-   builtin: str
 
 In Python, there are two ways to generate a textual representation of an object:
 the :func:`repr` function, and the :func:`str` function.  (The :func:`print`
@@ -1277,9 +1277,9 @@ that the slots are present and should be checked by the interpreter.  (The flag
 bit does not indicate that the slot values are non-*NULL*. The flag may be set
 to indicate the presence of a slot, but a slot may still be unfilled.) ::
 
-   PyNumberMethods   tp_as_number;
-   PySequenceMethods tp_as_sequence;
-   PyMappingMethods  tp_as_mapping;
+   PyNumberMethods   *tp_as_number;
+   PySequenceMethods *tp_as_sequence;
+   PyMappingMethods  *tp_as_mapping;
 
 If you wish your object to be able to act like a number, a sequence, or a
 mapping object, then you place the address of a structure that implements the C

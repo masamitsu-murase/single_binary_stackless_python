@@ -21,11 +21,8 @@ The :mod:`filecmp` module defines the following functions:
    Compare the files named *f1* and *f2*, returning ``True`` if they seem equal,
    ``False`` otherwise.
 
-   Unless *shallow* is given and is false, files with identical :func:`os.stat`
-   signatures are taken to be equal.
-
-   Files that were compared using this function will not be compared again unless
-   their :func:`os.stat` signature changes.
+   If *shallow* is true, files with identical :func:`os.stat` signatures are
+   taken to be equal.  Otherwise, the contents of the files are compared.
 
    Note that no external programs are called from this function, giving it
    portability and efficiency.
@@ -51,22 +48,10 @@ The :mod:`filecmp` module defines the following functions:
    one of the three returned lists.
 
 
-Example::
-
-   >>> import filecmp
-   >>> filecmp.cmp('undoc.rst', 'undoc.rst')
-   True
-   >>> filecmp.cmp('undoc.rst', 'index.rst')
-   False
-
-
 .. _dircmp-objects:
 
 The :class:`dircmp` class
 -------------------------
-
-:class:`dircmp` instances are built using this constructor:
-
 
 .. class:: dircmp(a, b, ignore=None, hide=None)
 
@@ -75,12 +60,15 @@ The :class:`dircmp` class
    'tags']``. *hide* is a list of names to hide, and defaults to ``[os.curdir,
    os.pardir]``.
 
+   The :class:`dircmp` class compares files by doing *shallow* comparisons
+   as described for :func:`filecmp.cmp`.
+
    The :class:`dircmp` class provides the following methods:
 
 
    .. method:: report()
 
-      Print (to ``sys.stdout``) a comparison between *a* and *b*.
+      Print (to :data:`sys.stdout`) a comparison between *a* and *b*.
 
 
    .. method:: report_partial_closure()
@@ -94,13 +82,23 @@ The :class:`dircmp` class
       Print a comparison between *a* and *b* and common subdirectories
       (recursively).
 
-   The :class:`dircmp` offers a number of interesting attributes that may be
+   The :class:`dircmp` class offers a number of interesting attributes that may be
    used to get various bits of information about the directory trees being
    compared.
 
    Note that via :meth:`__getattr__` hooks, all attributes are computed lazily,
    so there is no speed penalty if only those attributes which are lightweight
    to compute are used.
+
+
+   .. attribute:: left
+
+      The directory *a*.
+
+
+   .. attribute:: right
+
+      The directory *b*.
 
 
    .. attribute:: left_list
@@ -146,12 +144,14 @@ The :class:`dircmp` class
 
    .. attribute:: same_files
 
-      Files which are identical in both *a* and *b*.
+      Files which are identical in both *a* and *b*, using the class's
+      file comparison operator.
 
 
    .. attribute:: diff_files
 
-      Files which are in both *a* and *b*, whose contents differ.
+      Files which are in both *a* and *b*, whose contents differ according
+      to the class's file comparison operator.
 
 
    .. attribute:: funny_files
@@ -163,4 +163,19 @@ The :class:`dircmp` class
 
       A dictionary mapping names in :attr:`common_dirs` to :class:`dircmp`
       objects.
+
+
+Here is a simplified example of using the ``subdirs`` attribute to search
+recursively through two directories to show common different files::
+
+    >>> from filecmp import dircmp
+    >>> def print_diff_files(dcmp):
+    ...     for name in dcmp.diff_files:
+    ...         print("diff_file %s found in %s and %s" % (name, dcmp.left,
+    ...               dcmp.right))
+    ...     for sub_dcmp in dcmp.subdirs.values():
+    ...         print_diff_files(sub_dcmp)
+    ...
+    >>> dcmp = dircmp('dir1', 'dir2') # doctest: +SKIP
+    >>> print_diff_files(dcmp) # doctest: +SKIP
 

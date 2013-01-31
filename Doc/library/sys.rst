@@ -215,21 +215,6 @@ always available.
    a traceback object (see the Reference Manual) which encapsulates the call
    stack at the point where the exception originally occurred.
 
-   .. warning::
-
-      Assigning the *traceback* return value to a local variable in a function
-      that is handling an exception will cause a circular reference.  Since most
-      functions don't need access to the traceback, the best solution is to use
-      something like ``exctype, value = sys.exc_info()[:2]`` to extract only the
-      exception type and value.  If you do need the traceback, make sure to
-      delete it after use (best done with a :keyword:`try`
-      ... :keyword:`finally` statement) or to call :func:`exc_info` in a
-      function that does not itself handle an exception.
-
-      Such cycles are normally automatically reclaimed when garbage collection
-      is enabled and they become unreachable, but it remains more efficient to
-      avoid creating cycles.
-
 
 .. data:: exec_prefix
 
@@ -783,7 +768,9 @@ always available.
    current directory first.  Notice that the script directory is inserted *before*
    the entries inserted as a result of :envvar:`PYTHONPATH`.
 
-   A program is free to modify this list for its own purposes.
+   A program is free to modify this list for its own purposes.  Only strings
+   and bytes should be added to :data:`sys.path`; all other data types are
+   ignored during import.
 
 
    .. seealso::
@@ -831,7 +818,7 @@ always available.
    For other systems, the values are:
 
    ================ ===========================
-   System           :data:`platform` value
+   System           ``platform`` value
    ================ ===========================
    Linux            ``'linux'``
    Windows          ``'win32'``

@@ -17,6 +17,11 @@ path names. Vice versa, using bytes objects cannot represent all file
 names on Windows (in the standard ``mbcs`` encoding), hence Windows
 applications should use string objects to access all files.
 
+Unlike a unix shell, Python does not do any *automatic* path expansions.
+Functions such as :func:`expanduser` and :func:`expandvars` can be invoked
+explicitly when an application desires shell-like path expansion.  (See also
+the :mod:`glob` module.)
+
 .. note::
 
    All of these functions accept either only bytes or only string objects as
@@ -43,13 +48,15 @@ applications should use string objects to access all files.
 .. function:: abspath(path)
 
    Return a normalized absolutized version of the pathname *path*. On most
-   platforms, this is equivalent to ``normpath(join(os.getcwd(), path))``.
+   platforms, this is equivalent to calling the function :func:`normpath` as
+   follows: ``normpath(join(os.getcwd(), path))``.
 
 
 .. function:: basename(path)
 
-   Return the base name of pathname *path*.  This is the second half of the pair
-   returned by ``split(path)``.  Note that the result of this function is different
+   Return the base name of pathname *path*.  This is the second element of the
+   pair returned by passing *path* to the function :func:`split`.  Note that
+   the result of this function is different
    from the Unix :program:`basename` program; where :program:`basename` for
    ``'/foo/bar/'`` returns ``'bar'``, the :func:`basename` function returns an
    empty string (``''``).
@@ -64,8 +71,8 @@ applications should use string objects to access all files.
 
 .. function:: dirname(path)
 
-   Return the directory name of pathname *path*.  This is the first half of the
-   pair returned by ``split(path)``.
+   Return the directory name of pathname *path*.  This is the first element of
+   the pair returned by passing *path* to the function :func:`split`.
 
 
 .. function:: exists(path)
@@ -124,7 +131,7 @@ applications should use string objects to access all files.
 
    Return the time of last access of *path*.  The return value is a number giving
    the number of seconds since the epoch (see the  :mod:`time` module).  Raise
-   :exc:`os.error` if the file does not exist or is inaccessible.
+   :exc:`OSError` if the file does not exist or is inaccessible.
 
    If :func:`os.stat_float_times` returns True, the result is a floating point
    number.
@@ -134,7 +141,7 @@ applications should use string objects to access all files.
 
    Return the time of last modification of *path*.  The return value is a number
    giving the number of seconds since the epoch (see the  :mod:`time` module).
-   Raise :exc:`os.error` if the file does not exist or is inaccessible.
+   Raise :exc:`OSError` if the file does not exist or is inaccessible.
 
    If :func:`os.stat_float_times` returns True, the result is a floating point
    number.
@@ -145,13 +152,13 @@ applications should use string objects to access all files.
    Return the system's ctime which, on some systems (like Unix) is the time of the
    last change, and, on others (like Windows), is the creation time for *path*.
    The return value is a number giving the number of seconds since the epoch (see
-   the  :mod:`time` module).  Raise :exc:`os.error` if the file does not exist or
+   the  :mod:`time` module).  Raise :exc:`OSError` if the file does not exist or
    is inaccessible.
 
 
 .. function:: getsize(path)
 
-   Return the size, in bytes, of *path*.  Raise :exc:`os.error` if the file does
+   Return the size, in bytes, of *path*.  Raise :exc:`OSError` if the file does
    not exist or is inaccessible.
 
 
@@ -282,7 +289,8 @@ applications should use string objects to access all files.
    *path* is empty, both *head* and *tail* are empty.  Trailing slashes are
    stripped from *head* unless it is the root (one or more slashes only).  In
    all cases, ``join(head, tail)`` returns a path to the same location as *path*
-   (but the strings may differ).
+   (but the strings may differ).  Also see the functions :func:`dirname` and
+   :func:`basename`.
 
 
 .. function:: splitdrive(path)

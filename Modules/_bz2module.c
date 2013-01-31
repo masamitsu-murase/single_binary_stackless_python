@@ -123,7 +123,14 @@ grow_buffer(PyObject **buf)
        giving us amortized linear-time behavior. Use a less-than-double
        growth factor to avoid excessive allocation. */
     size_t size = PyBytes_GET_SIZE(*buf);
-    return _PyBytes_Resize(buf, size + (size >> 3) + 6);
+    size_t new_size = size + (size >> 3) + 6;
+    if (new_size > size) {
+        return _PyBytes_Resize(buf, new_size);
+    } else {  /* overflow */
+        PyErr_SetString(PyExc_OverflowError,
+                        "Unable to allocate buffer - output too large");
+        return -1;
+    }
 }
 
 
@@ -138,16 +145,36 @@ compress(BZ2Compressor *c, char *data, size_t len, int action)
     result = PyBytes_FromStringAndSize(NULL, SMALLCHUNK);
     if (result == NULL)
         return NULL;
+
     c->bzs.next_in = data;
-    /* On a 64-bit system, len might not fit in avail_in (an unsigned int).
-       Do compression in chunks of no more than UINT_MAX bytes each. */
-    c->bzs.avail_in = MIN(len, UINT_MAX);
-    len -= c->bzs.avail_in;
+    c->bzs.avail_in = 0;
     c->bzs.next_out = PyBytes_AS_STRING(result);
     c->bzs.avail_out = PyBytes_GET_SIZE(result);
     for (;;) {
         char *this_out;
         int bzerror;
+
+        /* On a 64-bit system, len might not fit in avail_in (an unsigned int).
+           Do compression in chunks of no more than UINT_MAX bytes each. */
+        if (c->bzs.avail_in == 0 && len > 0) {
+            c->bzs.avail_in = MIN(len, UINT_MAX);
+            len -= c->bzs.avail_in;
+        }
+
+        /* In regular compression mode, stop when input data is exhausted. */
+        if (action == BZ_RUN && c->bzs.avail_in == 0)
+            break;
+
+        if (c->bzs.avail_out == 0) {
+            size_t buffer_left = PyBytes_GET_SIZE(result) - data_size;
+            if (buffer_left == 0) {
+                if (grow_buffer(&result) < 0)
+                    goto error;
+                c->bzs.next_out = PyBytes_AS_STRING(result) + data_size;
+                buffer_left = PyBytes_GET_SIZE(result) - data_size;
+            }
+            c->bzs.avail_out = MIN(buffer_left, UINT_MAX);
+        }
 
         Py_BEGIN_ALLOW_THREADS
         this_out = c->bzs.next_out;
@@ -157,23 +184,9 @@ compress(BZ2Compressor *c, char *data, size_t len, int action)
         if (catch_bz2_error(bzerror))
             goto error;
 
-        if (c->bzs.avail_in == 0 && len > 0) {
-            c->bzs.avail_in = MIN(len, UINT_MAX);
-            len -= c->bzs.avail_in;
-        }
-
-        /* In regular compression mode, stop when input data is exhausted.
-           In flushing mode, stop when all buffered data has been flushed. */
-        if ((action == BZ_RUN && c->bzs.avail_in == 0) ||
-            (action == BZ_FINISH && bzerror == BZ_STREAM_END))
+        /* In flushing mode, stop when all buffered data has been flushed. */
+        if (action == BZ_FINISH && bzerror == BZ_STREAM_END)
             break;
-
-        if (c->bzs.avail_out == 0) {
-            if (grow_buffer(&result) < 0)
-                goto error;
-            c->bzs.next_out = PyBytes_AS_STRING(result) + data_size;
-            c->bzs.avail_out = PyBytes_GET_SIZE(result) - data_size;
-        }
     }
     if (data_size != PyBytes_GET_SIZE(result))
         if (_PyBytes_Resize(&result, data_size) < 0)
@@ -390,10 +403,14 @@ decompress(BZ2Decompressor *d, char *data, size_t len)
             len -= d->bzs.avail_in;
         }
         if (d->bzs.avail_out == 0) {
-            if (grow_buffer(&result) < 0)
-                goto error;
-            d->bzs.next_out = PyBytes_AS_STRING(result) + data_size;
-            d->bzs.avail_out = PyBytes_GET_SIZE(result) - data_size;
+            size_t buffer_left = PyBytes_GET_SIZE(result) - data_size;
+            if (buffer_left == 0) {
+                if (grow_buffer(&result) < 0)
+                    goto error;
+                d->bzs.next_out = PyBytes_AS_STRING(result) + data_size;
+                buffer_left = PyBytes_GET_SIZE(result) - data_size;
+            }
+            d->bzs.avail_out = MIN(buffer_left, UINT_MAX);
         }
     }
     if (data_size != PyBytes_GET_SIZE(result))

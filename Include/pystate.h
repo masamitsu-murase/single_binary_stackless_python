@@ -117,8 +117,11 @@ typedef struct _ts {
     PyObject *async_exc; /* Asynchronous exception to raise */
     long thread_id; /* Thread id where this tstate was created */
 
+    int trash_delete_nesting;
+    PyObject *trash_delete_later;
+
 #ifdef STACKLESS
-	PyStacklessState st;
+PyStacklessState st;
 #endif
 
     /* XXX signal handlers should also be here */

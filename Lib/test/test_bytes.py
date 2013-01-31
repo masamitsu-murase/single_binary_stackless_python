@@ -38,7 +38,7 @@ class Indexable:
         return self.value
 
 
-class BaseBytesTest(unittest.TestCase):
+class BaseBytesTest:
 
     def test_basics(self):
         b = self.type2test()
@@ -682,7 +682,7 @@ class BaseBytesTest(unittest.TestCase):
                                 x, None, None, None)
 
 
-class BytesTest(BaseBytesTest):
+class BytesTest(BaseBytesTest, unittest.TestCase):
     type2test = bytes
 
     def test_buffer_is_readonly(self):
@@ -701,6 +701,12 @@ class BytesTest(BaseBytesTest):
             def __bytes__(self):
                 return None
         self.assertRaises(TypeError, bytes, A())
+        class A:
+            def __bytes__(self):
+                return b'a'
+            def __index__(self):
+                return 42
+        self.assertEqual(bytes(A()), b'a')
 
     # Test PyBytes_FromFormat()
     def test_from_format(self):
@@ -724,7 +730,7 @@ class BytesTest(BaseBytesTest):
                          b's:cstr')
 
 
-class ByteArrayTest(BaseBytesTest):
+class ByteArrayTest(BaseBytesTest, unittest.TestCase):
     type2test = bytearray
 
     def test_nohash(self):
@@ -870,6 +876,24 @@ class ByteArrayTest(BaseBytesTest):
 
         b[3:0] = [42, 42, 42]
         self.assertEqual(b, bytearray([0, 1, 2, 42, 42, 42, 3, 4, 5, 6, 7, 8, 9]))
+
+        b[3:] = b'foo'
+        self.assertEqual(b, bytearray([0, 1, 2, 102, 111, 111]))
+
+        b[:3] = memoryview(b'foo')
+        self.assertEqual(b, bytearray([102, 111, 111, 102, 111, 111]))
+
+        b[3:4] = []
+        self.assertEqual(b, bytearray([102, 111, 111, 111, 111]))
+
+        for elem in [5, -5, 0, int(10e20), 'str', 2.3,
+                     ['a', 'b'], [b'a', b'b'], [[]]]:
+            with self.assertRaises(TypeError):
+                b[3:4] = elem
+
+        for elem in [[254, 255, 256], [-256, 9000]]:
+            with self.assertRaises(ValueError):
+                b[3:4] = elem
 
     def test_extended_set_del_slice(self):
         indices = (0, None, 1, 3, 19, 300, 1<<333, -1, -2, -31, -300)
@@ -1134,6 +1158,7 @@ class AssortedBytesTest(unittest.TestCase):
         self.assertEqual(bytes(b"abc") < b"ab", False)
         self.assertEqual(bytes(b"abc") <= b"ab", False)
 
+    @test.support.requires_docstrings
     def test_doc(self):
         self.assertIsNotNone(bytearray.__doc__)
         self.assertTrue(bytearray.__doc__.startswith("bytearray("), bytearray.__doc__)
@@ -1269,16 +1294,16 @@ class FixedStringTest(test.string_tests.BaseTest):
     def test_lower(self):
         pass
 
-class ByteArrayAsStringTest(FixedStringTest):
+class ByteArrayAsStringTest(FixedStringTest, unittest.TestCase):
     type2test = bytearray
     contains_bytes = True
 
-class BytesAsStringTest(FixedStringTest):
+class BytesAsStringTest(FixedStringTest, unittest.TestCase):
     type2test = bytes
     contains_bytes = True
 
 
-class SubclassTest(unittest.TestCase):
+class SubclassTest:
 
     def test_basic(self):
         self.assertTrue(issubclass(self.subclass2test, self.type2test))
@@ -1350,7 +1375,7 @@ class ByteArraySubclass(bytearray):
 class BytesSubclass(bytes):
     pass
 
-class ByteArraySubclassTest(SubclassTest):
+class ByteArraySubclassTest(SubclassTest, unittest.TestCase):
     type2test = bytearray
     subclass2test = ByteArraySubclass
 
@@ -1365,16 +1390,10 @@ class ByteArraySubclassTest(SubclassTest):
         self.assertEqual(x, b"abcd")
 
 
-class BytesSubclassTest(SubclassTest):
+class BytesSubclassTest(SubclassTest, unittest.TestCase):
     type2test = bytes
     subclass2test = BytesSubclass
 
 
-def test_main():
-    test.support.run_unittest(
-        BytesTest, AssortedBytesTest, BytesAsStringTest,
-        ByteArrayTest, ByteArrayAsStringTest, BytesSubclassTest,
-        ByteArraySubclassTest, BytearrayPEP3137Test)
-
 if __name__ == "__main__":
-    test_main()
+    unittest.main()
