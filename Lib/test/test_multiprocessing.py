@@ -35,6 +35,7 @@ test.support.import_module('multiprocessing.synchronize')
 # message: "No module named _multiprocessing". _multiprocessing is not compiled
 # without thread support.
 import threading
+import pickle
 
 import multiprocessing.dummy
 import multiprocessing.connection
@@ -1230,8 +1231,12 @@ class _TestPool(BaseTestCase):
 def raising():
     raise KeyError("key")
 
+class Unpickleable(object):
+    def __reduce__(self):
+        raise pickle.PicklingError("intentionally unpickleable")
+
 def unpickleable_result():
-    return lambda: 42
+    return Unpickleable()
 
 class _TestPoolWorkerErrors(BaseTestCase):
     ALLOWED_TYPES = ('processes', )
