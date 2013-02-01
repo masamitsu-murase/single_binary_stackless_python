@@ -320,10 +320,12 @@ slp_eval_frame(PyFrameObject *f)
     return slp_frame_dispatch(f, fprev, 0, Py_None);
 }
 
-void slp_kill_tasks_with_stacks(PyThreadState *ts)
+void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
 {
+    PyThreadState *ts = PyThreadState_GET();
     int count = 0;
 
+    /* a loop to kill tasklets on the local thread */
     while (1) {
         PyCStackObject *csfirst = slp_cstack_chain, *cs;
         PyTaskletObject *t, *task;
@@ -339,7 +341,11 @@ void slp_kill_tasks_with_stacks(PyThreadState *ts)
             ++count;
             if (cs->task == NULL)
                 continue;
-            if (ts != NULL && cs->tstate != ts)
+            /* can't kill tasklets from other threads here */
+            if (cs->tstate != ts)
+                continue;
+            /* were we asked to kill tasklet on our thread? */
+            if (target_ts != NULL && cs->tstate != target_ts)
                 continue;
             /* Not killable, another thread's frameless main? */
             if (slp_get_frame(cs->task) == NULL)
@@ -384,6 +390,31 @@ void slp_kill_tasks_with_stacks(PyThreadState *ts)
             t->cstate->tstate = slp_initial_tstate;
         }
         Py_DECREF(t);
+    }
+
+    /* and a separate simple loop to kill tasklets on foreign threads.
+     * Since foreign tasklets are scheduled in their own good time,
+     * there is no guarantee that they are actually dead when we
+     * exit this function
+     */
+    {
+        PyCStackObject *csfirst = slp_cstack_chain, *cs;
+        PyTaskletObject *t;
+        
+        if (csfirst == NULL)
+            return;
+        count = 0;
+        for (cs = csfirst; ; cs = cs->next) {
+            if (count && cs == csfirst) {
+                return;
+            }
+            count++;
+            t = cs->task;
+            Py_INCREF(t); /* cs->task is a borrowed ref */
+            PyTasklet_Kill(t);
+            PyErr_Clear();
+            Py_DECREF(t);
+        }
     }
 }
 
