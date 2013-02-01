@@ -351,6 +351,35 @@ class TestConcretePickledTasklets(TestPickledTasklets):
         f2 = pickle.loads(pickle.dumps(f1))
         self.assertEqual(f1.__module__, f2.__module__)
 
+class TestOldStackless_WrapFactories(StacklessTestCase):
+    def testXrange(self):
+        # stackless python prior to 2.7.3 used to register its own __reduce__
+        # method for xrange with copy_reg. This method returnd the function
+        # stackless._wrap.xrange as xrange factory.
+        #
+        # This test case ensures that stackless can still unpickle old pickles:
+
+        # an old pickle, protocol 0 of xrange(123, 798, 45)
+        p = 'cstackless._wrap\nxrange\n(I123\nI798\nI45\ntR(tb.'
+		
+        # Output of
+        # from pickletools import dis; dis(p)
+        #    0: c    GLOBAL     'stackless._wrap xrange'
+        #   24: (    MARK
+        #   25: I        INT        123
+        #   30: I        INT        798
+        #   35: I        INT        45
+        #   39: t        TUPLE      (MARK at 24)
+        #   40: R    REDUCE
+        #   41: (    MARK
+        #   42: t        TUPLE      (MARK at 41)
+        #   43: b    BUILD
+        #   44: .    STOP
+        # highest protocol among opcodes = 0
+		
+        x = pickle.loads(p)
+        self.assertIs(type(x), xrange)
+        self.assertEqual(repr(x), repr(xrange(123, 798, 45)))
 
 if __name__ == '__main__':
     if not sys.argv[1:]:

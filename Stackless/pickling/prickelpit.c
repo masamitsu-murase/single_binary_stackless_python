@@ -189,7 +189,7 @@ static struct PyMethodDef _new_methoddef[] = {
     {0}
 };
 
-static int init_type(PyTypeObject *t, int (*initchain)(void))
+static int init_type(PyTypeObject *t, int register_reduce, int (*initchain)(void))
 {
     PyMethodDescrObject *reduce;
     PyWrapperDescrObject *init;
@@ -217,13 +217,15 @@ static int init_type(PyTypeObject *t, int (*initchain)(void))
     func = PyCFunction_New(_new_methoddef, (PyObject *)t);
     if (func == NULL || PyDict_SetItemString(t->tp_dict, "__new__", func))
         return -1;
-    /* register with copy_reg */
-    args = Py_BuildValue("(OO)", t->tp_base, reduce);
-    if (pickle_reg != NULL &&
-        (retval = PyObject_Call(pickle_reg, args, NULL)) == NULL)
-        ret = -1;
-    Py_XDECREF(retval);
-    Py_XDECREF(args);
+    if (register_reduce) {
+	    /* register with copy_reg */
+        args = Py_BuildValue("(OO)", t->tp_base, reduce);
+        if (pickle_reg != NULL &&
+            (retval = PyObject_Call(pickle_reg, args, NULL)) == NULL)
+            ret = -1;
+        Py_XDECREF(retval);
+        Py_XDECREF(args);
+    }
     if (ret == 0 && initchain != NULL)
         ret = initchain();
     return ret;
@@ -553,7 +555,7 @@ MAKE_WRAPPERTYPE(PyCode_Type, code, "code", code_reduce, generic_new,
 
 static int init_codetype(void)
 {
-    return init_type(&wrap_PyCode_Type, initchain);
+    return init_type(&wrap_PyCode_Type, 1, initchain);
 }
 #undef initchain
 #define initchain init_codetype
@@ -629,7 +631,7 @@ MAKE_WRAPPERTYPE(PyCell_Type, cell, "cell", cell_reduce, cell_new, cell_setstate
 
 static int init_celltype(void)
 {
-    return init_type(&wrap_PyCell_Type, initchain);
+    return init_type(&wrap_PyCell_Type, 1, initchain);
 }
 #undef initchain
 #define initchain init_celltype
@@ -721,7 +723,7 @@ MAKE_WRAPPERTYPE(PyFunction_Type, func, "function", func_reduce, func_new,
 
 static int init_functype(void)
 {
-    return init_type(&wrap_PyFunction_Type, initchain);
+    return init_type(&wrap_PyFunction_Type, 1, initchain);
 }
 #undef initchain
 #define initchain init_functype
@@ -1066,7 +1068,7 @@ static int init_frametype(void)
                              PyEval_EvalFrame_iter, REF_INVALID_EXEC(eval_frame_iter))
         || slp_register_execute(&PyCFrame_Type, "channel_seq_callback",
                              channel_seq_callback, REF_INVALID_EXEC(channel_seq_callback))
-        || init_type(&wrap_PyFrame_Type, initchain);
+        || init_type(&wrap_PyFrame_Type, 1, initchain);
 }
 #undef initchain
 #define initchain init_frametype
@@ -1159,7 +1161,7 @@ MAKE_WRAPPERTYPE(PyTraceBack_Type, tb, "traceback", tb_reduce, tb_new, tb_setsta
 
 static int init_tracebacktype(void)
 {
-    return init_type(&wrap_PyTraceBack_Type, initchain);
+    return init_type(&wrap_PyTraceBack_Type, 1, initchain);
 }
 #undef initchain
 #define initchain init_tracebacktype
@@ -1241,7 +1243,7 @@ MAKE_WRAPPERTYPE(PyModule_Type, module, "module", module_reduce, module_new, gen
 
 static int init_moduletype(void)
 {
-    return init_type(&wrap_PyModule_Type, initchain);
+    return init_type(&wrap_PyModule_Type, 1, initchain);
 }
 #undef initchain
 #define initchain init_moduletype
@@ -1337,8 +1339,8 @@ MAKE_WRAPPERTYPE(PyCallIter_Type, calliter, "callable-iterator",
 
 static int init_itertype(void)
 {
-    return init_type(&wrap_PySeqIter_Type, NULL)
-        || init_type(&wrap_PyCallIter_Type, initchain);
+    return init_type(&wrap_PySeqIter_Type, 1, NULL)
+        || init_type(&wrap_PyCallIter_Type, 1, initchain);
 }
 #undef initchain
 #define initchain init_itertype
@@ -1374,7 +1376,7 @@ MAKE_WRAPPERTYPE(PyMethod_Type, method, "instancemethod", method_reduce,
 
 static int init_methodtype(void)
 {
-    return init_type(&wrap_PyMethod_Type, initchain);
+    return init_type(&wrap_PyMethod_Type, 1, initchain);
 }
 #undef initchain
 #define initchain init_methodtype
@@ -1530,7 +1532,7 @@ MAKE_WRAPPERTYPE(PyDictIterKey_Type, dictiterkey, "dictionary-keyiterator",
 
 static int init_dictiterkeytype(void)
 {
-    return init_type(&wrap_PyDictIterKey_Type, initchain);
+    return init_type(&wrap_PyDictIterKey_Type, 1, initchain);
 }
 #undef initchain
 #define initchain init_dictiterkeytype
@@ -1542,7 +1544,7 @@ MAKE_WRAPPERTYPE(PyDictIterValue_Type, dictitervalue, "dictionary-valueiterator"
 
 static int init_dictitervaluetype(void)
 {
-    return init_type(&wrap_PyDictIterValue_Type, initchain);
+    return init_type(&wrap_PyDictIterValue_Type, 1, initchain);
 }
 #undef initchain
 #define initchain init_dictitervaluetype
@@ -1554,7 +1556,7 @@ MAKE_WRAPPERTYPE(PyDictIterItem_Type, dictiteritem, "dictionary-itemiterator",
 
 static int init_dictiteritemtype(void)
 {
-    return init_type(&wrap_PyDictIterItem_Type, initchain);
+    return init_type(&wrap_PyDictIterItem_Type, 1, initchain);
 }
 #undef initchain
 #define initchain init_dictiteritemtype
@@ -1621,7 +1623,7 @@ MAKE_WRAPPERTYPE(PySetIter_Type, setiter, "setiterator", setiter_reduce, generic
 
 static int init_setitertype(void)
 {
-    return init_type(&wrap_PySetIter_Type, initchain);
+    return init_type(&wrap_PySetIter_Type, 1, initchain);
 }
 #undef initchain
 #define initchain init_setitertype
@@ -1678,7 +1680,7 @@ MAKE_WRAPPERTYPE(PyEnum_Type, en, "enumerate", enum_reduce, generic_new,
 
 static int init_enumtype(void)
 {
-    return init_type(&wrap_PyEnum_Type, initchain);
+    return init_type(&wrap_PyEnum_Type, 1, initchain);
 }
 #undef initchain
 #define initchain init_enumtype
@@ -1736,7 +1738,7 @@ MAKE_WRAPPERTYPE(PyListIter_Type, listiter, "listiterator", listiter_reduce, gen
 
 static int init_listitertype(void)
 {
-    return init_type(&wrap_PyListIter_Type, initchain);
+    return init_type(&wrap_PyListIter_Type, 1, initchain);
 }
 #undef initchain
 #define initchain init_listitertype
@@ -1806,7 +1808,7 @@ MAKE_WRAPPERTYPE(PyRangeIter_Type, rangeiter, "rangeiterator",
 
 static int init_rangeitertype(void)
 {
-    return init_type(&wrap_PyRangeIter_Type, initchain);
+    return init_type(&wrap_PyRangeIter_Type, 1, initchain);
 }
 #undef initchain
 #define initchain init_rangeitertype
@@ -1866,7 +1868,7 @@ MAKE_WRAPPERTYPE(PyTupleIter_Type, tupleiter, "tupleiterator", tupleiter_reduce,
 
 static int init_tupleitertype(void)
 {
-    return init_type(&wrap_PyTupleIter_Type, initchain);
+    return init_type(&wrap_PyTupleIter_Type, 1, initchain);
 }
 #undef initchain
 #define initchain init_tupleitertype
@@ -1878,6 +1880,7 @@ static int init_tupleitertype(void)
   pickling of xrange
 
  ******************************************************/
+
 
 /*
  * unfortunately we have to copy here.
@@ -1913,7 +1916,7 @@ MAKE_WRAPPERTYPE(PyRange_Type, range, "xrange", range_reduce,
 
 static int init_rangetype(void)
 {
-    return init_type(&wrap_PyRange_Type, initchain);
+    return init_type(&wrap_PyRange_Type, 0, initchain);
 }
 #undef initchain
 #define initchain init_rangetype
@@ -2023,7 +2026,7 @@ MAKE_WRAPPERTYPE(PyMethodWrapper_Type, methw, "method-wrapper", methw_reduce,
 
 static int init_methodwrappertype(void)
 {
-    return init_type(&wrap_PyMethodWrapper_Type, initchain);
+    return init_type(&wrap_PyMethodWrapper_Type, 1, initchain);
 }
 #undef initchain
 #define initchain init_methodwrappertype
@@ -2172,7 +2175,7 @@ static int init_generatortype(void)
     res = slp_register_execute(cbframe->ob_type, "gen_iternext_callback",
               gen->gi_frame->f_back->f_execute,
               REF_INVALID_EXEC(gen_iternext_callback))
-          || init_type(&wrap_PyGen_Type, initchain);
+          || init_type(&wrap_PyGen_Type, 1, initchain);
     Py_DECREF(gen);
     return res;
 }
