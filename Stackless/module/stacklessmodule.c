@@ -1,6 +1,7 @@
 /* Stackless module implementation */
 
 #include "Python.h"
+#include "pythread.h"
 
 #ifdef STACKLESS
 #include "core/stackless_impl.h"
@@ -203,7 +204,7 @@ PyStackless_GetCurrentId(void)
 static PyObject *
 getcurrentid(PyObject *self)
 {
-    return PyInt_FromLong(PyStackless_GetCurrentId());
+    return PyLong_FromLong(PyStackless_GetCurrentId());
 }
 
 PyDoc_STRVAR(getmain__doc__,

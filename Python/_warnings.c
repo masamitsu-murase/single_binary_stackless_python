@@ -1,5 +1,6 @@
 #include "Python.h"
 #include "frameobject.h"
+#include "stackless_api.h"
 
 #define MODULE_NAME "_warnings"
 
