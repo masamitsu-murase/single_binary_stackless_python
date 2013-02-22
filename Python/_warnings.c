@@ -450,10 +450,13 @@ setup_context(Py_ssize_t stack_level, PyObject **filename, int *lineno,
 
     /* Setup globals and lineno. */
 #ifdef STACKLESS
+    PyFrameObject *f = NULL;
     PyObject *current = PyStackless_GetCurrent();
-    PyFrameObject *f = (PyFrameObject *)PyTasklet_GetFrame((PyTaskletObject*)current);
-    Py_DECREF(current);
-    Py_XDECREF(f); /* turn it into a borrowed reference */
+    if (current != NULL) {
+        f = (PyFrameObject *)PyTasklet_GetFrame((PyTaskletObject*)current);
+        Py_DECREF(current);
+        Py_XDECREF(f); /* turn it into a borrowed reference */
+    }
 #else
     PyFrameObject *f = PyThreadState_GET()->frame;
 #endif

@@ -143,9 +143,15 @@ PyObject *
 PyStackless_GetCurrent(void)
 {
     PyThreadState *ts = PyThreadState_GET();
-    PyObject *t = (PyObject*)ts->st.current;
+    /* only if there is a main tasklet, is the current one
+     * the active one.  Otherwise, it is merely a runnable
+     * tasklet
+     */
+    PyObject *t = NULL;
+    if (ts->st.main)
+        t = (PyObject*)ts->st.current;
 
-    Py_XINCREF(t);
+    Py_XINCREF(t); /* CCP change, allow to work if stackless isn't init */
     return t;
 }
 
@@ -161,23 +167,26 @@ PyDoc_STRVAR(getcurrentid__doc__,
 long
 PyStackless_GetCurrentId(void)
 {
-#ifdef WITH_THREAD
+    #ifdef WITH_THREAD
     PyThreadState *ts = PyGILState_GetThisThreadState();
 #else
     PyThreadState *ts = PyThreadState_GET();
 #endif
     PyTaskletObject *t = NULL;
-    if (ts != NULL)
-        t = ts->st.current;
-    /* tasklets that are not the "main" tasklets for each thread
-     * use a hash of their object pointer as ID
+    /* if there is threadstate, and there is a main tasklet, then the 
+     * "current" is the actively running tasklet.
+     * If there isn't a "main", then the tasklet in "current" is merely a
+     * runnable one
      */
-    if (t && t != ts->st.main) {
+    if (ts != NULL) {
+        t = ts->st.current;
+        if (t && t != ts->st.main && ts->st.main != NULL) {
 #if SIZEOF_VOID_P > SIZEOF_LONG
-        return (long)t ^ (long)((intptr_t)t >> 32);
+            return (long)t ^ (long)((intptr_t)t >> 32);
 #else
-        return (long)t;
+            return (long)t;
 #endif
+        }
     }
     /* We want the ID to be constant, before and after a main tasklet
      * is initialized on a thread.Therefore, for a main tasklet, we use its
@@ -224,13 +233,14 @@ static PyObject *
 enable_softswitch(PyObject *self, PyObject *flag)
 {
     PyObject *ret;
-    if (! (flag && PyInt_Check(flag)) ) {
-        PyErr_SetString(PyExc_TypeError,
-            "enable_softswitch needs exactly one bool or integer");
+    int newflag;
+    if (!flag || flag == Py_None)
+        return PyBool_FromLong(slp_enable_softswitch);
+    newflag = PyObject_IsTrue(flag);
+    if (newflag == -1 && PyErr_Occurred())
         return NULL;
-    }
     ret = PyBool_FromLong(slp_enable_softswitch);
-    slp_enable_softswitch = PyInt_AS_LONG(flag);
+    slp_enable_softswitch = newflag;
     return ret;
 }
 
