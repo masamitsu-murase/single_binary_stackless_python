@@ -83,17 +83,16 @@ void slp_kill_tasks_with_stacks(struct _ts *tstate);
 
 #define __STACKLESS_PYSTATE_CLEAR \
     slp_kill_tasks_with_stacks(tstate); \
-    Py_CLEAR(tstate->st.initial_stub);
+    Py_CLEAR(tstate->st.initial_stub); \
+    Py_CLEAR(tstate->st.del_post_switch); \
+    Py_CLEAR(tstate->st.interrupted);
 
 #ifdef WITH_THREAD
 
 #define STACKLESS_PYSTATE_NEW \
     __STACKLESS_PYSTATE_NEW \
     tstate->st.thread.block_lock = NULL; \
-    tstate->st.thread.is_blocked = 0; \
-    Py_CLEAR(tstate->st.del_post_switch); \
-    Py_CLEAR(tstate->st.interrupted);
-
+    tstate->st.thread.is_blocked = 0;
 
 #define STACKLESS_PYSTATE_CLEAR \
     __STACKLESS_PYSTATE_CLEAR \

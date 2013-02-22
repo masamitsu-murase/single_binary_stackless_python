@@ -1,6 +1,7 @@
 /* Stackless module implementation */
 
 #include "Python.h"
+#include "pythread.h"
 
 #ifdef STACKLESS
 #include "core/stackless_impl.h"
@@ -142,9 +143,15 @@ PyObject *
 PyStackless_GetCurrent(void)
 {
     PyThreadState *ts = PyThreadState_GET();
-    PyObject *t = (PyObject*)ts->st.current;
+    /* only if there is a main tasklet, is the current one
+     * the active one.  Otherwise, it is merely a runnable
+     * tasklet
+     */
+    PyObject *t = NULL;
+    if (ts->st.main)
+        t = (PyObject*)ts->st.current;
 
-    Py_INCREF(t);
+    Py_XINCREF(t); /* CCP change, allow to work if stackless isn't init */
     return t;
 }
 
@@ -152,6 +159,52 @@ static PyObject *
 getcurrent(PyObject *self)
 {
     return PyStackless_GetCurrent();
+}
+
+PyDoc_STRVAR(getcurrentid__doc__,
+"getcurrentid() -- return the id of the currently executing tasklet.");
+
+long
+PyStackless_GetCurrentId(void)
+{
+    #ifdef WITH_THREAD
+    PyThreadState *ts = PyGILState_GetThisThreadState();
+#else
+    PyThreadState *ts = PyThreadState_GET();
+#endif
+    PyTaskletObject *t = NULL;
+    /* if there is threadstate, and there is a main tasklet, then the 
+     * "current" is the actively running tasklet.
+     * If there isn't a "main", then the tasklet in "current" is merely a
+     * runnable one
+     */
+    if (ts != NULL) {
+        t = ts->st.current;
+        if (t && t != ts->st.main && ts->st.main != NULL) {
+#if SIZEOF_VOID_P > SIZEOF_LONG
+            return (long)t ^ (long)((intptr_t)t >> 32);
+#else
+            return (long)t;
+#endif
+        }
+    }
+    /* We want the ID to be constant, before and after a main tasklet
+     * is initialized on a thread.Therefore, for a main tasklet, we use its
+     * thread ID.
+     */
+    if (ts)
+        return ts->thread_id;
+#ifdef WITH_THREAD
+    return PyThread_get_thread_ident();
+#else
+    return 0;
+#endif
+}
+
+static PyObject *
+getcurrentid(PyObject *self)
+{
+    return PyLong_FromLong(PyStackless_GetCurrentId());
 }
 
 PyDoc_STRVAR(getmain__doc__,
@@ -180,13 +233,14 @@ static PyObject *
 enable_softswitch(PyObject *self, PyObject *flag)
 {
     PyObject *ret;
-    if (! (flag && PyLong_Check(flag)) ) {
-        PyErr_SetString(PyExc_TypeError,
-            "enable_softswitch needs exactly one bool or integer");
+    int newflag;
+    if (!flag || flag == Py_None)
+        return PyBool_FromLong(slp_enable_softswitch);
+    newflag = PyObject_IsTrue(flag);
+    if (newflag == -1 && PyErr_Occurred())
         return NULL;
-    }
     ret = PyBool_FromLong(slp_enable_softswitch);
-    slp_enable_softswitch = PyLong_AsLong(flag);
+    slp_enable_softswitch = newflag;
     return ret;
 }
 
@@ -888,6 +942,8 @@ static PyMethodDef stackless_methods[] = {
      getruncount__doc__},
     {"getcurrent",                  (PCF)getcurrent,            METH_NOARGS,
      getcurrent__doc__},
+    {"getcurrentid",                (PCF)getcurrentid,          METH_NOARGS,
+    getcurrentid__doc__},
     {"getmain",                     (PCF)getmain,               METH_NOARGS,
      getmain__doc__},
     {"enable_softswitch",           (PCF)enable_softswitch,     METH_O,
