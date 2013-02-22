@@ -451,9 +451,26 @@ setup_context(Py_ssize_t stack_level, PyObject **filename, int *lineno,
     PyObject *globals;
 
     /* Setup globals and lineno. */
+#ifdef STACKLESS
+    PyFrameObject *f = NULL;
+    PyObject *current = PyStackless_GetCurrent();
+    if (current != NULL) {
+        f = (PyFrameObject *)PyTasklet_GetFrame((PyTaskletObject*)current);
+        Py_DECREF(current);
+        Py_XDECREF(f); /* turn it into a borrowed reference */
+    } else
+        f = PyThreadState_GET()->frame;
+#else
     PyFrameObject *f = PyThreadState_GET()->frame;
-    while (--stack_level > 0 && f != NULL)
+#endif
+    while (--stack_level > 0 && f != NULL) {
         f = f->f_back;
+#ifdef STACKLESS
+        /* ignore any CFrame objects */
+        while (f != NULL && !PyFrame_Check(f))
+            f = f->f_back;
+#endif
+    }
 
     if (f == NULL) {
         globals = PyThreadState_Get()->interp->sysdict;
