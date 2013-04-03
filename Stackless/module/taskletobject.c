@@ -1043,10 +1043,13 @@ tasklet_get_frame(PyTaskletObject *task)
 PyObject *
 PyTasklet_GetFrame(PyTaskletObject *task)
 {
-    PyObject * ret = (PyObject *) slp_get_frame(task);
+    PyFrameObject *f = (PyFrameObject *) slp_get_frame(task);
 
-    Py_XINCREF(ret);
-    return ret;
+    while (f != NULL && !PyFrame_Check(f)) {
+        f = f->f_back;
+    }
+    Py_XINCREF(f);
+    return (PyObject *) f;
 }
 
 
