@@ -3,6 +3,8 @@
 import pickle
 import unittest
 import stackless
+import sys
+import traceback
 
 from support import StacklessTestCase
 
@@ -12,7 +14,7 @@ def in_psyco():
         return __in_psyco__
     except NameError:
         return False
-    
+
 def is_soft():
     softswitch = stackless.enable_softswitch(0)
     stackless.enable_softswitch(softswitch)
@@ -35,9 +37,9 @@ class TestWatchdog(StacklessTestCase):
         self.assertEqual(t.recursion_depth, 0)
         # allow hard switching
         t.set_ignore_nesting(1)
-        
+
         softSwitching = is_soft()
-        
+
         # Run a little
         res = stackless.run(10)
         self.assertEqual(t, res)
@@ -50,13 +52,13 @@ class TestWatchdog(StacklessTestCase):
         t.insert()
         self.assertFalse(t.paused)
         self.assertTrue(t.scheduled)
-        
+
         # Run to completion
         stackless.run()
         self.assertFalse(t.alive)
         self.assertFalse(t.scheduled)
         self.assertEqual(t.recursion_depth, 0)
-        
+
 
     def test_aliveness1(self):
         """ Test flags after being run. """
@@ -71,7 +73,7 @@ class TestWatchdog(StacklessTestCase):
         t.remove()
         t_new.insert()
         self.lifecycle(t_new)
-   
+
     def test_aliveness3(self):
         """ Same as 1, but with a pickled run(slightly) tasklet. """
 
@@ -87,16 +89,16 @@ class TestWatchdog(StacklessTestCase):
 
         # Run a little
         res = stackless.run(100)
-        
+
         self.assertEqual(t, res)
         self.assertTrue(t.alive)
         self.assertTrue(t.paused)
         self.assertFalse(t.scheduled)
-        self.assertEqual(t.recursion_depth, softSwitching and 1 or 2)        
-        
+        self.assertEqual(t.recursion_depth, softSwitching and 1 or 2)
+
         # Now save & load
         dumped = pickle.dumps(t)
-        t_new = pickle.loads(dumped)        
+        t_new = pickle.loads(dumped)
 
         # Remove and insert & swap names around a bit
         t.remove()
@@ -108,7 +110,7 @@ class TestWatchdog(StacklessTestCase):
         self.assertFalse(t.paused)
         self.assertTrue(t.scheduled)
         self.assertEqual(t.recursion_depth, 1)
-        
+
         # Run to completion
         if is_soft():
             stackless.run()
@@ -136,6 +138,128 @@ class TestTaskletSwitching(StacklessTestCase):
         s = stackless.tasklet(foo)()
         s.run()
         self.assertEqual(flag[0], True)
+
+class TestTaskletThrowBase(object):
+    def test_throw_noargs(self):
+        c = stackless.channel()
+        def foo():
+            self.assertRaises(IndexError, c.receive)
+        s = stackless.tasklet(foo)()
+        s.run() #It needs to have started to run
+        self.throw(s, IndexError)
+        self.aftercheck(s)
+
+    def test_throw_args(self):
+        c = stackless.channel()
+        def foo():
+            try:
+                c.receive()
+            except Exception, e:
+                self.assertTrue(isinstance(e, IndexError));
+                self.assertEqual(e.args, (1,2,3))
+        s = stackless.tasklet(foo)()
+        s.run() #It needs to have started to run
+        self.throw(s, IndexError, (1,2,3))
+        self.aftercheck(s)
+
+    def test_throw_inst(self):
+        c = stackless.channel()
+        def foo():
+            try:
+                c.receive()
+            except Exception, e:
+                self.assertTrue(isinstance(e, IndexError));
+                self.assertEqual(e.args, (1,2,3))
+        s = stackless.tasklet(foo)()
+        s.run() #It needs to have started to run
+        self.throw(s, IndexError(1,2,3))
+        self.aftercheck(s)
+
+    def test_throw_exc_info(self):
+        c = stackless.channel()
+        def foo():
+            try:
+                c.receive()
+            except Exception, e:
+                self.assertTrue(isinstance(e, ZeroDivisionError));
+        s = stackless.tasklet(foo)()
+        s.run() #It needs to have started to run
+        def errfunc():
+            1/0
+        try:
+            errfunc()
+        except Exception:
+            self.throw(s, *sys.exc_info())
+        self.aftercheck(s)
+
+    def test_throw_traceback(self):
+        c = stackless.channel()
+        def foo():
+            try:
+                c.receive()
+            except Exception, e:
+                s = "".join(traceback.format_tb(sys.exc_info()[2]))
+                self.assertTrue("errfunc" in s)
+        s = stackless.tasklet(foo)()
+        s.run() #It needs to have started to run
+        def errfunc():
+            1/0
+        try:
+            errfunc()
+        except Exception:
+            self.throw(s, *sys.exc_info())
+        self.aftercheck(s)
+
+    def test_new(self):
+        # disabled.  Sending to new tasklets will bounce the error back at us.
+        # Not good.
+        c = stackless.channel()
+        def foo():
+            c.receive()
+        s = stackless.tasklet(foo)()
+        def doit():
+            self.throw(s, IndexError)
+        self.assertRaises(RuntimeError, doit)
+
+    def test_dead(self):
+        c = stackless.channel()
+        def foo():
+            c.receive()
+        s = stackless.tasklet(foo)()
+        s.run()
+        c.send(None)
+        def doit():
+            self.throw(s, IndexError)
+        self.assertRaises(RuntimeError, doit)
+
+    def test_throw_invalid(self):
+        s = stackless.getcurrent()
+        def t():
+            self.throw(s)
+        self.assertRaises(TypeError, t)
+        def t():
+            self.throw(s, IndexError(1), (1,2,3))
+        self.assertRaises(TypeError, t)
+
+class TestTaskletThrowImmediate(StacklessTestCase, TestTaskletThrowBase):
+    immediate = 1
+    @classmethod
+    def throw(cls, s, *args):
+        args = args+(None, None)
+        args = args[:3] + (cls.immediate,)
+        s.throw(*args)
+
+    def aftercheck(self, s):
+        # the tasklet ran immediately
+        self.assertFalse(s.alive)
+
+class TestTaskletThrowNonImmediate(TestTaskletThrowImmediate):
+    immediate = 0
+    def aftercheck(self, s):
+        # After the throw, the tasklet still hasn't run
+        self.assertTrue(s.alive)
+        s.run()
+        self.assertFalse(s.alive)
 
 class TestSwitchTrap(StacklessTestCase):
     def assertRaisesRegex(self, klass, rex, func, *args):
@@ -167,7 +291,7 @@ class TestSwitchTrap(StacklessTestCase):
             self.assertRaisesRegex(RuntimeError, "switch_trap", stackless.schedule_remove)
         main.append(stackless.getcurrent())
         stackless.schedule_remove()
-        
+
     def _test_run(self):
         s = stackless.tasklet(lambda:None)()
         with self.switch_trap:

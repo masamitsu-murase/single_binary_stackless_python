@@ -129,9 +129,39 @@ slp_make_bomb(PyObject *klass, PyObject *args, char *msg)
 PyObject *
 slp_exc_to_bomb(PyObject *exc, PyObject *val, PyObject *tb)
 {
-    PyBombObject *bomb = new_bomb();
+    PyBombObject *bomb;
+
+    /* normalize the exceptions according to "raise" semantics */
+    if (tb && tb != Py_None && !PyTraceBack_Check(tb)) {
+        PyErr_SetString(PyExc_TypeError,
+            "third argument must be a traceback object");
+        return NULL;
+    }
+    if (PyExceptionClass_Check(exc)) {
+        ; /* it will be normalized on other side */
+        /*PyErr_NormalizeException(&typ, &val, &tb);*/
+    } else if (PyExceptionInstance_Check(exc)) {
+        /* Raising an instance.  The value should be a dummy. */
+        if (val && val != Py_None) {
+            PyErr_SetString(PyExc_TypeError,
+                "instance exception may not have a separate value");
+            return NULL;
+        }
+        /* Normalize to raise <class>, <instance> */
+        val = exc;
+        exc = PyExceptionInstance_Class(exc);
+    } else {
+        /* Not something you can raise.  throw() fails. */
+        PyErr_Format(PyExc_TypeError,
+            "exceptions must be classes, or instances, not %s",
+            Py_TYPE(exc)->tp_name);
+        return NULL;
+    }
+
+    bomb = new_bomb();
     if (bomb == NULL)
         return NULL;
+
     Py_XINCREF(exc);
     Py_XINCREF(val);
     Py_XINCREF(tb);

@@ -787,6 +787,108 @@ tasklet_setup(PyObject *self, PyObject *args, PyObject *kwds)
 }
 
 
+PyDoc_STRVAR(tasklet_throw__doc__,
+             "tasklet.throw(exc, val, tb, immediate=True) -- raise an exception for the tasklet.\n\
+             'exc', 'val' and 'tb' have the same semantics as Python's 'raise' statement.\n\
+             If 'immediate' is True, the tasklet is immediately activated, otherwise, it is\n\
+             merely made runnable");
+
+static PyObject *
+PyTasklet_Throw_M(PyTaskletObject *self, int immediate, PyObject *exc,
+                           PyObject *val, PyObject *tb)
+{
+    if (!val)
+        val = Py_None;
+    if (!tb)
+        tb = Py_None;
+    return PyStackless_CallMethod_Main(
+        (PyObject*)self, "throw", "(OOOi)", exc, val, tb, immediate);
+}
+
+int PyTasklet_Throw(PyTaskletObject *self, int immediate, PyObject *exc,
+                             PyObject *val, PyObject *tb)
+{
+    PyTasklet_HeapType *t = (PyTasklet_HeapType *)Py_TYPE(self);
+
+    return slp_return_wrapper(t->_throw(self, immediate, exc, val, tb));
+}
+
+static TASKLET_THROW_HEAD(impl_tasklet_throw)
+{
+    STACKLESS_GETARG();
+    PyThreadState *ts = PyThreadState_GET();
+    PyObject *ret, *bomb, *tmpval;
+    int fail;
+
+    if (ts->st.main == NULL)
+        return PyTasklet_Throw_M(self, immediate, exc, val, tb);
+    /* ignore any CFrames */
+    if (PyTasklet_GetFrame(self) == NULL && self != self->cstate->tstate->st.current) {
+        RUNTIME_ERROR("You cannot throw to a new or a dead tasklet", NULL);
+    }
+
+    bomb = slp_exc_to_bomb(exc, val, tb);
+    if (bomb == NULL)
+        return NULL;
+
+    TASKLET_CLAIMVAL(self, &tmpval);
+    TASKLET_SETVAL_OWN(self, bomb);
+    if (immediate) {
+        fail = slp_schedule_task(&ret, ts->st.current, self, stackless, 0);
+    } else {
+        PyChannelObject *u_chan = NULL;
+        PyTaskletObject *u_next;
+        int u_dir;
+        /* Unblock it if required*/
+        if (self->flags.blocked) {
+            /* we claim the channel's reference */
+            slp_channel_remove_slow(self, &u_chan, &u_dir, &u_next);
+        }
+        fail = PyTasklet_Insert(self);
+        if (u_chan) {
+            if (fail)
+                slp_channel_insert(u_chan, self, u_dir, u_next);
+            else
+                Py_DECREF(self);
+        }
+        ret = fail ? NULL : Py_None;
+        Py_XINCREF(ret);
+    }
+    if (fail)
+        TASKLET_SETVAL_OWN(self, tmpval);
+    else
+        Py_DECREF(tmpval);
+    return ret;
+}
+
+static TASKLET_THROW_HEAD(wrap_tasklet_throw)
+{
+    if (!val)
+        val = Py_None;
+    if (!tb)
+        tb = Py_None;
+    return PyObject_CallMethod(
+        (PyObject *)self, "throw", "(OOOi)", exc, val, tb, immediate);
+}
+
+static PyObject *
+tasklet_throw(PyObject *myself, PyObject *args, PyObject *kwds)
+{
+    STACKLESS_GETARG();
+    PyObject *result = NULL;
+    PyObject *exc, *val=Py_None, *tb=Py_None;
+    int immediate = 1;
+    char *kwlist[] = {"exc", "val", "tb", "immediate", 0};
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|OOi:throw", kwlist, &exc, &val, &tb, &immediate))
+        return NULL;
+    STACKLESS_PROMOTE_ALL();
+    result = impl_tasklet_throw(
+        (PyTaskletObject*)myself, immediate, exc, val, tb);
+    STACKLESS_ASSERT();
+    return result;
+}
+
+
 PyDoc_STRVAR(tasklet_raise_exception__doc__,
 "tasklet.raise_exception(exc, value) -- raise an exception for the tasklet.\n\
 exc must be a subclass of Exception.\n\
@@ -1276,6 +1378,7 @@ static PyGetSetDef tasklet_getsetlist[] = {
 
 #define PCF PyCFunction
 #define METH_VS METH_VARARGS | METH_STACKLESS
+#define METH_KS METH_VARARGS | METH_KEYWORDS | METH_STACKLESS
 #define METH_NS METH_NOARGS | METH_STACKLESS
 
 static PyMethodDef tasklet_methods[] = {
@@ -1289,6 +1392,8 @@ static PyMethodDef tasklet_methods[] = {
      tasklet_set_atomic__doc__},
     {"set_ignore_nesting", (PCF)tasklet_set_ignore_nesting, METH_O,
      tasklet_set_ignore_nesting__doc__},
+    {"throw",                   (PCF)tasklet_throw,         METH_KS,
+    tasklet_throw__doc__},
     {"raise_exception",         (PCF)tasklet_raise_exception, METH_VS,
     tasklet_raise_exception__doc__},
     {"kill",                    (PCF)tasklet_kill,          METH_NS,
@@ -1314,6 +1419,7 @@ static PyCMethodDef tasklet_cmethods[] = {
     CMETHOD_PUBLIC_ENTRY(PyTasklet_HeapType, tasklet, set_ignore_nesting),
     CMETHOD_PUBLIC_ENTRY(PyTasklet_HeapType, tasklet, raise_exception),
     CMETHOD_PUBLIC_ENTRY(PyTasklet_HeapType, tasklet, kill),
+    CMETHOD_PUBLIC_ENTRY_EX(PyTasklet_HeapType, tasklet, throw, _throw),
     {NULL}                       /* sentinel */
 };
 
