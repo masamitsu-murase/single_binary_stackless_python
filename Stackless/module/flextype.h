@@ -24,12 +24,16 @@ typedef struct _pycmethoddef {
  * - the wrapper function   wrap_class_name  that calls back into a Python override.
  */
 
-#define CMETHOD_PUBLIC_ENTRY(type, prefix, name) \
-    { \
-    #name, (PyCFunction)prefix##_##name, \
+#define CMETHOD_PUBLIC_ENTRY_EX(type, prefix, name, fname) \
+{ \
+#name, (PyCFunction)prefix##_##name, \
     &impl_##prefix##_##name, &wrap_##prefix##_##name, \
-    offsetof(type, name) \
-    }
+    offsetof(type, fname) \
+}
+
+#define CMETHOD_PUBLIC_ENTRY(type, prefix, name) \
+    CMETHOD_PUBLIC_ENTRY_EX(type, prefix, name, name)
+
 
 /*
  * a private entry defines

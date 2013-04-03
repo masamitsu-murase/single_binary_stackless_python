@@ -740,33 +740,6 @@ channel_send_throw(PyObject *myself, PyObject *args)
     if (!PyArg_UnpackTuple(args, "send_throw", 1, 3, &typ, &val, &tb))
         return NULL;
 
-    /* First, check the traceback argument */
-    if (tb != Py_None && !PyTraceBack_Check(tb)) {
-        PyErr_SetString(PyExc_TypeError,
-            "third argument must be a traceback object");
-        return NULL;
-    }
-
-    if (PyExceptionClass_Check(typ)) {
-        ; /* it will be normalized on other side */
-        /*PyErr_NormalizeException(&typ, &val, &tb);*/
-    } else if (PyExceptionInstance_Check(typ)) {
-        /* Raising an instance.  The value should be a dummy. */
-        if (val != Py_None) {
-            PyErr_SetString(PyExc_TypeError,
-                "instance exception may not have a separate value");
-            return NULL;
-        }
-        /* Normalize to raise <class>, <instance> */
-        val = typ;
-        typ = PyExceptionInstance_Class(typ);
-    } else {
-        /* Not something you can raise.  throw() fails. */
-        PyErr_Format(PyExc_TypeError,
-            "exceptions must be classes, or instances, not %s",
-            typ->ob_type->tp_name);
-        return NULL;
-    }
     STACKLESS_PROMOTE_ALL();
     retval = impl_channel_send_throw((PyChannelObject*)myself,
         typ, val, tb);
