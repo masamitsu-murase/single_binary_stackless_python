@@ -147,7 +147,7 @@ class TestTaskletThrowBase(object):
         def foo():
             try:
                 c.receive()
-            except Exception, e:
+            except Exception as e:
                 self.assertTrue(isinstance(e, IndexError));
                 self.assertEqual(e.args, (1,2,3))
         s = stackless.tasklet(foo)()
@@ -160,7 +160,7 @@ class TestTaskletThrowBase(object):
         def foo():
             try:
                 c.receive()
-            except Exception, e:
+            except Exception as e:
                 self.assertTrue(isinstance(e, IndexError));
                 self.assertEqual(e.args, (1,2,3))
         s = stackless.tasklet(foo)()
@@ -173,7 +173,7 @@ class TestTaskletThrowBase(object):
         def foo():
             try:
                 c.receive()
-            except Exception, e:
+            except Exception as e:
                 self.assertTrue(isinstance(e, ZeroDivisionError));
         s = stackless.tasklet(foo)()
         s.run() #It needs to have started to run
@@ -190,7 +190,7 @@ class TestTaskletThrowBase(object):
         def foo():
             try:
                 c.receive()
-            except Exception, e:
+            except Exception as e:
                 s = "".join(traceback.format_tb(sys.exc_info()[2]))
                 self.assertTrue("errfunc" in s)
         s = stackless.tasklet(foo)()
