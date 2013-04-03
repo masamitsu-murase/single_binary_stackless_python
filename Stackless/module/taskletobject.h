@@ -19,6 +19,9 @@
 #define TASKLET_RAISE_EXCEPTION_HEAD(func) \
     PyObject *func (PyTaskletObject *self, PyObject *klass, PyObject *args)
 
+#define TASKLET_THROW_HEAD(func) \
+    PyObject *func (PyTaskletObject *self, int immediate, PyObject *exc, PyObject *val, PyObject *tb)
+
 #define TASKLET_KILL_HEAD(func) \
     PyObject *func (PyTaskletObject *task)
 
@@ -33,6 +36,7 @@ typedef struct _pytasklet_heaptype {
     TASKLET_SETIGNORENESTING_HEAD(      (*set_ignore_nesting));
     TASKLET_RAISE_EXCEPTION_HEAD(       (*raise_exception)   );
     TASKLET_KILL_HEAD(                  (*kill)              );
+    TASKLET_THROW_HEAD(                 (*_throw)            );
 } PyTasklet_HeapType;
 
 int init_tasklettype(void);
