@@ -211,15 +211,36 @@ class TestTaskletThrowBase(object):
         self.aftercheck(s)
 
     def test_new(self):
-        # disabled.  Sending to new tasklets will bounce the error back at us.
-        # Not good.
         c = stackless.channel()
         def foo():
-            c.receive()
+            try:
+                c.receive()
+            except Exception as e:
+                self.assertTrue(isinstance(e, IndexError))
+                raise
         s = stackless.tasklet(foo)()
+        self.assertEqual(s.frame, None)
+        self.assertTrue(s.alive)
+        # Test that the current "unhandled exception behaviour"
+        # is invoked for the not-yet-running tasklet.
         def doit():
             self.throw(s, IndexError)
-        self.assertRaises(RuntimeError, doit)
+        if self.immediate:
+            self.assertRaises(IndexError, doit)
+        else:
+            doit()
+            self.assertRaises(IndexError, stackless.run)
+
+    def test_kill_new(self):
+        def t():
+            self.assertFalse("should not run this")
+        s = stackless.tasklet(t)()
+
+        # Should not do anything
+        s.throw(TaskletExit)
+        # the tasklet should be dead
+        stackless.run()
+        self.assertRaisesRegexp(RuntimeError, "dead", s.run)
 
     def test_dead(self):
         c = stackless.channel()
@@ -228,9 +249,25 @@ class TestTaskletThrowBase(object):
         s = stackless.tasklet(foo)()
         s.run()
         c.send(None)
+        stackless.run()
+        self.assertFalse(s.alive)
         def doit():
             self.throw(s, IndexError)
         self.assertRaises(RuntimeError, doit)
+
+    def test_kill_dead(self):
+        c = stackless.channel()
+        def foo():
+            c.receive()
+        s = stackless.tasklet(foo)()
+        s.run()
+        c.send(None)
+        stackless.run()
+        self.assertFalse(s.alive)
+        def doit():
+            self.throw(s, TaskletExit)
+        # nothing should happen here.
+        doit()
 
     def test_throw_invalid(self):
         s = stackless.getcurrent()

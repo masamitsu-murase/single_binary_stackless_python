@@ -822,15 +822,24 @@ static TASKLET_THROW_HEAD(impl_tasklet_throw)
 
     if (ts->st.main == NULL)
         return PyTasklet_Throw_M(self, immediate, exc, val, tb);
-    /* ignore any CFrames */
-    if (PyTasklet_GetFrame(self) == NULL && self != self->cstate->tstate->st.current) {
-        RUNTIME_ERROR("You cannot throw to a new or a dead tasklet", NULL);
-    }
 
     bomb = slp_exc_to_bomb(exc, val, tb);
     if (bomb == NULL)
         return NULL;
 
+    /* don't attempt to send to a dead tasklet.
+     * f.frame is null for the running tasklet and a dead tasklet
+     * A new tasklet has a CFrame
+     */
+    if (self->f.frame == NULL && self != self->cstate->tstate->st.current) {
+        /* however, allow tasklet exit errors for already dead tasklets */
+        if (PyObject_IsSubclass(((PyBombObject*)bomb)->curexc_type, PyExc_TaskletExit)) {
+            Py_DECREF(bomb);
+            Py_RETURN_NONE;
+        }
+        Py_DECREF(bomb);
+        RUNTIME_ERROR("You cannot throw to a dead tasklet", NULL);
+    }
     TASKLET_CLAIMVAL(self, &tmpval);
     TASKLET_SETVAL_OWN(self, bomb);
     if (immediate) {
