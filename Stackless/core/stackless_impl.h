@@ -141,7 +141,7 @@ PyAPI_DATA(PyTypeObject) PyMethodWrapper_Type;
      (PyObject *) Py_UnwindToken)
 
 #define STACKLESS_UNPACK(retval) \
-    (retval = Py_UnwindToken->tempval, retval)
+    ((void)(retval = Py_UnwindToken->tempval, retval))
 
 #endif
 
@@ -170,7 +170,7 @@ PyAPI_DATA(PyTypeObject) PyMethodWrapper_Type;
 #define STACKLESS_PROMOTE_WRAPPER(wp) \
     (slp_try_stackless = stackless & wp->descr->d_slpmask)
 
-#define STACKLESS_PROMOTE_ALL() (slp_try_stackless = stackless, NULL)
+#define STACKLESS_PROMOTE_ALL() ((void)(slp_try_stackless = stackless, NULL))
 
 #define STACKLESS_PROPOSE(func)                                     \
     {                                                               \
