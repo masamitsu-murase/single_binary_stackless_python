@@ -1133,6 +1133,8 @@ schedule_task_destruct(PyTaskletObject *prev, PyTaskletObject *next)
 
 /* defined in pythonrun.c */
 extern void PyStackless_HandleSystemExit(void);
+/* defined in stacklessmodule.c */
+extern int PyStackless_CallErrorHandler(void);
 
 static PyObject *
 tasklet_end(PyObject *retval)
@@ -1158,7 +1160,19 @@ tasklet_end(PyObject *retval)
             retval = Py_None;
         }
         else {
-            retval = slp_curexc_to_bomb();
+            if (!ismain) {
+                /* non-main tasklets get the chance to handle errors.
+                 * errors in the handlers (or a non-present one)
+                 * result in the standard behaviour, transfering the error
+                 * to the main tasklet
+                 */
+                if (!PyStackless_CallErrorHandler()) {
+                    retval = Py_None;
+                    Py_INCREF(Py_None);
+                }
+            }
+            if (retval == NULL)
+                retval = slp_curexc_to_bomb();
             if (retval == NULL)
                 return NULL;
         }
