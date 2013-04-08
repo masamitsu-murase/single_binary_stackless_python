@@ -72,6 +72,7 @@ channel_dealloc(PyObject *ob)
 }
 
 /* see if a tasklet is queued on a channel */
+#ifndef NDEBUG /* currently used only by assert */
 static int
 slp_channel_has_tasklet(PyChannelObject *channel,
                             PyTaskletObject *task)
@@ -84,6 +85,7 @@ slp_channel_has_tasklet(PyChannelObject *channel,
     }
     return 0;
 }
+#endif
 
 void
 slp_channel_insert(PyChannelObject *channel, PyTaskletObject *task, int dir, PyTaskletObject *nexttask)
@@ -1158,6 +1160,7 @@ channel_cmethods[] = {
     CMETHOD_PUBLIC_ENTRY(PyChannel_HeapType, channel, send),
     CMETHOD_PUBLIC_ENTRY(PyChannel_HeapType, channel, send_exception),
     CMETHOD_PUBLIC_ENTRY(PyChannel_HeapType, channel, receive),
+    CMETHOD_PUBLIC_ENTRY(PyChannel_HeapType, channel, send_throw),
     {NULL}                       /* sentinel */
 };
 
