@@ -5,6 +5,7 @@ import unittest
 import stackless
 import sys
 import traceback
+import contextlib
 
 from support import StacklessTestCase
 
@@ -399,6 +400,65 @@ class TestSwitchTrap(StacklessTestCase):
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", s.run)
         s.run()
+
+class TestErrorHandler(StacklessTestCase):
+    def test_set(self):
+        def foo():
+            pass
+        self.assertEqual(stackless.set_error_handler(foo), None)
+        self.assertEqual(stackless.set_error_handler(None), foo)
+        self.assertEqual(stackless.set_error_handler(None), None)
+
+    @contextlib.contextmanager
+    def handlerctxt(self, handler):
+        old = stackless.set_error_handler(handler)
+        try:
+            yield()
+        finally:
+            stackless.set_error_handler(old)
+
+    def handler(self, exc, val, tb):
+        self.assertTrue(exc)
+        self.handled = 1
+
+    def borken_handler(self, exc, val, tb):
+        self.handled = 1
+        raise IndexError("we are the mods")
+
+    def get_handler(self):
+        h = stackless.set_error_handler(None)
+        stackless.set_error_handler(h)
+        return h
+
+    def func(self, handler):
+        self.ran = 1
+        self.assertEqual(self.get_handler(), handler)
+        raise ZeroDivisionError("I am borken")
+
+    def test_handler(self):
+        self.handled = self.ran = 0
+        stackless.tasklet(self.func)(self.handler)
+        with self.handlerctxt(self.handler):
+            stackless.run()
+        self.assertTrue(self.ran)
+        self.assertTrue(self.handled)
+
+    def test_borken_handler(self):
+        self.handled = self.ran = 0
+        stackless.tasklet(self.func)(self.borken_handler)
+        with self.handlerctxt(self.borken_handler):
+            self.assertRaisesRegexp(IndexError, "mods", stackless.run)
+        self.assertTrue(self.ran)
+        self.assertTrue(self.handled)
+
+    def test_early_hrow(self):
+        "test that we handle errors thrown before the tasklet function runs"
+        self.handled = self.ran = 0
+        s = stackless.tasklet(self.func)(self.handler)
+        with self.handlerctxt(self.handler):
+            s.throw(ZeroDivisionError, "thrown error")
+        self.assertFalse(self.ran)
+        self.assertTrue(self.handled)
 
 
 #///////////////////////////////////////////////////////////////////////////////
