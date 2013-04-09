@@ -405,6 +405,7 @@ class TestErrorHandler(StacklessTestCase):
     def handler(self, exc, val, tb):
         self.assertTrue(exc)
         self.handled = 1
+        self.handled_tasklet = stackless.getcurrent()
 
     def borken_handler(self, exc, val, tb):
         self.handled = 1
@@ -444,6 +445,20 @@ class TestErrorHandler(StacklessTestCase):
             s.throw(ZeroDivisionError, "thrown error")
         self.assertFalse(self.ran)
         self.assertTrue(self.handled)
+
+    def test_getcurrent(self):
+        # verify that the error handler runs in the context of the exiting tasklet
+        self.handled = self.ran = 0
+        s = stackless.tasklet(self.func)(self.handler)
+        with self.handlerctxt(self.handler):
+            s.throw(ZeroDivisionError, "thrown error")
+        self.assertTrue(self.handled_tasklet is s)
+
+        self.handled_tasklet = None
+        s = stackless.tasklet(self.func)(self.handler)
+        with self.handlerctxt(self.handler):
+            s.run()
+        self.assertTrue(self.handled_tasklet is s)
 
 
 #///////////////////////////////////////////////////////////////////////////////
