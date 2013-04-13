@@ -227,8 +227,7 @@ PyDoc_STRVAR(enable_soft__doc__,
 "or by avoiding stack changes at all. The latter is only possible\n"
 "in the top interpreter level. Switching it off is for timing and\n"
 "debugging purposes. This flag exists once for the whole process.\n"
-"For inquiry only, use the phrase\n"
-"   ret = enable_softswitch(0); enable_softswitch(ret)\n"
+"For inquiry only, use 'None' as the flag.\n"
 "By default, soft switching is enabled.");
 
 static PyObject *
