@@ -5,6 +5,8 @@ import unittest
 import stackless
 import sys
 import traceback
+import contextlib
+
 from support import StacklessTestCase
 
 
@@ -185,15 +187,36 @@ class TestTaskletThrowBase(object):
         self.aftercheck(s)
 
     def test_new(self):
-        # disabled.  Sending to new tasklets will bounce the error back at us.
-        # Not good.
         c = stackless.channel()
         def foo():
-            c.receive()
+            try:
+                c.receive()
+            except Exception as e:
+                self.assertTrue(isinstance(e, IndexError))
+                raise
         s = stackless.tasklet(foo)()
+        self.assertEqual(s.frame, None)
+        self.assertTrue(s.alive)
+        # Test that the current "unhandled exception behaviour"
+        # is invoked for the not-yet-running tasklet.
         def doit():
             self.throw(s, IndexError)
-        self.assertRaises(RuntimeError, doit)
+        if self.immediate:
+            self.assertRaises(IndexError, doit)
+        else:
+            doit()
+            self.assertRaises(IndexError, stackless.run)
+
+    def test_kill_new(self):
+        def t():
+            self.assertFalse("should not run this")
+        s = stackless.tasklet(t)()
+
+        # Should not do anything
+        s.throw(TaskletExit)
+        # the tasklet should be dead
+        stackless.run()
+        self.assertRaisesRegexp(RuntimeError, "dead", s.run)
 
     def test_dead(self):
         c = stackless.channel()
@@ -202,9 +225,25 @@ class TestTaskletThrowBase(object):
         s = stackless.tasklet(foo)()
         s.run()
         c.send(None)
+        stackless.run()
+        self.assertFalse(s.alive)
         def doit():
             self.throw(s, IndexError)
         self.assertRaises(RuntimeError, doit)
+
+    def test_kill_dead(self):
+        c = stackless.channel()
+        def foo():
+            c.receive()
+        s = stackless.tasklet(foo)()
+        s.run()
+        c.send(None)
+        stackless.run()
+        self.assertFalse(s.alive)
+        def doit():
+            self.throw(s, TaskletExit)
+        # nothing should happen here.
+        doit()
 
     def test_throw_invalid(self):
         s = stackless.getcurrent()
@@ -327,6 +366,80 @@ class TestSwitchTrap(StacklessTestCase):
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", s.run)
         s.run()
+
+class TestErrorHandler(StacklessTestCase):
+    def test_set(self):
+        def foo():
+            pass
+        self.assertEqual(stackless.set_error_handler(foo), None)
+        self.assertEqual(stackless.set_error_handler(None), foo)
+        self.assertEqual(stackless.set_error_handler(None), None)
+
+    @contextlib.contextmanager
+    def handlerctxt(self, handler):
+        old = stackless.set_error_handler(handler)
+        try:
+            yield()
+        finally:
+            stackless.set_error_handler(old)
+
+    def handler(self, exc, val, tb):
+        self.assertTrue(exc)
+        self.handled = 1
+        self.handled_tasklet = stackless.getcurrent()
+
+    def borken_handler(self, exc, val, tb):
+        self.handled = 1
+        raise IndexError("we are the mods")
+
+    def get_handler(self):
+        h = stackless.set_error_handler(None)
+        stackless.set_error_handler(h)
+        return h
+
+    def func(self, handler):
+        self.ran = 1
+        self.assertEqual(self.get_handler(), handler)
+        raise ZeroDivisionError("I am borken")
+
+    def test_handler(self):
+        self.handled = self.ran = 0
+        stackless.tasklet(self.func)(self.handler)
+        with self.handlerctxt(self.handler):
+            stackless.run()
+        self.assertTrue(self.ran)
+        self.assertTrue(self.handled)
+
+    def test_borken_handler(self):
+        self.handled = self.ran = 0
+        stackless.tasklet(self.func)(self.borken_handler)
+        with self.handlerctxt(self.borken_handler):
+            self.assertRaisesRegexp(IndexError, "mods", stackless.run)
+        self.assertTrue(self.ran)
+        self.assertTrue(self.handled)
+
+    def test_early_hrow(self):
+        "test that we handle errors thrown before the tasklet function runs"
+        self.handled = self.ran = 0
+        s = stackless.tasklet(self.func)(self.handler)
+        with self.handlerctxt(self.handler):
+            s.throw(ZeroDivisionError, "thrown error")
+        self.assertFalse(self.ran)
+        self.assertTrue(self.handled)
+
+    def test_getcurrent(self):
+        # verify that the error handler runs in the context of the exiting tasklet
+        self.handled = self.ran = 0
+        s = stackless.tasklet(self.func)(self.handler)
+        with self.handlerctxt(self.handler):
+            s.throw(ZeroDivisionError, "thrown error")
+        self.assertTrue(self.handled_tasklet is s)
+
+        self.handled_tasklet = None
+        s = stackless.tasklet(self.func)(self.handler)
+        with self.handlerctxt(self.handler):
+            s.run()
+        self.assertTrue(self.handled_tasklet is s)
 
 
 #///////////////////////////////////////////////////////////////////////////////

@@ -24,6 +24,8 @@ PyObject *slp_module = NULL;
 
 PyThreadState *slp_initial_tstate = NULL;
 
+static void *slp_error_handler = NULL;
+
 PyDoc_STRVAR(schedule__doc__,
 "schedule(retval=stackless.current) -- switch to the next runnable tasklet.\n\
 The return value for this call is retval, with the current\n\
@@ -225,8 +227,7 @@ PyDoc_STRVAR(enable_soft__doc__,
 "or by avoiding stack changes at all. The latter is only possible\n"
 "in the top interpreter level. Switching it off is for timing and\n"
 "debugging purposes. This flag exists once for the whole process.\n"
-"For inquiry only, use the phrase\n"
-"   ret = enable_softswitch(0); enable_softswitch(ret)\n"
+"For inquiry only, use 'None' as the flag.\n"
 "By default, soft switching is enabled.");
 
 static PyObject *
@@ -466,6 +467,52 @@ slpmodule_switch_trap(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "|i", &change))
         return NULL;
     return PyLong_FromLong(PyStackless_AdjustSwitchTrap(change));
+}
+
+PyDoc_STRVAR(set_error_handler__doc__,
+"set_error_handler(handler) -- Set or delete the error handler function \n\
+used for uncaught exceptions on tasklets.  \"handler\" should take three \n\
+arguments: \"def handler(type, value, tb):\".  Its return value is ignored.\n\
+If \"handler\" is None, the default handler is used, which raises the error \n\
+on the main tasklet.  Similarly if the handler itself raises an error.\n\
+Returns the previous handler or None.");
+
+static PyObject *
+set_error_handler(PyObject *self, PyObject *args)
+{
+    PyObject *old, *handler = NULL;
+    if (!PyArg_ParseTuple(args, "|O:set_error_handler", &handler))
+        return NULL;
+    old = slp_error_handler ? slp_error_handler : Py_None;
+    Py_INCREF(old);
+    if (handler == Py_None)
+        handler = NULL;
+    Py_XINCREF(handler);
+    Py_CLEAR(slp_error_handler);
+    slp_error_handler = handler;
+    return old;
+}
+
+int
+PyStackless_CallErrorHandler(void)
+{
+    assert(PyErr_Occurred());
+    if (slp_error_handler != NULL) {
+        PyObject *exc, *val, *tb;
+        PyObject *result;
+        PyErr_Fetch(&exc, &val, &tb);
+        if (!val)
+            val = Py_None;
+        if (!tb)
+            tb = Py_None;
+        result = PyObject_CallFunction(slp_error_handler, "OOO", exc, val, tb);
+        Py_XDECREF(result);
+        if (!result)
+            return -1; /* an error in the handler! */
+        return 0;
+    } else
+        return -1; /* just raise the current exception */
+
 }
 
 /******************************************************
@@ -966,6 +1013,8 @@ static PyMethodDef stackless_methods[] = {
      get_thread_info__doc__},
     {"switch_trap",                 (PCF)slpmodule_switch_trap, METH_VARARGS,
      slpmodule_switch_trap__doc__},
+    {"set_error_handler",           (PCF)set_error_handler,     METH_VARARGS,
+     set_error_handler__doc__},
     {"_gc_untrack",                 (PCF)_gc_untrack,           METH_O,
     _gc_untrack__doc__},
     {"_gc_track",                   (PCF)_gc_track,             METH_O,
