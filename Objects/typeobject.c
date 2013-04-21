@@ -2479,28 +2479,6 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
     /* Put the proper slots in place */
     fixup_slot_dispatchers(type);
 
-#ifdef STACKLESS
-    /* check if we support stackless call */
-    {
-        PyObject *call;
-        PyTypeObject *tpcheck;
-        static PyObject *call_str;
-
-        if (!call_str) {
-            call_str = PyString_InternFromString("__call__");
-            if (call_str == NULL)
-                return NULL;
-        }
-        if ((call = _PyType_Lookup(type, call_str)) == NULL)
-            goto done;
-        tpcheck = call->ob_type;
-        if (tpcheck == &PyWrapperDescr_Type)
-            tpcheck = ((PyDescrObject *) call)->d_type;
-        if (tpcheck->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_CALL)
-            type->tp_flags |= Py_TPFLAGS_HAVE_STACKLESS_CALL;
-    }
-done:
-#endif
     return (PyObject *)type;
 }
 
@@ -6304,6 +6282,9 @@ update_one_slot(PyTypeObject *type, slotdef *p)
     int use_generic = 0;
     int offset = p->offset;
     void **ptr = slotptr(type, offset);
+#ifdef STACKLESS
+    PyObject *descr_call = NULL;
+#endif
 
     if (ptr == NULL) {
         do {
@@ -6319,6 +6300,10 @@ update_one_slot(PyTypeObject *type, slotdef *p)
             }
             continue;
         }
+#ifdef STACKLESS
+        if (ptr == (void**)&type->tp_call)
+            descr_call = descr;
+#endif
         if (Py_TYPE(descr) == &PyWrapperDescr_Type &&
             ((PyWrapperDescrObject *)descr)->d_base->name_strobj == p->name_strobj) {
             void **tptr = resolve_slotdups(type, p->name_strobj);
@@ -6373,6 +6358,44 @@ update_one_slot(PyTypeObject *type, slotdef *p)
         *ptr = specific;
     else
         *ptr = generic;
+#ifdef STACKLESS
+    if (ptr == (void**)&type->tp_call) {
+        /* it is the __call__ attribute. */
+        if (descr_call)
+        {
+#if 0   /* disabled in order to test the fix for http://www.stackless.com/ticket/18 only */
+            /* type is callable: set Py_TPFLAGS_HAVE_STACKLESS_CALL */
+            if (type->tp_call == slot_tp_call) {
+                /* Common case:
+                 * slot_tp_call implements the stackless call protocol and
+                 * delegates to PyObject_Call. PyObject_Call checks
+                 * Py_TPFLAGS_HAVE_STACKLESS_CALL of the called object at
+                 * call time. This is sufficient to prevent protocol violations. */
+                type->tp_flags |= Py_TPFLAGS_HAVE_STACKLESS_CALL;
+            }
+            else
+#endif
+            {
+                /* Custom tp_call slot function: set Py_TPFLAGS_HAVE_STACKLESS_CALL
+                 * based on the __call__ implementation.
+                 * The variable "descr" contains the __call__ method. */
+                PyTypeObject *tpcheck = Py_TYPE(descr_call);
+                if (tpcheck == &PyWrapperDescr_Type)
+                    tpcheck = ((PyDescrObject *)descr_call)->d_type;
+                if (tpcheck->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_CALL)
+                    type->tp_flags |= Py_TPFLAGS_HAVE_STACKLESS_CALL;
+                else
+                    type->tp_flags &= ~Py_TPFLAGS_HAVE_STACKLESS_CALL;
+            }
+        }
+        else {
+            /* reset the flag in case it was set. Can happen if
+               someone deletes the __call__ special attribute from type:
+               del Class.__call__ */
+            type->tp_flags &= ~Py_TPFLAGS_HAVE_STACKLESS_CALL;
+        }
+    }
+#endif
     return p;
 }
 
