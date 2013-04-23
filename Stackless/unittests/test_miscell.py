@@ -410,7 +410,7 @@ class TestErrorHandler(StacklessTestCase):
         self.assertEqual(stackless.set_error_handler(None), None)
 
     @contextlib.contextmanager
-    def handlerctxt(self, handler):
+    def handler_ctx(self, handler):
         old = stackless.set_error_handler(handler)
         try:
             yield()
@@ -422,7 +422,7 @@ class TestErrorHandler(StacklessTestCase):
         self.handled = 1
         self.handled_tasklet = stackless.getcurrent()
 
-    def borken_handler(self, exc, val, tb):
+    def broken_handler(self, exc, val, tb):
         self.handled = 1
         raise IndexError("we are the mods")
 
@@ -439,15 +439,15 @@ class TestErrorHandler(StacklessTestCase):
     def test_handler(self):
         self.handled = self.ran = 0
         stackless.tasklet(self.func)(self.handler)
-        with self.handlerctxt(self.handler):
+        with self.handler_ctx(self.handler):
             stackless.run()
         self.assertTrue(self.ran)
         self.assertTrue(self.handled)
 
     def test_borken_handler(self):
         self.handled = self.ran = 0
-        stackless.tasklet(self.func)(self.borken_handler)
-        with self.handlerctxt(self.borken_handler):
+        stackless.tasklet(self.func)(self.broken_handler)
+        with self.handler_ctx(self.broken_handler):
             self.assertRaisesRegexp(IndexError, "mods", stackless.run)
         self.assertTrue(self.ran)
         self.assertTrue(self.handled)
@@ -456,7 +456,7 @@ class TestErrorHandler(StacklessTestCase):
         "test that we handle errors thrown before the tasklet function runs"
         self.handled = self.ran = 0
         s = stackless.tasklet(self.func)(self.handler)
-        with self.handlerctxt(self.handler):
+        with self.handler_ctx(self.handler):
             s.throw(ZeroDivisionError, "thrown error")
         self.assertFalse(self.ran)
         self.assertTrue(self.handled)
@@ -465,13 +465,13 @@ class TestErrorHandler(StacklessTestCase):
         # verify that the error handler runs in the context of the exiting tasklet
         self.handled = self.ran = 0
         s = stackless.tasklet(self.func)(self.handler)
-        with self.handlerctxt(self.handler):
+        with self.handler_ctx(self.handler):
             s.throw(ZeroDivisionError, "thrown error")
         self.assertTrue(self.handled_tasklet is s)
 
         self.handled_tasklet = None
         s = stackless.tasklet(self.func)(self.handler)
-        with self.handlerctxt(self.handler):
+        with self.handler_ctx(self.handler):
             s.run()
         self.assertTrue(self.handled_tasklet is s)
 
