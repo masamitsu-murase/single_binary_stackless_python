@@ -126,8 +126,8 @@ class TestStacklessCallFlag(unittest.TestCase):
         self.assertNotStacklessCall(self.SubClass)
         self.assertStacklessCall(self.SuperClassCallable)
         self.assertStacklessCall(self.SubClassCallable)
-        self.assertNotStacklessCall(self.SuperClassNoSlpCallable)
-        self.assertNotStacklessCall(self.SubClassNoSlpCallable)
+        self.assertStacklessCall(self.SuperClassNoSlpCallable)
+        self.assertStacklessCall(self.SubClassNoSlpCallable)
         
     def testMakeCallable(self):
         def __call__(s):
@@ -150,8 +150,8 @@ class TestStacklessCallFlag(unittest.TestCase):
     def testMakeNotSlpCallable(self):        
         self.SuperClassCallable.__call__ = stackless._test_nostacklesscall
 
-        self.assertNotStacklessCall(self.SuperClassCallable)
-        self.assertNotStacklessCall(self.SubClassCallable)
+        self.assertStacklessCall(self.SuperClassCallable)
+        self.assertStacklessCall(self.SubClassCallable)
         
     def testDelCallable(self):        
         del self.SuperClassCallable.__call__

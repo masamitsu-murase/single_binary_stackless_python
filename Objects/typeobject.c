@@ -6389,7 +6389,6 @@ update_one_slot(PyTypeObject *type, slotdef *p)
         /* it is the __call__ attribute. */
         if (descr_call)
         {
-#if 0   /* disabled in order to test the fix for http://www.stackless.com/ticket/18 only */
             /* type is callable: set Py_TPFLAGS_HAVE_STACKLESS_CALL */
             if (type->tp_call == slot_tp_call) {
                 /* Common case:
@@ -6399,9 +6398,7 @@ update_one_slot(PyTypeObject *type, slotdef *p)
                  * call time. This is sufficient to prevent protocol violations. */
                 type->tp_flags |= Py_TPFLAGS_HAVE_STACKLESS_CALL;
             }
-            else
-#endif
-            {
+            else {
                 /* Custom tp_call slot function: set Py_TPFLAGS_HAVE_STACKLESS_CALL
                  * based on the __call__ implementation.
                  * The variable "descr" contains the __call__ method. */
