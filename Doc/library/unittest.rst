@@ -279,15 +279,15 @@ The ``discover`` sub-command has the following options:
 
    Verbose output
 
-.. cmdoption:: -s directory
+.. cmdoption:: -s, --start-directory directory
 
-   Directory to start discovery ('.' default)
+   Directory to start discovery (``.`` default)
 
-.. cmdoption:: -p pattern
+.. cmdoption:: -p, --pattern pattern
 
-   Pattern to match test files ('test*.py' default)
+   Pattern to match test files (``test*.py`` default)
 
-.. cmdoption:: -t directory
+.. cmdoption:: -t, --top-level-directory directory
 
    Top level directory of project (defaults to start directory)
 
@@ -584,7 +584,7 @@ that is broken and will fail, but shouldn't be counted as a failure on a
 Skipping a test is simply a matter of using the :func:`skip` :term:`decorator`
 or one of its conditional variants.
 
-Basic skipping looks like this: ::
+Basic skipping looks like this::
 
    class MyTestCase(unittest.TestCase):
 
@@ -603,7 +603,7 @@ Basic skipping looks like this: ::
            # windows specific testing code
            pass
 
-This is the output of running the example above in verbose mode: ::
+This is the output of running the example above in verbose mode::
 
    test_format (__main__.MyTestCase) ... skipped 'not supported in this library version'
    test_nothing (__main__.MyTestCase) ... skipped 'demonstrating skipping'
@@ -614,7 +614,7 @@ This is the output of running the example above in verbose mode: ::
 
    OK (skipped=3)
 
-Classes can be skipped just like methods: ::
+Classes can be skipped just like methods::
 
    @unittest.skip("showing class skipping")
    class MySkippedTestCase(unittest.TestCase):
@@ -633,7 +633,7 @@ Expected failures use the :func:`expectedFailure` decorator. ::
 
 It's easy to roll your own skipping decorators by making a decorator that calls
 :func:`skip` on the test when it wants it to be skipped.  This decorator skips
-the test unless the passed object has a certain attribute: ::
+the test unless the passed object has a certain attribute::
 
    def skipUnlessHasattr(obj, attr):
        if hasattr(obj, attr):
@@ -1868,10 +1868,10 @@ name then the package :file:`__init__.py` will be checked for ``load_tests``.
 
 .. note::
 
-   The default pattern is 'test*.py'. This matches all Python files
-   that start with 'test' but *won't* match any test directories.
+   The default pattern is ``'test*.py'``. This matches all Python files
+   that start with ``'test'`` but *won't* match any test directories.
 
-   A pattern like 'test*' will match test packages as well as
+   A pattern like ``'test*'`` will match test packages as well as
    modules.
 
 If the package :file:`__init__.py` defines ``load_tests`` then it will be

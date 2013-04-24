@@ -84,6 +84,7 @@ Extending :class:`JSONEncoder`::
     ...     def default(self, obj):
     ...         if isinstance(obj, complex):
     ...             return [obj.real, obj.imag]
+    ...         # Let the base class default method raise the TypeError
     ...         return json.JSONEncoder.default(self, obj)
     ...
     >>> dumps(2 + 1j, cls=ComplexEncoder)
@@ -103,7 +104,7 @@ Using json.tool from the shell to validate and pretty-print::
         "json": "obj"
     }
     $ echo '{1.2:3.4}' | python -mjson.tool
-    Expecting property name enclosed in double quotes: line 1 column 1 (char 1)
+    Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
 
 .. highlight:: python
 
@@ -197,7 +198,7 @@ Basic Usage
 
       Keys in key/value pairs of JSON are always of the type :class:`str`. When
       a dictionary is converted into JSON, all the keys of the dictionary are
-      coerced to strings. As a result of this, if a dictionary is convered
+      coerced to strings. As a result of this, if a dictionary is converted
       into JSON and then back into a dictionary, the dictionary may not equal
       the original one. That is, ``loads(dumps(x)) != x`` if x has non-string
       keys.
@@ -452,6 +453,7 @@ Encoders and Decoders
                 pass
             else:
                 return list(iterable)
+            # Let the base class default method raise the TypeError
             return JSONEncoder.default(self, o)
 
 
