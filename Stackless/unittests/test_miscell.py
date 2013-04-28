@@ -434,7 +434,7 @@ class TestErrorHandler(StacklessTestCase):
     def func(self, handler):
         self.ran = 1
         self.assertEqual(self.get_handler(), handler)
-        raise ZeroDivisionError("I am borken")
+        raise ZeroDivisionError("I am broken")
 
     def test_handler(self):
         self.handled = self.ran = 0
@@ -444,7 +444,7 @@ class TestErrorHandler(StacklessTestCase):
         self.assertTrue(self.ran)
         self.assertTrue(self.handled)
 
-    def test_borken_handler(self):
+    def test_broken_handler(self):
         self.handled = self.ran = 0
         stackless.tasklet(self.func)(self.broken_handler)
         with self.handler_ctx(self.broken_handler):
@@ -452,7 +452,7 @@ class TestErrorHandler(StacklessTestCase):
         self.assertTrue(self.ran)
         self.assertTrue(self.handled)
 
-    def test_early_hrow(self):
+    def test_early_throw(self):
         "test that we handle errors thrown before the tasklet function runs"
         self.handled = self.ran = 0
         s = stackless.tasklet(self.func)(self.handler)
