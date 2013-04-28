@@ -5501,6 +5501,7 @@ slot_tp_call(PyObject *self, PyObject *args, PyObject *kwds)
     assert (slp_try_stackless == stackless); /* ensure STACKLESS_PROMOTE_ALL is slp_try_stackless=stackless */
     if (stackless)
         if (Py_EnterRecursiveCall(" in __call__")) {
+            STACKLESS_RETRACT();
             Py_DECREF(meth);
             return NULL;
         }
