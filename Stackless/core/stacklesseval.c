@@ -370,9 +370,9 @@ void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
             PyTaskletObject *tmp;
             /* unlink from runnable queue if it wasn't previously remove()'d */
             if (t->next && t->prev) {
-                task = t;
-                chain = &task;
+                chain = &t;
                 SLP_CHAIN_REMOVE(PyTaskletObject, chain, task, next, prev);
+                t = task;
             } else
                 Py_INCREF(t); /* a new reference for the runnable queue */
             /* insert into the 'current' chain without modifying 'current' */
