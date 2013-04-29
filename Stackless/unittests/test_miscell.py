@@ -8,7 +8,11 @@ import traceback
 import contextlib
 
 from support import StacklessTestCase, AsTaskletTestCase
-
+try:
+    import threading
+    withThreads = True
+except:
+    withThreads = False
 
 def is_soft():
     softswitch = stackless.enable_softswitch(0)
@@ -576,7 +580,61 @@ class TestSchedule(AsTaskletTestCase):
         t = stackless.tasklet(foo)(stackless.getcurrent())
         stackless.schedule_remove()
         self.assertEqual(self.events, ["foo"])
+#
+# Test context manager soft switching support
+# See http://www.stackless.com/ticket/22
+#
 
+class AsTaskletTestCase(StacklessTestCase):
+    """A test case class, that runs tests as tasklets"""
+    def setUp(self):
+        self._ran_AsTaskletTestCase_setUp = True
+        if stackless.enable_softswitch(None):
+            self.assertEqual(stackless.current.nesting_level, 0)
+            
+        super(StacklessTestCase, self).setUp()  # yes, its intended: call setUp on the grand parent class
+        self.assertEqual(stackless.getruncount(), 1, "Leakage from other tests, with %d tasklets still in the scheduler" % (stackless.getruncount() - 1))        
+        if withThreads:
+            self.assertEqual(threading.activeCount(), 1, "Leakage from other threads, with %d threads running (1 expected)" % (threading.activeCount()))
+
+    def run(self, result=None):
+        super_run = super(AsTaskletTestCase, self).run
+        stackless.tasklet(super_run)(result)
+        stackless.run()
+        assert self._ran_AsTaskletTestCase_setUp
+        
+def _create_contextlib_test_classes():
+    import test.test_contextlib as module
+    g = globals()
+    for name in dir(module):
+        obj = getattr(module, name, None)
+        if not (isinstance(obj, type) and issubclass(obj, unittest.TestCase)):
+            continue
+        g[name] = type(name, (AsTaskletTestCase, obj), {})
+
+_create_contextlib_test_classes()
+
+
+class TestContextManager(StacklessTestCase):
+    def nestingLevel(self):
+        self.assertFalse(stackless.getcurrent().nesting_level)
+        
+        class C(object):
+            def __enter__(self_):
+                self.assertFalse(stackless.getcurrent().nesting_level)
+                return self_
+            def __exit__(self_, exc_type, exc_val, exc_tb):
+                self.assertFalse(stackless.getcurrent().nesting_level)
+                return False
+        with C() as c:
+            self.assertTrue(isinstance(c,C))
+            
+    def test_nestingLevel(self):
+        if not stackless.enable_softswitch(None):
+            # the test requires softswitching
+            return 
+        stackless.tasklet(self.nestingLevel)()
+        stackless.run()
 
 #///////////////////////////////////////////////////////////////////////////////
 
