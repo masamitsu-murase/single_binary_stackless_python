@@ -4,6 +4,12 @@ Stackless Python News
 This file contains changes affecting the Stackless extension of CPython.
 For changes other changes see Misc/NEWS.
 
+What's New in Stackless 2.7.4?
+==============================
+
+*Release date: XXXX-XX-XX*
+
+
 What's New in Stackless 2.7.4rc2?
 =================================
 
