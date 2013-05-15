@@ -7,16 +7,16 @@
 
 .. index:: module: pickle
 
+**Source code:** :source:`Lib/shelve.py`
+
+--------------
+
 A "shelf" is a persistent, dictionary-like object.  The difference with "dbm"
 databases is that the values (not the keys!) in a shelf can be essentially
 arbitrary Python objects --- anything that the :mod:`pickle` module can handle.
 This includes most class instances, recursive data types, and objects containing
 lots of shared  sub-objects.  The keys are ordinary strings.
 
-.. seealso::
-
-   Latest version of the `shelve module Python source code
-   <http://svn.python.org/view/python/branches/release27-maint/Lib/shelve.py?view=markup>`_
 
 .. function:: open(filename[, flag='c'[, protocol=None[, writeback=False]]])
 
@@ -44,17 +44,12 @@ lots of shared  sub-objects.  The keys are ordinary strings.
    determine which accessed entries are mutable, nor which ones were actually
    mutated).
 
-   .. note::
+   Like file objects, shelve objects should be closed explicitly to ensure
+   that the persistent data is flushed to disk.
 
-      Do not rely on the shelf being closed automatically; always call
-      :meth:`close` explicitly when you don't need it any more, or use a
-      :keyword:`with` statement with :func:`contextlib.closing`.
-
-.. warning::
-
-   Because the :mod:`shelve` module is backed by :mod:`pickle`, it is insecure
-   to load a shelf from an untrusted source.  Like with pickle, loading a shelf
-   can execute arbitrary code.
+   Since the :mod:`shelve` module stores objects using :mod:`pickle`, the same
+   security precautions apply.  Accordingly, you should avoid loading a shelf
+   from an untrusted source.
 
 Shelf objects support all methods supported by dictionaries.  This eases the
 transition from dictionary based scripts to those requiring persistent storage.

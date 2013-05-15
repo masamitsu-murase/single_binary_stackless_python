@@ -1,37 +1,35 @@
-:mod:`functools` --- Higher order functions and operations on callable objects
+:mod:`functools` --- Higher-order functions and operations on callable objects
 ==============================================================================
 
 .. module:: functools
-   :synopsis: Higher order functions and operations on callable objects.
+   :synopsis: Higher-order functions and operations on callable objects.
 .. moduleauthor:: Peter Harris <scav@blueyonder.co.uk>
 .. moduleauthor:: Raymond Hettinger <python@rcn.com>
 .. moduleauthor:: Nick Coghlan <ncoghlan@gmail.com>
 .. sectionauthor:: Peter Harris <scav@blueyonder.co.uk>
 
-
 .. versionadded:: 2.5
+
+**Source code:** :source:`Lib/functools.py`
+
+--------------
 
 The :mod:`functools` module is for higher-order functions: functions that act on
 or return other functions. In general, any callable object can be treated as a
 function for the purposes of this module.
 
-.. seealso::
-
-   Latest version of the `functools Python source code
-   <http://svn.python.org/view/python/branches/release27-maint/Lib/functools.py?view=markup>`_
-
 The :mod:`functools` module defines the following functions:
 
 ..  function:: cmp_to_key(func)
 
-   Transform an old-style comparison function to a key-function.  Used with
+   Transform an old-style comparison function to a key function.  Used with
    tools that accept key functions (such as :func:`sorted`, :func:`min`,
    :func:`max`, :func:`heapq.nlargest`, :func:`heapq.nsmallest`,
    :func:`itertools.groupby`).  This function is primarily used as a transition
-   tool for programs being converted to Py3.x where comparison functions are no
-   longer supported.
+   tool for programs being converted to Python 3 where comparison functions are
+   no longer supported.
 
-   A compare function is any callable that accept two arguments, compares them,
+   A comparison function is any callable that accept two arguments, compares them,
    and returns a negative number for less-than, zero for equality, or a positive
    number for greater-than.  A key function is a callable that accepts one
    argument and returns another value that indicates the position in the desired

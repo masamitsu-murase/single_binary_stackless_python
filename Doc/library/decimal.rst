@@ -35,7 +35,7 @@ arithmetic.  It offers several advantages over the :class:`float` datatype:
   people learn at school." -- excerpt from the decimal arithmetic specification.
 
 * Decimal numbers can be represented exactly.  In contrast, numbers like
-  :const:`1.1` and :const:`2.2` do not have an exact representations in binary
+  :const:`1.1` and :const:`2.2` do not have exact representations in binary
   floating point.  End users typically would not expect ``1.1 + 2.2`` to display
   as :const:`3.3000000000000003` as it does with binary floating point.
 
@@ -742,7 +742,7 @@ Decimal objects
 
       Normalize the number by stripping the rightmost trailing zeros and
       converting any result equal to :const:`Decimal('0')` to
-      :const:`Decimal('0e0')`. Used for producing canonical values for members
+      :const:`Decimal('0e0')`. Used for producing canonical values for attributes
       of an equivalence class. For example, ``Decimal('32.100')`` and
       ``Decimal('0.321000e+2')`` both normalize to the equivalent value
       ``Decimal('32.1')``.

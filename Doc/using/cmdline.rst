@@ -24,7 +24,7 @@ Command line
 
 When invoking Python, you may specify any of these options::
 
-    python [-BdEiOQsStuUvVWxX3?] [-c command | -m module-name | script | - ] [args]
+    python [-BdEiOQsRStuUvVWxX3?] [-c command | -m module-name | script | - ] [args]
 
 The most common use case is, of course, a simple invocation of a script::
 
@@ -253,9 +253,33 @@ Miscellaneous options
       :pep:`238` -- Changing the division operator
 
 
+.. cmdoption:: -R
+
+   Turn on hash randomization, so that the :meth:`__hash__` values of str,
+   bytes and datetime objects are "salted" with an unpredictable random value.
+   Although they remain constant within an individual Python process, they are
+   not predictable between repeated invocations of Python.
+
+   This is intended to provide protection against a denial-of-service caused by
+   carefully-chosen inputs that exploit the worst case performance of a dict
+   construction, O(n^2) complexity.  See
+   http://www.ocert.org/advisories/ocert-2011-003.html for details.
+
+   Changing hash values affects the order in which keys are retrieved from a
+   dict.  Although Python has never made guarantees about this ordering (and it
+   typically varies between 32-bit and 64-bit builds), enough real-world code
+   implicitly relies on this non-guaranteed behavior that the randomization is
+   disabled by default.
+
+   See also :envvar:`PYTHONHASHSEED`.
+
+   .. versionadded:: 2.6.8
+
+
 .. cmdoption:: -s
 
-   Don't add user site directory to sys.path
+   Don't add the :data:`user site-packages directory <site.USER_SITE>` to
+   :data:`sys.path`.
 
    .. versionadded:: 2.6
 
@@ -511,7 +535,7 @@ These environment variables influence Python's behavior.
 .. envvar:: PYTHONCASEOK
 
    If this is set, Python ignores case in :keyword:`import` statements.  This
-   only works on Windows.
+   only works on Windows, OS X, OS/2, and RiscOS.
 
 
 .. envvar:: PYTHONDONTWRITEBYTECODE
@@ -520,6 +544,27 @@ These environment variables influence Python's behavior.
    import of source modules.
 
    .. versionadded:: 2.6
+
+.. envvar:: PYTHONHASHSEED
+
+   If this variable is set to ``random``, the effect is the same as specifying
+   the :option:`-R` option: a random value is used to seed the hashes of str,
+   bytes and datetime objects.
+
+   If :envvar:`PYTHONHASHSEED` is set to an integer value, it is used as a
+   fixed seed for generating the hash() of the types covered by the hash
+   randomization.
+
+   Its purpose is to allow repeatable hashing, such as for selftests for the
+   interpreter itself, or to allow a cluster of python processes to share hash
+   values.
+
+   The integer must be a decimal number in the range [0,4294967295].
+   Specifying the value 0 will lead to the same hash values as when hash
+   randomization is disabled.
+
+   .. versionadded:: 2.6.8
+
 
 .. envvar:: PYTHONIOENCODING
 
@@ -532,7 +577,8 @@ These environment variables influence Python's behavior.
 
 .. envvar:: PYTHONNOUSERSITE
 
-   If this is set, Python won't add the user site directory to sys.path
+   If this is set, Python won't add the :data:`user site-packages directory
+   <site.USER_SITE>` to :data:`sys.path`.
 
    .. versionadded:: 2.6
 
@@ -543,7 +589,10 @@ These environment variables influence Python's behavior.
 
 .. envvar:: PYTHONUSERBASE
 
-   Sets the base directory for the user site directory
+   Defines the :data:`user base directory <site.USER_BASE>`, which is used to
+   compute the path of the :data:`user site-packages directory <site.USER_SITE>`
+   and :ref:`Distutils installation paths <inst-alt-install-user>` for ``python
+   setup.py install --user``.
 
    .. versionadded:: 2.6
 
@@ -569,7 +618,7 @@ Debug-mode variables
 ~~~~~~~~~~~~~~~~~~~~
 
 Setting these variables only has an effect in a debug build of Python, that is,
-if Python was configured with the :option:`--with-pydebug` build option.
+if Python was configured with the ``--with-pydebug`` build option.
 
 .. envvar:: PYTHONTHREADDEBUG
 

@@ -7,13 +7,12 @@
 
 .. index:: single: event scheduling
 
+**Source code:** :source:`Lib/sched.py`
+
+--------------
+
 The :mod:`sched` module defines a class which implements a general purpose event
 scheduler:
-
-.. seealso::
-
-   Latest version of the `sched module Python source code
-   <http://svn.python.org/view/python/branches/release27-maint/Lib/sched.py?view=markup>`_
 
 .. class:: scheduler(timefunc, delayfunc)
 
@@ -96,7 +95,7 @@ Scheduler Objects
 
 .. method:: scheduler.enter(delay, priority, action, argument)
 
-   Schedule an event for *delay* more time units. Other then the relative time, the
+   Schedule an event for *delay* more time units. Other than the relative time, the
    other arguments, the effect and the return value are the same as those for
    :meth:`enterabs`.
 

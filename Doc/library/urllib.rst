@@ -23,7 +23,7 @@ built-in function :func:`open`, but accepts Universal Resource Locators (URLs)
 instead of filenames.  Some restrictions apply --- it can only open URLs for
 reading, and no seek operations are available.
 
-.. warning:: When opening HTTPS URLs, it is not attempted to validate the
+.. warning:: When opening HTTPS URLs, it does not attempt to validate the
    server certificate.  Use at your own risk!
 
 
@@ -210,7 +210,7 @@ Utility functions
 
    Replace special characters in *string* using the ``%xx`` escape. Letters,
    digits, and the characters ``'_.-'`` are never quoted. By default, this
-   function is intended for quoting the path section of the URL.The optional
+   function is intended for quoting the path section of the URL. The optional
    *safe* parameter specifies additional characters that should not be quoted
    --- its default value is ``'/'``.
 
@@ -274,10 +274,10 @@ Utility functions
 .. function:: getproxies()
 
    This helper function returns a dictionary of scheme to proxy server URL
-   mappings. It scans the environment for variables named ``<scheme>_proxy``
-   for all operating systems first, and when it cannot find it, looks for proxy
-   information from Mac OSX System Configuration for Mac OS X and Windows
-   Systems Registry for Windows.
+   mappings. It scans the environment for variables named ``<scheme>_proxy``,
+   in case insensitive way, for all operating systems first, and when it cannot
+   find it, looks for proxy information from Mac OSX System Configuration for
+   Mac OS X and Windows Systems Registry for Windows.
 
 
 URL Opener objects

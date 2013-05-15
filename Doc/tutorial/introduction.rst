@@ -240,13 +240,6 @@ would print:
    This is a rather long string containing\n\
    several lines of text much as you would do in C.
 
-The interpreter prints the result of string operations in the same way as they
-are typed for input: inside quotes, and with quotes and other funny characters
-escaped by backslashes, to show the precise value.  The string is enclosed in
-double quotes if the string contains a single quote and no double quotes, else
-it's enclosed in single quotes.  (The :keyword:`print` statement, described
-later, can be used to write strings without quotes or escapes.)
-
 Strings can be concatenated (glued together) with the ``+`` operator, and
 repeated with ``*``::
 
@@ -637,13 +630,13 @@ This example introduces several new features.
   and ``!=`` (not equal to).
 
 * The *body* of the loop is *indented*: indentation is Python's way of grouping
-  statements.  Python does not (yet!) provide an intelligent input line editing
-  facility, so you have to type a tab or space(s) for each indented line.  In
-  practice you will prepare more complicated input for Python with a text editor;
-  most text editors have an auto-indent facility.  When a compound statement is
-  entered interactively, it must be followed by a blank line to indicate
-  completion (since the parser cannot guess when you have typed the last line).
-  Note that each line within a basic block must be indented by the same amount.
+  statements.  At the interactive prompt, you have to type a tab or space(s) for
+  each indented line.  In practice you will prepare more complicated input
+  for Python with a text editor; all decent text editors have an auto-indent
+  facility.  When a compound statement is entered interactively, it must be
+  followed by a blank line to indicate completion (since the parser cannot
+  guess when you have typed the last line).  Note that each line within a basic
+  block must be indented by the same amount.
 
 * The :keyword:`print` statement writes the value of the expression(s) it is
   given.  It differs from just writing the expression you want to write (as we did

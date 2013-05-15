@@ -22,6 +22,7 @@ To use the module, you must first create a :class:`Connection` object that
 represents the database.  Here the data will be stored in the
 :file:`/tmp/example` file::
 
+   import sqlite3
    conn = sqlite3.connect('/tmp/example')
 
 You can also supply the special name ``:memory:`` to create a database in RAM.
@@ -58,7 +59,7 @@ example::
 
    # Never do this -- insecure!
    symbol = 'IBM'
-   c.execute("... where symbol = '%s'" % symbol)
+   c.execute("select * from stocks where symbol = '%s'" % symbol)
 
    # Do this instead
    t = (symbol,)
@@ -66,7 +67,7 @@ example::
 
    # Larger example
    for t in [('2006-03-28', 'BUY', 'IBM', 1000, 45.00),
-             ('2006-04-05', 'BUY', 'MSOFT', 1000, 72.00),
+             ('2006-04-05', 'BUY', 'MSFT', 1000, 72.00),
              ('2006-04-06', 'SELL', 'IBM', 500, 53.00),
             ]:
        c.execute('insert into stocks values (?,?,?,?,?)', t)
@@ -86,7 +87,7 @@ This example uses the iterator form::
    (u'2006-01-05', u'BUY', u'RHAT', 100, 35.14)
    (u'2006-03-28', u'BUY', u'IBM', 1000, 45.0)
    (u'2006-04-06', u'SELL', u'IBM', 500, 53.0)
-   (u'2006-04-05', u'BUY', u'MSOFT', 1000, 72.0)
+   (u'2006-04-05', u'BUY', u'MSFT', 1000, 72.0)
    >>>
 
 
@@ -240,7 +241,7 @@ Connection Objects
 .. method:: Connection.commit()
 
    This method commits the current transaction. If you don't call this method,
-   anything you did since the last call to ``commit()`` is not visible from from
+   anything you did since the last call to ``commit()`` is not visible from
    other database connections. If you wonder why you don't see the data you've
    written to the database, please check you didn't forget to call this method.
 
@@ -378,6 +379,8 @@ Connection Objects
 
    .. literalinclude:: ../includes/sqlite3/load_extension.py
 
+   Loadable extensions are disabled by default. See [#f1]_
+
 .. method:: Connection.load_extension(path)
 
    .. versionadded:: 2.7
@@ -385,6 +388,8 @@ Connection Objects
    This routine loads a SQLite extension from a shared library.  You have to
    enable extension loading with :meth:`enable_load_extension` before you can
    use this routine.
+
+   Loadable extensions are disabled by default. See [#f1]_
 
 .. attribute:: Connection.row_factory
 
@@ -543,18 +548,17 @@ Cursor Objects
    attribute, the database engine's own support for the determination of "rows
    affected"/"rows selected" is quirky.
 
-   For ``DELETE`` statements, SQLite reports :attr:`rowcount` as 0 if you make a
-   ``DELETE FROM table`` without any condition.
-
    For :meth:`executemany` statements, the number of modifications are summed up
    into :attr:`rowcount`.
 
    As required by the Python DB API Spec, the :attr:`rowcount` attribute "is -1 in
    case no ``executeXX()`` has been performed on the cursor or the rowcount of the
-   last operation is not determinable by the interface".
+   last operation is not determinable by the interface". This includes ``SELECT``
+   statements because we cannot determine the number of rows a query produced
+   until all rows were fetched.
 
-   This includes ``SELECT`` statements because we cannot determine the number of
-   rows a query produced until all rows were fetched.
+   With SQLite versions before 3.6.5, :attr:`rowcount` is set to 0 if
+   you make a ``DELETE FROM table`` without any condition.
 
 .. attribute:: Cursor.lastrowid
 
@@ -600,42 +604,42 @@ Row Objects
 
 Let's assume we initialize a table as in the example given above::
 
-    conn = sqlite3.connect(":memory:")
-    c = conn.cursor()
-    c.execute('''create table stocks
-    (date text, trans text, symbol text,
-     qty real, price real)''')
-    c.execute("""insert into stocks
-              values ('2006-01-05','BUY','RHAT',100,35.14)""")
-    conn.commit()
-    c.close()
+   conn = sqlite3.connect(":memory:")
+   c = conn.cursor()
+   c.execute('''create table stocks
+   (date text, trans text, symbol text,
+    qty real, price real)''')
+   c.execute("""insert into stocks
+             values ('2006-01-05','BUY','RHAT',100,35.14)""")
+   conn.commit()
+   c.close()
 
 Now we plug :class:`Row` in::
 
-    >>> conn.row_factory = sqlite3.Row
-    >>> c = conn.cursor()
-    >>> c.execute('select * from stocks')
-    <sqlite3.Cursor object at 0x7f4e7dd8fa80>
-    >>> r = c.fetchone()
-    >>> type(r)
-    <type 'sqlite3.Row'>
-    >>> r
-    (u'2006-01-05', u'BUY', u'RHAT', 100.0, 35.14)
-    >>> len(r)
-    5
-    >>> r[2]
-    u'RHAT'
-    >>> r.keys()
-    ['date', 'trans', 'symbol', 'qty', 'price']
-    >>> r['qty']
-    100.0
-    >>> for member in r: print member
-    ...
-    2006-01-05
-    BUY
-    RHAT
-    100.0
-    35.14
+   >>> conn.row_factory = sqlite3.Row
+   >>> c = conn.cursor()
+   >>> c.execute('select * from stocks')
+   <sqlite3.Cursor object at 0x7f4e7dd8fa80>
+   >>> r = c.fetchone()
+   >>> type(r)
+   <type 'sqlite3.Row'>
+   >>> r
+   (u'2006-01-05', u'BUY', u'RHAT', 100.0, 35.14)
+   >>> len(r)
+   5
+   >>> r[2]
+   u'RHAT'
+   >>> r.keys()
+   ['date', 'trans', 'symbol', 'qty', 'price']
+   >>> r['qty']
+   100.0
+   >>> for member in r: print member
+   ...
+   2006-01-05
+   BUY
+   RHAT
+   100.0
+   35.14
 
 
 .. _sqlite3-types:
@@ -893,3 +897,12 @@ threads. If you still try to do so, you will get an exception at runtime.
 
 The only exception is calling the :meth:`~Connection.interrupt` method, which
 only makes sense to call from a different thread.
+
+.. rubric:: Footnotes
+
+.. [#f1] The sqlite3 module is not built with loadable extension support by
+   default, because some platforms (notably Mac OS X) have SQLite libraries
+   which are compiled without this feature. To get loadable extension support,
+   you must modify setup.py and remove the line that sets
+   SQLITE_OMIT_LOAD_EXTENSION.
+

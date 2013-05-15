@@ -18,10 +18,10 @@ Turtle graphics is a popular way for introducing programming to kids.  It was
 part of the original Logo programming language developed by Wally Feurzig and
 Seymour Papert in 1966.
 
-Imagine a robotic turtle starting at (0, 0) in the x-y plane.  Give it the
+Imagine a robotic turtle starting at (0, 0) in the x-y plane.  After an ``import turtle``, give it the
 command ``turtle.forward(15)``, and it moves (on-screen!) 15 pixels in the
 direction it is facing, drawing a line as it moves.  Give it the command
-``turtle.left(25)``, and it rotates in-place 25 degrees clockwise.
+``turtle.right(25)``, and it rotates in-place 25 degrees clockwise.
 
 By combining together these and similar commands, intricate shapes and pictures
 can easily be drawn.
@@ -157,6 +157,7 @@ Using events
    | :func:`onclick`
    | :func:`onrelease`
    | :func:`ondrag`
+   | :func:`mainloop` | :func:`done`
 
 Special Turtle methods
    | :func:`begin_poly`
@@ -1289,6 +1290,15 @@ Using events
 
    Subsequently, clicking and dragging the Turtle will move it across
    the screen thereby producing handdrawings (if pen is down).
+
+
+.. function:: mainloop()
+              done()
+
+   Starts event loop - calling Tkinter's mainloop function. Must be the last
+   statement in a turtle graphics program.
+
+      >>> turtle.mainloop()
 
 
 Special Turtle methods

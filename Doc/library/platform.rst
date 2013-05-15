@@ -9,6 +9,10 @@
 
 .. versionadded:: 2.3
 
+**Source code:** :source:`Lib/platform.py`
+
+--------------
+
 .. note::
 
    Specific platforms listed alphabetically, with Linux included in the Unix
@@ -29,8 +33,8 @@ Cross Platform
    returned as strings.
 
    Values that cannot be determined are returned as given by the parameter presets.
-   If bits is given as ``''``, the :cfunc:`sizeof(pointer)` (or
-   :cfunc:`sizeof(long)` on Python version < 1.5.2) is used as indicator for the
+   If bits is given as ``''``, the :c:func:`sizeof(pointer)` (or
+   :c:func:`sizeof(long)` on Python version < 1.5.2) is used as indicator for the
    supported pointer size.
 
    The function relies on the system's :file:`file` command to do the actual work.
@@ -193,8 +197,8 @@ Windows Platform
 .. function:: win32_ver(release='', version='', csd='', ptype='')
 
    Get additional version information from the Windows Registry and return a tuple
-   ``(version, csd, ptype)`` referring to version number, CSD level and OS type
-   (multi/single processor).
+   ``(version, csd, ptype)`` referring to version number, CSD level
+   (service pack) and OS type (multi/single processor).
 
    As a hint: *ptype* is ``'Uniprocessor Free'`` on single processor NT machines
    and ``'Multiprocessor Free'`` on multi processor machines. The *'Free'* refers
@@ -232,9 +236,6 @@ Mac OS Platform
 
    Entries which cannot be determined are set to ``''``.  All tuple entries are
    strings.
-
-   Documentation for the underlying :cfunc:`gestalt` API is available online at
-   http://www.rgaros.nl/gestalt/.
 
 
 Unix Platforms

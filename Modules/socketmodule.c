@@ -456,18 +456,14 @@ static PyTypeObject sock_type;
 #include <sys/poll.h>
 #endif
 
-#ifdef Py_SOCKET_FD_CAN_BE_GE_FD_SETSIZE
-/* Platform can select file descriptors beyond FD_SETSIZE */
-#define IS_SELECTABLE(s) 1
-#elif defined(HAVE_POLL)
+#ifdef HAVE_POLL
 /* Instead of select(), we'll use poll() since poll() works on any fd. */
 #define IS_SELECTABLE(s) 1
 /* Can we call select() with this socket without a buffer overrun? */
 #else
-/* POSIX says selecting file descriptors beyond FD_SETSIZE
-   has undefined behaviour.  If there's no timeout left, we don't have to
-   call select, so it's a safe, little white lie. */
-#define IS_SELECTABLE(s) ((s)->sock_fd < FD_SETSIZE || s->sock_timeout <= 0.0)
+/* If there's no timeout left, we don't have to call select, so it's a safe,
+ * little white lie. */
+#define IS_SELECTABLE(s) (_PyIsSelectable_fd((s)->sock_fd) || (s)->sock_timeout <= 0.0)
 #endif
 
 static PyObject*
@@ -1032,10 +1028,10 @@ makesockaddr(int sockfd, struct sockaddr *addr, int addrlen, int proto)
         PyObject *ret = NULL;
         if (addrobj) {
             a = (struct sockaddr_in6 *)addr;
-            ret = Py_BuildValue("Oiii",
+            ret = Py_BuildValue("OiII",
                                 addrobj,
                                 ntohs(a->sin6_port),
-                                a->sin6_flowinfo,
+                                ntohl(a->sin6_flowinfo),
                                 a->sin6_scope_id);
             Py_DECREF(addrobj);
         }
@@ -1286,7 +1282,8 @@ getsockaddrarg(PySocketSockObject *s, PyObject *args,
     {
         struct sockaddr_in6* addr;
         char *host;
-        int port, flowinfo, scope_id, result;
+        int port, result;
+        unsigned int flowinfo, scope_id;
         flowinfo = scope_id = 0;
         if (!PyTuple_Check(args)) {
             PyErr_Format(
@@ -1296,7 +1293,7 @@ getsockaddrarg(PySocketSockObject *s, PyObject *args,
                 Py_TYPE(args)->tp_name);
             return 0;
         }
-        if (!PyArg_ParseTuple(args, "eti|ii",
+        if (!PyArg_ParseTuple(args, "eti|II",
                               "idna", &host, &port, &flowinfo,
                               &scope_id)) {
             return 0;
@@ -1313,9 +1310,15 @@ getsockaddrarg(PySocketSockObject *s, PyObject *args,
                 "getsockaddrarg: port must be 0-65535.");
             return 0;
         }
+        if (flowinfo < 0 || flowinfo > 0xfffff) {
+            PyErr_SetString(
+                PyExc_OverflowError,
+                "getsockaddrarg: flowinfo must be 0-1048575.");
+            return 0;
+        }
         addr->sin6_family = s->sock_family;
         addr->sin6_port = htons((short)port);
-        addr->sin6_flowinfo = flowinfo;
+        addr->sin6_flowinfo = htonl(flowinfo);
         addr->sin6_scope_id = scope_id;
         *len_ret = sizeof *addr;
         return 1;
@@ -1784,7 +1787,7 @@ sock_gettimeout(PySocketSockObject *s)
 PyDoc_STRVAR(gettimeout_doc,
 "gettimeout() -> timeout\n\
 \n\
-Returns the timeout in floating seconds associated with socket \n\
+Returns the timeout in seconds (float) associated with socket \n\
 operations. A timeout of None indicates that timeouts on socket \n\
 operations are disabled.");
 
@@ -4160,7 +4163,8 @@ socket_getnameinfo(PyObject *self, PyObject *args)
     PyObject *sa = (PyObject *)NULL;
     int flags;
     char *hostp;
-    int port, flowinfo, scope_id;
+    int port;
+    unsigned int flowinfo, scope_id;
     char hbuf[NI_MAXHOST], pbuf[NI_MAXSERV];
     struct addrinfo hints, *res = NULL;
     int error;
@@ -4174,9 +4178,14 @@ socket_getnameinfo(PyObject *self, PyObject *args)
                         "getnameinfo() argument 1 must be a tuple");
         return NULL;
     }
-    if (!PyArg_ParseTuple(sa, "si|ii",
+    if (!PyArg_ParseTuple(sa, "si|II",
                           &hostp, &port, &flowinfo, &scope_id))
         return NULL;
+    if (flowinfo < 0 || flowinfo > 0xfffff) {
+        PyErr_SetString(PyExc_OverflowError,
+                        "getsockaddrarg: flowinfo must be 0-1048575.");
+        return NULL;
+    }
     PyOS_snprintf(pbuf, sizeof(pbuf), "%d", port);
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
@@ -4210,7 +4219,7 @@ socket_getnameinfo(PyObject *self, PyObject *args)
         {
         struct sockaddr_in6 *sin6;
         sin6 = (struct sockaddr_in6 *)res->ai_addr;
-        sin6->sin6_flowinfo = flowinfo;
+        sin6->sin6_flowinfo = htonl(flowinfo);
         sin6->sin6_scope_id = scope_id;
         break;
         }
@@ -4252,7 +4261,7 @@ socket_getdefaulttimeout(PyObject *self)
 PyDoc_STRVAR(getdefaulttimeout_doc,
 "getdefaulttimeout() -> timeout\n\
 \n\
-Returns the default timeout in floating seconds for new socket objects.\n\
+Returns the default timeout in seconds (float) for new socket objects.\n\
 A value of None indicates that new socket objects have no timeout.\n\
 When the socket module is first imported, the default is None.");
 
@@ -4282,7 +4291,7 @@ socket_setdefaulttimeout(PyObject *self, PyObject *arg)
 PyDoc_STRVAR(setdefaulttimeout_doc,
 "setdefaulttimeout(timeout)\n\
 \n\
-Set the default timeout in floating seconds for new socket objects.\n\
+Set the default timeout in seconds (float) for new socket objects.\n\
 A value of None indicates that new socket objects have no timeout.\n\
 When the socket module is first imported, the default is None.");
 

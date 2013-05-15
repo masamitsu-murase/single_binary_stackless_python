@@ -119,7 +119,7 @@ The module :mod:`socket` exports the following constants and functions:
 
    The accompanying value is a pair ``(h_errno, string)`` representing an error
    returned by a library call. *string* represents the description of *h_errno*, as
-   returned by the :cfunc:`hstrerror` C function.
+   returned by the :c:func:`hstrerror` C function.
 
 
 .. exception:: gaierror
@@ -127,7 +127,7 @@ The module :mod:`socket` exports the following constants and functions:
    This exception is raised for address-related errors, for :func:`getaddrinfo` and
    :func:`getnameinfo`. The accompanying value is a pair ``(error, string)``
    representing an error returned by a library call. *string* represents the
-   description of *error*, as returned by the :cfunc:`gai_strerror` C function. The
+   description of *error*, as returned by the :c:func:`gai_strerror` C function. The
    *error* value will match one of the :const:`EAI_\*` constants defined in this
    module.
 
@@ -207,10 +207,17 @@ The module :mod:`socket` exports the following constants and functions:
 
 .. function:: create_connection(address[, timeout[, source_address]])
 
-   Convenience function.  Connect to *address* (a 2-tuple ``(host, port)``),
-   and return the socket object.  Passing the optional *timeout* parameter will
-   set the timeout on the socket instance before attempting to connect.  If no
-   *timeout* is supplied, the global default timeout setting returned by
+   Connect to a TCP service listening on the Internet *address* (a 2-tuple
+   ``(host, port)``), and return the socket object.  This is a higher-level
+   function than :meth:`socket.connect`: if *host* is a non-numeric hostname,
+   it will try to resolve it for both :data:`AF_INET` and :data:`AF_INET6`,
+   and then try to connect to all possible addresses in turn until a
+   connection succeeds.  This makes it easy to write clients that are
+   compatible to both IPv4 and IPv6.
+
+   Passing the optional *timeout* parameter will set the timeout on the
+   socket instance before attempting to connect.  If no *timeout* is
+   supplied, the global default timeout setting returned by
    :func:`getdefaulttimeout` is used.
 
    If supplied, *source_address* must be a 2-tuple ``(host, port)`` for the
@@ -423,7 +430,7 @@ The module :mod:`socket` exports the following constants and functions:
    Convert an IPv4 address from dotted-quad string format (for example,
    '123.45.67.89') to 32-bit packed binary format, as a string four characters in
    length.  This is useful when conversing with a program that uses the standard C
-   library and needs objects of type :ctype:`struct in_addr`, which is the C type
+   library and needs objects of type :c:type:`struct in_addr`, which is the C type
    for the 32-bit packed binary this function returns.
 
    :func:`inet_aton` also accepts strings with less than three dots; see the
@@ -431,7 +438,7 @@ The module :mod:`socket` exports the following constants and functions:
 
    If the IPv4 address string passed to this function is invalid,
    :exc:`socket.error` will be raised. Note that exactly what is valid depends on
-   the underlying C implementation of :cfunc:`inet_aton`.
+   the underlying C implementation of :c:func:`inet_aton`.
 
    :func:`inet_aton` does not support IPv6, and :func:`inet_pton` should be used
    instead for IPv4/v6 dual stack support.
@@ -442,7 +449,7 @@ The module :mod:`socket` exports the following constants and functions:
    Convert a 32-bit packed IPv4 address (a string four characters in length) to its
    standard dotted-quad string representation (for example, '123.45.67.89').  This
    is useful when conversing with a program that uses the standard C library and
-   needs objects of type :ctype:`struct in_addr`, which is the C type for the
+   needs objects of type :c:type:`struct in_addr`, which is the C type for the
    32-bit packed binary data this function takes as an argument.
 
    If the string passed to this function is not exactly 4 bytes in length,
@@ -454,14 +461,14 @@ The module :mod:`socket` exports the following constants and functions:
 
    Convert an IP address from its family-specific string format to a packed, binary
    format. :func:`inet_pton` is useful when a library or network protocol calls for
-   an object of type :ctype:`struct in_addr` (similar to :func:`inet_aton`) or
-   :ctype:`struct in6_addr`.
+   an object of type :c:type:`struct in_addr` (similar to :func:`inet_aton`) or
+   :c:type:`struct in6_addr`.
 
    Supported values for *address_family* are currently :const:`AF_INET` and
    :const:`AF_INET6`. If the IP address string *ip_string* is invalid,
    :exc:`socket.error` will be raised. Note that exactly what is valid depends on
    both the value of *address_family* and the underlying implementation of
-   :cfunc:`inet_pton`.
+   :c:func:`inet_pton`.
 
    Availability: Unix (maybe not all platforms).
 
@@ -473,8 +480,8 @@ The module :mod:`socket` exports the following constants and functions:
    Convert a packed IP address (a string of some number of characters) to its
    standard, family-specific string representation (for example, ``'7.10.0.5'`` or
    ``'5aef:2b::8'``) :func:`inet_ntop` is useful when a library or network protocol
-   returns an object of type :ctype:`struct in_addr` (similar to :func:`inet_ntoa`)
-   or :ctype:`struct in6_addr`.
+   returns an object of type :c:type:`struct in_addr` (similar to :func:`inet_ntoa`)
+   or :c:type:`struct in6_addr`.
 
    Supported values for *address_family* are currently :const:`AF_INET` and
    :const:`AF_INET6`. If the string *packed_ip* is not the correct length for the
@@ -488,7 +495,7 @@ The module :mod:`socket` exports the following constants and functions:
 
 .. function:: getdefaulttimeout()
 
-   Return the default timeout in floating seconds for new socket objects. A value
+   Return the default timeout in seconds (float) for new socket objects. A value
    of ``None`` indicates that new socket objects have no timeout. When the socket
    module is first imported, the default is ``None``.
 
@@ -497,7 +504,7 @@ The module :mod:`socket` exports the following constants and functions:
 
 .. function:: setdefaulttimeout(timeout)
 
-   Set the default timeout in floating seconds for new socket objects. A value of
+   Set the default timeout in seconds (float) for new socket objects. A value of
    ``None`` indicates that new socket objects have no timeout. When the socket
    module is first imported, the default is ``None``.
 
@@ -576,10 +583,10 @@ correspond to Unix system calls applicable to sockets.
 .. method:: socket.connect_ex(address)
 
    Like ``connect(address)``, but return an error indicator instead of raising an
-   exception for errors returned by the C-level :cfunc:`connect` call (other
+   exception for errors returned by the C-level :c:func:`connect` call (other
    problems, such as "host not found," can still raise exceptions).  The error
    indicator is ``0`` if the operation succeeded, otherwise the value of the
-   :cdata:`errno` variable.  This is useful to support, for example, asynchronous
+   :c:data:`errno` variable.  This is useful to support, for example, asynchronous
    connects.
 
    .. note::
@@ -654,7 +661,7 @@ correspond to Unix system calls applicable to sockets.
 
    Return a :dfn:`file object` associated with the socket.  (File objects are
    described in :ref:`bltin-file-objects`.) The file object
-   references a :cfunc:`dup`\ ped version of the socket file descriptor, so the
+   references a :c:func:`dup`\ ped version of the socket file descriptor, so the
    file object and socket object may be closed or garbage-collected independently.
    The socket must be in blocking mode (it can not have a timeout). The optional
    *mode* and *bufsize* arguments are interpreted the same way as by the built-in
@@ -718,7 +725,8 @@ correspond to Unix system calls applicable to sockets.
    optional *flags* argument has the same meaning as for :meth:`recv` above.
    Returns the number of bytes sent. Applications are responsible for checking that
    all data has been sent; if only some of the data was transmitted, the
-   application needs to attempt delivery of the remaining data.
+   application needs to attempt delivery of the remaining data. For further
+   information on this concept, consult the :ref:`socket-howto`.
 
 
 .. method:: socket.sendall(string[, flags])
@@ -766,7 +774,7 @@ correspond to Unix system calls applicable to sockets.
 
 .. method:: socket.gettimeout()
 
-   Return the timeout in floating seconds associated with socket operations, or
+   Return the timeout in seconds (float) associated with socket operations, or
    ``None`` if no timeout is set.  This reflects the last call to
    :meth:`setblocking` or :meth:`settimeout`.
 
@@ -856,8 +864,8 @@ using it.  Note that a server must perform the sequence :func:`socket`,
 :meth:`~socket.bind`, :meth:`~socket.listen`, :meth:`~socket.accept` (possibly
 repeating the :meth:`~socket.accept` to service more than one client), while a
 client only needs the sequence :func:`socket`, :meth:`~socket.connect`.  Also
-note that the server does not :meth:`~socket.send`/:meth:`~socket.recv` on the
-socket it is listening on but on the new socket returned by
+note that the server does not :meth:`~socket.sendall`/:meth:`~socket.recv` on
+the socket it is listening on but on the new socket returned by
 :meth:`~socket.accept`.
 
 The first two examples support IPv4 only. ::
@@ -875,7 +883,7 @@ The first two examples support IPv4 only. ::
    while 1:
        data = conn.recv(1024)
        if not data: break
-       conn.send(data)
+       conn.sendall(data)
    conn.close()
 
 ::
@@ -887,7 +895,7 @@ The first two examples support IPv4 only. ::
    PORT = 50007              # The same port as used by the server
    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
    s.connect((HOST, PORT))
-   s.send('Hello, world')
+   s.sendall('Hello, world')
    data = s.recv(1024)
    s.close()
    print 'Received', repr(data)
@@ -959,7 +967,7 @@ sends traffic to the first one connected successfully. ::
    if s is None:
        print 'could not open socket'
        sys.exit(1)
-   s.send('Hello, world')
+   s.sendall('Hello, world')
    data = s.recv(1024)
    s.close()
    print 'Received', repr(data)
@@ -989,3 +997,22 @@ the interface::
 
    # disabled promiscuous mode
    s.ioctl(socket.SIO_RCVALL, socket.RCVALL_OFF)
+
+
+Running an example several times with too small delay between executions, could
+lead to this error::
+
+   socket.error: [Errno 98] Address already in use
+
+This is because the previous execution has left the socket in a ``TIME_WAIT``
+state, and can't be immediately reused.
+
+There is a :mod:`socket` flag to set, in order to prevent this,
+:data:`socket.SO_REUSEADDR`::
+
+   s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+   s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+   s.bind((HOST, PORT))
+
+the :data:`SO_REUSEADDR` flag tells the kernel to reuse a local socket in
+``TIME_WAIT`` state, without waiting for its natural timeout to expire.

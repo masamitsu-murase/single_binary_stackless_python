@@ -74,8 +74,8 @@ An explanation of some terminology and conventions is in order.
 * On the other hand, the precision of :func:`time` and :func:`sleep` is better
   than their Unix equivalents: times are expressed as floating point numbers,
   :func:`time` returns the most accurate time available (using Unix
-  :cfunc:`gettimeofday` where available), and :func:`sleep` will accept a time
-  with a nonzero fraction (Unix :cfunc:`select` is used to implement this, where
+  :c:func:`gettimeofday` where available), and :func:`sleep` will accept a time
+  with a nonzero fraction (Unix :c:func:`select` is used to implement this, where
   available).
 
 * The time value as returned by :func:`gmtime`, :func:`localtime`, and
@@ -156,7 +156,7 @@ The module defines the following functions and data items:
 
    On Windows, this function returns wall-clock seconds elapsed since the first
    call to this function, as a floating point number, based on the Win32 function
-   :cfunc:`QueryPerformanceCounter`. The resolution is typically better than one
+   :c:func:`QueryPerformanceCounter`. The resolution is typically better than one
    microsecond.
 
 
@@ -560,6 +560,6 @@ The module defines the following functions and data items:
    preferred  hour/minute offset is not supported by all ANSI C libraries. Also, a
    strict reading of the original 1982 :rfc:`822` standard calls for a two-digit
    year (%y rather than %Y), but practice moved to 4-digit years long before the
-   year 2000.  The 4-digit year has been mandated by :rfc:`2822`, which obsoletes
-   :rfc:`822`.
+   year 2000.  After that, :rfc:`822` became obsolete and the 4-digit year has
+   been first recommended by :rfc:`1123` and then mandated by :rfc:`2822`.
 

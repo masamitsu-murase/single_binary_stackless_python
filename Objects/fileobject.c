@@ -468,28 +468,34 @@ close_the_file(PyFileObject *f)
 PyObject *
 PyFile_FromFile(FILE *fp, char *name, char *mode, int (*close)(FILE *))
 {
-    PyFileObject *f = (PyFileObject *)PyFile_Type.tp_new(&PyFile_Type,
-                                                         NULL, NULL);
-    if (f != NULL) {
-        PyObject *o_name = PyString_FromString(name);
-        if (o_name == NULL)
-            return NULL;
-        if (fill_file_fields(f, fp, o_name, mode, close) == NULL) {
-            Py_DECREF(f);
-            f = NULL;
-        }
-        Py_DECREF(o_name);
+    PyFileObject *f;
+    PyObject *o_name;
+
+    f = (PyFileObject *)PyFile_Type.tp_new(&PyFile_Type, NULL, NULL);
+    if (f == NULL)
+        return NULL;
+    o_name = PyString_FromString(name);
+    if (o_name == NULL) {
+        if (close != NULL && fp != NULL)
+            close(fp);
+        Py_DECREF(f);
+        return NULL;
     }
-    return (PyObject *) f;
+    if (fill_file_fields(f, fp, o_name, mode, close) == NULL) {
+        Py_DECREF(f);
+        Py_DECREF(o_name);
+        return NULL;
+    }
+    Py_DECREF(o_name);
+    return (PyObject *)f;
 }
 
 PyObject *
 PyFile_FromString(char *name, char *mode)
 {
-    extern int fclose(FILE *);
     PyFileObject *f;
 
-    f = (PyFileObject *)PyFile_FromFile((FILE *)NULL, name, mode, fclose);
+    f = (PyFileObject *)PyFile_FromFile((FILE *)NULL, name, mode, NULL);
     if (f != NULL) {
         if (open_the_file(f, name, mode) == NULL) {
             Py_DECREF(f);
@@ -986,12 +992,6 @@ file_isatty(PyFileObject *f)
 #define SMALLCHUNK BUFSIZ
 #endif
 
-#if SIZEOF_INT < 4
-#define BIGCHUNK  (512 * 32)
-#else
-#define BIGCHUNK  (512 * 1024)
-#endif
-
 static size_t
 new_buffersize(PyFileObject *f, size_t currentsize)
 {
@@ -1020,15 +1020,10 @@ new_buffersize(PyFileObject *f, size_t currentsize)
         /* Add 1 so if the file were to grow we'd notice. */
     }
 #endif
-    if (currentsize > SMALLCHUNK) {
-        /* Keep doubling until we reach BIGCHUNK;
-           then keep adding BIGCHUNK. */
-        if (currentsize <= BIGCHUNK)
-            return currentsize + currentsize;
-        else
-            return currentsize + BIGCHUNK;
-    }
-    return currentsize + SMALLCHUNK;
+    /* Expand the buffer by an amount proportional to the current size,
+       giving us amortized linear-time behavior. Use a less-than-double
+       growth factor to avoid excessive allocation. */
+    return currentsize + (currentsize >> 3) + 6;
 }
 
 #if defined(EWOULDBLOCK) && defined(EAGAIN) && EWOULDBLOCK != EAGAIN

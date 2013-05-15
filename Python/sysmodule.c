@@ -466,6 +466,7 @@ sys_setcheckinterval(PyObject *self, PyObject *args)
 {
     if (!PyArg_ParseTuple(args, "i:setcheckinterval", &_Py_CheckInterval))
         return NULL;
+    _Py_Ticker = _Py_CheckInterval;
     Py_INCREF(Py_None);
     return Py_None;
 }
@@ -1096,7 +1097,7 @@ version_info -- version information as a named tuple\n\
 hexversion -- version information encoded as a single integer\n\
 copyright -- copyright notice pertaining to this interpreter\n\
 platform -- platform identifier\n\
-executable -- pathname of this Python interpreter\n\
+executable -- absolute path of the executable binary of the Python interpreter\n\
 prefix -- prefix used to find the Python library\n\
 exec_prefix -- prefix used to find the machine-specific Python library\n\
 float_repr_style -- string indicating the style of repr() output for floats\n\
@@ -1212,6 +1213,7 @@ static PyStructSequence_Field flags_fields[] = {
     {"unicode",                 "-U"},
     /* {"skip_first",                   "-x"}, */
     {"bytes_warning", "-b"},
+    {"hash_randomization", "-R"},
     {0}
 };
 
@@ -1220,9 +1222,9 @@ static PyStructSequence_Desc flags_desc = {
     flags__doc__,       /* doc */
     flags_fields,       /* fields */
 #ifdef RISCOS
-    16
+    17
 #else
-    15
+    16
 #endif
 };
 
@@ -1259,6 +1261,7 @@ make_flags(void)
     SetFlag(Py_UnicodeFlag);
     /* SetFlag(skipfirstline); */
     SetFlag(Py_BytesWarningFlag);
+    SetFlag(Py_HashRandomizationFlag);
 #undef SetFlag
 
     if (PyErr_Occurred()) {

@@ -16,6 +16,10 @@
 
 .. index:: module: urllib
 
+**Source code:** :source:`Lib/httplib.py`
+
+--------------
+
 This module defines classes which implement the client side of the HTTP and
 HTTPS protocols.  It is normally not used directly --- the module :mod:`urllib`
 uses it to handle URLs that use HTTP and HTTPS.
@@ -448,7 +452,7 @@ HTTPConnection Objects
    Set the host and the port for HTTP Connect Tunnelling. Normally used when
    it is required to do HTTPS Conection through a proxy server.
 
-   The headers argument should be a mapping of extra HTTP headers to to sent
+   The headers argument should be a mapping of extra HTTP headers to send
    with the CONNECT request.
 
    .. versionadded:: 2.7
@@ -488,9 +492,16 @@ also send your request step by step, by using the four functions below.
    an argument.
 
 
-.. method:: HTTPConnection.endheaders()
+.. method:: HTTPConnection.endheaders(message_body=None)
 
-   Send a blank line to the server, signalling the end of the headers.
+   Send a blank line to the server, signalling the end of the headers. The
+   optional *message_body* argument can be used to pass a message body
+   associated with the request.  The message body will be sent in the same
+   packet as the message headers if it is string, otherwise it is sent in a
+   separate packet.
+
+   .. versionchanged:: 2.7
+      *message_body* was added.
 
 
 .. method:: HTTPConnection.send(data)
@@ -588,14 +599,16 @@ Here is an example session that uses the ``HEAD`` method.  Note that the
 Here is an example session that shows how to ``POST`` requests::
 
    >>> import httplib, urllib
-   >>> params = urllib.urlencode({'spam': 1, 'eggs': 2, 'bacon': 0})
+   >>> params = urllib.urlencode({'@number': 12524, '@type': 'issue', '@action': 'show'})
    >>> headers = {"Content-type": "application/x-www-form-urlencoded",
    ...            "Accept": "text/plain"}
-   >>> conn = httplib.HTTPConnection("musi-cal.mojam.com:80")
-   >>> conn.request("POST", "/cgi-bin/query", params, headers)
+   >>> conn = httplib.HTTPConnection("bugs.python.org")
+   >>> conn.request("POST", "", params, headers)
    >>> response = conn.getresponse()
    >>> print response.status, response.reason
-   200 OK
+   302 Found
    >>> data = response.read()
+   >>> data
+   'Redirecting to <a href="http://bugs.python.org/issue12524">http://bugs.python.org/issue12524</a>'
    >>> conn.close()
 

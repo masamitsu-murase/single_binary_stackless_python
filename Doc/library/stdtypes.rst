@@ -63,7 +63,7 @@ following values are considered false:
 
 * instances of user-defined classes, if the class defines a :meth:`__nonzero__`
   or :meth:`__len__` method, when that method returns the integer zero or
-  :class:`bool` value ``False``. [#]_
+  :class:`bool` value ``False``. [1]_
 
 .. index:: single: true
 
@@ -226,11 +226,11 @@ Numeric Types --- :class:`int`, :class:`float`, :class:`long`, :class:`complex`
 There are four distinct numeric types: :dfn:`plain integers`, :dfn:`long
 integers`, :dfn:`floating point numbers`, and :dfn:`complex numbers`. In
 addition, Booleans are a subtype of plain integers. Plain integers (also just
-called :dfn:`integers`) are implemented using :ctype:`long` in C, which gives
+called :dfn:`integers`) are implemented using :c:type:`long` in C, which gives
 them at least 32 bits of precision (``sys.maxint`` is always set to the maximum
 plain integer value for the current platform, the minimum value is
 ``-sys.maxint - 1``).  Long integers have unlimited precision.  Floating point
-numbers are usually implemented using :ctype:`double` in C; information about
+numbers are usually implemented using :c:type:`double` in C; information about
 the precision and internal representation of floating point numbers for the
 machine on which your program is running is available in
 :data:`sys.float_info`.  Complex numbers have a real and imaginary part, which
@@ -277,7 +277,7 @@ Python fully supports mixed arithmetic: when a binary arithmetic operator has
 operands of different numeric types, the operand with the "narrower" type is
 widened to that of the other, where plain integer is narrower than long integer
 is narrower than floating point is narrower than complex. Comparisons between
-numbers of mixed type use the same rule. [#]_ The constructors :func:`int`,
+numbers of mixed type use the same rule. [2]_ The constructors :func:`int`,
 :func:`long`, :func:`float`, and :func:`complex` can be used to produce numbers
 of a specific type.
 
@@ -401,12 +401,12 @@ All :class:`numbers.Real` types (:class:`int`, :class:`long`, and
 
 .. _bitstring-ops:
 
-Bit-string Operations on Integer Types
+Bitwise Operations on Integer Types
 --------------------------------------
 
 .. index::
    triple: operations on; integer; types
-   pair: bit-string; operations
+   pair: bitwise; operations
    pair: shifting; operations
    pair: masking; operations
    operator: ^
@@ -414,16 +414,16 @@ Bit-string Operations on Integer Types
    operator: <<
    operator: >>
 
-Plain and long integer types support additional operations that make sense only
-for bit-strings.  Negative numbers are treated as their 2's complement value
-(for long integers, this assumes a sufficiently large number of bits that no
-overflow occurs during the operation).
+Bitwise operations only make sense for integers.  Negative numbers are treated
+as their 2's complement value (this assumes a sufficiently large number of bits
+that no overflow occurs during the operation).
 
 The priorities of the binary bitwise operations are all lower than the numeric
 operations and higher than the comparisons; the unary operation ``~`` has the
 same priority as the other unary numeric operations (``+`` and ``-``).
 
-This table lists the bit-string operations sorted in ascending priority:
+This table lists the bitwise operations sorted in ascending priority
+(operations in the same box have the same priority):
 
 +------------+--------------------------------+----------+
 | Operation  | Result                         | Notes    |
@@ -709,7 +709,7 @@ support slicing, concatenation or repetition, and using ``in``, ``not in``,
 Most sequence types support the following operations.  The ``in`` and ``not in``
 operations have the same priorities as the comparison operations.  The ``+`` and
 ``*`` operations have the same priority as the corresponding numeric operations.
-[#]_ Additional methods are provided for :ref:`typesseq-mutable`.
+[3]_ Additional methods are provided for :ref:`typesseq-mutable`.
 
 This table lists the sequence operations sorted in ascending priority
 (operations in the same box have the same priority).  In the table, *s* and *t*
@@ -730,7 +730,7 @@ are sequences of the same type; *n*, *i* and *j* are integers:
 | ``s * n, n * s`` | *n* shallow copies of *s*      | \(2)     |
 |                  | concatenated                   |          |
 +------------------+--------------------------------+----------+
-| ``s[i]``         | *i*'th item of *s*, origin 0   | \(3)     |
+| ``s[i]``         | *i*\ th item of *s*, origin 0  | \(3)     |
 +------------------+--------------------------------+----------+
 | ``s[i:j]``       | slice of *s* from *i* to *j*   | (3)(4)   |
 +------------------+--------------------------------+----------+
@@ -1007,7 +1007,7 @@ string functions based on regular expressions.
 
 .. method:: str.islower()
 
-   Return true if all cased characters in the string are lowercase and there is at
+   Return true if all cased characters [4]_ in the string are lowercase and there is at
    least one cased character, false otherwise.
 
    For 8-bit strings, this method is locale-dependent.
@@ -1032,7 +1032,7 @@ string functions based on regular expressions.
 
 .. method:: str.isupper()
 
-   Return true if all cased characters in the string are uppercase and there is at
+   Return true if all cased characters [4]_ in the string are uppercase and there is at
    least one cased character, false otherwise.
 
    For 8-bit strings, this method is locale-dependent.
@@ -1049,7 +1049,7 @@ string functions based on regular expressions.
 
    Return the string left justified in a string of length *width*. Padding is done
    using the specified *fillchar* (default is a space).  The original string is
-   returned if *width* is less than ``len(s)``.
+   returned if *width* is less than or equal to ``len(s)``.
 
    .. versionchanged:: 2.4
       Support for the *fillchar* argument.
@@ -1057,7 +1057,8 @@ string functions based on regular expressions.
 
 .. method:: str.lower()
 
-   Return a copy of the string converted to lowercase.
+   Return a copy of the string with all the cased characters [4]_ converted to
+   lowercase.
 
    For 8-bit strings, this method is locale-dependent.
 
@@ -1112,7 +1113,7 @@ string functions based on regular expressions.
 
    Return the string right justified in a string of length *width*. Padding is done
    using the specified *fillchar* (default is a space). The original string is
-   returned if *width* is less than ``len(s)``.
+   returned if *width* is less than or equal to ``len(s)``.
 
    .. versionchanged:: 2.4
       Support for the *fillchar* argument.
@@ -1280,7 +1281,10 @@ string functions based on regular expressions.
 
 .. method:: str.upper()
 
-   Return a copy of the string converted to uppercase.
+   Return a copy of the string with all the cased characters [4]_ converted to
+   uppercase.  Note that ``str.upper().isupper()`` might be ``False`` if ``s``
+   contains uncased characters or if the Unicode category of the resulting
+   character(s) is not "Lu" (Letter, uppercase), but e.g. "Lt" (Letter, titlecase).
 
    For 8-bit strings, this method is locale-dependent.
 
@@ -1289,7 +1293,7 @@ string functions based on regular expressions.
 
    Return the numeric string left filled with zeros in a string of length
    *width*.  A sign prefix is handled correctly.  The original string is
-   returned if *width* is less than ``len(s)``.
+   returned if *width* is less than or equal to ``len(s)``.
 
 
    .. versionadded:: 2.2.2
@@ -1307,7 +1311,7 @@ The following methods are present only on unicode objects:
 
    Return ``True`` if there are only decimal characters in S, ``False``
    otherwise. Decimal characters include digit characters, and all characters
-   that that can be used to form decimal-radix numbers, e.g. U+0660,
+   that can be used to form decimal-radix numbers, e.g. U+0660,
    ARABIC-INDIC DIGIT ZERO.
 
 
@@ -1331,12 +1335,12 @@ operator (modulo).  This is also known as the string *formatting* or
 *interpolation* operator.  Given ``format % values`` (where *format* is a string
 or Unicode object), ``%`` conversion specifications in *format* are replaced
 with zero or more elements of *values*.  The effect is similar to the using
-:cfunc:`sprintf` in the C language.  If *format* is a Unicode object, or if any
+:c:func:`sprintf` in the C language.  If *format* is a Unicode object, or if any
 of the objects being converted using the ``%s`` conversion are Unicode objects,
 the result will also be a Unicode object.
 
 If *format* requires a single argument, *values* may be a single non-tuple
-object. [#]_  Otherwise, *values* must be a tuple with exactly the number of
+object. [5]_  Otherwise, *values* must be a tuple with exactly the number of
 items specified by the format string, or a single mapping object (for example, a
 dictionary).
 
@@ -2327,7 +2331,7 @@ Files have the following methods:
 
 .. method:: file.flush()
 
-   Flush the internal buffer, like ``stdio``'s :cfunc:`fflush`.  This may be a
+   Flush the internal buffer, like ``stdio``'s :c:func:`fflush`.  This may be a
    no-op on some file-like objects.
 
    .. note::
@@ -2368,12 +2372,12 @@ Files have the following methods:
    A file object is its own iterator, for example ``iter(f)`` returns *f* (unless
    *f* is closed).  When a file is used as an iterator, typically in a
    :keyword:`for` loop (for example, ``for line in f: print line``), the
-   :meth:`.next` method is called repeatedly.  This method returns the next input
+   :meth:`~file.next` method is called repeatedly.  This method returns the next input
    line, or raises :exc:`StopIteration` when EOF is hit when the file is open for
    reading (behavior is undefined when the file is open for writing).  In order to
    make a :keyword:`for` loop the most efficient way of looping over the lines of a
-   file (a very common operation), the :meth:`next` method uses a hidden read-ahead
-   buffer.  As a consequence of using a read-ahead buffer, combining :meth:`.next`
+   file (a very common operation), the :meth:`~file.next` method uses a hidden read-ahead
+   buffer.  As a consequence of using a read-ahead buffer, combining :meth:`~file.next`
    with other file methods (like :meth:`readline`) does not work right.  However,
    using :meth:`seek` to reposition the file to an absolute position will flush the
    read-ahead buffer.
@@ -2388,21 +2392,21 @@ Files have the following methods:
    all data until EOF is reached.  The bytes are returned as a string object.  An
    empty string is returned when EOF is encountered immediately.  (For certain
    files, like ttys, it makes sense to continue reading after an EOF is hit.)  Note
-   that this method may call the underlying C function :cfunc:`fread` more than
+   that this method may call the underlying C function :c:func:`fread` more than
    once in an effort to acquire as close to *size* bytes as possible. Also note
    that when in non-blocking mode, less data than was requested may be
    returned, even if no *size* parameter was given.
 
    .. note::
       This function is simply a wrapper for the underlying
-      :cfunc:`fread` C function, and will behave the same in corner cases,
+      :c:func:`fread` C function, and will behave the same in corner cases,
       such as whether the EOF value is cached.
 
 
 .. method:: file.readline([size])
 
    Read one entire line from the file.  A trailing newline character is kept in
-   the string (but may be absent when a file ends with an incomplete line). [#]_
+   the string (but may be absent when a file ends with an incomplete line). [6]_
    If the *size* argument is present and non-negative, it is a maximum byte
    count (including the trailing newline) and an incomplete line may be
    returned. When *size* is not 0, an empty string is returned *only* when EOF
@@ -2410,7 +2414,7 @@ Files have the following methods:
 
    .. note::
 
-      Unlike ``stdio``'s :cfunc:`fgets`, the returned string contains null characters
+      Unlike ``stdio``'s :c:func:`fgets`, the returned string contains null characters
       (``'\0'``) if they occurred in the input.
 
 
@@ -2436,7 +2440,7 @@ Files have the following methods:
 
 .. method:: file.seek(offset[, whence])
 
-   Set the file's current position, like ``stdio``'s :cfunc:`fseek`. The *whence*
+   Set the file's current position, like ``stdio``'s :c:func:`fseek`. The *whence*
    argument is optional and defaults to  ``os.SEEK_SET`` or ``0`` (absolute file
    positioning); other values are ``os.SEEK_CUR`` or ``1`` (seek relative to the
    current position) and ``os.SEEK_END`` or ``2``  (seek relative to the file's
@@ -2461,11 +2465,11 @@ Files have the following methods:
 
 .. method:: file.tell()
 
-   Return the file's current position, like ``stdio``'s :cfunc:`ftell`.
+   Return the file's current position, like ``stdio``'s :c:func:`ftell`.
 
    .. note::
 
-      On Windows, :meth:`tell` can return illegal values (after an :cfunc:`fgets`)
+      On Windows, :meth:`tell` can return illegal values (after an :c:func:`fgets`)
       when reading files with Unix-style line-endings. Use binary mode (``'rb'``) to
       circumvent this problem.
 
@@ -2787,7 +2791,7 @@ statement is not, strictly speaking, an operation on a module object; ``import
 foo`` does not require a module object named *foo* to exist, rather it requires
 an (external) *definition* for a module named *foo* somewhere.)
 
-A special member of every module is :attr:`__dict__`. This is the dictionary
+A special attribute of every module is :attr:`__dict__`. This is the dictionary
 containing the module's symbol table. Modifying this dictionary will actually
 change the module's symbol table, but direct assignment to the :attr:`__dict__`
 attribute is not possible (you can write ``m.__dict__['a'] = 1``, which defines
@@ -2930,7 +2934,18 @@ This object is used by extended slice notation (see :ref:`slicings`).  It
 supports no special operations.  There is exactly one ellipsis object, named
 :const:`Ellipsis` (a built-in name).
 
-It is written as ``Ellipsis``.
+It is written as ``Ellipsis``.  When in a subscript, it can also be written as
+``...``, for example ``seq[...]``.
+
+
+The NotImplemented Object
+-------------------------
+
+This object is returned from comparisons and binary operations when they are
+asked to operate on types they don't support. See :ref:`comparisons` for more
+information.
+
+It is written as ``NotImplemented``.
 
 
 Boolean Values
@@ -2940,9 +2955,9 @@ Boolean values are the two constant objects ``False`` and ``True``.  They are
 used to represent truth values (although other values can also be considered
 false or true).  In numeric contexts (for example when used as the argument to
 an arithmetic operator), they behave like the integers 0 and 1, respectively.
-The built-in function :func:`bool` can be used to cast any value to a Boolean,
-if the value can be interpreted as a truth value (see section Truth Value
-Testing above).
+The built-in function :func:`bool` can be used to convert any value to a
+Boolean, if the value can be interpreted as a truth value (see section
+:ref:`truth` above).
 
 .. index::
    single: False
@@ -3033,18 +3048,21 @@ The following attributes are only supported by :term:`new-style class`\ es.
 
 .. rubric:: Footnotes
 
-.. [#] Additional information on these special methods may be found in the Python
+.. [1] Additional information on these special methods may be found in the Python
    Reference Manual (:ref:`customization`).
 
-.. [#] As a consequence, the list ``[1, 2]`` is considered equal to ``[1.0, 2.0]``, and
+.. [2] As a consequence, the list ``[1, 2]`` is considered equal to ``[1.0, 2.0]``, and
    similarly for tuples.
 
-.. [#] They must have since the parser can't tell the type of the operands.
+.. [3] They must have since the parser can't tell the type of the operands.
 
-.. [#] To format only a tuple you should therefore provide a singleton tuple whose only
+.. [4] Cased characters are those with general category property being one of
+   "Lu" (Letter, uppercase), "Ll" (Letter, lowercase), or "Lt" (Letter, titlecase).
+
+.. [5] To format only a tuple you should therefore provide a singleton tuple whose only
    element is the tuple to be formatted.
 
-.. [#] The advantage of leaving the newline on is that returning an empty string is
+.. [6] The advantage of leaving the newline on is that returning an empty string is
    then an unambiguous EOF indication.  It is also possible (in cases where it
    might matter, for example, if you want to make an exact copy of a file while
    scanning its lines) to tell whether the last line of a file ended in a newline

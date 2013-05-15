@@ -834,6 +834,20 @@ proxy_str(proxyobject *pp)
     return PyObject_Str(pp->dict);
 }
 
+static PyObject *
+proxy_repr(proxyobject *pp)
+{
+    PyObject *dictrepr;
+    PyObject *result;
+
+    dictrepr = PyObject_Repr(pp->dict);
+    if (dictrepr == NULL)
+        return NULL;
+    result = PyString_FromFormat("dict_proxy(%s)", PyString_AS_STRING(dictrepr));
+    Py_DECREF(dictrepr);
+    return result;
+}
+
 static int
 proxy_traverse(PyObject *self, visitproc visit, void *arg)
 {
@@ -865,7 +879,7 @@ PyTypeObject PyDictProxy_Type = {
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
     (cmpfunc)proxy_compare,                     /* tp_compare */
-    0,                                          /* tp_repr */
+    (reprfunc)proxy_repr,                       /* tp_repr */
     0,                                          /* tp_as_number */
     &proxy_as_sequence,                         /* tp_as_sequence */
     &proxy_as_mapping,                          /* tp_as_mapping */

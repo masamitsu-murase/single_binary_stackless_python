@@ -9,13 +9,17 @@
 
 .. versionadded:: 2.1
 
+**Source code:** :source:`Lib/warnings.py`
+
+--------------
+
 Warning messages are typically issued in situations where it is useful to alert
 the user of some condition in a program, where that condition (normally) doesn't
 warrant raising an exception and terminating the program.  For example, one
 might want to issue a warning when a program uses an obsolete module.
 
 Python programmers issue warnings by calling the :func:`warn` function defined
-in this module.  (C programmers use :cfunc:`PyErr_WarnEx`; see
+in this module.  (C programmers use :c:func:`PyErr_WarnEx`; see
 :ref:`exceptionhandling` for details).
 
 Warning messages are normally written to ``sys.stderr``, but their disposition
@@ -38,6 +42,10 @@ The printing of warning messages is done by calling :func:`showwarning`, which
 may be overridden; the default implementation of this function formats the
 message by calling :func:`formatwarning`, which is also available for use by
 custom implementations.
+
+.. seealso::
+   :func:`logging.captureWarnings` allows you to handle all warnings with
+   the standard logging infrastructure.
 
 
 .. _warning-categories:

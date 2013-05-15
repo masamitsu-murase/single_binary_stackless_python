@@ -369,7 +369,8 @@ newPySSLObject(PySocketSockObject *Sock, char *key_file, char *cert_file,
     }
 
     /* ssl compatibility */
-    SSL_CTX_set_options(self->ctx, SSL_OP_ALL);
+    SSL_CTX_set_options(self->ctx,
+                        SSL_OP_ALL & ~SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS);
 
     verification_mode = SSL_VERIFY_NONE;
     if (certreq == PY_SSL_CERT_OPTIONAL)
@@ -643,15 +644,20 @@ _create_tuple_for_X509_NAME (X509_NAME *xname)
             goto fail1;
     }
     /* now, there's typically a dangling RDN */
-    if ((rdn != NULL) && (PyList_Size(rdn) > 0)) {
-        rdnt = PyList_AsTuple(rdn);
-        Py_DECREF(rdn);
-        if (rdnt == NULL)
-            goto fail0;
-        retcode = PyList_Append(dn, rdnt);
-        Py_DECREF(rdnt);
-        if (retcode < 0)
-            goto fail0;
+    if (rdn != NULL) {
+        if (PyList_GET_SIZE(rdn) > 0) {
+            rdnt = PyList_AsTuple(rdn);
+            Py_DECREF(rdn);
+            if (rdnt == NULL)
+                goto fail0;
+            retcode = PyList_Append(dn, rdnt);
+            Py_DECREF(rdnt);
+            if (retcode < 0)
+                goto fail0;
+        }
+        else {
+            Py_DECREF(rdn);
+        }
     }
 
     /* convert list to tuple */
@@ -702,7 +708,7 @@ _get_peer_alt_names (X509 *certificate) {
     /* get a memory buffer */
     biobuf = BIO_new(BIO_s_mem());
 
-    i = 0;
+    i = -1;
     while ((i = X509_get_ext_by_NID(
                     certificate, NID_subject_alt_name, i)) >= 0) {
 
@@ -798,6 +804,7 @@ _get_peer_alt_names (X509 *certificate) {
             }
             Py_DECREF(t);
         }
+        sk_GENERAL_NAME_pop_free(names, GENERAL_NAME_free);
     }
     BIO_free(biobuf);
     if (peer_alt_names != Py_None) {
@@ -1145,10 +1152,8 @@ check_socket_and_wait_for_timeout(PySocketSockObject *s, int writing)
 #endif
 
     /* Guard against socket too large for select*/
-#ifndef Py_SOCKET_FD_CAN_BE_GE_FD_SETSIZE
-    if (s->sock_fd >= FD_SETSIZE)
+    if (!_PyIsSelectable_fd(s->sock_fd))
         return SOCKET_TOO_LARGE_FOR_SELECT;
-#endif
 
     /* Construct the arguments to select */
     tv.tv_sec = (int)s->sock_timeout;

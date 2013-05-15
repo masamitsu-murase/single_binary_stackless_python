@@ -610,9 +610,10 @@ need to log to a single file from multiple processes, one way of doing this is
 to have all the processes log to a :class:`SocketHandler`, and have a separate
 process which implements a socket server which reads from the socket and logs
 to file. (If you prefer, you can dedicate one thread in one of the existing
-processes to perform this function.) The following section documents this
-approach in more detail and includes a working socket receiver which can be
-used as a starting point for you to adapt in your own applications.
+processes to perform this function.) :ref:`This section <network-logging>`
+documents this approach in more detail and includes a working socket receiver
+which can be used as a starting point for you to adapt in your own
+applications.
 
 If you are using a recent version of Python which includes the
 :mod:`multiprocessing` module, you could write your own handler which uses the
@@ -679,6 +680,68 @@ and each time it reaches the size limit it is renamed with the suffix
 ``.1``. Each of the existing backup files is renamed to increment the suffix
 (``.1`` becomes ``.2``, etc.)  and the ``.6`` file is erased.
 
-Obviously this example sets the log length much much too small as an extreme
+Obviously this example sets the log length much too small as an extreme
 example.  You would want to set *maxBytes* to an appropriate value.
 
+An example dictionary-based configuration
+-----------------------------------------
+
+Below is an example of a logging configuration dictionary - it's taken from
+the `documentation on the Django project <https://docs.djangoproject.com/en/1.3/topics/logging/#configuring-logging>`_.
+This dictionary is passed to :func:`~logging.config.dictConfig` to put the configuration into effect::
+
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': True,
+        'formatters': {
+            'verbose': {
+                'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s'
+            },
+            'simple': {
+                'format': '%(levelname)s %(message)s'
+            },
+        },
+        'filters': {
+            'special': {
+                '()': 'project.logging.SpecialFilter',
+                'foo': 'bar',
+            }
+        },
+        'handlers': {
+            'null': {
+                'level':'DEBUG',
+                'class':'django.utils.log.NullHandler',
+            },
+            'console':{
+                'level':'DEBUG',
+                'class':'logging.StreamHandler',
+                'formatter': 'simple'
+            },
+            'mail_admins': {
+                'level': 'ERROR',
+                'class': 'django.utils.log.AdminEmailHandler',
+                'filters': ['special']
+            }
+        },
+        'loggers': {
+            'django': {
+                'handlers':['null'],
+                'propagate': True,
+                'level':'INFO',
+            },
+            'django.request': {
+                'handlers': ['mail_admins'],
+                'level': 'ERROR',
+                'propagate': False,
+            },
+            'myproject.custom': {
+                'handlers': ['console', 'mail_admins'],
+                'level': 'INFO',
+                'filters': ['special']
+            }
+        }
+    }
+
+For more information about this configuration, you can see the `relevant
+section <https://docs.djangoproject.com/en/1.3/topics/logging/#configuring-logging>`_
+of the Django documentation.

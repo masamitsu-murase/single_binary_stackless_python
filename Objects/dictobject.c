@@ -1335,14 +1335,18 @@ dict_fromkeys(PyObject *cls, PyObject *args)
         PyObject *key;
         long hash;
 
-        if (dictresize(mp, Py_SIZE(seq)))
+        if (dictresize(mp, Py_SIZE(seq))) {
+            Py_DECREF(d);
             return NULL;
+        }
 
         while (_PyDict_Next(seq, &pos, &key, &oldvalue, &hash)) {
             Py_INCREF(key);
             Py_INCREF(value);
-            if (insertdict(mp, key, hash, value))
+            if (insertdict(mp, key, hash, value)) {
+                Py_DECREF(d);
                 return NULL;
+            }
         }
         return d;
     }
@@ -1353,14 +1357,18 @@ dict_fromkeys(PyObject *cls, PyObject *args)
         PyObject *key;
         long hash;
 
-        if (dictresize(mp, PySet_GET_SIZE(seq)))
+        if (dictresize(mp, PySet_GET_SIZE(seq))) {
+            Py_DECREF(d);
             return NULL;
+        }
 
         while (_PySet_NextEntry(seq, &pos, &key, &hash)) {
             Py_INCREF(key);
             Py_INCREF(value);
-            if (insertdict(mp, key, hash, value))
+            if (insertdict(mp, key, hash, value)) {
+                Py_DECREF(d);
                 return NULL;
+            }
         }
         return d;
     }
@@ -2159,9 +2167,9 @@ PyDoc_STRVAR(values__doc__,
 "D.values() -> list of D's values");
 
 PyDoc_STRVAR(update__doc__,
-"D.update(E, **F) -> None.  Update D from dict/iterable E and F.\n"
-"If E has a .keys() method, does:     for k in E: D[k] = E[k]\n\
-If E lacks .keys() method, does:     for (k, v) in E: D[k] = v\n\
+"D.update([E, ]**F) -> None.  Update D from dict/iterable E and F.\n"
+"If E present and has a .keys() method, does:     for k in E: D[k] = E[k]\n\
+If E present and lacks .keys() method, does:     for (k, v) in E: D[k] = v\n\
 In either case, this is followed by: for k in F: D[k] = F[k]");
 
 PyDoc_STRVAR(fromkeys__doc__,

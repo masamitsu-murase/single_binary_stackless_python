@@ -42,12 +42,6 @@
 #define SMALLCHUNK BUFSIZ
 #endif
 
-#if SIZEOF_INT < 4
-#define BIGCHUNK  (512 * 32)
-#else
-#define BIGCHUNK  (512 * 1024)
-#endif
-
 typedef struct {
     PyObject_HEAD
     int fd;
@@ -474,7 +468,7 @@ static PyObject *
 fileio_readinto(fileio *self, PyObject *args)
 {
     Py_buffer pbuf;
-    Py_ssize_t n;
+    Py_ssize_t n, len;
 
     if (self->fd < 0)
         return err_closed();
@@ -485,9 +479,16 @@ fileio_readinto(fileio *self, PyObject *args)
         return NULL;
 
     if (_PyVerify_fd(self->fd)) {
+        len = pbuf.len;
         Py_BEGIN_ALLOW_THREADS
         errno = 0;
-        n = read(self->fd, pbuf.buf, pbuf.len);
+#if defined(MS_WIN64) || defined(MS_WINDOWS)
+        if (len > INT_MAX)
+            len = INT_MAX;
+        n = read(self->fd, pbuf.buf, (int)len);
+#else
+        n = read(self->fd, pbuf.buf, len);
+#endif
         Py_END_ALLOW_THREADS
     } else
         n = -1;
@@ -521,15 +522,10 @@ new_buffersize(fileio *self, size_t currentsize)
         }
     }
 #endif
-    if (currentsize > SMALLCHUNK) {
-        /* Keep doubling until we reach BIGCHUNK;
-           then keep adding BIGCHUNK. */
-        if (currentsize <= BIGCHUNK)
-            return currentsize + currentsize;
-        else
-            return currentsize + BIGCHUNK;
-    }
-    return currentsize + SMALLCHUNK;
+    /* Expand the buffer by an amount proportional to the current size,
+       giving us amortized linear-time behavior. Use a less-than-double
+       growth factor to avoid excessive allocation. */
+    return currentsize + (currentsize >> 3) + 6;
 }
 
 static PyObject *
@@ -620,6 +616,10 @@ fileio_read(fileio *self, PyObject *args)
         return fileio_readall(self);
     }
 
+#if defined(MS_WIN64) || defined(MS_WINDOWS)
+    if (size > INT_MAX)
+        size = INT_MAX;
+#endif
     bytes = PyBytes_FromStringAndSize(NULL, size);
     if (bytes == NULL)
         return NULL;
@@ -628,7 +628,11 @@ fileio_read(fileio *self, PyObject *args)
     if (_PyVerify_fd(self->fd)) {
         Py_BEGIN_ALLOW_THREADS
         errno = 0;
+#if defined(MS_WIN64) || defined(MS_WINDOWS)
+        n = read(self->fd, ptr, (int)size);
+#else
         n = read(self->fd, ptr, size);
+#endif
         Py_END_ALLOW_THREADS
     } else
         n = -1;
@@ -655,7 +659,7 @@ static PyObject *
 fileio_write(fileio *self, PyObject *args)
 {
     Py_buffer pbuf;
-    Py_ssize_t n;
+    Py_ssize_t n, len;
 
     if (self->fd < 0)
         return err_closed();
@@ -668,7 +672,14 @@ fileio_write(fileio *self, PyObject *args)
     if (_PyVerify_fd(self->fd)) {
         Py_BEGIN_ALLOW_THREADS
         errno = 0;
-        n = write(self->fd, pbuf.buf, pbuf.len);
+        len = pbuf.len;
+#if defined(MS_WIN64) || defined(MS_WINDOWS)
+        if (len > INT_MAX)
+            len = INT_MAX;
+        n = write(self->fd, pbuf.buf, (int)len);
+#else
+        n = write(self->fd, pbuf.buf, len);
+#endif
         Py_END_ALLOW_THREADS
     } else
         n = -1;
