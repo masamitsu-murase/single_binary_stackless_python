@@ -1,8 +1,9 @@
 Stackless Python News
 +++++++++++++++++++++
 
-This file contains changes affecting the Stackless extension of CPython.
-For changes other changes see Misc/NEWS.
+This file documents changes to the Stackless extension of CPython.
+For other changes see Misc/NEWS.
+
 
 What's New in Stackless 2.7.4?
 ==============================
@@ -46,6 +47,12 @@ What's New in Stackless 2.7.4rc2?
 - Fix tasklet.raise_exception.  It had invalid flags and didn't work.
 
 - Fix default argument handling of channel.send_throw
+
+
+What's New in Stackless 2.7.3?
+==============================
+
+*Release date: 2013-05-15*
 
 - Add channel.send_throw(exc[,val[,tb]]) to raise a new exception or propagate
   an old one across a channel.
