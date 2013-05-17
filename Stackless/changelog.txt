@@ -8,7 +8,7 @@ For other changes see Misc/NEWS.
 What's New in Stackless 2.7.4?
 ==============================
 
-*Release date: XXXX-XX-XX*
+*Release date: 2013-05-17*
 
 - Fix unlinking of tasks in kill_tasks_with_stacks. The earlier code
   was a bit weird and would cause miscompilation on X64.
