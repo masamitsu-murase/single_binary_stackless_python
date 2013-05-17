@@ -10,6 +10,12 @@ What's New in Stackless 2.7.4?
 
 *Release date: XXXX-XX-XX*
 
+- Fix unlinking of tasks in kill_tasks_with_stacks. The earlier code
+  was a bit weird and would cause miscompilation on X64.
+
+- http://www.stackless.com/ticket/23: Fix compile error with STACKLESS_OFF
+  defined
+
 
 What's New in Stackless 2.7.4rc2?
 =================================
