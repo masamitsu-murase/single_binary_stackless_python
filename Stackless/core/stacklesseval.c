@@ -328,8 +328,7 @@ void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
     /* a loop to kill tasklets on the local thread */
     while (1) {
         PyCStackObject *csfirst = slp_cstack_chain, *cs;
-        PyTaskletObject *t, *task;
-        PyTaskletObject **chain;
+        PyTaskletObject *t;
 
         if (csfirst == NULL)
             break;
@@ -368,18 +367,19 @@ void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
          */
         if (!t->flags.blocked && t != cs->tstate->st.current) {
             PyTaskletObject *tmp;
+            PyTaskletObject **chain;
             /* unlink from runnable queue if it wasn't previously remove()'d */
-            if (t->next && t->prev) {
+            if (t->next) {
+                assert(t->prev);
                 chain = &t;
-                SLP_CHAIN_REMOVE(PyTaskletObject, chain, task, next, prev);
-                t = task;
+                SLP_CHAIN_REMOVE(PyTaskletObject, chain, tmp, next, prev);
+                t = tmp;
             } else
                 Py_INCREF(t); /* a new reference for the runnable queue */
             /* insert into the 'current' chain without modifying 'current' */
             tmp = cs->tstate->st.current;
             chain = &tmp;
-            task = t;
-            SLP_CHAIN_INSERT(PyTaskletObject, chain, task, next, prev);
+            SLP_CHAIN_INSERT(PyTaskletObject, chain, t, next, prev);
         }
 
         PyTasklet_Kill(t);
