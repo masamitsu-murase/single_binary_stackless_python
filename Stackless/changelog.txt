@@ -5,6 +5,12 @@ This file documents changes to the Stackless extension of CPython.
 For other changes see Misc/NEWS.
 
 
+What's New in Stackless 2.7.6?
+==============================
+
+*Release date: XXXX-XX-XX*
+
+
 What's New in Stackless 2.7.5?
 ==============================
 
