@@ -7,7 +7,22 @@ except ImportError:
     withThreads = False
 import sys
 import traceback
+import contextlib
 from support import StacklessTestCase
+
+@contextlib.contextmanager
+def block_trap(trap=True):
+    """
+    A context manager to temporarily set the block trap state of the
+    current tasklet.  Defaults to setting it to True
+    """
+    c = stackless.getcurrent()
+    old = c.block_trap
+    c.block_trap = trap
+    try:
+        yield
+    finally:
+        c.block_trap = old
 
 class TestChannels(StacklessTestCase):
     def testBlockingSend(self):
@@ -133,7 +148,7 @@ class TestChannels(StacklessTestCase):
         scheduler_run(slave_func)
 
     def testSendException(self):
-        
+
         # Function to send the exception
         def f(testChannel):
             testChannel.send_exception(ValueError, 1,2,3)
@@ -151,11 +166,11 @@ class TestChannels(StacklessTestCase):
             self.assertEqual(e.args, (1, 2, 3))
 
     def testSendThrow(self):
-        
+
         # subfunction in tasklet
         def bar():
             raise ValueError(1,2,3)
-        
+
         # Function to send the exception
         def f(testChannel):
             try:
@@ -176,12 +191,40 @@ class TestChannels(StacklessTestCase):
         except ValueError:
             exc, val, tb = sys.exc_info()
             self.assertEqual(val.args, (1, 2, 3))
-            
+
             # Check that the traceback is correct
             l = traceback.extract_tb(tb)
             self.assertEqual(l[-1][2], "bar")
-            
-        
+
+    def testBlockTrapSend(self):
+        '''Test that block trapping works when receiving'''
+        channel = stackless.channel()
+        count = [0]
+        def f():
+            with block_trap():
+                self.assertRaises(RuntimeError, channel.send, None)
+            count[0] += 1
+
+        # Test on main tasklet and on worker
+        f()
+        stackless.tasklet(f)()
+        stackless.run()
+        self.assertEqual(count[0], 2)
+
+def testBlockTrapRecv(self):
+        '''Test that block trapping works when receiving'''
+        channel = stackless.channel()
+        count = [0]
+        def f():
+            with block_trap():
+                self.assertRaises(RuntimeError, channel.receive)
+            count[0] += 1
+
+        f()
+        stackless.tasklet(f)()
+        stackless.run()
+        self.assertEqual(count[0], 2)
+
 
 if __name__ == '__main__':
     import sys
