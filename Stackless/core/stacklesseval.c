@@ -372,6 +372,7 @@ void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
                 assert(t->prev);
                 chain = &t;
                 SLP_CHAIN_REMOVE(PyTaskletObject, chain, tmp, next, prev);
+                ts->st.runcount--;
                 t = tmp;
             } else
                 Py_INCREF(t); /* a new reference for the runnable queue */
@@ -379,6 +380,7 @@ void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
             tmp = cs->tstate->st.current;
             chain = &tmp;
             SLP_CHAIN_INSERT(PyTaskletObject, chain, t, next, prev);
+            ts->st.runcount++;
         }
 
         PyTasklet_Kill(t);
