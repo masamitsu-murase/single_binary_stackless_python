@@ -461,6 +461,51 @@ class TestErrorHandler(StacklessTestCase):
         self.assertTrue(self.handled_tasklet is s)
 
 
+class TestAtomic(StacklessTestCase):
+    """Test the getting and setting of the tasklet's 'atomic' flag, and the
+       context manager to set it to True
+    """
+    def testAtomic(self):
+        old = stackless.getcurrent().atomic
+        try:
+            val = stackless.getcurrent().set_atomic(False)
+            self.assertEqual(val, old)
+            self.assertEqual(stackless.getcurrent().atomic, False)
+            
+            val = stackless.getcurrent().set_atomic(True)
+            self.assertEqual(val, False)
+            self.assertEqual(stackless.getcurrent().atomic, True)
+            
+            val = stackless.getcurrent().set_atomic(True)
+            self.assertEqual(val, True)
+            self.assertEqual(stackless.getcurrent().atomic, True)
+            
+            val = stackless.getcurrent().set_atomic(False)
+            self.assertEqual(val, True)
+            self.assertEqual(stackless.getcurrent().atomic, False)
+
+        finally:
+            stackless.getcurrent().set_atomic(old)
+        self.assertEqual(stackless.getcurrent().atomic, old)
+
+    def testAtomicCtxt(self):
+        old = stackless.getcurrent().atomic
+        stackless.getcurrent().set_atomic(False)
+        try:
+            with stackless.atomic():
+                self.assertTrue(stackless.getcurrent().atomic)
+        finally:
+            stackless.getcurrent().set_atomic(old)
+
+    def testAtomicNopCtxt(self):
+        old = stackless.getcurrent().atomic
+        stackless.getcurrent().set_atomic(True)
+        try:
+            with stackless.atomic():
+                self.assertTrue(stackless.getcurrent().atomic)
+        finally:
+            stackless.getcurrent().set_atomic(old)
+
 #///////////////////////////////////////////////////////////////////////////////
 
 if __name__ == '__main__':
