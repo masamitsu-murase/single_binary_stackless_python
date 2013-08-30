@@ -7,7 +7,7 @@ import sys
 import traceback
 import contextlib
 
-from support import StacklessTestCase
+from support import StacklessTestCase, AsTaskletTestCase
 
 
 def is_soft():
@@ -301,30 +301,30 @@ class TestSwitchTrap(StacklessTestCase):
             stackless.switch_trap(-1)
     switch_trap = SwitchTrap()
 
-    def _test_schedule(self):
+    def test_schedule(self):
         s = stackless.tasklet(lambda:None)()
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", stackless.schedule)
         stackless.run()
 
-    def _test_schedule_remove(self):
+    def test_schedule_remove(self):
         main = []
-        s = stackless.tasklet(lambda:stackless.insert(main[0]))()
+        s = stackless.tasklet(lambda:main[0].insert())()
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", stackless.schedule_remove)
         main.append(stackless.getcurrent())
         stackless.schedule_remove()
 
-    def _test_run(self):
+    def test_run(self):
         s = stackless.tasklet(lambda:None)()
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", stackless.run)
         stackless.run()
 
-    def _test_run_specific(self):
+    def test_run_specific(self):
         s = stackless.tasklet(lambda:None)()
         with self.switch_trap:
-            self.asserself.assertRaisesRegex(RuntimeError, "switch_trap", s.run)
+            self.assertRaisesRegex(RuntimeError, "switch_trap", s.run)
         s.run()
 
     def test_send(self):
@@ -471,15 +471,15 @@ class TestAtomic(StacklessTestCase):
             val = stackless.getcurrent().set_atomic(False)
             self.assertEqual(val, old)
             self.assertEqual(stackless.getcurrent().atomic, False)
-            
+
             val = stackless.getcurrent().set_atomic(True)
             self.assertEqual(val, False)
             self.assertEqual(stackless.getcurrent().atomic, True)
-            
+
             val = stackless.getcurrent().set_atomic(True)
             self.assertEqual(val, True)
             self.assertEqual(stackless.getcurrent().atomic, True)
-            
+
             val = stackless.getcurrent().set_atomic(False)
             self.assertEqual(val, True)
             self.assertEqual(stackless.getcurrent().atomic, False)
@@ -505,6 +505,32 @@ class TestAtomic(StacklessTestCase):
                 self.assertTrue(stackless.getcurrent().atomic)
         finally:
             stackless.getcurrent().set_atomic(old)
+
+
+class TestSchedule(AsTaskletTestCase):
+    def setUp(self):
+        super(TestSchedule, self).setUp()
+        self.events = []
+
+    def testSchedule(self):
+        def foo(previous):
+            self.events.append("foo")
+            self.assertTrue(previous.scheduled)
+        t = stackless.tasklet(foo)(stackless.getcurrent())
+        self.assertTrue(t.scheduled)
+        stackless.schedule()
+        self.assertEqual(self.events, ["foo"])
+
+    def testScheduleRemoveFail(self):
+        def foo(previous):
+            self.events.append("foo")
+            self.assertFalse(previous.scheduled)
+            previous.insert()
+            self.assertTrue(previous.scheduled)
+        t = stackless.tasklet(foo)(stackless.getcurrent())
+        stackless.schedule_remove()
+        self.assertEqual(self.events, ["foo"])
+
 
 #///////////////////////////////////////////////////////////////////////////////
 
