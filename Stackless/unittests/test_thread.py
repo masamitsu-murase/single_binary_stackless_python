@@ -26,21 +26,23 @@ def GetRemoteTasklets(callables):
             c2 = stackless.channel()
             tasklets = []
             for callable in callables:
-                def helper():
+                def helper(callable):
                     try:
                         callable()
                     except:
                         c2.send_throw(*sys.exc_info())
                     else:
                         c2.send(None)
-                t = stackless.tasklet(helper)()
+                t = stackless.tasklet(helper)(callable)
                 t.remove()
                 tasklets.append(t)
             c.send(tasklets)
         except:
             c.send_throw(*sys.exc_info())
         stackless.__reduce__()
-        c2.receive()
+        for callable in callables:
+            c2.receive()
+        stackless.run() #drain the scheduler
 
     thread = threading.Thread(target=tfunc)
     thread.start()
@@ -86,21 +88,23 @@ class TestRemoteSchedule(AsTaskletTestCase):
         self.assertEqual(self.events, list(range(len(self.events))))
 
 
-    def _testRunOrder(self):
+    def testRunOrder(self):
         def a():
             self.events.append(0)
         def b():
             self.events.append(1)
-        (t1, t2), thread = GetRemoteTasklets((a, b))
+        def c():
+            self.events.append(2)
+
+        (t1, t2, t3), thread = GetRemoteTasklets((a, b, c))
         try:
             with stackless.atomic():
                 t2.insert()
+                t3.insert()
                 t1.run() #t1 should run first
         finally:
             thread.join(2)
-        self.assertEqual(self.events, list(range(len(self.events))))
-
-
+        self.assertEqual(self.events, list(range(3)))
 
 
 #///////////////////////////////////////////////////////////////////////////////

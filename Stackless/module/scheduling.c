@@ -616,20 +616,13 @@ static int schedule_thread_block(PyThreadState *ts)
 
     /* block */
     ts->st.thread.is_blocked = 1;
+    ts->st.thread.is_idle = 1;
     Py_BEGIN_ALLOW_THREADS
     acquire_lock(ts->st.thread.block_lock, 1);
     Py_END_ALLOW_THREADS
+    ts->st.thread.is_idle = 0;
 
-    /* Now we have switched (on this thread), clear any post-switch stuff.
-     * We may have a valuable "tmpval" here
-     * because of channel switching, so be careful to maintain that.
-     */
-    if (ts->st.del_post_switch) {
-        PyObject *tmp;
-        TASKLET_CLAIMVAL(ts->st.current, &tmp);
-        Py_CLEAR(ts->st.del_post_switch);
-        TASKLET_SETVAL_OWN(ts->st.current, tmp);
-    }
+    
     return 0;
 }
 
@@ -697,6 +690,17 @@ schedule_task_block(PyObject **result, PyTaskletObject *prev, int stackless, int
     /* this must be after releasing the locks because of hard switching */
     fail = slp_schedule_task(result, prev, next, stackless, did_switch);
     Py_DECREF(next);
+    
+    /* Now we may have switched (on this thread), clear any post-switch stuff.
+     * We may have a valuable "tmpval" here
+     * because of channel switching, so be careful to maintain that.
+     */
+    if (! fail && ts->st.del_post_switch) {
+        PyObject *tmp;
+        TASKLET_CLAIMVAL(ts->st.current, &tmp);
+        Py_CLEAR(ts->st.del_post_switch);
+        TASKLET_SETVAL_OWN(ts->st.current, tmp);
+    }
     return fail;
 
 cantblock:
