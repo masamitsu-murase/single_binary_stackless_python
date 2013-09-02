@@ -667,8 +667,17 @@ schedule_task_block(PyObject **result, PyTaskletObject *prev, int stackless, int
     }
 #ifdef WITH_THREAD
     for(;;) {
-        if (schedule_thread_block(ts))
-            return -1;
+        /* store the frame back in the tasklet while we thread block, so that
+         * e.g. insert doesn't think that it is dead
+         */
+        if (prev->f.frame == 0) {
+            prev->f.frame = ts->frame;
+            fail = schedule_thread_block(ts);
+            prev->f.frame = 0;
+        } else
+            fail = schedule_thread_block(ts);
+        if (fail)
+            return fail;
 
         /* We should have a "current" tasklet, but it could have been removed
          * by the other thread in the time this thread reacquired the gil.
