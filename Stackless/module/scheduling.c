@@ -964,7 +964,6 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
         ts->c_traceobj = ts->c_profileobj = NULL;
         ts->tracing = ts->use_tracing = 0;
     }
-    assert(next->f.frame);
     assert(next->cstate != NULL);
 
     if (next->cstate->nesting_level != 0) {
@@ -994,6 +993,7 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
         Py_INCREF(retval);
     } else {
         /* regular soft switching */
+        assert(next->f.frame);
         ts->frame = next->f.frame;
         next->f.frame = NULL;
         TASKLET_CLAIMVAL(next, &retval);
