@@ -83,7 +83,6 @@ current tasklet to true for the duration.\n");
 
 PyTypeObject PyAtomic_Type = {
     PyObject_HEAD_INIT(NULL)
-    0,
     "stackless.atomic",
     sizeof(PyAtomicObject),
     0,
