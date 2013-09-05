@@ -6,6 +6,8 @@ import stackless
 import sys
 import traceback
 import contextlib
+import weakref
+import types
 
 from support import StacklessTestCase, AsTaskletTestCase
 try:
@@ -635,6 +637,116 @@ class TestContextManager(StacklessTestCase):
             return 
         stackless.tasklet(self.nestingLevel)()
         stackless.run()
+
+
+class TestBind(StacklessTestCase):
+    
+    def setUp(self):
+        super(TestBind, self).setUp()
+        self.finally_run_count = 0
+    
+    def task(self, with_c_state):
+        try:
+            if with_c_state:
+                apply(stackless.schedule_remove, (None,))
+            else:
+                stackless.schedule_remove(None)
+        finally:
+            self.finally_run_count += 1
+            
+    def test_bind(self):
+        t = stackless.tasklet()
+        wr = weakref.ref(t)
+        
+        self.assertFalse(t.alive)
+        self.assertIsNone(t.frame)
+        self.assertEquals(t.nesting_level, 0)
+
+        t.bind(None)  # must not change the tasklet
+        
+        self.assertFalse(t.alive)
+        self.assertIsNone(t.frame)
+        self.assertEquals(t.nesting_level, 0)
+        
+        t.bind(self.task)
+        t.setup(False)
+
+        stackless.run()
+        self.assertFalse(t.scheduled)
+        self.assertTrue(t.alive)
+        if stackless.enable_softswitch(None):
+            self.assertTrue(t.restorable)
+        self.assertIsInstance(t.frame, types.FrameType)
+        
+        t.insert()
+        stackless.run()
+        
+        # remove the tasklet. Must run the finally clause
+        t = None
+        self.assertIsNone(wr())  # tasklet has been deleted
+        self.assertEqual(self.finally_run_count, 1)
+
+    def test_bind_fail_not_callable(self):
+        class C(object):
+            pass
+        self.assertRaisesRegexp(TypeError, "callable", stackless.current.bind, C())
+    
+    def test_unbind_ok(self):
+        if not stackless.enable_softswitch(None):
+            # the test requires softswitching
+            return 
+        t = stackless.tasklet(self.task)(False)
+        wr = weakref.ref(t)
+        
+        # prepare a paused tasklet
+        stackless.run()
+        self.assertFalse(t.scheduled)
+        self.assertTrue(t.alive)
+        self.assertEqual(t.nesting_level, 0)
+        self.assertIsInstance(t.frame, types.FrameType)
+        
+        t.bind(None)        
+        self.assertFalse(t.alive)
+        self.assertIsNone(t.frame)
+        
+        # remove the tasklet. Must not run the finally clause
+        t = None
+        self.assertIsNone(wr())  # tasklet has been deleted
+        self.assertEqual(self.finally_run_count, 0)
+    
+    def test_unbind_fail_current(self):
+        self.assertRaisesRegexp(RuntimeError, "current tasklet", stackless.current.bind, None)
+
+    def test_unbind_fail_scheduled(self):
+        t = stackless.tasklet(self.task)(False)
+
+        # prepare a paused tasklet
+        stackless.run()
+        t.insert()
+        self.assertTrue(t.scheduled)
+        self.assertTrue(t.alive)
+        self.assertIsInstance(t.frame, types.FrameType)
+        
+        self.assertRaisesRegexp(RuntimeError, "scheduled", t.bind, None)
+
+    def test_unbind_fail_cstate(self):
+        t = stackless.tasklet(self.task)(True)
+        wr = weakref.ref(t)
+        
+        # prepare a paused tasklet
+        stackless.run()
+        self.assertFalse(t.scheduled)
+        self.assertTrue(t.alive)
+        self.assertGreaterEqual(t.nesting_level, 1)
+        self.assertIsInstance(t.frame, types.FrameType)
+        
+        self.assertRaisesRegexp(RuntimeError, "C state", t.bind, None)
+        
+        # remove the tasklet. Must run the finally clause
+        t = None
+        self.assertIsNone(wr())  # tasklet has been deleted
+        self.assertEqual(self.finally_run_count, 1)
+
 
 #///////////////////////////////////////////////////////////////////////////////
 
