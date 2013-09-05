@@ -10,6 +10,8 @@ What's New in Stackless 2.7.6?
 
 *Release date: XXXX-XX-XX*
 
+- http://www.stackless.com/ticket/24: Enable unbinding of tasklets.
+  The method tasklet.bind(None) now unbinds a tasklet. 
 
 What's New in Stackless 2.7.5?
 ==============================

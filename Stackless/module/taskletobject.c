@@ -243,11 +243,27 @@ PyTasklet_New(PyTypeObject *type, PyObject *func)
 PyTaskletObject *
 PyTasklet_Bind(PyTaskletObject *task, PyObject *func)
 {
-    if (func == NULL || !PyCallable_Check(func))
-        TYPE_ERROR("tasklet function must be a callable", NULL);
-    if (task->f.frame != NULL)
-        RUNTIME_ERROR(
-            "tasklet is already bound to a frame", NULL);
+    PyThreadState *ts = PyThreadState_GET();
+
+    if (func != NULL && func != Py_None && !PyCallable_Check(func))
+        TYPE_ERROR("tasklet function must be a callable or None", NULL);
+    if (ts->st.current == task) {
+        RUNTIME_ERROR("can't (re)bind the current tasklet", NULL);
+    }
+    if (PyTasklet_Scheduled(task)) {
+        RUNTIME_ERROR("tasklet is scheduled", NULL);
+    }
+    if (tasklet_has_c_stack(task)) {
+        RUNTIME_ERROR("tasklet has C state on its stack", NULL);
+    }
+
+    tasklet_clear_frames(task);
+    assert(task->f.frame == NULL);
+
+    /* cstate is set by bind_tasklet_to_frame() later on */
+
+    if (func == NULL)
+        func = Py_None;
     TASKLET_SETVAL(task, func);
     Py_INCREF(task);
     return task;
@@ -258,7 +274,9 @@ PyDoc_STRVAR(tasklet_bind__doc__,
 The callable is usually passed in to the constructor.\n\
 In some cases, it makes sense to be able to re-bind a tasklet,\n\
 after it has been run, in order to keep its identity.\n\
-Note that a tasklet can only be bound when it doesn't have a frame.\
+If the argument is None, this method unbinds the tasklet.\n\
+Note that a tasklet can only be (un)bound if it doesn't have C-state\n\
+and is not scheduled and is not the current tasklet.\
 ");
 
 static PyObject *
@@ -789,7 +807,7 @@ impl_tasklet_setup(PyTaskletObject *task, PyObject *args, PyObject *kwds)
     if (ts->st.main == NULL) return PyTasklet_Setup_M(task, args, kwds);
 
     func = task->tempval;
-    if (func == NULL)
+    if (func == NULL || func == Py_None)
         RUNTIME_ERROR("the tasklet was not bound to a function", -1);
     if ((frame = (PyFrameObject *)
                  slp_cframe_newfunc(func, args, kwds, 0)) == NULL) {

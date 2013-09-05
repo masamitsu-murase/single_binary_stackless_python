@@ -91,7 +91,27 @@ The ``tasklet`` class
 
    Note that the tasklet cannot be run until it has been provided with
    arguments to call *callable* with, through a subsequent call to
-   :meth:``tasklet.setup``.
+   :meth:`tasklet.setup`.
+   
+   To clear the binding of a tasklet set the argument *callable* to ``None``. This
+   is especially useful, if you run a tasklet only partially::
+   
+      >>> def func():
+      ...     try:
+      ...        ... # part 1
+      ...        stackless.schedule_remove()
+      ...        ... # part 2
+      ...     finally:
+      ...        ... # cleanup
+      >>> t = stackless.tasklet(func)()
+      >>> stackless.enable_softswitch(True)
+      >>> stackless.run() # execute part 1 of func
+      >>> t.bind(None)    # unbind func(). Don't execute the finally block  
+   
+   If a tasklet is alive, it can be rebound only if the tasklet is
+   not the current tasklet and if the tasklet is not scheduled and 
+   if the tasklet is restorable. :meth:`bind` raises :exc:`RuntimeError`,
+   if these conditions are not met.
 
 .. method:: tasklet.setup(*args, **kwargs)
 
@@ -272,3 +292,15 @@ The following attributes allow a tasklets place in a chain to be identified:
 .. attribute:: tasklet.next
 
    The next tasklet in the chain that this tasklet is linked into.
+
+
+^^^^^^^^^^^^^^^^^^
+Tasklet Life Cycle
+^^^^^^^^^^^^^^^^^^
+
+Here is a somewhat simplified state chart that shows the life cycle of a tasklet instance.
+The chart dosn't show the nesting-level, the thread-id and the flags atomic, ignore-nesting, block-trap 
+and restorable.
+
+.. image:: tasklet_state_chart.png
+
