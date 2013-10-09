@@ -211,7 +211,7 @@ class TestChannels(StacklessTestCase):
         stackless.run()
         self.assertEqual(count[0], 2)
 
-def testBlockTrapRecv(self):
+    def testBlockTrapRecv(self):
         '''Test that block trapping works when receiving'''
         channel = stackless.channel()
         count = [0]
