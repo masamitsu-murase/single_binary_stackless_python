@@ -1178,6 +1178,9 @@ PyErr_PrintEx(int set_sys_last_vars)
     PyObject *exception, *v, *tb, *hook;
 
     if (PyErr_ExceptionMatches(PyExc_SystemExit)) {
+#ifdef STACKLESS
+        if (!PyErr_ExceptionMatches(PyExc_TaskletExit))
+#endif 
         handle_system_exit();
     }
     PyErr_Fetch(&exception, &v, &tb);
@@ -1200,6 +1203,9 @@ PyErr_PrintEx(int set_sys_last_vars)
         if (result == NULL) {
             PyObject *exception2, *v2, *tb2;
             if (PyErr_ExceptionMatches(PyExc_SystemExit)) {
+#ifdef STACKLESS
+                if (!PyErr_ExceptionMatches(PyExc_TaskletExit))
+#endif 
                 handle_system_exit();
             }
             PyErr_Fetch(&exception2, &v2, &tb2);
