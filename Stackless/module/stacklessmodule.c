@@ -397,10 +397,12 @@ interrupt_timeout_return(void)
      * a) we are in soft interrupt mode
      * b) we are in hard interrupt mode, but aren't allowed to break here which happens
      * when "atomic" is set, or the "nesting level" is relevant and not ignored.
+     * Also, when switch trapped, we don't perform an involountary switch.
      */
     if ((ts->st.runflags & PY_WATCHDOG_SOFT) ||
         current->flags.atomic || ts->st.schedlock ||
-        !TASKLET_NESTING_OK(current))
+        !TASKLET_NESTING_OK(current) ||
+        ts->st.switch_trap)
     {
         ts->st.tick_watermark = ts->st.tick_counter + ts->st.interval;
         current->flags.pending_irq = 1;
