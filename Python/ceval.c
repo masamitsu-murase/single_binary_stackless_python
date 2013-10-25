@@ -1280,9 +1280,8 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
                 goto fast_next_opcode;
             }
 #ifdef STACKLESS
-            /* disable pre-emptive switching if switch trapped */
             if (tstate->st.interrupt &&
-                !tstate->curexc_type && !tstate->st.switch_trap) {
+                !tstate->curexc_type) {
                 int ticks = _Py_CheckInterval - _Py_Ticker;
                 int mt = tstate->st.ticker -= ticks;
                 if (mt <= 0) {
