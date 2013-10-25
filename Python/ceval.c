@@ -1267,7 +1267,9 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
            Py_MakePendingCalls() above. */
 
 #ifdef STACKLESS
-        /* don't do periodic things when in atomic mode */
+        /* don't do periodic things when in atomic mode *
+         * (thread or tasklet switching)
+         */
         if (--_Py_Ticker < 0 && !tstate->st.current->flags.atomic) {
 #else
         if (--_Py_Ticker < 0) {
@@ -1278,8 +1280,9 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
                 goto fast_next_opcode;
             }
 #ifdef STACKLESS
+            /* disable pre-emptive switching if switch trapped */
             if (tstate->st.interrupt &&
-                !tstate->curexc_type) {
+                !tstate->curexc_type && !tstate->st.switch_trap) {
                 int ticks = _Py_CheckInterval - _Py_Ticker;
                 int mt = tstate->st.ticker -= ticks;
                 if (mt <= 0) {
