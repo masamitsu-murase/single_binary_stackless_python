@@ -227,7 +227,7 @@ class TestTaskletThrowBase(object):
         # is invoked for the not-yet-running tasklet.
         def doit():
             self.throw(s, IndexError)
-        if self.immediate:
+        if not self.pending:
             self.assertRaises(IndexError, doit)
         else:
             doit()
@@ -281,19 +281,17 @@ class TestTaskletThrowBase(object):
         self.assertRaises(TypeError, t)
 
 class TestTaskletThrowImmediate(StacklessTestCase, TestTaskletThrowBase):
-    immediate = 1
+    pending = False
     @classmethod
     def throw(cls, s, *args):
-        args = args+(None, None)
-        args = args[:3] + (cls.immediate,)
-        s.throw(*args)
+        s.throw(*args, pending=cls.pending)
 
     def aftercheck(self, s):
         # the tasklet ran immediately
         self.assertFalse(s.alive)
 
 class TestTaskletThrowNonImmediate(TestTaskletThrowImmediate):
-    immediate = 0
+    pending = True
     def aftercheck(self, s):
         # After the throw, the tasklet still hasn't run
         self.assertTrue(s.alive)
@@ -402,7 +400,42 @@ class TestSwitchTrap(StacklessTestCase):
             self.assertRaisesRegex(RuntimeError, "switch_trap", s.run)
         s.run()
 
+class TestKill(StacklessTestCase):
+    def test_kill_pending_true(self):
+        killed = [False]
+        def foo():
+            try:
+                stackless.schedule()
+            except TaskletExit:
+                killed[0] = True
+                raise
+        t = stackless.tasklet(foo)()
+        t.run()
+        self.assertFalse(killed[0])
+        t.kill(pending=True)
+        self.assertFalse(killed[0])
+        t.run()
+        self.assertTrue(killed[0])
+
+    def test_kill_pending_False(self):
+        killed = [False]
+        def foo():
+            try:
+                stackless.schedule()
+            except TaskletExit:
+                killed[0] = True
+                raise
+        t = stackless.tasklet(foo)()
+        t.run()
+        self.assertFalse(killed[0])
+        t.kill(pending=False)
+        self.assertTrue(killed[0])
+
 class TestErrorHandler(StacklessTestCase):
+    def setUp(self):
+        self.handled = self.ran = 0
+        self.handled_tasklet = None
+
     def test_set(self):
         def foo():
             pass
@@ -438,7 +471,6 @@ class TestErrorHandler(StacklessTestCase):
         raise ZeroDivisionError("I am broken")
 
     def test_handler(self):
-        self.handled = self.ran = 0
         stackless.tasklet(self.func)(self.handler)
         with self.handler_ctx(self.handler):
             stackless.run()
@@ -446,7 +478,6 @@ class TestErrorHandler(StacklessTestCase):
         self.assertTrue(self.handled)
 
     def test_broken_handler(self):
-        self.handled = self.ran = 0
         stackless.tasklet(self.func)(self.broken_handler)
         with self.handler_ctx(self.broken_handler):
             self.assertRaisesRegexp(IndexError, "mods", stackless.run)
@@ -455,7 +486,6 @@ class TestErrorHandler(StacklessTestCase):
 
     def test_early_throw(self):
         "test that we handle errors thrown before the tasklet function runs"
-        self.handled = self.ran = 0
         s = stackless.tasklet(self.func)(self.handler)
         with self.handler_ctx(self.handler):
             s.throw(ZeroDivisionError, "thrown error")
@@ -464,7 +494,6 @@ class TestErrorHandler(StacklessTestCase):
 
     def test_getcurrent(self):
         # verify that the error handler runs in the context of the exiting tasklet
-        self.handled = self.ran = 0
         s = stackless.tasklet(self.func)(self.handler)
         with self.handler_ctx(self.handler):
             s.throw(ZeroDivisionError, "thrown error")
@@ -475,6 +504,23 @@ class TestErrorHandler(StacklessTestCase):
         with self.handler_ctx(self.handler):
             s.run()
         self.assertTrue(self.handled_tasklet is s)
+
+    def test_throw_pending(self):
+        # make sure that throwing a pending error doesn't immediately throw
+        def func(h):
+            self.ran = 1
+            stackless.schedule()
+            self.func(h)
+        s = stackless.tasklet(func)(self.handler)
+        s.run()
+        self.assertTrue(self.ran)
+        self.assertFalse(self.handled)
+        with self.handler_ctx(self.handler):
+            s.throw(ZeroDivisionError, "thrown error", pending=True)
+        self.assertEqual(self.handled_tasklet, None)
+        with self.handler_ctx(self.handler):
+            s.run()
+        self.assertEqual(self.handled_tasklet, s)
 
 #
 # Test context manager soft switching support
@@ -586,13 +632,13 @@ class TestSchedule(AsTaskletTestCase):
         stackless.schedule_remove()
         self.assertEqual(self.events, ["foo"])
 
-     
+
 class TestBind(StacklessTestCase):
-    
+
     def setUp(self):
         super(TestBind, self).setUp()
         self.finally_run_count = 0
-    
+
     def task(self, with_c_state):
         try:
             if with_c_state:
@@ -601,21 +647,21 @@ class TestBind(StacklessTestCase):
                 stackless.schedule_remove(None)
         finally:
             self.finally_run_count += 1
-            
+
     def test_bind(self):
         t = stackless.tasklet()
         wr = weakref.ref(t)
-        
+
         self.assertFalse(t.alive)
         self.assertIsNone(t.frame)
         self.assertEquals(t.nesting_level, 0)
 
         t.bind(None)  # must not change the tasklet
-        
+
         self.assertFalse(t.alive)
         self.assertIsNone(t.frame)
         self.assertEquals(t.nesting_level, 0)
-        
+
         t.bind(self.task)
         t.setup(False)
 
@@ -625,10 +671,10 @@ class TestBind(StacklessTestCase):
         if stackless.enable_softswitch(None):
             self.assertTrue(t.restorable)
         self.assertIsInstance(t.frame, types.FrameType)
-        
+
         t.insert()
         stackless.run()
-        
+
         # remove the tasklet. Must run the finally clause
         t = None
         self.assertIsNone(wr())  # tasklet has been deleted
@@ -638,30 +684,30 @@ class TestBind(StacklessTestCase):
         class C(object):
             pass
         self.assertRaisesRegexp(TypeError, "callable", stackless.current.bind, C())
-    
+
     def test_unbind_ok(self):
         if not stackless.enable_softswitch(None):
             # the test requires softswitching
-            return 
+            return
         t = stackless.tasklet(self.task)(False)
         wr = weakref.ref(t)
-        
+
         # prepare a paused tasklet
         stackless.run()
         self.assertFalse(t.scheduled)
         self.assertTrue(t.alive)
         self.assertEqual(t.nesting_level, 0)
         self.assertIsInstance(t.frame, types.FrameType)
-        
-        t.bind(None)        
+
+        t.bind(None)
         self.assertFalse(t.alive)
         self.assertIsNone(t.frame)
-        
+
         # remove the tasklet. Must not run the finally clause
         t = None
         self.assertIsNone(wr())  # tasklet has been deleted
         self.assertEqual(self.finally_run_count, 0)
-    
+
     def test_unbind_fail_current(self):
         self.assertRaisesRegexp(RuntimeError, "current tasklet", stackless.current.bind, None)
 
@@ -674,22 +720,22 @@ class TestBind(StacklessTestCase):
         self.assertTrue(t.scheduled)
         self.assertTrue(t.alive)
         self.assertIsInstance(t.frame, types.FrameType)
-        
+
         self.assertRaisesRegexp(RuntimeError, "scheduled", t.bind, None)
 
     def test_unbind_fail_cstate(self):
         t = stackless.tasklet(self.task)(True)
         wr = weakref.ref(t)
-        
+
         # prepare a paused tasklet
         stackless.run()
         self.assertFalse(t.scheduled)
         self.assertTrue(t.alive)
         self.assertGreaterEqual(t.nesting_level, 1)
         self.assertIsInstance(t.frame, types.FrameType)
-        
+
         self.assertRaisesRegexp(RuntimeError, "C state", t.bind, None)
-        
+
         # remove the tasklet. Must run the finally clause
         t = None
         self.assertIsNone(wr())  # tasklet has been deleted
