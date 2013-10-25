@@ -791,11 +791,11 @@ tasklet_setup(PyObject *self, PyObject *args, PyObject *kwds)
 PyDoc_STRVAR(tasklet_throw__doc__,
              "tasklet.throw(exc, val, tb, immediate=True) -- raise an exception for the tasklet.\n\
              'exc', 'val' and 'tb' have the same semantics as Python's 'raise' statement.\n\
-             If 'immediate' is True, the tasklet is immediately activated, otherwise, it is\n\
-             merely made runnable");
+             If 'pending' is True, the tasklet is not immediately activated, just\n\
+             merely made runnable, ready to raise the exception when run.");
 
 static PyObject *
-PyTasklet_Throw_M(PyTaskletObject *self, int immediate, PyObject *exc,
+PyTasklet_Throw_M(PyTaskletObject *self, int pending, PyObject *exc,
                            PyObject *val, PyObject *tb)
 {
     if (!val)
@@ -803,15 +803,15 @@ PyTasklet_Throw_M(PyTaskletObject *self, int immediate, PyObject *exc,
     if (!tb)
         tb = Py_None;
     return PyStackless_CallMethod_Main(
-        (PyObject*)self, "throw", "(OOOi)", exc, val, tb, immediate);
+        (PyObject*)self, "throw", "(OOOi)", exc, val, tb, pending);
 }
 
-int PyTasklet_Throw(PyTaskletObject *self, int immediate, PyObject *exc,
+int PyTasklet_Throw(PyTaskletObject *self, int pending, PyObject *exc,
                              PyObject *val, PyObject *tb)
 {
     PyTasklet_HeapType *t = (PyTasklet_HeapType *)Py_TYPE(self);
 
-    return slp_return_wrapper(t->_throw(self, immediate, exc, val, tb));
+    return slp_return_wrapper(t->_throw(self, pending, exc, val, tb));
 }
 
 static TASKLET_THROW_HEAD(impl_tasklet_throw)
@@ -822,11 +822,17 @@ static TASKLET_THROW_HEAD(impl_tasklet_throw)
     int fail;
 
     if (ts->st.main == NULL)
-        return PyTasklet_Throw_M(self, immediate, exc, val, tb);
+        return PyTasklet_Throw_M(self, pending, exc, val, tb);
 
     bomb = slp_exc_to_bomb(exc, val, tb);
     if (bomb == NULL)
         return NULL;
+
+    /* raise it directly if target is ourselves.  delayed exception makes
+     * no sense in this case
+     */
+    if (ts->st.current == self)
+        return slp_bomb_explode(bomb);
 
     /* don't attempt to send to a dead tasklet.
      * f.frame is null for the running tasklet and a dead tasklet
@@ -843,9 +849,10 @@ static TASKLET_THROW_HEAD(impl_tasklet_throw)
     }
     TASKLET_CLAIMVAL(self, &tmpval);
     TASKLET_SETVAL_OWN(self, bomb);
-    if (immediate) {
+    if (!pending) {
         fail = slp_schedule_task(&ret, ts->st.current, self, stackless, 0);
     } else {
+        /* pending throw.  Make the tasklet runnable */
         PyChannelObject *u_chan = NULL;
         PyTaskletObject *u_next;
         int u_dir;
@@ -878,7 +885,7 @@ static TASKLET_THROW_HEAD(wrap_tasklet_throw)
     if (!tb)
         tb = Py_None;
     return PyObject_CallMethod(
-        (PyObject *)self, "throw", "(OOOi)", exc, val, tb, immediate);
+        (PyObject *)self, "throw", "(OOOi)", exc, val, tb, pending);
 }
 
 static PyObject *
@@ -887,13 +894,17 @@ tasklet_throw(PyObject *myself, PyObject *args, PyObject *kwds)
     STACKLESS_GETARG();
     PyObject *result = NULL;
     PyObject *exc, *val=Py_None, *tb=Py_None;
-    int immediate = 1;
-    char *kwlist[] = {"exc", "val", "tb", "immediate", 0};
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|OOi:throw", kwlist, &exc, &val, &tb, &immediate))
+    int pending;
+    PyObject *pendingO = Py_False;
+    char *kwlist[] = {"exc", "val", "tb", "pending", 0};
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|OOO:throw", kwlist, &exc, &val, &tb, &pendingO))
+        return NULL;
+    pending = PyObject_IsTrue(pendingO);
+    if (pending == -1)
         return NULL;
     STACKLESS_PROMOTE_ALL();
     result = impl_tasklet_throw(
-        (PyTaskletObject*)myself, immediate, exc, val, tb);
+        (PyTaskletObject*)myself, pending, exc, val, tb);
     STACKLESS_ASSERT();
     return result;
 }
@@ -932,6 +943,8 @@ static TASKLET_RAISE_EXCEPTION_HEAD(impl_tasklet_raise_exception)
     bomb = slp_make_bomb(klass, args, "tasklet.raise_exception");
     if (bomb == NULL)
         return NULL;
+    if (ts->st.current == self)
+        return slp_bomb_explode(bomb);
     /* if the tasklet is dead, do not run it (no frame) but explode */
     if (slp_get_frame(self) == NULL)
         return slp_bomb_explode(bomb);
@@ -986,13 +999,12 @@ int PyTasklet_Kill(PyTaskletObject *task)
 {
     PyTasklet_HeapType *t = (PyTasklet_HeapType *)Py_TYPE(task);
 
-    return slp_return_wrapper(t->kill(task));
+    return slp_return_wrapper(t->kill(task, 0));
 }
 
 static TASKLET_KILL_HEAD(impl_tasklet_kill)
 {
     STACKLESS_GETARG();
-    PyObject *noargs;
     PyObject *ret;
 
     /*
@@ -1011,12 +1023,9 @@ static TASKLET_KILL_HEAD(impl_tasklet_kill)
         if (PyExc_TaskletExit == NULL)
             return NULL; /* give up */
     }
-    noargs = PyTuple_New(0);
     STACKLESS_PROMOTE_ALL();
-    ret = impl_tasklet_raise_exception(task, PyExc_TaskletExit,
-                                       noargs);
+    ret = impl_tasklet_throw(task, pending, PyExc_TaskletExit, NULL, NULL);
     STACKLESS_ASSERT();
-    Py_DECREF(noargs);
     return ret;
 }
 
@@ -1026,9 +1035,17 @@ static TASKLET_KILL_HEAD(wrap_tasklet_kill)
 }
 
 static PyObject *
-tasklet_kill(PyObject *self)
+tasklet_kill(PyObject *self, PyObject *args, PyObject *kwds)
 {
-    return impl_tasklet_kill((PyTaskletObject*)self);
+    int pending;
+    PyObject *pendingO = Py_False;
+    char *kwlist[] = {"pending", 0};
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O:kill", kwlist, &pendingO))
+        return NULL;
+    pending = PyObject_IsTrue(pendingO);
+    if (pending == -1)
+        return NULL;
+    return impl_tasklet_kill((PyTaskletObject*)self, pending);
 }
 
 
@@ -1409,7 +1426,7 @@ static PyMethodDef tasklet_methods[] = {
     tasklet_throw__doc__},
     {"raise_exception",         (PCF)tasklet_raise_exception, METH_VS,
     tasklet_raise_exception__doc__},
-    {"kill",                    (PCF)tasklet_kill,          METH_NS,
+    {"kill",                    (PCF)tasklet_kill,          METH_KS,
      tasklet_kill__doc__},
     {"bind",                    (PCF)tasklet_bind,          METH_O,
      tasklet_bind__doc__},

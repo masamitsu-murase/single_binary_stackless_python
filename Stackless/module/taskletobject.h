@@ -20,10 +20,10 @@
     PyObject *func (PyTaskletObject *self, PyObject *klass, PyObject *args)
 
 #define TASKLET_THROW_HEAD(func) \
-    PyObject *func (PyTaskletObject *self, int immediate, PyObject *exc, PyObject *val, PyObject *tb)
+    PyObject *func (PyTaskletObject *self, int pending, PyObject *exc, PyObject *val, PyObject *tb)
 
 #define TASKLET_KILL_HEAD(func) \
-    PyObject *func (PyTaskletObject *task)
+    PyObject *func (PyTaskletObject *task, int pending)
 
 
 typedef struct _pytasklet_heaptype {
