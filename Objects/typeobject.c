@@ -2378,7 +2378,15 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
     /* Put the proper slots in place */
     fixup_slot_dispatchers(type);
 
+    Py_DECREF(dict);
     return (PyObject *)type;
+
+error:
+    Py_XDECREF(dict);
+    Py_XDECREF(bases);
+    Py_XDECREF(slots);
+    Py_XDECREF(type);
+    return NULL;
 }
 
 static short slotoffsets[] = {
