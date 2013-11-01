@@ -5408,9 +5408,34 @@ slot_tp_call(PyObject *self, PyObject *args, PyObject *kwds)
     if (meth == NULL)
         return NULL;
 
+#ifdef STACKLESS
+    /* PyObject_Call does not call Py_EnterRecursiveCall if soft switching is enabled. 
+       Therefore we must call Py_EnterRecursiveCall here to limit the stack depth. 
+       Scenario:
+           class A(object):
+               pass
+           A.__call__ = A() # that's right
+           a = A() # ok
+           a() # infinite recursion
+       This bounces between slot_tp_call() and PyObject_Call() without
+       ever hitting eval_frame() (which has the main recursion check). 
+       
+       Call Py_EnterRecursiveCall only if soft switching. If we would call it 
+       allways, we would halve the possible recursion depth. This could break code. */
+    if (stackless)
+        if (Py_EnterRecursiveCall(" in __call__")) {
+            Py_DECREF(meth);
+            return NULL;
+        }
+#endif
     STACKLESS_PROMOTE_ALL();
     res = PyObject_Call(meth, args, kwds);
     STACKLESS_ASSERT();
+#ifdef STACKLESS
+    /* see the assert above. */
+    if (stackless)
+        Py_LeaveRecursiveCall();
+#endif
     Py_DECREF(meth);
     return res;
 }
