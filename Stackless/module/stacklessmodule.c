@@ -847,10 +847,10 @@ test_nostacklesscall_call(PyObject *f, PyObject *arg, PyObject *kw)
 
         setTryStackless = PyDict_GetItemString(kw, "set_try_stackless");
         if (setTryStackless) {
-            long l;
+            int l;
             Py_INCREF(setTryStackless);
             PyDict_DelItemString(kw, "set_try_stackless");
-            l = PyInt_AsLong(setTryStackless);
+            l = PyObject_IsTrue(setTryStackless);
             Py_DECREF(setTryStackless);
             if (-1 != l)
                 slp_try_stackless = l;
@@ -903,8 +903,7 @@ static test_nostacklesscallObject *test_nostacklesscall = NULL;
 static int init_test_nostacklesscalltype(void)
 {
     static PyTypeObject test_nostacklesscallType = {
-            PyObject_HEAD_INIT(NULL)
-            0,                         /*ob_size*/
+            PyObject_HEAD_INIT(&PyType_Type)
             "stackless.test_nostacklesscall_type",   /*tp_name*/
             sizeof(test_nostacklesscallObject), /*tp_basicsize*/
             0,                         /*tp_itemsize*/
@@ -912,7 +911,7 @@ static int init_test_nostacklesscalltype(void)
             0,                         /*tp_print*/
             0,                         /*tp_getattr*/
             0,                         /*tp_setattr*/
-            0,                         /*tp_compare*/
+            0,                         /*tp_reserved*/
             0,                         /*tp_repr*/
             0,                         /*tp_as_number*/
             0,                         /*tp_as_sequence*/
@@ -1605,7 +1604,7 @@ _PyStackless_Init(void)
     Py_DECREF(slp_module); /* Yes, it still exists, in modules! */
 
     if (init_prickelpit()) return;
-    if (init_test_nostacklesscalltype()) goto error;
+    if (init_test_nostacklesscalltype()) return;
 
     dict = PyModule_GetDict(slp_module);
 
