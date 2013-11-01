@@ -1866,11 +1866,9 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
             assert(opcode == SETUP_WITH);
 
             if (retval) {
-                /* Setup a finally block (SETUP_WITH as a block is
-                   equivalent to SETUP_FINALLY except it normalizes
-                   the exception) before pushing the result of
+                /* Setup a finally block before pushing the result of
                    __enter__ on the stack. */
-                PyFrame_BlockSetup(f, SETUP_WITH, INSTR_OFFSET() + oparg,
+                PyFrame_BlockSetup(f, SETUP_FINALLY, INSTR_OFFSET() + oparg,
                                    STACK_LEVEL());
 
                 PUSH(retval);
