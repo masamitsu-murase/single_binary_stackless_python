@@ -131,11 +131,70 @@ def cellpickling():
     """
     def closure():
         localvar = the_closure
-        return 
+        return
     the_closure = closure
     del closure
     schedule()
     return the_closure()
+
+
+class CtxManager(object):
+    def __init__(self, n, when, expect_type, suppress_exc):
+        self.n = n
+        assert when in ('enter', 'body', 'exit')
+        self.when = when
+        self.expect_type = expect_type
+        self.suppress_exc = suppress_exc
+        self.ran_enter = self.ran_exit = False
+
+    def __enter__(self):
+        self.ran_enter = True
+        if self.when == 'enter':
+            lst = rectest(self.n)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.ran_exit = True
+        if not is_soft() and isinstance(exc_val, SystemExit):
+            return False
+        self.exc_type = exc_type
+        if self.when == 'exit':
+            lst = rectest(self.n)
+        return self.suppress_exc
+
+def ctxpickling(testCase, n, when, expect_type, suppress_exc):
+    ctxmgr = CtxManager(n, when, expect_type, suppress_exc)
+
+    ran_body = False
+    try:
+        with ctxmgr as c:
+            ran_body = True
+            if when == 'body':
+                rectest(n)
+            if expect_type:
+                raise expect_type("raised by ctxpickling")
+    except SystemExit:
+        raise
+    except:
+        exc_info = sys.exc_info()
+    else:
+        exc_info = (None, None, None)
+
+    testCase.assertEqual(ctxmgr.ran_enter, True, "__enter__ did not run")
+    testCase.assertTrue(ctxmgr.ran_exit, "__exit__ did not run")
+    if expect_type is not None:
+        testCase.assertEqual(ctxmgr.exc_type, expect_type, "incorrect ctxmgr.exc_type: expected %r got %r" % (expect_type, ctxmgr.exc_type))
+        if suppress_exc:
+            testCase.assertEqual(exc_info, (None, None, None), "Suppress didn't work")
+        else:
+            testCase.assertEqual(exc_info[0], expect_type, "incorrect exc_type")
+    else:
+        testCase.assertEqual(ctxmgr.exc_type, None, "ctxmgr.exc_type is not None: %r" % (ctxmgr.exc_type,))
+        testCase.assertEqual(exc_info, (None, None, None), "unexpected exception: " + repr(exc_info[1]))
+
+    testCase.assertTrue(ran_body, "with block did not run")
+    testCase.assertEqual(ctxmgr, c, "__enter__ returned wrong value")
+    return "OK"
 
 def is_soft():
     softswitch = stackless.enable_softswitch(0)
@@ -156,9 +215,9 @@ class TestPickledTasklets(StacklessTestCase):
             next = current.next
             current.kill()
             current = next
-            
+
         super(TestPickledTasklets, self).tearDown()
-    
+
         del self.verbose
 
     def run_pickled(self, func, *args):
@@ -282,6 +341,41 @@ class TestConcretePickledTasklets(TestPickledTasklets):
     def testCell(self):
         self.run_pickled(cellpickling)
 
+    def testCtx_enter_0(self):
+        self.run_pickled(ctxpickling, self, 0, 'enter', None, False)
+    def testCtx_enter_1(self):
+        self.run_pickled(ctxpickling, self, 1, 'enter', None, False)
+    def testCtx_enter_2(self):
+        self.run_pickled(ctxpickling, self, 2, 'enter', RuntimeError, False)
+    def testCtx_enter_3(self):
+        self.run_pickled(ctxpickling, self, 1, 'enter', RuntimeError, True)
+    def testCtx_body_0(self):
+        self.run_pickled(ctxpickling, self, 0, 'body', None, False)
+    def testCtx_body_1(self):
+        self.run_pickled(ctxpickling, self, 1, 'body', None, False)
+    def testCtx_body_2(self):
+        self.run_pickled(ctxpickling, self, 2, 'body', RuntimeError, False)
+    def testCtx_body_3(self):
+        self.run_pickled(ctxpickling, self, 1, 'body', RuntimeError, True)
+    def testCtx_body_4(self):
+        self.run_pickled(ctxpickling, self, 2, 'body', RuntimeError, True)
+    def testCtx_body_5(self):
+        self.run_pickled(ctxpickling, self, 1, 'body', RuntimeError, False)
+    def testCtx_body_6(self):
+        self.run_pickled(ctxpickling, self, 0, 'body', RuntimeError, True)
+    def testCtx_body_7(self):
+        self.run_pickled(ctxpickling, self, 0, 'body', RuntimeError, False)
+    def testCtx_exit_0(self):
+        self.run_pickled(ctxpickling, self, 0, 'exit', None, False)
+    def testCtx_exit_1(self):
+        self.run_pickled(ctxpickling, self, 1, 'exit', None, False)
+    def testCtx_exit_2(self):
+        self.run_pickled(ctxpickling, self, 2, 'exit', RuntimeError, False)
+    def testCtx_exit_3(self):
+        self.run_pickled(ctxpickling, self, 0, 'exit', RuntimeError, True)
+    def testCtx_exit_4(self):
+        self.run_pickled(ctxpickling, self, 1, 'exit', RuntimeError, True)
+
     def testFakeModules(self):
         types.ModuleType('fakemodule!')
 
@@ -317,13 +411,13 @@ class TestConcretePickledTasklets(TestPickledTasklets):
         def sender(chan):
             l = [ 1, 2, 3, 4 ]
             chan.send_sequence(l)
-            
+
         def receiver(chan):
             length = 4
             while length:
                 v = chan.receive()
                 length -= 1
-                
+
         c = stackless.channel()
         t1 = stackless.tasklet(sender)(c)
         t2 = stackless.tasklet(receiver)(c)
