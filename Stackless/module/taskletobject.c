@@ -65,6 +65,18 @@ slp_current_unremove(PyTaskletObject* task)
     ts->st.current = task;
 }
 
+/*
+ * Determine if a tasklet has C stack, and thus needs to
+ * be switched to (killed) before it can be deleted.
+ * Tasklets without C stack (in a soft switched state)
+ * need only be released.
+ */
+static int
+tasklet_has_c_stack(PyTaskletObject *t)
+{
+    return t->f.frame && t->cstate && t->cstate->nesting_level != 0 ;
+}
+
 static int
 tasklet_traverse(PyTaskletObject *t, visitproc visit, void *arg)
 {
@@ -81,6 +93,21 @@ tasklet_traverse(PyTaskletObject *t, visitproc visit, void *arg)
     Py_VISIT(t->tempval);
     Py_VISIT(t->cstate);
     return 0;
+}
+
+static void
+tasklet_clear_frames(PyTaskletObject *t)
+{
+    /* release frame chain, we own the "execute reference" of all the frames */
+    PyFrameObject *f;
+    f = t->f.frame;
+    t->f.frame = NULL;
+    while (f != NULL) {
+        PyFrameObject *tmp = f->f_back;
+        f->f_back = NULL;
+        Py_DECREF(f);
+        f = tmp;
+    }
 }
 
 /*
@@ -1448,7 +1475,7 @@ static PyMethodDef tasklet_methods[] = {
      tasklet_kill__doc__},
     {"bind",                    (PCF)tasklet_bind,          METH_O,
      tasklet_bind__doc__},
-    {"setup",                   (PCF)tasklet_setup,         METH_KEYWORDS,
+    {"setup",                   (PCF)tasklet_setup,         METH_VARARGS | METH_KEYWORDS,
      tasklet_setup__doc__},
     {"__reduce__",              (PCF)tasklet_reduce,        METH_NOARGS,
      tasklet_reduce__doc__},

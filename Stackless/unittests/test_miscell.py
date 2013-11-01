@@ -593,9 +593,9 @@ class AsTaskletTestCase(StacklessTestCase):
         self._ran_AsTaskletTestCase_setUp = True
         if stackless.enable_softswitch(None):
             self.assertEqual(stackless.current.nesting_level, 0)
-            
+
         super(StacklessTestCase, self).setUp()  # yes, its intended: call setUp on the grand parent class
-        self.assertEqual(stackless.getruncount(), 1, "Leakage from other tests, with %d tasklets still in the scheduler" % (stackless.getruncount() - 1))        
+        self.assertEqual(stackless.getruncount(), 1, "Leakage from other tests, with %d tasklets still in the scheduler" % (stackless.getruncount() - 1))
         if withThreads:
             self.assertEqual(threading.activeCount(), 1, "Leakage from other threads, with %d threads running (1 expected)" % (threading.activeCount()))
 
@@ -604,7 +604,7 @@ class AsTaskletTestCase(StacklessTestCase):
         stackless.tasklet(super_run)(result)
         stackless.run()
         assert self._ran_AsTaskletTestCase_setUp
-        
+
 def _create_contextlib_test_classes():
     import test.test_contextlib as module
     g = globals()
@@ -620,7 +620,7 @@ _create_contextlib_test_classes()
 class TestContextManager(StacklessTestCase):
     def nestingLevel(self):
         self.assertFalse(stackless.getcurrent().nesting_level)
-        
+
         class C(object):
             def __enter__(self_):
                 self.assertFalse(stackless.getcurrent().nesting_level)
@@ -630,44 +630,44 @@ class TestContextManager(StacklessTestCase):
                 return False
         with C() as c:
             self.assertTrue(isinstance(c,C))
-            
+
     def test_nestingLevel(self):
         if not stackless.enable_softswitch(None):
             # the test requires softswitching
-            return 
+            return
         stackless.tasklet(self.nestingLevel)()
         stackless.run()
 
 
 class TestBind(StacklessTestCase):
-    
+
     def setUp(self):
         super(TestBind, self).setUp()
         self.finally_run_count = 0
-    
+
     def task(self, with_c_state):
         try:
             if with_c_state:
-                apply(stackless.schedule_remove, (None,))
+                stackless.test_cstate(lambda:stackless.schedule_remove(None))
             else:
                 stackless.schedule_remove(None)
         finally:
             self.finally_run_count += 1
-            
+
     def test_bind(self):
         t = stackless.tasklet()
         wr = weakref.ref(t)
-        
+
         self.assertFalse(t.alive)
         self.assertIsNone(t.frame)
         self.assertEquals(t.nesting_level, 0)
 
         t.bind(None)  # must not change the tasklet
-        
+
         self.assertFalse(t.alive)
         self.assertIsNone(t.frame)
         self.assertEquals(t.nesting_level, 0)
-        
+
         t.bind(self.task)
         t.setup(False)
 
@@ -677,10 +677,10 @@ class TestBind(StacklessTestCase):
         if stackless.enable_softswitch(None):
             self.assertTrue(t.restorable)
         self.assertIsInstance(t.frame, types.FrameType)
-        
+
         t.insert()
         stackless.run()
-        
+
         # remove the tasklet. Must run the finally clause
         t = None
         self.assertIsNone(wr())  # tasklet has been deleted
@@ -690,30 +690,30 @@ class TestBind(StacklessTestCase):
         class C(object):
             pass
         self.assertRaisesRegexp(TypeError, "callable", stackless.current.bind, C())
-    
+
     def test_unbind_ok(self):
         if not stackless.enable_softswitch(None):
             # the test requires softswitching
-            return 
+            return
         t = stackless.tasklet(self.task)(False)
         wr = weakref.ref(t)
-        
+
         # prepare a paused tasklet
         stackless.run()
         self.assertFalse(t.scheduled)
         self.assertTrue(t.alive)
         self.assertEqual(t.nesting_level, 0)
         self.assertIsInstance(t.frame, types.FrameType)
-        
-        t.bind(None)        
+
+        t.bind(None)
         self.assertFalse(t.alive)
         self.assertIsNone(t.frame)
-        
+
         # remove the tasklet. Must not run the finally clause
         t = None
         self.assertIsNone(wr())  # tasklet has been deleted
         self.assertEqual(self.finally_run_count, 0)
-    
+
     def test_unbind_fail_current(self):
         self.assertRaisesRegexp(RuntimeError, "current tasklet", stackless.current.bind, None)
 
@@ -726,22 +726,22 @@ class TestBind(StacklessTestCase):
         self.assertTrue(t.scheduled)
         self.assertTrue(t.alive)
         self.assertIsInstance(t.frame, types.FrameType)
-        
+
         self.assertRaisesRegexp(RuntimeError, "scheduled", t.bind, None)
 
     def test_unbind_fail_cstate(self):
         t = stackless.tasklet(self.task)(True)
         wr = weakref.ref(t)
-        
+
         # prepare a paused tasklet
         stackless.run()
         self.assertFalse(t.scheduled)
         self.assertTrue(t.alive)
         self.assertGreaterEqual(t.nesting_level, 1)
         self.assertIsInstance(t.frame, types.FrameType)
-        
+
         self.assertRaisesRegexp(RuntimeError, "C state", t.bind, None)
-        
+
         # remove the tasklet. Must run the finally clause
         t = None
         self.assertIsNone(wr())  # tasklet has been deleted
