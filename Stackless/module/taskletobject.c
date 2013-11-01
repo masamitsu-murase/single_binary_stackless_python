@@ -1474,7 +1474,7 @@ static PyMethodDef tasklet_methods[] = {
      tasklet_kill__doc__},
     {"bind",                    (PCF)tasklet_bind,          METH_O,
      tasklet_bind__doc__},
-    {"setup",                   (PCF)tasklet_setup,         METH_KEYWORDS,
+    {"setup",                   (PCF)tasklet_setup,         METH_VARARGS | METH_KEYWORDS,
      tasklet_setup__doc__},
     {"__reduce__",              (PCF)tasklet_reduce,        METH_NOARGS,
      tasklet_reduce__doc__},
