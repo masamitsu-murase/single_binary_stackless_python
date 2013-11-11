@@ -208,31 +208,35 @@ PyStackless_Schedule_nr(PyObject *retval, int remove)
 }
 
 static PyObject *
-schedule_generic(PyObject *self, PyObject *args, PyObject *kwds, int remove)
+schedule(PyObject *self, PyObject *args, PyObject *kwds)
 {
     STACKLESS_GETARG();
     PyObject *retval = (PyObject *) PyThreadState_GET()->st.current;
     static char *argnames[] = {"retval", NULL};
 
-    if (PyTuple_GET_SIZE(args) > 0) {
-        if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O:schedule",
-                                         argnames, &retval))
-            return NULL;
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O:schedule",
+        argnames, &retval))
+    {
+        return NULL;
     }
     STACKLESS_PROMOTE_ALL();
-    return PyStackless_Schedule(retval, remove);
-}
-
-static PyObject *
-schedule(PyObject *self, PyObject *args, PyObject *kwds)
-{
-    return schedule_generic(self, args, kwds, 0);
+    return PyStackless_Schedule(retval, 0);
 }
 
 static PyObject *
 schedule_remove(PyObject *self, PyObject *args, PyObject *kwds)
 {
-    return schedule_generic(self, args, kwds, 1);
+    STACKLESS_GETARG();
+    PyObject *retval = (PyObject *) PyThreadState_GET()->st.current;
+    static char *argnames[] = {"retval", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O:schedule_remove",
+        argnames, &retval))
+    {
+        return NULL;
+    }
+    STACKLESS_PROMOTE_ALL();
+    return PyStackless_Schedule(retval, 1);
 }
 
 
