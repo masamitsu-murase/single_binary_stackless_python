@@ -6,6 +6,7 @@ import stackless
 import sys
 import traceback
 import contextlib
+import time
 
 from support import StacklessTestCase, AsTaskletTestCase
 try:
@@ -110,17 +111,27 @@ class TestRemoteSchedule(AsTaskletTestCase):
 @unittest.skipUnless(withThreads, "requires thread support")
 class TestRebindCrash(unittest.TestCase):
     """A crash from Anselm Kruis, occurring when transferring tasklet to a thread"""
-    def create_remote_tasklet(self):
+    def create_remote_tasklet(self, nontrivial=False, job=None):
         result = []
         e1 = threading.Event()
         e2 = threading.Event()
+        def remove():
+            stackless.schedule_remove(retval=None)
         def taskletfunc():
             result.append(stackless.getcurrent())
-            stackless.schedule_remove(retval=None)
+            if nontrivial:
+                stackless.test_cstate(remove)
+            else:
+                remove()
+            if job:
+                job()
         def threadfunc():
             t = stackless.tasklet(taskletfunc)()
             t.run()
             e1.set()
+            while not e2.is_set():
+                stackless.run()
+                time.sleep(0.001)
             e2.wait() #wait until we can die
         t = threading.Thread(target=threadfunc)
         t.start()
@@ -172,6 +183,38 @@ class TestRebindCrash(unittest.TestCase):
             end()
 
 
+    def test_no_rebind(self):
+        result = []
+        e = threading.Event()
+        def job():
+            result.append(thread.get_ident())
+            e.set()
+        end, task = self.create_remote_tasklet(job=job)
+        try:
+            task.run()
+            e.wait()
+            self.assertNotEqual(result[0], thread.get_ident())
+        finally:
+            end()
+
+    def test_rebind(self):
+        result = []
+        def job():
+            result.append(thread.get_ident())
+        end, task = self.create_remote_tasklet(job=job)
+        try:
+            task.bind_thread()
+            task.run()
+            self.assertEqual(result[0], thread.get_ident())
+        finally:
+            end()
+
+    def test_rebind_nontrivial(self):
+        end, task = self.create_remote_tasklet(nontrivial=True)
+        try:
+            self.assertRaises(RuntimeError, task.bind_thread)
+        finally:
+            end()
 
 #///////////////////////////////////////////////////////////////////////////////
 
