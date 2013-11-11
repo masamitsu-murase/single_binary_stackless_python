@@ -439,6 +439,38 @@ tasklet_setstate(PyObject *self, PyObject *args)
     return self;
 }
 
+PyDoc_STRVAR(tasklet_bind_thread__doc__,
+"Attempts to re-bind the tasklet to the current thread.\n\
+If the tasklet has non-trivial c state, a RuntimeError is\n\
+raised.\n\
+");
+
+
+static PyObject *
+tasklet_bind_thread(PyObject *self, PyObject *args)
+{
+    PyTaskletObject *t = (PyTaskletObject *) self;
+    PyThreadState *ts = PyThreadState_GET();
+    PyObject *old;
+
+
+    if (t == ts->st.current)
+        Py_RETURN_NONE; /* running, so it must be bound */
+
+    if (t->cstate->tstate == ts)
+        Py_RETURN_NONE; /* already bound */
+
+    if (t->cstate->nesting_level != 0) {
+        PyErr_SetString(PyExc_RuntimeError, "Cannot rebind a tasklet with non-trivial c state");
+        return NULL;
+    }
+    old = (PyObject*)t->cstate;
+    t->cstate = ts->st.initial_stub;
+    Py_INCREF(t->cstate);
+    Py_DECREF(old);
+    Py_RETURN_NONE;
+}
+
 /* other tasklet methods */
 
 PyDoc_STRVAR(tasklet_remove__doc__,
@@ -1483,6 +1515,8 @@ static PyMethodDef tasklet_methods[] = {
      tasklet_reduce__doc__},
     {"__setstate__",            (PCF)tasklet_setstate,      METH_O,
      tasklet_setstate__doc__},
+    {"bind_thread",              (PCF)tasklet_bind_thread,  METH_NOARGS,
+    tasklet_bind_thread__doc__},
     {NULL,     NULL}             /* sentinel */
 };
 
