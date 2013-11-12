@@ -44,6 +44,7 @@ slp_current_uninsert(PyTaskletObject *task)
     SLP_CHAIN_REMOVE(PyTaskletObject, chain, task, next, prev);
     *chain = hold;
     --ts->st.runcount;
+    assert(ts->st.runcount >= 0);
 }
 
 PyTaskletObject *
@@ -52,15 +53,33 @@ slp_current_remove(void)
     PyThreadState *ts = PyThreadState_GET();
     PyTaskletObject **chain = &ts->st.current, *ret;
 
+    /* make sure tasklet belongs to this thread */
+    assert((*chain)->cstate->tstate == ts);
+
     --ts->st.runcount;
+    assert(ts->st.runcount >= 0);
     SLP_CHAIN_REMOVE(PyTaskletObject, chain, ret, next, prev);
     return ret;
 }
 
 void
+slp_current_remove_tasklet(PyTaskletObject *task)
+{
+    PyThreadState *ts = task->cstate->tstate;
+    PyTaskletObject **chain = &ts->st.current, *ret, *hold;
+
+    --ts->st.runcount;
+    assert(ts->st.runcount >= 0);
+    hold = ts->st.current;
+    ts->st.current = task;
+    SLP_CHAIN_REMOVE(PyTaskletObject, chain, ret, next, prev);
+    ts->st.current = hold;
+}
+
+void
 slp_current_unremove(PyTaskletObject* task)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = task->cstate->tstate;
     slp_current_insert(task);
     ts->st.current = task;
 }
@@ -507,17 +526,18 @@ static TASKLET_REMOVE_HEAD(impl_tasklet_remove)
 
     assert(PyTasklet_Check(task));
     if (ts->st.main == NULL) return PyTasklet_Remove_M(task);
-
     assert(ts->st.current != NULL);
+
+    /* now, operate on the correct thread state */
+    ts = task->cstate->tstate;
+
     if (task->flags.blocked)
         RUNTIME_ERROR("You cannot remove a blocked tasklet.", -1);
     if (task == ts->st.current)
         RUNTIME_ERROR("The current tasklet cannot be removed.", -1);
     if (task->next == NULL)
         return 0;
-    ts->st.current = task;
-    slp_current_remove();
-    ts->st.current = hold;
+    slp_current_remove_tasklet(task);
     Py_DECREF(task);
     return 0;
 }
