@@ -45,6 +45,8 @@ slp_current_uninsert(PyTaskletObject *task)
     *chain = hold;
     --ts->st.runcount;
     assert(ts->st.runcount >= 0);
+    if (ts->st.runcount == 0)
+        assert(ts->st.current == NULL);
 }
 
 PyTaskletObject *
@@ -59,6 +61,8 @@ slp_current_remove(void)
     --ts->st.runcount;
     assert(ts->st.runcount >= 0);
     SLP_CHAIN_REMOVE(PyTaskletObject, chain, ret, next, prev);
+    if (ts->st.runcount == 0)
+        assert(ts->st.current == NULL);
     return ret;
 }
 
@@ -73,7 +77,10 @@ slp_current_remove_tasklet(PyTaskletObject *task)
     hold = ts->st.current;
     ts->st.current = task;
     SLP_CHAIN_REMOVE(PyTaskletObject, chain, ret, next, prev);
-    ts->st.current = hold;
+    if (hold != task)
+        ts->st.current = hold;
+    if (ts->st.runcount == 0)
+        assert(ts->st.current == NULL);
 }
 
 void
@@ -260,7 +267,7 @@ PyTasklet_New(PyTypeObject *type, PyObject *func)
 PyTaskletObject *
 PyTasklet_Bind(PyTaskletObject *task, PyObject *func)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = task->cstate->tstate;
 
     if (func != NULL && func != Py_None && !PyCallable_Check(func))
         TYPE_ERROR("tasklet function must be a callable or None", NULL);
@@ -468,24 +475,24 @@ raised.\n\
 static PyObject *
 tasklet_bind_thread(PyObject *self, PyObject *args)
 {
-    PyTaskletObject *t = (PyTaskletObject *) self;
-    PyThreadState *ts = PyThreadState_GET();
+    PyTaskletObject *task = (PyTaskletObject *) self;
+    PyThreadState *ts = task->cstate->tstate;
+    PyThreadState *cts = PyThreadState_GET();
     PyObject *old;
 
-
-    if (t == ts->st.current)
-        Py_RETURN_NONE; /* running, so it must be bound */
-
-    if (t->cstate->tstate == ts)
+    if (ts == cts)
         Py_RETURN_NONE; /* already bound */
 
-    if (t->cstate->nesting_level != 0) {
-        PyErr_SetString(PyExc_RuntimeError, "Cannot rebind a tasklet with non-trivial c state");
-        return NULL;
+    if (PyTasklet_Scheduled(task) && !task->flags.blocked) {
+        RUNTIME_ERROR("can't (re)bind a runnable tasklet", NULL);
     }
-    old = (PyObject*)t->cstate;
-    t->cstate = ts->st.initial_stub;
-    Py_INCREF(t->cstate);
+    if (tasklet_has_c_stack(task)) {
+        RUNTIME_ERROR("tasklet has C state on its stack", NULL);
+    }
+    
+    old = (PyObject*)task->cstate;
+    task->cstate = cts->st.initial_stub;
+    Py_INCREF(task->cstate);
     Py_DECREF(old);
     Py_RETURN_NONE;
 }
@@ -1109,11 +1116,17 @@ static TASKLET_KILL_HEAD(impl_tasklet_kill)
      * simple raising would kill ourself in this case.
      */
     if (slp_get_frame(task) == NULL) {
-        /* just clear it, typically a thread's main */
-        /* XXX not clear why this isn't covered in tasklet_end */
-        Py_TYPE(task)->tp_clear((PyObject *)task);
+        /* it can still be a new tasklet and not a dead one */
+        Py_CLEAR(task->f.cframe);
+        if (task->next) {
+            /* remove it from the run queue */
+            assert(!task->flags.blocked);
+            slp_current_remove_tasklet(task);
+            Py_DECREF(task);
+        }
         Py_RETURN_NONE;
     }
+
     /* we might be called after exceptions are gone */
     if (PyExc_TaskletExit == NULL) {
         PyExc_TaskletExit = PyUnicode_FromString("zombie");
