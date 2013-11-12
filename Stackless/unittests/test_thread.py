@@ -20,9 +20,9 @@ except:
     withThreads = False
 
 class SkipMixin(object):
-    def skipUnlessSoftSwitching(self):
+    def skipUnlessSoftswitching(self):
         if not stackless.enable_softswitch(None):
-            self.skipTest("requires softswitching")
+            self.skipTest("test requires softswitching")
 
 def GetRemoteTasklets(callables):
     """Get a non-scheduled tasklet on a remote thread"""
@@ -144,7 +144,7 @@ class TestRemoteSchedule(AsTaskletTestCase):
         self.assertEqual(self.events, list(range(3)))
 
 @unittest.skipUnless(withThreads, "requires thread support")
-class TestRebindCrash(SkipMixin, unittest.TestCase):
+class TestRebindCrash(SkipMixin, StacklessTestCase):
     """A crash from Anselm Kruis, occurring when transferring tasklet to a thread"""
     def create_remote_tasklet(self, nontrivial=False, job=None):
         result = []
@@ -189,6 +189,7 @@ class TestRebindCrash(SkipMixin, unittest.TestCase):
         unbind the tasklet and returns a newly created tasklet. If
         unbinding fails, the method raises :exc:`RuntimeError`.
         """
+        self.skipUnlessSoftswitching()
         if task.thread_id == thread.get_ident():
             return task
         reducedTask = task.__reduce__()
@@ -210,7 +211,7 @@ class TestRebindCrash(SkipMixin, unittest.TestCase):
         return task
 
     def test_crash(self):
-        self.skipUnlessSoftSwitching()
+        self.skipUnlessSoftswitching()
         end, task = self.create_remote_tasklet()
         try:
             task = self.to_current_thread(task)
@@ -234,7 +235,7 @@ class TestRebindCrash(SkipMixin, unittest.TestCase):
             end()
 
     def test_rebind(self):
-        self.skipUnlessSoftSwitching()
+        self.skipUnlessSoftswitching()
         result = []
         def job():
             result.append(thread.get_ident())
@@ -253,7 +254,7 @@ class TestRebindCrash(SkipMixin, unittest.TestCase):
         finally:
             end()
 
-class RemoteTaskletTests(unittest.TestCase):
+class RemoteTaskletTests(StacklessTestCase):
     ThreadClass = LingeringThread
     def setUp(self):
         super(RemoteTaskletTests, self).setUp()
@@ -283,26 +284,32 @@ class TestRemove(RemoteTaskletTests):
         """
         before = stackless.getruncount()
         thread, task = self.create_thread_task()
-        after = stackless.getruncount()
-        self.assertEqual(before, after)
-        task.remove()
-        after = stackless.getruncount()
-        # only the runnable count on the remote thread
-        # should change
-        self.assertEqual(before, after)
+        try:
+            after = stackless.getruncount()
+            self.assertEqual(before, after)
+            task.remove()
+            after = stackless.getruncount()
+            # only the runnable count on the remote thread
+            # should change
+            self.assertEqual(before, after)
+        finally:
+            thread.join()
 
     def test_insert_balance(self):
         """ Test that insert into the runqueue of a remote thread does not affect the
         bookkeeping of the current thread.
         """
         thread, task = self.create_thread_task()
-        task.remove()
-        before = stackless.getruncount()
-        task.insert()
-        after = stackless.getruncount()
-        # only the runnable count on the remote thread
-        # should change
-        self.assertEqual(before, after)
+        try:
+            task.remove()
+            before = stackless.getruncount()
+            task.insert()
+            after = stackless.getruncount()
+            # only the runnable count on the remote thread
+            # should change
+            self.assertEqual(before, after)
+        finally:
+            thread.join()
 
 class DeadThreadTest(RemoteTaskletTests):
     def test_tasklet_from_dead_thread(self):
