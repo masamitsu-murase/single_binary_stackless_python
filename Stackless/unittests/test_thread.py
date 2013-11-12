@@ -51,6 +51,34 @@ def GetRemoteTasklets(callables):
     d = c.receive(), thread
     return d
 
+class LingeringThread(threading.Thread):
+    """ A thread that lingers on after executing its main function"""
+    def __init__(self, *args, **kwargs):
+        self.real_target = kwargs["target"]
+        kwargs["target"] = self.thread_func
+        super(LingeringThread, self).__init__(*args, **kwargs)
+        self.shutdown = threading.Event()
+
+    def thread_func(self, *args, **kwargs):
+        result = self.real_target(*args, **kwargs)
+        self.linger()
+        return result
+
+    def linger(self):
+        # wait until join is called
+        self.shutdown.wait()
+
+    def join(self):
+        self.shutdown.set()
+        return super(LingeringThread, self).join()
+
+class SchedulingThread(LingeringThread):
+    """ A thread that runs a scheduling loop after executing its main function"""
+    def linger(self):
+        while not self.shutdown.is_set():
+            stackless.run()
+            time.sleep(0.001)
+
 def GetRemoteTasklet(callable, args):
     """Get a non-scheduled tasklet on a remote thread"""
     tasklets, thread = GetRemoteTasklets([lambda:callable(*args)])
@@ -215,6 +243,57 @@ class TestRebindCrash(unittest.TestCase):
             self.assertRaises(RuntimeError, task.bind_thread)
         finally:
             end()
+
+class RemoteTaskletTests(unittest.TestCase):
+    ThreadClass = LingeringThread
+    def setUp(self):
+        super(RemoteTaskletTests, self).setUp()
+        self.taskletExecuted = False
+        self.event = threading.Event()
+
+    def create_tasklet(self, action, *args, **kw):
+        self.tasklet = stackless.tasklet(action)(*args, **kw)
+        self.event.set()
+
+    def tasklet_action(self):
+        self.taskletExecuted = True
+
+    def create_thread_task(self):
+        theThread = self.ThreadClass(target=self.create_tasklet,
+        args=(self.tasklet_action,))
+        theThread.start()
+        self.event.wait()
+        t = self.tasklet
+        return theThread, t
+
+
+class TestRemove(RemoteTaskletTests):
+    def test_remove_balance(self):
+        """ Test that remove from the runqueue of a remote thread does not affect the
+        bookkeeping of the current thread.
+        """
+        before = stackless.getruncount()
+        thread, task = self.create_thread_task()
+        after = stackless.getruncount()
+        self.assertEqual(before, after)
+        task.remove()
+        after = stackless.getruncount()
+        # only the runnable count on the remote thread
+        # should change
+        self.assertEqual(before, after)
+
+    def test_insert_balance(self):
+        """ Test that insert into the runqueue of a remote thread does not affect the
+        bookkeeping of the current thread.
+        """
+        thread, task = self.create_thread_task()
+        task.remove()
+        before = stackless.getruncount()
+        task.insert()
+        after = stackless.getruncount()
+        # only the runnable count on the remote thread
+        # should change
+        self.assertEqual(before, after)
 
 #///////////////////////////////////////////////////////////////////////////////
 
