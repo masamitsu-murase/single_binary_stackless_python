@@ -295,6 +295,66 @@ class TestRemove(RemoteTaskletTests):
         # should change
         self.assertEqual(before, after)
 
+class DeadThreadTest(RemoteTaskletTests):
+    def test_tasklet_from_dead_thread(self):
+        theThread, t = self.create_thread_task()
+        self.assertTrue(t.alive)
+        theThread.join()
+        # now the tasklet should have been killed.
+        self.assertFalse(t.alive)
+
+    def test_removed_tasklet_from_dead_thread(self):
+        theThread, t = self.create_thread_task()
+        self.assertTrue(t.scheduled)
+        t.remove()
+        self.assertFalse(t.scheduled)
+        theThread.join()
+        # now the tasklet should have been killed.
+        self.assertFalse(t.alive)
+
+    def test_rebound_tasklet_from_dead_thread(self):
+        theThread, t = self.create_thread_task()
+        t.remove()
+        t.bind_thread()
+        theThread.join()
+        # now the tasklet should be alive
+        self.assertTrue(t.alive)
+        t.run()
+        self.assertFalse(t.alive)
+
+    def test_bind_runnable(self):
+        theThread, t = self.create_thread_task()
+        self.assertRaises(RuntimeError, t.bind_thread)
+        theThread.join()
+
+class BindThreadTest(RemoteTaskletTests):
+    """More unittests for tasklet.bind_thread"""
+
+    def testForeignThread_scheduled(self):
+        theThread, t = self.create_thread_task()
+        try:
+            self.assertEqual(t.thread_id, theThread.ident)
+            self.assertTrue(t.alive)
+            self.assertFalse(t.paused)
+            t.remove()
+            self.assertTrue(t.paused)
+
+            t.bind_thread()
+
+            self.assertTrue(t.alive)
+            self.assertTrue(t.paused)
+
+            self.assertNotEqual(t.thread_id, theThread.ident)
+            self.assertEqual(t.thread_id, thread.get_ident())
+            t.insert()
+            self.assertFalse(t.paused)
+
+            stackless.run()
+            self.assertTrue(self.taskletExecuted)
+            self.assertFalse(t.alive)
+        finally:
+            theThread.join()
+
 #///////////////////////////////////////////////////////////////////////////////
 
 if __name__ == '__main__':

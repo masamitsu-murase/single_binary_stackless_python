@@ -346,9 +346,6 @@ void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
             /* were we asked to kill tasklet on our thread? */
             if (target_ts != NULL && cs->tstate != target_ts)
                 continue;
-            /* Not killable, another thread's frameless main? */
-            if (slp_get_frame(cs->task) == NULL)
-                continue;
             break;
         }
         count = 0;
@@ -373,8 +370,11 @@ void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
                 assert(t->prev);
                 chain = &t;
                 SLP_CHAIN_REMOVE(PyTaskletObject, chain, tmp, next, prev);
+                assert(t->cstate->tstate == ts);
                 ts->st.runcount--;
                 t = tmp;
+                if (ts->st.runcount == 0)
+                    assert(ts->st.current == NULL);
             } else
                 Py_INCREF(t); /* a new reference for the runnable queue */
             /* insert into the 'current' chain without modifying 'current' */
