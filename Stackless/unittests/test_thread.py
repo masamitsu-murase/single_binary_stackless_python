@@ -10,11 +10,18 @@ import contextlib
 from support import StacklessTestCase, AsTaskletTestCase
 try:
     import threading
-    import thread
+    try:
+        import thread
+    except ImportError:
+        import _thread as thread
     withThreads = True
 except:
     withThreads = False
 
+class SkipMixin(object):
+    def skipUnlessSoftSwitching(self):
+        if not stackless.enable_softswitch(None):
+            self.skipTest("requires softswitching")
 
 def GetRemoteTasklets(callables):
     """Get a non-scheduled tasklet on a remote thread"""
@@ -108,7 +115,7 @@ class TestRemoteSchedule(AsTaskletTestCase):
         self.assertEqual(self.events, list(range(3)))
 
 @unittest.skipUnless(withThreads, "requires thread support")
-class TestRebindCrash(unittest.TestCase):
+class TestRebindCrash(SkipMixin, unittest.TestCase):
     """A crash from Anselm Kruis, occurring when transferring tasklet to a thread"""
     def create_remote_tasklet(self):
         result = []
@@ -164,6 +171,7 @@ class TestRebindCrash(unittest.TestCase):
         return task
 
     def test_crash(self):
+        self.skipUnlessSoftSwitching()
         end, task = self.create_remote_tasklet()
         try:
             task = self.to_current_thread(task)
