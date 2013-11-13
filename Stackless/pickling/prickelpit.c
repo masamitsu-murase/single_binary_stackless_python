@@ -995,7 +995,7 @@ PyFrameObject *
 slp_clone_frame(PyFrameObject *f)
 {
     PyObject *tup, *func, *args;
-    PyFrameObject *fnew, *retval;
+    PyFrameObject *fnew;
 
     if (PyFrame_Check(f))
         tup = frameobject_reduce(f);
@@ -1003,18 +1003,35 @@ slp_clone_frame(PyFrameObject *f)
         tup = PyObject_CallMethod((PyObject *) f, "__reduce__", "");
     if (tup == NULL)
         return NULL;
+    if (!PyTuple_Check(tup)) {
+        PyErr_SetNone(PyExc_TypeError);
+        goto error;
+    }
+    if (PyTuple_GET_SIZE(tup) < 2) {
+        PyErr_SetNone(PyExc_ValueError);
+        goto error;
+    }
     func = PyTuple_GET_ITEM(tup, 0);
     args = PyTuple_GET_ITEM(tup, 1);
     fnew = (PyFrameObject *) PyObject_CallObject(func, args);
-    retval = fnew;
-    if (PyTuple_GET_SIZE(tup) == 3 && fnew != NULL) {
+    if (fnew == NULL) {
+        goto error;
+    }
+    if (PyTuple_GET_SIZE(tup) >= 3) {
+        PyObject *tmp;
         args = PyTuple_GET_ITEM(tup, 2);
-        if (PyObject_CallMethod((PyObject *) f, "__setstate__", "(O)", args) == NULL)
-            retval = NULL;
-        Py_DECREF(fnew);
+        tmp = PyObject_CallMethod((PyObject *) fnew, "__setstate__", "(O)", args);
+        Py_XDECREF(tmp);
+        if (tmp == NULL) {
+            Py_DECREF(fnew);
+            fnew = NULL;
+        }
     }
     Py_DECREF(tup);
-    return retval;
+    return fnew;
+error:
+    Py_DECREF(tup);
+    return NULL;
 }
 
 /*

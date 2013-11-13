@@ -1183,18 +1183,18 @@ tasklet_end(PyObject *retval)
         if (PyErr_ExceptionMatches(PyExc_SystemExit)) {
             /* but if it is truly a SystemExit on the main thread, we want the exit! */
             if (ts == slp_initial_tstate && !PyErr_ExceptionMatches(PyExc_TaskletExit)) {
-                handled = 1;
                 PyStackless_HandleSystemExit();
-            }
-            if (!ismain) {
+                handled = 1; /* exit returned, it wants us to silence it */
+            } else if (!ismain) {
                 /* deal with TaskletExit on a non-main tasklet */
-                PyErr_Clear();
-                Py_INCREF(Py_None);
-                retval = Py_None;
                 handled = 1;
             }
         }
-        if (!handled) {
+        if (handled) {
+            PyErr_Clear();
+            Py_INCREF(Py_None);
+            retval = Py_None;
+        } else {
             if (!ismain) {
                 /* non-main tasklets get the chance to handle errors.
                  * errors in the handlers (or a non-present one)

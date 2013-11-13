@@ -56,10 +56,11 @@ def main():
         for switch in flags:
             stackless.enable_softswitch(switch)
             testSuite = makeSuite(abs(target), path)
-            verbosity = 1 # or 0 to 2
+            verbosity = 1
+            #verbosity = 2  # to turn on verbose mode
             unittest.TextTestRunner(verbosity=verbosity).run(testSuite)
     finally:
         stackless.enable_softswitch(hold)
-        
+
 if __name__ == '__main__':
     main()

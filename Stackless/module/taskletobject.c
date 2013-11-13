@@ -44,6 +44,9 @@ slp_current_uninsert(PyTaskletObject *task)
     SLP_CHAIN_REMOVE(PyTaskletObject, chain, task, next, prev);
     *chain = hold;
     --ts->st.runcount;
+    assert(ts->st.runcount >= 0);
+    if (ts->st.runcount == 0)
+        assert(ts->st.current == NULL);
 }
 
 PyTaskletObject *
@@ -52,15 +55,38 @@ slp_current_remove(void)
     PyThreadState *ts = PyThreadState_GET();
     PyTaskletObject **chain = &ts->st.current, *ret;
 
+    /* make sure tasklet belongs to this thread */
+    assert((*chain)->cstate->tstate == ts);
+
     --ts->st.runcount;
+    assert(ts->st.runcount >= 0);
     SLP_CHAIN_REMOVE(PyTaskletObject, chain, ret, next, prev);
+    if (ts->st.runcount == 0)
+        assert(ts->st.current == NULL);
     return ret;
+}
+
+void
+slp_current_remove_tasklet(PyTaskletObject *task)
+{
+    PyThreadState *ts = task->cstate->tstate;
+    PyTaskletObject **chain = &ts->st.current, *ret, *hold;
+
+    --ts->st.runcount;
+    assert(ts->st.runcount >= 0);
+    hold = ts->st.current;
+    ts->st.current = task;
+    SLP_CHAIN_REMOVE(PyTaskletObject, chain, ret, next, prev);
+    if (hold != task)
+        ts->st.current = hold;
+    if (ts->st.runcount == 0)
+        assert(ts->st.current == NULL);
 }
 
 void
 slp_current_unremove(PyTaskletObject* task)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = task->cstate->tstate;
     slp_current_insert(task);
     ts->st.current = task;
 }
@@ -241,7 +267,7 @@ PyTasklet_New(PyTypeObject *type, PyObject *func)
 PyTaskletObject *
 PyTasklet_Bind(PyTaskletObject *task, PyObject *func)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = task->cstate->tstate;
 
     if (func != NULL && func != Py_None && !PyCallable_Check(func))
         TYPE_ERROR("tasklet function must be a callable or None", NULL);
@@ -439,6 +465,38 @@ tasklet_setstate(PyObject *self, PyObject *args)
     return self;
 }
 
+PyDoc_STRVAR(tasklet_bind_thread__doc__,
+"Attempts to re-bind the tasklet to the current thread.\n\
+If the tasklet has non-trivial c state, a RuntimeError is\n\
+raised.\n\
+");
+
+
+static PyObject *
+tasklet_bind_thread(PyObject *self, PyObject *args)
+{
+    PyTaskletObject *task = (PyTaskletObject *) self;
+    PyThreadState *ts = task->cstate->tstate;
+    PyThreadState *cts = PyThreadState_GET();
+    PyObject *old;
+
+    if (ts == cts)
+        Py_RETURN_NONE; /* already bound */
+
+    if (PyTasklet_Scheduled(task) && !task->flags.blocked) {
+        RUNTIME_ERROR("can't (re)bind a runnable tasklet", NULL);
+    }
+    if (tasklet_has_c_stack(task)) {
+        RUNTIME_ERROR("tasklet has C state on its stack", NULL);
+    }
+    
+    old = (PyObject*)task->cstate;
+    task->cstate = cts->st.initial_stub;
+    Py_INCREF(task->cstate);
+    Py_DECREF(old);
+    Py_RETURN_NONE;
+}
+
 /* other tasklet methods */
 
 PyDoc_STRVAR(tasklet_remove__doc__,
@@ -475,17 +533,18 @@ static TASKLET_REMOVE_HEAD(impl_tasklet_remove)
 
     assert(PyTasklet_Check(task));
     if (ts->st.main == NULL) return PyTasklet_Remove_M(task);
-
     assert(ts->st.current != NULL);
+
+    /* now, operate on the correct thread state */
+    ts = task->cstate->tstate;
+
     if (task->flags.blocked)
         RUNTIME_ERROR("You cannot remove a blocked tasklet.", -1);
     if (task == ts->st.current)
         RUNTIME_ERROR("The current tasklet cannot be removed.", -1);
     if (task->next == NULL)
         return 0;
-    ts->st.current = task;
-    slp_current_remove();
-    ts->st.current = hold;
+    slp_current_remove_tasklet(task);
     Py_DECREF(task);
     return 0;
 }
@@ -1057,11 +1116,17 @@ static TASKLET_KILL_HEAD(impl_tasklet_kill)
      * simple raising would kill ourself in this case.
      */
     if (slp_get_frame(task) == NULL) {
-        /* just clear it, typically a thread's main */
-        /* XXX not clear why this isn't covered in tasklet_end */
-        Py_TYPE(task)->tp_clear((PyObject *)task);
+        /* it can still be a new tasklet and not a dead one */
+        Py_CLEAR(task->f.cframe);
+        if (task->next) {
+            /* remove it from the run queue */
+            assert(!task->flags.blocked);
+            slp_current_remove_tasklet(task);
+            Py_DECREF(task);
+        }
         Py_RETURN_NONE;
     }
+
     /* we might be called after exceptions are gone */
     if (PyExc_TaskletExit == NULL) {
         PyExc_TaskletExit = PyUnicode_FromString("zombie");
@@ -1483,6 +1548,8 @@ static PyMethodDef tasklet_methods[] = {
      tasklet_reduce__doc__},
     {"__setstate__",            (PCF)tasklet_setstate,      METH_O,
      tasklet_setstate__doc__},
+    {"bind_thread",              (PCF)tasklet_bind_thread,  METH_NOARGS,
+    tasklet_bind_thread__doc__},
     {NULL,     NULL}             /* sentinel */
 };
 
