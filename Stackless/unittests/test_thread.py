@@ -206,6 +206,7 @@ class TestRebindCrash(SkipMixin, unittest.TestCase):
             end()
 
     def test_rebind(self):
+        self.skipUnlessSoftSwitching()
         result = []
         def job():
             result.append(thread.get_ident())
