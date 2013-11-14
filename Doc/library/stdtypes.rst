@@ -519,9 +519,8 @@ class`. In addition, it provides one more method:
         >>> int.from_bytes([255, 0, 0], byteorder='big')
         16711680
 
-    The argument *bytes* must either support the buffer protocol or be an
-    iterable producing bytes. :class:`bytes` and :class:`bytearray` are
-    examples of built-in objects that support the buffer protocol.
+    The argument *bytes* must either be a :term:`bytes-like object` or an
+    iterable producing bytes.
 
     The *byteorder* argument determines the byte order used to represent the
     integer.  If *byteorder* is ``"big"``, the most significant byte is at the
@@ -1417,10 +1416,9 @@ multiple fragments.
       single: bytes; str (built-in class)
 
    If at least one of *encoding* or *errors* is given, *object* should be a
-   :class:`bytes` or :class:`bytearray` object, or more generally any object
-   that supports the :ref:`buffer protocol <bufferobjects>`.  In this case, if
-   *object* is a :class:`bytes` (or :class:`bytearray`) object, then
-   ``str(bytes, encoding, errors)`` is equivalent to
+   :term:`bytes-like object` (e.g. :class:`bytes` or :class:`bytearray`).  In
+   this case, if *object* is a :class:`bytes` (or :class:`bytearray`) object,
+   then ``str(bytes, encoding, errors)`` is equivalent to
    :meth:`bytes.decode(encoding, errors) <bytes.decode>`.  Otherwise, the bytes
    object underlying the buffer object is obtained before calling
    :meth:`bytes.decode`.  See :ref:`binaryseq` and
@@ -1526,11 +1524,23 @@ expression support in the :mod:`re` module).
 
 .. method:: str.expandtabs([tabsize])
 
-   Return a copy of the string where all tab characters are replaced by zero or
-   more spaces, depending on the current column and the given tab size.  The
-   column number is reset to zero after each newline occurring in the string.
-   If *tabsize* is not given, a tab size of ``8`` characters is assumed.  This
-   doesn't understand other non-printing characters or escape sequences.
+   Return a copy of the string where all tab characters are replaced by one or
+   more spaces, depending on the current column and the given tab size.  Tab
+   positions occur every *tabsize* characters (default is 8, giving tab
+   positions at columns 0, 8, 16 and so on).  To expand the string, the current
+   column is set to zero and the string is examined character by character.  If
+   the character is a tab (``\t``), one or more space characters are inserted
+   in the result until the current column is equal to the next tab position.
+   (The tab character itself is not copied.)  If the character is a newline
+   (``\n``) or return (``\r``), it is copied and the current column is reset to
+   zero.  Any other character is copied unchanged and the current column is
+   incremented by one regardless of how the character is represented when
+   printed.
+
+      >>> '01\t012\t0123\t01234'.expandtabs()
+      '01      012     0123    01234'
+      >>> '01\t012\t0123\t01234'.expandtabs(4)
+      '01  012 0123    01234'
 
 
 .. method:: str.find(sub[, start[, end]])
@@ -1627,6 +1637,8 @@ expression support in the :mod:`re` module).
    Return true if the string is a valid identifier according to the language
    definition, section :ref:`identifiers`.
 
+   Use :func:`keyword.iskeyword` to test for reserved identifiers such as
+   :keyword:`def` and :keyword:`class`.
 
 .. method:: str.islower()
 
@@ -2637,7 +2649,7 @@ copying.
          >>> z.nbytes
          48
 
-      Cast 1D/unsigned char to to 2D/unsigned long::
+      Cast 1D/unsigned char to 2D/unsigned long::
 
          >>> buf = struct.pack("L"*6, *list(range(6)))
          >>> x = memoryview(buf)
@@ -2809,9 +2821,10 @@ The constructors for both classes work the same:
            frozenset([iterable])
 
    Return a new set or frozenset object whose elements are taken from
-   *iterable*.  The elements of a set must be hashable.  To represent sets of
-   sets, the inner sets must be :class:`frozenset` objects.  If *iterable* is
-   not specified, a new empty set is returned.
+   *iterable*.  The elements of a set must be :term:`hashable`.  To
+   represent sets of sets, the inner sets must be :class:`frozenset`
+   objects.  If *iterable* is not specified, a new empty set is
+   returned.
 
    Instances of :class:`set` and :class:`frozenset` provide the following
    operations:
@@ -2896,8 +2909,8 @@ The constructors for both classes work the same:
    based on their members.  For example, ``set('abc') == frozenset('abc')``
    returns ``True`` and so does ``set('abc') in set([frozenset('abc')])``.
 
-   The subset and equality comparisons do not generalize to a complete ordering
-   function.  For example, any two disjoint sets are not equal and are not
+   The subset and equality comparisons do not generalize to a total ordering
+   function.  For example, any two nonempty disjoint sets are not equal and are not
    subsets of each other, so *all* of the following return ``False``: ``a<b``,
    ``a==b``, or ``a>b``.
 

@@ -364,9 +364,9 @@ The :mod:`test.support` module defines the following functions:
 
 .. function:: captured_stdout()
 
-   A context manager that runs the :keyword:`with` statement body using
-   a :class:`StringIO.StringIO` object as sys.stdout.  That object can be
-   retrieved using the ``as`` clause of the :keyword:`with` statement.
+   A context manager that runs the :keyword:`with` statement body using a
+   :class:`io.StringIO` object as sys.stdout.  That object can be retrieved
+   using the ``as`` clause of the :keyword:`with` statement.
 
    Example use::
 
@@ -403,6 +403,13 @@ The :mod:`test.support` module defines the following functions:
 .. decorator:: skip_unless_symlink()
 
    A decorator for running tests that require support for symbolic links.
+
+
+.. function:: suppress_crash_popup()
+
+   A context manager that disables Windows Error Reporting dialogs using
+   `SetErrorMode <http://msdn.microsoft.com/en-us/library/windows/desktop/ms680621%28v=vs.85%29.aspx>`_.
+   On other platforms it's a no-op.
 
 
 .. decorator:: anticipate_failure(condition)

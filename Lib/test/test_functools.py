@@ -179,6 +179,25 @@ class TestPartial(unittest.TestCase):
         f_copy = pickle.loads(pickle.dumps(f))
         self.assertEqual(signature(f), signature(f_copy))
 
+    # Issue 6083: Reference counting bug
+    def test_setstate_refcount(self):
+        class BadSequence:
+            def __len__(self):
+                return 4
+            def __getitem__(self, key):
+                if key == 0:
+                    return max
+                elif key == 1:
+                    return tuple(range(1000000))
+                elif key in (2, 3):
+                    return {}
+                raise IndexError
+
+        f = self.thetype(object)
+        self.assertRaisesRegex(SystemError,
+                "new style getargs format but argument is not a tuple",
+                f.__setstate__, BadSequence())
+
 class PartialSubclass(functools.partial):
     pass
 
@@ -195,6 +214,7 @@ class TestPythonPartial(TestPartial):
 
     # the python version isn't picklable
     def test_pickle(self): pass
+    def test_setstate_refcount(self): pass
 
 class TestUpdateWrapper(unittest.TestCase):
 
@@ -756,6 +776,31 @@ class TestLRU(unittest.TestCase):
             self.assertEqual(type(square(x=3.0)), type(9.0))
             self.assertEqual(square.cache_info().hits, 4)
             self.assertEqual(square.cache_info().misses, 4)
+
+    def test_need_for_rlock(self):
+        # This will deadlock on an LRU cache that uses a regular lock
+
+        @functools.lru_cache(maxsize=10)
+        def test_func(x):
+            'Used to demonstrate a reentrant lru_cache call within a single thread'
+            return x
+
+        class DoubleEq:
+            'Demonstrate a reentrant lru_cache call within a single thread'
+            def __init__(self, x):
+                self.x = x
+            def __hash__(self):
+                return self.x
+            def __eq__(self, other):
+                if self.x == 2:
+                    test_func(DoubleEq(1))
+                return self.x == other.x
+
+        test_func(DoubleEq(1))                      # Load the cache
+        test_func(DoubleEq(2))                      # Load the cache
+        self.assertEqual(test_func(DoubleEq(2)),    # Trigger a re-entrant __eq__ call
+                         DoubleEq(2))               # Verify the correct return value
+
 
 def test_main(verbose=None):
     test_classes = (

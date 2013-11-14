@@ -582,10 +582,10 @@ class AbstractPickleTests(unittest.TestCase):
         i = C()
         i.attr = i
         for proto in protocols:
-            s = self.dumps(i, 2)
+            s = self.dumps(i, proto)
             x = self.loads(s)
             self.assertEqual(dir(x), dir(i))
-            self.assertTrue(x.attr is x)
+            self.assertIs(x.attr, x)
 
     def test_recursive_multi(self):
         l = []
@@ -613,6 +613,14 @@ class AbstractPickleTests(unittest.TestCase):
                     b"'abc\"", # open quote and close quote don't match
                     b"'abc'   ?", # junk after close quote
                     b"'\\'", # trailing backslash
+                    # Variations on issue #17710
+                    b"'",
+                    b'"',
+                    b"' ",
+                    b"'  ",
+                    b"'   ",
+                    b"'    ",
+                    b'"    ',
                     # some tests of the quoting rules
                     ## b"'abc\"\''",
                     ## b"'\\\\a\'\'\'\\\'\\\\\''",
@@ -642,13 +650,13 @@ class AbstractPickleTests(unittest.TestCase):
     def test_bytes(self):
         for proto in protocols:
             for s in b'', b'xyz', b'xyz'*100:
-                p = self.dumps(s)
+                p = self.dumps(s, proto)
                 self.assertEqual(self.loads(p), s)
             for s in [bytes([i]) for i in range(256)]:
-                p = self.dumps(s)
+                p = self.dumps(s, proto)
                 self.assertEqual(self.loads(p), s)
             for s in [bytes([i, i]) for i in range(256)]:
-                p = self.dumps(s)
+                p = self.dumps(s, proto)
                 self.assertEqual(self.loads(p), s)
 
     def test_ints(self):
@@ -1210,6 +1218,29 @@ class AbstractPickleTests(unittest.TestCase):
         dumped = b'\x80\x03X\x01\x00\x00\x00ar\xff\xff\xff\xff.'
         self.assertRaises(ValueError, self.loads, dumped)
 
+    def _check_pickling_with_opcode(self, obj, opcode, proto):
+        pickled = self.dumps(obj, proto)
+        self.assertTrue(opcode_in_pickle(opcode, pickled))
+        unpickled = self.loads(pickled)
+        self.assertEqual(obj, unpickled)
+
+    def test_appends_on_non_lists(self):
+        # Issue #17720
+        obj = REX_six([1, 2, 3])
+        for proto in protocols:
+            if proto == 0:
+                self._check_pickling_with_opcode(obj, pickle.APPEND, proto)
+            else:
+                self._check_pickling_with_opcode(obj, pickle.APPENDS, proto)
+
+    def test_setitems_on_non_dicts(self):
+        obj = REX_seven({1: -1, 2: -2, 3: -3})
+        for proto in protocols:
+            if proto == 0:
+                self._check_pickling_with_opcode(obj, pickle.SETITEM, proto)
+            else:
+                self._check_pickling_with_opcode(obj, pickle.SETITEMS, proto)
+
 
 class BigmemPickleTests(unittest.TestCase):
 
@@ -1295,18 +1326,18 @@ class BigmemPickleTests(unittest.TestCase):
 # Test classes for reduce_ex
 
 class REX_one(object):
+    """No __reduce_ex__ here, but inheriting it from object"""
     _reduce_called = 0
     def __reduce__(self):
         self._reduce_called = 1
         return REX_one, ()
-    # No __reduce_ex__ here, but inheriting it from object
 
 class REX_two(object):
+    """No __reduce__ here, but inheriting it from object"""
     _proto = None
     def __reduce_ex__(self, proto):
         self._proto = proto
         return REX_two, ()
-    # No __reduce__ here, but inheriting it from object
 
 class REX_three(object):
     _proto = None
@@ -1317,18 +1348,45 @@ class REX_three(object):
         raise TestFailed("This __reduce__ shouldn't be called")
 
 class REX_four(object):
+    """Calling base class method should succeed"""
     _proto = None
     def __reduce_ex__(self, proto):
         self._proto = proto
         return object.__reduce_ex__(self, proto)
-    # Calling base class method should succeed
 
 class REX_five(object):
+    """This one used to fail with infinite recursion"""
     _reduce_called = 0
     def __reduce__(self):
         self._reduce_called = 1
         return object.__reduce__(self)
-    # This one used to fail with infinite recursion
+
+class REX_six(object):
+    """This class is used to check the 4th argument (list iterator) of the reduce
+    protocol.
+    """
+    def __init__(self, items=None):
+        self.items = items if items is not None else []
+    def __eq__(self, other):
+        return type(self) is type(other) and self.items == self.items
+    def append(self, item):
+        self.items.append(item)
+    def __reduce__(self):
+        return type(self), (), None, iter(self.items), None
+
+class REX_seven(object):
+    """This class is used to check the 5th argument (dict iterator) of the reduce
+    protocol.
+    """
+    def __init__(self, table=None):
+        self.table = table if table is not None else {}
+    def __eq__(self, other):
+        return type(self) is type(other) and self.table == self.table
+    def __setitem__(self, key, value):
+        self.table[key] = value
+    def __reduce__(self):
+        return type(self), (), None, None, iter(self.table.items())
+
 
 # Test classes for newobj
 

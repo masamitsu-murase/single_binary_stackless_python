@@ -986,7 +986,7 @@ class _Unpickler:
         rep = orig[:-1]
         for q in (b'"', b"'"): # double or single quote
             if rep.startswith(q):
-                if not rep.endswith(q):
+                if len(rep) < 2 or not rep.endswith(q):
                     raise ValueError("insecure string pickle")
                 rep = rep[len(q):-len(q)]
                 break
@@ -1243,8 +1243,14 @@ class _Unpickler:
     def load_appends(self):
         stack = self.stack
         mark = self.marker()
-        list = stack[mark - 1]
-        list.extend(stack[mark + 1:])
+        list_obj = stack[mark - 1]
+        items = stack[mark + 1:]
+        if isinstance(list_obj, list):
+            list_obj.extend(items)
+        else:
+            append = list_obj.append
+            for item in items:
+                append(item)
         del stack[mark:]
     dispatch[APPENDS[0]] = load_appends
 

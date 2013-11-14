@@ -695,7 +695,7 @@ have to create a dictionary and unpack it using `**`:
    Fetching a `PropertyMock` instance from an object calls the mock, with
    no args. Setting it calls the mock with the value being set.
 
-        >>> class Foo(object):
+        >>> class Foo:
         ...     @property
         ...     def foo(self):
         ...         return 'something'
@@ -867,6 +867,25 @@ will raise an `AttributeError`.
     AttributeError: f
 
 
+Mock names and the name attribute
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Since "name" is an argument to the :class:`Mock` constructor, if you want your
+mock object to have a "name" attribute you can't just pass it in at creation
+time. There are two alternatives. One option is to use
+:meth:`~Mock.configure_mock`::
+
+    >>> mock = MagicMock()
+    >>> mock.configure_mock(name='my_name')
+    >>> mock.name
+    'my_name'
+
+A simpler option is to simply set the "name" attribute after mock creation::
+
+    >>> mock = MagicMock()
+    >>> mock.name = "foo"
+
+
 Attaching Mocks as Attributes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -926,7 +945,7 @@ method:
 
 
 The patchers
-============
+------------
 
 The patch decorators are used for patching objects only within the scope of
 the function they decorate. They automatically handle the unpatching for you,
@@ -935,7 +954,7 @@ statements or as class decorators.
 
 
 patch
------
+~~~~~
 
 .. note::
 
@@ -988,7 +1007,7 @@ patch
     you pass in `create=True`, and the attribute doesn't exist, patch will
     create the attribute for you when the patched function is called, and
     delete it again afterwards. This is useful for writing tests against
-    attributes that your production code creates at runtime. It is off by by
+    attributes that your production code creates at runtime. It is off by
     default because it can be dangerous. With it switched on you can write
     passing tests against APIs that don't actually exist!
 
@@ -1031,7 +1050,7 @@ can set the `return_value` to be anything you want.
 To configure return values on methods of *instances* on the patched class
 you must do this on the `return_value`. For example:
 
-    >>> class Class(object):
+    >>> class Class:
     ...     def method(self):
     ...         pass
     ...
@@ -1108,7 +1127,7 @@ into a `patch` call using `**`:
 
 
 patch.object
-------------
+~~~~~~~~~~~~
 
 .. function:: patch.object(target, attribute, new=DEFAULT, spec=None, create=False, spec_set=None, autospec=None, new_callable=None, **kwargs)
 
@@ -1144,7 +1163,7 @@ meaning as they do for `patch`.
 
 
 patch.dict
-----------
+~~~~~~~~~~
 
 .. function:: patch.dict(in_dict, values=(), clear=False, **kwargs)
 
@@ -1204,7 +1223,7 @@ deleting and either iteration or membership test. This corresponds to the
 magic methods `__getitem__`, `__setitem__`, `__delitem__` and either
 `__iter__` or `__contains__`.
 
-    >>> class Container(object):
+    >>> class Container:
     ...     def __init__(self):
     ...         self.values = {}
     ...     def __getitem__(self, name):
@@ -1227,7 +1246,7 @@ magic methods `__getitem__`, `__setitem__`, `__delitem__` and either
 
 
 patch.multiple
---------------
+~~~~~~~~~~~~~~
 
 .. function:: patch.multiple(target, spec=None, create=False, spec_set=None, autospec=None, new_callable=None, **kwargs)
 
@@ -1291,7 +1310,7 @@ context manger is a dictionary where created mocks are keyed by name:
 .. _start-and-stop:
 
 patch methods: start and stop
------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 All the patchers have `start` and `stop` methods. These make it simpler to do
 patching in `setUp` methods or where you want to do multiple patches without
@@ -1364,7 +1383,7 @@ It is also possible to stop all patches which have been started by using
 
 
 TEST_PREFIX
------------
+~~~~~~~~~~~
 
 All of the patchers can be used as class decorators. When used in this way
 they wrap every test method on the class. The patchers recognise methods that
@@ -1378,7 +1397,7 @@ inform the patchers of the different prefix by setting `patch.TEST_PREFIX`:
     >>> value = 3
     >>>
     >>> @patch('__main__.value', 'not three')
-    ... class Thing(object):
+    ... class Thing:
     ...     def foo_one(self):
     ...         print value
     ...     def foo_two(self):
@@ -1394,7 +1413,7 @@ inform the patchers of the different prefix by setting `patch.TEST_PREFIX`:
 
 
 Nesting Patch Decorators
-------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you want to perform multiple patches then you can simply stack up the
 decorators.
@@ -1423,7 +1442,7 @@ passed into your test function matches this order.
 .. _where-to-patch:
 
 Where to patch
---------------
+~~~~~~~~~~~~~~
 
 `patch` works by (temporarily) changing the object that a *name* points to with
 another one. There can be many names pointing to any individual object, so
@@ -1465,7 +1484,7 @@ being looked up on the a module and so we have to patch `a.SomeClass` instead::
 
 
 Patching Descriptors and Proxy Objects
---------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Both patch_ and patch.object_ correctly patch and restore descriptors: class
 methods, static methods and properties. You should patch these on the *class*
@@ -1475,12 +1494,12 @@ that proxy attribute access, like the `django setttings object
 
 
 MagicMock and magic method support
-==================================
+----------------------------------
 
 .. _magic-methods:
 
 Mocking Magic Methods
----------------------
+~~~~~~~~~~~~~~~~~~~~~
 
 :class:`Mock` supports mocking the Python protocol methods, also known as
 "magic methods". This allows mock objects to replace containers or other
@@ -1566,7 +1585,7 @@ by mock, can't be set dynamically, or can cause problems:
 
 
 Magic Mock
-----------
+~~~~~~~~~~
 
 There are two `MagicMock` variants: `MagicMock` and `NonCallableMagicMock`.
 
@@ -1695,10 +1714,10 @@ Magic methods that are supported but not setup by default in ``MagicMock`` are:
 
 
 Helpers
-=======
+-------
 
 sentinel
---------
+~~~~~~~~
 
 .. data:: sentinel
 
@@ -1726,7 +1745,7 @@ In this example we monkey patch `method` to return `sentinel.some_object`:
 
 
 DEFAULT
--------
+~~~~~~~
 
 
 .. data:: DEFAULT
@@ -1736,9 +1755,8 @@ DEFAULT
     functions to indicate that the normal return value should be used.
 
 
-
 call
-----
+~~~~
 
 .. function:: call(*args, **kwargs)
 
@@ -1827,7 +1845,7 @@ arguments are a dictionary:
 
 
 create_autospec
----------------
+~~~~~~~~~~~~~~~
 
 .. function:: create_autospec(spec, spec_set=False, instance=False, **kwargs)
 
@@ -1854,7 +1872,7 @@ See :ref:`auto-speccing` for examples of how to use auto-speccing with
 
 
 ANY
----
+~~~
 
 .. data:: ANY
 
@@ -1885,7 +1903,7 @@ passed in.
 
 
 FILTER_DIR
-----------
+~~~~~~~~~~
 
 .. data:: FILTER_DIR
 
@@ -1940,7 +1958,7 @@ Alternatively you can just use `vars(my_mock)` (instance members) and
 
 
 mock_open
----------
+~~~~~~~~~
 
 .. function:: mock_open(mock=None, read_data=None)
 
@@ -1994,7 +2012,7 @@ And for reading files:
 .. _auto-speccing:
 
 Autospeccing
-------------
+~~~~~~~~~~~~
 
 Autospeccing is based on the existing `spec` feature of mock. It limits the
 api of mocks to the api of an original object (the spec), but it is recursive
@@ -2138,7 +2156,7 @@ created in the `__init__` method and not to exist on the class at all.
 `autospec` can't know about any dynamically created attributes and restricts
 the api to visible attributes.
 
-    >>> class Something(object):
+    >>> class Something:
     ...   def __init__(self):
     ...     self.a = 33
     ...
@@ -2181,7 +2199,7 @@ class attributes (shared between instances of course) is faster too. e.g.
 
 .. code-block:: python
 
-    class Something(object):
+    class Something:
         a = 33
 
 This brings up another issue. It is relatively common to provide a default
@@ -2192,7 +2210,7 @@ spec, and probably indicates a member that will normally of some other type,
 `autospec` doesn't use a spec for members that are set to `None`. These will
 just be ordinary mocks (well - `MagicMocks`):
 
-    >>> class Something(object):
+    >>> class Something:
     ...     member = None
     ...
     >>> mock = create_autospec(Something)
@@ -2207,7 +2225,7 @@ production class. Both of these require you to use an alternative object as
 the spec. Thankfully `patch` supports this - you can simply pass the
 alternative object as the `autospec` argument:
 
-    >>> class Something(object):
+    >>> class Something:
     ...   def __init__(self):
     ...     self.a = 33
     ...

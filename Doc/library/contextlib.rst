@@ -259,11 +259,12 @@ Functions and classes provided:
 
          with ExitStack() as stack:
              files = [stack.enter_context(open(fname)) for fname in filenames]
+             # Hold onto the close method, but don't call it yet.
              close_files = stack.pop_all().close
              # If opening any file fails, all previously opened files will be
              # closed automatically. If all files are opened successfully,
              # they will remain open even after the with statement ends.
-             # close_files() can then be invoked explicitly to close them all
+             # close_files() can then be invoked explicitly to close them all.
 
    .. method:: close()
 
@@ -361,7 +362,7 @@ and maps them to the context management protocol::
 
    from contextlib import contextmanager, ExitStack
 
-   class ResourceManager(object):
+   class ResourceManager:
 
        def __init__(self, acquire_resource, release_resource, check_resource_ok=None):
            self.acquire_resource = acquire_resource

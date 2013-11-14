@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright 2001-2012 by Vinay Sajip. All Rights Reserved.
+# Copyright 2001-2013 by Vinay Sajip. All Rights Reserved.
 #
 # Permission to use, copy, modify, and distribute this software and its
 # documentation for any purpose and without fee is hereby granted,
@@ -18,7 +18,7 @@
 
 """Test harness for the logging module. Run all tests.
 
-Copyright (C) 2001-2012 Vinay Sajip. All Rights Reserved.
+Copyright (C) 2001-2013 Vinay Sajip. All Rights Reserved.
 """
 
 import logging
@@ -1257,9 +1257,30 @@ class ConfigFileTest(BaseTest):
     datefmt=
     """
 
-    def apply_config(self, conf):
+    disable_test = """
+    [loggers]
+    keys=root
+
+    [handlers]
+    keys=screen
+
+    [formatters]
+    keys=
+
+    [logger_root]
+    level=DEBUG
+    handlers=screen
+
+    [handler_screen]
+    level=DEBUG
+    class=StreamHandler
+    args=(sys.stdout,)
+    formatter=
+    """
+
+    def apply_config(self, conf, **kwargs):
         file = io.StringIO(textwrap.dedent(conf))
-        logging.config.fileConfig(file)
+        logging.config.fileConfig(file, **kwargs)
 
     def test_config0_ok(self):
         # A simple config file which overrides the default settings.
@@ -1362,6 +1383,15 @@ class ConfigFileTest(BaseTest):
             ], stream=output)
             # Original logger output is empty.
             self.assert_log_lines([])
+
+    def test_logger_disabling(self):
+        self.apply_config(self.disable_test)
+        logger = logging.getLogger('foo')
+        self.assertFalse(logger.disabled)
+        self.apply_config(self.disable_test)
+        self.assertTrue(logger.disabled)
+        self.apply_config(self.disable_test, disable_existing_loggers=False)
+        self.assertFalse(logger.disabled)
 
 
 @unittest.skipUnless(threading, 'Threading required for this test.')
@@ -2364,6 +2394,37 @@ class ConfigDictTest(BaseTest):
         },
     }
 
+    out_of_order = {
+        "version": 1,
+        "formatters": {
+            "mySimpleFormatter": {
+                "format": "%(asctime)s (%(name)s) %(levelname)s: %(message)s",
+                "style": "$"
+            }
+        },
+        "handlers": {
+            "fileGlobal": {
+                "class": "logging.StreamHandler",
+                "level": "DEBUG",
+                "formatter": "mySimpleFormatter"
+            },
+            "bufferGlobal": {
+                "class": "logging.handlers.MemoryHandler",
+                "capacity": 5,
+                "formatter": "mySimpleFormatter",
+                "target": "fileGlobal",
+                "level": "DEBUG"
+                }
+        },
+        "loggers": {
+            "mymodule": {
+                "level": "DEBUG",
+                "handlers": ["bufferGlobal"],
+                "propagate": "true"
+            }
+        }
+    }
+
     def apply_config(self, conf):
         logging.config.dictConfig(conf)
 
@@ -2663,6 +2724,13 @@ class ConfigDictTest(BaseTest):
             ], stream=output)
             # Original logger output is empty.
             self.assert_log_lines([])
+
+    def test_out_of_order(self):
+        self.apply_config(self.out_of_order)
+        handler = logging.getLogger('mymodule').handlers[0]
+        self.assertIsInstance(handler.target, logging.Handler)
+        self.assertIsInstance(handler.formatter._style,
+                              logging.StringTemplateStyle)
 
     def test_baseconfig(self):
         d = {

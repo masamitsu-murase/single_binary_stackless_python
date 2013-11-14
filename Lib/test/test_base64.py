@@ -22,6 +22,8 @@ class LegacyBase64TestCase(unittest.TestCase):
            b"YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXpBQkNE"
            b"RUZHSElKS0xNTk9QUVJTVFVWV1hZWjAxMjM0\nNT"
            b"Y3ODkhQCMwXiYqKCk7Ojw+LC4gW117fQ==\n")
+        # Non-bytes
+        eq(base64.encodebytes(bytearray(b'abc')), b'YWJj\n')
         self.assertRaises(TypeError, base64.encodebytes, "")
 
     def test_decodebytes(self):
@@ -37,11 +39,13 @@ class LegacyBase64TestCase(unittest.TestCase):
            b"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
            b"0123456789!@#0^&*();:<>,. []{}")
         eq(base64.decodebytes(b''), b'')
+        # Non-bytes
+        eq(base64.decodebytes(bytearray(b'YWJj\n')), b'abc')
         self.assertRaises(TypeError, base64.decodebytes, "")
 
     def test_encode(self):
         eq = self.assertEqual
-        from io import BytesIO
+        from io import BytesIO, StringIO
         infp = BytesIO(b'abcdefghijklmnopqrstuvwxyz'
                        b'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
                        b'0123456789!@#0^&*();:<>,. []{}')
@@ -51,13 +55,21 @@ class LegacyBase64TestCase(unittest.TestCase):
            b'YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXpBQkNE'
            b'RUZHSElKS0xNTk9QUVJTVFVWV1hZWjAxMjM0\nNT'
            b'Y3ODkhQCMwXiYqKCk7Ojw+LC4gW117fQ==\n')
+        # Non-binary files
+        self.assertRaises(TypeError, base64.encode, StringIO('abc'), BytesIO())
+        self.assertRaises(TypeError, base64.encode, BytesIO(b'abc'), StringIO())
+        self.assertRaises(TypeError, base64.encode, StringIO('abc'), StringIO())
 
     def test_decode(self):
-        from io import BytesIO
+        from io import BytesIO, StringIO
         infp = BytesIO(b'd3d3LnB5dGhvbi5vcmc=')
         outfp = BytesIO()
         base64.decode(infp, outfp)
         self.assertEqual(outfp.getvalue(), b'www.python.org')
+        # Non-binary files
+        self.assertRaises(TypeError, base64.encode, StringIO('YWJj\n'), BytesIO())
+        self.assertRaises(TypeError, base64.encode, BytesIO(b'YWJj\n'), StringIO())
+        self.assertRaises(TypeError, base64.encode, StringIO('YWJj\n'), StringIO())
 
 
 class BaseXYTestCase(unittest.TestCase):
@@ -78,6 +90,10 @@ class BaseXYTestCase(unittest.TestCase):
            b"Y3ODkhQCMwXiYqKCk7Ojw+LC4gW117fQ==")
         # Test with arbitrary alternative characters
         eq(base64.b64encode(b'\xd3V\xbeo\xf7\x1d', altchars=b'*$'), b'01a*b$cd')
+        # Non-bytes
+        eq(base64.b64encode(bytearray(b'abcd')), b'YWJjZA==')
+        eq(base64.b64encode(b'\xd3V\xbeo\xf7\x1d', altchars=bytearray(b'*$')),
+           b'01a*b$cd')
         # Check if passing a str object raises an error
         self.assertRaises(TypeError, base64.b64encode, "")
         self.assertRaises(TypeError, base64.b64encode, b"", altchars="")
@@ -93,11 +109,14 @@ class BaseXYTestCase(unittest.TestCase):
            b"YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXpBQkNE"
            b"RUZHSElKS0xNTk9QUVJTVFVWV1hZWjAxMjM0NT"
            b"Y3ODkhQCMwXiYqKCk7Ojw+LC4gW117fQ==")
+        # Non-bytes
+        eq(base64.standard_b64encode(bytearray(b'abcd')), b'YWJjZA==')
         # Check if passing a str object raises an error
         self.assertRaises(TypeError, base64.standard_b64encode, "")
-        self.assertRaises(TypeError, base64.standard_b64encode, b"", altchars="")
         # Test with 'URL safe' alternative characters
         eq(base64.urlsafe_b64encode(b'\xd3V\xbeo\xf7\x1d'), b'01a-b_cd')
+        # Non-bytes
+        eq(base64.urlsafe_b64encode(bytearray(b'\xd3V\xbeo\xf7\x1d')), b'01a-b_cd')
         # Check if passing a str object raises an error
         self.assertRaises(TypeError, base64.urlsafe_b64encode, "")
 
@@ -121,6 +140,8 @@ class BaseXYTestCase(unittest.TestCase):
         for data, res in tests.items():
             eq(base64.b64decode(data), res)
             eq(base64.b64decode(data.decode('ascii')), res)
+        # Non-bytes
+        eq(base64.b64decode(bytearray(b"YWJj")), b"abc")
 
         # Test with arbitrary alternative characters
         tests_altchars = {(b'01a*b$cd', b'*$'): b'\xd3V\xbeo\xf7\x1d',
@@ -138,6 +159,8 @@ class BaseXYTestCase(unittest.TestCase):
         for data, res in tests.items():
             eq(base64.standard_b64decode(data), res)
             eq(base64.standard_b64decode(data.decode('ascii')), res)
+        # Non-bytes
+        eq(base64.standard_b64decode(bytearray(b"YWJj")), b"abc")
 
         # Test with 'URL safe' alternative characters
         tests_urlsafe = {b'01a-b_cd': b'\xd3V\xbeo\xf7\x1d',
@@ -146,6 +169,8 @@ class BaseXYTestCase(unittest.TestCase):
         for data, res in tests_urlsafe.items():
             eq(base64.urlsafe_b64decode(data), res)
             eq(base64.urlsafe_b64decode(data.decode('ascii')), res)
+        # Non-bytes
+        eq(base64.urlsafe_b64decode(bytearray(b'01a-b_cd')), b'\xd3V\xbeo\xf7\x1d')
 
     def test_b64decode_padding_error(self):
         self.assertRaises(binascii.Error, base64.b64decode, b'abc')
@@ -179,6 +204,8 @@ class BaseXYTestCase(unittest.TestCase):
         eq(base64.b32encode(b'abc'), b'MFRGG===')
         eq(base64.b32encode(b'abcd'), b'MFRGGZA=')
         eq(base64.b32encode(b'abcde'), b'MFRGGZDF')
+        # Non-bytes
+        eq(base64.b32encode(bytearray(b'abcd')), b'MFRGGZA=')
         self.assertRaises(TypeError, base64.b32encode, "")
 
     def test_b32decode(self):
@@ -194,6 +221,8 @@ class BaseXYTestCase(unittest.TestCase):
         for data, res in tests.items():
             eq(base64.b32decode(data), res)
             eq(base64.b32decode(data.decode('ascii')), res)
+        # Non-bytes
+        eq(base64.b32decode(bytearray(b'MFRGG===')), b'abc')
 
     def test_b32decode_casefold(self):
         eq = self.assertEqual
@@ -245,6 +274,8 @@ class BaseXYTestCase(unittest.TestCase):
         eq = self.assertEqual
         eq(base64.b16encode(b'\x01\x02\xab\xcd\xef'), b'0102ABCDEF')
         eq(base64.b16encode(b'\x00'), b'00')
+        # Non-bytes
+        eq(base64.b16encode(bytearray(b'\x01\x02\xab\xcd\xef')), b'0102ABCDEF')
         self.assertRaises(TypeError, base64.b16encode, "")
 
     def test_b16decode(self):
@@ -259,6 +290,8 @@ class BaseXYTestCase(unittest.TestCase):
         # Case fold
         eq(base64.b16decode(b'0102abcdef', True), b'\x01\x02\xab\xcd\xef')
         eq(base64.b16decode('0102abcdef', True), b'\x01\x02\xab\xcd\xef')
+        # Non-bytes
+        eq(base64.b16decode(bytearray(b"0102ABCDEF")), b'\x01\x02\xab\xcd\xef')
 
     def test_decode_nonascii_str(self):
         decode_funcs = (base64.b64decode,

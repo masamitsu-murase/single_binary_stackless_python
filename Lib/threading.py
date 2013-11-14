@@ -248,31 +248,29 @@ class Semaphore:
             raise ValueError("can't specify timeout for non-blocking acquire")
         rc = False
         endtime = None
-        self._cond.acquire()
-        while self._value == 0:
-            if not blocking:
-                break
-            if timeout is not None:
-                if endtime is None:
-                    endtime = _time() + timeout
-                else:
-                    timeout = endtime - _time()
-                    if timeout <= 0:
-                        break
-            self._cond.wait(timeout)
-        else:
-            self._value = self._value - 1
-            rc = True
-        self._cond.release()
+        with self._cond:
+            while self._value == 0:
+                if not blocking:
+                    break
+                if timeout is not None:
+                    if endtime is None:
+                        endtime = _time() + timeout
+                    else:
+                        timeout = endtime - _time()
+                        if timeout <= 0:
+                            break
+                self._cond.wait(timeout)
+            else:
+                self._value = self._value - 1
+                rc = True
         return rc
 
     __enter__ = acquire
 
     def release(self):
-        self._cond.acquire()
-        self._value = self._value + 1
-        self._cond.notify()
-        self._cond.release()
+        with self._cond:
+            self._value = self._value + 1
+            self._cond.notify()
 
     def __exit__(self, t, v, tb):
         self.release()
@@ -802,17 +800,17 @@ class Thread:
 class Timer(Thread):
     """Call a function after a specified number of seconds:
 
-    t = Timer(30.0, f, args=[], kwargs={})
+    t = Timer(30.0, f, args=None, kwargs=None)
     t.start()
     t.cancel() # stop the timer's action if it's still waiting
     """
 
-    def __init__(self, interval, function, args=[], kwargs={}):
+    def __init__(self, interval, function, args=None, kwargs=None):
         Thread.__init__(self)
         self.interval = interval
         self.function = function
-        self.args = args
-        self.kwargs = kwargs
+        self.args = args if args is not None else []
+        self.kwargs = kwargs if kwargs is not None else {}
         self.finished = Event()
 
     def cancel(self):

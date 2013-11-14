@@ -1072,6 +1072,12 @@ class CBufferedReaderTest(BufferedReaderTest, SizeofTest):
         support.gc_collect()
         self.assertTrue(wr() is None, wr)
 
+    def test_args_error(self):
+        # Issue #17275
+        with self.assertRaisesRegex(TypeError, "BufferedReader"):
+            self.tp(io.BytesIO(), 1024, 1024, 1024)
+
+
 class PyBufferedReaderTest(BufferedReaderTest):
     tp = pyio.BufferedReader
 
@@ -1362,6 +1368,11 @@ class CBufferedWriterTest(BufferedWriterTest, SizeofTest):
         self.assertTrue(wr() is None, wr)
         with self.open(support.TESTFN, "rb") as f:
             self.assertEqual(f.read(), b"123xxx")
+
+    def test_args_error(self):
+        # Issue #17275
+        with self.assertRaisesRegex(TypeError, "BufferedWriter"):
+            self.tp(io.BytesIO(), 1024, 1024, 1024)
 
 
 class PyBufferedWriterTest(BufferedWriterTest):
@@ -1715,6 +1726,7 @@ class BufferedRandomTest(BufferedReaderTest, BufferedWriterTest):
     # You can't construct a BufferedRandom over a non-seekable stream.
     test_unseekable = None
 
+
 class CBufferedRandomTest(BufferedRandomTest, SizeofTest):
     tp = io.BufferedRandom
 
@@ -1731,6 +1743,12 @@ class CBufferedRandomTest(BufferedRandomTest, SizeofTest):
     def test_garbage_collection(self):
         CBufferedReaderTest.test_garbage_collection(self)
         CBufferedWriterTest.test_garbage_collection(self)
+
+    def test_args_error(self):
+        # Issue #17275
+        with self.assertRaisesRegex(TypeError, "BufferedRandom"):
+            self.tp(io.BytesIO(), 1024, 1024, 1024)
+
 
 class PyBufferedRandomTest(BufferedRandomTest):
     tp = pyio.BufferedRandom
@@ -2542,6 +2560,30 @@ class TextIOWrapperTest(unittest.TestCase):
         txt.write('5')
         self.assertEqual(b''.join(raw._write_stack), b'123\n45')
 
+    def test_read_nonbytes(self):
+        # Issue #17106
+        # Crash when underlying read() returns non-bytes
+        t = self.TextIOWrapper(self.StringIO('a'))
+        self.assertRaises(TypeError, t.read, 1)
+        t = self.TextIOWrapper(self.StringIO('a'))
+        self.assertRaises(TypeError, t.readline)
+        t = self.TextIOWrapper(self.StringIO('a'))
+        self.assertRaises(TypeError, t.read)
+
+    def test_illegal_decoder(self):
+        # Issue #17106
+        # Crash when decoder returns non-string
+        t = self.TextIOWrapper(self.BytesIO(b'aaaaaa'), newline='\n',
+                               encoding='quopri_codec')
+        self.assertRaises(TypeError, t.read, 1)
+        t = self.TextIOWrapper(self.BytesIO(b'aaaaaa'), newline='\n',
+                               encoding='quopri_codec')
+        self.assertRaises(TypeError, t.readline)
+        t = self.TextIOWrapper(self.BytesIO(b'aaaaaa'), newline='\n',
+                               encoding='quopri_codec')
+        self.assertRaises(TypeError, t.read)
+
+
 class CTextIOWrapperTest(TextIOWrapperTest):
 
     def test_initialization(self):
@@ -3019,7 +3061,7 @@ class SignalsTest(unittest.TestCase):
             # The buffered IO layer must check for pending signal
             # handlers, which in this case will invoke alarm_interrupt().
             self.assertRaises(ZeroDivisionError,
-                        wio.write, item * (support.PIPE_MAX_SIZE // len(item)))
+                        wio.write, item * (support.PIPE_MAX_SIZE // len(item) + 1))
             t.join()
             # We got one byte, get another one and check that it isn't a
             # repeat of the first one.
@@ -3118,7 +3160,7 @@ class SignalsTest(unittest.TestCase):
         select = support.import_module("select")
         # A quantity that exceeds the buffer size of an anonymous pipe's
         # write end.
-        N = 1024 * 1024
+        N = support.PIPE_MAX_SIZE
         r, w = os.pipe()
         fdopen_kwargs["closefd"] = False
         # We need a separate thread to read from the pipe and allow the
@@ -3184,7 +3226,7 @@ class PySignalsTest(SignalsTest):
     test_reentrant_write_text = None
 
 
-def test_main():
+def load_tests(*args):
     tests = (CIOTest, PyIOTest,
              CBufferedReaderTest, PyBufferedReaderTest,
              CBufferedWriterTest, PyBufferedWriterTest,
@@ -3217,7 +3259,8 @@ def test_main():
             for name, obj in py_io_ns.items():
                 setattr(test, name, obj)
 
-    support.run_unittest(*tests)
+    suite = unittest.TestSuite([unittest.makeSuite(test) for test in tests])
+    return suite
 
 if __name__ == "__main__":
-    test_main()
+    unittest.main()

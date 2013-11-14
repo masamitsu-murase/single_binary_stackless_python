@@ -904,6 +904,8 @@ class CallableMixin(Base):
                 result = next(effect)
                 if _is_exception(result):
                     raise result
+                if result is DEFAULT:
+                    result = self.return_value
                 return result
 
             ret_val = effect(*args, **kwargs)
@@ -947,9 +949,6 @@ class Mock(CallableMixin, NonCallableMock):
       If `side_effect` is an iterable then each call to the mock will return
       the next value from the iterable. If any of the members of the iterable
       are exceptions they will be raised instead of returned.
-
-      If `side_effect` is an iterable then each call to the mock will return
-      the next value from the iterable.
 
     * `return_value`: The value returned when the mock is called. By default
       this is a new Mock (created on first access). See the
@@ -1417,7 +1416,7 @@ def patch(
     you pass in `create=True`, and the attribute doesn't exist, patch will
     create the attribute for you when the patched function is called, and
     delete it again afterwards. This is useful for writing tests against
-    attributes that your production code creates at runtime. It is off by by
+    attributes that your production code creates at runtime. It is off by
     default because it can be dangerous. With it switched on you can write
     passing tests against APIs that don't actually exist!
 

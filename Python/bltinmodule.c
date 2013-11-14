@@ -266,7 +266,8 @@ builtin_all(PyObject *self, PyObject *v)
 PyDoc_STRVAR(all_doc,
 "all(iterable) -> bool\n\
 \n\
-Return True if bool(x) is True for all values x in the iterable.");
+Return True if bool(x) is True for all values x in the iterable.\n\
+If the iterable is empty, return True.");
 
 static PyObject *
 builtin_any(PyObject *self, PyObject *v)
@@ -308,7 +309,8 @@ builtin_any(PyObject *self, PyObject *v)
 PyDoc_STRVAR(any_doc,
 "any(iterable) -> bool\n\
 \n\
-Return True if bool(x) is True for any x in the iterable.");
+Return True if bool(x) is True for any x in the iterable.\n\
+If the iterable is empty, return False.");
 
 static PyObject *
 builtin_ascii(PyObject *self, PyObject *v)
@@ -1747,6 +1749,7 @@ builtin_input(PyObject *self, PyObject *args)
         }
         s = PyOS_Readline(stdin, stdout, prompt);
         if (s == NULL) {
+            PyErr_CheckSignals();
             if (!PyErr_Occurred())
                 PyErr_SetNone(PyExc_KeyboardInterrupt);
             goto _readline_errors;

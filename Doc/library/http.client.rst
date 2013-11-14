@@ -51,7 +51,7 @@ The module provides the following classes:
    .. versionchanged:: 3.2
       *source_address* was added.
 
-   .. versionchanged:: 3.2
+   .. deprecated-removed:: 3.2 3.4
       The *strict* parameter is deprecated.  HTTP 0.9-style "Simple Responses"
       are not supported anymore.
 
@@ -89,7 +89,7 @@ The module provides the following classes:
       This class now supports HTTPS virtual hosts if possible (that is,
       if :data:`ssl.HAS_SNI` is true).
 
-   .. versionchanged:: 3.2
+   .. deprecated-removed:: 3.2 3.4
       The *strict* parameter is deprecated.  HTTP 0.9-style "Simple Responses"
       are not supported anymore.
 
@@ -99,7 +99,7 @@ The module provides the following classes:
    Class whose instances are returned upon successful connection.  Not
    instantiated directly by user.
 
-   .. versionchanged:: 3.2
+   .. deprecated-removed:: 3.2 3.4
       The *strict* parameter is deprecated.  HTTP 0.9-style "Simple Responses"
       are not supported anymore.
 
@@ -633,6 +633,24 @@ Here is an example session that shows how to ``POST`` requests::
    b'Redirecting to <a href="http://bugs.python.org/issue12524">http://bugs.python.org/issue12524</a>'
    >>> conn.close()
 
+Client side ``HTTP PUT`` requests are very similar to ``POST`` requests. The
+difference lies only the server side where HTTP server will allow resources to
+be created via ``PUT`` request. It should be noted that custom HTTP methods
++are also handled in :class:`urllib.request.Request` by sending the appropriate
++method attribute.Here is an example session that shows how to do ``PUT``
+request using http.client::
+
+    >>> # This creates an HTTP message
+    >>> # with the content of BODY as the enclosed representation
+    >>> # for the resource http://localhost:8080/foobar
+    ...
+    >>> import http.client
+    >>> BODY = "***filecontents***"
+    >>> conn = http.client.HTTPConnection("localhost", 8080)
+    >>> conn.request("PUT", "/file", BODY)
+    >>> response = conn.getresponse()
+    >>> print(resp.status, response.reason)
+    200, OK
 
 .. _httpmessage-objects:
 

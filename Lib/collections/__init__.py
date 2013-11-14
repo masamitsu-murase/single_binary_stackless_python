@@ -228,8 +228,7 @@ class OrderedDict(dict):
 
         '''
         if isinstance(other, OrderedDict):
-            return len(self)==len(other) and \
-                   all(map(_eq, self.items(), other.items()))
+            return dict.__eq__(self, other) and all(map(_eq, self, other))
         return dict.__eq__(self, other)
 
 
@@ -282,6 +281,10 @@ class {typename}(tuple):
         'Return self as a plain tuple.  Used by copy and pickle.'
         return tuple(self)
 
+    def __getstate__(self):
+        'Exclude the OrderedDict from pickling'
+        return None
+
 {field_defs}
 '''
 
@@ -323,24 +326,19 @@ def namedtuple(typename, field_names, verbose=False, rename=False):
     if rename:
         seen = set()
         for index, name in enumerate(field_names):
-            if (not all(c.isalnum() or c=='_' for c in name)
+            if (not name.isidentifier()
                 or _iskeyword(name)
-                or not name
-                or name[0].isdigit()
                 or name.startswith('_')
                 or name in seen):
                 field_names[index] = '_%d' % index
             seen.add(name)
     for name in [typename] + field_names:
-        if not all(c.isalnum() or c=='_' for c in name):
-            raise ValueError('Type names and field names can only contain '
-                             'alphanumeric characters and underscores: %r' % name)
+        if not name.isidentifier():
+            raise ValueError('Type names and field names must be valid '
+                             'identifiers: %r' % name)
         if _iskeyword(name):
             raise ValueError('Type names and field names cannot be a '
                              'keyword: %r' % name)
-        if name[0].isdigit():
-            raise ValueError('Type names and field names cannot start with '
-                             'a number: %r' % name)
     seen = set()
     for name in field_names:
         if name.startswith('_') and not rename:

@@ -18,7 +18,7 @@ defined in `PKZIP Application Note
 
 This module does not currently handle multi-disk ZIP files.
 It can handle ZIP files that use the ZIP64 extensions
-(that is ZIP files that are more than 4 GByte in size).  It supports
+(that is ZIP files that are more than 4 GiB in size).  It supports
 decryption of encrypted files in ZIP archives, but it currently cannot
 create an encrypted file.  Decryption is extremely slow as it is
 implemented in native Python rather than C.
@@ -148,7 +148,7 @@ ZipFile Objects
    (:mod:`zlib`, :mod:`bz2` or :mod:`lzma`) is not available, :exc:`RuntimeError`
    is also raised. The default is :const:`ZIP_STORED`.  If *allowZip64* is
    ``True`` zipfile will create ZIP files that use the ZIP64 extensions when
-   the zipfile is larger than 2 GB. If it is  false (the default) :mod:`zipfile`
+   the zipfile is larger than 2 GiB. If it is  false (the default) :mod:`zipfile`
    will raise an exception when the ZIP file would require ZIP64 extensions.
    ZIP64 extensions are disabled by default because the default :program:`zip`
    and :program:`unzip` commands on Unix (the InfoZIP utilities) don't support
@@ -242,6 +242,16 @@ ZipFile Objects
    to extract to.  *member* can be a filename or a :class:`ZipInfo` object.
    *pwd* is the password used for encrypted files.
 
+   .. note::
+
+      If a member filename is an absolute path, a drive/UNC sharepoint and
+      leading (back)slashes will be stripped, e.g.: ``///foo/bar`` becomes
+      ``foo/bar`` on Unix, and ``C:\foo\bar`` becomes ``foo\bar`` on Windows.
+      And all ``".."`` components in a member filename will be removed, e.g.:
+      ``../../foo../../ba..r`` becomes ``foo../ba..r``.  On Windows illegal
+      characters (``:``, ``<``, ``>``, ``|``, ``"``, ``?``, and ``*``)
+      replaced by underscore (``_``).
+
 
 .. method:: ZipFile.extractall(path=None, members=None, pwd=None)
 
@@ -256,6 +266,9 @@ ZipFile Objects
       It is possible that files are created outside of *path*, e.g. members
       that have absolute filenames starting with ``"/"`` or filenames with two
       dots ``".."``.
+
+   .. versionchanged:: 3.3.1
+      The zipfile module attempts to prevent that.  See :meth:`extract` note.
 
 
 .. method:: ZipFile.printdir()

@@ -31,6 +31,8 @@ Collections Abstract Base Classes
 
 The collections module offers the following :term:`ABCs <abstract base class>`:
 
+.. tabularcolumns:: |l|L|L|L|
+
 =========================  =====================  ======================  ====================================================
 ABC                        Inherits from          Abstract Methods        Mixin Methods
 =========================  =====================  ======================  ====================================================
@@ -41,29 +43,35 @@ ABC                        Inherits from          Abstract Methods        Mixin 
 :class:`Sized`                                    ``__len__``
 :class:`Callable`                                 ``__call__``
 
-:class:`Sequence`          :class:`Sized`,        ``__getitem__``         ``__contains__``, ``__iter__``, ``__reversed__``,
-                           :class:`Iterable`,                             ``index``, and ``count``
+:class:`Sequence`          :class:`Sized`,        ``__getitem__``,        ``__contains__``, ``__iter__``, ``__reversed__``,
+                           :class:`Iterable`,     ``__len__``             ``index``, and ``count``
                            :class:`Container`
 
-:class:`MutableSequence`   :class:`Sequence`      ``__setitem__``,        Inherited :class:`Sequence` methods and
-                                                  ``__delitem__``,        ``append``, ``reverse``, ``extend``, ``pop``,
-                                                  ``insert``              ``remove``, ``clear``, and ``__iadd__``
+:class:`MutableSequence`   :class:`Sequence`      ``__getitem__``,        Inherited :class:`Sequence` methods and
+                                                  ``__setitem__``,        ``append``, ``reverse``, ``extend``, ``pop``,
+                                                  ``__delitem__``,        ``remove``, and ``__iadd__``
+                                                  ``__len__``,
+                                                  ``insert``
 
-:class:`Set`               :class:`Sized`,                                ``__le__``, ``__lt__``, ``__eq__``, ``__ne__``,
-                           :class:`Iterable`,                             ``__gt__``, ``__ge__``, ``__and__``, ``__or__``,
-                           :class:`Container`                             ``__sub__``, ``__xor__``, and ``isdisjoint``
+:class:`Set`               :class:`Sized`,        ``__contains__``,       ``__le__``, ``__lt__``, ``__eq__``, ``__ne__``,
+                           :class:`Iterable`,     ``__iter__``,           ``__gt__``, ``__ge__``, ``__and__``, ``__or__``,
+                           :class:`Container`     ``__len__``             ``__sub__``, ``__xor__``, and ``isdisjoint``
 
-:class:`MutableSet`        :class:`Set`           ``add``,                Inherited :class:`Set` methods and
-                                                  ``discard``             ``clear``, ``pop``, ``remove``, ``__ior__``,
-                                                                          ``__iand__``, ``__ixor__``, and ``__isub__``
+:class:`MutableSet`        :class:`Set`           ``__contains__``,       Inherited :class:`Set` methods and
+                                                  ``__iter__``,           ``clear``, ``pop``, ``remove``, ``__ior__``,
+                                                  ``__len__``,            ``__iand__``, ``__ixor__``, and ``__isub__``
+                                                  ``add``,
+                                                  ``discard``
 
-:class:`Mapping`           :class:`Sized`,        ``__getitem__``         ``__contains__``, ``keys``, ``items``, ``values``,
-                           :class:`Iterable`,                             ``get``, ``__eq__``, and ``__ne__``
-                           :class:`Container`
+:class:`Mapping`           :class:`Sized`,        ``__getitem__``,        ``__contains__``, ``keys``, ``items``, ``values``,
+                           :class:`Iterable`,     ``__iter__``,           ``get``, ``__eq__``, and ``__ne__``
+                           :class:`Container`     ``__len__``
 
-:class:`MutableMapping`    :class:`Mapping`       ``__setitem__``,        Inherited :class:`Mapping` methods and
-                                                  ``__delitem__``         ``pop``, ``popitem``, ``clear``, ``update``,
-                                                                          and ``setdefault``
+:class:`MutableMapping`    :class:`Mapping`       ``__getitem__``,        Inherited :class:`Mapping` methods and
+                                                  ``__setitem__``,        ``pop``, ``popitem``, ``clear``, ``update``,
+                                                  ``__delitem__``,        and ``setdefault``
+                                                  ``__iter__``,
+                                                  ``__len__``
 
 
 :class:`MappingView`       :class:`Sized`                                 ``__len__``
@@ -120,7 +128,7 @@ These ABCs allow us to ask classes or instances if they provide
 particular functionality, for example::
 
     size = None
-    if isinstance(myvar, collections.Sized):
+    if isinstance(myvar, collections.abc.Sized):
         size = len(myvar)
 
 Several of the ABCs are also useful as mixins that make it easier to develop
@@ -128,9 +136,9 @@ classes supporting container APIs.  For example, to write a class supporting
 the full :class:`Set` API, it only necessary to supply the three underlying
 abstract methods: :meth:`__contains__`, :meth:`__iter__`, and :meth:`__len__`.
 The ABC supplies the remaining methods such as :meth:`__and__` and
-:meth:`isdisjoint` ::
+:meth:`isdisjoint`::
 
-    class ListBasedSet(collections.Set):
+    class ListBasedSet(collections.abc.Set):
          ''' Alternate set implementation favoring space over speed
              and not requiring the set elements to be hashable. '''
          def __init__(self, iterable):

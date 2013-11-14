@@ -139,6 +139,8 @@ added matters.  To illustrate::
       Controls the type of Content Transfer Encodings that may be or are
       required to be used.  The possible values are:
 
+      .. tabularcolumns:: |l|L|
+
       ========  ===============================================================
       ``7bit``  all data must be "7 bit clean" (ASCII-only).  This means that
                 where necessary data will be encoded using either
@@ -327,7 +329,7 @@ added matters.  To illustrate::
       each resulting line to the ``max_line_length``.  If ``cte_type`` is
       ``7bit``, non-ascii binary data is CTE encoded using the ``unknown-8bit``
       charset.  Otherwise the original source header is used, with its existing
-      line breaks and and any (RFC invalid) binary data it may contain.
+      line breaks and any (RFC invalid) binary data it may contain.
 
 
 .. note::

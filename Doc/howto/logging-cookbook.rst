@@ -1036,7 +1036,7 @@ arbitrary object as a message format string, and that the logging package will
 call ``str()`` on that object to get the actual format string. Consider the
 following two classes::
 
-    class BraceMessage(object):
+    class BraceMessage:
         def __init__(self, fmt, *args, **kwargs):
             self.fmt = fmt
             self.args = args
@@ -1045,7 +1045,7 @@ following two classes::
         def __str__(self):
             return self.fmt.format(*self.args, **self.kwargs)
 
-    class DollarMessage(object):
+    class DollarMessage:
         def __init__(self, fmt, **kwargs):
             self.fmt = fmt
             self.kwargs = kwargs
@@ -1095,6 +1095,40 @@ handler. So the only slightly unusual thing which might trip you up is that the
 parentheses go around the format string and the arguments, not just the format
 string. That's because the __ notation is just syntax sugar for a constructor
 call to one of the XXXMessage classes.
+
+If you prefer, you can use a :class:`LoggerAdapter` to achieve a similar effect
+to the above, as in the following example::
+
+    import logging
+
+    class Message(object):
+        def __init__(self, fmt, args):
+            self.fmt = fmt
+            self.args = args
+
+        def __str__(self):
+            return self.fmt.format(*self.args)
+
+    class StyleAdapter(logging.LoggerAdapter):
+        def __init__(self, logger, extra=None):
+            super(StyleAdapter, self).__init__(logger, extra or {})
+
+        def log(self, level, msg, *args, **kwargs):
+            if self.isEnabledFor(level):
+                msg, kwargs = self.process(msg, kwargs)
+                self.logger._log(level, Message(msg, args), (), **kwargs)
+
+    logger = StyleAdapter(logging.getLogger(__name__))
+
+    def main():
+        logger.debug('Hello, {}', 'world!')
+
+    if __name__ == '__main__':
+        logging.basicConfig(level=logging.DEBUG)
+        main()
+
+The above script should log the message ``Hello, world!`` when run with
+Python 3.2 or later.
 
 
 .. currentmodule:: logging
@@ -1372,7 +1406,7 @@ works::
     import random
     import time
 
-    class MyHandler(object):
+    class MyHandler:
         """
         A simple handler for logging events. It runs in the listener process and
         dispatches events to loggers based on the name in the received record,
@@ -1599,7 +1633,7 @@ UTF-8, then you need to do the following:
 
       'ASCII section\ufeffUnicode section'
 
-   The Unicode code point ``'\feff'``, when encoded using UTF-8, will be
+   The Unicode code point U+FEFF, when encoded using UTF-8, will be
    encoded as a UTF-8 BOM -- the byte-string ``b'\xef\xbb\xbf'``.
 
 #. Replace the ASCII section with whatever placeholders you like, but make sure

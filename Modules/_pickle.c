@@ -1802,7 +1802,7 @@ save_bytes(PicklerObject *self, PyObject *obj)
         }
         else {
             PyErr_SetString(PyExc_OverflowError,
-                            "cannot serialize a bytes object larger than 4GB");
+                            "cannot serialize a bytes object larger than 4 GiB");
             return -1;          /* string too large */
         }
 
@@ -1902,7 +1902,7 @@ save_unicode(PicklerObject *self, PyObject *obj)
         size = PyBytes_GET_SIZE(encoded);
         if (size > 0xffffffffL) {
             PyErr_SetString(PyExc_OverflowError,
-                            "cannot serialize a string larger than 4GB");
+                            "cannot serialize a string larger than 4 GiB");
             goto error;          /* string too large */
         }
 
@@ -2972,7 +2972,7 @@ save_reduce(PicklerObject *self, PyObject *args, PyObject *obj)
     if (listitems == Py_None)
         listitems = NULL;
     else if (!PyIter_Check(listitems)) {
-        PyErr_Format(PicklingError, "Fourth element of tuple"
+        PyErr_Format(PicklingError, "fourth element of the tuple "
                      "returned by __reduce__ must be an iterator, not %s",
                      Py_TYPE(listitems)->tp_name);
         return -1;
@@ -2981,7 +2981,7 @@ save_reduce(PicklerObject *self, PyObject *args, PyObject *obj)
     if (dictitems == Py_None)
         dictitems = NULL;
     else if (!PyIter_Check(dictitems)) {
-        PyErr_Format(PicklingError, "Fifth element of tuple"
+        PyErr_Format(PicklingError, "fifth element of the tuple "
                      "returned by __reduce__ must be an iterator, not %s",
                      Py_TYPE(dictitems)->tp_name);
         return -1;
@@ -4249,7 +4249,7 @@ load_string(UnpicklerObject *self)
 
     if ((len = _Unpickler_Readline(self, &s)) < 0)
         return -1;
-    if (len < 3)
+    if (len < 2)
         return bad_readline();
     if ((s = strdup(s)) == NULL) {
         PyErr_NoMemory();
@@ -4257,14 +4257,14 @@ load_string(UnpicklerObject *self)
     }
 
     /* Strip outermost quotes */
-    while (s[len - 1] <= ' ')
+    while (len > 0 && s[len - 1] <= ' ')
         len--;
-    if (s[0] == '"' && s[len - 1] == '"') {
+    if (len > 1 && s[0] == '"' && s[len - 1] == '"') {
         s[len - 1] = '\0';
         p = s + 1;
         len -= 2;
     }
-    else if (s[0] == '\'' && s[len - 1] == '\'') {
+    else if (len > 1 && s[0] == '\'' && s[len - 1] == '\'') {
         s[len - 1] = '\0';
         p = s + 1;
         len -= 2;
@@ -5117,11 +5117,13 @@ do_append(UnpicklerObject *self, Py_ssize_t x)
             if (result == NULL) {
                 Pdata_clear(self->stack, i + 1);
                 Py_SIZE(self->stack) = x;
+                Py_DECREF(append_func);
                 return -1;
             }
             Py_DECREF(result);
         }
         Py_SIZE(self->stack) = x;
+        Py_DECREF(append_func);
     }
 
     return 0;

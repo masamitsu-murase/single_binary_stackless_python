@@ -449,6 +449,17 @@ class TestShutil(unittest.TestCase):
             self.assertIn('user.bar', os.listxattr(dst))
         finally:
             os.setxattr = orig_setxattr
+        # the source filesystem not supporting xattrs should be ok, too.
+        def _raise_on_src(fname, *, follow_symlinks=True):
+            if fname == src:
+                raise OSError(errno.ENOTSUP, 'Operation not supported')
+            return orig_listxattr(fname, follow_symlinks=follow_symlinks)
+        try:
+            orig_listxattr = os.listxattr
+            os.listxattr = _raise_on_src
+            shutil._copyxattr(src, dst)
+        finally:
+            os.listxattr = orig_listxattr
 
         # test that shutil.copystat copies xattrs
         src = os.path.join(tmp_dir, 'the_original')
@@ -1340,6 +1351,26 @@ class TestWhich(unittest.TestCase):
         # it gets found properly with the extension.
         rv = shutil.which(self.file[:-4], path=self.dir)
         self.assertEqual(rv, self.temp_file.name[:-4] + ".EXE")
+
+    def test_environ_path(self):
+        with support.EnvironmentVarGuard() as env:
+            env['PATH'] = self.dir
+            rv = shutil.which(self.file)
+            self.assertEqual(rv, self.temp_file.name)
+
+    def test_empty_path(self):
+        base_dir = os.path.dirname(self.dir)
+        with support.temp_cwd(path=self.dir), \
+             support.EnvironmentVarGuard() as env:
+            env['PATH'] = self.dir
+            rv = shutil.which(self.file, path='')
+            self.assertIsNone(rv)
+
+    def test_empty_path_no_PATH(self):
+        with support.EnvironmentVarGuard() as env:
+            env.pop('PATH', None)
+            rv = shutil.which(self.file)
+            self.assertIsNone(rv)
 
 
 class TestMove(unittest.TestCase):

@@ -483,9 +483,9 @@ def _get_sourcefile(bytecode_path):
     return source_path if _path_isfile(source_stats) else bytecode_path
 
 
-def _verbose_message(message, *args):
+def _verbose_message(message, *args, verbosity=1):
     """Print the message to stderr if -v/PYTHONVERBOSE is turned on."""
-    if sys.flags.verbose:
+    if sys.flags.verbose >= verbosity:
         if not message.startswith(('#', 'import ')):
             message = '# ' + message
         print(message.format(*args), file=sys.stderr)
@@ -813,6 +813,7 @@ class _LoaderBasics:
         raw_size = data[8:12]
         if magic != _MAGIC_BYTES:
             msg = 'bad magic number in {!r}: {!r}'.format(fullname, magic)
+            _verbose_message(msg)
             raise ImportError(msg, name=fullname, path=bytecode_path)
         elif len(raw_timestamp) != 4:
             message = 'bad timestamp in {}'.format(fullname)
@@ -1330,8 +1331,8 @@ class FileFinder:
 
     def __init__(self, path, *details):
         """Initialize with the path to search on and a variable number of
-        3-tuples containing the loader, file suffixes the loader recognizes,
-        and a boolean of whether the loader handles packages."""
+        2-tuples containing the loader and the file suffixes the loader
+        recognizes."""
         loaders = []
         for loader, suffixes in details:
             loaders.extend((suffix, loader) for suffix in suffixes)
@@ -1382,11 +1383,13 @@ class FileFinder:
                     is_namespace = True
         # Check for a file w/ a proper suffix exists.
         for suffix, loader in self._loaders:
+            full_path = _path_join(self.path, tail_module + suffix)
+            _verbose_message('trying {}'.format(full_path), verbosity=2)
             if cache_module + suffix in cache:
-                full_path = _path_join(self.path, tail_module + suffix)
                 if _path_isfile(full_path):
                     return (loader(fullname, full_path), [])
         if is_namespace:
+            _verbose_message('possible namespace for {}'.format(base_path))
             return (None, [base_path])
         return (None, [])
 
@@ -1703,9 +1706,14 @@ def _setup(sys_module, _imp_module):
     else:
         BYTECODE_SUFFIXES = DEBUG_BYTECODE_SUFFIXES
 
-    for module in (_imp, sys):
-        if not hasattr(module, '__loader__'):
-            module.__loader__ = BuiltinImporter
+    module_type = type(sys)
+    for name, module in sys.modules.items():
+        if isinstance(module, module_type):
+            if not hasattr(module, '__loader__'):
+                if name in sys.builtin_module_names:
+                    module.__loader__ = BuiltinImporter
+                elif _imp.is_frozen(name):
+                    module.__loader__ = FrozenImporter
 
     self_module = sys.modules[__name__]
     for builtin_name in ('_io', '_warnings', 'builtins', 'marshal'):

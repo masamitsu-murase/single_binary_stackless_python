@@ -608,7 +608,6 @@ For an example of the usage of queues for interprocess communication see
       :exc:`queue.Empty` exception (*timeout* is ignored in that case).
 
    .. method:: get_nowait()
-               get_no_wait()
 
       Equivalent to ``get(False)``.
 
@@ -801,8 +800,7 @@ Connection objects are usually created using :func:`Pipe` -- see also
 
    .. method:: send_bytes(buffer[, offset[, size]])
 
-      Send byte data from an object supporting the buffer interface as a
-      complete message.
+      Send byte data from a :term:`bytes-like object` as a complete message.
 
       If *offset* is given then data is read from that position in *buffer*.  If
       *size* is given then that many bytes will be read from buffer.  Very large
@@ -833,7 +831,7 @@ Connection objects are usually created using :func:`Pipe` -- see also
       :exc:`EOFError` if there is nothing left to receive and the other end was
       closed.
 
-      *buffer* must be an object satisfying the writable buffer interface.  If
+      *buffer* must be a writable :term:`bytes-like object`.  If
       *offset* is given then the message will be written into the buffer from
       that position.  Offset must be a non-negative integer less than the
       length of *buffer* (in bytes).
@@ -1849,7 +1847,7 @@ multiple connections at the same time.
    then a welcome message is sent to the other end of the connection.  Otherwise
    :exc:`~multiprocessing.AuthenticationError` is raised.
 
-.. function:: answerChallenge(connection, authkey)
+.. function:: answer_challenge(connection, authkey)
 
    Receive a message, calculate the digest of the message using *authkey* as the
    key, and then send the digest back.

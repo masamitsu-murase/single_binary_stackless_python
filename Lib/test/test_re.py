@@ -1,7 +1,9 @@
-from test.support import verbose, run_unittest, gc_collect, bigmemtest, _2G
+from test.support import verbose, run_unittest, gc_collect, bigmemtest, _2G, \
+        cpython_only
 import io
 import re
 from re import Scanner
+import sre_constants
 import sys
 import string
 import traceback
@@ -179,6 +181,10 @@ class ReTests(unittest.TestCase):
         self.assertRaises(re.error, re.compile, '(?(a))')
         self.assertRaises(re.error, re.compile, '(?(1a))')
         self.assertRaises(re.error, re.compile, '(?(a.))')
+        # New valid/invalid identifiers in Python 3
+        re.compile('(?P<µ>x)(?P=µ)(?(µ)y)')
+        re.compile('(?P<𝔘𝔫𝔦𝔠𝔬𝔡𝔢>x)(?P=𝔘𝔫𝔦𝔠𝔬𝔡𝔢)(?(𝔘𝔫𝔦𝔠𝔬𝔡𝔢)y)')
+        self.assertRaises(re.error, re.compile, '(?P<©>x)')
 
     def test_symbolic_refs(self):
         self.assertRaises(re.error, re.sub, '(?P<a>x)', '\g<a', 'xx')
@@ -191,6 +197,10 @@ class ReTests(unittest.TestCase):
         self.assertRaises(re.error, re.sub, '(?P<a>x)|(?P<b>y)', '\g<b>', 'xx')
         self.assertRaises(re.error, re.sub, '(?P<a>x)|(?P<b>y)', '\\2', 'xx')
         self.assertRaises(re.error, re.sub, '(?P<a>x)', '\g<-1>', 'xx')
+        # New valid/invalid identifiers in Python 3
+        self.assertEqual(re.sub('(?P<µ>x)', r'\g<µ>', 'xx'), 'xx')
+        self.assertEqual(re.sub('(?P<𝔘𝔫𝔦𝔠𝔬𝔡𝔢>x)', r'\g<𝔘𝔫𝔦𝔠𝔬𝔡𝔢>', 'xx'), 'xx')
+        self.assertRaises(re.error, re.sub, '(?P<a>x)', r'\g<©>', 'xx')
 
     def test_re_subn(self):
         self.assertEqual(re.subn("(?i)b+", "x", "bbbb BBBB"), ('x x', 2))
@@ -599,6 +609,7 @@ class ReTests(unittest.TestCase):
             self.assertIsNotNone(re.match(r"[\U%08x]" % i, chr(i)))
             self.assertIsNotNone(re.match(r"[\U%08x0]" % i, chr(i)+"0"))
             self.assertIsNotNone(re.match(r"[\U%08xz]" % i, chr(i)+"z"))
+        self.assertIsNotNone(re.match(r"[\U0001d49c-\U0001d4b5]", "\U0001d49e"))
         self.assertRaises(re.error, re.match, r"[\911]", "")
         self.assertRaises(re.error, re.match, r"[\x1z]", "")
         self.assertRaises(re.error, re.match, r"[\u123z]", "")
@@ -679,6 +690,15 @@ class ReTests(unittest.TestCase):
         self.assertEqual(re.match('(x)*', 50000*'x').group(1), 'x')
         self.assertEqual(re.match('(x)*y', 50000*'x'+'y').group(1), 'x')
         self.assertEqual(re.match('(x)*?y', 50000*'x'+'y').group(1), 'x')
+
+    def test_unlimited_zero_width_repeat(self):
+        # Issue #9669
+        self.assertIsNone(re.match(r'(?:a?)*y', 'z'))
+        self.assertIsNone(re.match(r'(?:a?)+y', 'z'))
+        self.assertIsNone(re.match(r'(?:a?){2,}y', 'z'))
+        self.assertIsNone(re.match(r'(?:a?)*?y', 'z'))
+        self.assertIsNone(re.match(r'(?:a?)+?y', 'z'))
+        self.assertIsNone(re.match(r'(?:a?){2,}?y', 'z'))
 
     def test_scanner(self):
         def s_ident(scanner, token): return token
@@ -979,6 +999,47 @@ class ReTests(unittest.TestCase):
         # non-ASCII strings.
         self.assertEqual(re.findall(r"(?i)(a)\1", "aa \u0100"), ['a'])
         self.assertEqual(re.match(r"(?s).{1,3}", "\u0100\u0100").span(), (0, 2))
+
+    def test_repeat_minmax_overflow(self):
+        # Issue #13169
+        string = "x" * 100000
+        self.assertEqual(re.match(r".{65535}", string).span(), (0, 65535))
+        self.assertEqual(re.match(r".{,65535}", string).span(), (0, 65535))
+        self.assertEqual(re.match(r".{65535,}?", string).span(), (0, 65535))
+        self.assertEqual(re.match(r".{65536}", string).span(), (0, 65536))
+        self.assertEqual(re.match(r".{,65536}", string).span(), (0, 65536))
+        self.assertEqual(re.match(r".{65536,}?", string).span(), (0, 65536))
+        # 2**128 should be big enough to overflow both SRE_CODE and Py_ssize_t.
+        self.assertRaises(OverflowError, re.compile, r".{%d}" % 2**128)
+        self.assertRaises(OverflowError, re.compile, r".{,%d}" % 2**128)
+        self.assertRaises(OverflowError, re.compile, r".{%d,}?" % 2**128)
+        self.assertRaises(OverflowError, re.compile, r".{%d,%d}" % (2**129, 2**128))
+
+    @cpython_only
+    def test_repeat_minmax_overflow_maxrepeat(self):
+        try:
+            from _sre import MAXREPEAT
+        except ImportError:
+            self.skipTest('requires _sre.MAXREPEAT constant')
+        string = "x" * 100000
+        self.assertIsNone(re.match(r".{%d}" % (MAXREPEAT - 1), string))
+        self.assertEqual(re.match(r".{,%d}" % (MAXREPEAT - 1), string).span(),
+                         (0, 100000))
+        self.assertIsNone(re.match(r".{%d,}?" % (MAXREPEAT - 1), string))
+        self.assertRaises(OverflowError, re.compile, r".{%d}" % MAXREPEAT)
+        self.assertRaises(OverflowError, re.compile, r".{,%d}" % MAXREPEAT)
+        self.assertRaises(OverflowError, re.compile, r".{%d,}?" % MAXREPEAT)
+
+    def test_backref_group_name_in_exception(self):
+        # Issue 17341: Poor error message when compiling invalid regex
+        with self.assertRaisesRegex(sre_constants.error, '<foo>'):
+            re.compile('(?P=<foo>)')
+
+    def test_group_name_in_exception(self):
+        # Issue 17341: Poor error message when compiling invalid regex
+        with self.assertRaisesRegex(sre_constants.error, '\?foo'):
+            re.compile('(?P<?foo>)')
+
 
 def run_re_tests():
     from test.re_tests import tests, SUCCEED, FAIL, SYNTAX_ERROR

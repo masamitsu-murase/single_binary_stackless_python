@@ -45,7 +45,7 @@ the correct arguments.
 This example tests that calling `ProductionClass().method` results in a call to
 the `something` method:
 
-    >>> class ProductionClass(object):
+    >>> class ProductionClass:
     ...     def method(self):
     ...         self.something(1, 2, 3)
     ...     def something(self, a, b, c):
@@ -69,7 +69,7 @@ in the correct way.
 The simple `ProductionClass` below has a `closer` method. If it is called with
 an object then it calls `close` on it.
 
-    >>> class ProductionClass(object):
+    >>> class ProductionClass:
     ...     def closer(self, something):
     ...         something.close()
     ...
@@ -324,11 +324,11 @@ with.
     ...
     >>> test()
 
-If you are patching a module (including `__builtin__`) then use `patch`
+If you are patching a module (including :mod:`builtins`) then use `patch`
 instead of `patch.object`:
 
-    >>> mock = MagicMock(return_value = sentinel.file_handle)
-    >>> with patch('__builtin__.open', mock):
+    >>> mock = MagicMock(return_value=sentinel.file_handle)
+    >>> with patch('builtins.open', mock):
     ...     handle = open('filename', 'r')
     ...
     >>> mock.assert_called_with('filename', 'r')
@@ -398,7 +398,7 @@ ends:
 Where you use `patch` to create a mock for you, you can get a reference to the
 mock using the "as" form of the with statement:
 
-    >>> class ProductionClass(object):
+    >>> class ProductionClass:
     ...     def method(self):
     ...         pass
     ...
@@ -418,14 +418,14 @@ decorator indvidually to every method whose name starts with "test".
 .. _further-examples:
 
 Further Examples
-================
+----------------
 
 
 Here are some more examples for some slightly more advanced scenarios.
 
 
 Mocking chained calls
----------------------
+~~~~~~~~~~~~~~~~~~~~~
 
 Mocking chained calls is actually straightforward with mock once you
 understand the :attr:`~Mock.return_value` attribute. When a mock is called for
@@ -446,7 +446,7 @@ testable way in the first place...
 
 So, suppose we have some code that looks a little bit like this:
 
-    >>> class Something(object):
+    >>> class Something:
     ...     def __init__(self):
     ...         self.backend = BackendProvider()
     ...     def method(self):
@@ -496,7 +496,7 @@ this list of calls for us:
 
 
 Partial mocking
----------------
+~~~~~~~~~~~~~~~
 
 In some tests I wanted to mock out a call to `datetime.date.today()
 <http://docs.python.org/library/datetime.html#datetime.date.today>`_ to return
@@ -540,7 +540,7 @@ is discussed in `this blog entry
 
 
 Mocking a Generator Method
---------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A Python generator is a function or method that uses the `yield statement
 <http://docs.python.org/reference/simple_stmts.html#the-yield-statement>`_ to
@@ -554,7 +554,7 @@ mock this using a `MagicMock`.
 
 Here's an example class with an "iter" method implemented as a generator:
 
-    >>> class Foo(object):
+    >>> class Foo:
     ...     def iter(self):
     ...         for i in [1, 2, 3]:
     ...             yield i
@@ -582,7 +582,7 @@ To configure the values returned from the iteration (implicit in the call to
 
 
 Applying the same patch to every test method
---------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you want several patches in place for multiple test methods the obvious way
 is to apply the patch decorators to every method. This can feel like unnecessary
@@ -642,7 +642,7 @@ exception is raised in the setUp then tearDown is not called.
 
 
 Mocking Unbound Methods
------------------------
+~~~~~~~~~~~~~~~~~~~~~~~
 
 Whilst writing tests today I needed to patch an *unbound method* (patching the
 method on the class rather than on the instance). I needed self to be passed
@@ -664,7 +664,7 @@ function will be turned into a bound method if it is fetched from an instance.
 It will have `self` passed in as the first argument, which is exactly what I
 wanted:
 
-    >>> class Foo(object):
+    >>> class Foo:
     ...   def foo(self):
     ...     pass
     ...
@@ -681,7 +681,7 @@ with a Mock instance instead, and isn't called with `self`.
 
 
 Checking multiple calls with mock
----------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 mock has a nice API for making assertions about how your mock objects are used.
 
@@ -723,7 +723,7 @@ looks remarkably similar to the repr of the `call_args_list`:
 
 
 Coping with mutable arguments
------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Another situation is rare, but can bite you, is when your mock is called with
 mutable arguments. `call_args` and `call_args_list` store *references* to the
@@ -839,7 +839,7 @@ children of a `CopyingMock` will also have the type `CopyingMock`.
 
 
 Nesting Patches
----------------
+~~~~~~~~~~~~~~~
 
 Using patch as a context manager is nice, but if you do multiple patches you
 can end up with nested with statements indenting further and further to the
@@ -887,7 +887,7 @@ for us:
 
 
 Mocking a dictionary with MagicMock
------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You may want to mock a dictionary, or other container object, recording all
 access to it whilst having it still behave like a dictionary.
@@ -962,7 +962,7 @@ mock methods and attributes:
 
 
 Mock subclasses and their attributes
-------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are various reasons why you might want to subclass `Mock`. One reason
 might be to add helper methods. Here's a silly example:
@@ -1025,7 +1025,7 @@ onto the mock constructor:
 
 
 Mocking imports with patch.dict
--------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 One situation where mocking can be hard is where you have a local import inside
 a function. These are harder to mock because they aren't using an object from
@@ -1088,7 +1088,7 @@ With slightly more work you can also mock package imports:
 
 
 Tracking order of calls and less verbose call assertions
---------------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The :class:`Mock` class allows you to track the *order* of method calls on
 your mock objects through the :attr:`~Mock.method_calls` attribute. This
@@ -1168,7 +1168,7 @@ order. In this case you can pass `any_order=True` to `assert_has_calls`:
 
 
 More complex argument matching
-------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Using the same basic concept as :data:`ANY` we can implement matchers to do more
 complex assertions on objects used as arguments to mocks.
@@ -1183,7 +1183,7 @@ for us.
 You can see in this example how a 'standard' call to `assert_called_with` isn't
 sufficient:
 
-    >>> class Foo(object):
+    >>> class Foo:
     ...     def __init__(self, a, b):
     ...         self.a, self.b = a, b
     ...
@@ -1210,7 +1210,7 @@ A comparison function for our `Foo` class might look something like this:
 And a matcher object that can use comparison functions like this for its
 equality operation would look something like this:
 
-    >>> class Matcher(object):
+    >>> class Matcher:
     ...     def __init__(self, compare, some_obj):
     ...         self.compare = compare
     ...         self.some_obj = some_obj

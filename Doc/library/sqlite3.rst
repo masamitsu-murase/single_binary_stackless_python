@@ -18,10 +18,10 @@ with the DB-API 2.0 specification described by :pep:`249`.
 
 To use the module, you must first create a :class:`Connection` object that
 represents the database.  Here the data will be stored in the
-:file:`/tmp/example` file::
+:file:`example.db` file::
 
    import sqlite3
-   conn = sqlite3.connect('/tmp/example')
+   conn = sqlite3.connect('example.db')
 
 You can also supply the special name ``:memory:`` to create a database in RAM.
 
@@ -829,6 +829,10 @@ experimental SQLite date/time functions.
 The following example demonstrates this.
 
 .. literalinclude:: ../includes/sqlite3/pysqlite_datetime.py
+
+If a timestamp stored in SQLite has a fractional part longer than 6
+numbers, its value will be truncated to microsecond precision by the
+timestamp converter.
 
 
 .. _sqlite3-controlling-transactions:

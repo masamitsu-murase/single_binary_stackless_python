@@ -24,6 +24,9 @@ try:
 except struct.error:
     have_long_long = False
 
+sizeof_wchar = array.array('u').itemsize
+
+
 class ArraySubclass(array.array):
     pass
 
@@ -1040,16 +1043,6 @@ class UnicodeTest(StringTest, unittest.TestCase):
     minitemsize = 2
 
     def test_unicode(self):
-        try:
-            import ctypes
-            sizeof_wchar = ctypes.sizeof(ctypes.c_wchar)
-        except ImportError:
-            import sys
-            if sys.platform == 'win32':
-                sizeof_wchar = 2
-            else:
-                sizeof_wchar = 4
-
         self.assertRaises(TypeError, array.array, 'b', 'foo')
 
         a = array.array('u', '\xa0\xc2\u1234')
@@ -1068,6 +1061,18 @@ class UnicodeTest(StringTest, unittest.TestCase):
             "array('u', '\\x00=\"\\'a\\\\b\\x80\xff\\x00\\x01\u1234')")
 
         self.assertRaises(TypeError, a.fromunicode)
+
+    def test_issue17223(self):
+        # this used to crash
+        if sizeof_wchar == 4:
+            # U+FFFFFFFF is an invalid code point in Unicode 6.0
+            invalid_str = b'\xff\xff\xff\xff'
+        else:
+            # PyUnicode_FromUnicode() cannot fail with 16-bit wchar_t
+            self.skipTest("specific to 32-bit wchar_t")
+        a = array.array('u', invalid_str)
+        self.assertRaises(ValueError, a.tounicode)
+        self.assertRaises(ValueError, str, a)
 
 class NumberTest(BaseTest):
 

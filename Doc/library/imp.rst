@@ -1,5 +1,5 @@
-:mod:`imp` --- Access the :keyword:`import` internals
-=====================================================
+:mod:`imp` --- Access the :ref:`import <importsystem>` internals
+================================================================
 
 .. module:: imp
    :synopsis: Access the implementation of the import statement.
@@ -9,6 +9,10 @@
 
 This module provides an interface to the mechanisms used to implement the
 :keyword:`import` statement.  It defines the following constants and functions:
+
+
+.. note::
+   New programs should use :mod:`importlib` rather than this module.
 
 
 .. function:: get_magic()
@@ -326,15 +330,16 @@ to indicate the search result of :func:`find_module`.
    with an existing directory or empty string raises :exc:`ImportError`.
    Otherwise, a :class:`NullImporter` instance is returned.
 
-   Python adds instances of this type to ``sys.path_importer_cache`` for any path
-   entries that are not directories and are not handled by any other path hooks on
-   ``sys.path_hooks``.  Instances have only one method:
-
+   Instances have only one method:
 
    .. method:: NullImporter.find_module(fullname [, path])
 
       This method always returns ``None``, indicating that the requested module could
       not be found.
+
+   .. versionchanged:: 3.3
+      ``None`` is inserted into ``sys.path_importer_cache`` instead of an
+      instance of :class:`NullImporter`.
 
 
 .. _examples-imp:

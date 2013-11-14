@@ -71,7 +71,7 @@ __all__ = [
     "TestHandler", "Matcher", "can_symlink", "skip_unless_symlink",
     "skip_unless_xattr", "import_fresh_module", "requires_zlib",
     "PIPE_MAX_SIZE", "failfast", "anticipate_failure", "run_with_tz",
-    "requires_bz2", "requires_lzma"
+    "requires_bz2", "requires_lzma", "suppress_crash_popup",
     ]
 
 class Error(Exception):
@@ -573,10 +573,12 @@ def _is_ipv6_enabled():
 IPV6_ENABLED = _is_ipv6_enabled()
 
 
-# A constant likely larger than the underlying OS pipe buffer size.
-# Windows limit seems to be around 512B, and most Unix kernels have a 64K pipe
-# buffer size: take 1M to be sure.
-PIPE_MAX_SIZE = 1024 * 1024
+# A constant likely larger than the underlying OS pipe buffer size, to
+# make writes blocking.
+# Windows limit seems to be around 512 B, and many Unix kernels have a
+# 64 KiB pipe buffer size or 16 * PAGE_SIZE: take a few megs to be sure.
+# (see issue #17835 for a discussion of this number).
+PIPE_MAX_SIZE = 4 *1024 * 1024 + 1
 
 
 # decorator for skipping tests on non-IEEE 754 platforms
@@ -1904,6 +1906,30 @@ def skip_unless_xattr(test):
     ok = can_xattr()
     msg = "no non-broken extended attribute support"
     return test if ok else unittest.skip(msg)(test)
+
+
+if sys.platform.startswith('win'):
+    @contextlib.contextmanager
+    def suppress_crash_popup():
+        """Disable Windows Error Reporting dialogs using SetErrorMode."""
+        # see http://msdn.microsoft.com/en-us/library/windows/desktop/ms680621%28v=vs.85%29.aspx
+        # GetErrorMode is not available on Windows XP and Windows Server 2003,
+        # but SetErrorMode returns the previous value, so we can use that
+        import ctypes
+        k32 = ctypes.windll.kernel32
+        SEM_NOGPFAULTERRORBOX = 0x02
+        old_error_mode = k32.SetErrorMode(SEM_NOGPFAULTERRORBOX)
+        k32.SetErrorMode(old_error_mode | SEM_NOGPFAULTERRORBOX)
+        try:
+            yield
+        finally:
+            k32.SetErrorMode(old_error_mode)
+else:
+    # this is a no-op for other platforms
+    @contextlib.contextmanager
+    def suppress_crash_popup():
+        yield
+
 
 def patch(test_instance, object_to_patch, attr_name, new_value):
     """Override 'object_to_patch'.'attr_name' with 'new_value'.

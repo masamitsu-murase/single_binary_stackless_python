@@ -23,7 +23,7 @@ class EmailPolicy(Policy):
     """+
     PROVISIONAL
 
-    The API extensions enabled by this this policy are currently provisional.
+    The API extensions enabled by this policy are currently provisional.
     Refer to the documentation for details.
 
     This policy adds new header parsing and folding algorithms.  Instead of
@@ -173,7 +173,7 @@ class EmailPolicy(Policy):
         lines = value.splitlines()
         refold = (self.refold_source == 'all' or
                   self.refold_source == 'long' and
-                    (len(lines[0])+len(name)+2 > maxlen or
+                    (lines and len(lines[0])+len(name)+2 > maxlen or
                      any(len(x) > maxlen for x in lines[1:])))
         if refold or refold_binary and _has_surrogates(value):
             return self.header_factory(name, ''.join(lines)).fold(policy=self)

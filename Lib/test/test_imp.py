@@ -162,8 +162,10 @@ class ImportTests(unittest.TestCase):
 
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
-                mod = imp.load_compiled(
-                    temp_mod_name, imp.cache_from_source(temp_mod_name + '.py'))
+                if not sys.dont_write_bytecode:
+                    mod = imp.load_compiled(
+                        temp_mod_name,
+                        imp.cache_from_source(temp_mod_name + '.py'))
             self.assertEqual(mod.a, 1)
 
             if not os.path.exists(test_package_name):
@@ -206,6 +208,8 @@ class ImportTests(unittest.TestCase):
             self.assertIsNot(orig_getenv, new_os.getenv)
 
     @support.cpython_only
+    @unittest.skipIf(not hasattr(imp, 'load_dynamic'),
+                     'imp.load_dynamic() required')
     def test_issue15828_load_extensions(self):
         # Issue 15828 picked up that the adapter between the old imp API
         # and importlib couldn't handle C extensions
@@ -227,6 +231,21 @@ class ImportTests(unittest.TestCase):
             imp.load_dynamic(name, path)
         self.assertIn(path, err.exception.path)
         self.assertEqual(name, err.exception.name)
+
+    @support.cpython_only
+    @unittest.skipIf(not hasattr(imp, 'load_dynamic'),
+                     'imp.load_dynamic() required')
+    def test_load_module_extension_file_is_None(self):
+        # When loading an extension module and the file is None, open one
+        # on the behalf of imp.load_dynamic().
+        # Issue #15902
+        name = '_heapq'
+        found = imp.find_module(name)
+        if found[0] is not None:
+            found[0].close()
+        if found[2][2] != imp.C_EXTENSION:
+            return
+        imp.load_module(name, None, *found[1:])
 
 
 class ReloadTests(unittest.TestCase):

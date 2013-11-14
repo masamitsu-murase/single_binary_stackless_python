@@ -249,7 +249,7 @@ static int unicode_modifiable(PyObject *unicode);
 
 
 static PyObject *
-_PyUnicode_FromUCS1(const unsigned char *s, Py_ssize_t size);
+_PyUnicode_FromUCS1(const Py_UCS1 *s, Py_ssize_t size);
 static PyObject *
 _PyUnicode_FromUCS2(const Py_UCS2 *s, Py_ssize_t size);
 static PyObject *
@@ -442,7 +442,7 @@ unicode_result_wchar(PyObject *unicode)
 
     if (len == 1) {
         wchar_t ch = _PyUnicode_WSTR(unicode)[0];
-        if (ch < 256) {
+        if ((Py_UCS4)ch < 256) {
             PyObject *latin1_char = get_latin1_char((unsigned char)ch);
             Py_DECREF(unicode);
             return latin1_char;
@@ -701,6 +701,10 @@ resize_compact(PyObject *unicode, Py_ssize_t length)
         _PyUnicode_WSTR(unicode) = PyUnicode_DATA(unicode);
         if (!PyUnicode_IS_ASCII(unicode))
             _PyUnicode_WSTR_LENGTH(unicode) = length;
+    }
+    else if (_PyUnicode_HAS_WSTR_MEMORY(unicode)) {
+        PyObject_DEL(_PyUnicode_WSTR(unicode));
+        _PyUnicode_WSTR(unicode) = NULL;
     }
     PyUnicode_WRITE(PyUnicode_KIND(unicode), PyUnicode_DATA(unicode),
                     length, 0);
@@ -1757,7 +1761,7 @@ PyUnicode_FromUnicode(const Py_UNICODE *u, Py_ssize_t size)
 
     /* Single character Unicode objects in the Latin-1 range are
        shared when using this constructor */
-    if (size == 1 && *u < 256)
+    if (size == 1 && (Py_UCS4)*u < 256)
         return get_latin1_char((unsigned char)*u);
 
     /* If not empty and not single character, copy the Unicode data
@@ -1865,7 +1869,7 @@ _PyUnicode_FromASCII(const char *buffer, Py_ssize_t size)
     PyObject *unicode;
     if (size == 1) {
 #ifdef Py_DEBUG
-        assert(s[0] < 128);
+        assert((unsigned char)s[0] < 128);
 #endif
         return get_latin1_char(s[0]);
     }
@@ -1907,7 +1911,7 @@ align_maxchar(Py_UCS4 maxchar)
 }
 
 static PyObject*
-_PyUnicode_FromUCS1(const unsigned char* u, Py_ssize_t size)
+_PyUnicode_FromUCS1(const Py_UCS1* u, Py_ssize_t size)
 {
     PyObject *res;
     unsigned char max_char;
@@ -2970,8 +2974,8 @@ PyUnicode_FromOrdinal(int ordinal)
         return NULL;
     }
 
-    if (ordinal < 256)
-        return get_latin1_char(ordinal);
+    if ((Py_UCS4)ordinal < 256)
+        return get_latin1_char((unsigned char)ordinal);
 
     v = PyUnicode_New(1, ordinal);
     if (v == NULL)
@@ -4657,6 +4661,14 @@ ascii_decode(const char *start, const char *end, Py_UCS1 *dest)
     const char *p = start;
     const char *aligned_end = (const char *) _Py_ALIGN_DOWN(end, SIZEOF_LONG);
 
+    /*
+     * Issue #17237: m68k is a bit different from most architectures in
+     * that objects do not use "natural alignment" - for example, int and
+     * long are only aligned at 2-byte boundaries.  Therefore the assert()
+     * won't work; also, tests have shown that skipping the "optimised
+     * version" will even speed up m68k.
+     */
+#if !defined(__m68k__)
 #if SIZEOF_LONG <= SIZEOF_VOID_P
     assert(_Py_IS_ALIGNED(dest, SIZEOF_LONG));
     if (_Py_IS_ALIGNED(p, SIZEOF_LONG)) {
@@ -4681,6 +4693,7 @@ ascii_decode(const char *start, const char *end, Py_UCS1 *dest)
         }
         return p - start;
     }
+#endif
 #endif
     while (p < end) {
         /* Fast path, see in STRINGLIB(utf8_decode) in stringlib/codecs.h
@@ -6103,6 +6116,11 @@ _PyUnicode_DecodeUnicodeInternal(const char *s,
     while (s < end) {
         Py_UNICODE uch;
         Py_UCS4 ch;
+        if (end - s < Py_UNICODE_SIZE) {
+            endinpos = end-starts;
+            reason = "truncated input";
+            goto error;
+        }
         /* We copy the raw representation one byte at a time because the
            pointer may be unaligned (see test_codeccallbacks). */
         ((char *) &uch)[0] = s[0];
@@ -6112,37 +6130,18 @@ _PyUnicode_DecodeUnicodeInternal(const char *s,
         ((char *) &uch)[3] = s[3];
 #endif
         ch = uch;
-
+#ifdef Py_UNICODE_WIDE
         /* We have to sanity check the raw data, otherwise doom looms for
            some malformed UCS-4 data. */
-        if (
-#ifdef Py_UNICODE_WIDE
-            ch > 0x10ffff ||
-#endif
-            end-s < Py_UNICODE_SIZE
-            )
-        {
-            startinpos = s - starts;
-            if (end-s < Py_UNICODE_SIZE) {
-                endinpos = end-starts;
-                reason = "truncated input";
-            }
-            else {
-                endinpos = s - starts + Py_UNICODE_SIZE;
-                reason = "illegal code point (> 0x10FFFF)";
-            }
-            if (unicode_decode_call_errorhandler(
-                    errors, &errorHandler,
-                    "unicode_internal", reason,
-                    &starts, &end, &startinpos, &endinpos, &exc, &s,
-                    &v, &outpos))
-                goto onError;
-            continue;
+        if (ch > 0x10ffff) {
+            endinpos = s - starts + Py_UNICODE_SIZE;
+            reason = "illegal code point (> 0x10FFFF)";
+            goto error;
         }
-
+#endif
         s += Py_UNICODE_SIZE;
 #ifndef Py_UNICODE_WIDE
-        if (Py_UNICODE_IS_HIGH_SURROGATE(ch) && s < end)
+        if (Py_UNICODE_IS_HIGH_SURROGATE(ch) && end - s >= Py_UNICODE_SIZE)
         {
             Py_UNICODE uch2;
             ((char *) &uch2)[0] = s[0];
@@ -6156,6 +6155,16 @@ _PyUnicode_DecodeUnicodeInternal(const char *s,
 #endif
 
         if (unicode_putchar(&v, &outpos, ch) < 0)
+            goto onError;
+        continue;
+
+  error:
+        startinpos = s - starts;
+        if (unicode_decode_call_errorhandler(
+                errors, &errorHandler,
+                "unicode_internal", reason,
+                &starts, &end, &startinpos, &endinpos, &exc, &s,
+                &v, &outpos))
             goto onError;
     }
 
@@ -11493,7 +11502,10 @@ PyDoc_STRVAR(isidentifier__doc__,
              "S.isidentifier() -> bool\n\
 \n\
 Return True if S is a valid identifier according\n\
-to the language definition.");
+to the language definition.\n\
+\n\
+Use keyword.iskeyword() to test for reserved identifiers\n\
+such as \"def\" and \"class\".\n");
 
 static PyObject*
 unicode_isidentifier(PyObject *self)
@@ -12924,7 +12936,7 @@ _PyUnicodeWriter_Finish(_PyUnicodeWriter *writer)
         writer->buffer = newbuffer;
     }
     assert(_PyUnicode_CheckConsistency(writer->buffer, 1));
-    return writer->buffer;
+    return unicode_result_ready(writer->buffer);
 }
 
 void

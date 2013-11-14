@@ -4,6 +4,9 @@
 /* XXX Signals should be recorded per thread, now we have thread state. */
 
 #include "Python.h"
+#ifndef MS_WINDOWS
+#include "posixmodule.h"
+#endif
 
 #ifdef MS_WINDOWS
 #include <Windows.h>
@@ -341,7 +344,10 @@ signal_signal(PyObject *self, PyObject *args)
     Handlers[sig_num].tripped = 0;
     Py_INCREF(obj);
     Handlers[sig_num].func = obj;
-    return old_handler;
+    if (old_handler != NULL)
+        return old_handler;
+    else
+        Py_RETURN_NONE;
 }
 
 PyDoc_STRVAR(signal_doc,
@@ -369,8 +375,13 @@ signal_getsignal(PyObject *self, PyObject *args)
         return NULL;
     }
     old_handler = Handlers[sig_num].func;
-    Py_INCREF(old_handler);
-    return old_handler;
+    if (old_handler != NULL) {
+        Py_INCREF(old_handler);
+        return old_handler;
+    }
+    else {
+        Py_RETURN_NONE;
+    }
 }
 
 PyDoc_STRVAR(getsignal_doc,
@@ -728,7 +739,7 @@ fill_siginfo(siginfo_t *si)
     PyStructSequence_SET_ITEM(result, 1, PyLong_FromLong((long)(si->si_code)));
     PyStructSequence_SET_ITEM(result, 2, PyLong_FromLong((long)(si->si_errno)));
     PyStructSequence_SET_ITEM(result, 3, PyLong_FromPid(si->si_pid));
-    PyStructSequence_SET_ITEM(result, 4, PyLong_FromLong((long)(si->si_uid)));
+    PyStructSequence_SET_ITEM(result, 4, _PyLong_FromUid(si->si_uid));
     PyStructSequence_SET_ITEM(result, 5,
                                 PyLong_FromLong((long)(si->si_status)));
     PyStructSequence_SET_ITEM(result, 6, PyLong_FromLong(si->si_band));
@@ -781,14 +792,18 @@ signal_sigtimedwait(PyObject *self, PyObject *args)
     struct timespec buf;
     sigset_t set;
     siginfo_t si;
+    time_t tv_sec;
+    long tv_nsec;
     int err;
 
     if (!PyArg_ParseTuple(args, "OO:sigtimedwait",
                           &signals, &timeout))
         return NULL;
 
-    if (_PyTime_ObjectToTimespec(timeout, &buf.tv_sec, &buf.tv_nsec) == -1)
+    if (_PyTime_ObjectToTimespec(timeout, &tv_sec, &tv_nsec) == -1)
         return NULL;
+    buf.tv_sec = tv_sec;
+    buf.tv_nsec = tv_nsec;
 
     if (buf.tv_sec < 0 || buf.tv_nsec < 0) {
         PyErr_SetString(PyExc_ValueError, "timeout must be non-negative");
@@ -1367,9 +1382,8 @@ PyErr_SetInterrupt(void)
 void
 PyOS_InitInterrupts(void)
 {
-    PyObject *m = PyInit_signal();
+    PyObject *m = PyImport_ImportModule("signal");
     if (m) {
-        _PyImport_FixupBuiltin(m, "signal");
         Py_DECREF(m);
     }
 }

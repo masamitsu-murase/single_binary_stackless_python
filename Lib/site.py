@@ -369,12 +369,7 @@ def setquit():
             # Shells like IDLE catch the SystemExit, but listen when their
             # stdin wrapper is closed.
             try:
-                fd = -1
-                if hasattr(sys.stdin, "fileno"):
-                    fd = sys.stdin.fileno()
-                if fd != 0:
-                    # Don't close stdin if it wraps fd 0
-                    sys.stdin.close()
+                sys.stdin.close()
             except:
                 pass
             raise SystemExit(code)
@@ -625,14 +620,16 @@ def _script():
     """
     args = sys.argv[1:]
     if not args:
+        user_base = getuserbase()
+        user_site = getusersitepackages()
         print("sys.path = [")
         for dir in sys.path:
             print("    %r," % (dir,))
         print("]")
-        print("USER_BASE: %r (%s)" % (USER_BASE,
-            "exists" if os.path.isdir(USER_BASE) else "doesn't exist"))
-        print("USER_SITE: %r (%s)" % (USER_SITE,
-            "exists" if os.path.isdir(USER_SITE) else "doesn't exist"))
+        print("USER_BASE: %r (%s)" % (user_base,
+            "exists" if os.path.isdir(user_base) else "doesn't exist"))
+        print("USER_SITE: %r (%s)" % (user_site,
+            "exists" if os.path.isdir(user_site) else "doesn't exist"))
         print("ENABLE_USER_SITE: %r" %  ENABLE_USER_SITE)
         sys.exit(0)
 

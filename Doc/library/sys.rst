@@ -307,6 +307,8 @@ always available.
    programming language; see section 5.2.4.2.2 of the 1999 ISO/IEC C standard
    [C99]_, 'Characteristics of floating types', for details.
 
+   .. tabularcolumns:: |l|l|L|
+
    +---------------------+----------------+--------------------------------------------------+
    | attribute           | float.h macro  | explanation                                      |
    +=====================+================+==================================================+
@@ -598,29 +600,7 @@ always available.
    :term:`struct sequence`  :data:`sys.version_info` may be used for a more
    human-friendly encoding of the same information.
 
-   The ``hexversion`` is a 32-bit number with the following layout:
-
-   +-------------------------+------------------------------------------------+
-   | Bits (big endian order) | Meaning                                        |
-   +=========================+================================================+
-   | :const:`1-8`            |  ``PY_MAJOR_VERSION``  (the ``2`` in           |
-   |                         |  ``2.1.0a3``)                                  |
-   +-------------------------+------------------------------------------------+
-   | :const:`9-16`           |  ``PY_MINOR_VERSION``  (the ``1`` in           |
-   |                         |  ``2.1.0a3``)                                  |
-   +-------------------------+------------------------------------------------+
-   | :const:`17-24`          |  ``PY_MICRO_VERSION``  (the ``0`` in           |
-   |                         |  ``2.1.0a3``)                                  |
-   +-------------------------+------------------------------------------------+
-   | :const:`25-28`          |  ``PY_RELEASE_LEVEL``  (``0xA`` for alpha,     |
-   |                         |  ``0xB`` for beta, ``0xC`` for release         |
-   |                         |  candidate and ``0xF`` for final)              |
-   +-------------------------+------------------------------------------------+
-   | :const:`29-32`          |  ``PY_RELEASE_SERIAL``  (the ``3`` in          |
-   |                         |  ``2.1.0a3``, zero for final releases)         |
-   +-------------------------+------------------------------------------------+
-
-   Thus ``2.1.0a3`` is hexversion ``0x020100a3``.
+   More details of ``hexversion`` can be found at :ref:`apiabiversion`
 
 
 .. data:: implementation
@@ -667,6 +647,8 @@ always available.
 
    A :term:`struct sequence` that holds information about Python's internal
    representation of integers.  The attributes are read only.
+
+   .. tabularcolumns:: |l|L|
 
    +-------------------------+----------------------------------------------+
    | Attribute               | Explanation                                  |
@@ -792,11 +774,14 @@ always available.
     A dictionary acting as a cache for :term:`finder` objects. The keys are
     paths that have been passed to :data:`sys.path_hooks` and the values are
     the finders that are found. If a path is a valid file system path but no
-    explicit finder is found on :data:`sys.path_hooks` then ``None`` is
-    stored to represent the implicit default finder should be used. If the path
-    is not an existing path then :class:`imp.NullImporter` is set.
+    finder is found on :data:`sys.path_hooks` then ``None`` is
+    stored.
 
     Originally specified in :pep:`302`.
+
+    .. versionchanged:: 3.3
+       ``None`` is stored instead of :class:`imp.NullImporter` when no finder
+       is found.
 
 
 .. data:: platform
@@ -1097,6 +1082,8 @@ always available.
 
    A :term:`struct sequence` holding information about the thread
    implementation.
+
+   .. tabularcolumns:: |l|p{0.7\linewidth}|
 
    +------------------+---------------------------------------------------------+
    | Attribute        | Explanation                                             |

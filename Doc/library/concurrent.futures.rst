@@ -144,7 +144,7 @@ ThreadPoolExecutor Example
    # We can use a with statement to ensure threads are cleaned up promptly
    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
        # Start the load operations and mark each future with its URL
-       future_to_url = {executor.submit(load_url, url, 60):url for url in URLS}
+       future_to_url = {executor.submit(load_url, url, 60): url for url in URLS}
        for future in concurrent.futures.as_completed(future_to_url):
            url = future_to_url[future]
            try:
@@ -345,6 +345,8 @@ Module Functions
 
    *return_when* indicates when this function should return.  It must be one of
    the following constants:
+
+   .. tabularcolumns:: |l|L|
 
    +-----------------------------+----------------------------------------+
    | Constant                    | Description                            |

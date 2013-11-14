@@ -142,7 +142,13 @@ if hasattr(os, 'listxattr'):
 
         """
 
-        for name in os.listxattr(src, follow_symlinks=follow_symlinks):
+        try:
+            names = os.listxattr(src, follow_symlinks=follow_symlinks)
+        except OSError as e:
+            if e.errno not in (errno.ENOTSUP, errno.ENODATA):
+                raise
+            return
+        for name in names:
             try:
                 value = os.getxattr(src, name, follow_symlinks=follow_symlinks)
                 os.setxattr(dst, name, value, follow_symlinks=follow_symlinks)
@@ -1085,7 +1091,11 @@ def which(cmd, mode=os.F_OK | os.X_OK, path=None):
             return cmd
         return None
 
-    path = (path or os.environ.get("PATH", os.defpath)).split(os.pathsep)
+    if path is None:
+        path = os.environ.get("PATH", os.defpath)
+    if not path:
+        return None
+    path = path.split(os.pathsep)
 
     if sys.platform == "win32":
         # The current directory takes precedence on Windows.

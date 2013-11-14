@@ -221,8 +221,9 @@ class SMTP:
 
         If specified, `host' is the name of the remote host to which to
         connect.  If specified, `port' specifies the port to which to connect.
-        By default, smtplib.SMTP_PORT is used.  An SMTPConnectError is raised
-        if the specified `host' doesn't respond correctly.  If specified,
+        By default, smtplib.SMTP_PORT is used.  If a host is specified the
+        connect method is called, and if it returns anything other than
+        a success code an SMTPConnectError is raised.  If specified,
         `local_hostname` is used as the FQDN of the local host.  By default,
         the local hostname is found using socket.getfqdn(). The
         `source_address` parameter takes a 2-tuple (host, port) for the socket
@@ -751,7 +752,10 @@ class SMTP:
                 esmtp_opts.append(option)
         (code, resp) = self.mail(from_addr, esmtp_opts)
         if code != 250:
-            self.rset()
+            if code == 421:
+                self.close()
+            else:
+                self.rset()
             raise SMTPSenderRefused(code, resp, from_addr)
         senderrs = {}
         if isinstance(to_addrs, str):
@@ -760,13 +764,19 @@ class SMTP:
             (code, resp) = self.rcpt(each, rcpt_options)
             if (code != 250) and (code != 251):
                 senderrs[each] = (code, resp)
+            if code == 421:
+                self.close()
+                raise SMTPRecipientsRefused(senderrs)
         if len(senderrs) == len(to_addrs):
             # the server refused all our recipients
             self.rset()
             raise SMTPRecipientsRefused(senderrs)
         (code, resp) = self.data(msg)
         if code != 250:
-            self.rset()
+            if code == 421:
+                self.close()
+            else:
+                self.rset()
             raise SMTPDataError(code, resp)
         #if we got here then somebody got our mail
         return senderrs

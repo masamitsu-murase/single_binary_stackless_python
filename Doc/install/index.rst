@@ -189,7 +189,7 @@ under the distribution root; if you're excessively concerned with speed, or want
 to keep the source tree pristine, you can change the build directory with the
 :option:`--build-base` option. For example::
 
-   python setup.py build --build-base=/tmp/pybuild/foo-1.0
+   python setup.py build --build-base=/path/to/pybuild/foo-1.0
 
 (Or you could do this permanently with a directive in your system or personal
 Distutils configuration file; see section :ref:`inst-config-files`.)  Normally, this
@@ -234,6 +234,8 @@ location for third-party Python modules.  This location varies by platform and
 by how you built/installed Python itself.  On Unix (and Mac OS X, which is also
 Unix-based), it also depends on whether the module distribution being installed
 is pure Python or contains extensions ("non-pure"):
+
+.. tabularcolumns:: |l|l|l|l|
 
 +-----------------+-----------------------------------------------------+--------------------------------------------------+-------+
 | Platform        | Standard installation location                      | Default value                                    | Notes |
@@ -642,6 +644,11 @@ environment, such as ``$PLAT``.  (And of course, on systems that don't have
 environment variables, such as Mac OS 9, the configuration variables supplied by
 the Distutils are the only ones you can use.) See section :ref:`inst-config-files`
 for details.
+
+.. note:: When a :ref:`virtual environment <venv-def>` is activated, any options
+   that change the installation path will be ignored from all distutils configuration
+   files to prevent inadvertently installing projects outside of the virtual
+   environment.
 
 .. XXX need some Windows examples---when would custom installation schemes be
    needed on those platforms?
