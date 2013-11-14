@@ -317,7 +317,7 @@ are always available.  They are listed here in alphabetical order.
       ['Struct', '__builtins__', '__doc__', '__file__', '__name__',
        '__package__', '_clearcache', 'calcsize', 'error', 'pack', 'pack_into',
        'unpack', 'unpack_from']
-      >>> class Shape(object):
+      >>> class Shape:
               def __dir__(self):
                   return ['area', 'perimeter', 'location']
       >>> s = Shape()
@@ -868,8 +868,8 @@ are always available.  They are listed here in alphabetical order.
    *buffering* is an optional integer used to set the buffering policy.  Pass 0
    to switch buffering off (only allowed in binary mode), 1 to select line
    buffering (only usable in text mode), and an integer > 1 to indicate the size
-   of a fixed-size chunk buffer.  When no *buffering* argument is given, the
-   default buffering policy works as follows:
+   in bytes of a fixed-size chunk buffer.  When no *buffering* argument is
+   given, the default buffering policy works as follows:
 
    * Binary files are buffered in fixed-size chunks; the size of the buffer is
      chosen using a heuristic trying to determine the underlying device's "block

@@ -163,13 +163,7 @@ class PyBuildExt(build_ext):
     def build_extensions(self):
 
         # Detect which modules should be compiled
-        old_so = self.compiler.shared_lib_extension
-        # Workaround PEP 3149 stuff
-        self.compiler.shared_lib_extension = os.environ.get("SO", ".so")
-        try:
-            missing = self.detect_modules()
-        finally:
-            self.compiler.shared_lib_extension = old_so
+        missing = self.detect_modules()
 
         # Remove modules that are present on the disabled list
         extensions = [ext for ext in self.extensions
@@ -1012,7 +1006,7 @@ class PyBuildExt(build_ext):
                 with open(f) as file:
                     incf = file.read()
                 m = re.search(
-                    r'\s*.*#\s*.*define\s.*SQLITE_VERSION\W*"(.*)"', incf)
+                    r'\s*.*#\s*.*define\s.*SQLITE_VERSION\W*"([\d\.]*)"', incf)
                 if m:
                     sqlite_version = m.group(1)
                     sqlite_version_tuple = tuple([int(x)
@@ -1309,6 +1303,7 @@ class PyBuildExt(build_ext):
             define_macros = []
             expat_lib = ['expat']
             expat_sources = []
+            expat_depends = []
         else:
             expat_inc = [os.path.join(os.getcwd(), srcdir, 'Modules', 'expat')]
             define_macros = [
@@ -1318,12 +1313,25 @@ class PyBuildExt(build_ext):
             expat_sources = ['expat/xmlparse.c',
                              'expat/xmlrole.c',
                              'expat/xmltok.c']
+            expat_depends = ['expat/ascii.h',
+                             'expat/asciitab.h',
+                             'expat/expat.h',
+                             'expat/expat_config.h',
+                             'expat/expat_external.h',
+                             'expat/internal.h',
+                             'expat/latin1tab.h',
+                             'expat/utf8tab.h',
+                             'expat/xmlrole.h',
+                             'expat/xmltok.h',
+                             'expat/xmltok_impl.h'
+                             ]
 
         exts.append(Extension('pyexpat',
                               define_macros = define_macros,
                               include_dirs = expat_inc,
                               libraries = expat_lib,
-                              sources = ['pyexpat.c'] + expat_sources
+                              sources = ['pyexpat.c'] + expat_sources,
+                              depends = expat_depends,
                               ))
 
         # Fredrik Lundh's cElementTree module.  Note that this also
@@ -1336,6 +1344,8 @@ class PyBuildExt(build_ext):
                                   include_dirs = expat_inc,
                                   libraries = expat_lib,
                                   sources = ['_elementtree.c'],
+                                  depends = ['pyexpat.c'] + expat_sources +
+                                      expat_depends,
                                   ))
         else:
             missing.append('_elementtree')
@@ -1819,7 +1829,8 @@ class PyBuildInstallLib(install_lib):
     # mode 644 unless they are a shared library in which case they will get
     # mode 755. All installed directories will get mode 755.
 
-    so_ext = sysconfig.get_config_var("SO")
+    # this is works for EXT_SUFFIX too, which ends with SHLIB_SUFFIX
+    shlib_suffix = sysconfig.get_config_var("SHLIB_SUFFIX")
 
     def install(self):
         outfiles = install_lib.install(self)
@@ -1834,7 +1845,7 @@ class PyBuildInstallLib(install_lib):
         for filename in files:
             if os.path.islink(filename): continue
             mode = defaultMode
-            if filename.endswith(self.so_ext): mode = sharedLibMode
+            if filename.endswith(self.shlib_suffix): mode = sharedLibMode
             log.info("changing mode of %s to %o", filename, mode)
             if not self.dry_run: os.chmod(filename, mode)
 

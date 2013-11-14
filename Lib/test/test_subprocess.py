@@ -79,6 +79,28 @@ class PopenExecuteChildRaises(subprocess.Popen):
 
 class ProcessTestCase(BaseTestCase):
 
+    def test_io_buffered_by_default(self):
+        p = subprocess.Popen([sys.executable, "-c", "import sys; sys.exit(0)"],
+                             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+        try:
+            self.assertIsInstance(p.stdin, io.BufferedIOBase)
+            self.assertIsInstance(p.stdout, io.BufferedIOBase)
+            self.assertIsInstance(p.stderr, io.BufferedIOBase)
+        finally:
+            p.wait()
+
+    def test_io_unbuffered_works(self):
+        p = subprocess.Popen([sys.executable, "-c", "import sys; sys.exit(0)"],
+                             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, bufsize=0)
+        try:
+            self.assertIsInstance(p.stdin, io.RawIOBase)
+            self.assertIsInstance(p.stdout, io.RawIOBase)
+            self.assertIsInstance(p.stderr, io.RawIOBase)
+        finally:
+            p.wait()
+
     def test_call_seq(self):
         # call() function with sequence argument
         rc = subprocess.call([sys.executable, "-c",
@@ -157,16 +179,27 @@ class ProcessTestCase(BaseTestCase):
         self.assertEqual(p.stdin, None)
 
     def test_stdout_none(self):
-        # .stdout is None when not redirected
-        p = subprocess.Popen([sys.executable, "-c",
-                             'print("    this bit of output is from a '
-                             'test of stdout in a different '
-                             'process ...")'],
-                             stdin=subprocess.PIPE, stderr=subprocess.PIPE)
-        self.addCleanup(p.stdin.close)
+        # .stdout is None when not redirected, and the child's stdout will
+        # be inherited from the parent.  In order to test this we run a
+        # subprocess in a subprocess:
+        # this_test
+        #   \-- subprocess created by this test (parent)
+        #          \-- subprocess created by the parent subprocess (child)
+        # The parent doesn't specify stdout, so the child will use the
+        # parent's stdout.  This test checks that the message printed by the
+        # child goes to the parent stdout.  The parent also checks that the
+        # child's stdout is None.  See #11963.
+        code = ('import sys; from subprocess import Popen, PIPE;'
+                'p = Popen([sys.executable, "-c", "print(\'test_stdout_none\')"],'
+                '          stdin=PIPE, stderr=PIPE);'
+                'p.wait(); assert p.stdout is None;')
+        p = subprocess.Popen([sys.executable, "-c", code],
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.addCleanup(p.stdout.close)
         self.addCleanup(p.stderr.close)
-        p.wait()
-        self.assertEqual(p.stdout, None)
+        out, err = p.communicate()
+        self.assertEqual(p.returncode, 0, err)
+        self.assertEqual(out.rstrip(), b'test_stdout_none')
 
     def test_stderr_none(self):
         # .stderr is None when not redirected
@@ -406,9 +439,22 @@ class ProcessTestCase(BaseTestCase):
 
     def test_stdout_filedes_of_stdout(self):
         # stdout is set to 1 (#1531862).
-        cmd = r"import sys, os; sys.exit(os.write(sys.stdout.fileno(), b'.\n'))"
-        rc = subprocess.call([sys.executable, "-c", cmd], stdout=1)
-        self.assertEqual(rc, 2)
+        # To avoid printing the text on stdout, we do something similar to
+        # test_stdout_none (see above).  The parent subprocess calls the child
+        # subprocess passing stdout=1, and this test uses stdout=PIPE in
+        # order to capture and check the output of the parent. See #11963.
+        code = ('import sys, subprocess; '
+                'rc = subprocess.call([sys.executable, "-c", '
+                '    "import os, sys; sys.exit(os.write(sys.stdout.fileno(), '
+                     'b\'test with stdout=1\'))"], stdout=1); '
+                'assert rc == 18')
+        p = subprocess.Popen([sys.executable, "-c", code],
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.addCleanup(p.stdout.close)
+        self.addCleanup(p.stderr.close)
+        out, err = p.communicate()
+        self.assertEqual(p.returncode, 0, err)
+        self.assertEqual(out.rstrip(), b'test with stdout=1')
 
     def test_env(self):
         newenv = os.environ.copy()
@@ -608,8 +654,6 @@ class ProcessTestCase(BaseTestCase):
                              universal_newlines=1)
         self.addCleanup(p.stdout.close)
         self.addCleanup(p.stderr.close)
-        # BUG: can't give a non-empty stdin because it breaks both the
-        # select- and poll-based communicate() implementations.
         (stdout, stderr) = p.communicate()
         self.assertEqual(stdout,
                          "line2\nline4\nline5\nline6\nline7\nline8")
@@ -639,6 +683,35 @@ class ProcessTestCase(BaseTestCase):
                              universal_newlines=True)
         p.communicate()
         self.assertEqual(p.returncode, 0)
+
+    def test_universal_newlines_communicate_stdin_stdout_stderr(self):
+        # universal newlines through communicate(), with stdin, stdout, stderr
+        p = subprocess.Popen([sys.executable, "-c",
+                              'import sys,os;' + SETBINARY + '''\nif True:
+                                  s = sys.stdin.buffer.readline()
+                                  sys.stdout.buffer.write(s)
+                                  sys.stdout.buffer.write(b"line2\\r")
+                                  sys.stderr.buffer.write(b"eline2\\n")
+                                  s = sys.stdin.buffer.read()
+                                  sys.stdout.buffer.write(s)
+                                  sys.stdout.buffer.write(b"line4\\n")
+                                  sys.stdout.buffer.write(b"line5\\r\\n")
+                                  sys.stderr.buffer.write(b"eline6\\r")
+                                  sys.stderr.buffer.write(b"eline7\\r\\nz")
+                              '''],
+                             stdin=subprocess.PIPE,
+                             stderr=subprocess.PIPE,
+                             stdout=subprocess.PIPE,
+                             universal_newlines=True)
+        self.addCleanup(p.stdout.close)
+        self.addCleanup(p.stderr.close)
+        (stdout, stderr) = p.communicate("line1\nline3\n")
+        self.assertEqual(p.returncode, 0)
+        self.assertEqual("line1\nline2\nline3\nline4\nline5\n", stdout)
+        # Python debug build push something like "[42442 refs]\n"
+        # to stderr at exit of subprocess.
+        # Don't use assertStderrEqual because it strips CR and LF from output.
+        self.assertTrue(stderr.startswith("eline2\neline6\neline7\n"))
 
     def test_universal_newlines_communicate_encodings(self):
         # Check that universal newlines mode works for various encodings,

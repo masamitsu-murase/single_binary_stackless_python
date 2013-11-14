@@ -47,6 +47,9 @@ class TrivialTests(unittest.TestCase):
         for string, list in tests:
             self.assertEqual(urllib.request.parse_http_list(string), list)
 
+    def test_URLError_reasonstr(self):
+        err = urllib.error.URLError('reason')
+        self.assertIn(err.reason, str(err))
 
 def test_request_headers_dict():
     """
@@ -1443,10 +1446,18 @@ class RequestTests(unittest.TestCase):
         Issue 13211 reveals that HTTPError didn't implement the URLError
         interface even though HTTPError is a subclass of URLError.
 
-        >>> err = urllib.error.HTTPError(msg='something bad happened', url=None, code=None, hdrs=None, fp=None)
+        >>> msg = 'something bad happened'
+        >>> url = code = fp = None
+        >>> hdrs = 'Content-Length: 42'
+        >>> err = urllib.error.HTTPError(url, code, msg, hdrs, fp)
         >>> assert hasattr(err, 'reason')
         >>> err.reason
         'something bad happened'
+        >>> assert hasattr(err, 'hdrs')
+        >>> err.hdrs
+        'Content-Length: 42'
+        >>> expected_errmsg = 'HTTP Error %s: %s' % (err.code, err.msg)
+        >>> assert str(err) == expected_errmsg
         """
 
     def test_HTTPError_interface_call(self):

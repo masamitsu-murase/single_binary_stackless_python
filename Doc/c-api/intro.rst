@@ -210,7 +210,7 @@ error handling for the moment; a better way to code this is shown below)::
    t = PyTuple_New(3);
    PyTuple_SetItem(t, 0, PyLong_FromLong(1L));
    PyTuple_SetItem(t, 1, PyLong_FromLong(2L));
-   PyTuple_SetItem(t, 2, PyString_FromString("three"));
+   PyTuple_SetItem(t, 2, PyUnicode_FromString("three"));
 
 Here, :c:func:`PyLong_FromLong` returns a new reference which is immediately
 stolen by :c:func:`PyTuple_SetItem`.  When you want to keep using an object
@@ -433,7 +433,7 @@ and lose important information about the exact cause of the error.
 .. index:: single: sum_sequence()
 
 A simple example of detecting exceptions and passing them on is shown in the
-:c:func:`sum_sequence` example above.  It so happens that that example doesn't
+:c:func:`sum_sequence` example above.  It so happens that this example doesn't
 need to clean up any owned references when it detects an error.  The following
 example function shows some error cleanup.  First, to remind you why you like
 Python, we show the equivalent Python code::

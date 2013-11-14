@@ -164,6 +164,9 @@ class BasicTest(TestCase):
         resp.begin()
         self.assertEqual(resp.read(), b"Text")
         self.assertTrue(resp.isclosed())
+        self.assertFalse(resp.closed)
+        resp.close()
+        self.assertTrue(resp.closed)
 
         body = "HTTP/1.1 400.100 Not Ok\r\n\r\nText"
         sock = FakeSocket(body)
@@ -185,6 +188,9 @@ class BasicTest(TestCase):
         self.assertFalse(resp.isclosed())
         self.assertEqual(resp.read(2), b'xt')
         self.assertTrue(resp.isclosed())
+        self.assertFalse(resp.closed)
+        resp.close()
+        self.assertTrue(resp.closed)
 
     def test_partial_reads_no_content_length(self):
         # when no length is present, the socket should be gracefully closed when
@@ -198,6 +204,25 @@ class BasicTest(TestCase):
         self.assertEqual(resp.read(2), b'xt')
         self.assertEqual(resp.read(1), b'')
         self.assertTrue(resp.isclosed())
+        self.assertFalse(resp.closed)
+        resp.close()
+        self.assertTrue(resp.closed)
+
+    def test_partial_reads_incomplete_body(self):
+        # if the server shuts down the connection before the whole
+        # content-length is delivered, the socket is gracefully closed
+        body = "HTTP/1.1 200 Ok\r\nContent-Length: 10\r\n\r\nText"
+        sock = FakeSocket(body)
+        resp = client.HTTPResponse(sock)
+        resp.begin()
+        self.assertEqual(resp.read(2), b'Te')
+        self.assertFalse(resp.isclosed())
+        self.assertEqual(resp.read(2), b'xt')
+        self.assertEqual(resp.read(1), b'')
+        self.assertTrue(resp.isclosed())
+        self.assertFalse(resp.closed)
+        resp.close()
+        self.assertTrue(resp.closed)
 
     def test_host_port(self):
         # Check invalid host_port
@@ -342,6 +367,9 @@ class BasicTest(TestCase):
         self.assertEqual(resp.status, 200)
         self.assertEqual(resp.reason, 'OK')
         self.assertTrue(resp.isclosed())
+        self.assertFalse(resp.closed)
+        resp.close()
+        self.assertTrue(resp.closed)
 
     def test_negative_content_length(self):
         sock = FakeSocket(
@@ -349,7 +377,7 @@ class BasicTest(TestCase):
         resp = client.HTTPResponse(sock, method="GET")
         resp.begin()
         self.assertEqual(resp.read(), b'Hello\r\n')
-        resp.close()
+        self.assertTrue(resp.isclosed())
 
     def test_incomplete_read(self):
         sock = FakeSocket('HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\nHello\r\n')
@@ -363,10 +391,9 @@ class BasicTest(TestCase):
                              "IncompleteRead(7 bytes read, 3 more expected)")
             self.assertEqual(str(i),
                              "IncompleteRead(7 bytes read, 3 more expected)")
+            self.assertTrue(resp.isclosed())
         else:
             self.fail('IncompleteRead expected')
-        finally:
-            resp.close()
 
     def test_epipe(self):
         sock = EPipeSocket(
@@ -418,6 +445,9 @@ class BasicTest(TestCase):
         resp.begin()
         self.assertEqual(resp.read(), b'')
         self.assertTrue(resp.isclosed())
+        self.assertFalse(resp.closed)
+        resp.close()
+        self.assertTrue(resp.closed)
 
 class OfflineTest(TestCase):
     def test_responses(self):

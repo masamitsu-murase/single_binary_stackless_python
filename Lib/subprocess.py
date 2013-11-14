@@ -25,7 +25,7 @@ Using the subprocess module
 ===========================
 This module defines one class called Popen:
 
-class Popen(args, bufsize=0, executable=None,
+class Popen(args, bufsize=-1, executable=None,
             stdin=None, stdout=None, stderr=None,
             preexec_fn=None, close_fds=True, shell=False,
             cwd=None, env=None, universal_newlines=False,
@@ -56,12 +56,12 @@ not all MS Windows applications interpret the command line the same
 way: The list2cmdline is designed for applications using the same
 rules as the MS C runtime.
 
-bufsize, if given, has the same meaning as the corresponding argument
-to the built-in open() function: 0 means unbuffered, 1 means line
-buffered, any other positive value means use a buffer of
-(approximately) that size.  A negative bufsize means to use the system
-default, which usually means fully buffered.  The default value for
-bufsize is 0 (unbuffered).
+bufsize will be supplied as the corresponding argument to the io.open()
+function when creating the stdin/stdout/stderr pipe file objects:
+0 means unbuffered (read & write are one system call and can return short),
+1 means line buffered, any other positive value means use a buffer of
+approximately that size.  A negative bufsize, the default, means the system
+default of io.DEFAULT_BUFFER_SIZE will be used.
 
 stdin, stdout and stderr specify the executed programs' standard
 input, standard output and standard error file handles, respectively.
@@ -108,10 +108,9 @@ If universal_newlines is true, the file objects stdout and stderr are
 opened as a text files, but lines may be terminated by any of '\n',
 the Unix end-of-line convention, '\r', the old Macintosh convention or
 '\r\n', the Windows convention.  All of these external representations
-are seen as '\n' by the Python program.  Note: This feature is only
-available if Python is built with universal newline support (the
-default).  Also, the newlines attribute of the file objects stdout,
-stdin and stderr are not updated by the communicate() method.
+are seen as '\n' by the Python program.  Also, the newlines attribute
+of the file objects stdout, stdin and stderr are not updated by the
+communicate() method.
 
 The startupinfo and creationflags, if given, will be passed to the
 underlying CreateProcess() function.  They can specify things such as
@@ -639,7 +638,7 @@ _PLATFORM_DEFAULT_CLOSE_FDS = object()
 
 
 class Popen(object):
-    def __init__(self, args, bufsize=0, executable=None,
+    def __init__(self, args, bufsize=-1, executable=None,
                  stdin=None, stdout=None, stderr=None,
                  preexec_fn=None, close_fds=_PLATFORM_DEFAULT_CLOSE_FDS,
                  shell=False, cwd=None, env=None, universal_newlines=False,
@@ -651,7 +650,7 @@ class Popen(object):
 
         self._child_created = False
         if bufsize is None:
-            bufsize = 0  # Restore default
+            bufsize = -1  # Restore default
         if not isinstance(bufsize, int):
             raise TypeError("bufsize must be an integer")
 
@@ -1519,6 +1518,8 @@ class Popen(object):
                 fd2output[self.stderr.fileno()] = stderr = []
 
             input_offset = 0
+            if self.universal_newlines and isinstance(input, str):
+                input = input.encode(self.stdin.encoding)
             while fd2file:
                 try:
                     ready = poller.poll()
@@ -1571,6 +1572,8 @@ class Popen(object):
                 stderr = []
 
             input_offset = 0
+            if self.universal_newlines and isinstance(input, str):
+                input = input.encode(self.stdin.encoding)
             while read_set or write_set:
                 try:
                     rlist, wlist, xlist = select.select(read_set, write_set, [])

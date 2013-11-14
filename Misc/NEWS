@@ -1,20 +1,82 @@
-+++++++++++
+++++++++++
 Python News
 +++++++++++
 
-What's New in Python 3.2.4
-==========================
+What's New in Python 3.2.5?
+===========================
 
-*Release date: XX-XX-XXXX*
+*Release date: 13-May-2013*
+
+Library
+-------
+
+- Issue #17192: Restore the patch for Issue #11729 and Issue #10309
+  which were omitted in 3.2.4 when updating the bundled version of
+  libffi used by ctypes.
+
+- Issue #15535: Fix namedtuple pickles which were picking up the OrderedDict
+  instead of just the underlying tuple.
+
+- Issue #1159051: Back out a fix for handling corrupted gzip files that
+  broke backwards compatibility.
+
+- Issue #17915: Fix interoperability of xml.sax with file objects returned by
+  codecs.open().
+
+Build
+-----
+
+- Issue #17857: Prevent build failures with pre-3.5.0 versions of sqlite3,
+  such as was shipped with Centos 5 and Mac OS X 10.4.
+
+Tests
+-----
+
+- Issue #17843: Removed bz2 test data file that was triggering false-positive
+  virus warnings with certain antivirus software.
+
+
+What's New in Python 3.2.4?
+===========================
+
+*Release date: 07-Apr-2013*
+
+Library
+-------
+
+- Issue #17625: In IDLE, close the replace dialog after it is used.
+
+
+What's New in Python 3.2.4 release candidate 1?
+===============================================
+
+*Release date: 24-Mar-2013*
 
 Core and Builtins
 -----------------
 
-- Issue #16979: Fix error handling bugs in the unicode-escape-decode decoder.
+- Issue #1692335: Move initial args assignment to
+  BaseException.__new__ to help pickling of naive subclasses.
 
-- Issue #13886: Fix input() to not strip out input bytes that cannot be decoded
-  using the locale encoding. Also fix sporadic failures in test_builtin due to
-  dependence on whether the readline module has previously been imported.
+- Issue #17275: Corrected class name in init error messages of the C version of
+  BufferedWriter and BufferedRandom.
+
+- Issue #7963: Fixed misleading error message that issued when object is
+  called without arguments.
+
+- Issue #5308: Raise ValueError when marshalling too large object (a sequence
+  with size >= 2**31), instead of producing illegal marshal data.
+
+- Issue #12983: Bytes literals with invalid \x escape now raise a SyntaxError
+  and a full traceback including line number.
+
+- Issue #17173: Remove uses of locale-dependent C functions (isalpha() etc.)
+  in the interpreter.
+
+- Issue #17043: The unicode-internal decoder no longer read past the end of
+  input buffer.
+
+- Issue #16979: Fix error handling bugs in the unicode-escape-decode decoder.
 
 - Issue #10156: In the interpreter's initialization phase, unicode globals
   are now initialized dynamically as needed.
@@ -215,6 +277,143 @@ Core and Builtins
 
 Library
 -------
+
+- Issue #17488: Change the subprocess.Popen bufsize parameter default value
+  from unbuffered (0) to buffering (-1) to match the behavior existing code
+  expects and match the behavior of the subprocess module in Python 2 to avoid
+  introducing hard to track down bugs.
+
+- Issue #17521: Corrected non-enabling of logger following two calls to
+  fileConfig().
+
+- Issue #17508: Corrected MemoryHandler configuration in dictConfig() where
+  the target handler wasn't configured first.
+
+- Issue #5713: smtplib now handles 421 (closing connection) error codes when
+  sending mail by closing the socket and reporting the 421 error code via the
+  exception appropriate to the command that received the error response.
+
+- Issue #8862: Fixed curses cleanup when getkey is interrputed by a signal.
+
+- Issue #17443: impalib.IMAP4_stream was using the default unbuffered IO
+  in subprocess, but the imap code assumes buffered IO.  In Python2 this
+  worked by accident.  IMAP4_stream now explicitly uses buffered IO.
+
+- Issue #17476: Fixed regression relative to Python2 in undocumented pydoc
+  'allmethods'; it was missing unbound methods on the class.
+
+- Issue #16389: Fixed a performance regression relative to Python 3.1 in the
+  caching of compiled regular expressions.
+
+- Issue #17431: Fix missing import of BytesFeedParser in email.parser.
+
+- Issue #1285086: Get rid of the refcounting hack and speed up
+  urllib.parse.unquote() and urllib.parse.unquote_to_bytes().
+
+- Issue #17368: Fix an off-by-one error in the Python JSON decoder that caused
+  a failure while decoding empty object literals when object_pairs_hook was
+  specified.
+
+- Issue #14645: The email generator classes now produce output using the
+  specified linesep throughout.  Previously if the prolog, epilog, or
+  body were stored with a different linesep, that linesep was used.  This
+  fix corrects an RFC non-compliance issue with smtplib.send_message.
+
+- Issue #17278: Fix a crash in heapq.heappush() and heapq.heappop() when
+  the list is being resized concurrently.
+
+- Issue #17018: Make Process.join() retry if os.waitpid() fails with EINTR.
+
+- Issue #14720: sqlite3: Convert datetime microseconds correctly.
+  Patch by Lowe Thiderman.
+
+- Issue #17225: JSON decoder now counts columns in the first line starting
+  with 1, as in other lines.
+
+- Issue #13700: Fix byte/string handling in imaplib authentication when an
+  authobject is specified.
+
+- Issue #13153: Tkinter functions now raise TclError instead of ValueError when
+  a string argument contains non-BMP character.
+
+- Issue #9669: Protect re against infinite loops on zero-width matching in
+  non-greedy repeat.  Patch by Matthew Barnett.
+
+- Issue #13169: The maximal repetition number in a regular expression has been
+  increased from 65534 to 2147483647 (on 32-bit platform) or 4294967294 (on
+  64-bit).
+
+- Issue #16743: Fix mmap overflow check on 32 bit Windows.
+
+- Issue #16800: tempfile.gettempdir() no longer left temporary files when
+  the disk is full.  Original patch by Amir Szekely.
+
+- Issue #16564: Fixed regression relative to Python2 in the operation of
+  email.encoders.encode_7or8bit when used with binary data.
+
+- Issue #17052: unittest discovery should use self.testLoader.
+
+- Issue #4591: Uid and gid values larger than 2**31 are supported now.
+
+- Issue #17141: random.vonmisesvariate() no more hangs for large kappas.
+
+- Issue #17149: Fix random.vonmisesvariate to always return results in
+  [0, 2*math.pi].
+
+- Issue #1470548: XMLGenerator now works with binary output streams.
+
+- Issue #6975: os.path.realpath() now correctly resolves multiple nested
+  symlinks on POSIX platforms.
+
+- Issue #17156: pygettext.py now uses an encoding of source file and correctly
+  writes and escapes non-ascii characters.
+
+- Issue #16564: Fixed regression relative to Python2 in the operation of
+  email.encoders.encode_noop when used with binary data.
+
+- Issue #10355: In SpooledTemporaryFile class mode, name, encoding and
+  newlines properties now work for unrolled files.  Obsoleted and never
+  working on Python 3 xreadline method now removed.
+
+- Issue #16686: Fixed a lot of bugs in audioop module.  Fixed crashes in
+  avgpp(), maxpp() and ratecv().  Fixed an integer overflow in add(), bias(),
+  and ratecv().  reverse(), lin2lin() and ratecv() no more lose precision for
+  32-bit samples.  max() and rms() no more returns a negative result and
+  various other functions now work correctly with 32-bit sample -0x80000000.
+
+- Issue #17073: Fix some integer overflows in sqlite3 module.
+
+- Issue #17114: IDLE now uses non-strict config parser.
+
+- Issue #16723: httplib.HTTPResponse no longer marked closed when the connection
+  is automatically closed.
+
+- Issue #16948: Fix quoted printable body encoding for non-latin1 character
+  sets in the email package.
+
+- Issue #17089: Expat parser now correctly works with string input not only when
+  an internal XML encoding is UTF-8 or US-ASCII.  It now accepts bytes and
+  strings larger than 2 GiB.
+
+- Issue #16903: Popen.communicate() on Unix now accepts strings when
+  universal_newlines is true as on Windows.
+
+- Issue #6083: Fix multiple segmentation faults occured when PyArg_ParseTuple
+  parses nested mutating sequence.
+
+- Issue #17106: Fix a segmentation fault in io.TextIOWrapper when an underlying
+  stream or a decoder produces data of an unexpected type (i.e. when
+  io.TextIOWrapper initialized with text stream or use bytes-to-bytes codec).
+
+- Issue #15633: httplib.HTTPResponse is now mark closed when the server
+  sends less than the advertised Content-Length.
+
+- Issue #6972: The zipfile module no longer overwrites files outside of
+  its destination path when extracting malicious zip files.
+
+- Issue #4844: ZipFile now raises BadZipFile when opens a ZIP file with an
+  incomplete "End of Central Directory" record.  Original patch by Guilherme
+  Polo and Alan McIntyre.
 
 - Issue #15505: `unittest.installHandler` no longer assumes SIGINT handler is
   set to a callable object.
@@ -792,8 +991,30 @@ Library
 - Issue #8033: sqlite3: Fix 64-bit integer handling in user functions
   on 32-bit architectures. Initial patch by Philippe Devalkeneer.
 
+- Issue #13590: OS X Xcode 4 - improve support for universal extension modules
+  In particular, fix extension module build failures when trying to use
+  32-bit-only installer Pythons on systems with Xcode 4 (currently
+  OS X 10.8, 10.7, and optionally 10.6).
+  * Backport 3.3.0 fixes to 3.2 branch (for release in 3.2.4)
+  * Since Xcode 4 removes ppc support, extension module builds now
+    check for ppc compiler support and by default remove ppc and
+    ppc64 archs when they are not available.
+  * Extension module builds now revert to using system installed
+    headers and libs (/usr and /System/Library) if the SDK used
+    to build the interpreter is not installed or has moved.
+  * Try to avoid building extension modules with deprecated
+    and problematic Apple llvm-gcc compiler.  If original compiler
+    is not available, use clang instead by default.
+
 Extension Modules
 -----------------
+
+- Issue #17192: Update the ctypes module's libffi to v3.0.13.  This
+  specifically addresses a stack misalignment issue on x86 and issues on
+  some more recent platforms.
+
+- Issue #12268: The io module file object write methods no longer abort early
+  when one of its write system calls is interrupted (EINTR).
 
 - Fix the leak of a dict in the time module when used in an embedded
   interpreter that is repeatedly initialized and shutdown and reinitialized.
@@ -818,6 +1039,24 @@ Extension Modules
 
 Tests
 -----
+
+- Issue #17448: test_sax now skips if there are no xml parsers available
+  instead of raising an ImportError.
+
+- Issue #11420: make test suite pass with -B/DONTWRITEBYTECODE set.
+  Initial patch by Thomas Wouters.
+
+- Issue #10652: make tcl/tk tests run after __all__ test, patch by
+  Zachary Ware.
+
+- Issue #11963: remove human verification from test_parser and test_subprocess.
+
+- Issue #11732: add a new suppress_crash_popup() context manager to test.support
+  that disables crash popups on Windows and use it in test_capi.
+
+- Issue #13898: test_ssl no longer prints a spurious stack trace on Ubuntu.
+
+- Issue #17249: convert a test in test_capi to use unittest and reap threads.
 
 - Issue #17041: Fix testing when Python is configured with the
   --without-doc-strings.
@@ -884,8 +1123,20 @@ Tests
 - Issue #14589: Update certificate chain for sha256.tbs-internet.com, fixing
   a test failure in test_ssl.
 
+- Issue #16698: Skip posix test_getgroups when built with OS X
+  deployment target prior to 10.6.
+
 Build
 -----
+
+- Issue #17425: Build with openssl 1.0.0k on Windows.
+
+- Issue #16754: Fix the incorrect shared library extension on linux. Introduce
+  two makefile macros SHLIB_SUFFIX and EXT_SUFFIX. SO now has the value of
+  SHLIB_SUFFIX again (as in 2.x and 3.1). The SO macro is removed in 3.4.
+
+- Issue #5033: Fix building of the sqlite3 extension module when the
+  SQLite library version has "beta" in it. Patch by Andreas Pelme.
 
 - Issue #3754: fix typo in pthread AC_CACHE_VAL.
 
@@ -933,6 +1184,14 @@ Build
 
 - Issue #14018: Fix OS X Tcl/Tk framework checking when using OS X SDKs.
 
+- Issue #16256: OS X installer now sets correct permissions for doc directory.
+
+- Issue #15587: Enable Tk high-resolution text rendering on Macs with
+  Retina displays.  Applies to Tkinter apps, such as IDLE, on OS X
+  framework builds linked with Cocoa Tk 8.5.
+
+- Issue #17161: make install now also installs a python3 man page.
+
 Tools/Demos
 -----------
 
@@ -941,6 +1200,25 @@ Tools/Demos
 
 Documentation
 -------------
+
+- Issue 17538: Document XML vulnerabilties
+
+- Issue #17047: remove doubled words in docs and docstrings
+  reported by Serhiy Storchaka and Matthew Barnett.
+
+- Issue #16406: Combine the pages for uploading and registering to PyPI.
+
+- Issue #16403: Document how distutils uses the maintainer field in
+  PKG-INFO. Patch by Jyrki Pulliainen.
+
+- Issue #16695: Document how glob handles filenames starting with a
+  dot. Initial patch by Jyrki Pulliainen.
+
+- Issue #8890: Stop advertising an insecure practice by replacing uses
+  of the /tmp directory with better alternatives in the documentation.
+  Patch by Geoff Wilson.
+
+- Issue #17203: add long option names to unittest discovery docs.
 
 - Issue #13094: add "Why do lambdas defined in a loop with different values
   all return the same result?" programming FAQ.
@@ -1008,6 +1286,9 @@ Documentation
 
 - Issue #15250: Document that filecmp.dircmp compares files shallowly. Patch
   contributed by Chris Jerdonek.
+
+- Issue #15116: Remove references to appscript as it is no longer being
+  supported.
 
 Tools/Demos
 -----------

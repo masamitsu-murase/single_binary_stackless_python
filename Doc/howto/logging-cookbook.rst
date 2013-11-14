@@ -1036,7 +1036,7 @@ arbitrary object as a message format string, and that the logging package will
 call ``str()`` on that object to get the actual format string. Consider the
 following two classes::
 
-    class BraceMessage(object):
+    class BraceMessage:
         def __init__(self, fmt, *args, **kwargs):
             self.fmt = fmt
             self.args = args
@@ -1045,7 +1045,7 @@ following two classes::
         def __str__(self):
             return self.fmt.format(*self.args, **self.kwargs)
 
-    class DollarMessage(object):
+    class DollarMessage:
         def __init__(self, fmt, **kwargs):
             self.fmt = fmt
             self.kwargs = kwargs
@@ -1345,7 +1345,7 @@ works::
     import random
     import time
 
-    class MyHandler(object):
+    class MyHandler:
         """
         A simple handler for logging events. It runs in the listener process and
         dispatches events to loggers based on the name in the received record,
@@ -1572,7 +1572,7 @@ UTF-8, then you need to do the following:
 
       'ASCII section\ufeffUnicode section'
 
-   The Unicode code point ``'\feff```, when encoded using UTF-8, will be
+   The Unicode code point U+FEFF, when encoded using UTF-8, will be
    encoded as a UTF-8 BOM -- the byte-string ``b'\xef\xbb\xbf'``.
 
 #. Replace the ASCII section with whatever placeholders you like, but make sure
