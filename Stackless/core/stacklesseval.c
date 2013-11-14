@@ -346,6 +346,9 @@ void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
             /* were we asked to kill tasklet on our thread? */
             if (target_ts != NULL && cs->tstate != target_ts)
                 continue;
+            /* is it already dead? */
+            if (cs->task->f.frame == NULL)
+                continue;
             break;
         }
         count = 0;
