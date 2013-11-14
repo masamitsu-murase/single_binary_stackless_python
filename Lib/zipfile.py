@@ -1353,7 +1353,7 @@ class ZipFile(object):
 class PyZipFile(ZipFile):
     """Class to create ZIP archives with Python library files and packages."""
 
-    def writepy(self, pathname, basename = "", filterfunc=None):
+    def writepy(self, pathname, basename = ""):
         """Add all files from "pathname" to the ZIP archive.
 
         If pathname is a package directory, search the directory and
@@ -1364,13 +1364,7 @@ class PyZipFile(ZipFile):
         archive.  Added modules are always module.pyo or module.pyc.
         This method will compile the module.py into module.pyc if
         necessary.
-        If filterfunc(pathname) is given, it is called with every argument. 
-        When it is False, the file or directory is skipped.
         """
-        if filterfunc and not filterfunc(pathname):
-            if self.debug:
-                print 'pathname "%s" skipped by filterfunc' % pathname
-            return
         dir, name = os.path.split(pathname)
         if os.path.isdir(pathname):
             initname = os.path.join(pathname, "__init__.py")
@@ -1395,8 +1389,7 @@ class PyZipFile(ZipFile):
                     if os.path.isdir(path):
                         if os.path.isfile(os.path.join(path, "__init__.py")):
                             # This is a package directory, add it
-                            self.writepy(path, basename,
-                                         filterfunc=filterfunc)  # Recursive call
+                            self.writepy(path, basename)  # Recursive call
                     elif ext == ".py":
                         fname, arcname = self._get_codename(path[0:-3],
                                          basename)
