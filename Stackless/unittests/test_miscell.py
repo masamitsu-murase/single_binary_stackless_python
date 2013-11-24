@@ -638,6 +638,7 @@ class TestBind(StacklessTestCase):
     def setUp(self):
         super(TestBind, self).setUp()
         self.finally_run_count = 0
+        self.args = self.kwargs = None
 
     def task(self, with_c_state):
         try:
@@ -647,6 +648,14 @@ class TestBind(StacklessTestCase):
                 stackless.schedule_remove(None)
         finally:
             self.finally_run_count += 1
+
+    def argstest(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = dict(kwargs)
+
+    def assertArgs(self, args, kwargs):
+        self.assertEqual(args, self.args)
+        self.assertEqual(kwargs, self.kwargs)
 
     def test_bind(self):
         t = stackless.tasklet()
@@ -741,6 +750,71 @@ class TestBind(StacklessTestCase):
         self.assertIsNone(wr())  # tasklet has been deleted
         self.assertEqual(self.finally_run_count, 1)
 
+    def test_bind_noargs(self):
+        t = stackless.tasklet(self.task)
+        t.bind(self.argstest)
+        self.assertRaises(RuntimeError, t.run)
+
+    def test_bind_args(self):
+        args = "foo", "bar"
+        t = stackless.tasklet(self.task)
+        t.bind(self.argstest, args)
+        t.run()
+        self.assertArgs(args, {})
+
+        t = stackless.tasklet(self.task)
+        t.bind(self.argstest, args=args)
+        t.run()
+        self.assertArgs(args, {})
+
+    def test_bind_kwargs(self):
+        t = stackless.tasklet(self.task)
+        kwargs = {"hello" : "world"}
+        t.bind(self.argstest, None, kwargs)
+        t.run()
+        self.assertArgs((), kwargs)
+
+        t = stackless.tasklet(self.task)
+        t.bind(self.argstest, kwargs=kwargs)
+        t.run()
+        self.assertArgs((), kwargs)
+
+    def test_bind_args_kwargs(self):
+        args = ("foo", "bar")
+        kwargs = {"hello" : "world"}
+
+        t = stackless.tasklet(self.task)
+        t.bind(self.argstest, args, kwargs)
+        t.run()
+        self.assertArgs(args, kwargs)
+
+        t = stackless.tasklet(self.task)
+        t.bind(self.argstest, args=args, kwargs=kwargs)
+        t.run()
+        self.assertArgs(args, kwargs)
+
+    def test_bind_args_kwargs_nofunc(self):
+        args = ("foo", "bar")
+        kwargs = {"hello" : "world"}
+
+        t = stackless.tasklet(self.argstest)
+        t.bind(None, args, kwargs)
+        t.run()
+        self.assertArgs(args, kwargs)
+
+        t = stackless.tasklet(self.argstest)
+        t.bind(args=args, kwargs=kwargs)
+        t.run()
+        self.assertArgs(args, kwargs)
+
+    def test_bind_args_not_runnable(self):
+        args = ("foo", "bar")
+        kwargs = {"hello" : "world"}
+
+        t = stackless.tasklet(self.task)
+        t.bind(self.argstest, args, kwargs)
+        self.assertFalse(t.scheduled)
+        t.run()
 
 #///////////////////////////////////////////////////////////////////////////////
 
