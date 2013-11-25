@@ -59,7 +59,7 @@ PyAPI_FUNC(int) PyTasklet_Run_nr(PyTaskletObject *task);
 /* 1 = soft switched  0 = hard switched  -1 = failure */
 
 /*
- * raw switching.  Teh previous tasklet is paused
+ * raw switching.  The previous tasklet is paused.
  */
 PyAPI_FUNC(int) PyTasklet_Switch(PyTaskletObject *task);
 /* 0 = success	-1 = failure */

@@ -871,7 +871,7 @@ class TestSwitch(StacklessTestCase):
         t = stackless.tasklet(self.blocked_target)()
         t.run()
         self.assertTrue(t.blocked)
-        self.assertRaises(RuntimeError, t.switch)
+        self.assertRaisesRegexp(RuntimeError, "blocked", t.switch)
         self.c.send(None)
         self.assertTrue(self.finished)
 
@@ -886,7 +886,7 @@ class TestSwitch(StacklessTestCase):
         t = stackless.tasklet(self.target)()
         self.assertFalse(t.paused)
         with switch_trapped():
-            self.assertRaises(RuntimeError, t.switch)
+            self.assertRaisesRegexp(RuntimeError, "switch_trap", t.switch)
         self.assertFalse(t.paused)
         t.switch()
         self.assertTrue(self.finished)
@@ -901,7 +901,7 @@ class TestSwitch(StacklessTestCase):
         t.run()
         self.assertTrue(t.blocked)
         with switch_trapped():
-            self.assertRaises(RuntimeError, t.switch)
+            self.assertRaisesRegexp(RuntimeError, "blocked", t.switch)
         self.assertTrue(t.blocked)
         self.c.send(None)
         self.assertTrue(self.finished)
@@ -911,8 +911,7 @@ class TestSwitch(StacklessTestCase):
         t.bind(args=())
         self.assertTrue(t.paused)
         with switch_trapped():
-            self.assertRaises(RuntimeError, t.switch)
-        print "done"
+            self.assertRaisesRegexp(RuntimeError, "switch_trap", t.switch)
         self.assertTrue(t.paused)
         t.switch()
         self.assertTrue(self.finished)
