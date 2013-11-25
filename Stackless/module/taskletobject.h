@@ -4,6 +4,9 @@
 #define TASKLET_RUN_HEAD(func) \
     PyObject *func (PyTaskletObject *task)
 
+#define TASKLET_SWITCH_HEAD(func) \
+    PyObject *func (PyTaskletObject *task)
+
 #define TASKLET_REMOVE_HEAD(func) \
     int func (PyTaskletObject *task)
 
@@ -37,6 +40,7 @@ typedef struct _pytasklet_heaptype {
     TASKLET_RAISE_EXCEPTION_HEAD(       (*raise_exception)   );
     TASKLET_KILL_HEAD(                  (*kill)              );
     TASKLET_THROW_HEAD(                 (*_throw)            );
+    TASKLET_SWITCH_HEAD(                (*_switch)           );
 } PyTasklet_HeapType;
 
 int init_tasklettype(void);

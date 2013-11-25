@@ -718,15 +718,21 @@ PyTasklet_Run(PyTaskletObject *task)
     return slp_return_wrapper(t->run(task));
 }
 
-static TASKLET_RUN_HEAD(impl_tasklet_run)
+static PyObject *
+impl_tasklet_run_remove(PyTaskletObject *task, int remove)
 {
     STACKLESS_GETARG();
     PyThreadState *ts = PyThreadState_GET();
     PyObject *ret;
-    int inserted, fail;
-
+    int inserted, fail, removed=0;
+    PyTaskletObject *prev = ts->st.current;
+    
     assert(PyTasklet_Check(task));
     if (ts->st.main == NULL) return PyTasklet_Run_M(task);
+
+    /* we always call impl_tasklet_insert, so we must
+     * also uninsert in case of failure
+     */
     inserted = task->next == NULL;
 
     if (ts == task->cstate->tstate) {
@@ -735,6 +741,15 @@ static TASKLET_RUN_HEAD(impl_tasklet_run)
          * order
          */
         fail = impl_tasklet_insert(task);
+        if (!fail && remove) {
+            /* if we remove (tasklet.switch), then the current is effecively
+             * replaced by the target.
+             * move the reference of the current task to del_post_switch */
+            assert(ts->st.del_post_switch == NULL);
+            ts->st.del_post_switch = (PyObject*)prev;
+            slp_current_remove();
+            removed = 1;
+        }
     } else {
         /* interthread. */
         PyThreadState *rts = task->cstate->tstate;
@@ -759,8 +774,12 @@ static TASKLET_RUN_HEAD(impl_tasklet_run)
     if (fail)
         return NULL;
     /* this is redundant in the interthread case, since insert already did the work */
-    fail = slp_schedule_task(&ret, ts->st.current, task, stackless, 0);
+    fail = slp_schedule_task(&ret, prev, task, stackless, 0);
     if (fail) {
+        if (removed) {
+            ts->st.del_post_switch = NULL;
+            slp_current_unremove(prev);
+        }
         if (inserted) {
             /* we must undo the insertion that we did */
             slp_current_uninsert(task);
@@ -768,6 +787,11 @@ static TASKLET_RUN_HEAD(impl_tasklet_run)
         }
     }
     return ret;
+}
+
+static TASKLET_RUN_HEAD(impl_tasklet_run)
+{
+    return impl_tasklet_run_remove(task, 0);
 }
 
 static TASKLET_RUN_HEAD(wrap_tasklet_run)
@@ -780,6 +804,50 @@ static PyObject *
 tasklet_run(PyObject *self)
 {
     return impl_tasklet_run((PyTaskletObject *) self);
+}
+
+static TASKLET_RUN_HEAD(wrap_tasklet_switch)
+{
+    return PyObject_CallMethod((PyObject *)task, "switch", NULL);
+}
+
+PyDoc_STRVAR(tasklet_switch__doc__,
+"Similar to 'run', but additionally 'remove' the current tasklet\n\
+atomically.  This primitive can be used to implement\n\
+custom scheduling behaviour.");
+
+static PyObject *
+PyTasklet_Switch_M(PyTaskletObject *task)
+{
+    return PyStackless_CallMethod_Main((PyObject*)task, "switch", NULL);
+}
+
+int
+PyTasklet_Switch_nr(PyTaskletObject *task)
+{
+    PyTasklet_HeapType *t = (PyTasklet_HeapType *)task->ob_type;
+
+    slp_try_stackless = 1;
+    return slp_return_wrapper(t->_switch(task));
+}
+
+int
+PyTasklet_Switch(PyTaskletObject *task)
+{
+    PyTasklet_HeapType *t = (PyTasklet_HeapType *)task->ob_type;
+
+    return slp_return_wrapper(t->_switch(task));
+}
+
+static TASKLET_SWITCH_HEAD(impl_tasklet_switch)
+{
+    return impl_tasklet_run_remove(task, 1);
+}
+
+static PyObject *
+tasklet_switch(PyObject *self)
+{
+    return impl_tasklet_switch((PyTaskletObject *) self);
 }
 
 PyDoc_STRVAR(tasklet_set_atomic__doc__,
@@ -1598,6 +1666,8 @@ static PyMethodDef tasklet_methods[] = {
       tasklet_insert__doc__},
     {"run",                     (PCF)tasklet_run,           METH_NS,
      tasklet_run__doc__},
+    {"switch",                  (PCF)tasklet_switch,        METH_NS,
+     tasklet_switch__doc__},
     {"remove",                  (PCF)tasklet_remove,        METH_NOARGS,
      tasklet_remove__doc__},
     {"set_atomic",              (PCF)tasklet_set_atomic,    METH_O,
