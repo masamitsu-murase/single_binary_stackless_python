@@ -59,6 +59,14 @@ PyAPI_FUNC(int) PyTasklet_Run_nr(PyTaskletObject *task);
 /* 1 = soft switched  0 = hard switched  -1 = failure */
 
 /*
+ * raw switching.  Teh previous tasklet is paused
+ */
+PyAPI_FUNC(int) PyTasklet_Switch(PyTaskletObject *task);
+/* 0 = success	-1 = failure */
+PyAPI_FUNC(int) PyTasklet_Switch_nr(PyTaskletObject *task);
+/* 1 = soft switched  0 = hard switched  -1 = failure */
+
+/*
  * removing a tasklet from the runnables queue.
  * Be careful! If this tasklet has a C stack attached,
  * you need to either continue it or kill it. Just dropping
