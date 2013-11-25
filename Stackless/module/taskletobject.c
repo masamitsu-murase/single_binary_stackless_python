@@ -754,6 +754,12 @@ impl_tasklet_run_remove(PyTaskletObject *task, int remove)
         /* interthread. */
         PyThreadState *rts = task->cstate->tstate;
         PyTaskletObject *current = rts->st.current;
+        if (remove) {
+            /* switching only makes sens on the same thread. */
+            PyErr_SetString(PyExc_RuntimeError,
+                "can't switch to a different thread.");
+            return NULL;
+        }
         if (rts->st.thread.is_idle) {
             /* remote thread is blocked, or unblocked and hasn't got the GIL yet.
              * insert it before the "current"
@@ -814,7 +820,8 @@ static TASKLET_RUN_HEAD(wrap_tasklet_switch)
 PyDoc_STRVAR(tasklet_switch__doc__,
 "Similar to 'run', but additionally 'remove' the current tasklet\n\
 atomically.  This primitive can be used to implement\n\
-custom scheduling behaviour.");
+custom scheduling behaviour.  Only works for tasklets of the\n\
+same thread.");
 
 static PyObject *
 PyTasklet_Switch_M(PyTaskletObject *task)

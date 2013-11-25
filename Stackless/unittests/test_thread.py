@@ -76,6 +76,12 @@ class LingeringThread(threading.Thread):
         self.shutdown.set()
         return super(LingeringThread, self).join()
 
+    def __enter__(self):
+        pass
+
+    def __exit__(self, ex, val, tb):
+        self.join()
+
 class SchedulingThread(LingeringThread):
     """ A thread that runs a scheduling loop after executing its main function"""
     def linger(self):
@@ -246,7 +252,7 @@ class TestRebindCrash(SkipMixin, StacklessTestCase):
     def test_rebind_nontrivial(self):
         end, task = self.create_remote_tasklet(nontrivial=True)
         try:
-            self.assertRaises(RuntimeError, task.bind_thread)
+            self.assertRaisesRegexp(RuntimeError, "C state", task.bind_thread)
         finally:
             end()
 
@@ -336,7 +342,7 @@ class DeadThreadTest(RemoteTaskletTests):
 
     def test_bind_runnable(self):
         theThread, t = self.create_thread_task()
-        self.assertRaises(RuntimeError, t.bind_thread)
+        self.assertRaisesRegexp(RuntimeError, "runnable", t.bind_thread)
         theThread.join()
 
 class BindThreadTest(RemoteTaskletTests):
@@ -366,6 +372,18 @@ class BindThreadTest(RemoteTaskletTests):
             self.assertFalse(t.alive)
         finally:
             theThread.join()
+
+class SwitchTest(RemoteTaskletTests):
+    ThreadClass = SchedulingThread
+    def tasklet_action(self):
+        stackless.schedule_remove() # pause it
+        self.taskletExecuted = True
+    def test_switch(self):
+        """Test that inter-thread switching fails"""
+        theThread, t = self.create_thread_task()
+        with theThread:
+            self.assertTrue(t.paused)
+            self.assertRaisesRegexp(RuntimeError, "different thread", t.switch)
 
 #///////////////////////////////////////////////////////////////////////////////
 
