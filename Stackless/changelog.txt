@@ -13,6 +13,29 @@ What's New in Stackless 2.7.6?
 - http://www.stackless.com/ticket/24: Enable unbinding of tasklets.
   The method tasklet.bind(None) now unbinds a tasklet. 
 
+- Add the stackless.atomic() context manager to enter an atomic state.
+
+- Make manual inter-thread scheduling of tasklets more robust.  Fix
+  various edge and corner cases pertaining to scheduling tasklets on
+  a different thread.
+
+- Reverse the "immediate" flag for tasklet.throw().  it is now
+  tasklet.throw(..., pending=False).
+
+- Don't silently ignore TaskletExit on the main tasklet.
+
+- Diable pre-emptive switching in switch-trapped mode.
+
+- Add tasklet.bind_thread() method, to re-bind a soft-switchable
+  tasklet to the calling thread.
+
+- Enhance tasklet.bind() so that it can bind arguments as well without
+  making the tasklet runnable.
+
+- Add stackless.switch(), to do manual switching of tasklets without
+  placing the source in the runnable queue.  I.e. the target is run and
+  the source is paused.
+
 What's New in Stackless 2.7.5?
 ==============================
 
