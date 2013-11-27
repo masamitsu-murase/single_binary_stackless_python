@@ -12,7 +12,7 @@ class RegexMixIn(object):
     def assertRaisesRegexp(self, klass, rex, func, *args):
         try:
             func(*args)
-        except Exception, e:
+        except Exception as e:
             self.assertTrue(re.match(rex, str(e)))
             self.assertTrue(isinstance(e, klass))
         else:
