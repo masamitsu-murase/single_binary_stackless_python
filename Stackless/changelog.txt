@@ -5,7 +5,7 @@ This file documents changes to the Stackless extension of CPython.
 For other changes see Misc/NEWS.
 
 
-What's New in Stackless 2.7.6?
+What's New in Stackless 3.2.5?
 ==============================
 
 *Release date: XXXX-XX-XX*
@@ -36,33 +36,11 @@ What's New in Stackless 2.7.6?
   placing the source in the runnable queue.  I.e. the target is run and
   the source is paused.
 
-What's New in Stackless 2.7.5?
-==============================
-
-*Release date: 2013-05-17*
-
-No Stackless specific changes.
-
-
-What's New in Stackless 2.7.4?
-==============================
-
-*Release date: 2013-05-17*
-
 - Fix unlinking of tasks in kill_tasks_with_stacks. The earlier code
   was a bit weird and would cause miscompilation on X64.
 
 - http://www.stackless.com/ticket/23: Fix compile error with STACKLESS_OFF
   defined
-
-
-What's New in Stackless 2.7.4rc2?
-=================================
-
-*Release date: 2013-05-01*
-
-(A selection of user visible changes from mercurial commit log messages. Use 
- "hg log -b 2.7-slp -r v2.7.4rc2-slp:v2.7.2-slp  -v -M" to get the complete log.) 
 
 - http://www.stackless.com/ticket/21: Fix crash on exit.
 
@@ -93,25 +71,11 @@ What's New in Stackless 2.7.4rc2?
 
 - Fix default argument handling of channel.send_throw
 
-
-What's New in Stackless 2.7.3?
-==============================
-
-*Release date: 2013-05-15*
-
 - Add channel.send_throw(exc[,val[,tb]]) to raise a new exception or propagate
   an old one across a channel.
 
 - Make sure that the tasklet's "atomic" flag inhibits thread switching, so that
   it can be used when synchronizing tasklets from different threads.
-
-
-What's New in Stackless 2.7.2?
-==============================
-
-*Release date: 2011-12-21*
-
-(A selection of SVN commit log messages)
 
 - Apply Anselm Kruis' patch to get amd64 linux building again without the 'bp'
   register problem.
@@ -147,8 +111,6 @@ What's New in Stackless 2.7.2?
   program profiling. A patch with this new _lsprof.c has also been submitted
   to bug.python.org. What remains now is the ability to set tracing/profiling
   for all tasklets globally.
-
-20100101   Release of Stackless Python 2.7.1
 
 
 Here is a break. Nobody wrote a change log. If you are interested 
