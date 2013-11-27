@@ -823,7 +823,7 @@ PyTasklet_Switch_M(PyTaskletObject *task)
 int
 PyTasklet_Switch_nr(PyTaskletObject *task)
 {
-    PyTasklet_HeapType *t = (PyTasklet_HeapType *)task->ob_type;
+    PyTasklet_HeapType *t = (PyTasklet_HeapType*)Py_TYPE(task);
 
     slp_try_stackless = 1;
     return slp_return_wrapper(t->_switch(task));
@@ -832,7 +832,7 @@ PyTasklet_Switch_nr(PyTaskletObject *task)
 int
 PyTasklet_Switch(PyTaskletObject *task)
 {
-    PyTasklet_HeapType *t = (PyTasklet_HeapType *)task->ob_type;
+    PyTasklet_HeapType *t = (PyTasklet_HeapType*)Py_TYPE(task);
 
     return slp_return_wrapper(t->_switch(task));
 }
