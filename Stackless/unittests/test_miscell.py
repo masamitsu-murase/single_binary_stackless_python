@@ -8,6 +8,7 @@ import traceback
 import contextlib
 import weakref
 import types
+import contextlib
 
 from support import StacklessTestCase, AsTaskletTestCase
 try:
@@ -28,6 +29,13 @@ def runtask():
     for ii in range(1000):
         x += 1
 
+@contextlib.contextmanager
+def switch_trapped():
+    stackless.switch_trap(1)
+    try:
+        yield
+    finally:
+        stackless.switch_trap(-1)
 
 class TestWatchdog(StacklessTestCase):
 
@@ -311,6 +319,15 @@ class TestSwitchTrap(StacklessTestCase):
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", s.run)
         s.run()
+
+    def test_run_paused(self):
+        s = stackless.tasklet(lambda:None)
+        s.bind(args=())
+        self.assertTrue(s.paused)
+        with self.switch_trap:
+            self.assertRaisesRegex(RuntimeError, "switch_trap", s.run)
+        self.assertTrue(s.paused)
+        stackless.run()
 
     def test_send(self):
         c = stackless.channel()
@@ -625,6 +642,7 @@ class TestBind(StacklessTestCase):
     def setUp(self):
         super(TestBind, self).setUp()
         self.finally_run_count = 0
+        self.args = self.kwargs = None
 
     def task(self, with_c_state):
         try:
@@ -634,6 +652,14 @@ class TestBind(StacklessTestCase):
                 stackless.schedule_remove(None)
         finally:
             self.finally_run_count += 1
+
+    def argstest(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = dict(kwargs)
+
+    def assertArgs(self, args, kwargs):
+        self.assertEqual(args, self.args)
+        self.assertEqual(kwargs, self.kwargs)
 
     def test_bind(self):
         t = stackless.tasklet()
@@ -728,6 +754,148 @@ class TestBind(StacklessTestCase):
         self.assertIsNone(wr())  # tasklet has been deleted
         self.assertEqual(self.finally_run_count, 1)
 
+    def test_bind_noargs(self):
+        t = stackless.tasklet(self.task)
+        t.bind(self.argstest)
+        self.assertRaises(RuntimeError, t.run)
+
+    def test_bind_args(self):
+        args = "foo", "bar"
+        t = stackless.tasklet(self.task)
+        t.bind(self.argstest, args)
+        t.run()
+        self.assertArgs(args, {})
+
+        t = stackless.tasklet(self.task)
+        t.bind(self.argstest, args=args)
+        t.run()
+        self.assertArgs(args, {})
+
+    def test_bind_kwargs(self):
+        t = stackless.tasklet(self.task)
+        kwargs = {"hello" : "world"}
+        t.bind(self.argstest, None, kwargs)
+        t.run()
+        self.assertArgs((), kwargs)
+
+        t = stackless.tasklet(self.task)
+        t.bind(self.argstest, kwargs=kwargs)
+        t.run()
+        self.assertArgs((), kwargs)
+
+    def test_bind_args_kwargs(self):
+        args = ("foo", "bar")
+        kwargs = {"hello" : "world"}
+
+        t = stackless.tasklet(self.task)
+        t.bind(self.argstest, args, kwargs)
+        t.run()
+        self.assertArgs(args, kwargs)
+
+        t = stackless.tasklet(self.task)
+        t.bind(self.argstest, args=args, kwargs=kwargs)
+        t.run()
+        self.assertArgs(args, kwargs)
+
+    def test_bind_args_kwargs_nofunc(self):
+        args = ("foo", "bar")
+        kwargs = {"hello" : "world"}
+
+        t = stackless.tasklet(self.argstest)
+        t.bind(None, args, kwargs)
+        t.run()
+        self.assertArgs(args, kwargs)
+
+        t = stackless.tasklet(self.argstest)
+        t.bind(args=args, kwargs=kwargs)
+        t.run()
+        self.assertArgs(args, kwargs)
+
+    def test_bind_args_not_runnable(self):
+        args = ("foo", "bar")
+        kwargs = {"hello" : "world"}
+
+        t = stackless.tasklet(self.task)
+        t.bind(self.argstest, args, kwargs)
+        self.assertFalse(t.scheduled)
+        t.run()
+
+class TestSwitch(StacklessTestCase):
+    """Test the new tasklet.switch() method, which allows
+    explicit switching
+    """
+    def setUp(self):
+        self.source = stackless.getcurrent()
+        self.finished = False
+        self.c = stackless.channel()
+
+    def target(self):
+        self.assertTrue(self.source.paused)
+        self.source.insert()
+        self.finished = True
+
+    def blocked_target(self):
+        self.c.receive()
+        self.finished = True
+
+    def test_switch(self):
+        """Simple switch"""
+        t = stackless.tasklet(self.target)()
+        t.switch()
+        self.assertTrue(self.finished)
+
+    def test_switch_self(self):
+        t = stackless.getcurrent()
+        t.switch()
+
+    def test_switch_blocked(self):
+        t = stackless.tasklet(self.blocked_target)()
+        t.run()
+        self.assertTrue(t.blocked)
+        self.assertRaisesRegexp(RuntimeError, "blocked", t.switch)
+        self.c.send(None)
+        self.assertTrue(self.finished)
+
+    def test_switch_paused(self):
+        t = stackless.tasklet(self.target)
+        t.bind(args=())
+        self.assertTrue(t.paused)
+        t.switch()
+        self.assertTrue(self.finished)
+
+    def test_switch_trapped(self):
+        t = stackless.tasklet(self.target)()
+        self.assertFalse(t.paused)
+        with switch_trapped():
+            self.assertRaisesRegexp(RuntimeError, "switch_trap", t.switch)
+        self.assertFalse(t.paused)
+        t.switch()
+        self.assertTrue(self.finished)
+
+    def test_switch_self_trapped(self):
+        t = stackless.getcurrent()
+        with switch_trapped():
+            t.switch() # ok, switching to ourselves!
+
+    def test_switch_blocked_trapped(self):
+        t = stackless.tasklet(self.blocked_target)()
+        t.run()
+        self.assertTrue(t.blocked)
+        with switch_trapped():
+            self.assertRaisesRegexp(RuntimeError, "blocked", t.switch)
+        self.assertTrue(t.blocked)
+        self.c.send(None)
+        self.assertTrue(self.finished)
+
+    def test_switch_paused_trapped(self):
+        t = stackless.tasklet(self.target)
+        t.bind(args=())
+        self.assertTrue(t.paused)
+        with switch_trapped():
+            self.assertRaisesRegexp(RuntimeError, "switch_trap", t.switch)
+        self.assertTrue(t.paused)
+        t.switch()
+        self.assertTrue(self.finished)
 
 #///////////////////////////////////////////////////////////////////////////////
 

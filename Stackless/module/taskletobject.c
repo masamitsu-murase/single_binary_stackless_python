@@ -264,21 +264,30 @@ PyTasklet_New(PyTypeObject *type, PyObject *func)
     return t;
 }
 
-PyTaskletObject *
-PyTasklet_Bind(PyTaskletObject *task, PyObject *func)
+static int
+impl_tasklet_setup(PyTaskletObject *task, PyObject *args, PyObject *kwds, int insert);
+
+int
+PyTasklet_BindEx(PyTaskletObject *task, PyObject *func, PyObject *args, PyObject *kwargs)
 {
     PyThreadState *ts = task->cstate->tstate;
-
-    if (func != NULL && func != Py_None && !PyCallable_Check(func))
-        TYPE_ERROR("tasklet function must be a callable or None", NULL);
+    if (func == Py_None)
+        func = NULL;
+    if (args == Py_None)
+        args = NULL;
+    if (kwargs == Py_None)
+        kwargs = NULL;
+    
+    if (func != NULL && !PyCallable_Check(func))
+        TYPE_ERROR("tasklet function must be a callable or None", -1);
     if (ts->st.current == task) {
-        RUNTIME_ERROR("can't (re)bind the current tasklet", NULL);
+        RUNTIME_ERROR("can't (re)bind the current tasklet", -1);
     }
     if (PyTasklet_Scheduled(task)) {
-        RUNTIME_ERROR("tasklet is scheduled", NULL);
+        RUNTIME_ERROR("tasklet is scheduled", -1);
     }
     if (tasklet_has_c_stack(task)) {
-        RUNTIME_ERROR("tasklet has C state on its stack", NULL);
+        RUNTIME_ERROR("tasklet has C state on its stack", -1);
     }
 
     tasklet_clear_frames(task);
@@ -286,27 +295,86 @@ PyTasklet_Bind(PyTaskletObject *task, PyObject *func)
 
     /* cstate is set by bind_tasklet_to_frame() later on */
 
-    if (func == NULL)
-        func = Py_None;
-    TASKLET_SETVAL(task, func);
+    if ( args == NULL && kwargs == NULL) {
+        /* just binding or unbinding the function */
+        if (func == NULL)
+            func = Py_None;
+        TASKLET_SETVAL(task, func);
+    } else {
+        /* adding arguments.  Absence of func means leave tmpval alone */
+        PyObject *old = NULL;
+        int result;
+        if (func != NULL) {
+            TASKLET_CLAIMVAL(task, &old);
+            TASKLET_SETVAL(task, func);
+        }
+        if (args == NULL) {
+            args = PyTuple_New(0);
+            if (args == NULL)
+                goto err;
+        } else
+            Py_INCREF(args);
+        if (kwargs == NULL) {
+            kwargs = PyDict_New();
+            if (kwargs == NULL) {
+                Py_DECREF(args);
+                goto err;
+            }
+        } else
+            Py_INCREF(kwargs);
+        result = impl_tasklet_setup(task, args, kwargs, 0);
+        Py_DECREF(args);
+        Py_DECREF(kwargs);
+        if (result)
+            goto err;
+        Py_XDECREF(old);
+        return 0;
+err:
+        if (old != NULL)
+            TASKLET_SETVAL_OWN(task, old);
+        return -1;
+    }
+    return 0;
+}
+
+PyTaskletObject *
+PyTasklet_Bind(PyTaskletObject *task, PyObject *func)
+{
+    if(PyTasklet_BindEx(task, func, NULL, NULL))
+        return NULL;
     Py_INCREF(task);
     return task;
 }
 
+
 PyDoc_STRVAR(tasklet_bind__doc__,
-"Binding a tasklet to a callable object.\n\
+"bind(func=None, args=None, kwargs=None)\n\
+Binding a tasklet to a callable object, and arguments.\n\
 The callable is usually passed in to the constructor.\n\
 In some cases, it makes sense to be able to re-bind a tasklet,\n\
 after it has been run, in order to keep its identity.\n\
-If the argument is None, this method unbinds the tasklet.\n\
+This function can also be used, in place of setup() or __call__()\n\
+to supply arguments to the bound function.  The difference is that\n\
+this will not cause the tasklet to become runnable.\n\
+If all the argument are None, this method unbinds the tasklet.\n\
 Note that a tasklet can only be (un)bound if it doesn't have C-state\n\
 and is not scheduled and is not the current tasklet.\
 ");
 
 static PyObject *
-tasklet_bind(PyObject *self, PyObject *func)
+tasklet_bind(PyObject *self, PyObject *args, PyObject *kwargs)
 {
-    return (PyObject *) PyTasklet_Bind ( (PyTaskletObject *) self, func);
+    PyObject *func = Py_None;
+    PyObject *fargs = Py_None;
+    PyObject *fkwargs = Py_None;
+    char *kwds[] = {"func", "args", "kwargs", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|OOO:bind", kwds,
+        &func, &fargs, &fkwargs))
+        return NULL;
+    if (PyTasklet_BindEx((PyTaskletObject *)self, func, fargs, fkwargs))
+        return NULL;
+    Py_INCREF(self);
+    return self;
 }
 
 #define TASKLET_TUPLEFMT "iOiO"
@@ -648,15 +716,21 @@ PyTasklet_Run(PyTaskletObject *task)
     return slp_return_wrapper(t->run(task));
 }
 
-static TASKLET_RUN_HEAD(impl_tasklet_run)
+static PyObject *
+impl_tasklet_run_remove(PyTaskletObject *task, int remove)
 {
     STACKLESS_GETARG();
     PyThreadState *ts = PyThreadState_GET();
     PyObject *ret;
-    int inserted, fail;
-
+    int inserted, fail, removed=0;
+    PyTaskletObject *prev = ts->st.current;
+    
     assert(PyTasklet_Check(task));
     if (ts->st.main == NULL) return PyTasklet_Run_M(task);
+
+    /* we always call impl_tasklet_insert, so we must
+     * also uninsert in case of failure
+     */
     inserted = task->next == NULL;
 
     if (ts == task->cstate->tstate) {
@@ -665,10 +739,25 @@ static TASKLET_RUN_HEAD(impl_tasklet_run)
          * order
          */
         fail = impl_tasklet_insert(task);
+        if (!fail && remove) {
+            /* if we remove (tasklet.switch), then the current is effecively
+             * replaced by the target.
+             * move the reference of the current task to del_post_switch */
+            assert(ts->st.del_post_switch == NULL);
+            ts->st.del_post_switch = (PyObject*)prev;
+            slp_current_remove();
+            removed = 1;
+        }
     } else {
         /* interthread. */
         PyThreadState *rts = task->cstate->tstate;
         PyTaskletObject *current = rts->st.current;
+        if (remove) {
+            /* switching only makes sens on the same thread. */
+            PyErr_SetString(PyExc_RuntimeError,
+                "can't switch to a different thread.");
+            return NULL;
+        }
         if (rts->st.thread.is_idle) {
             /* remote thread is blocked, or unblocked and hasn't got the GIL yet.
              * insert it before the "current"
@@ -689,8 +778,12 @@ static TASKLET_RUN_HEAD(impl_tasklet_run)
     if (fail)
         return NULL;
     /* this is redundant in the interthread case, since insert already did the work */
-    fail = slp_schedule_task(&ret, ts->st.current, task, stackless, 0);
+    fail = slp_schedule_task(&ret, prev, task, stackless, 0);
     if (fail) {
+        if (removed) {
+            ts->st.del_post_switch = NULL;
+            slp_current_unremove(prev);
+        }
         if (inserted) {
             /* we must undo the insertion that we did */
             slp_current_uninsert(task);
@@ -698,6 +791,11 @@ static TASKLET_RUN_HEAD(impl_tasklet_run)
         }
     }
     return ret;
+}
+
+static TASKLET_RUN_HEAD(impl_tasklet_run)
+{
+    return impl_tasklet_run_remove(task, 0);
 }
 
 static TASKLET_RUN_HEAD(wrap_tasklet_run)
@@ -710,6 +808,51 @@ static PyObject *
 tasklet_run(PyObject *self)
 {
     return impl_tasklet_run((PyTaskletObject *) self);
+}
+
+static TASKLET_RUN_HEAD(wrap_tasklet_switch)
+{
+    return PyObject_CallMethod((PyObject *)task, "switch", NULL);
+}
+
+PyDoc_STRVAR(tasklet_switch__doc__,
+"Similar to 'run', but additionally 'remove' the current tasklet\n\
+atomically.  This primitive can be used to implement\n\
+custom scheduling behaviour.  Only works for tasklets of the\n\
+same thread.");
+
+static PyObject *
+PyTasklet_Switch_M(PyTaskletObject *task)
+{
+    return PyStackless_CallMethod_Main((PyObject*)task, "switch", NULL);
+}
+
+int
+PyTasklet_Switch_nr(PyTaskletObject *task)
+{
+    PyTasklet_HeapType *t = (PyTasklet_HeapType*)Py_TYPE(task);
+
+    slp_try_stackless = 1;
+    return slp_return_wrapper(t->_switch(task));
+}
+
+int
+PyTasklet_Switch(PyTaskletObject *task)
+{
+    PyTasklet_HeapType *t = (PyTasklet_HeapType*)Py_TYPE(task);
+
+    return slp_return_wrapper(t->_switch(task));
+}
+
+static TASKLET_SWITCH_HEAD(impl_tasklet_switch)
+{
+    return impl_tasklet_run_remove(task, 1);
+}
+
+static PyObject *
+tasklet_switch(PyObject *self)
+{
+    return impl_tasklet_switch((PyTaskletObject *) self);
 }
 
 PyDoc_STRVAR(tasklet_set_atomic__doc__,
@@ -854,7 +997,7 @@ int PyTasklet_Setup(PyTaskletObject *task, PyObject *args, PyObject *kwds)
 }
 
 static int
-impl_tasklet_setup(PyTaskletObject *task, PyObject *args, PyObject *kwds)
+impl_tasklet_setup(PyTaskletObject *task, PyObject *args, PyObject *kwds, int insert)
 {
     PyThreadState *ts = PyThreadState_GET();
     PyFrameObject *frame;
@@ -875,8 +1018,10 @@ impl_tasklet_setup(PyTaskletObject *task, PyObject *args, PyObject *kwds)
         return -1;
     }
     TASKLET_SETVAL(task, Py_None);
-    Py_INCREF(task);
-    slp_current_insert(task);
+    if (insert) {
+        Py_INCREF(task);
+        slp_current_insert(task);
+    }
     return 0;
 }
 
@@ -885,7 +1030,7 @@ tasklet_setup(PyObject *self, PyObject *args, PyObject *kwds)
 {
     PyTaskletObject *task = (PyTaskletObject *) self;
 
-    if (impl_tasklet_setup(task, args, kwds))
+    if (impl_tasklet_setup(task, args, kwds, 1))
         return NULL;
     Py_INCREF(task);
     return (PyObject*) task;
@@ -1526,6 +1671,8 @@ static PyMethodDef tasklet_methods[] = {
       tasklet_insert__doc__},
     {"run",                     (PCF)tasklet_run,           METH_NS,
      tasklet_run__doc__},
+    {"switch",                  (PCF)tasklet_switch,        METH_NS,
+     tasklet_switch__doc__},
     {"remove",                  (PCF)tasklet_remove,        METH_NOARGS,
      tasklet_remove__doc__},
     {"set_atomic",              (PCF)tasklet_set_atomic,    METH_O,
@@ -1538,7 +1685,7 @@ static PyMethodDef tasklet_methods[] = {
     tasklet_raise_exception__doc__},
     {"kill",                    (PCF)tasklet_kill,          METH_KS,
      tasklet_kill__doc__},
-    {"bind",                    (PCF)tasklet_bind,          METH_O,
+    {"bind",                    (PCF)tasklet_bind,          METH_VARARGS | METH_KEYWORDS,
      tasklet_bind__doc__},
     {"setup",                   (PCF)tasklet_setup,         METH_VARARGS | METH_KEYWORDS,
      tasklet_setup__doc__},

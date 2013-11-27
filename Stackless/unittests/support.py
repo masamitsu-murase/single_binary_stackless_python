@@ -5,8 +5,20 @@ try:
 except:
     withThreads = False
 import unittest
+import re
 
-class StacklessTestCase(unittest.TestCase):
+class RegexMixIn(object):
+    """for pre-2.7 support """
+    def assertRaisesRegexp(self, klass, rex, func, *args):
+        try:
+            func(*args)
+        except Exception as e:
+            self.assertTrue(re.match(rex, str(e)))
+            self.assertTrue(isinstance(e, klass))
+        else:
+            self.assertTrue(False, "exception not raised")
+
+class StacklessTestCase(unittest.TestCase, RegexMixIn):
     def setUp(self):
         self.assertEqual(stackless.getruncount(), 1, "Leakage from other tests, with %d tasklets still in the scheduler" % (stackless.getruncount() - 1))
         if withThreads:
