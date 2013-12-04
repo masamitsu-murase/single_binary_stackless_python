@@ -15,6 +15,7 @@ slp_current_insert(PyTaskletObject *task)
 {
     PyThreadState *ts = task->cstate->tstate;
     PyTaskletObject **chain = &ts->st.current;
+    assert(ts);
 
     SLP_CHAIN_INSERT(PyTaskletObject, chain, task, next, prev);
     ++ts->st.runcount;
@@ -26,6 +27,7 @@ slp_current_insert_after(PyTaskletObject *task)
     PyThreadState *ts = task->cstate->tstate;
     PyTaskletObject *hold = ts->st.current;
     PyTaskletObject **chain = &ts->st.current;
+    assert(ts);
 
     *chain = hold->next;
     SLP_CHAIN_INSERT(PyTaskletObject, chain, task, next, prev);
@@ -280,7 +282,7 @@ PyTasklet_BindEx(PyTaskletObject *task, PyObject *func, PyObject *args, PyObject
     
     if (func != NULL && !PyCallable_Check(func))
         TYPE_ERROR("tasklet function must be a callable or None", -1);
-    if (ts->st.current == task) {
+    if (ts && ts->st.current == task) {
         RUNTIME_ERROR("can't (re)bind the current tasklet", -1);
     }
     if (PyTasklet_Scheduled(task)) {
@@ -605,6 +607,8 @@ static TASKLET_REMOVE_HEAD(impl_tasklet_remove)
 
     /* now, operate on the correct thread state */
     ts = task->cstate->tstate;
+    if (ts == NULL)
+        return 0;
 
     if (task->flags.blocked)
         RUNTIME_ERROR("You cannot remove a blocked tasklet.", -1);
@@ -659,7 +663,7 @@ static TASKLET_INSERT_HEAD(impl_tasklet_insert)
     if (task->next == NULL) {
         if (task->f.frame == NULL && task != ts->st.current)
             RUNTIME_ERROR("You cannot run an unbound(dead) tasklet", -1);
-        if (task->cstate->tstate->st.main == NULL)
+        if (task->cstate->tstate == NULL || task->cstate->tstate->st.main == NULL)
             RUNTIME_ERROR("Target thread isn't initialized", -1);
         Py_INCREF(task);
         slp_current_insert(task);
@@ -752,12 +756,12 @@ impl_tasklet_run_remove(PyTaskletObject *task, int remove)
         /* interthread. */
         PyThreadState *rts = task->cstate->tstate;
         PyTaskletObject *current = rts->st.current;
-        if (remove) {
-            /* switching only makes sens on the same thread. */
-            PyErr_SetString(PyExc_RuntimeError,
-                "can't switch to a different thread.");
-            return NULL;
-        }
+        if (rts == NULL)
+            RUNTIME_ERROR("tasklet has no thread", NULL);
+        /* switching only makes sense on the same thread. */
+        if (remove)
+            RUNTIME_ERROR("can't switch to a different thread.", NULL);
+
         if (rts->st.thread.is_idle) {
             /* remote thread is blocked, or unblocked and hasn't got the GIL yet.
              * insert it before the "current"
@@ -960,7 +964,8 @@ static int
 bind_tasklet_to_frame(PyTaskletObject *task, PyFrameObject *frame)
 {
     PyThreadState *ts = task->cstate->tstate;
-
+    if (ts == NULL)
+        RUNTIME_ERROR("tasklet has no thread", -1);
     if (task->f.frame != NULL)
         RUNTIME_ERROR("tasklet is already bound to a frame", -1);
     task->f.frame = frame;
@@ -1087,7 +1092,7 @@ static TASKLET_THROW_HEAD(impl_tasklet_throw)
      * f.frame is null for the running tasklet and a dead tasklet
      * A new tasklet has a CFrame
      */
-    if (self->f.frame == NULL && self != self->cstate->tstate->st.current) {
+    if (self->cstate->tstate == NULL || (self->f.frame == NULL && self != self->cstate->tstate->st.current)) {
         /* however, allow tasklet exit errors for already dead tasklets */
         if (PyObject_IsSubclass(((PyBombObject*)bomb)->curexc_type, PyExc_TaskletExit)) {
             Py_DECREF(bomb);
@@ -1424,7 +1429,7 @@ tasklet_get_recursion_depth(PyTaskletObject *task)
 
     assert(task->cstate != NULL);
     ts = task->cstate->tstate;
-    return PyLong_FromLong(ts->st.current == task ? ts->recursion_depth
+    return PyLong_FromLong((ts && ts->st.current == task) ? ts->recursion_depth
                                                   : task->recursion_depth);
 }
 
@@ -1435,7 +1440,7 @@ PyTasklet_GetRecursionDepth(PyTaskletObject *task)
 
     assert(task->cstate != NULL);
     ts = task->cstate->tstate;
-    return ts->st.current == task ? ts->recursion_depth
+    return (ts && ts->st.current == task) ? ts->recursion_depth
                                   : task->recursion_depth;
 }
 
@@ -1448,7 +1453,7 @@ tasklet_get_nesting_level(PyTaskletObject *task)
     assert(task->cstate != NULL);
     ts = task->cstate->tstate;
     return PyLong_FromLong(
-        ts->st.current == task ? ts->st.nesting_level
+        (ts && ts->st.current == task) ? ts->st.nesting_level
                                : task->cstate->nesting_level);
 }
 
@@ -1459,7 +1464,7 @@ PyTasklet_GetNestingLevel(PyTaskletObject *task)
 
     assert(task->cstate != NULL);
     ts = task->cstate->tstate;
-    return ts->st.current == task ? ts->st.nesting_level
+    return (ts && ts->st.current == task) ? ts->st.nesting_level
                                   : task->cstate->nesting_level;
 }
 
@@ -1513,7 +1518,7 @@ tasklet_restorable(PyTaskletObject *task)
     assert(task->cstate != NULL);
     ts = task->cstate->tstate;
     return PyBool_FromLong(
-        0 == (ts->st.current == task ? ts->st.nesting_level
+        0 == ((ts && ts->st.current == task) ? ts->st.nesting_level
                                      : task->cstate->nesting_level) );
 }
 
@@ -1524,7 +1529,7 @@ PyTasklet_Restorable(PyTaskletObject *task)
 
     assert(task->cstate != NULL);
     ts = task->cstate->tstate;
-    return 0 == (ts->st.current == task ? ts->st.nesting_level
+    return 0 == ((ts && ts->st.current == task) ? ts->st.nesting_level
                                         : task->cstate->nesting_level);
 }
 
@@ -1568,7 +1573,8 @@ tasklet_get_prev(PyTaskletObject *task)
 static PyObject *
 tasklet_thread_id(PyTaskletObject *task)
 {
-    return PyLong_FromLong(task->cstate->tstate->thread_id);
+    long id = task->cstate->tstate ? task->cstate->tstate->thread_id : -1;
+    return PyLong_FromLong(id);
 }
 
 static PyMemberDef tasklet_members[] = {

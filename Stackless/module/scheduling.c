@@ -529,6 +529,7 @@ slp_ensure_linkage(PyTaskletObject *t)
 {
     if (t->cstate->task == t)
         return 0;
+    assert(t->cstate->tstate != NULL);
     if (!slp_cstack_new(&t->cstate, t->cstate->tstate->st.cstack_base, t))
         return -1;
     t->cstate->nesting_level = 0;
@@ -754,6 +755,10 @@ schedule_task_interthread(PyObject **result,
     /* get myself ready, since the previous task is going to continue on the
      * current thread
      */
+    if (nts == NULL) {
+        PyErr_SetString(PyExc_RuntimeError, "tasklet has no thread");
+        return -1;
+    }
     fail = slp_schedule_task(result, prev, prev, stackless, did_switch);
     if (fail)
         return fail;
