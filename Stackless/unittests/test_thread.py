@@ -385,6 +385,23 @@ class SwitchTest(RemoteTaskletTests):
             self.assertTrue(t.paused)
             self.assertRaisesRegexp(RuntimeError, "different thread", t.switch)
 
+class DeadThreadTest(RemoteTaskletTests):
+    def test_death(self):
+        """test tasklets from dead threads"""
+        theThread, t = self.create_thread_task()
+        with theThread:
+            self.assertNotEqual(t.thread_id, -1)
+        self.assertEqual(t.thread_id, -1)
+
+    def test_rebind_from_dead(self):
+        """test that rebinding a fresh tasklet from a dead thread works"""
+        theThread, t = self.create_thread_task()
+        with theThread:
+            self.assertNotEqual(t.thread_id, -1)
+        self.assertEqual(t.thread_id, -1)
+        t.bind_thread()
+        self.assertEqual(t.thread_id, stackless.getcurrent().thread_id)
+
 #///////////////////////////////////////////////////////////////////////////////
 
 if __name__ == '__main__':
