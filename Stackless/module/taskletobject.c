@@ -551,9 +551,12 @@ tasklet_bind_thread(PyObject *self, PyObject *args)
     PyThreadState *ts = task->cstate->tstate;
     PyThreadState *cts = PyThreadState_GET();
     PyObject *old;
+    int target_tid = -1;
+    if (!PyArg_ParseTuple(args, "|i:bind_thread", &target_tid))
+        return NULL;
 
-    if (ts == cts)
-        Py_RETURN_NONE; /* already bound */
+    if (target_tid == -1 && ts == cts)
+        Py_RETURN_NONE; /* already bound to current thread*/
 
     if (PyTasklet_Scheduled(task) && !task->flags.blocked) {
         RUNTIME_ERROR("can't (re)bind a runnable tasklet", NULL);
@@ -561,7 +564,20 @@ tasklet_bind_thread(PyObject *self, PyObject *args)
     if (tasklet_has_c_stack(task)) {
         RUNTIME_ERROR("tasklet has C state on its stack", NULL);
     }
-    
+    if (target_tid != -1) {
+        /* find the correct thread state */
+        for(cts = PyInterpreterState_ThreadHead(cts->interp);
+            cts != NULL;
+            cts = PyThreadState_Next(cts))
+        {
+            if (cts->thread_id == target_tid)
+                break;
+        }
+    }
+    if (cts == NULL || cts->st.initial_stub == NULL) {
+        PyErr_SetString(PyExc_ValueError, "bad hread");
+        return NULL;
+    }
     old = (PyObject*)task->cstate;
     task->cstate = cts->st.initial_stub;
     Py_INCREF(task->cstate);
@@ -1703,7 +1719,7 @@ static PyMethodDef tasklet_methods[] = {
      tasklet_reduce__doc__},
     {"__setstate__",            (PCF)tasklet_setstate,      METH_O,
      tasklet_setstate__doc__},
-    {"bind_thread",              (PCF)tasklet_bind_thread,  METH_NOARGS,
+    {"bind_thread",              (PCF)tasklet_bind_thread,  METH_VARARGS,
     tasklet_bind_thread__doc__},
     {NULL,     NULL}             /* sentinel */
 };
