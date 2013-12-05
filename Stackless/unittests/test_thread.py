@@ -256,7 +256,7 @@ class TestRebindCrash(SkipMixin, StacklessTestCase):
         finally:
             end()
 
-class RemoteTaskletTests(StacklessTestCase):
+class RemoteTaskletTests(SkipMixin, StacklessTestCase):
     ThreadClass = LingeringThread
     def setUp(self):
         super(RemoteTaskletTests, self).setUp()
@@ -416,6 +416,7 @@ class SchedulingBindThreadTests(RemoteTaskletTests):
         self.channel.send(None)
 
     def test_bind_to_other_tid(self):
+        self.skipUnlessSoftswitching()
         current_id = stackless.getcurrent().thread_id
         self.assertEqual(current_id, thread.get_ident())
 
