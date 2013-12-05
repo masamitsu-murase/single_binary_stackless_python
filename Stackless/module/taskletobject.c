@@ -1061,7 +1061,7 @@ tasklet_setup(PyObject *self, PyObject *args, PyObject *kwds)
 
 
 PyDoc_STRVAR(tasklet_throw__doc__,
-             "tasklet.throw(exc, val, tb, immediate=True) -- raise an exception for the tasklet.\n\
+             "tasklet.throw(exc, val=None, tb=None, immediate=True) -- raise an exception for the tasklet.\n\
              'exc', 'val' and 'tb' have the same semantics as Python's 'raise' statement.\n\
              If 'pending' is True, the tasklet is not immediately activated, just\n\
              merely made runnable, ready to raise the exception when run.");
@@ -1261,7 +1261,7 @@ err_exit:
 
 
 PyDoc_STRVAR(tasklet_kill__doc__,
-"tasklet.kill -- raise a TaskletExit exception for the tasklet.\n\
+"tasklet.kill(pending=False) -- raise a TaskletExit exception for the tasklet.\n\
 Note that this is a regular exception that can be caught.\n\
 The tasklet is immediately activated.\n\
 If the exception passes the toplevel frame of the tasklet,\n\

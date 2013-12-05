@@ -77,9 +77,9 @@ The ``tasklet`` class
    This is because the act of passing the arguments to it, implicitly
    inserts it into the :ref:`scheduler <stackless-scheduler>`.
 
-.. method:: tasklet.bind(callable)
+.. method:: tasklet.bind(func=None, args=None, kwargs=None)
 
-   Bind the tasklet to the given callable object, *callable*::
+   Bind the tasklet to the given callable object, *func*::
 
    >>> t = stackless.tasklet()
    >>> t.bind(func)
@@ -90,10 +90,15 @@ The ``tasklet`` class
    >>> t = stackless.tasklet(func)
 
    Note that the tasklet cannot be run until it has been provided with
-   arguments to call *callable* with, through a subsequent call to
-   :meth:`tasklet.setup`.
+   arguments to call *func*.  They can be provided as *args* and/or *kwargs*
+   to this function, or through a subsequent call to
+   :meth:`tasklet.setup`.  The differce is that when providing them to
+   :meth:`tasklet.bind`, the tasklet is not made runnable yet.
+
+   *func* can be None when providing arguments, in which case a previous call
+   to :meth:`tasklet.bind` must have provided the function.
    
-   To clear the binding of a tasklet set the argument *callable* to ``None``. This
+   To clear the binding of a tasklet set all arguments to ``None``. This
    is especially useful, if you run a tasklet only partially::
    
       >>> def func():
@@ -130,6 +135,11 @@ The ``tasklet`` class
    provided with arguments to pass to it, they are implicitly
    scheduled and will be run in turn when the scheduler is next run.
 
+   The above code is equivalent to
+   >>> t = stackless.tasklet()
+   >>> t.bind(func, (1, 2), {"name":"test"})
+   >>> t.insert()
+   
 .. method:: tasklet.insert()
 
    Insert the tasklet into the scheduler.
@@ -185,6 +195,14 @@ The ``tasklet`` class
    the scheduler is still involved and that this is merely directing its
    operation in limited ways, is something you need to be aware of.
 
+.. method:: tasklet.run()
+
+   Similar to :method:`tasklet.run` except that the calling tasklet is
+   paused.  This function can be used to implement `raw` scheduling without involving
+   the scheduling queue.
+
+   The target tasklet must belong to the same thread as the caller.
+
 .. method:: tasklet.raise_exception(exc_class, *args)
 
    Raise an exception on the given tasklet.  *exc_class* is required to be a
@@ -196,6 +214,25 @@ The ``tasklet`` class
    <slp-exc-section>`, and the purpose of the :ref:`TaskletExit <slp-exc>`
    exception.
 
+.. method:: tasklet.throw(exc=None, val=None, tb=None, pending=False)
+
+   Raise an exception on the given tasklet.  The semantics are similar
+   to the `raise` keywords, and so, this can be used to send an existing
+   exception to the tasklet.
+
+   if *pending* evaluates to True, then the target tasklet will be made
+   runnable and the caller continues.  Otherwise, the target will be inserted
+   before the current tasklet in the queue and switched to immediatlly.
+
+.. method:: tasklet.kill(pending=False)
+
+   Raises the :ref:`TaskletExit <slp-exc>` excption on the tasklet.
+   *pending* has the same meaning as for :method:`tasklet.throw`.
+
+   This can be considered to be shorthand for::
+
+       >>> t.throw(TaskletExit, pending=pending)
+
 .. method:: tasklet.set_atomic(flag)
 
    This method is used to construct a block of code within which the tasklet
@@ -205,6 +242,18 @@ The ``tasklet`` class
      old_value = t.set_atomic(1)
      # Implement unsafe logic here.
      t.set_atomic(old_value)
+
+   Note that this will also prevent involountary thread switching, i.e. the
+   thread will hang on to the `GIL` for the duration.
+
+.. method:: tasklet.bind_thread([thread_id])
+
+   Rebind the tasklet to the current thread, or a stackless python thread with
+   the given *thread_id*.
+
+   This is only safe to do with just-created tasklets, or soft-switchable
+   tasklets.  This is the case when a tasklet has just been unpickled.  Then
+   it can be useful in order to hand it off to a different thread for execution.
 
 .. method:: tasklet.set_ignore_nesting(flag)
 
@@ -274,7 +323,8 @@ The following attributes allow identification of tasklet place:
 
 .. attribute:: tasklet.thread_id
 
-   This attribute is the id of the thread the tasklet belongs to.
+   This attribute is the id of the thread the tasklet belongs to.  If its
+   thread has terminated, it returns ``-1``.
    
    The relationship between tasklets and threads is :doc:`covered elsewhere
    <threads>`.
