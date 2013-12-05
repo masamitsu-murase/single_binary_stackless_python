@@ -551,8 +551,8 @@ tasklet_bind_thread(PyObject *self, PyObject *args)
     PyThreadState *ts = task->cstate->tstate;
     PyThreadState *cts = PyThreadState_GET();
     PyObject *old;
-    int target_tid = -1;
-    if (!PyArg_ParseTuple(args, "|i:bind_thread", &target_tid))
+    long target_tid = -1;
+    if (!PyArg_ParseTuple(args, "|l:bind_thread", &target_tid))
         return NULL;
 
     if (target_tid == -1 && ts == cts)
