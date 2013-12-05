@@ -208,6 +208,21 @@ Scheduler state introspection related functions:
 
    Return the number of currently runnable tasklets.
 
+.. function:: switch_trap(change)
+
+   modify the ``switch trap`` level.  Returns its previous value.
+
+   When the ``switch trap`` level is non-zero, any tasklet switching,
+   e.g. due channel action or explicit, will result in a ``RuntimeError``
+   being raised.  This can be useful to demark code areas that are supposed
+   to run without switching, e.g.::
+
+       stackless.switch_trap(1) # increase the trap level
+       try:
+           my_function_that_shouldnt_switch()
+       finally:
+           stackless.switch_trap(-1)
+
 Debugging related functions:
 
 .. function:: enable_softswitch(flag)
@@ -296,3 +311,27 @@ Exceptions
    :exc:`Exception`.
 
    This class is derived from :exc:`SystemExit`. 
+
+-------
+Classes
+-------
+
+.. class:: atomic
+
+   This is a context manager class to help with setting up atomic sections.
+
+   Use it like this::
+
+       with stackless.atomic():
+           sensitive_function()
+           other_sensitive_function()
+
+   Its definition is equivalent to the following, only faster::
+
+       @contextlib.contextmanager
+       def atomic():
+           old = stackless.getcurrent().set_atomic(True)
+           try:
+               yield
+           finally:
+               stackless.getcurrent().set_atomic(old)
