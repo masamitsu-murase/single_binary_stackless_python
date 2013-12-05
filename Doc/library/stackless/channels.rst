@@ -86,6 +86,19 @@ The ``channel`` class
           File "<stdin>", line 2, in receiver
         Exception: xxx
 
+.. method:: channel.send_throw(exc[, val[, tb]])
+
+   Send an exception over a channel.  The arguments have the same semantics as
+   for the `raise` keyword.  This allows an existing exception to be sent
+   over a channel, and the traceback to be propagated
+
+   Example::
+   
+       try:
+           foo()
+       except Exception:
+           mychannel.send_throw(*sys.exc_info())
+
 .. method:: channel.send_sequence(seq)
 
    Send a stream of values over the channel.  Combined with a generator, this
