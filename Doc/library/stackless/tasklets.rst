@@ -135,7 +135,8 @@ The ``tasklet`` class
    provided with arguments to pass to it, they are implicitly
    scheduled and will be run in turn when the scheduler is next run.
 
-   The above code is equivalent to
+   The above code is equivalent to::
+   
    >>> t = stackless.tasklet()
    >>> t.bind(func, (1, 2), {"name":"test"})
    >>> t.insert()
@@ -156,22 +157,27 @@ The ``tasklet`` class
    
    Example - running a tasklet that is scheduled::
    
-       >>> def f():
-       ...     while 1:
-       ...             print(id(stackless.current))
-       ...             stackless.schedule()
-       ...
-       >>> t1 = stackless.tasklet(f)()
-       >>> t2 = stackless.tasklet(f)()
-       >>> t3 = stackless.tasklet(f)()
-       >>> t1.run()
-       29524656
-       29525936
-       29526512
+      >>> def f(name):
+      ...     while True:
+      ...         c=stackless.current
+      ...         m=stackless.main
+      ...         assert c.scheduled
+      ...         print("%s id=%s, next.id=%s, main.id=%s, main.scheduled=%r" % (name,id(c), id(c.next), id(m), m.scheduled))
+      ...         stackless.schedule()
+      ...
+      >>> t1 = stackless.tasklet(f)("t1")
+      >>> t2 = stackless.tasklet(f)("t2")
+      >>> t3 = stackless.tasklet(f)("t3")
+      >>>
+      >>> t1.run()
+      t1 id=36355632, next.id=36355504, main.id=30571120, main.scheduled=True
+      t2 id=36355504, next.id=36355888, main.id=30571120, main.scheduled=True
+      t3 id=36355888, next.id=30571120, main.id=30571120, main.scheduled=True
 
    What you see here is that *t1* is not the only tasklet that ran.  When *t1*
    yields, the next tasklet in the chain is scheduled and so forth until the
-   tasklet that actually ran *t1* is scheduled and resumes execution.
+   tasklet that actually ran *t1* - that is the main tasklet - is scheduled and
+   resumes execution.
    
    If you were to run *t2* instead of *t1*, then we would have only seen the
    output of *t2* and *t3*, because the tasklet calling :attr:`run` is before
@@ -182,26 +188,52 @@ The ``tasklet`` class
    keep in mind that the scheduler is still being run and the chain is still
    involved, the only reason it looks correct is tht the act of removing the
    tasklet effectively moves it before the tasklet that calls
-   :attr:`remove`.
+   :meth:`remove`.
 
    Example - running a tasklet that is not scheduled::
 
-       >>> t2.remove()
-       <stackless.tasklet object at 0x01C287B0>
-       >>> t2.run()
-       29525936
-
+      >>> t2.remove()
+      <stackless.tasklet object at 0x022ABDB0>
+      >>> t2.run()
+      t2 id=36355504, next.id=36356016, main.id=36356016, main.scheduled=True
+      >>> t2.scheduled
+      True
+      
    While the ability to run a tasklet directly is useful on occasion, that
    the scheduler is still involved and that this is merely directing its
    operation in limited ways, is something you need to be aware of.
 
-.. method:: tasklet.run()
+.. method:: tasklet.switch()
 
-   Similar to :method:`tasklet.run` except that the calling tasklet is
+   Similar to :meth:`tasklet.run` except that the calling tasklet is
    paused.  This function can be used to implement `raw` scheduling without involving
    the scheduling queue.
 
    The target tasklet must belong to the same thread as the caller.
+   
+   Example - switch to a tasklet that is scheduled. Function f is defined as 
+   in the previous example::
+      
+      >>> t1 = stackless.tasklet(f)("t1")
+      >>> t2 = stackless.tasklet(f)("t2")
+      >>> t3 = stackless.tasklet(f)("t3")
+      >>> t1.switch()
+      t1 id=36413744, next.id=36413808, main.id=36413680, main.scheduled=False
+      t2 id=36413808, next.id=36413872, main.id=36413680, main.scheduled=False
+      t3 id=36413872, next.id=36413744, main.id=36413680, main.scheduled=False
+      t1 id=36413744, next.id=36413808, main.id=36413680, main.scheduled=False
+      t2 id=36413808, next.id=36413872, main.id=36413680, main.scheduled=False
+      t3 id=36413872, next.id=36413744, main.id=36413680, main.scheduled=False
+      t1 id=36413744, next.id=36413808, main.id=36413680, main.scheduled=False
+      ...
+      Traceback (most recent call last):
+        File "<stdin>", line 1, in <module>
+        File "<stdin>", line 6, in f
+      KeyboardInterrupt
+      >>>
+      
+   What you see here is that the main tasklet was removed from the scheduler. 
+   Therefore the scheduler runs until it got interrupted by a keyboard interrupt.
 
 .. method:: tasklet.raise_exception(exc_class, *args)
 
@@ -227,7 +259,7 @@ The ``tasklet`` class
 .. method:: tasklet.kill(pending=False)
 
    Raises the :ref:`TaskletExit <slp-exc>` excption on the tasklet.
-   *pending* has the same meaning as for :method:`tasklet.throw`.
+   *pending* has the same meaning as for :meth:`tasklet.throw`.
 
    This can be considered to be shorthand for::
 
@@ -348,9 +380,28 @@ The following attributes allow a tasklets place in a chain to be identified:
 Tasklet Life Cycle
 ^^^^^^^^^^^^^^^^^^
 
-Here is a somewhat simplified state chart that shows the life cycle of a tasklet instance.
-The chart dosn't show the nesting-level, the thread-id and the flags atomic, ignore-nesting, block-trap 
-and restorable.
+Here is a somewhat simplified state chart that shows the life cycle of a 
+tasklet instance. The chart dosn't show the nesting-level, the thread-id 
+and the flags atomic, ignore-nesting, block-trap and restorable. 
 
 .. image:: tasklet_state_chart.png
 
+Furthermore the diagram does not show the scheduler functions 
+:func:`stackless.run`, :func:`stackless.schedule` and 
+:func:`stackless.schedule_remove()`. For the purpose of understanding the 
+state transitions these functions are roughly equivalnt to the following 
+Python definitions::
+
+   def run():
+       main = stackless.current
+       def watchdog():
+           while stackless.runcount > 1:
+               stackless.current.next.run()
+           main.switch()
+       stackless.tasklet(watchdog)().switch()
+      
+   def schedule():
+       stackless.current.next.run()
+   
+   def schedule_remove():
+       stackless.current.next.switch()
