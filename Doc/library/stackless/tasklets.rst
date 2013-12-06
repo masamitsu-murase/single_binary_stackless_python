@@ -143,11 +143,20 @@ The ``tasklet`` class
    
 .. method:: tasklet.insert()
 
-   Insert the tasklet into the scheduler.
+   Insert a tasklet at the end of the scheduler runnables queue, given that it isn't blocked.
+   Blocked tasklets need to be reactivated by channels.
 
 .. method:: tasklet.remove()
 
-   Remove the tasklet from the scheduler.
+   Remove a tasklet from the runnables queue.
+   
+   .. note::
+   
+      If this tasklet has a non-trivial C stack attached,
+      it will be destructed when the containing thread state is destroyed.
+      Since this will happen in some unpredictable order, it may cause unwanted
+      side-effects. Therefore it is recommended to either run tasklets to the
+      end or to explicitly :meth:`kill` them.
 
 .. method:: tasklet.run()
 
@@ -306,7 +315,9 @@ The following (read-only) attributes allow tasklet state to be checked:
 .. attribute:: tasklet.paused
 
    This attribute is ``True`` when a tasklet is alive, but not scheduled or
-   blocked on a channel.
+   blocked on a channel. This state is entered after a :meth:`tasklet.bind` with 
+   2 or 3 arguments, a :meth:`tasklet.remove` or by the main tasklet, when it 
+   is acting as a watchdog.
 
 .. attribute:: tasklet.blocked
 
@@ -314,16 +325,18 @@ The following (read-only) attributes allow tasklet state to be checked:
 
 .. attribute:: tasklet.scheduled
 
-   This attribute is ``True`` when the tasklet is either scheduled or blocked
-   on a channel.
+   This attribute is ``True`` when the tasklet is either in the runnables list
+   or blocked on a channel.
 
 .. attribute:: tasklet.restorable
 
-   This attribute is relevant to tasklets that were created through unpickling.
+   This attribute is ``True``, if the tasklet can be completely restored by 
+   pickling/unpickling. If a tasklet is restorable, it is possible to continue 
+   running the unpickled tasklet from whatever point in execution it may be.
    
-   If it is possible to continue running the unpickled tasklet from whatever
-   point in execution it may be, then this attribute will be ``True``.  For
-   the tasklet to be runnable, it must not have lost runtime information
+   All tasklets can be pickled for debugging/inspection 
+   purposes, but an unpickled tasklet might have lost runtime information (C stack).
+   For the tasklet to be runnable, it must not have lost runtime information
    (C stack usage for instance).
 
 The following attributes allow checking of user set situations:
@@ -356,7 +369,7 @@ The following attributes allow identification of tasklet place:
 .. attribute:: tasklet.thread_id
 
    This attribute is the id of the thread the tasklet belongs to.  If its
-   thread has terminated, it returns ``-1``.
+   thread has terminated, the attribute value is ``-1``.
    
    The relationship between tasklets and threads is :doc:`covered elsewhere
    <threads>`.
