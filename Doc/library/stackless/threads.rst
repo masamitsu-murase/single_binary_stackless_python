@@ -8,7 +8,7 @@ Stackless is a lightweight threading solution.  It works by
 scheduling its tasklets within the CPU time allocated to the real thread
 that Python, and therefore the scheduler running within it, is on.
 
-It does not:
+Stackless does not:
 
  * Magically move tasklets between threads to do some wonderful
    load balancing.
@@ -17,6 +17,34 @@ It does not:
 
 But it does allow its functionality to be used flexibly, when you
 want to make use of more than one thread.
+
+--------------------
+Tasklets and Threads
+--------------------
+
+A tasklet usually has an associated thread. This thread is identified by the 
+attribute :attr:`tasklet.thread_id`. A newly created tasklet is always  
+associated with its creator thread. 
+
+The associated thread of a tasklet changes only as the result of 
+a :meth:`tasklet.bind_thread` call or if the associated thread 
+terminates. In the later case the thread id becomes ``-1``. Application 
+code can bind the tasklet to another thread using :meth:`~tasklet.bind_thread`.
+
+When a thread dies, only tasklets with a C-state are actively killed. 
+Soft-switched tasklets simply stop. All tasklets bound to a thread will 
+have their C-state nerfed, which means that their :attr:`~tasklet.thread_id`
+will report as ``-1``. This also includes soft-switched tasklets, 
+which share a C-state.
+
+The reason Stackless kills tasklets with C-state is that not doing so
+can cause serious leaks when a C-state is not unwound. Stackless cannot 
+kill soft-switched tasklets, because there is no central list of them. 
+Stackless only knows about the hard-switched ones.
+
+Threads that end really should make sure that they finish whatever worker 
+tasklets they have going by manually killing (``tasklet.kill()``) or 
+unbinding (``tasklet.bind(None)``) them, but that is up to application code.
 
 ----------------------
 A scheduler per thread
@@ -28,10 +56,6 @@ scheduler in this thread.  But there is nothing that prevents a different
 scheduler, and therefore a different set of tasklets, from running in every
 Python thread you care to start.
 
-.. note::
-
-   Remember that tasklets are in essence part of the thread they were created
-   in, and there is no way to move tasklets between threads.
 
 Example - scheduler per thread::
 
@@ -68,8 +92,9 @@ representing its own main tasklet.  And this is indeed what we see.
 
 See also:
 
-  * The :attr:`stackless.threads` attribute.
-  * The :attr:`tasklet.thread_id` attribute.
+  * The attribute :attr:`stackless.threads`.
+  * The attribute :attr:`tasklet.thread_id`.
+  * The method :meth:`tasklet.bind_thread`.
 
 .. _slp-threads-channel:
 
