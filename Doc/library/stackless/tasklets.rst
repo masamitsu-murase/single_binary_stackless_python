@@ -73,6 +73,12 @@ The ``tasklet`` class
    
    >>> stackless.tasklet(func)(1, 2, 3, name="test")
    
+   The above code is equivalent to::
+   
+   >>> t = stackless.tasklet()
+   >>> t.bind(func, (1, 2, 3), {"name":"test"})
+   >>> t.insert()
+
    Note that there is no need to hold a reference to the created tasklet.
    This is because the act of passing the arguments to it, implicitly
    inserts it into the :ref:`scheduler <stackless-scheduler>`.
@@ -92,7 +98,7 @@ The ``tasklet`` class
    Note that the tasklet cannot be run until it has been provided with
    arguments to call *func*.  They can be provided as *args* and/or *kwargs*
    to this function, or through a subsequent call to
-   :meth:`tasklet.setup`.  The differce is that when providing them to
+   :meth:`tasklet.setup`.  The difference is that when providing them to
    :meth:`tasklet.bind`, the tasklet is not made runnable yet.
 
    *func* can be None when providing arguments, in which case a previous call
@@ -152,8 +158,8 @@ The ``tasklet`` class
    
    .. note::
    
-      If this tasklet has a non-trivial C stack attached,
-      it will be destructed when the containing thread state is destroyed.
+      If this tasklet has a non-trivial C-state attached, Stackless
+      will kill the tasklet when the containing thread terminates.
       Since this will happen in some unpredictable order, it may cause unwanted
       side-effects. Therefore it is recommended to either run tasklets to the
       end or to explicitly :meth:`kill` them.
@@ -263,11 +269,11 @@ The ``tasklet`` class
 
    if *pending* evaluates to True, then the target tasklet will be made
    runnable and the caller continues.  Otherwise, the target will be inserted
-   before the current tasklet in the queue and switched to immediatlly.
+   before the current tasklet in the queue and switched to immediately.
 
 .. method:: tasklet.kill(pending=False)
 
-   Raises the :ref:`TaskletExit <slp-exc>` excption on the tasklet.
+   Raises the :ref:`TaskletExit <slp-exc>` exception on the tasklet.
    *pending* has the same meaning as for :meth:`tasklet.throw`.
 
    This can be considered to be shorthand for::
@@ -277,24 +283,27 @@ The ``tasklet`` class
 .. method:: tasklet.set_atomic(flag)
 
    This method is used to construct a block of code within which the tasklet
-   will not be auto-scheduled when pre-emptive scheduling.  It is useful for 
+   will not be auto-scheduled when preemptive scheduling.  It is useful for 
    wrapping critical sections that should not be interrupted::
 
      old_value = t.set_atomic(1)
      # Implement unsafe logic here.
      t.set_atomic(old_value)
 
-   Note that this will also prevent involountary thread switching, i.e. the
+   Note that this will also prevent involuntary thread switching, i.e. the
    thread will hang on to the `GIL` for the duration.
 
 .. method:: tasklet.bind_thread([thread_id])
 
-   Rebind the tasklet to the current thread, or a stackless python thread with
+   Rebind the tasklet to the current thread, or a Stackless Python thread with
    the given *thread_id*.
 
    This is only safe to do with just-created tasklets, or soft-switchable
    tasklets.  This is the case when a tasklet has just been unpickled.  Then
    it can be useful in order to hand it off to a different thread for execution.
+
+   The relationship between tasklets and threads is :doc:`covered elsewhere
+   <threads>`.
 
 .. method:: tasklet.set_ignore_nesting(flag)
 
@@ -394,7 +403,7 @@ Tasklet Life Cycle
 ^^^^^^^^^^^^^^^^^^
 
 Here is a somewhat simplified state chart that shows the life cycle of a 
-tasklet instance. The chart dosn't show the nesting-level, the thread-id 
+tasklet instance. The chart does not show the nesting-level, the thread-id 
 and the flags atomic, ignore-nesting, block-trap and restorable. 
 
 .. image:: tasklet_state_chart.png
@@ -402,7 +411,7 @@ and the flags atomic, ignore-nesting, block-trap and restorable.
 Furthermore the diagram does not show the scheduler functions 
 :func:`stackless.run`, :func:`stackless.schedule` and 
 :func:`stackless.schedule_remove()`. For the purpose of understanding the 
-state transitions these functions are roughly equivalnt to the following 
+state transitions these functions are roughly equivalent to the following 
 Python definitions::
 
    def run():

@@ -589,8 +589,8 @@ tasklet_bind_thread(PyObject *self, PyObject *args)
 
 PyDoc_STRVAR(tasklet_remove__doc__,
 "Removing a tasklet from the runnables queue.\n\
-Note: If this tasklet has a non-trivial C stack attached,\n\
-it will be destructed when the containing thread state is destroyed.\n\
+Note: If this tasklet has a non-trivial C-state attached, Stackless\n\
+will kill the tasklet when the containing thread terminates.\n\
 Since this will happen in some unpredictable order, it may cause unwanted\n\
 side-effects. Therefore it is recommended to either run tasklets to the\n\
 end or to explicitly kill() them.\
