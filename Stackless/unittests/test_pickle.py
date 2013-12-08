@@ -447,7 +447,7 @@ class TestConcretePickledTasklets(TestPickledTasklets):
 
 class TestOldStackless_WrapFactories(StacklessTestCase):
     def testXrange(self):
-        # stackless python prior to 2.7.3 used to register its own __reduce__
+        # Stackless prior to version 2.7.3 used to register its own __reduce__
         # method for xrange with copy_reg. This method returnd the function
         # stackless._wrap.xrange as xrange factory.
         #

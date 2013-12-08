@@ -1,8 +1,8 @@
-This is a port of the OpenSteer Library to Python
+This is a port of the OpenSteer Library to the Python(r) language
 http://opensteer.sourceforge.net
 
 The aim is to have the Steertest application of the library
-based on Stackless Python to provide a testbed for 
+based on Stackless to provide a testbed for 
 agent simulation
 
 It's not finished yet and still work in progress so 

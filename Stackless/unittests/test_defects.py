@@ -142,7 +142,7 @@ class TestInfiniteRecursion(unittest.TestCase):
                 pass
         A.__call__ = A()
         a=A()
-        # might crash Python, if the recursion check does not kick in
+        # might crash the Python(r) interpreter, if the recursion check does not kick in
         self.assertRaises(RuntimeError, a)
 
     def testIndirectDirectRecursion(self):

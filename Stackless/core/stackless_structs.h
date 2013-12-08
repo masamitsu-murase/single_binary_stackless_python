@@ -220,7 +220,7 @@ PyAPI_DATA(PyTypeObject*) PyChannel_TypePtr;
 #define PyChannel_Check(op) PyObject_TypeCheck(op, PyChannel_TypePtr)
 #define PyChannel_CheckExact(op) ((op)->ob_type == PyChannel_TypePtr)
 
-/*** these are in other bits of Python ***/
+/*** these are in other bits of C-Python(r) ***/
 PyAPI_DATA(PyTypeObject) PyDictIterKey_Type;
 PyAPI_DATA(PyTypeObject) PyDictIterValue_Type;
 PyAPI_DATA(PyTypeObject) PyDictIterItem_Type;

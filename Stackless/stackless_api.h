@@ -311,7 +311,7 @@ PyAPI_FUNC(long) PyStackless_GetCurrentId(void);
  * Py_WATCHDOG_THREADBLOCK:
  *   When set enables the old thread-blocking behaviour when
  *   we run out of tasklets on this thread and there are other
- *   Python threads running.
+ *   Python(r) threads running.
  * Py_WATCHDOG_SOFT:
  *   Instead of interrupting a tasklet, we wait until the
  *   next tasklet scheduling moment to return.  Always returns
@@ -387,13 +387,13 @@ PyAPI_FUNC(void) PyStackless_SetScheduleFastcallback(slp_schedule_hook_func func
  */
 
 /*
- * Run any callable as the "main" Python function.
+ * Run any callable as the "main" Python(r) function.
  */
 PyAPI_FUNC(PyObject *) PyStackless_Call_Main(PyObject *func,
 					     PyObject *args, PyObject *kwds);
 
 /*
- * Convenience: Run any method as the "main" Python function.
+ * Convenience: Run any method as the "main" Python(r) function.
  */
 PyAPI_FUNC(PyObject *) PyStackless_CallMethod_Main(PyObject *o, char *name,
 						   char *format, ...);

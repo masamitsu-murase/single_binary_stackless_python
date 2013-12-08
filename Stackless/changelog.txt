@@ -1,7 +1,7 @@
-Stackless Python News
+Stackless-Python News
 +++++++++++++++++++++
 
-This file documents changes to the Stackless extension of CPython.
+This file documents changes to the Stackless extension of C-Python.
 For other changes see Misc/NEWS.
 
 
@@ -148,7 +148,7 @@ What's New in Stackless 2.7.2?
   to bug.python.org. What remains now is the ability to set tracing/profiling
   for all tasklets globally.
 
-20100101   Release of Stackless Python 2.7.1
+20100101   Release of Stackless-Python 2.7.1
 
 
 Here is a break. Nobody wrote a change log. If you are interested 

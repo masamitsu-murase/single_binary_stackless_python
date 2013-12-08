@@ -12,13 +12,13 @@ extern "C" {
 
 /****************************************************************************
 
-  Stackless Python Internal Configuration
+  Stackless Internal Configuration
 
   Some preliminary description can be found in the draft document readme.txt
 
   The configuration is dependant of one #define:
   STACKLESS means that we want to create a stackless version.
-  Without STACKLESS set, you will get the standard Python application.
+  Without STACKLESS set, you will get the standard C-Python(r) application.
   If STACKLESS is set, the necessary fields and initializations are
   expanded, provided that the platform/compiler is supported by special
   header files. They implement the critical assembly part.

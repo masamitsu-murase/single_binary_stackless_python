@@ -1,5 +1,5 @@
 /*
- * Stackless Python version string
+ * Stackless version string
  * created at Tue May 16 13:27:25 2006 by mkversion.py
  */
 

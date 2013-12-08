@@ -199,7 +199,7 @@ class TestRebindCrash(SkipMixin, StacklessTestCase):
         # raise RuntimeError, if task is alive but not paused
         task.bind(None)
 
-        if False:  # python will crash if set to False
+        if False:  # Stackless will crash if set to False
             frameList = reducedTask[2][3]
             for i in range(len(frameList)):
                 frame = frameList[i]

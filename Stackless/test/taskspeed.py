@@ -14,7 +14,7 @@ except ImportError:
     test_outside = test_cframe = test_cframe_nr = schedule
     def enable_softswitch(n): pass
     class stackless:
-        debug = 0 # assume to be tested with normal Python
+        debug = 0 # assume to be tested with normal C-Python(r)
         uncollectables = []
     tasklist = []
     class tasklet(object):

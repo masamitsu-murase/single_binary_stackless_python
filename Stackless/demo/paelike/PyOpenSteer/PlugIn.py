@@ -27,7 +27,7 @@ DEALINGS IN THE SOFTWARE.
 
 ----------------------------------------------------------------------------
 
-PyOpenSteer -- Port of OpenSteer to Python
+PyOpenSteer -- Port of OpenSteer to the Python(r) language
 
 Copyright (c) 2004 Lutz Paelike <lutz@fxcenter.de>
 
@@ -97,7 +97,7 @@ class AbstractPlugIn:
 
 class PlugIn(AbstractPlugIn):
 	"""
-		integrate this the python way ...
+		integrate this the Python(r) way ...
 	
 		typedef void (* plugInCallBackFunction) (PlugIn& clientObject);
 		typedef void (* voidCallBackFunction) (void);
