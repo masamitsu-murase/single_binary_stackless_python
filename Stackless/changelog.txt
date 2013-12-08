@@ -1,7 +1,7 @@
-Stackless Python News
+Stackless-Python News
 +++++++++++++++++++++
 
-This file documents changes to the Stackless extension of CPython.
+This file documents changes to the Stackless extension of C-Python.
 For other changes see Misc/NEWS.
 
 

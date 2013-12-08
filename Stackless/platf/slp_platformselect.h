@@ -1,5 +1,5 @@
 /*
- * Platform Selection for Stackless Python
+ * Platform Selection for Stackless
  */
 
 #if   defined(MS_WIN32) && !defined(MS_WIN64) && defined(_M_IX86)
@@ -45,7 +45,7 @@
 #endif
 
 /* a good estimate how much the cstack level differs between
-   initialisation and main python code. Not critical, but saves time.
+   initialisation and main C-Python(r) code. Not critical, but saves time.
    Note that this will vanish with the greenlet approach. */
 
 #ifndef CSTACK_GOODGAP

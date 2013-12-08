@@ -27,7 +27,7 @@ DEALINGS IN THE SOFTWARE.
 
 ----------------------------------------------------------------------------
 
-PyOpenSteer -- Port of OpenSteer to Python
+PyOpenSteer -- Port of OpenSteer to the Python(r) language
 
 Copyright (c) 2004 Lutz Paelike <lutz@fxcenter.de>
 
@@ -643,7 +643,7 @@ def drawCircleOrDisk(radius, axis, center, color, segments, filled, in3d=True):
 			iglVertexVec3((pointOnCircle + center))
 
 		# rotate point one more step around circle
-		# LP: changed interface to the python way
+		# LP: changed interface to the Python(r) way
 		pointOnCircle, sin, cos = pointOnCircle.rotateAboutGlobalY(step, sin, cos)
 
 	
@@ -651,7 +651,7 @@ def drawCircleOrDisk(radius, axis, center, color, segments, filled, in3d=True):
 	glEnd()
 	if (filled): endDoubleSidedDrawing()
 
-# python makes it not necessary to implement draw3dCircleOrDisk properly
+# The Python(r) language makes it not necessary to implement draw3dCircleOrDisk properly
 # we just use default parameters and make it an alias 
 draw3dCircleOrDisk = drawCircleOrDisk
 

@@ -27,7 +27,7 @@ DEALINGS IN THE SOFTWARE.
 
 ----------------------------------------------------------------------------
 
-PyOpenSteer -- Port of OpenSteer to Python
+PyOpenSteer -- Port of OpenSteer to the Python(r) language
 
 Copyright (c) 2004 Lutz Paelike <lutz@fxcenter.de>
 

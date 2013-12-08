@@ -105,7 +105,7 @@ def blendIntoAccumulator(smoothRate, newValue, smoothedAccumulator):
 	"""        
 
 	#This is just plain wrong
-	#rework this the python way
+	#rework this the Python(r) way
 	pass
 	#smoothedAccumulator.set(interpolate(clip(smoothRate, 0, 1), smoothedAccumulator.get(), newValue)
 	

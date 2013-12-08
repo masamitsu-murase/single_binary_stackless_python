@@ -27,7 +27,7 @@ DEALINGS IN THE SOFTWARE.
 
 ----------------------------------------------------------------------------
 
-PyOpenSteer -- Port of OpenSteer to Python
+PyOpenSteer -- Port of OpenSteer to the Python(r) language
 
 Copyright (c) 2004 Lutz Paelike <lutz@fxcenter.de>
 
@@ -41,11 +41,11 @@ from vector import vec3
 
 index = 0
 # lutz:
-# is not really necessary to have a size limit in python
+# is not really necessary to have a size limit in Python(r) code
 # as the list can dynamically grow
 # we leave it for the moment to keep a maximum limit of deferred operations
 
-# Deferred operations (like drawing) would be a perfect candidate for stackless python
+# Deferred operations (like drawing) would be a perfect candidate for Stackless
 size = 2000
 deferredGraphicsArray = []
 
