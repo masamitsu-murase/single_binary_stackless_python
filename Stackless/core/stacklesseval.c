@@ -160,7 +160,7 @@ slp_cstack_restore(PyCStackObject *cst)
 
 static char cstack_doc[] =
 "A CStack object serves to save the stack slice which is involved\n\
-during a recursive Python call. It will also be used for pickling\n\
+during a recursive Python(r) call. It will also be used for pickling\n\
 of program state. This structure is highly platform dependant.\n\
 Note: For inspection, str() can dump it as a string.\
 ";
@@ -291,7 +291,7 @@ slp_eval_frame(PyFrameObject *f)
          * it is *not* sufficient to just check for fprev == NULL.
          * Reason: (observed with wxPython):
          * A toplevel frame is run as a tasklet. When its frame
-         * is deallocated (in tasklet_end), a Python object
+         * is deallocated (in tasklet_end), a Python(r) object
          * with a __del__ method is destroyed. This __del__
          * will run as a toplevel frame, with f_back == NULL!
          */
