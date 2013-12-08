@@ -1063,7 +1063,7 @@ tasklet_setup(PyObject *self, PyObject *args, PyObject *kwds)
 
 PyDoc_STRVAR(tasklet_throw__doc__,
              "tasklet.throw(exc, val=None, tb=None, immediate=True) -- raise an exception for the tasklet.\n\
-             'exc', 'val' and 'tb' have the same semantics as Python's 'raise' statement.\n\
+             'exc', 'val' and 'tb' have the same semantics as the 'raise' statement of the Python(r) language.\n\
              If 'pending' is True, the tasklet is not immediately activated, just\n\
              merely made runnable, ready to raise the exception when run.");
 
@@ -1738,7 +1738,7 @@ static PyCMethodDef tasklet_cmethods[] = {
 };
 
 PyDoc_STRVAR(tasklet__doc__,
-"A tasklet object represents a tiny task in a Python thread.\n\
+"A tasklet object represents a tiny task in a Python(r) thread.\n\
 At program start, there is always one running main tasklet.\n\
 New tasklets can be created with methods from the stackless\n\
 module.\n\
