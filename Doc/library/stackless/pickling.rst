@@ -10,7 +10,7 @@ a chunk of data and then unserialise that data at a later point, creating a
 new tasklet from it that resumes where the last left off.
 
 What makes this
-particularly impressive is the fact that the Python :mod:`pickle` structure
+particularly impressive is the fact that the |PY| :mod:`pickle` structure
 is platform independent.  Code can for instance initially be run on a x86
 Windows machine, then interrupted, pickled and sent over the network to be
 resumed on an ARM Linux machine.
@@ -98,5 +98,5 @@ different address than *t1*, which was displayed earlier.
     It should be possible to pickle any tasklets that you might want to.
     However, not all tasklets can be unpickled.  One of the cases in which
     this is true, is where not all the functions called by the code within
-    the tasklet are Python functions.  The Stackless pickling mechanism
+    the tasklet are |PY| functions.  The Stackless pickling mechanism
     has no ability to deal with C functions that may have been called.

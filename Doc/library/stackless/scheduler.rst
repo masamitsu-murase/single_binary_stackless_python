@@ -82,7 +82,7 @@ new tasklets or reinsertion of old ones which were blocked outside of it.
 .. _uncooperative-tasklets:
 
 --------------------------------
-Detecting uncooperative tasklets 
+Detecting uncooperative tasklets
 --------------------------------
 
 In practice, it is very rare that a tasklet will run without yielding to allow
@@ -140,7 +140,7 @@ Killing the interrupted tasklet::
 
 .. note::
 
-   Tasklets that do long running calls outside of Python are not something
+   Tasklets that do long running calls outside of |PY| code are not something
    this mechanism has any insight into.  These calls might be doing
    synchronous IO, complex :mod:`math` module operations that execute in the
    underlying C library or a range of other things.
@@ -260,7 +260,7 @@ Example - running a simple tasklet within the scheduler::
     <stackless.tasklet object at 0x01BCD0B0>
 
 In this case, the scheduler runs until a maximum of ``100`` instructions have
-been executed in the Python virtual machine.  At which point, whatever tasklet
+been executed in the |PY| virtual machine.  At which point, whatever tasklet
 is currently running is returned when :func:`stackless.run` exits.  The
 standard way to employ this is to pump the scheduler, reinserting the
 interrupted tasklet.

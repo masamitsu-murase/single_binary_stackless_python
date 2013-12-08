@@ -6,7 +6,7 @@ Threads --- Threads and Stackless
 
 Stackless is a lightweight threading solution.  It works by
 scheduling its tasklets within the CPU time allocated to the real thread
-that Python, and therefore the scheduler running within it, is on.
+that the |PY| interpreter, and therefore the scheduler running within it, is on.
 
 Stackless does not:
 
@@ -50,11 +50,11 @@ unbinding (``tasklet.bind(None)``) them, but that is up to application code.
 A scheduler per thread
 ----------------------
 
-The operating system thread that the Python runtime is started in and runs on,
+The operating system thread that the |PY| runtime is started in and runs on,
 is called the main thread.  The typical use of Stackless, is to run the
 scheduler in this thread.  But there is nothing that prevents a different
 scheduler, and therefore a different set of tasklets, from running in every
-Python thread you care to start.
+|PY| thread you care to start.
 
 
 Example - scheduler per thread::
@@ -85,7 +85,7 @@ Output::
     THREAD(1): Death of THREAD(2) detected
 
 This example demonstrates that there actually are two independent schedulers
-present, one in each participating Python thread.  We know that the main
+present, one in each participating |PY| thread.  We know that the main
 thread has one manually created tasklet running, in addition to its main
 tasklet which is running the scheduler.  If the secondary thread is truly
 independent, then when it runs it should have a tasklet count of ``1``

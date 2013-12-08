@@ -170,12 +170,12 @@ Channels
 
 .. cfunction:: PyObject *PyChannel_Receive(PyChannelObject *self)
 
-  Receive on the channel *self*.  Returns a python object if the operation was
+  Receive on the channel *self*.  Returns a |PY| object if the operation was
   successful, or *NULL* in the case of failure.
 
 .. cfunction:: PyObject *PyChannel_Receive_nr(PyChannelObject *self)
 
-  Receive on the channel *self*, soft switching if possible.  Returns a python
+  Receive on the channel *self*, soft switching if possible.  Returns a |PY|
   object if the operation was successful, :ctype:`Py_UnwindToken` if a soft switch
   occurred, or *NULL* in the case of failure.
 
@@ -335,9 +335,9 @@ available.
 
 .. cfunction:: PyObject *PyStackless_Call_Main(PyObject *func, PyObject *args, PyObject *kwds)
 
-  Run any callable as the "main" Python function.  Returns a python object, or
+  Run any callable as the "main" |PY| function.  Returns a |PY| object, or
   *NULL* in the case of failure.
 
 .. cfunction:: PyObject *PyStackless_CallMethod_Main(PyObject *o, char *name, char *format, ...)
 
-  Convenience: Run any method as the "main" Python function.  Wraps PyStackless_Call_Main.
+  Convenience: Run any method as the "main" |PY| function.  Wraps PyStackless_Call_Main.

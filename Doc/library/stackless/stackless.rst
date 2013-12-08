@@ -10,7 +10,7 @@
 .. versionadded:: 1.5.2
 
 The :mod:`stackless` module is the way in which programmers must access
-the enhanced functionality provided by Stackless Python.
+the enhanced functionality provided by |SLP|.
 
 .. toctree::
 
@@ -43,7 +43,7 @@ The main scheduling related functions:
    in a different manner, providing pre-emptive scheduling.  A non-zero
    value indicates that as each tasklet is given a chance to run, it
    should only be allowed to run as long as the number of 
-   :mod:`Python virtual instructions <dis>` are below this value. If a
+   :mod:`|PY| virtual instructions <dis>` are below this value. If a
    tasklet hits this limit, then it is interrupted and the scheduler
    exits returning the now no longer scheduled tasklet to the caller.
    
@@ -59,7 +59,7 @@ The main scheduling related functions:
    channels are used for communication between threads.  Normally when
    the scheduler has no remaining tasklets to run besides the current one,
    the main tasklet is reawakened.  By engaging this option, if there are other
-   running Python threads then the current one will instead block expecting
+   running |PY| threads then the current one will instead block expecting
    them to eventually wake it up.
    
    The optional argument *soft* affects how pre-emptive scheduling behaves.
