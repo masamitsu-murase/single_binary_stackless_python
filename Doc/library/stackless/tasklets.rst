@@ -66,7 +66,7 @@ The ``tasklet`` class
 .. class:: tasklet(callable=None)
 
    This class exposes the form of lightweight thread (the tasklet) provided by
-   Stackless Python.  Wrapping a callable object and arguments to pass into
+   |SLP|.  Wrapping a callable object and arguments to pass into
    it when it is invoked, the callable is run within the tasklet.
    
    Tasklets are usually created in the following manner::
@@ -295,7 +295,7 @@ The ``tasklet`` class
 
 .. method:: tasklet.bind_thread([thread_id])
 
-   Rebind the tasklet to the current thread, or a Stackless Python thread with
+   Rebind the tasklet to the current thread, or a |PY| thread with
    the given *thread_id*.
 
    This is only safe to do with just-created tasklets, or soft-switchable
@@ -412,7 +412,7 @@ Furthermore the diagram does not show the scheduler functions
 :func:`stackless.run`, :func:`stackless.schedule` and 
 :func:`stackless.schedule_remove()`. For the purpose of understanding the 
 state transitions these functions are roughly equivalent to the following 
-Python definitions::
+|PY| definitions::
 
    def run():
        main = stackless.current

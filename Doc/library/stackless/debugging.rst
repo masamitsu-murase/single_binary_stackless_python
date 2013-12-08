@@ -5,7 +5,7 @@ Debugging and Tracing --- How Stackless differs
 ***********************************************
 
 Debugging tools, like those used for tracing, are implemented through
-calls to the :func:`sys.settrace` function.  Now, in normal Python, when
+calls to the :func:`sys.settrace` function.  Now, in normal |CPY|, when
 this has been called any code that runs within the operating system thread
 is covered by it.  In Stackless however, this function only covers the
 current tasklet.
@@ -13,12 +13,12 @@ current tasklet.
 The debugging related modules, whether :doc:`in the standard library
 <../debug>` or not, do not take this difference into account.  They are not
 likely to work, and if they do, are not likely to work in the way you expect.
-In an ideal world, Stackless Python might include modified versions of these
+In an ideal world, |SLP| might include modified versions of these
 modules, and patches adding them would be most welcome.
 
-If you want working debugging for Stackless Python, at this time your best
+If you want working debugging for |SLP|, at this time your best
 option is to use the `WingWare Python IDE <http://wingware.com>`_.  WingWare
-have gone out of their way to add and support Stackless Python development.
+have gone out of their way to add and support |SLP| development.
 
 .. note::
 

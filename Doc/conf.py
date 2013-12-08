@@ -17,7 +17,7 @@ extensions = ['sphinx.ext.refcounting', 'sphinx.ext.coverage',
 templates_path = ['tools/sphinxext']
 
 # General substitutions.
-project = 'Stackless Python'
+project = 'Stackless-Python'
 copyright = '1990-%s, Python Software Foundation' % time.strftime('%Y')
 
 # The default replacements for |version| and |release|.
@@ -194,3 +194,19 @@ coverage_c_regexes = {
 coverage_ignore_c_items = {
 #    'cfunction': [...]
 }
+
+# For Stackless
+rst_epilog = u"""
+.. |PPL| replace::
+   *Python\xae* programming language
+
+.. |SLP| replace::
+   *Stackless-Python*
+
+.. |PY| replace::
+   *Python\xae*
+
+.. |CPY| replace::
+   C-*Python\xae*
+
+"""
