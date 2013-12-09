@@ -15,7 +15,7 @@ an application or framework, but by doing so improve program structure and
 facilitate more readable code.
 
 If you are reading this text as part of a version of a |PY| interpreter you have installed,
-then you have installed |SLP| rather than standard |CPY|\ [#CPY]_.
+then you have installed |SLP| rather than |CPY|\ [#CPY]_.
 
 __ http://www.stackless.com
 
@@ -158,10 +158,10 @@ has been undertaken by Richard and Kristján.
 
 .. [#PSFTRADEMARK]
    "Python" and the Python logos are trademarks or registered trademarks of the 
-   Python Software Foundation, used by |SLP| with permission from the Foundation.
+   *Python Software Foundation*, used by |SLP| with permission from the Foundation.
    See http://www.python.org/psf/trademarks/ for details.
 
 .. [#CPY]
-   With the term |CPY| we refer to the reference implementation of the |PPL| 
-   that is released by the Python Software Foundation on http://www.python.org.
+   With the term "|CPY|" we refer to the reference implementation of the |PPL| 
+   that is released by the *Python Software Foundation* on http://www.python.org.
 

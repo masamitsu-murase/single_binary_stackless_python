@@ -202,6 +202,6 @@ rst_epilog = u"""
    *Python\xae*
 
 .. |CPY| replace::
-   C-*Python\xae*
+   standard *Python\xae*
 
 """
