@@ -5,7 +5,7 @@ Debugging and Tracing --- How Stackless differs
 ***********************************************
 
 Debugging tools, like those used for tracing, are implemented through
-calls to the :func:`sys.settrace` function.  Now, in normal |CPY|, when
+calls to the :func:`sys.settrace` function.  Now, in |CPY|, when
 this has been called any code that runs within the operating system thread
 is covered by it.  In Stackless however, this function only covers the
 current tasklet.
