@@ -129,7 +129,7 @@ nmake -f icons.mak  || goto FAIL
 cd ..
 
 echo Making dummy tix folder: %EXTERNSPATH%tix-nothere
-IF NOT EXIST "%PYDIR%\%EXTERNSPATH%tix-nothere" (
+IF NOT EXIST "%EXTERNSPATH%tix-nothere" (
 	rem TIX is required
     mkdir %EXTERNSPATH%tix-nothere
     echo > %EXTERNSPATH%tix-nothere\license.terms
