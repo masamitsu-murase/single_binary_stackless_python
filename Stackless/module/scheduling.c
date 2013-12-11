@@ -1113,7 +1113,7 @@ schedule_task_destruct(PyTaskletObject *prev, PyTaskletObject *next)
      * field to help us with that, someone else with decref it.
      */
     PyThreadState *ts = PyThreadState_GET();
-    PyObject *retval;
+    PyObject *retval, *tmpval=NULL;
 
     /* we should have no nesting level */
     assert(ts->st.nesting_level == 0);
@@ -1137,26 +1137,48 @@ schedule_task_destruct(PyTaskletObject *prev, PyTaskletObject *next)
     assert(ts->frame == NULL);
     prev->f.frame = NULL;
 
-    /* The tasklet can only be cleanly decrefed after we have completely
+    /* We are passed the last reference to "prev".
+     * The tasklet can only be cleanly decrefed after we have completely
      * switched to another one, because the decref can trigger tasklet
      * swithes. this would otherwise mess up our soft switching.  Generally
      * nothing significant must happen once we are unwinding the stack.
      */
     assert(ts->st.del_post_switch == NULL);
-    ts->st.del_post_switch = (PyObject *)prev;
-
+    ts->st.del_post_switch = (PyObject*)prev; 
     /* do a soft switch */
     if (prev != next) {
-        int switched;
-        int fail = slp_schedule_task(&retval, prev, next, 1, &switched);
-        if (!switched || fail)
-            /* something happened, cancel prev's decref */
-            ts->st.del_post_switch  = 0;
+        int switched, fail;
+        PyObject *tuple, *tempval=NULL;
+        /* A non-trivial tempval should be cleared at the earliest opportunity
+         * later, to avoid reference cycles.  We can't decref it here because
+         * that could cause destructors to run, violating the stackless protocol
+         * So, we pack it up with the taskelt in a tuple
+         */
+        if (prev->tempval != Py_None) {
+            TASKLET_CLAIMVAL(prev, &tempval);
+            tuple = Py_BuildValue("NN", prev, tempval);
+            if (tuple == NULL) {
+                TASKLET_SETVAL_OWN(prev, tempval);
+                return NULL;
+            }
+            ts->st.del_post_switch = tuple;
+        }
+        fail = slp_schedule_task(&retval, prev, next, 1, &switched);
+        if (!switched || fail) {
+            /* something happened, cancel our decref manipulations. */
+            if (tempval != NULL) {
+                TASKLET_SETVAL(prev, tempval);
+                Py_INCREF(prev);
+                Py_CLEAR(ts->st.del_post_switch);
+            } else
+                ts->st.del_post_switch  = 0;
+        }
         if (fail)
             /* the interface of this function can't deal with failing to switch */
             return NULL;
     } else {
         /* main is exiting */
+        /* TODO: we should probably decref PREV here */
         TASKLET_CLAIMVAL(prev, &retval);
         if (PyBomb_Check(retval))
             retval = slp_bomb_explode(retval);
@@ -1289,9 +1311,15 @@ tasklet_end(PyObject *retval)
     if (PyBomb_Check(retval)) {
         /*
          * error handling: continue in the context of the main tasklet.
+         * Remove the bomb from the source since it is frequently the
+         * source of a reference cycle
+         * Remove the bomb from the source since it is frequently the
+         * source of a reference cycle
          */
+        assert(task->tempval == retval);
+        TASKLET_CLAIMVAL(task, &retval);
+        TASKLET_SETVAL_OWN(next, retval);
         next = ts->st.main;
-        TASKLET_SETVAL(next, retval);
     }
     Py_DECREF(retval);
 
