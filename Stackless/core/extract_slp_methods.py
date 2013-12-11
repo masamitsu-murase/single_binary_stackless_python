@@ -38,7 +38,7 @@ def generate():
     f = open(dstname, "w")
     print("""\
 /*
- * this file was generated from the Python C sources using the script
+ * this file was generated from the Python(r) C sources using the script
  * Stackless/core/extract_slp_methods.py .
  * please don't edit this output, but work on the script.
  */

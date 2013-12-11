@@ -1,7 +1,7 @@
-Stackless Python News
+Stackless-Python News
 +++++++++++++++++++++
 
-This file documents changes to the Stackless extension of CPython.
+This file documents changes to the Stackless extension of C-Python.
 For other changes see Misc/NEWS.
 
 
@@ -27,7 +27,7 @@ What's New in Stackless 3.3.2?
 - Diable pre-emptive switching in switch-trapped mode.
 
 - Add tasklet.bind_thread() method, to re-bind a soft-switchable
-  tasklet to the calling thread.
+  tasklet to another thread.
 
 - Enhance tasklet.bind() so that it can bind arguments as well without
   making the tasklet runnable.

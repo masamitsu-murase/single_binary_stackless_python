@@ -160,7 +160,7 @@ slp_cstack_restore(PyCStackObject *cst)
 
 static char cstack_doc[] =
 "A CStack object serves to save the stack slice which is involved\n\
-during a recursive Python call. It will also be used for pickling\n\
+during a recursive Python(r) call. It will also be used for pickling\n\
 of program state. This structure is highly platform dependant.\n\
 Note: For inspection, str() can dump it as a string.\
 ";
@@ -290,7 +290,7 @@ slp_eval_frame(PyFrameObject *f)
          * it is *not* sufficient to just check for fprev == NULL.
          * Reason: (observed with wxPython):
          * A toplevel frame is run as a tasklet. When its frame
-         * is deallocated (in tasklet_end), a Python object
+         * is deallocated (in tasklet_end), a Python(r) object
          * with a __del__ method is destroyed. This __del__
          * will run as a toplevel frame, with f_back == NULL!
          */
@@ -319,6 +319,9 @@ slp_eval_frame(PyFrameObject *f)
     return slp_frame_dispatch(f, fprev, 0, Py_None);
 }
 
+/* a thread (or threads) is exiting.  After this call, no tasklet may
+ * refer to the current thread's tstate
+ */
 void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
 {
     PyThreadState *ts = PyThreadState_GET();
@@ -337,17 +340,19 @@ void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
                 return;
             }
             ++count;
-            if (cs->task == NULL)
-                continue;
-            /* can't kill tasklets from other threads here */
+            /* has tstate already been cleared or is it a foreign thread? */
             if (cs->tstate != ts)
                 continue;
-            /* were we asked to kill tasklet on our thread? */
-            if (target_ts != NULL && cs->tstate != target_ts)
+
+            if (cs->task == NULL) {
+                cs->tstate = NULL;
                 continue;
+            }
             /* is it already dead? */
-            if (cs->task->f.frame == NULL)
+            if (cs->task->f.frame == NULL) {
+                cs->tstate = NULL;
                 continue;
+            }
             break;
         }
         count = 0;
@@ -389,17 +394,16 @@ void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
         PyTasklet_Kill(t);
         PyErr_Clear();
 
-        if (t->cstate != NULL) {
-            /* ensure a valid tstate */
-            t->cstate->tstate = slp_initial_tstate;
-        }
+        /* must clear the tstate */
+        t->cstate->tstate = NULL;
         Py_DECREF(t);
     }
 
     /* and a separate simple loop to kill tasklets on foreign threads.
      * Since foreign tasklets are scheduled in their own good time,
      * there is no guarantee that they are actually dead when we
-     * exit this function
+     * exit this function.  Therefore, we also can't clear their thread
+     * states.  That will hopefully happen when their threads exit.
      */
     {
         PyCStackObject *csfirst = slp_cstack_chain, *cs;

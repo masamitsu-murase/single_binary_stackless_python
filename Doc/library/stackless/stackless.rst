@@ -10,7 +10,7 @@
 .. versionadded:: 1.5.2
 
 The :mod:`stackless` module is the way in which programmers must access
-the enhanced functionality provided by Stackless Python.
+the enhanced functionality provided by |SLP|.
 
 .. toctree::
 
@@ -43,7 +43,7 @@ The main scheduling related functions:
    in a different manner, providing pre-emptive scheduling.  A non-zero
    value indicates that as each tasklet is given a chance to run, it
    should only be allowed to run as long as the number of 
-   :mod:`Python virtual instructions <dis>` are below this value. If a
+   :mod:`|PY| virtual instructions <dis>` are below this value. If a
    tasklet hits this limit, then it is interrupted and the scheduler
    exits returning the now no longer scheduled tasklet to the caller.
    
@@ -59,7 +59,7 @@ The main scheduling related functions:
    channels are used for communication between threads.  Normally when
    the scheduler has no remaining tasklets to run besides the current one,
    the main tasklet is reawakened.  By engaging this option, if there are other
-   running Python threads then the current one will instead block expecting
+   running |PY| threads then the current one will instead block expecting
    them to eventually wake it up.
    
    The optional argument *soft* affects how pre-emptive scheduling behaves.
@@ -208,6 +208,21 @@ Scheduler state introspection related functions:
 
    Return the number of currently runnable tasklets.
 
+.. function:: switch_trap(change)
+
+   modify the ``switch trap`` level.  Returns its previous value.
+
+   When the ``switch trap`` level is non-zero, any tasklet switching,
+   e.g. due channel action or explicit, will result in a ``RuntimeError``
+   being raised.  This can be useful to demark code areas that are supposed
+   to run without switching, e.g.::
+
+       stackless.switch_trap(1) # increase the trap level
+       try:
+           my_function_that_shouldnt_switch()
+       finally:
+           stackless.switch_trap(-1)
+
 Debugging related functions:
 
 .. function:: enable_softswitch(flag)
@@ -296,3 +311,27 @@ Exceptions
    :exc:`Exception`.
 
    This class is derived from :exc:`SystemExit`. 
+
+-------
+Classes
+-------
+
+.. class:: atomic
+
+   This is a context manager class to help with setting up atomic sections.
+
+   Use it like this::
+
+       with stackless.atomic():
+           sensitive_function()
+           other_sensitive_function()
+
+   Its definition is equivalent to the following, only faster::
+
+       @contextlib.contextmanager
+       def atomic():
+           old = stackless.getcurrent().set_atomic(True)
+           try:
+               yield
+           finally:
+               stackless.getcurrent().set_atomic(old)

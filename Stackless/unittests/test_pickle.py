@@ -441,6 +441,7 @@ class TestConcretePickledTasklets(TestPickledTasklets):
 
 class TestDictViewPickling(TestPickledTasklets):
     def testDictKeyViewPickling(self):
+        # stackless python prior to 2.7.3 used to register its own __reduce__
         d = { 1: 2 }
         view1 = d.keys()
         view2 = pickle.loads(pickle.dumps(view1))

@@ -681,8 +681,7 @@ err_exit:
 }
 
 PyDoc_STRVAR(channel_send_throw__doc__,
-"channel.send_throw([typ[,val[,tb]]]) -- send an exception over the channel.\n\
-If no exception is given, the current exception is sent.\n\
+"channel.send_throw(typ[,val[,tb]]) -- send an exception over the channel.\n\
 Behavior is like channel.send, but that the receiver gets an exception.");
 
 static PyObject *

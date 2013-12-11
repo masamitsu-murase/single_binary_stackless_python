@@ -1,30 +1,32 @@
-****************
-Stackless Python
-****************
+*****
+|SLP|
+*****
 
 :Author: Richard Tew (richard.m.tew@gmail.com)
 :Release: |release|
 :Date: |today|
 
-`Stackless Python <http://www.stackless.com>`_
-is an enhanced version of the Python programming language.
+|SLP|__ is an enhanced version of the |PPL|\ [#PSFTRADEMARK]_.
 It allows programmers to reap the benefits of thread-based programming without
 the performance and complexity problems associated with conventional threads.
-The microthreads that Stackless adds to Python are a cheap and lightweight
+The microthreads that Stackless adds to the |PPL| are a cheap and lightweight
 convenience, which if used properly, can not only serve as a way to structure
 an application or framework, but by doing so improve program structure and
 facilitate more readable code.
 
-If you are reading this text as part of a version of Python you have installed,
-then you have installed Stackless rather than standard Python.
+If you are reading this text as part of a version of a |PY| interpreter you have installed,
+then you have installed |SLP| rather than |CPY|\ [#CPY]_.
+
+__ http://www.stackless.com
 
 Overview
 ========
 
 Unless actual use is made of the enhanced functionality that Stackless adds
-to Python, Stackless will behave exactly the same as Python would and is used
+to |CPY|, Stackless will behave exactly the same as |CPY| would and is used
 in exactly the same way.  This functionality is exposed as a framework
 through the :mod:`stackless` module.
+
 
 .. toctree::
    :maxdepth: 3
@@ -39,16 +41,16 @@ through the :mod:`stackless` module.
 What you need to know
 =====================
 
-Stackless Python provides a minimal framework and it is not accompanied by any
+|SLP| provides a minimal framework and it is not accompanied by any
 support functionality, that would otherwise address the common needs that may
 arise when building a more targeted framework around it.
 
 Blocking operations
 -------------------
 
-When operations are invoked that block the Python interpreter, the user needs
+When operations are invoked that block the |PY| interpreter, the user needs
 to be aware that this inherently blocks all running tasklets.  Until the tasklet
-that engaged that operation is complete, the Python interpreter and therefore
+that engaged that operation is complete, the |PY| interpreter and therefore
 scheduler is blocked on that operation and in that tasklet.  Operations that
 block the interpreter are often related to synchronous IO (file reading
 and writing, socket operations, interprocess communication and more), although
@@ -80,7 +82,7 @@ the documentation for the :ref:`TaskletExit <slp-exc>` exception.
 Debugging
 ---------
 
-The Stackless scheduling mechanism changes the way the Python debugging hooks
+The Stackless scheduling mechanism changes the way the |PY| debugging hooks
 work so that debugging hooks are set per-tasklet rather than per-thread.
 However, very few debuggers, certainly none of those in the standard library
 take this into account.  As a result of this, debugging is unlikely to work
@@ -103,13 +105,13 @@ History
 
 Continuations are a feature that require the programming language they are
 part of, to be implemented in a way conducive to their presence.  In order to
-add them to the Python programming language, Christian Tismer modified it
+add them to the |PPL|, Christian Tismer modified it
 extensively.  The primary way in which it was modified, was to make it Stackless.
-And so, his fork of Python was named Stackless Python.
+And so, his fork of |CPY| was named |SLP|.
 
 Now, storing data on the stack locks execution on an operating system thread to
 the current executing functionality, until that functionality completes and the
-stack usage is released piece by piece.  In order to add continuations to Python,
+stack usage is released piece by piece.  In order to add continuations to |CPY|,
 that data needed to be stored on the heap instead, therefore decoupling the
 executing functionality from the stack.  With the extensive changes this required
 in place, Christian `released Stackless Python
@@ -118,7 +120,7 @@ in place, Christian `released Stackless Python
 Maintaining the fork of a programming language is a lot of work, and when the
 programming language changes in ways that are incompatible with the changes in
 the fork, then that work is sigificantly increased.  Over time it became
-obvious that the amount of changes to Python were too much weight to carry,
+obvious that the amount of changes to |CPY| were too much weight to carry,
 and Christian contemplated a rewrite of Stackless.  It became obvious that a
 `simpler approach
 <http://mail.python.org/pipermail/python-dev/2002-January/019671.html>`_ could
@@ -138,18 +140,28 @@ Armin Rigo `came up with a way
 take the core functionality of Stackless and build an extension module that provided
 it.  This was the creation of greenlets, which are very likely a more popular
 tool than Stackless itself today.  The greenlet source code in practice can be
-used as the base for green threading functionality not just in Python, but in
+used as the base for green threading functionality not just in the |PPL|, but in
 other programming languages and projects.
 
-With Stackless Python a solid product, Christian's focus moved onto other
+With |SLP| a solid product, Christian's focus moved onto other
 projects, `PyPy <http://pypy.org>`_ among them.  One of his interests in PyPy was
 a proper implementation of the Stackless functionality, where it could be
-integrated as a natural part of any Python built.
+integrated as a natural part of any |PY| interpreter built.
 
-For a while, Stackless Python languished, with no new versions to match the
-releases of Python itself.  Then in 2006, CCP sent Kristjan Valur Jonsson and
+For a while, |SLP| languished, with no new versions to match the
+releases of |CPY| itself.  Then in 2006, CCP sent Kristján Valur Jonsson and
 Richard Tew to PyCon where `they sprinted
 <http://zope.stackless.com/Members/rmtew/News%20Archive/pycon2006/news_item_view>`_
-with the aid of Christian Tismer.  The result was an up to date release of Stackless
-Python.  From this point in time, maintaining and releasing Stackless Python
-has been undertaken by Richard and Kristjan.
+with the aid of Christian Tismer.  The result was an up to date release of |SLP|.
+From this point in time, maintaining and releasing |SLP|
+has been undertaken by Richard and Kristján.
+
+.. [#PSFTRADEMARK]
+   "Python" and the Python logos are trademarks or registered trademarks of the 
+   *Python Software Foundation*, used by |SLP| with permission from the Foundation.
+   See http://www.python.org/psf/trademarks/ for details.
+
+.. [#CPY]
+   With the term "|CPY|" we refer to the reference implementation of the |PPL| 
+   that is released by the *Python Software Foundation* on http://www.python.org.
+

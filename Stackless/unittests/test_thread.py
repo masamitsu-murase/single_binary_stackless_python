@@ -202,7 +202,7 @@ class TestRebindCrash(SkipMixin, StacklessTestCase):
         # raise RuntimeError, if task is alive but not paused
         task.bind(None)
 
-        if False:  # python will crash if set to False
+        if False:  # Stackless will crash if set to False
             frameList = reducedTask[2][3]
             for i in range(len(frameList)):
                 frame = frameList[i]
@@ -260,12 +260,13 @@ class TestRebindCrash(SkipMixin, StacklessTestCase):
         finally:
             end()
 
-class RemoteTaskletTests(StacklessTestCase):
+class RemoteTaskletTests(SkipMixin, StacklessTestCase):
     ThreadClass = LingeringThread
     def setUp(self):
         super(RemoteTaskletTests, self).setUp()
         self.taskletExecuted = False
         self.event = threading.Event()
+        self.channel = stackless.channel()
 
     def create_tasklet(self, action, *args, **kw):
         self.tasklet = stackless.tasklet(action)(*args, **kw)
@@ -274,11 +275,14 @@ class RemoteTaskletTests(StacklessTestCase):
     def tasklet_action(self):
         self.taskletExecuted = True
 
-    def create_thread_task(self):
+    def create_thread_task(self, action=None):
+        if not action:
+            action = self.tasklet_action
         theThread = self.ThreadClass(target=self.create_tasklet,
-        args=(self.tasklet_action,))
+        args=(action,))
         theThread.start()
         self.event.wait()
+        self.event.clear()
         t = self.tasklet
         return theThread, t
 
@@ -342,12 +346,14 @@ class DeadThreadTest(RemoteTaskletTests):
         # now the tasklet should be alive
         self.assertTrue(t.alive)
         t.run()
+        self.assertTrue(self.taskletExecuted)
         self.assertFalse(t.alive)
 
     def test_bind_runnable(self):
         theThread, t = self.create_thread_task()
         self.assertRaisesRegexp(RuntimeError, "runnable", t.bind_thread)
         theThread.join()
+
 
 class BindThreadTest(RemoteTaskletTests):
     """More unittests for tasklet.bind_thread"""
@@ -377,6 +383,73 @@ class BindThreadTest(RemoteTaskletTests):
         finally:
             theThread.join()
 
+    def test_bind_to_current_tid(self):
+        current_id = stackless.getcurrent().thread_id
+        self.assertEqual(current_id, thread.get_ident())
+
+        theThread, t = self.create_thread_task()
+        t.remove()
+        with theThread:
+            self.assertEqual(t.thread_id, theThread.ident)
+            t.bind_thread(current_id)
+        self.assertEqual(t.thread_id, current_id)
+        t.run()
+        self.assertTrue(self.taskletExecuted)
+        self.assertFalse(t.alive)
+
+    def test_bind_to_bogus_tid(self):
+        current_id = stackless.getcurrent().thread_id
+        self.assertEqual(current_id, thread.get_ident())
+
+        theThread, t = self.create_thread_task()
+        t.remove()
+        with theThread:
+            self.assertEqual(t.thread_id, theThread.ident)
+            self.assertRaises(ValueError, t.bind_thread, -2)
+            t.bind_thread(current_id)
+        self.assertEqual(t.thread_id, current_id)
+        t.run()
+        self.assertTrue(self.taskletExecuted)
+        self.assertFalse(t.alive)
+
+class SchedulingBindThreadTests(RemoteTaskletTests):
+    ThreadClass = SchedulingThread
+    def tasklet_action(self):
+        self.channel.receive()
+        self.taskletExecuted = True
+        self.channel.send(None)
+
+    def test_bind_to_other_tid(self):
+        self.skipUnlessSoftswitching()
+        current_id = stackless.getcurrent().thread_id
+        self.assertEqual(current_id, thread.get_ident())
+
+        theThread, t = self.create_thread_task()
+        with theThread:
+            otherThread, t2 = self.create_thread_task()
+            with otherThread:
+                self.assertEqual(t.thread_id, theThread.ident)
+                t.bind_thread(otherThread.ident)
+                self.assertEqual(t.thread_id, otherThread.ident)
+                self.channel.send(None)
+                self.channel.receive()
+        self.assertTrue(self.taskletExecuted)
+        self.assertFalse(t.alive)
+
+    def tasklet_runnable_action(self):
+        """A tasklet that keeps itself runnable"""
+        while not self.channel.balance:
+            stackless.schedule()
+            time.sleep(0.001)
+        self.channel.receive()
+
+    def test_rebind_runnable(self):
+        theThread, t = self.create_thread_task(self.tasklet_runnable_action)
+        with theThread:
+            self.assertRaisesRegexp(RuntimeError, 'runnable', t.bind_thread)
+            self.channel.send(None)
+
+
 class SwitchTest(RemoteTaskletTests):
     ThreadClass = SchedulingThread
     def tasklet_action(self):
@@ -388,6 +461,23 @@ class SwitchTest(RemoteTaskletTests):
         with theThread:
             self.assertTrue(t.paused)
             self.assertRaisesRegexp(RuntimeError, "different thread", t.switch)
+
+class DeadThreadTest(RemoteTaskletTests):
+    def test_death(self):
+        """test tasklets from dead threads"""
+        theThread, t = self.create_thread_task()
+        with theThread:
+            self.assertNotEqual(t.thread_id, -1)
+        self.assertEqual(t.thread_id, -1)
+
+    def test_rebind_from_dead(self):
+        """test that rebinding a fresh tasklet from a dead thread works"""
+        theThread, t = self.create_thread_task()
+        with theThread:
+            self.assertNotEqual(t.thread_id, -1)
+        self.assertEqual(t.thread_id, -1)
+        t.bind_thread()
+        self.assertEqual(t.thread_id, stackless.getcurrent().thread_id)
 
 #///////////////////////////////////////////////////////////////////////////////
 

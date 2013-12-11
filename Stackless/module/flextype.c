@@ -5,7 +5,7 @@
 #include "flextype.h"
 
 /*
- * this does not work in general with python 2.3, since it refuses to deallocate
+ * this does not work in general with C-Python(r) 2.3, since it refuses to deallocate
  * variables or slots if the type is not GC. For the local purpose in this module
  * it works. See for instance below in flextype_new(...) and type_clone(...)
  * XXX maybe discuss on python-dev again?
@@ -68,7 +68,7 @@ static int bind_last_to_first( PyTypeObject *type, PyTypeObject *current)
         int use_fast = 0;
 
         if (ml->match != NULL) {
-            /* public Python method, see if it is overridden */
+            /* public Python(r) method, see if it is overridden */
             PyObject *op = PyObject_GetAttrString(
                 (PyObject *) type, ml->name);
             if (op == NULL)
@@ -110,7 +110,7 @@ bindmethods( PyTypeObject *type )
     return bind_last_to_first(type, type);
 }
 
-/* this one method is exposed to Python */
+/* this one method is exposed to Python(r) code */
 static PyObject *
 flextype_new(PyTypeObject *meta, PyObject *args, PyObject *kwds)
 {

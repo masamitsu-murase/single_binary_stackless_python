@@ -6,6 +6,7 @@ except:
     withThreads = False
 import unittest
 import re
+import types
 
 class RegexMixIn(object):
     """for pre-2.7 support """
@@ -42,6 +43,16 @@ class StacklessTestCase(unittest.TestCase, RegexMixIn):
                 activeThreads[0].join(0.5)
             if threading.activeCount() > 1:
                 self.assertEqual(threading.activeCount(), 1, "Leakage from other threads, with %d threads running (1 expected)" % (threading.activeCount()))
+
+    SAFE_TESTCASE_ATTRIBUTES = unittest.TestCase(methodName='run').__dict__.keys()
+    def _addSkip(self, result, reason):
+        # Remove non standard attributes. They could render the test case object unpickleable.
+        # This is a hack, but it works fairly well.
+        for k in list(self.__dict__.keys()):
+            if k not in self.SAFE_TESTCASE_ATTRIBUTES and \
+            not isinstance(self.__dict__[k], (type(None), str, int, float)):
+                del self.__dict__[k]
+        super(StacklessTestCase, self)._addSkip(result, reason)
 
 class AsTaskletTestCase(StacklessTestCase):
     """A test case class, that runs tests as tasklets"""

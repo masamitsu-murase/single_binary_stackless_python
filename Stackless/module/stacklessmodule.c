@@ -379,7 +379,7 @@ If an exception occours, it will be passed to the main tasklet.\n\
 The other optional flags paremeter work as follows:\n\
 threadblock:  When set, ensures, that the thread\n\
 will block when it runs out of tasklets to await channel activity from\n\
-other Python threads to wake it up.\n\
+other Python(r) threads to wake it up.\n\
 soft:  When set, tasklets won't be interrupted but\n\
 run will return (with a None) at the next convenient scheduling moment\n\
 when the timeout has occurred.\n\

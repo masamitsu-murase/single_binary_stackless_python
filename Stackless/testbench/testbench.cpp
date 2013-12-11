@@ -256,7 +256,7 @@ public:
 
 //      PyThreadState_Clear(m_interp);
       // Interpreter deletion does not work yet! And it leakes now memory ...
-	  // PyThreadState_Swap(NULL); // Should not be required ... nobody has tested these python calls together
+	  // PyThreadState_Swap(NULL); // Should not be required ... nobody has tested these Python(r) calls together
       // PyThreadState_Delete(m_interp);
 	  // PyThreadState_Swap(NULL);
 	  // PyThreadState_Swap(m_interp);
@@ -311,7 +311,7 @@ main(int argc, char **argv)
 #endif
 {
   char *msg = NULL;
-  // 1. Init python and stackless 
+  // 1. Init the Python(r) interpreter and stackless
   PyEval_InitThreads();
   Py_Initialize();
   int code = Py_IsInitialized();
