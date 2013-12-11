@@ -98,11 +98,15 @@ slp_current_unremove(PyTaskletObject* task)
  * be switched to (killed) before it can be deleted.
  * Tasklets without C stack (in a soft switched state)
  * need only be released.
+ * If a tasklet's thread has been killed, but the
+ * tasklet still lingers, it has no restorable c state and may
+ * as well be thrown away.  But this may of course cause
+ * problems elsewhere (why didn't the tasklet die when instructed to?)
  */
 static int
 tasklet_has_c_stack(PyTaskletObject *t)
 {
-    return t->f.frame && t->cstate && t->cstate->nesting_level != 0 ;
+    return t->f.frame && t->cstate && t->cstate->tstate && t->cstate->nesting_level != 0 ;
 }
 
 static int
