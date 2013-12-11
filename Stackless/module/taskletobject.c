@@ -110,9 +110,12 @@ tasklet_traverse(PyTaskletObject *t, visitproc visit, void *arg)
 {
     PyFrameObject *f;
     PyThreadState *ts = PyThreadState_GET();
-    if (ts != t->cstate->tstate)
-        /* can't collect from this thread! */
-        PyObject_GC_Collectable((PyObject *)t, visit, arg, 0);
+    if (t->cstate->tstate) {
+        /* its thread is alive */
+        if (ts != t->cstate->tstate)
+            /* can't collect from this thread! */
+            PyObject_GC_Collectable((PyObject *)t, visit, arg, 0);
+    }
 
     /* we own the "execute reference" of all the frames */
     for (f = t->f.frame; f != NULL; f = f->f_back) {

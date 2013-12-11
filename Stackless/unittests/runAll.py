@@ -64,3 +64,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+    import gc
+    gc.set_debug(gc.DEBUG_UNCOLLECTABLE)
