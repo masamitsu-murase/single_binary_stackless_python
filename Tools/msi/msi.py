@@ -228,17 +228,19 @@ def build_database():
         uc = upgrade_code
     if msilib.Win64:
         productsuffix = " (64-bit)"
+        productsuffix = " (Stackless) (64-bit)"
     else:
         productsuffix = ""
+        productsuffix = " (Stackless)"
     # schema represents the installer 2.0 database schema.
     # sequence is the set of standard sequences
     # (ui/execute, admin/advt/install)
-    msiname = "python-%s%s.msi" % (full_current_version, msilib.arch_ext)
+    msiname = "python-%s%s-stackless.msi" % (full_current_version, msilib.arch_ext)
     db = msilib.init_database(msiname,
-                  schema, ProductName="Python "+full_current_version+productsuffix+" (Stackless)",
+                  schema, ProductName="Python "+full_current_version+productsuffix,
                   ProductCode=product_code,
                   ProductVersion=current_version,
-                  Manufacturer=u"Richard Tew",
+                  Manufacturer=u"The Stackless Team",
                   request_uac = True)
     # The default sequencing of the RemoveExistingProducts action causes
     # removal of files that got just installed. Place it after
