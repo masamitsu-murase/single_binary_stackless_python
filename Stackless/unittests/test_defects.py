@@ -157,6 +157,21 @@ class TestInfiniteRecursion(unittest.TestCase):
         a=A()
         self.assertRaises(RuntimeError, a)
 
+class TestExceptionInScheduleCallback(StacklessTestCase):
+    # Problem
+    # Assertion failed: ts->st.current == NULL, file ..\Stackless\module\taskletobject.c, line 51
+    # See https://bitbucket.org/stackless-dev/stackless/issue/38
+    def scheduleCallback(self, prev, next):
+        if next.is_main:
+            raise RuntimeError("scheduleCallback")
+    
+    @unittest.skip('crashes python')
+    def testExceptionInScheduleCallback(self):
+        stackless.set_schedule_callback(self.scheduleCallback)
+        self.addCleanup(stackless.set_schedule_callback, None)
+        stackless.tasklet(lambda:None)()
+        stackless.run()
+
 if __name__ == '__main__':
     import sys
     if not sys.argv[1:]:
