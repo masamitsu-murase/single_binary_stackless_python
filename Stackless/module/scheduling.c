@@ -959,10 +959,12 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
     }
     if (ts->use_tracing || ts->tracing) {
         /* build a shadow frame if we are returning here */
-        if (ts->frame != NULL) {
-            PyCFrameObject *f = slp_cframe_new(restore_tracing, 1);
+        if (prev->f.frame != NULL) {
+            PyCFrameObject *f = slp_cframe_new(restore_tracing, 0);
             if (f == NULL)
                 return -1;
+            f->f_back = prev->f.frame;
+            Py_XINCREF(f->f_back);
             f->any1 = ts->c_tracefunc;
             f->any2 = ts->c_profilefunc;
             f->ob1 = ts->c_traceobj;

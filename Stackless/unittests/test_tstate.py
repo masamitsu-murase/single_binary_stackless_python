@@ -240,7 +240,6 @@ class TestTracingState(StacklessTestCase):
             self.assertEqual(ei[0], ZeroDivisionError)
             self.assertTrue("by zero" in str(ei[1]))
  
-    @unittest.skip("Implementation defect in C function slp_schedule_task_prepared()")
     def testExceptionAndTraceState(self):
         t = tasklet(self.Tasklet3)
         sys.exc_clear()
