@@ -11,17 +11,22 @@ REM - The HTML documentation zip archive.
 REM If RELEASE is NO, then it will choke on all but the building.
 REM add argument NOCLEAN to skip the cleaning stage.
 
+REM TODO:
+REM Profile guided optimization
+REM X64 build
+
 REM Requirements:
-REM - Visual Studio 2008
+REM - Visual Studio 2010
 REM - Python 2.7 (location set below)
 REM - 7-Zip (location set below)
 REM - PythonForWindows (http://sourceforge.net/projects/pywin32)
 REM - Microsoft HTML HELP workshop (should come as part of visual studio)
+REM - SVN, e.g. tortoisesvn with command line tools, to get externals from svn.python.org
 
 REM Settings:
 SET RELEASE=YES
-SET PY_VERSION=3.2.5
-SET PY_VERSIONX=325
+SET PY_VERSION=3.3.2
+SET PY_VERSIONX=332
 SET PYTHON=c:\python27\python.exe
 SET SEVENZIP=%ProgramFiles%\7-Zip\7z.exe
 SET HTMLHELP=%ProgramFiles%\HTML Help Workshop\hhc.exe
@@ -82,7 +87,7 @@ SET EXTERNSDIR=../
 set EXTERNSPATH=%PYDIR%\..\
 
 rem need this for nmake and for the compile steps in this script
-call "%VS90COMNTOOLS%vsvars32.bat"
+call "%VS100COMNTOOLS%vsvars32.bat"
 
 CD %PYDIR%
 IF NOT EXIST %SCRIPT_BUILDX86% GOTO NOBUILDSCRIPT
@@ -114,9 +119,9 @@ cmd /c %SCRIPT_EXTERNALX86% || goto FAIL
 cmd /c %SCRIPT_EXTERNALX86%.release.bat || goto FAIL
 :JUSTBUILD
 echo **** Building Release.
-vcbuild /useenv PCbuild\pcbuild.sln "Release|Win32" || goto FAIL
+MSBuild PCbuild\pcbuild.sln /p:useenv=true /p:Configuration=Release /p:Platform=Win32 || goto FAIL
 echo **** Building Debug.
-vcbuild /useenv PCbuild\pcbuild.sln "Debug|Win32" || goto FAIL
+MSBuild PCbuild\pcbuild.sln /p:useenv=true /p:Configuration=Debug /p:Platform=Win32 || goto FAIL
 
 :BUILDINSTALLER
 echo **** Generating documentation.
