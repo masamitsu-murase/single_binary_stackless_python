@@ -11,12 +11,17 @@ REM - The HTML documentation zip archive.
 REM If RELEASE is NO, then it will choke on all but the building.
 REM add argument NOCLEAN to skip the cleaning stage.
 
+REM TODO:
+REM Profile guided optimization
+REM X64 build
+
 REM Requirements:
 REM - Visual Studio 2008
 REM - Python 2.7 (location set below)
 REM - 7-Zip (location set below)
 REM - PythonForWindows (http://sourceforge.net/projects/pywin32)
 REM - Microsoft HTML HELP workshop (should come as part of visual studio)
+REM - SVN, e.g. tortoisesvn with command line tools, to get externals from svn.python.org
 
 REM Settings:
 SET RELEASE=YES
@@ -35,19 +40,37 @@ IF NOT EXIST "%HTMLHELP%" goto MISSING
 
 REM Optionally use perl for ssl makefile, otherwise, use default
 REM SET PERL=c:\Perl\bin\perl.exe
+
 rem set these to choose SC program
 set P4=
 set HG=1
-
 
 REM Set CD to batch file location and enable delayed expansion of vars
 setlocal ENABLEDELAYEDEXPANSION
 set OLDDIR=%CD%
 cd /d %~dp0
 set BATDIR=%CD%
-REM this file lives in PCBuild.  Find the main directory
-cd ..
+REM this file lives in Stackless/Tools.  Find the main directory
+cd ..\..
 set PYDIR=%CD%
+
+REM Parse options
+:LOOP
+IF NOT "%1"=="" (
+    IF /I "%1"=="-NOCLEAN" (
+        SET NOCLEAN=1
+        SHIFT
+        GOTO :LOOP
+    )
+    IF /I "%1"=="-SNAPSHOT" (
+        SET SNAPSHOT=1
+        SHIFT
+        GOTO :LOOP
+    )
+    echo invalid arguments
+    exit /b 1
+)
+
 
 SET SCRIPTDIR=Tools\buildbot
 SET MSIDIR=Tools\msi
@@ -87,7 +110,7 @@ REM GOTO MAKEPUBLISHEDBINARIES
 REM GOTO JUSTBUILD
 
 REM avoid using the build scripts directly since they always "clean"
-IF /I "%1"=="NOCLEAN" goto NOCLEAN
+IF "%NOCLEAN%" == "1" goto NOCLEAN
 echo **** Cleaning
 cmd /c %SCRIPTDIR%\clean.bat
 :NOCLEAN
@@ -129,7 +152,7 @@ nmake -f icons.mak  || goto FAIL
 cd ..
 
 echo Making dummy tix folder: %EXTERNSPATH%tix-nothere
-IF NOT EXIST "%PYDIR%\%EXTERNSPATH%tix-nothere" (
+IF NOT EXIST "%EXTERNSPATH%tix-nothere" (
 	rem TIX is required
     mkdir %EXTERNSPATH%tix-nothere
     echo > %EXTERNSPATH%tix-nothere\license.terms
@@ -139,7 +162,12 @@ IF defined HG hg revert --no-backup %MSIDIR%
 cd %MSIDIR%
 if defined P4 p4 revert msi.py
 if defined P4 p4 edit msi.py
-%PYTHON% -c "f=open(r'msi.py', 'r');s=f.read();s=s.replace('snapshot = 1','snapshot = 0');s=s.replace('tcl8*','tcl-8*');s=s.replace('tk8*','tk-8*');fcv=\"%PY_VERSION%\".strip();s=s.replace('full_current_version = None','full_current_version = \"'+fcv+'\"');f.close();f=open(r'msi.py', 'w');f.write(s);f.close()"  || goto FAIL
+
+REM snapshot mode does not require a tools/msi/uuids.py entry for the current version
+IF "%SNAPSHOT%"=="1" goto SNAPSHOT
+%PYTHON% -c "f=open(r'msi.py', 'r');s=f.read();s=s.replace('snapshot = 1','snapshot = 0');f.close();f=open(r'msi.py', 'w');f.write(s);f.close()"  || goto FAIL
+:SNAPSHOT
+%PYTHON% -c "f=open(r'msi.py', 'r');s=f.read();s=s.replace('tcl8*','tcl-8*');s=s.replace('tk8*','tk-8*');fcv=\"%PY_VERSION%\".strip();s=s.replace('full_current_version = None','full_current_version = \"'+fcv+'\"');f.close();f=open(r'msi.py', 'w');f.write(s);f.close()"  || goto FAIL
 %PYTHON% -c "f=open(r'msi.py', 'r');s=f.read();s=s.replace(r'srcdir+\"/../\"', r'srcdir+\"/%EXTERNSDIR%\"');f=open(r'msi.py', 'w');f.write(s);f.close()"  || goto FAIL
 
 nmake -f msisupport.mak
