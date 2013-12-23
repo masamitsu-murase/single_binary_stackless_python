@@ -1,10 +1,26 @@
 import unittest
 import sys
-
+from pickle import Pickler, Unpickler
+from cStringIO import StringIO
 from stackless import *
 
 from support import StacklessTestCase
 
+# import os
+# def debug():
+#     if os.environ.get('PYDEV_COMPLETER_PYTHONPATH') and os.environ.get('PYDEV_COMPLETER_PYTHONPATH') not in sys.path:
+#         sys.path.append(os.environ.get('PYDEV_COMPLETER_PYTHONPATH'))
+#     from pydevd import settrace
+#     settrace()
+#      
+# def realframe(self):
+#     """Get the real frame of the tasklet"""
+#     r = self.__reduce__()
+#     frames = r[2][3]
+#     if frames:
+#         return frames[-1]
+#     return None
+# tasklet.realframe = property(realframe)
 
 #test that thread state is restored properly
 
@@ -20,7 +36,7 @@ class TestExceptionState(StacklessTestCase):
             ei = sys.exc_info()
             self.assertEqual(ei[0], ZeroDivisionError)
             self.assertTrue("by zero" in str(ei[1]))
-
+ 
     def testExceptionState(self):
         t = tasklet(self.Tasklet)
         sys.exc_clear()
@@ -34,9 +50,10 @@ class TestExceptionState(StacklessTestCase):
         ei = sys.exc_info()
         self.assertEqual(ei, (None,)*3)
 
+
 class TestTracingState(StacklessTestCase):
-    def __init__(self, *args):
-        StacklessTestCase.__init__(self, *args)
+    def setUp(self):
+        super(TestTracingState, self).setUp()
         self.trace = []
 
     def Callback(self, *args):
@@ -45,14 +62,32 @@ class TestTracingState(StacklessTestCase):
     def foo(self):
         pass
 
-    def Tasklet(self):
-        sys.setprofile(self.Callback)
+    def persistent_id(self, obj):
+        if obj is self:
+            return 'self'
+        return None
+    
+    def persistent_load(self, id):
+        if id == 'self':
+            return self
+        raise ValueError('no id: ' + repr(id))
+
+    def Tasklet(self, do_profile=False, do_trace=False):
+        if do_profile:
+            sys.setprofile(self.Callback)
+            self.addCleanup(sys.setprofile, None)
+        if do_trace:
+            sys.settrace(self.Callback)
+            self.addCleanup(sys.settrace, None)
 
         self.foo()
         n = len(self.trace)
         self.foo()
         n2 = len(self.trace)
-        self.assertGreater(n2, n)
+        if do_profile or do_trace:
+            self.assertGreater(n2, n)
+        else:
+            self.assertEqual(n2, n)
 
         schedule()
 
@@ -60,26 +95,164 @@ class TestTracingState(StacklessTestCase):
         n = len(self.trace)
         self.foo()
         n2 = len(self.trace)
-        self.assertGreater(n2, n)
+        if do_profile or do_trace:
+            self.assertGreater(n2, n)
+        else:
+            self.assertEqual(n2, n)
 
-    def testTracingState(self):
+    def _testTracingOrProfileState(self, do_pickle=False, **kw):
         t = tasklet(self.Tasklet)
+        t(**kw)
+        t.run()
+
+        self.foo()
+        n = len(self.trace)
+        self.foo()
+        n2 = len(self.trace)
+        self.assertEqual(n, n2)
+
+        if do_pickle:
+            io = StringIO()
+            p = Pickler(io, -1)
+            p.persistent_id = self.persistent_id
+            p.dump(t)
+            t.remove()
+            t.bind(None)
+            p = Unpickler(StringIO(io.getvalue()))
+            p.persistent_load = self.persistent_load
+            t = p.load()
+            p = None ; io = None
+
+        t.run()
+
+        self.foo()
+        n = len(self.trace)
+        self.foo()
+        n2 = len(self.trace)
+        self.assertEqual(n, n2)
+        
+
+    # No tracing/profiling in main, tracing/profiling in tasklet
+    def testNormalState(self):
+        self._testTracingOrProfileState()
+    @unittest.skipIf(sys.gettrace(), 'test manipulates debugger hooks')
+    def testTracingState(self):
+        self._testTracingOrProfileState(do_trace=True)
+    def testProfileState(self):
+        self._testTracingOrProfileState(do_profile=True)
+
+    # Same as above, with pickling the state
+    def testUnpickledState(self):
+        if not enable_softswitch(None):
+            return
+        self._testTracingOrProfileState(do_pickle=True)
+    #@unittest.skipIf(sys.gettrace(), 'test manipulates debugger hooks')
+    @unittest.skip('Not pickleable')
+    def testUnpickledTracingState(self):
+        if not enable_softswitch(None):
+            return
+        self._testTracingOrProfileState(do_pickle=True, do_trace=True)
+    @unittest.skip('Not restorable')
+    def testUnpickledProfileState(self):
+        if not enable_softswitch(None):
+            return
+        self._testTracingOrProfileState(do_pickle=True, do_profile=True)
+        
+        
+    # Test cases with traced main thread
+    def TraceFunc(self, frame, event, arg):
+        # print "TraceFunc: %s in %s %s, line %s" % (event, frame.f_code.co_name, frame.f_code.co_filename, frame.f_lineno)
+        self.trace.append(('trace', frame.f_code.co_name, frame.f_lineno, event, arg))
+        if event in ('call', 'line', 'exception') and len(self.trace) < 100:
+            return self.TraceFunc
+        return None
+
+    def mark(self, text):
+        f=sys._getframe(1)
+        self.trace.append(('mark', f.f_code.co_name, text))
+        
+    def Tasklet2(self):
+        self.mark('start')
+        self.foo()
+        self.mark('before schedule')
+        schedule()
+        self.mark('after schedule')
+        self.foo()
+        self.mark('end schedule')
+
+    def callRun(self):
+        self.mark('before run')
+        run()
+        self.mark('after run')
+        
+    @unittest.skipIf(sys.gettrace(), 'test manipulates debugger hooks')
+    def testTracedMainNormalTasklet(self):
+        # make sure, tracing is off.
+        self.assertIsNone(sys._getframe(0).f_trace)
+        
+        # enable tracing
+        self.addCleanup(sys.settrace, None)
+        sys.settrace(self.TraceFunc)
+        self.callRun()
+        sys.settrace(None)
+        baseline = self.trace[:]
+        del self.trace[:]
+        
+        t = tasklet(self.Tasklet2)()
+        sys.settrace(self.TraceFunc)
+        self.callRun()
+        sys.settrace(None)
+
+        self.assertTrue(set(baseline).issubset(self.trace))
+        trace_in_tasklet = [ item for item in self.trace if item not in baseline ]
+        
+        self.maxDiff = None
+        expected = [('mark', self.Tasklet2.__name__, i) for i in ('start', 'before schedule', 'after schedule', 'end schedule')]
+        self.assertEquals(trace_in_tasklet, expected)
+
+    # Test the combination of Exception and Trace State
+
+    def Tasklet3(self):
+        try:
+            1/0
+        except Exception,  e:
+            sys.settrace(self.Callback)
+            self.addCleanup(sys.settrace, None)
+    
+            self.foo()
+            n = len(self.trace)
+            self.foo()
+            n2 = len(self.trace)
+            ei = sys.exc_info()
+
+            self.assertEqual(ei[0], ZeroDivisionError)
+            self.assertGreater(n2, n)
+            
+            schedule()
+            
+            ei = sys.exc_info()
+            self.foo()
+            n = len(self.trace)
+            self.foo()
+            n2 = len(self.trace)
+
+            self.assertGreater(n2, n)
+            self.assertEqual(ei[0], ZeroDivisionError)
+            self.assertTrue("by zero" in str(ei[1]))
+ 
+    @unittest.skip("Implementation defect in C function slp_schedule_task_prepared()")
+    def testExceptionAndTraceState(self):
+        t = tasklet(self.Tasklet3)
+        sys.exc_clear()
         t()
         t.run()
-
-        self.foo()
-        n = len(self.trace)
-        self.foo()
-        n2 = len(self.trace)
-        self.assertEqual(n, n2)
-
+        self.assertGreater(len(self.trace), 0)
+        ei = sys.exc_info()
+        self.assertEqual(ei, (None,)*3)
         t.run()
+        ei = sys.exc_info()
+        self.assertEqual(ei, (None,)*3)
 
-        self.foo()
-        n = len(self.trace)
-        self.foo()
-        n2 = len(self.trace)
-        self.assertEqual(n, n2)
 
 if __name__ == '__main__':
     import sys
