@@ -1105,10 +1105,16 @@ initialize_main_and_current(void)
 }
 
 
-/* scheduling and destructing the previous one */
+/* scheduling and destructing the previous one.  This function
+ * "steals" the reference to "prev" (the current) because we may never
+ * return to the caller.  _unless_ there is an error. In case of error
+ * the caller still owns the reference.  This is not normal python behaviour
+ * (ref semantics should be error-invariant) but necessary in the
+ * never-return reality of stackless.
+ */
 
-static PyObject *
-schedule_task_destruct(PyTaskletObject *prev, PyTaskletObject *next)
+static int
+schedule_task_destruct(PyObject **retval, PyTaskletObject *prev, PyTaskletObject *next)
 {
     /*
      * The problem is to leave the dying tasklet alive
@@ -1116,7 +1122,8 @@ schedule_task_destruct(PyTaskletObject *prev, PyTaskletObject *next)
      * field to help us with that, someone else with decref it.
      */
     PyThreadState *ts = PyThreadState_GET();
-    PyObject *retval, *tmpval=NULL;
+    PyObject *tmpval=NULL;
+    int fail = 0;
 
     /* we should have no nesting level */
     assert(ts->st.nesting_level == 0);
@@ -1150,24 +1157,27 @@ schedule_task_destruct(PyTaskletObject *prev, PyTaskletObject *next)
     ts->st.del_post_switch = (PyObject*)prev; 
     /* do a soft switch */
     if (prev != next) {
-        int switched, fail;
+        int switched;
         PyObject *tuple, *tempval=NULL;
         /* A non-trivial tempval should be cleared at the earliest opportunity
          * later, to avoid reference cycles.  We can't decref it here because
          * that could cause destructors to run, violating the stackless protocol
-         * So, we pack it up with the taskelt in a tuple
+         * So, we pack it up with the tasklet in a tuple
          */
         if (prev->tempval != Py_None) {
             TASKLET_CLAIMVAL(prev, &tempval);
             tuple = Py_BuildValue("NN", prev, tempval);
             if (tuple == NULL) {
                 TASKLET_SETVAL_OWN(prev, tempval);
-                return NULL;
+                return -1;
             }
             ts->st.del_post_switch = tuple;
         }
-        fail = slp_schedule_task(&retval, prev, next, 1, &switched);
-        if (!switched || fail) {
+        fail = slp_schedule_task(retval, prev, next, 1, &switched);
+        /* it should either fail or switch */
+        if (!fail)
+            assert(switched);
+        if (fail) {
             /* something happened, cancel our decref manipulations. */
             if (tempval != NULL) {
                 TASKLET_SETVAL(prev, tempval);
@@ -1175,18 +1185,15 @@ schedule_task_destruct(PyTaskletObject *prev, PyTaskletObject *next)
                 Py_CLEAR(ts->st.del_post_switch);
             } else
                 ts->st.del_post_switch  = 0;
+            return fail;
         }
-        if (fail)
-            /* the interface of this function can't deal with failing to switch */
-            return NULL;
     } else {
         /* main is exiting */
-        /* TODO: we should probably decref PREV here */
-        TASKLET_CLAIMVAL(prev, &retval);
-        if (PyBomb_Check(retval))
-            retval = slp_bomb_explode(retval);
+        TASKLET_CLAIMVAL(prev, retval);
+        if (PyBomb_Check(*retval))
+            *retval = slp_bomb_explode(*retval);
     }
-    return retval;
+    return fail;
 }
 
 /* defined in pythonrun.c */
@@ -1194,6 +1201,11 @@ extern void PyStackless_HandleSystemExit(void);
 /* defined in stacklessmodule.c */
 extern int PyStackless_CallErrorHandler(void);
 
+/* ending of the tasklet.  Note that this function
+ * cannot fail, the retval, in case of NULL, is just
+ * the exception to be continued in the new
+ * context.
+ */
 static PyObject *
 tasklet_end(PyObject *retval)
 {
@@ -1202,6 +1214,7 @@ tasklet_end(PyObject *retval)
     PyTaskletObject *next;
 
     int ismain = task == ts->st.main;
+    int schedule_fail;
 
     /*
      * see whether we have a SystemExit, which is no error.
@@ -1214,7 +1227,7 @@ tasklet_end(PyObject *retval)
             /* but if it is truly a SystemExit on the main thread, we want the exit! */
             if (ts == slp_initial_tstate && !PyErr_ExceptionMatches(PyExc_TaskletExit)) {
                 PyStackless_HandleSystemExit();
-                handled = 1; /* exit returned, it wants us to silence it */
+                handled = 1; /* handler returned, it wants us to silence it */
             } else if (!ismain) {
                 /* deal with TaskletExit on a non-main tasklet */
                 handled = 1;
@@ -1260,7 +1273,7 @@ tasklet_end(PyObject *retval)
             slp_transfer_return(ts->st.initial_stub);
     }
 
-    /* remove from runnables */
+    /* remove current from runnables.  We now own its reference. */
     slp_current_remove();
 
     /*
@@ -1283,9 +1296,12 @@ tasklet_end(PyObject *retval)
          */
         ts->st.main = NULL;
         Py_DECREF(retval);
-        retval = schedule_task_destruct(task, task);
-        Py_DECREF(task);
-        return retval;
+        schedule_fail = schedule_task_destruct(&retval, task, task);
+        if (!schedule_fail)
+            Py_DECREF(task); /* the reference for ts->st.main */
+        else
+            ts->st.main = task;
+        goto end;
     }
 
     next = ts->st.current;
@@ -1305,8 +1321,10 @@ tasklet_end(PyObject *retval)
             /* fall through to error handling */
             Py_DECREF(retval);
             retval = slp_curexc_to_bomb();
-            if (retval == NULL)
-                return NULL;
+            if (retval == NULL) {
+                schedule_fail = -1
+                goto end;
+            }
         }
         next = ts->st.main;
     }
@@ -1326,7 +1344,17 @@ tasklet_end(PyObject *retval)
     }
     Py_DECREF(retval);
 
-    return schedule_task_destruct(task, next);
+    /* hand off our reference to "task" to the function */
+    schedule_fail = schedule_task_destruct(&retval, task, next);
+end:
+    if (schedule_fail) {
+        /* the api for this function does not allow for failure */
+        Py_FatalError("Could not end tasklet");
+        /* if it did, it would now perform a slp_current_uninsert(task)
+         * since we would still own the reference to "task"
+         */
+    }
+    return retval;
 }
 
 /*
