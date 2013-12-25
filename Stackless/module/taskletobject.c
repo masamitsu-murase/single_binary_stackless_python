@@ -38,17 +38,7 @@ slp_current_insert_after(PyTaskletObject *task)
 void
 slp_current_uninsert(PyTaskletObject *task)
 {
-    PyThreadState *ts = task->cstate->tstate;
-    PyTaskletObject *hold = ts->st.current;
-    PyTaskletObject **chain = &ts->st.current;
-    
-    *chain = task;
-    SLP_CHAIN_REMOVE(PyTaskletObject, chain, task, next, prev);
-    *chain = hold;
-    --ts->st.runcount;
-    assert(ts->st.runcount >= 0);
-    if (ts->st.runcount == 0)
-        assert(ts->st.current == NULL);
+    slp_current_remove_tasklet(task);
 }
 
 PyTaskletObject *
