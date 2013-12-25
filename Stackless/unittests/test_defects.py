@@ -164,8 +164,8 @@ class TestExceptionInScheduleCallback(StacklessTestCase):
     def scheduleCallback(self, prev, next):
         if next.is_main:
             raise RuntimeError("scheduleCallback")
-    
-    @unittest.skip('crashes python')
+
+    #@unittest.skip('crashes python')
     def testExceptionInScheduleCallback(self):
         stackless.set_schedule_callback(self.scheduleCallback)
         self.addCleanup(stackless.set_schedule_callback, None)
