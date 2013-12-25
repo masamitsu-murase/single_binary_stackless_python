@@ -417,18 +417,31 @@ slp_schedule_callback(PyTaskletObject *prev, PyTaskletObject *next)
         return -1;
 }
 
+static void
+slp_call_schedule_fasthook(PyThreadState *ts, PyTaskletObject *prev, PyTaskletObject *next)
+{
+    int ret;
+    if (ts->st.schedlock) {
+        Py_FatalError("Recursive scheduler call due to callbacks!");
+        return;
+    }
+    ts->st.schedlock = 1;
+    ret = _slp_schedule_fasthook(prev, next);
+    ts->st.schedlock = 0;
+    if (ret) {
+        PyObject *msg = PyString_FromString("Error in scheduling callback");
+        if (msg == NULL)
+            msg = Py_None;
+        PyErr_WriteUnraisable(msg);
+        if (msg != Py_None)
+            Py_DECREF(msg);
+        PyErr_Clear();
+    }
+}
+
 #define NOTIFY_SCHEDULE(prev, next, errflag) \
     if (_slp_schedule_fasthook != NULL) { \
-        int ret; \
-        if (ts->st.schedlock) { \
-            RUNTIME_ERROR( \
-                "Recursive scheduler call due to callbacks!", \
-                errflag); \
-        } \
-        ts->st.schedlock = 1; \
-        ret = _slp_schedule_fasthook(prev, next); \
-        ts->st.schedlock = 0; \
-        if (ret) return errflag; \
+        slp_call_schedule_fasthook(ts, prev, next); \
     }
 
 static void
@@ -1322,7 +1335,7 @@ tasklet_end(PyObject *retval)
             Py_DECREF(retval);
             retval = slp_curexc_to_bomb();
             if (retval == NULL) {
-                schedule_fail = -1
+                schedule_fail = -1;
                 goto end;
             }
         }

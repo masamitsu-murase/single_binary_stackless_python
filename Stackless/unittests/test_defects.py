@@ -17,7 +17,7 @@ class TestTaskletDel(StacklessTestCase):
     #The return value of the tasklet's function is stored in the tasklet's tempval and cleared
     #when the tasklet exits.
     #Also, the tasklet itself would have problems with a __del__ method.
-    
+
     class ObjWithDel:
         def __del__(self):
             self.called_func()
@@ -42,15 +42,15 @@ class TestTaskletDel(StacklessTestCase):
             c.receive()
         return stackless.tasklet(f)()
 
-            
+
     #Test that a tasklet tempval's __del__ operator works.
     def testTempval(self):
         def TaskletFunc(self):
             return self.ObjWithDel()
-        
+
         stackless.tasklet(TaskletFunc)(self)
         stackless.run()
-    
+
     #Test that a tasklet's __del__ operator works.
     def testTasklet(self):
         def TaskletFunc(self):
@@ -91,40 +91,40 @@ class Schedule(StacklessTestCase):
         chan = stackless.channel()
         stackless.tasklet(func)(self, chan)
         chan.receive()
-        
+
     def testScheduleRemove3(self):
         '''Schedule-remove the last reference to a tasklet 1'''
         def func():
             stackless.schedule_remove(None)
         stackless.tasklet(func)()
         stackless.run()
-        
+
     def testScheduleRemove4(self):
         '''Schedule-remove the last reference to a tasklet 2'''
         def func():
             stackless.schedule_remove(None)
         stackless.tasklet(func)()
-        stackless.schedule_remove(None)        
-            
-        
+        stackless.schedule_remove(None)
+
+
 class Channel(StacklessTestCase):
     def testTemporaryChannel(self):
         def f1():
             stackless.channel().receive()
-            
+
         stackless.tasklet(f1)()
         old = stackless.enable_softswitch(True)
         try:
             stackless.run()
         finally:
             stackless.enable_softswitch(old)
-    
+
     def testTemporaryChannel2(self):
         def f1():
             stackless.channel().receive()
         def f2():
             pass
-            
+
         stackless.tasklet(f1)()
         stackless.tasklet(f2)()
         old = stackless.enable_softswitch(True)
@@ -164,8 +164,8 @@ class TestExceptionInScheduleCallback(StacklessTestCase):
     def scheduleCallback(self, prev, next):
         if next.is_main:
             raise RuntimeError("scheduleCallback")
-    
-    @unittest.skip('crashes python')
+
+    #@unittest.skip('crashes python')
     def testExceptionInScheduleCallback(self):
         stackless.set_schedule_callback(self.scheduleCallback)
         self.addCleanup(stackless.set_schedule_callback, None)
