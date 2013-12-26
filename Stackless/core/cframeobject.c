@@ -183,6 +183,7 @@ cframe_setstate(PyObject *self, PyObject *args)
     slp_from_tuple_with_nulls(&cf->ob1, params);
     cf->i = i;
     cf->n = n;
+    cf->any1 = cf->any2 = NULL;
     Py_INCREF(cf);
     return (PyObject *) cf;
 }
