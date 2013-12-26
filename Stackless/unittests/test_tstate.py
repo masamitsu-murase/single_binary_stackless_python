@@ -22,16 +22,17 @@ from support import StacklessTestCase
 #     return None
 # tasklet.realframe = property(realframe)
 
-#test that thread state is restored properly
 
+#test that thread state is restored properly
 class TestExceptionState(StacklessTestCase):
     def Tasklet(self):
         try:
-            1/0
-        except Exception as e:
+            1 / 0
+        except Exception:
             ei = sys.exc_info()
             self.assertEqual(ei[0], ZeroDivisionError)
             schedule()
+            self.ran = True
             ei = sys.exc_info()
             self.assertEqual(ei[0], ZeroDivisionError)
             self.assertTrue("by zero" in str(ei[1]))
@@ -41,10 +42,43 @@ class TestExceptionState(StacklessTestCase):
         t()
         t.run()
         ei = sys.exc_info()
-        self.assertEqual(ei, (None,)*3)
+        self.assertEqual(ei, (None,) * 3)
         t.run()
         ei = sys.exc_info()
-        self.assertEqual(ei, (None,)*3)
+        self.assertEqual(ei, (None,) * 3)
+
+    def testExceptionStatePickled(self):
+        if not enable_softswitch(None):
+            return
+        t = tasklet(self.Tasklet)
+        t()
+        t.run()
+        io = BytesIO()
+        p = Pickler(io, -1)
+        p.persistent_id = self.persistent_id
+        p.dump(t)
+        t.remove()
+        t.bind(None)
+        p = Unpickler(BytesIO(io.getvalue()))
+        p.persistent_load = self.persistent_load
+        t = p.load()
+        p = None
+        io = None
+        self.ran = False
+        t.run()
+        self.assertTrue(self.ran)
+        ei = sys.exc_info()
+        self.assertEqual(ei, (None,) * 3)
+
+    def persistent_id(self, obj):
+        if obj is self:
+            return 'self'
+        return None
+
+    def persistent_load(self, id):
+        if id == 'self':
+            return self
+        raise ValueError('no id: ' + repr(id))
 
 
 class TestTracingState(StacklessTestCase):
@@ -68,7 +102,7 @@ class TestTracingState(StacklessTestCase):
             return self
         raise ValueError('no id: ' + repr(id))
 
-    def Tasklet(self, do_profile=False, do_trace=False):
+    def Tasklet(self, do_profile=False, do_trace=False, disable_trace_after_schedule=False):
         if do_profile:
             sys.setprofile(self.Callback)
             self.addCleanup(sys.setprofile, None)
@@ -91,7 +125,7 @@ class TestTracingState(StacklessTestCase):
         n = len(self.trace)
         self.foo()
         n2 = len(self.trace)
-        if do_profile or do_trace:
+        if (do_profile or do_trace) and not disable_trace_after_schedule:
             self.assertGreater(n2, n)
         else:
             self.assertEqual(n2, n)
@@ -117,7 +151,8 @@ class TestTracingState(StacklessTestCase):
             p = Unpickler(BytesIO(io.getvalue()))
             p.persistent_load = self.persistent_load
             t = p.load()
-            p = None ; io = None
+            p = None
+            io = None
 
         t.run()
 
@@ -131,9 +166,11 @@ class TestTracingState(StacklessTestCase):
     # No tracing/profiling in main, tracing/profiling in tasklet
     def testNormalState(self):
         self._testTracingOrProfileState()
+
     @unittest.skipIf(sys.gettrace(), 'test manipulates debugger hooks')
     def testTracingState(self):
         self._testTracingOrProfileState(do_trace=True)
+
     def testProfileState(self):
         self._testTracingOrProfileState(do_profile=True)
 
@@ -142,12 +179,27 @@ class TestTracingState(StacklessTestCase):
         if not enable_softswitch(None):
             return
         self._testTracingOrProfileState(do_pickle=True)
-    #@unittest.skipIf(sys.gettrace(), 'test manipulates debugger hooks')
-    @unittest.skip('Not pickleable')
+
     def testUnpickledTracingState(self):
         if not enable_softswitch(None):
             return
-        self._testTracingOrProfileState(do_pickle=True, do_trace=True)
+        self._testTracingOrProfileState(do_pickle=True, do_trace=True,
+                                        disable_trace_after_schedule=True)
+
+    def testUnpickledTracingState2(self):
+        if not enable_softswitch(None):
+            return
+        saved = stackless.pickle_with_tracing_state
+        stackless.pickle_with_tracing_state = True
+        try:
+            # trace state can't be restored after unpickling,
+            # because the methods cframe.__reduce__, cframe.__setstate__ do not
+            # preserve the C-trace/C-profile functions.
+            self._testTracingOrProfileState(do_pickle=True, do_trace=True,
+                                            disable_trace_after_schedule=True)
+        finally:
+            stackless.pickle_with_tracing_state = saved
+
     @unittest.skip('Not restorable')
     def testUnpickledProfileState(self):
         if not enable_softswitch(None):
@@ -164,7 +216,7 @@ class TestTracingState(StacklessTestCase):
         return None
 
     def mark(self, text):
-        f=sys._getframe(1)
+        f = sys._getframe(1)
         self.trace.append(('mark', f.f_code.co_name, text))
 
     def Tasklet2(self):
@@ -194,24 +246,25 @@ class TestTracingState(StacklessTestCase):
         baseline = self.trace[:]
         del self.trace[:]
 
-        t = tasklet(self.Tasklet2)()
+        tasklet(self.Tasklet2)()
         sys.settrace(self.TraceFunc)
         self.callRun()
         sys.settrace(None)
 
         self.assertTrue(set(baseline).issubset(self.trace))
-        trace_in_tasklet = [ item for item in self.trace if item not in baseline ]
+        trace_in_tasklet = [i for i in self.trace if i not in baseline]
 
         self.maxDiff = None
-        expected = [('mark', self.Tasklet2.__name__, i) for i in ('start', 'before schedule', 'after schedule', 'end schedule')]
+        expected = [('mark', self.Tasklet2.__name__, i) for i in
+                    ('start', 'before schedule', 'after schedule', 'end schedule')]
         self.assertEquals(trace_in_tasklet, expected)
 
     # Test the combination of Exception and Trace State
 
     def Tasklet3(self):
         try:
-            1/0
-        except Exception as e:
+            1 / 0
+        except Exception:
             sys.settrace(self.Callback)
             self.addCleanup(sys.settrace, None)
 
@@ -242,14 +295,56 @@ class TestTracingState(StacklessTestCase):
         t.run()
         self.assertGreater(len(self.trace), 0)
         ei = sys.exc_info()
-        self.assertEqual(ei, (None,)*3)
+        self.assertEqual(ei, (None,) * 3)
         t.run()
         ei = sys.exc_info()
-        self.assertEqual(ei, (None,)*3)
+        self.assertEqual(ei, (None,) * 3)
 
+    # test the reduce methods of frames and tasklet
+    # regarding the trace handling
+
+    def testReduceOfTracingState(self):
+        t = tasklet(self.Tasklet)
+        t(do_trace=True)
+        t.run()
+
+        frame = t.frame
+        frame.f_trace = self.Callback
+        self.assertIsNotNone(frame.f_trace)
+
+        saved = stackless.pickle_with_tracing_state
+        stackless.pickle_with_tracing_state = False
+        import _stackless
+        try:
+            reduced_tasklet1 = t.__reduce__()
+            reduced_frame1 = _stackless._wrap.frame.__reduce__(frame)
+            stackless.pickle_with_tracing_state = True
+            reduced_tasklet2 = t.__reduce__()
+            reduced_frame2 = _stackless._wrap.frame.__reduce__(frame)
+        finally:
+            stackless.pickle_with_tracing_state = saved
+
+        t.kill()
+
+        # test the f_trace member
+        self.assertIsNone(reduced_frame1[2][6])
+        self.assertIs(reduced_frame2[2][6], frame.f_trace)
+
+        if not enable_softswitch(None):
+            return
+
+        # test if the tracing cframe is present / not present
+        self.assertListEqual(reduced_tasklet1[2][3], [frame])
+        self.assertEquals(len(reduced_tasklet2[2][3]), 2)
+        self.assertIs(reduced_tasklet2[2][3][0], frame)
+        self.assertIsInstance(reduced_tasklet2[2][3][1], stackless.cframe)
+
+        cf = reduced_tasklet2[2][3][1]
+        reduced_cframe = cf.__reduce__()
+        self.assertEqual(reduced_cframe[2][1], 'slp_restore_tracing')
+        self.assertIs(reduced_cframe[2][2][1].__func__, self.Callback.__func__)
 
 if __name__ == '__main__':
-    import sys
     if not sys.argv[1:]:
         sys.argv.append('-v')
     unittest.main()

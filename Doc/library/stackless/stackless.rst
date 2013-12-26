@@ -296,6 +296,24 @@ Attributes
 
    Equivalent function: :func: `getruncount()`.
 
+.. attribute:: pickle_with_tracing_state
+
+   A boolean value, that indicates if a pickled tasklet contains
+   information about the tracing and/or profiling state of the tasklet.
+   By default :attr:`pickle_with_tracing_state` is `False`. Usually
+   there's no need to change this value.
+   
+   If you need to set this attribute on a per thread base,
+   you can redefine the attribute as a thread local property::
+   
+      >>> import stackless
+      >>> import threading
+      >>> stackless._pickle_with_tracing = threading.local()
+      >>> stackless.__class__.pickle_with_tracing = \
+      ...     property(fget=lambda m:getattr(m._pickle_with_tracing,'v',False),
+      ...              fset=lambda m,v:setattr(m._pickle_with_tracing, 'v', v),
+      ...              doc="thread local pickle_with_tracing flag")
+
 .. _slp-exc:
 
 ----------
