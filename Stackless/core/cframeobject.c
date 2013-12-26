@@ -102,6 +102,7 @@ slp_cframe_new(PyFrame_ExecFunc *exec, unsigned int linked)
     cf->f_back = back;
     cf->ob1 = cf->ob2 = cf->ob3 = NULL;
     cf->i = cf->n = 0;
+    cf->any1 = cf->any2 = NULL;
     _PyObject_GC_TRACK(cf);
     return cf;
 }
