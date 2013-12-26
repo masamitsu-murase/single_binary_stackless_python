@@ -381,7 +381,6 @@ int
 slp_schedule_callback(PyTaskletObject *prev, PyTaskletObject *next)
 {
     PyObject *args;
-    PyObject *tmp;
     PyThreadState *ts = PyThreadState_GET();
 
     if (prev == NULL) prev = (PyTaskletObject *)Py_None;
@@ -390,18 +389,8 @@ slp_schedule_callback(PyTaskletObject *prev, PyTaskletObject *next)
     if (args != NULL) {
         PyObject *type, *value, *traceback, *ret;
 
-        /* store the del post switch away temporarily to not have it
-         * released in the dispatching loop we are about to invoke
-         */
-        tmp = ts->st.del_post_switch;
-        ts->st.del_post_switch = NULL;
-
         PyErr_Fetch(&type, &value, &traceback);
         ret = PyObject_Call(_slp_schedule_hook, args, NULL);
-
-        assert(ts->st.del_post_switch == NULL);
-        ts->st.del_post_switch = tmp;
-
         if (ret != NULL)
             PyErr_Restore(type, value, traceback);
         else {
@@ -421,10 +410,17 @@ static void
 slp_call_schedule_fasthook(PyThreadState *ts, PyTaskletObject *prev, PyTaskletObject *next)
 {
     int ret;
+    PyObject *tmp;
     if (ts->st.schedlock) {
         Py_FatalError("Recursive scheduler call due to callbacks!");
         return;
     }
+    /* store the del post-switch for the duration.  We don't want code
+     * to cause the "prev" tasklet to disappear
+     */
+    tmp = ts->st.del_post_switch;
+    ts->st.del_post_switch = NULL;
+    
     ts->st.schedlock = 1;
     ret = _slp_schedule_fasthook(prev, next);
     ts->st.schedlock = 0;
@@ -432,11 +428,16 @@ slp_call_schedule_fasthook(PyThreadState *ts, PyTaskletObject *prev, PyTaskletOb
         PyObject *msg = PyString_FromString("Error in scheduling callback");
         if (msg == NULL)
             msg = Py_None;
+        /* the following can have side effects, hence it is good to have
+         * del_post_switch tucked away
+         */
         PyErr_WriteUnraisable(msg);
         if (msg != Py_None)
             Py_DECREF(msg);
         PyErr_Clear();
     }
+    assert(ts->st.del_post_switch == 0);
+    ts->st.del_post_switch = tmp;
 }
 
 #define NOTIFY_SCHEDULE(prev, next, errflag) \
