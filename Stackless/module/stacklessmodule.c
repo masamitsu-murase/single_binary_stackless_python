@@ -142,6 +142,20 @@ PyThreadState *slp_initial_tstate = NULL;
 
 static void *slp_error_handler = NULL;
 
+int 
+slp_pickle_with_tracing_state()
+{
+    PyObject *flag;
+    int result = -1;
+
+    flag = PyObject_GetAttrString(slp_module, "pickle_with_tracing_state");
+    if (NULL != flag) {
+        result = PyObject_IsTrue(flag);
+        Py_DECREF(flag);
+    }
+    return result;
+}
+
 PyDoc_STRVAR(schedule__doc__,
 "schedule(retval=stackless.current) -- switch to the next runnable tasklet.\n\
 The return value for this call is retval, with the current\n\
@@ -1617,6 +1631,7 @@ _PyStackless_Init(void)
     INSERT("_test_nostacklesscall", test_nostacklesscall);
     INSERT("stackless", slp_module);
     INSERT("atomic",    &PyAtomic_Type);
+    INSERT("pickle_with_tracing_state", Py_False);
 
     m = (PySlpModuleObject *) slp_module;
     if (slpmodule_set__tasklet__(m, &PyTasklet_Type, NULL)) goto error;

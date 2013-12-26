@@ -97,8 +97,9 @@ PyAPI_FUNC(PyObject *) PyEval_EvalFrame_setup_with(struct _frame *f,  int throwf
                                              PyObject *retval);
 PyAPI_FUNC(PyObject *) PyEval_EvalFrame_with_cleanup(struct _frame *f,  int throwflag,
                                              PyObject *retval);
-/* another eval_frame function from module/scheduling.c */
+/* other eval_frame functions from module/scheduling.c */
 PyAPI_FUNC(PyObject *) slp_restore_exception(PyFrameObject *f, int exc, PyObject *retval);
+PyAPI_FUNC(PyObject *) slp_restore_tracing(PyFrameObject *f, int exc, PyObject *retval);
 
 /* rebirth of software stack avoidance */
 
@@ -494,6 +495,8 @@ PyAPI_FUNC(int) slp_resurrect_and_kill(PyObject *self,
 PyAPI_FUNC(int) slp_safe_pickling(int(*save)(PyObject *, PyObject *, int),
                                   PyObject *self, PyObject *args,
                                   int pers_save);
+/* utility function used by the reduce methods of tasklet and frame */
+int slp_pickle_with_tracing_state();
 
 /* debugging/monitoring */
 

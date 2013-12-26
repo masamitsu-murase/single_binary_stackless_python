@@ -428,7 +428,15 @@ tasklet_reduce(PyTaskletObject * t)
     if (lis == NULL) goto err_exit;
     f = t->f.frame;
     while (f != NULL) {
-        if (PyList_Append(lis, (PyObject *) f)) goto err_exit;
+        int append_frame = 1;
+        if (PyCFrame_Check(f) && ((PyCFrameObject *)f)->f_execute == slp_restore_tracing) {
+            append_frame = slp_pickle_with_tracing_state();
+            if (-1 == append_frame)
+                goto err_exit;
+        }
+        if (append_frame) {
+            if (PyList_Append(lis, (PyObject *) f)) goto err_exit;
+        }
         f = f->f_back;
     }
     if (PyList_Reverse(lis)) goto err_exit;

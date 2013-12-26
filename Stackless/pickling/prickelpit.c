@@ -746,6 +746,7 @@ DEF_INVALID_EXEC(eval_frame_setup_with)
 DEF_INVALID_EXEC(eval_frame_with_cleanup)
 DEF_INVALID_EXEC(channel_seq_callback)
 DEF_INVALID_EXEC(slp_restore_exception)
+DEF_INVALID_EXEC(slp_restore_tracing)
 
 static PyTypeObject wrap_PyFrame_Type;
 
@@ -759,6 +760,7 @@ frameobject_reduce(PyFrameObject *f)
     int valid = 1;
     int have_locals = f->f_locals != NULL;
     PyObject * dummy_locals = NULL;
+    PyObject * f_trace = NULL;
 
     if (!have_locals)
         if ((dummy_locals = PyDict_New()) == NULL)
@@ -805,6 +807,20 @@ frameobject_reduce(PyFrameObject *f)
         valid = 0;
     }
 
+    f_trace = f->f_trace;
+    if (NULL == f_trace)
+        f_trace = Py_None;
+    Py_INCREF(f_trace);
+    if (f_trace != Py_None) {
+        int with_trace_func = slp_pickle_with_tracing_state();
+        if (-1 == with_trace_func) goto err_exit;
+        if (!with_trace_func) {
+            Py_DECREF(f_trace);
+            f_trace = Py_None;
+            Py_INCREF(f_trace);
+        }
+    }
+
     res = Py_BuildValue ("(O(" frametuplefmt "))",
                          &wrap_PyFrame_Type,
                          f->f_code,
@@ -814,7 +830,7 @@ frameobject_reduce(PyFrameObject *f)
                          f->f_globals,
                          have_locals,
                          have_locals ? f->f_locals : dummy_locals,
-                         f->f_trace != NULL ? f->f_trace : Py_None,
+                         f_trace,
 /*                           f->f_restricted, */
                  exc_as_tuple,
                  f->f_lasti,
@@ -829,6 +845,7 @@ err_exit:
     Py_XDECREF(blockstack_as_tuple);
     Py_XDECREF(localsplus_as_tuple);
     Py_XDECREF(dummy_locals);
+    Py_XDECREF(f_trace);
     return res;
 }
 
@@ -1094,6 +1111,8 @@ static int init_frametype(void)
                              channel_seq_callback, REF_INVALID_EXEC(channel_seq_callback))
         || slp_register_execute(&PyCFrame_Type, "slp_restore_exception",
                              slp_restore_exception, REF_INVALID_EXEC(slp_restore_exception))
+        || slp_register_execute(&PyCFrame_Type, "slp_restore_tracing",
+                             slp_restore_tracing, REF_INVALID_EXEC(slp_restore_tracing))
         || init_type(&wrap_PyFrame_Type, 1, initchain);
 }
 #undef initchain

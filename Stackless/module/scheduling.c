@@ -494,8 +494,8 @@ slp_restore_exception(PyFrameObject *f, int exc, PyObject *retval)
     return STACKLESS_PACK(retval);
 }
 
-static PyObject *
-restore_tracing(PyFrameObject *f, int exc, PyObject *retval)
+PyObject *
+slp_restore_tracing(PyFrameObject *f, int exc, PyObject *retval)
 {
     PyThreadState *ts = PyThreadState_GET();
     PyCFrameObject *cf = (PyCFrameObject *) f;
@@ -973,7 +973,7 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
     if (ts->use_tracing || ts->tracing) {
         /* build a shadow frame if we are returning here */
         if (prev->f.frame != NULL) {
-            PyCFrameObject *f = slp_cframe_new(restore_tracing, 0);
+            PyCFrameObject *f = slp_cframe_new(slp_restore_tracing, 0);
             if (f == NULL)
                 return -1;
             f->f_back = prev->f.frame;
