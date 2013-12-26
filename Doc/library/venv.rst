@@ -11,7 +11,7 @@
 
 .. versionadded:: 3.3
 
-**Source code:** :source:`Lib/venv.py`
+**Source code:** :source:`Lib/venv`
 
 --------------
 
@@ -21,6 +21,7 @@ site directories.  Each virtual environment has its own Python binary (allowing
 creation of environments with various Python versions) and can have its own
 independent set of installed Python packages in its site directories.
 
+See :pep:`405` for more information about Python virtual environments.
 
 Creating virtual environments
 -----------------------------
@@ -60,6 +61,19 @@ Creating virtual environments
    When a venv is active, any options that change the installation path will be
    ignored from all distutils configuration files to prevent projects being
    inadvertently installed outside of the virtual environment.
+
+   When working in a command shell, users can make a venv active by running an
+   ``activate`` script in the venv's executables directory (the precise filename
+   is shell-dependent), which prepends the venv's directory for executables to
+   the ``PATH`` environment variable for the running shell. There should be no
+   need in other circumstances to activate a venv -- scripts installed into
+   venvs have a shebang line which points to the venv's Python interpreter. This
+   means that the script will run with that interpreter regardless of the value
+   of ``PATH``. On Windows, shebang line processing is supported if you have the
+   Python Launcher for Windows installed (this was added to Python in 3.3 - see
+   :pep:`397` for more details). Thus, double-clicking an installed script in
+   a Windows Explorer window should run the script with the correct interpreter
+   without there needing to be any reference to its venv in ``PATH``.
 
 
 API
@@ -115,21 +129,23 @@ creation according to their needs, the :class:`EnvBuilder` class.
                 env_dir is the target directory to create an environment in.
                 """
                 env_dir = os.path.abspath(env_dir)
-                context = self.create_directories(env_dir)
+                context = self.ensure_directories(env_dir)
                 self.create_configuration(context)
                 self.setup_python(context)
                 self.setup_scripts(context)
                 self.post_setup(context)
 
-        Each of the methods :meth:`create_directories`,
+        Each of the methods :meth:`ensure_directories`,
         :meth:`create_configuration`, :meth:`setup_python`,
         :meth:`setup_scripts` and :meth:`post_setup` can be overridden.
 
-    .. method:: create_directories(env_dir)
+    .. method:: ensure_directories(env_dir)
 
         Creates the environment directory and all necessary directories, and
         returns a context object.  This is just a holder for attributes (such as
-        paths), for use by the other methods.
+        paths), for use by the other methods. The directories are allowed to
+        exist already, as long as either ``clear`` or ``upgrade`` were
+        specified to allow operating on an existing environment directory.
 
     .. method:: create_configuration(context)
 
@@ -138,7 +154,10 @@ creation according to their needs, the :class:`EnvBuilder` class.
     .. method:: setup_python(context)
 
         Creates a copy of the Python executable (and, under Windows, DLLs) in
-        the environment.
+        the environment. On a POSIX system, if a specific executable
+        ``python3.x`` was used, symlinks to ``python`` and ``python3`` will be
+        created pointing to that executable, unless files with those names
+        already exist.
 
     .. method:: setup_scripts(context)
 
@@ -175,6 +194,8 @@ creation according to their needs, the :class:`EnvBuilder` class.
         * ``__VENV_PYTHON__`` is replaced with the absolute path of the
           environment's executable.
 
+        The directories are allowed to exist (for when an existing environment
+        is being upgraded).
 
 There is also a module-level convenience function:
 
@@ -187,7 +208,7 @@ An example of extending ``EnvBuilder``
 --------------------------------------
 
 The following script shows how to extend :class:`EnvBuilder` by implementing a
-subclass which installs Distribute and pip into a created venv::
+subclass which installs setuptools and pip into a created venv::
 
     import os
     import os.path
@@ -198,16 +219,16 @@ subclass which installs Distribute and pip into a created venv::
     from urllib.request import urlretrieve
     import venv
 
-    class DistributeEnvBuilder(venv.EnvBuilder):
+    class ExtendedEnvBuilder(venv.EnvBuilder):
         """
-        This builder installs Distribute and pip so that you can pip or
+        This builder installs setuptools and pip so that you can pip or
         easy_install other packages into the created environment.
 
-        :param nodist: If True, Distribute is not installed into the created
-                       environment.
+        :param nodist: If True, setuptools and pip are not installed into the
+                       created environment.
         :param nopip: If True, pip is not installed into the created
                       environment.
-        :param progress: If Distribute or pip are installed, the progress of the
+        :param progress: If setuptools or pip are installed, the progress of the
                          installation can be monitored by passing a progress
                          callable. If specified, it is called with two
                          arguments: a string indicating some progress, and a
@@ -237,9 +258,11 @@ subclass which installs Distribute and pip into a created venv::
             :param context: The information for the environment creation request
                             being processed.
             """
+            os.environ['VIRTUAL_ENV'] = context.env_dir
             if not self.nodist:
-                self.install_distribute(context)
-            if not self.nopip:
+                self.install_setuptools(context)
+            # Can't install pip without setuptools
+            if not self.nopip and not self.nodist:
                 self.install_pip(context)
 
         def reader(self, stream, context):
@@ -260,6 +283,7 @@ subclass which installs Distribute and pip into a created venv::
                     else:
                         sys.stderr.write(s.decode('utf-8'))
                     sys.stderr.flush()
+            stream.close()
 
         def install_script(self, context, name, url):
             _, _, path, _, _, _ = urlparse(url)
@@ -269,10 +293,14 @@ subclass which installs Distribute and pip into a created venv::
             # Download script into the env's binaries folder
             urlretrieve(url, distpath)
             progress = self.progress
-            if progress is not None:
-                progress('Installing %s' %name, 'main')
+            if self.verbose:
+                term = '\n'
             else:
-                sys.stderr.write('Installing %s ' % name)
+                term = ''
+            if progress is not None:
+                progress('Installing %s ...%s' % (name, term), 'main')
+            else:
+                sys.stderr.write('Installing %s ...%s' % (name, term))
                 sys.stderr.flush()
             # Install in the env
             args = [context.env_exe, fn]
@@ -291,17 +319,17 @@ subclass which installs Distribute and pip into a created venv::
             # Clean up - no longer needed
             os.unlink(distpath)
 
-        def install_distribute(self, context):
+        def install_setuptools(self, context):
             """
-            Install Distribute in the environment.
+            Install setuptools in the environment.
 
             :param context: The information for the environment creation request
                             being processed.
             """
-            url = 'http://python-distribute.org/distribute_setup.py'
-            self.install_script(context, 'distribute', url)
-            # clear up the distribute archive which gets downloaded
-            pred = lambda o: o.startswith('distribute-') and o.endswith('.tar.gz')
+            url = 'https://bitbucket.org/pypa/setuptools/downloads/ez_setup.py'
+            self.install_script(context, 'setuptools', url)
+            # clear up the setuptools archive which gets downloaded
+            pred = lambda o: o.startswith('setuptools-') and o.endswith('.tar.gz')
             files = filter(pred, os.listdir(context.bin_path))
             for f in files:
                 f = os.path.join(context.bin_path, f)
@@ -336,10 +364,10 @@ subclass which installs Distribute and pip into a created venv::
                                                          'directories.')
             parser.add_argument('dirs', metavar='ENV_DIR', nargs='+',
                                 help='A directory to create the environment in.')
-            parser.add_argument('--no-distribute', default=False,
+            parser.add_argument('--no-setuptools', default=False,
                                 action='store_true', dest='nodist',
-                                help="Don't install Distribute in the virtual "
-                                     "environment.")
+                                help="Don't install setuptools or pip in the "
+                                     "virtual environment.")
             parser.add_argument('--no-pip', default=False,
                                 action='store_true', dest='nopip',
                                 help="Don't install pip in the virtual "
@@ -370,11 +398,11 @@ subclass which installs Distribute and pip into a created venv::
             parser.add_argument('--verbose', default=False, action='store_true',
                                 dest='verbose', help='Display the output '
                                                    'from the scripts which '
-                                                   'install Distribute and pip.')
+                                                   'install setuptools and pip.')
             options = parser.parse_args(args)
             if options.upgrade and options.clear:
                 raise ValueError('you cannot supply --upgrade and --clear together.')
-            builder = DistributeEnvBuilder(system_site_packages=options.system_site,
+            builder = ExtendedEnvBuilder(system_site_packages=options.system_site,
                                            clear=options.clear,
                                            symlinks=options.symlinks,
                                            upgrade=options.upgrade,
@@ -392,6 +420,7 @@ subclass which installs Distribute and pip into a created venv::
         except Exception as e:
             print('Error: %s' % e, file=sys.stderr)
         sys.exit(rc)
+
 
 This script is also available for download `online
 <https://gist.github.com/4673395>`_.

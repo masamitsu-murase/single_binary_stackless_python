@@ -75,7 +75,7 @@ class TestDecode(TestEmailBase):
     def test_non_trivial_q(self):
         self._test('=?latin-1?q?=20F=fcr=20Elise=20?=', ' Für Elise ', 'latin-1')
 
-    def test_q_escpaed_bytes_preserved(self):
+    def test_q_escaped_bytes_preserved(self):
         self._test(b'=?us-ascii?q?=20\xACfoo?='.decode('us-ascii',
                                                        'surrogateescape'),
                    ' \uDCACfoo',
@@ -121,6 +121,11 @@ class TestDecode(TestEmailBase):
                    charset = 'foobar',
                    # XXX Should this be a new Defect instead?
                    defects = [errors.CharsetError])
+
+    def test_q_nonascii(self):
+        self._test('=?utf-8?q?=C3=89ric?=',
+                   'Éric',
+                   charset='utf-8')
 
 
 class TestEncodeQ(TestEmailBase):

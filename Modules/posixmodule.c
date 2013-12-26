@@ -2961,7 +2961,7 @@ posix_chflags(PyObject *self, PyObject *args, PyObject *kwargs)
     unsigned long flags;
     int follow_symlinks = 1;
     int result;
-    PyObject *return_value;
+    PyObject *return_value = NULL;
     static char *keywords[] = {"path", "flags", "follow_symlinks", NULL};
 
     memset(&path, 0, sizeof(path));
@@ -3443,7 +3443,9 @@ posix_listdir(PyObject *self, PyObject *args, PyObject *kwargs)
     path_t path;
     PyObject *list = NULL;
     static char *keywords[] = {"path", NULL};
+#ifdef HAVE_FDOPENDIR
     int fd = -1;
+#endif /* HAVE_FDOPENDIR */
 
 #if defined(MS_WINDOWS) && !defined(HAVE_OPENDIR)
     PyObject *v;
@@ -3732,6 +3734,13 @@ exit:
 
     if (dirp == NULL) {
         list = path_error("listdir", &path);
+#ifdef HAVE_FDOPENDIR
+        if (fd != -1) {
+            Py_BEGIN_ALLOW_THREADS
+            close(fd);
+            Py_END_ALLOW_THREADS
+        }
+#endif /* HAVE_FDOPENDIR */
         goto exit;
     }
     if ((list = PyList_New(0)) == NULL) {
@@ -3774,8 +3783,10 @@ exit:
 exit:
     if (dirp != NULL) {
         Py_BEGIN_ALLOW_THREADS
+#ifdef HAVE_FDOPENDIR
         if (fd > -1)
             rewinddir(dirp);
+#endif /* HAVE_FDOPENDIR */
         closedir(dirp);
         Py_END_ALLOW_THREADS
     }
@@ -4514,7 +4525,7 @@ posix_uname(PyObject *self, PyObject *noargs)
 
 #define SET(i, field) \
     { \
-    PyObject *o = PyUnicode_DecodeASCII(field, strlen(field), NULL); \
+    PyObject *o = PyUnicode_DecodeFSDefault(field); \
     if (!o) { \
         Py_DECREF(value); \
         return NULL; \
@@ -4751,6 +4762,7 @@ posix_utime(PyObject *self, PyObject *args, PyObject *kwargs)
     PyObject *return_value = NULL;
 
     memset(&path, 0, sizeof(path));
+    memset(&utime, 0, sizeof(utime_t));
 #if UTIME_HAVE_FD
     path.allow_fd = 1;
 #endif
@@ -6319,6 +6331,34 @@ posix_getgroups(PyObject *self, PyObject *noargs)
     gid_t* alt_grouplist = grouplist;
     int n;
 
+#ifdef __APPLE__
+    /* Issue #17557: As of OS X 10.8, getgroups(2) no longer raises EINVAL if
+     * there are more groups than can fit in grouplist.  Therefore, on OS X
+     * always first call getgroups with length 0 to get the actual number
+     * of groups.
+     */
+    n = getgroups(0, NULL);
+    if (n < 0) {
+        return posix_error();
+    } else if (n <= MAX_GROUPS) {
+        /* groups will fit in existing array */
+        alt_grouplist = grouplist;
+    } else {
+        alt_grouplist = PyMem_Malloc(n * sizeof(gid_t));
+        if (alt_grouplist == NULL) {
+            errno = EINVAL;
+            return posix_error();
+        }
+    }
+
+    n = getgroups(n, alt_grouplist);
+    if (n == -1) {
+        if (alt_grouplist != grouplist) {
+            PyMem_Free(alt_grouplist);
+        }
+        return posix_error();
+    }
+#else
     n = getgroups(MAX_GROUPS, grouplist);
     if (n < 0) {
         if (errno == EINVAL) {
@@ -6345,6 +6385,8 @@ posix_getgroups(PyObject *self, PyObject *noargs)
             return posix_error();
         }
     }
+#endif
+
     result = PyList_New(n);
     if (result != NULL) {
         int i;
@@ -7200,6 +7242,124 @@ check_CreateSymbolicLink()
     return (Py_CreateSymbolicLinkW && Py_CreateSymbolicLinkA);
 }
 
+void _dirnameW(WCHAR *path) {
+    /* Remove the last portion of the path */
+
+    WCHAR *ptr;
+
+    /* walk the path from the end until a backslash is encountered */
+    for(ptr = path + wcslen(path); ptr != path; ptr--)
+    {
+        if(*ptr == *L"\\" || *ptr == *L"/") {
+            break;
+        }
+    }
+    *ptr = 0;
+}
+
+void _dirnameA(char *path) {
+    /* Remove the last portion of the path */
+
+    char *ptr;
+
+    /* walk the path from the end until a backslash is encountered */
+    for(ptr = path + strlen(path); ptr != path; ptr--)
+    {
+        if(*ptr == '\\' || *ptr == '/') {
+            break;
+        }
+    }
+    *ptr = 0;
+}
+
+int _is_absW(WCHAR *path) {
+    /* Is this path absolute? */
+
+    return path[0] == L'\\' || path[0] == L'/' || path[1] == L':';
+
+}
+
+int _is_absA(char *path) {
+    /* Is this path absolute? */
+
+    return path[0] == '\\' || path[0] == '/' || path[1] == ':';
+
+}
+
+void _joinW(WCHAR *dest_path, const WCHAR *root, const WCHAR *rest) {
+    /* join root and rest with a backslash */
+    int root_len;
+
+    if(_is_absW(rest)) {
+        wcscpy(dest_path, rest);
+        return;
+    }
+
+    root_len = wcslen(root);
+
+    wcscpy(dest_path, root);
+    if(root_len) {
+        dest_path[root_len] = *L"\\";
+        root_len += 1;
+    }
+    wcscpy(dest_path+root_len, rest);
+}
+
+void _joinA(char *dest_path, const char *root, const char *rest) {
+    /* join root and rest with a backslash */
+    int root_len;
+
+    if(_is_absA(rest)) {
+        strcpy(dest_path, rest);
+        return;
+    }
+
+    root_len = strlen(root);
+
+    strcpy(dest_path, root);
+    if(root_len) {
+        dest_path[root_len] = '\\';
+        root_len += 1;
+    }
+    strcpy(dest_path+root_len, rest);
+}
+
+int _check_dirW(WCHAR *src, WCHAR *dest)
+{
+    /* Return True if the path at src relative to dest is a directory */
+    WIN32_FILE_ATTRIBUTE_DATA src_info;
+    WCHAR dest_parent[MAX_PATH];
+    WCHAR src_resolved[MAX_PATH] = L"";
+
+    /* dest_parent = os.path.dirname(dest) */
+    wcscpy(dest_parent, dest);
+    _dirnameW(dest_parent);
+    /* src_resolved = os.path.join(dest_parent, src) */
+    _joinW(src_resolved, dest_parent, src);
+    return (
+        GetFileAttributesExW(src_resolved, GetFileExInfoStandard, &src_info)
+        && src_info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY
+    );
+}
+
+int _check_dirA(char *src, char *dest)
+{
+    /* Return True if the path at src relative to dest is a directory */
+    WIN32_FILE_ATTRIBUTE_DATA src_info;
+    char dest_parent[MAX_PATH];
+    char src_resolved[MAX_PATH] = "";
+
+    /* dest_parent = os.path.dirname(dest) */
+    strcpy(dest_parent, dest);
+    _dirnameW(dest_parent);
+    /* src_resolved = os.path.join(dest_parent, src) */
+    _joinW(src_resolved, dest_parent, src);
+    return (
+        GetFileAttributesExA(src_resolved, GetFileExInfoStandard, &src_info)
+        && src_info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY
+    );
+}
+
 #endif
 
 static PyObject *
@@ -7256,13 +7416,20 @@ posix_symlink(PyObject *self, PyObject *args, PyObject *kwargs)
     }
 
 #ifdef MS_WINDOWS
+
     Py_BEGIN_ALLOW_THREADS
-    if (dst.wide)
+    if (dst.wide) {
+        /* if src is a directory, ensure target_is_directory==1 */
+        target_is_directory |= _check_dirW(src.wide, dst.wide);
         result = Py_CreateSymbolicLinkW(dst.wide, src.wide,
                                         target_is_directory);
-    else
+    }
+    else {
+        /* if src is a directory, ensure target_is_directory==1 */
+        target_is_directory |= _check_dirA(src.narrow, dst.narrow);
         result = Py_CreateSymbolicLinkA(dst.narrow, src.narrow,
                                         target_is_directory);
+    }
     Py_END_ALLOW_THREADS
 
     if (!result) {
@@ -7838,7 +8005,7 @@ posix_lseek(PyObject *self, PyObject *args)
 
 
 PyDoc_STRVAR(posix_read__doc__,
-"read(fd, buffersize) -> string\n\n\
+"read(fd, buffersize) -> bytes\n\n\
 Read a file descriptor.");
 
 static PyObject *
@@ -8008,8 +8175,8 @@ posix_pread(PyObject *self, PyObject *args)
 #endif
 
 PyDoc_STRVAR(posix_write__doc__,
-"write(fd, string) -> byteswritten\n\n\
-Write a string to a file descriptor.");
+"write(fd, data) -> byteswritten\n\n\
+Write bytes to a file descriptor.");
 
 static PyObject *
 posix_write(PyObject *self, PyObject *args)
@@ -10625,8 +10792,11 @@ posix_listxattr(PyObject *self, PyObject *args, PyObject *kwargs)
         Py_END_ALLOW_THREADS;
 
         if (length < 0) {
-            if (errno == ERANGE)
+            if (errno == ERANGE) {
+                PyMem_FREE(buffer);
+                buffer = NULL;
                 continue;
+            }
             path_error("listxattr", &path);
             break;
         }
@@ -11793,6 +11963,10 @@ static char *have_functions[] = {
 
 #ifdef HAVE_FCHOWN
     "HAVE_FCHOWN",
+#endif
+
+#ifdef HAVE_FCHOWNAT
+    "HAVE_FCHOWNAT",
 #endif
 
 #ifdef HAVE_FEXECVE

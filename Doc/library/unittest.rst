@@ -815,14 +815,14 @@ Test cases
    | :meth:`assertRaises(exc, fun, *args, **kwds)            | ``fun(*args, **kwds)`` raises *exc*  |            |
    | <TestCase.assertRaises>`                                |                                      |            |
    +---------------------------------------------------------+--------------------------------------+------------+
-   | :meth:`assertRaisesRegex(exc, re, fun, *args, **kwds)   | ``fun(*args, **kwds)`` raises *exc*  | 3.1        |
-   | <TestCase.assertRaisesRegex>`                           | and the message matches *re*         |            |
+   | :meth:`assertRaisesRegex(exc, r, fun, *args, **kwds)    | ``fun(*args, **kwds)`` raises *exc*  | 3.1        |
+   | <TestCase.assertRaisesRegex>`                           | and the message matches regex *r*    |            |
    +---------------------------------------------------------+--------------------------------------+------------+
    | :meth:`assertWarns(warn, fun, *args, **kwds)            | ``fun(*args, **kwds)`` raises *warn* | 3.2        |
    | <TestCase.assertWarns>`                                 |                                      |            |
    +---------------------------------------------------------+--------------------------------------+------------+
-   | :meth:`assertWarnsRegex(warn, re, fun, *args, **kwds)   | ``fun(*args, **kwds)`` raises *warn* | 3.2        |
-   | <TestCase.assertWarnsRegex>`                            | and the message matches *re*         |            |
+   | :meth:`assertWarnsRegex(warn, r, fun, *args, **kwds)    | ``fun(*args, **kwds)`` raises *warn* | 3.2        |
+   | <TestCase.assertWarnsRegex>`                            | and the message matches regex *r*    |            |
    +---------------------------------------------------------+--------------------------------------+------------+
 
    .. method:: assertRaises(exception, callable, *args, **kwds)
@@ -873,7 +873,7 @@ Test cases
       a regular expression object or a string containing a regular expression
       suitable for use by :func:`re.search`.  Examples::
 
-         self.assertRaisesRegex(ValueError, 'invalid literal for.*XYZ$',
+         self.assertRaisesRegex(ValueError, "invalid literal for.*XYZ'$",
                                 int, 'XYZ')
 
       or::
@@ -897,25 +897,25 @@ Test cases
       Test that a warning is triggered when *callable* is called with any
       positional or keyword arguments that are also passed to
       :meth:`assertWarns`.  The test passes if *warning* is triggered and
-      fails if it isn't.  Also, any unexpected exception is an error.
+      fails if it isn't.  Any exception is an error.
       To catch any of a group of warnings, a tuple containing the warning
       classes may be passed as *warnings*.
 
       If only the *warning* and possibly the *msg* arguments are given,
-      returns a context manager so that the code under test can be written
+      return a context manager so that the code under test can be written
       inline rather than as a function::
 
          with self.assertWarns(SomeWarning):
              do_something()
 
-      When used as a context manager, :meth:`assertRaises` accepts the
+      When used as a context manager, :meth:`assertWarns` accepts the
       additional keyword argument *msg*.
 
       The context manager will store the caught warning object in its
       :attr:`warning` attribute, and the source line which triggered the
       warnings in the :attr:`filename` and :attr:`lineno` attributes.
       This can be useful if the intention is to perform additional checks
-      on the exception raised::
+      on the warning caught::
 
          with self.assertWarns(SomeWarning) as cm:
              do_something()
@@ -978,10 +978,10 @@ Test cases
    | :meth:`assertLessEqual(a, b)          | ``a <= b``                     | 3.1          |
    | <TestCase.assertLessEqual>`           |                                |              |
    +---------------------------------------+--------------------------------+--------------+
-   | :meth:`assertRegex(s, re)             | ``regex.search(s)``            | 3.1          |
+   | :meth:`assertRegex(s, r)              | ``r.search(s)``                | 3.1          |
    | <TestCase.assertRegex>`               |                                |              |
    +---------------------------------------+--------------------------------+--------------+
-   | :meth:`assertNotRegex(s, re)          | ``not regex.search(s)``        | 3.2          |
+   | :meth:`assertNotRegex(s, r)           | ``not r.search(s)``            | 3.2          |
    | <TestCase.assertNotRegex>`            |                                |              |
    +---------------------------------------+--------------------------------+--------------+
    | :meth:`assertCountEqual(a, b)         | *a* and *b* have the same      | 3.2          |
@@ -1000,7 +1000,7 @@ Test cases
       like the :func:`round` function) and not *significant digits*.
 
       If *delta* is supplied instead of *places* then the difference
-      between *first* and *second* must be less (or more) than *delta*.
+      between *first* and *second* must be less or equal to (or greater than) *delta*.
 
       Supplying both *delta* and *places* raises a ``TypeError``.
 
@@ -1577,8 +1577,7 @@ Loading and running tests
 
       A list containing 2-tuples of :class:`TestCase` instances and strings
       holding formatted tracebacks. Each tuple represents a test where a failure
-      was explicitly signalled using the :meth:`TestCase.fail\*` or
-      :meth:`TestCase.assert\*` methods.
+      was explicitly signalled using the :meth:`TestCase.assert\*` methods.
 
    .. attribute:: skipped
 
@@ -1675,7 +1674,7 @@ Loading and running tests
 
    .. method:: addError(test, err)
 
-      Called when the test case *test* raises an unexpected exception *err* is a
+      Called when the test case *test* raises an unexpected exception. *err* is a
       tuple of the form returned by :func:`sys.exc_info`: ``(type, value,
       traceback)``.
 

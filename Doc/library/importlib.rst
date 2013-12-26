@@ -238,6 +238,10 @@ ABC hierarchy::
             The path to where the module data is stored (not set for built-in
             modules).
 
+        - :attr:`__cached__`
+            The path to where a compiled version of the module is/should be
+            stored (not set when the attribute would be inappropriate).
+
         - :attr:`__path__`
             A list of strings specifying the search path within a
             package. This attribute is not set on modules.
@@ -407,7 +411,8 @@ ABC hierarchy::
         automatically.
 
         When writing to the path fails because the path is read-only
-        (:attr:`errno.EACCES`), do not propagate the exception.
+        (:attr:`errno.EACCES`/:exc:`PermissionError`), do not propagate the
+        exception.
 
     .. method:: get_code(fullname)
 
@@ -668,8 +673,8 @@ find and load modules.
      specified by *fullname* on :data:`sys.path` or, if defined, on
      *path*. For each path entry that is searched,
      :data:`sys.path_importer_cache` is checked. If a non-false object is
-     found then it is used as the :term:`finder` to look for the module
-     being searched for. If no entry is found in
+     found then it is used as the :term:`path entry finder` to look for the
+     module being searched for. If no entry is found in
      :data:`sys.path_importer_cache`, then :data:`sys.path_hooks` is
      searched for a finder for the path entry and, if found, is stored in
      :data:`sys.path_importer_cache` along with being queried about the
@@ -692,6 +697,8 @@ find and load modules.
 
    The *loader_details* argument is a variable number of 2-item tuples each
    containing a loader and a sequence of file suffixes the loader recognizes.
+   The loaders are expected to be callables which accept two arguments of
+   the module's name and the path to the file found.
 
    The finder will cache the directory contents as necessary, making stat calls
    for each module search to verify the cache is not outdated. Because cache
@@ -709,7 +716,7 @@ find and load modules.
 
       The path the finder will search in.
 
-   .. method:: find_module(fullname)
+   .. method:: find_loader(fullname)
 
       Attempt to find the loader to handle *fullname* within :attr:`path`.
 

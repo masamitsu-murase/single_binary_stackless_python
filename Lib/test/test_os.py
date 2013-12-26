@@ -28,6 +28,11 @@ try:
     import threading
 except ImportError:
     threading = None
+try:
+    import resource
+except ImportError:
+    resource = None
+
 from test.script_helper import assert_python_ok
 
 with warnings.catch_warnings():
@@ -639,10 +644,13 @@ class EnvironTests(mapping_tests.BasicTestMappingProtocol):
         with self.assertRaises(KeyError) as cm:
             os.environ[missing]
         self.assertIs(cm.exception.args[0], missing)
+        self.assertTrue(cm.exception.__suppress_context__)
 
         with self.assertRaises(KeyError) as cm:
             del os.environ[missing]
         self.assertIs(cm.exception.args[0], missing)
+        self.assertTrue(cm.exception.__suppress_context__)
+
 
 class WalkTests(unittest.TestCase):
     """Tests for os.walk()."""
@@ -686,13 +694,8 @@ class WalkTests(unittest.TestCase):
             f.write("I'm " + path + " and proud of it.  Blame test_os.\n")
             f.close()
         if support.can_symlink():
-            if os.name == 'nt':
-                def symlink_to_dir(src, dest):
-                    os.symlink(src, dest, True)
-            else:
-                symlink_to_dir = os.symlink
-            symlink_to_dir(os.path.abspath(t2_path), link_path)
-            symlink_to_dir('broken', broken_link_path)
+            os.symlink(os.path.abspath(t2_path), link_path)
+            os.symlink('broken', broken_link_path, True)
             sub2_tree = (sub2_path, ["link"], ["broken_link", "tmp3"])
         else:
             sub2_tree = (sub2_path, [], ["tmp3"])
@@ -1001,6 +1004,30 @@ class URandomTests(unittest.TestCase):
         data1 = self.get_urandom_subprocess(16)
         data2 = self.get_urandom_subprocess(16)
         self.assertNotEqual(data1, data2)
+
+    @unittest.skipUnless(resource, "test requires the resource module")
+    def test_urandom_failure(self):
+        # Check urandom() failing when it is not able to open /dev/random.
+        # We spawn a new process to make the test more robust (if getrlimit()
+        # failed to restore the file descriptor limit after this, the whole
+        # test suite would crash; this actually happened on the OS X Tiger
+        # buildbot).
+        code = """if 1:
+            import errno
+            import os
+            import resource
+
+            soft_limit, hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
+            resource.setrlimit(resource.RLIMIT_NOFILE, (1, hard_limit))
+            try:
+                os.urandom(16)
+            except OSError as e:
+                assert e.errno == errno.EMFILE, e.errno
+            else:
+                raise AssertionError("OSError not raised")
+            """
+        assert_python_ok('-c', code)
+
 
 @contextlib.contextmanager
 def _execvpe_mockup(defpath=None):
@@ -1516,7 +1543,7 @@ class Win32SymlinkTests(unittest.TestCase):
             os.remove(self.missing_link)
 
     def test_directory_link(self):
-        os.symlink(self.dirlink_target, self.dirlink, True)
+        os.symlink(self.dirlink_target, self.dirlink)
         self.assertTrue(os.path.exists(self.dirlink))
         self.assertTrue(os.path.isdir(self.dirlink))
         self.assertTrue(os.path.islink(self.dirlink))
@@ -1608,6 +1635,38 @@ class Win32SymlinkTests(unittest.TestCase):
         finally:
             os.remove(file1)
             shutil.rmtree(level1)
+
+
+@support.skip_unless_symlink
+class NonLocalSymlinkTests(unittest.TestCase):
+
+    def setUp(self):
+        """
+        Create this structure:
+
+        base
+         \___ some_dir
+        """
+        os.makedirs('base/some_dir')
+
+    def tearDown(self):
+        shutil.rmtree('base')
+
+    def test_directory_link_nonlocal(self):
+        """
+        The symlink target should resolve relative to the link, not relative
+        to the current directory.
+
+        Then, link base/some_link -> base/some_dir and ensure that some_link
+        is resolved as a directory.
+
+        In issue13772, it was discovered that directory detection failed if
+        the symlink target was not specified relative to the current
+        directory, which was a defect in the implementation.
+        """
+        src = os.path.join('base', 'some_link')
+        os.symlink('some_dir', src)
+        assert os.path.isdir(src)
 
 
 class FSEncodingTests(unittest.TestCase):
@@ -1923,16 +1982,17 @@ class TestSendfile(unittest.TestCase):
 
         def test_trailers(self):
             TESTFN2 = support.TESTFN + "2"
+            file_data = b"abcdef"
             with open(TESTFN2, 'wb') as f:
-                f.write(b"abcde")
+                f.write(file_data)
             with open(TESTFN2, 'rb')as f:
                 self.addCleanup(os.remove, TESTFN2)
-                os.sendfile(self.sockno, f.fileno(), 0, 4096,
-                            trailers=[b"12345"])
+                os.sendfile(self.sockno, f.fileno(), 0, len(file_data),
+                            trailers=[b"1234"])
                 self.client.close()
                 self.server.wait()
                 data = self.server.handler_instance.get_data()
-                self.assertEqual(data, b"abcde12345")
+                self.assertEqual(data, b"abcdef1234")
 
         if hasattr(os, "SF_NODISKIO"):
             def test_flags(self):
@@ -2137,6 +2197,7 @@ def test_main():
         Pep383Tests,
         Win32KillTests,
         Win32SymlinkTests,
+        NonLocalSymlinkTests,
         FSEncodingTests,
         DeviceEncodingTests,
         PidTests,

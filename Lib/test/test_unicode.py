@@ -652,6 +652,15 @@ class UnicodeTest(string_tests.CommonTest,
         self.assertEqual('ß'.swapcase(), 'SS')
         self.assertEqual('\u1fd2'.swapcase(), '\u0399\u0308\u0300')
 
+    def test_center(self):
+        string_tests.CommonTest.test_center(self)
+        self.assertEqual('x'.center(2, '\U0010FFFF'),
+                         'x\U0010FFFF')
+        self.assertEqual('x'.center(3, '\U0010FFFF'),
+                         '\U0010FFFFx\U0010FFFF')
+        self.assertEqual('x'.center(4, '\U0010FFFF'),
+                         '\U0010FFFFx\U0010FFFF\U0010FFFF')
+
     def test_contains(self):
         # Testing Unicode contains method
         self.assertIn('a', 'abdb')
@@ -682,6 +691,17 @@ class UnicodeTest(string_tests.CommonTest,
         self.assertNotIn('asdf', '')
 
         self.assertRaises(TypeError, "abc".__contains__)
+
+    def test_issue18183(self):
+        '\U00010000\U00100000'.lower()
+        '\U00010000\U00100000'.casefold()
+        '\U00010000\U00100000'.upper()
+        '\U00010000\U00100000'.capitalize()
+        '\U00010000\U00100000'.title()
+        '\U00010000\U00100000'.swapcase()
+        '\U00100000'.center(3, '\U00010000')
+        '\U00100000'.ljust(3, '\U00010000')
+        '\U00100000'.rjust(3, '\U00010000')
 
     def test_format(self):
         self.assertEqual(''.format(), '')
@@ -933,6 +953,8 @@ class UnicodeTest(string_tests.CommonTest,
                          'ABC')
         self.assertEqual("{0:.0s}".format("ABC\u0410\u0411\u0412"),
                          '')
+
+        self.assertEqual("{[{}]}".format({"{}": 5}), "5")
 
     def test_format_map(self):
         self.assertEqual(''.format_map({}), '')
@@ -1696,8 +1718,6 @@ class UnicodeTest(string_tests.CommonTest,
         self.assertRaises(TypeError, "hello".encode, 42, 42, 42)
 
         # Error handling (lone surrogate in PyUnicode_TransformDecimalToASCII())
-        self.assertRaises(UnicodeError, int, "\ud800")
-        self.assertRaises(UnicodeError, int, "\udf00")
         self.assertRaises(UnicodeError, float, "\ud800")
         self.assertRaises(UnicodeError, float, "\udf00")
         self.assertRaises(UnicodeError, complex, "\ud800")
@@ -2011,6 +2031,12 @@ class UnicodeTest(string_tests.CommonTest,
         # test "%c"
         self.assertEqual(PyUnicode_FromFormat(b'%c', c_int(0xabcd)), '\uabcd')
         self.assertEqual(PyUnicode_FromFormat(b'%c', c_int(0x10ffff)), '\U0010ffff')
+        with self.assertRaises(OverflowError):
+            PyUnicode_FromFormat(b'%c', c_int(0x110000))
+        # Issue #18183
+        self.assertEqual(
+            PyUnicode_FromFormat(b'%c%c', c_int(0x10000), c_int(0x100000)),
+            '\U00010000\U00100000')
 
         # test "%"
         self.assertEqual(PyUnicode_FromFormat(b'%'), '%')

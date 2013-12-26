@@ -580,16 +580,12 @@ def read_decimalnl_short(f):
     >>> read_decimalnl_short(io.BytesIO(b"1234L\n56"))
     Traceback (most recent call last):
     ...
-    ValueError: trailing 'L' not allowed in b'1234L'
+    ValueError: invalid literal for int() with base 10: b'1234L'
     """
 
     s = read_stringnl(f, decode=False, stripquotes=False)
-    if s.endswith(b"L"):
-        raise ValueError("trailing 'L' not allowed in %r" % s)
 
-    # It's not necessarily true that the result fits in a Python short int:
-    # the pickle may have been written on a 64-bit box.  There's also a hack
-    # for True and False here.
+    # There's a hack for True and False here.
     if s == b"00":
         return False
     elif s == b"01":
@@ -888,7 +884,7 @@ stackslice = StackObject(
                  obtype=StackObject,
                  doc="""An object representing a contiguous slice of the stack.
 
-                 This is used in conjuction with markobject, to represent all
+                 This is used in conjunction with markobject, to represent all
                  of the stack following the topmost markobject.  For example,
                  the POP_MARK opcode changes the stack from
 
@@ -2038,12 +2034,12 @@ def dis(pickle, out=None, memo=None, indentlevel=4, annotate=0):
 
     stack = []          # crude emulation of unpickler stack
     if memo is None:
-        memo = {}       # crude emulation of unpicker memo
+        memo = {}       # crude emulation of unpickler memo
     maxproto = -1       # max protocol number seen
     markstack = []      # bytecode positions of MARK opcodes
     indentchunk = ' ' * indentlevel
     errormsg = None
-    annocol = annotate  # columnt hint for annotations
+    annocol = annotate  # column hint for annotations
     for opcode, arg, pos in genops(pickle):
         if pos is not None:
             print("%5d:" % pos, end=' ', file=out)

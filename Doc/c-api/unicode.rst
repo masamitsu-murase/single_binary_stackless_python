@@ -565,7 +565,7 @@ APIs:
 
 
 .. c:function:: int PyUnicode_CopyCharacters(PyObject *to, Py_ssize_t to_start, \
-                        PyObject *to, Py_ssize_t from_start, Py_ssize_t how_many)
+                    PyObject *from, Py_ssize_t from_start, Py_ssize_t how_many)
 
    Copy characters from one Unicode object into another.  This function performs
    character conversion when necessary and falls back to :c:func:`memcpy` if
@@ -967,7 +967,7 @@ These are the generic codec APIs:
 
    Create a Unicode object by decoding *size* bytes of the encoded string *s*.
    *encoding* and *errors* have the same meaning as the parameters of the same name
-   in the :func:`unicode` built-in function.  The codec to be used is looked up
+   in the :func:`str` built-in function.  The codec to be used is looked up
    using the Python codec registry.  Return *NULL* if an exception was raised by
    the codec.
 
@@ -977,7 +977,7 @@ These are the generic codec APIs:
 
    Encode a Unicode object and return the result as Python bytes object.
    *encoding* and *errors* have the same meaning as the parameters of the same
-   name in the Unicode :meth:`encode` method. The codec to be used is looked up
+   name in the Unicode :meth:`~str.encode` method. The codec to be used is looked up
    using the Python codec registry. Return *NULL* if an exception was raised by
    the codec.
 
@@ -987,7 +987,7 @@ These are the generic codec APIs:
 
    Encode the :c:type:`Py_UNICODE` buffer *s* of the given *size* and return a Python
    bytes object.  *encoding* and *errors* have the same meaning as the
-   parameters of the same name in the Unicode :meth:`encode` method.  The codec
+   parameters of the same name in the Unicode :meth:`~str.encode` method.  The codec
    to be used is looked up using the Python codec registry.  Return *NULL* if an
    exception was raised by the codec.
 

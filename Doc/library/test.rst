@@ -263,11 +263,14 @@ The :mod:`test.support` module defines the following functions:
    Used when tests are executed by :mod:`test.regrtest`.
 
 
-.. function:: findfile(filename)
+.. function:: findfile(filename, subdir=None)
 
    Return the path to the file named *filename*. If no match is found
    *filename* is returned. This does not equal a failure since it could be the
    path to the file.
+
+    Setting *subdir* indicates a relative path to use to find the file
+    rather than looking directly in the path directories.
 
 
 .. function:: run_unittest(\*classes)
@@ -362,31 +365,65 @@ The :mod:`test.support` module defines the following functions:
       New optional arguments *filters* and *quiet*.
 
 
-.. function:: captured_stdout()
+.. function:: captured_stdin()
+              captured_stdout()
+              captured_stderr()
 
-   A context manager that runs the :keyword:`with` statement body using a
-   :class:`io.StringIO` object as sys.stdout.  That object can be retrieved
-   using the ``as`` clause of the :keyword:`with` statement.
+   A context managers that temporarily replaces the named stream with
+   :class:`io.StringIO` object.
 
-   Example use::
+   Example use with output streams::
 
-      with captured_stdout() as s:
+      with captured_stdout() as stdout, captured_stderr() as stderr:
           print("hello")
-      assert s.getvalue() == "hello\n"
+          print("error", file=sys.stderr)
+      assert stdout.getvalue() == "hello\n"
+      assert stderr.getvalue() == "error\n"
+
+   Example use with input stream::
+
+      with captured_stdin() as stdin:
+          stdin.write('hello\n')
+          stdin.seek(0)
+          # call test code that consumes from sys.stdin
+          captured = input()
+      self.assertEqual(captured, "hello")
 
 
-.. function:: temp_cwd(name='tempcwd', quiet=False, path=None)
+.. function:: temp_dir(path=None, quiet=False)
+
+   A context manager that creates a temporary directory at *path* and
+   yields the directory.
+
+   If *path* is None, the temporary directory is created using
+   :func:`tempfile.mkdtemp`.  If *quiet* is ``False``, the context manager
+   raises an exception on error.  Otherwise, if *path* is specified and
+   cannot be created, only a warning is issued.
+
+
+.. function:: change_cwd(path, quiet=False)
 
    A context manager that temporarily changes the current working
-   directory (CWD).
+   directory to *path* and yields the directory.
 
-   An existing path may be provided as *path*, in which case this function
-   makes no changes to the file system.
+   If *quiet* is ``False``, the context manager raises an exception
+   on error.  Otherwise, it issues only a warning and keeps the current
+   working directory the same.
 
-   Otherwise, the new CWD is created in the current directory and it's named
-   *name*.  If *quiet* is ``False`` and it's not possible to create or
-   change the CWD, an error is raised.  If it's ``True``, only a warning
-   is raised and the original CWD is used.
+
+.. function:: temp_cwd(name='tempcwd', quiet=False)
+
+   A context manager that temporarily creates a new directory and
+   changes the current working directory (CWD).
+
+   The context manager creates a temporary directory in the current
+   directory with name *name* before temporarily changing the current
+   working directory.  If *name* is None, the temporary directory is
+   created using :func:`tempfile.mkdtemp`.
+
+   If *quiet* is ``False`` and it is not possible to create or change
+   the CWD, an error is raised.  Otherwise, only a warning is raised
+   and the original CWD is used.
 
 
 .. function:: temp_umask(umask)
@@ -455,7 +492,7 @@ The :mod:`test.support` module defines the following functions:
    *fresh* is an iterable of additional module names that are also removed
    from the ``sys.modules`` cache before doing the import.
 
-   *blocked* is an iterable of module names that are replaced with :const:`0`
+   *blocked* is an iterable of module names that are replaced with ``None``
    in the module cache during the import to ensure that attempts to import
    them raise :exc:`ImportError`.
 
@@ -466,15 +503,15 @@ The :mod:`test.support` module defines the following functions:
    Module and package deprecation messages are suppressed during this import
    if *deprecated* is ``True``.
 
-   This function will raise :exc:`unittest.SkipTest` if the named module
-   cannot be imported.
+   This function will raise :exc:`ImportError` if the named module cannot be
+   imported.
 
    Example use::
 
-      # Get copies of the warnings module for testing without
-      # affecting the version being used by the rest of the test suite
-      # One copy uses the C implementation, the other is forced to use
-      # the pure Python fallback implementation
+      # Get copies of the warnings module for testing without affecting the
+      # version being used by the rest of the test suite. One copy uses the
+      # C implementation, the other is forced to use the pure Python fallback
+      # implementation
       py_warnings = import_fresh_module('warnings', blocked=['_warnings'])
       c_warnings = import_fresh_module('warnings', fresh=['_warnings'])
 

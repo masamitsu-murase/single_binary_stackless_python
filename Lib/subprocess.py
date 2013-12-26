@@ -104,6 +104,9 @@ in the child process prior to executing the command.
 If env is not None, it defines the environment variables for the new
 process.
 
+If universal_newlines is false, the file objects stdin, stdout and stderr
+are opened as binary files, and no line ending conversion is done.
+
 If universal_newlines is true, the file objects stdout and stderr are
 opened as a text files, but lines may be terminated by any of '\n',
 the Unix end-of-line convention, '\r', the old Macintosh convention or
@@ -182,7 +185,7 @@ Exceptions raised in the child process, before the new program has
 started to execute, will be re-raised in the parent.  Additionally,
 the exception object will have one extra attribute called
 'child_traceback', which is a string containing traceback information
-from the childs point of view.
+from the child's point of view.
 
 The most common exception raised is OSError.  This occurs, for
 example, when trying to execute a non-existent file.  Applications
@@ -810,6 +813,7 @@ class Popen(object):
             if universal_newlines:
                 self.stderr = io.TextIOWrapper(self.stderr)
 
+        self._closed_child_pipe_fds = False
         try:
             self._execute_child(args, executable, preexec_fn, close_fds,
                                 pass_fds, cwd, env,
@@ -826,19 +830,21 @@ class Popen(object):
                 except EnvironmentError:
                     pass  # Ignore EBADF or other errors.
 
-            # Make sure the child pipes are closed as well.
-            to_close = []
-            if stdin == PIPE:
-                to_close.append(p2cread)
-            if stdout == PIPE:
-                to_close.append(c2pwrite)
-            if stderr == PIPE:
-                to_close.append(errwrite)
-            for fd in to_close:
-                try:
-                    os.close(fd)
-                except EnvironmentError:
-                    pass
+            if not self._closed_child_pipe_fds:
+                to_close = []
+                if stdin == PIPE:
+                    to_close.append(p2cread)
+                if stdout == PIPE:
+                    to_close.append(c2pwrite)
+                if stderr == PIPE:
+                    to_close.append(errwrite)
+                if hasattr(self, '_devnull'):
+                    to_close.append(self._devnull)
+                for fd in to_close:
+                    try:
+                        os.close(fd)
+                    except EnvironmentError:
+                        pass
 
             raise
 
@@ -1383,14 +1389,18 @@ class Popen(object):
                     # be sure the FD is closed no matter what
                     os.close(errpipe_write)
 
-                if p2cread != -1 and p2cwrite != -1:
+                # self._devnull is not always defined.
+                devnull_fd = getattr(self, '_devnull', None)
+                if p2cread != -1 and p2cwrite != -1 and p2cread != devnull_fd:
                     os.close(p2cread)
-                if c2pwrite != -1 and c2pread != -1:
+                if c2pwrite != -1 and c2pread != -1 and c2pwrite != devnull_fd:
                     os.close(c2pwrite)
-                if errwrite != -1 and errread != -1:
+                if errwrite != -1 and errread != -1 and errwrite != devnull_fd:
                     os.close(errwrite)
-                if hasattr(self, '_devnull'):
-                    os.close(self._devnull)
+                if devnull_fd is not None:
+                    os.close(devnull_fd)
+                # Prevent a double close of these fds from __init__ on error.
+                self._closed_child_pipe_fds = True
 
                 # Wait for exec to fail or succeed; possibly raising an
                 # exception (limited in size)

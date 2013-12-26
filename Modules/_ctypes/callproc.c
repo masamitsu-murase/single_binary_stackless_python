@@ -70,6 +70,10 @@
 
 #include <ffi.h>
 #include "ctypes.h"
+#ifdef HAVE_ALLOCA_H
+/* AIX needs alloca.h for alloca() */
+#include <alloca.h>
+#endif
 
 #if defined(_DEBUG) || defined(__MINGW32__)
 /* Don't use structured exception handling on Windows if this is defined.
@@ -646,7 +650,7 @@ static int ConvParam(PyObject *obj, Py_ssize_t index, struct argument *pa)
             pa->value.i = PyLong_AsLong(obj);
             if (pa->value.i == -1 && PyErr_Occurred()) {
                 PyErr_SetString(PyExc_OverflowError,
-                                "long int too long to convert");
+                                "int too long to convert");
                 return -1;
             }
         }

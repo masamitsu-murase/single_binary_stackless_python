@@ -1662,8 +1662,9 @@ getsockaddrarg(PySocketSockObject *s, PyObject *args,
             struct sockaddr_can *addr;
             PyObject *interfaceName;
             struct ifreq ifr;
-            addr = (struct sockaddr_can *)addr_ret;
             Py_ssize_t len;
+
+            addr = (struct sockaddr_can *)addr_ret;
 
             if (!PyArg_ParseTuple(args, "O&", PyUnicode_FSConverter,
                                               &interfaceName))
@@ -1701,7 +1702,7 @@ getsockaddrarg(PySocketSockObject *s, PyObject *args,
             return 0;
         }
 #endif
-            
+
 #ifdef PF_SYSTEM
     case PF_SYSTEM:
         switch (s->sock_proto) {
@@ -1709,10 +1710,10 @@ getsockaddrarg(PySocketSockObject *s, PyObject *args,
         case SYSPROTO_CONTROL:
         {
             struct sockaddr_ctl *addr;
-            
+
             addr = (struct sockaddr_ctl *)addr_ret;
             addr->sc_family = AF_SYSTEM;
-            addr->ss_sysaddr = AF_SYS_CONTROL; 
+            addr->ss_sysaddr = AF_SYS_CONTROL;
 
             if (PyUnicode_Check(args)) {
                 struct ctl_info info;
@@ -1738,17 +1739,17 @@ getsockaddrarg(PySocketSockObject *s, PyObject *args,
                           "cannot find kernel control with provided name");
                     return 0;
                 }
-                
+
                 addr->sc_id = info.ctl_id;
                 addr->sc_unit = 0;
             } else if (!PyArg_ParseTuple(args, "II",
                                          &(addr->sc_id), &(addr->sc_unit))) {
                 PyErr_SetString(PyExc_TypeError, "getsockaddrarg: "
                                 "expected str or tuple of two ints");
-                
+
                 return 0;
             }
-              
+
             *len_ret = sizeof(*addr);
             return 1;
         }
@@ -1865,7 +1866,7 @@ getsockaddrlen(PySocketSockObject *s, socklen_t *len_ret)
         return 1;
     }
 #endif
-            
+
 #ifdef PF_SYSTEM
     case PF_SYSTEM:
         switch(s->sock_proto) {
@@ -4110,7 +4111,7 @@ socket_gethostname(PyObject *self, PyObject *unused)
     if (res < 0)
         return set_error();
     buf[sizeof buf - 1] = '\0';
-    return PyUnicode_FromString(buf);
+    return PyUnicode_DecodeFSDefault(buf);
 #endif
 }
 
@@ -4130,6 +4131,11 @@ socket_sethostname(PyObject *self, PyObject *args)
     PyObject *hnobj;
     Py_buffer buf;
     int res, flag = 0;
+
+#ifdef _AIX
+/* issue #18259, not declared in any useful header file */
+extern int sethostname(const char *, size_t);
+#endif
 
     if (!PyArg_ParseTuple(args, "S:sethostname", &hnobj)) {
         PyErr_Clear();
@@ -4687,17 +4693,15 @@ socket_ntohl(PyObject *self, PyObject *arg)
             y = x & 0xFFFFFFFFUL;
             if (y ^ x)
                 return PyErr_Format(PyExc_OverflowError,
-                            "long int larger than 32 bits");
+                            "int larger than 32 bits");
             x = y;
         }
 #endif
     }
     else
         return PyErr_Format(PyExc_TypeError,
-                            "expected int/long, %s found",
+                            "expected int, %s found",
                             Py_TYPE(arg)->tp_name);
-    if (x == (unsigned long) -1 && PyErr_Occurred())
-        return NULL;
     return PyLong_FromUnsignedLong(ntohl(x));
 }
 
@@ -4746,14 +4750,14 @@ socket_htonl(PyObject *self, PyObject *arg)
             y = x & 0xFFFFFFFFUL;
             if (y ^ x)
                 return PyErr_Format(PyExc_OverflowError,
-                            "long int larger than 32 bits");
+                            "int larger than 32 bits");
             x = y;
         }
 #endif
     }
     else
         return PyErr_Format(PyExc_TypeError,
-                            "expected int/long, %s found",
+                            "expected int, %s found",
                             Py_TYPE(arg)->tp_name);
     return PyLong_FromUnsignedLong(htonl((unsigned long)x));
 }
@@ -5040,6 +5044,15 @@ socket_getaddrinfo(PyObject *self, PyObject *args, PyObject* kwargs)
         PyErr_SetString(PyExc_OSError, "Int or String expected");
         goto err;
     }
+#if defined(__APPLE__) && defined(AI_NUMERICSERV)
+    if ((flags & AI_NUMERICSERV) && (pptr == NULL || (pptr[0] == '0' && pptr[1] == 0))) {
+        /* On OSX upto at least OSX 10.8 getaddrinfo crashes
+	 * if AI_NUMERICSERV is set and the servname is NULL or "0".
+	 * This workaround avoids a segfault in libsystem.
+	 */
+        pptr = "00";
+    }
+#endif
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = family;
     hints.ai_socktype = socktype;

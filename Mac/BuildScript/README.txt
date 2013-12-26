@@ -82,7 +82,7 @@ for each release.
           considered a migration aid by Apple and is not likely to be fixed,
           its use should be avoided.  The other compiler, ``clang``, has been
           undergoing rapid development.  While it appears to have become
-          production-ready in the most recent Xcode 4 releases (Xcode 4.4.1
+          production-ready in the most recent Xcode 4 releases (Xcode 4.6.3
           as of this writing), there are still some open issues when
           building Python and there has not yet been the level of exposure in
           production environments that the Xcode 3 gcc-4.2 compiler has had.

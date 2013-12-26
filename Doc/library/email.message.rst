@@ -31,9 +31,15 @@ parameters, and for recursively walking over the object tree.
 Here are the methods of the :class:`Message` class:
 
 
-.. class:: Message()
+.. class:: Message(policy=compat32)
 
-   The constructor takes no arguments.
+   The *policy* argument determiens the :mod:`~email.policy` that will be used
+   to update the message model.  The default value, :class:`compat32
+   <email.policy.Compat32>` maintains backward compatibility with the
+   Python 3.2 version of the email package.  For more information see the
+   :mod:`~email.policy` documentation.
+
+   .. versionchanged:: 3.3 The *policy* keyword argument was added.
 
 
    .. method:: as_string(unixfrom=False, maxheaderlen=0)
@@ -49,8 +55,8 @@ Here are the methods of the :class:`Message` class:
       format the message the way you want.  For example, by default it does
       not do the mangling of lines that begin with ``From`` that is
       required by the unix mbox format.  For more flexibility, instantiate a
-      :class:`~email.generator.Generator` instance and use its :meth:`flatten`
-      method directly.  For example::
+      :class:`~email.generator.Generator` instance and use its
+      :meth:`~email.generator.Generator.flatten` method directly.  For example::
 
          from io import StringIO
          from email.generator import Generator
@@ -470,8 +476,8 @@ Here are the methods of the :class:`Message` class:
 
       Set the ``boundary`` parameter of the :mailheader:`Content-Type` header to
       *boundary*.  :meth:`set_boundary` will always quote *boundary* if
-      necessary.  A :exc:`HeaderParseError` is raised if the message object has
-      no :mailheader:`Content-Type` header.
+      necessary.  A :exc:`~email.errors.HeaderParseError` is raised if the
+      message object has no :mailheader:`Content-Type` header.
 
       Note that using this method is subtly different than deleting the old
       :mailheader:`Content-Type` header and adding a new one with the new
@@ -513,16 +519,25 @@ Here are the methods of the :class:`Message` class:
       iterator in a ``for`` loop; each iteration returns the next subpart.
 
       Here's an example that prints the MIME type of every part of a multipart
-      message structure::
+      message structure:
 
-        >>> for part in msg.walk():
-        ...     print(part.get_content_type())
-        multipart/report
-        text/plain
-        message/delivery-status
-        text/plain
-        text/plain
-        message/rfc822
+       .. testsetup::
+
+            >>> from email import message_from_binary_file
+            >>> with open('Lib/test/test_email/data/msg_16.txt', 'rb') as f:
+            ...     msg = message_from_binary_file(f)
+
+       .. doctest::
+
+            >>> for part in msg.walk():
+            ...     print(part.get_content_type())
+            multipart/report
+            text/plain
+            message/delivery-status
+            text/plain
+            text/plain
+            message/rfc822
+            text/plain
 
    :class:`Message` objects can also optionally contain two instance attributes,
    which can be used when generating the plain text of a MIME message.
@@ -558,7 +573,8 @@ Here are the methods of the :class:`Message` class:
       the end of the message.
 
       You do not need to set the epilogue to the empty string in order for the
-      :class:`Generator` to print a newline at the end of the file.
+      :class:`~email.generator.Generator` to print a newline at the end of the
+      file.
 
 
    .. attribute:: defects

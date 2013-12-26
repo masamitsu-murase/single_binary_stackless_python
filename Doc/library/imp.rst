@@ -158,7 +158,7 @@ This module provides an interface to the mechanisms used to implement the
           cache = {}
 
    It is legal though generally not very useful to reload built-in or dynamically
-   loaded modules, except for :mod:`sys`, :mod:`__main__` and :mod:`__builtin__`.
+   loaded modules, except for :mod:`sys`, :mod:`__main__` and :mod:`builtins`.
    In many cases, however, extension modules are not designed to be initialized
    more than once, and may fail in arbitrary ways when reloaded.
 
@@ -171,6 +171,10 @@ This module provides an interface to the mechanisms used to implement the
    If a module instantiates instances of a class, reloading the module that defines
    the class does not affect the method definitions of the instances --- they
    continue to use the old class definition.  The same is true for derived classes.
+
+   .. versionchanged:: 3.3
+      Relies on both ``__name__`` and ``__loader__`` being defined on the module
+      being reloaded instead of just ``__name__``.
 
 
 The following functions are conveniences for handling :pep:`3147` byte-compiled

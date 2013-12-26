@@ -22,6 +22,25 @@ manages the codec and error handling lookup process.
 
 It defines the following functions:
 
+.. function:: encode(obj, encoding='utf-8', errors='strict')
+
+   Encodes *obj* using the codec registered for *encoding*.
+
+   *Errors* may be given to set the desired error handling scheme. The
+   default error handler is ``strict`` meaning that encoding errors raise
+   :exc:`ValueError` (or a more codec specific subclass, such as
+   :exc:`UnicodeEncodeError`). Refer to :ref:`codec-base-classes` for more
+   information on codec error handling.
+
+.. function:: decode(obj, encoding='utf-8', errors='strict')
+
+   Decodes *obj* using the codec registered for *encoding*.
+
+   *Errors* may be given to set the desired error handling scheme. The
+   default error handler is ``strict`` meaning that decoding errors raise
+   :exc:`ValueError` (or a more codec specific subclass, such as
+   :exc:`UnicodeDecodeError`). Refer to :ref:`codec-base-classes` for more
+   information on codec error handling.
 
 .. function:: register(search_function)
 
@@ -46,9 +65,9 @@ It defines the following functions:
    The various functions or classes take the following arguments:
 
    *encode* and *decode*: These must be functions or methods which have the same
-   interface as the :meth:`encode`/:meth:`decode` methods of Codec instances (see
-   Codec Interface). The functions/methods are expected to work in a stateless
-   mode.
+   interface as the :meth:`~Codec.encode`/:meth:`~Codec.decode` methods of Codec
+   instances (see :ref:`Codec Interface <codec-objects>`). The functions/methods
+   are expected to work in a stateless mode.
 
    *incrementalencoder* and *incrementaldecoder*: These have to be factory
    functions providing the following interface:
@@ -65,7 +84,7 @@ It defines the following functions:
       ``factory(stream, errors='strict')``
 
    The factory functions must return objects providing the interfaces defined by
-   the base classes :class:`StreamWriter` and :class:`StreamReader`, respectively.
+   the base classes :class:`StreamReader` and :class:`StreamWriter`, respectively.
    Stream codecs can maintain state.
 
    Possible values for errors are
@@ -78,7 +97,11 @@ It defines the following functions:
      reference (for encoding only)
    * ``'backslashreplace'``: replace with backslashed escape sequences (for
      encoding only)
-   * ``'surrogateescape'``: replace with surrogate U+DCxx, see :pep:`383`
+   * ``'surrogateescape'``: on decoding, replace with code points in the Unicode
+     Private Use Area ranging from U+DC80 to U+DCFF.  These private code
+     points will then be turned back into the same bytes when the
+     ``surrogateescape`` error handler is used when encoding the data.
+     (See :pep:`383` for more.)
 
    as well as any other error handling name defined via :func:`register_error`.
 
@@ -310,8 +333,8 @@ implement the file protocols.
 
 The :class:`Codec` class defines the interface for stateless encoders/decoders.
 
-To simplify and standardize error handling, the :meth:`encode` and
-:meth:`decode` methods may implement different error handling schemes by
+To simplify and standardize error handling, the :meth:`~Codec.encode` and
+:meth:`~Codec.decode` methods may implement different error handling schemes by
 providing the *errors* string argument.  The following string values are defined
 and implemented by all standard Python codecs:
 
@@ -405,12 +428,14 @@ interfaces of the stateless encoder and decoder:
 The :class:`IncrementalEncoder` and :class:`IncrementalDecoder` classes provide
 the basic interface for incremental encoding and decoding. Encoding/decoding the
 input isn't done with one call to the stateless encoder/decoder function, but
-with multiple calls to the :meth:`encode`/:meth:`decode` method of the
-incremental encoder/decoder. The incremental encoder/decoder keeps track of the
-encoding/decoding process during method calls.
+with multiple calls to the
+:meth:`~IncrementalEncoder.encode`/:meth:`~IncrementalDecoder.decode` method of
+the incremental encoder/decoder. The incremental encoder/decoder keeps track of
+the encoding/decoding process during method calls.
 
-The joined output of calls to the :meth:`encode`/:meth:`decode` method is the
-same as if all the single inputs were joined into one, and this input was
+The joined output of calls to the
+:meth:`~IncrementalEncoder.encode`/:meth:`~IncrementalDecoder.decode` method is
+the same as if all the single inputs were joined into one, and this input was
 encoded/decoded with the stateless encoder/decoder.
 
 
@@ -690,7 +715,7 @@ compatible with the Python codec registry.
       Read one line from the input stream and return the decoded data.
 
       *size*, if given, is passed as size argument to the stream's
-      :meth:`readline` method.
+      :meth:`read` method.
 
       If *keepends* is false line-endings will be stripped from the lines
       returned.
@@ -1142,7 +1167,19 @@ particular, the following variants typically exist:
 | utf_8_sig       |                                | all languages                  |
 +-----------------+--------------------------------+--------------------------------+
 
-.. XXX fix here, should be in above table
+Python Specific Encodings
+-------------------------
+
+A number of predefined codecs are specific to Python, so their codec names have
+no meaning outside Python.  These are listed in the tables below based on the
+expected input and output types (note that while text encodings are the most
+common use case for codecs, the underlying codec infrastructure supports
+arbitrary data transforms rather than just text encodings).  For asymmetric
+codecs, the stated purpose describes the encoding direction.
+
+The following codecs provide :class:`str` to :class:`bytes` encoding and
+:term:`bytes-like object` to :class:`str` decoding, similar to the Unicode text
+encodings.
 
 .. tabularcolumns:: |l|p{0.3\linewidth}|p{0.3\linewidth}|
 
@@ -1186,37 +1223,45 @@ particular, the following variants typically exist:
 |                    |         | .. deprecated:: 3.3       |
 +--------------------+---------+---------------------------+
 
-The following codecs provide bytes-to-bytes mappings.
+The following codecs provide :term:`bytes-like object` to :class:`bytes`
+mappings.
 
-.. tabularcolumns:: |l|L|
 
-+--------------------+---------------------------+
-| Codec              | Purpose                   |
-+====================+===========================+
-| base64_codec       | Convert operand to MIME   |
-|                    | base64 (the result always |
-|                    | includes a trailing       |
-|                    | ``'\n'``)                 |
-+--------------------+---------------------------+
-| bz2_codec          | Compress the operand      |
-|                    | using bz2                 |
-+--------------------+---------------------------+
-| hex_codec          | Convert operand to        |
-|                    | hexadecimal               |
-|                    | representation, with two  |
-|                    | digits per byte           |
-+--------------------+---------------------------+
-| quopri_codec       | Convert operand to MIME   |
-|                    | quoted printable          |
-+--------------------+---------------------------+
-| uu_codec           | Convert the operand using |
-|                    | uuencode                  |
-+--------------------+---------------------------+
-| zlib_codec         | Compress the operand      |
-|                    | using gzip                |
-+--------------------+---------------------------+
+.. tabularcolumns:: |l|L|L|
 
-The following codecs provide string-to-string mappings.
++----------------------+---------------------------+------------------------------+
+| Codec                | Purpose                   | Encoder/decoder              |
++======================+===========================+==============================+
+| base64_codec [#b64]_ | Convert operand to MIME   | :meth:`base64.b64encode`,    |
+|                      | base64 (the result always | :meth:`base64.b64decode`     |
+|                      | includes a trailing       |                              |
+|                      | ``'\n'``)                 |                              |
++----------------------+---------------------------+------------------------------+
+| bz2_codec            | Compress the operand      | :meth:`bz2.compress`,        |
+|                      | using bz2                 | :meth:`bz2.decompress`       |
++----------------------+---------------------------+------------------------------+
+| hex_codec            | Convert operand to        | :meth:`base64.b16encode`,    |
+|                      | hexadecimal               | :meth:`base64.b16decode`     |
+|                      | representation, with two  |                              |
+|                      | digits per byte           |                              |
++----------------------+---------------------------+------------------------------+
+| quopri_codec         | Convert operand to MIME   | :meth:`quopri.encodestring`, |
+|                      | quoted printable          | :meth:`quopri.decodestring`  |
++----------------------+---------------------------+------------------------------+
+| uu_codec             | Convert the operand using | :meth:`uu.encode`,           |
+|                      | uuencode                  | :meth:`uu.decode`            |
++----------------------+---------------------------+------------------------------+
+| zlib_codec           | Compress the operand      | :meth:`zlib.compress`,       |
+|                      | using gzip                | :meth:`zlib.decompress`      |
++----------------------+---------------------------+------------------------------+
+
+.. [#b64] Rather than accepting any :term:`bytes-like object`,
+   ``'base64_codec'`` accepts only :class:`bytes` and :class:`bytearray` for
+   encoding and only :class:`bytes`, :class:`bytearray`, and ASCII-only
+   instances of :class:`str` for decoding
+
+
+The following codecs provide :class:`str` to :class:`str` mappings.
 
 .. tabularcolumns:: |l|L|
 
@@ -1228,7 +1273,7 @@ The following codecs provide string-to-string mappings.
 +--------------------+---------------------------+
 
 .. versionadded:: 3.2
-   bytes-to-bytes and string-to-string codecs.
+   bytes-to-bytes and str-to-str codecs.
 
 
 :mod:`encodings.idna` --- Internationalized Domain Names in Applications

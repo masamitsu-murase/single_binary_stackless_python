@@ -123,12 +123,49 @@ class TestBaseHeaderFeatures(TestHeaderBase):
     #    self.assertEqual(h, value)
     #    self.assertDefectsEqual(h.defects, [errors.ObsoleteHeaderDefect])
 
-    def test_RFC2047_value_decoded(self):
-        value = '=?utf-8?q?this_is_a_test?='
-        h = self.make_header('subject', value)
-        self.assertEqual(h, 'this is a test')
+
+@parameterize
+class TestUnstructuredHeader(TestHeaderBase):
+
+    def string_as_value(self,
+                        source,
+                        decoded,
+                        *args):
+        l = len(args)
+        defects = args[0] if l>0 else []
+        header = 'Subject:' + (' ' if source else '')
+        folded = header + (args[1] if l>1 else source) + '\n'
+        h = self.make_header('Subject', source)
+        self.assertEqual(h, decoded)
+        self.assertDefectsEqual(h.defects, defects)
+        self.assertEqual(h.fold(policy=policy.default), folded)
+
+    string_params = {
+
+        'rfc2047_simple_quopri': (
+            '=?utf-8?q?this_is_a_test?=',
+            'this is a test',
+            [],
+            'this is a test'),
+
+        'rfc2047_gb2312_base64': (
+            '=?gb2312?b?1eLKx9bQzsSy4srUo6E=?=',
+            '\u8fd9\u662f\u4e2d\u6587\u6d4b\u8bd5\uff01',
+            [],
+            '=?utf-8?b?6L+Z5piv5Lit5paH5rWL6K+V77yB?='),
+
+        'rfc2047_simple_nonascii_quopri': (
+            '=?utf-8?q?=C3=89ric?=',
+            'Éric'),
+
+        'rfc2047_quopri_with_regular_text': (
+            'The =?utf-8?q?=C3=89ric=2C?= Himself',
+            'The Éric, Himself'),
+
+    }
 
 
+@parameterize
 class TestDateHeader(TestHeaderBase):
 
     datestring = 'Sun, 23 Sep 2001 20:10:55 -0700'
@@ -494,7 +531,7 @@ class TestContentTypeHeader(TestHeaderBase):
              '\tname*1*=%2A%2A%2Afun%2A%2A%2A%20;\tname*2="is it not.pdf"\n'),
             ),
 
-        # Make sure we also handle it if there are spurrious double qoutes.
+        # Make sure we also handle it if there are spurious double quotes.
         'rfc2231_encoded_with_double_quotes': (
             ("text/plain;"
                 '\tname*0*="us-ascii\'\'This%20is%20even%20more%20";'
@@ -674,8 +711,8 @@ class TestContentTypeHeader(TestHeaderBase):
         # in double quotes, making the value a valid non-encoded string.  The
         # old parser decodes this just like the previous case, which may be the
         # better Postel rule, but could equally result in borking headers that
-        # intentially have quoted quotes in them.  We could get this 98% right
-        # if we treat it as a quoted string *unless* it matches the
+        # intentionally have quoted quotes in them.  We could get this 98%
+        # right if we treat it as a quoted string *unless* it matches the
         # charset'lang'value pattern exactly *and* there is at least one
         # encoded segment.  Implementing that algorithm will require some
         # refactoring, so I haven't done it (yet).
@@ -907,7 +944,7 @@ class TestMIMEVersionHeader(TestHeaderBase):
             [errors.InvalidHeaderDefect]),
 
         # Unrecoverable invalid values.  We *could* apply more heuristics to
-        # get someing out of the first two, but doing so is not worth the
+        # get something out of the first two, but doing so is not worth the
         # effort.
 
         'non_comment_garbage_before': (
@@ -1085,6 +1122,26 @@ class TestAddressHeader(TestHeaderBase):
              'merwok.wok.wok',
              'example.com',
              None),
+
+        'rfc2047_atom_is_decoded':
+            ('=?utf-8?q?=C3=89ric?= <foo@example.com>',
+            [],
+            'Éric <foo@example.com>',
+            'Éric',
+            'foo@example.com',
+            'foo',
+            'example.com',
+            None),
+
+        'rfc2047_atom_in_phrase_is_decoded':
+            ('The =?utf-8?q?=C3=89ric=2C?= Himself <foo@example.com>',
+            [],
+            '"The Éric, Himself" <foo@example.com>',
+            'The Éric, Himself',
+            'foo@example.com',
+            'foo',
+            'example.com',
+            None),
 
         }
 
@@ -1484,13 +1541,13 @@ class TestFolding(TestHeaderBase):
     def test_fold_unstructured_with_commas(self):
         # The old wrapper would fold this at the commas.
         h = self.make_header('Subject', "This header is intended to "
-            "demonstrate, in a fairly susinct way, that we now do "
+            "demonstrate, in a fairly succinct way, that we now do "
             "not give a , special treatment in unstructured headers.")
         self.assertEqual(
             h.fold(policy=policy.default.clone(max_line_length=60)),
             textwrap.dedent("""\
                 Subject: This header is intended to demonstrate, in a fairly
-                 susinct way, that we now do not give a , special treatment
+                 succinct way, that we now do not give a , special treatment
                  in unstructured headers.
                  """))
 

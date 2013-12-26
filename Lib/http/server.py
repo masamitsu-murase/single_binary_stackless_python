@@ -780,6 +780,8 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
         # abandon query parameters
         path = path.split('?',1)[0]
         path = path.split('#',1)[0]
+        # Don't forget explicit trailing slash when normalizing. Issue17324
+        trailing_slash = path.rstrip().endswith('/')
         path = posixpath.normpath(urllib.parse.unquote(path))
         words = path.split('/')
         words = filter(None, words)
@@ -789,6 +791,8 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
             head, word = os.path.split(word)
             if word in (os.curdir, os.pardir): continue
             path = os.path.join(path, word)
+        if trailing_slash:
+            path += '/'
         return path
 
     def copyfile(self, source, outputfile):
@@ -983,18 +987,17 @@ class CGIHTTPRequestHandler(SimpleHTTPRequestHandler):
 
     def run_cgi(self):
         """Execute a CGI script."""
-        path = self.path
         dir, rest = self.cgi_info
 
-        i = path.find('/', len(dir) + 1)
+        i = rest.find('/')
         while i >= 0:
-            nextdir = path[:i]
-            nextrest = path[i+1:]
+            nextdir = rest[:i]
+            nextrest = rest[i+1:]
 
             scriptdir = self.translate_path(nextdir)
             if os.path.isdir(scriptdir):
                 dir, rest = nextdir, nextrest
-                i = path.find('/', len(dir) + 1)
+                i = rest.find('/')
             else:
                 break
 

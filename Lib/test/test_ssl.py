@@ -55,6 +55,7 @@ BADCERT = data_file("badcert.pem")
 WRONGCERT = data_file("XXXnonexisting.pem")
 BADKEY = data_file("badkey.pem")
 NOKIACERT = data_file("nokia.pem")
+NULLBYTECERT = data_file("nullbytecert.pem")
 
 DHFILE = data_file("dh512.pem")
 BYTES_DHFILE = os.fsencode(DHFILE)
@@ -129,6 +130,38 @@ class BasicSocketTests(unittest.TestCase):
         self.assertRaises(TypeError, ssl.RAND_egd, 'foo', 1)
         ssl.RAND_add("this is a random string", 75.0)
 
+    @unittest.skipUnless(os.name == 'posix', 'requires posix')
+    def test_random_fork(self):
+        status = ssl.RAND_status()
+        if not status:
+            self.fail("OpenSSL's PRNG has insufficient randomness")
+
+        rfd, wfd = os.pipe()
+        pid = os.fork()
+        if pid == 0:
+            try:
+                os.close(rfd)
+                child_random = ssl.RAND_pseudo_bytes(16)[0]
+                self.assertEqual(len(child_random), 16)
+                os.write(wfd, child_random)
+                os.close(wfd)
+            except BaseException:
+                os._exit(1)
+            else:
+                os._exit(0)
+        else:
+            os.close(wfd)
+            self.addCleanup(os.close, rfd)
+            _, status = os.waitpid(pid, 0)
+            self.assertEqual(status, 0)
+
+            child_random = os.read(rfd, 16)
+            self.assertEqual(len(child_random), 16)
+            parent_random = ssl.RAND_pseudo_bytes(16)[0]
+            self.assertEqual(len(parent_random), 16)
+
+            self.assertNotEqual(child_random, parent_random)
+
     def test_parse_cert(self):
         # note that this uses an 'unofficial' function in _ssl.c,
         # provided solely for this test, to exercise the certificate
@@ -161,6 +194,35 @@ class BasicSocketTests(unittest.TestCase):
                          (('DNS', 'projects.developer.nokia.com'),
                           ('DNS', 'projects.forum.nokia.com'))
                         )
+
+    def test_parse_cert_CVE_2013_4238(self):
+        p = ssl._ssl._test_decode_cert(NULLBYTECERT)
+        if support.verbose:
+            sys.stdout.write("\n" + pprint.pformat(p) + "\n")
+        subject = ((('countryName', 'US'),),
+                   (('stateOrProvinceName', 'Oregon'),),
+                   (('localityName', 'Beaverton'),),
+                   (('organizationName', 'Python Software Foundation'),),
+                   (('organizationalUnitName', 'Python Core Development'),),
+                   (('commonName', 'null.python.org\x00example.org'),),
+                   (('emailAddress', 'python-dev@python.org'),))
+        self.assertEqual(p['subject'], subject)
+        self.assertEqual(p['issuer'], subject)
+        if ssl._OPENSSL_API_VERSION >= (0, 9, 8):
+            san = (('DNS', 'altnull.python.org\x00example.com'),
+                   ('email', 'null@python.org\x00user@example.org'),
+                   ('URI', 'http://null.python.org\x00http://example.org'),
+                   ('IP Address', '192.0.2.1'),
+                   ('IP Address', '2001:DB8:0:0:0:0:0:1\n'))
+        else:
+            # OpenSSL 0.9.7 doesn't support IPv6 addresses in subjectAltName
+            san = (('DNS', 'altnull.python.org\x00example.com'),
+                   ('email', 'null@python.org\x00user@example.org'),
+                   ('URI', 'http://null.python.org\x00http://example.org'),
+                   ('IP Address', '192.0.2.1'),
+                   ('IP Address', '<invalid>'))
+
+        self.assertEqual(p['subjectAltName'], san)
 
     def test_DER_to_PEM(self):
         with open(SVN_PYTHON_ORG_ROOT_CERT, 'r') as f:
@@ -282,17 +344,50 @@ class BasicSocketTests(unittest.TestCase):
         fail(cert, 'Xa.com')
         fail(cert, '.a.com')
 
-        cert = {'subject': ((('commonName', 'a.*.com'),),)}
-        ok(cert, 'a.foo.com')
-        fail(cert, 'a..com')
-        fail(cert, 'a.com')
-
+        # only match one left-most wildcard
         cert = {'subject': ((('commonName', 'f*.com'),),)}
         ok(cert, 'foo.com')
         ok(cert, 'f.com')
         fail(cert, 'bar.com')
         fail(cert, 'foo.a.com')
         fail(cert, 'bar.foo.com')
+
+        # NULL bytes are bad, CVE-2013-4073
+        cert = {'subject': ((('commonName',
+                              'null.python.org\x00example.org'),),)}
+        ok(cert, 'null.python.org\x00example.org') # or raise an error?
+        fail(cert, 'example.org')
+        fail(cert, 'null.python.org')
+
+        # error cases with wildcards
+        cert = {'subject': ((('commonName', '*.*.a.com'),),)}
+        fail(cert, 'bar.foo.a.com')
+        fail(cert, 'a.com')
+        fail(cert, 'Xa.com')
+        fail(cert, '.a.com')
+
+        cert = {'subject': ((('commonName', 'a.*.com'),),)}
+        fail(cert, 'a.foo.com')
+        fail(cert, 'a..com')
+        fail(cert, 'a.com')
+
+        # wildcard doesn't match IDNA prefix 'xn--'
+        idna = 'püthon.python.org'.encode("idna").decode("ascii")
+        cert = {'subject': ((('commonName', idna),),)}
+        ok(cert, idna)
+        cert = {'subject': ((('commonName', 'x*.python.org'),),)}
+        fail(cert, idna)
+        cert = {'subject': ((('commonName', 'xn--p*.python.org'),),)}
+        fail(cert, idna)
+
+        # wildcard in first fragment and  IDNA A-labels in sequent fragments
+        # are supported.
+        idna = 'www*.pythön.org'.encode("idna").decode("ascii")
+        cert = {'subject': ((('commonName', idna),),)}
+        ok(cert, 'www.pythön.org'.encode("idna").decode("ascii"))
+        ok(cert, 'www1.pythön.org'.encode("idna").decode("ascii"))
+        fail(cert, 'ftp.pythön.org'.encode("idna").decode("ascii"))
+        fail(cert, 'pythön.org'.encode("idna").decode("ascii"))
 
         # Slightly fake real-world example
         cert = {'notAfter': 'Jun 26 21:41:46 2011 GMT',
@@ -348,6 +443,17 @@ class BasicSocketTests(unittest.TestCase):
         # Empty cert / no cert
         self.assertRaises(ValueError, ssl.match_hostname, None, 'example.com')
         self.assertRaises(ValueError, ssl.match_hostname, {}, 'example.com')
+
+        # Issue #17980: avoid denials of service by refusing more than one
+        # wildcard per fragment.
+        cert = {'subject': ((('commonName', 'a*b.com'),),)}
+        ok(cert, 'axxb.com')
+        cert = {'subject': ((('commonName', 'a*b.co*'),),)}
+        fail(cert, 'axxb.com')
+        cert = {'subject': ((('commonName', 'a*b*.com'),),)}
+        with self.assertRaises(ssl.CertificateError) as cm:
+            ssl.match_hostname(cert, 'axxbxxc.com')
+        self.assertIn("too many wildcards", str(cm.exception))
 
     def test_server_side(self):
         # server_hostname doesn't work for server sockets

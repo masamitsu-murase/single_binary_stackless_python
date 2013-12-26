@@ -282,12 +282,12 @@ check_decoded(PyObject *decoded)
 #define SEEN_ALL (SEEN_CR | SEEN_LF | SEEN_CRLF)
 
 PyObject *
-_PyIncrementalNewlineDecoder_decode(PyObject *_self,
+_PyIncrementalNewlineDecoder_decode(PyObject *myself,
                                     PyObject *input, int final)
 {
     PyObject *output;
     Py_ssize_t output_len;
-    nldecoder_object *self = (nldecoder_object *) _self;
+    nldecoder_object *self = (nldecoder_object *) myself;
 
     if (self->decoder == NULL) {
         PyErr_SetString(PyExc_ValueError,
@@ -642,8 +642,9 @@ PyDoc_STRVAR(textiowrapper_doc,
     "encoding gives the name of the encoding that the stream will be\n"
     "decoded or encoded with. It defaults to locale.getpreferredencoding(False).\n"
     "\n"
-    "errors determines the strictness of encoding and decoding (see the\n"
-    "codecs.register) and defaults to \"strict\".\n"
+    "errors determines the strictness of encoding and decoding (see\n"
+    "help(codecs.Codec) or the documentation for codecs.register) and\n"
+    "defaults to \"strict\".\n"
     "\n"
     "newline controls how line endings are handled. It can be None, '',\n"
     "'\\n', '\\r', and '\\r\\n'.  It works as follows:\n"
@@ -2369,7 +2370,7 @@ textiowrapper_tell(textio *self, PyObject *args)
     while (input < input_end) {
         Py_ssize_t n;
 
-        DECODER_DECODE(input, 1, n);
+        DECODER_DECODE(input, (Py_ssize_t)1, n);
         /* We got n chars for 1 byte */
         chars_decoded += n;
         cookie.bytes_to_feed += 1;

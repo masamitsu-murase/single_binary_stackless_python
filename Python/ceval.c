@@ -2704,7 +2704,7 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
             }
             else {
                 x = PyObject_GetItem(v, w);
-                if (x == NULL && PyErr_Occurred()) {
+                if (x == NULL && _PyErr_OCCURRED()) {
                     if (!PyErr_ExceptionMatches(
                                     PyExc_KeyError))
                         break;
@@ -2748,7 +2748,7 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
                                        (PyDictObject *)f->f_builtins,
                                        w);
                 if (x == NULL) {
-                    if (!PyErr_Occurred())
+                    if (!_PyErr_OCCURRED())
                         format_exc_check_arg(PyExc_NameError,
                                              GLOBAL_NAME_ERROR_MSG, w);
                     break;
@@ -4072,7 +4072,9 @@ PyEval_EvalCodeEx(PyObject *_co, PyObject *globals, PyObject *locals,
                          keyword);
             goto fail;
         }
-        PyDict_SetItem(kwdict, keyword, value);
+        if (PyDict_SetItem(kwdict, keyword, value) == -1) {
+            goto fail;
+        }
         continue;
       kw_found:
         if (GETLOCAL(j) != NULL) {
@@ -4142,10 +4144,14 @@ PyEval_EvalCodeEx(PyObject *_co, PyObject *globals, PyObject *locals,
         int arg;
         /* Possibly account for the cell variable being an argument. */
         if (co->co_cell2arg != NULL &&
-            (arg = co->co_cell2arg[i]) != CO_CELL_NOT_AN_ARG)
+            (arg = co->co_cell2arg[i]) != CO_CELL_NOT_AN_ARG) {
             c = PyCell_New(GETLOCAL(arg));
-        else
+            /* Clear the local copy. */
+            SETLOCAL(arg, NULL);
+        }
+        else {
             c = PyCell_New(NULL);
+        }
         if (c == NULL)
             goto fail;
         SETLOCAL(co->co_nlocals + i, c);

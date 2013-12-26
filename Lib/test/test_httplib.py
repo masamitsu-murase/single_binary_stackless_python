@@ -51,8 +51,8 @@ class EPipeSocket(FakeSocket):
     def close(self):
         pass
 
-class NoEOFStringIO(io.BytesIO):
-    """Like StringIO, but raises AssertionError on EOF.
+class NoEOFBytesIO(io.BytesIO):
+    """Like BytesIO, but raises AssertionError on EOF.
 
     This is used below to test that http.client doesn't try to read
     more from the underlying file than it should.
@@ -324,7 +324,7 @@ class BasicTest(TestCase):
             'HTTP/1.1 200 OK\r\n'
             'Content-Length: 14432\r\n'
             '\r\n',
-            NoEOFStringIO)
+            NoEOFBytesIO)
         resp = client.HTTPResponse(sock, method="HEAD")
         resp.begin()
         if resp.read():
@@ -337,13 +337,22 @@ class BasicTest(TestCase):
             'HTTP/1.1 200 OK\r\n'
             'Content-Length: 14432\r\n'
             '\r\n',
-            NoEOFStringIO)
+            NoEOFBytesIO)
         resp = client.HTTPResponse(sock, method="HEAD")
         resp.begin()
         b = bytearray(5)
         if resp.readinto(b) != 0:
             self.fail("Did not expect response from HEAD request")
         self.assertEqual(bytes(b), b'\x00'*5)
+
+    def test_too_many_headers(self):
+        headers = '\r\n'.join('Header%d: foo' % i
+                              for i in range(client._MAXHEADERS + 1)) + '\r\n'
+        text = ('HTTP/1.1 200 OK\r\n' + headers)
+        s = FakeSocket(text)
+        r = client.HTTPResponse(s)
+        self.assertRaisesRegex(client.HTTPException,
+                               r"got more than \d+ headers", r.begin)
 
     def test_send_file(self):
         expected = (b'GET /foo HTTP/1.1\r\nHost: example.com\r\n'

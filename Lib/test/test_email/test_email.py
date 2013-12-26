@@ -180,8 +180,8 @@ class TestMessageAPI(TestEmailBase):
 
     def test_byte_message_rfc822_only(self):
         # Make sure new bytes header parser also passes this.
-        with openfile('msg_46.txt', 'rb') as fp:
-            msgdata = fp.read()
+        with openfile('msg_46.txt') as fp:
+            msgdata = fp.read().encode('ascii')
         parser = email.parser.BytesHeaderParser()
         msg = parser.parsebytes(msgdata)
         out = BytesIO()
@@ -388,6 +388,7 @@ class TestMessageAPI(TestEmailBase):
 
     def test_del_param_on_nonexistent_header(self):
         msg = Message()
+        # Deleting param on empty msg should not raise exception.
         msg.del_param('filename', 'content-disposition')
 
     def test_del_nonexistent_param(self):
@@ -395,7 +396,7 @@ class TestMessageAPI(TestEmailBase):
         msg.add_header('Content-Type', 'text/plain', charset='utf-8')
         existing_header = msg['Content-Type']
         msg.del_param('foobar', header='Content-Type')
-        self.assertEqual(msg['Content-Type'], 'text/plain; charset="utf-8"')
+        self.assertEqual(msg['Content-Type'], existing_header)
 
     def test_set_type(self):
         eq = self.assertEqual
@@ -591,6 +592,42 @@ class TestMessageAPI(TestEmailBase):
         self.assertEqual(
             "attachment; filename*=utf-8''Fu%C3%9Fballer%20%5Bfilename%5D.ppt",
             msg['Content-Disposition'])
+
+    def test_binary_quopri_payload(self):
+        for charset in ('latin-1', 'ascii'):
+            msg = Message()
+            msg['content-type'] = 'text/plain; charset=%s' % charset
+            msg['content-transfer-encoding'] = 'quoted-printable'
+            msg.set_payload(b'foo=e6=96=87bar')
+            self.assertEqual(
+                msg.get_payload(decode=True),
+                b'foo\xe6\x96\x87bar',
+                'get_payload returns wrong result with charset %s.' % charset)
+
+    def test_binary_base64_payload(self):
+        for charset in ('latin-1', 'ascii'):
+            msg = Message()
+            msg['content-type'] = 'text/plain; charset=%s' % charset
+            msg['content-transfer-encoding'] = 'base64'
+            msg.set_payload(b'Zm9v5paHYmFy')
+            self.assertEqual(
+                msg.get_payload(decode=True),
+                b'foo\xe6\x96\x87bar',
+                'get_payload returns wrong result with charset %s.' % charset)
+
+    def test_binary_uuencode_payload(self):
+        for charset in ('latin-1', 'ascii'):
+            for encoding in ('x-uuencode', 'uuencode', 'uue', 'x-uue'):
+                msg = Message()
+                msg['content-type'] = 'text/plain; charset=%s' % charset
+                msg['content-transfer-encoding'] = encoding
+                msg.set_payload(b"begin 666 -\n)9F]OYI:'8F%R\n \nend\n")
+                self.assertEqual(
+                    msg.get_payload(decode=True),
+                    b'foo\xe6\x96\x87bar',
+                    str(('get_payload returns wrong result ',
+                         'with charset {0} and encoding {1}.')).\
+                        format(charset, encoding))
 
     def test_add_header_with_name_only_param(self):
         msg = Message()
@@ -925,7 +962,7 @@ Subject: the first part of this is short,
 This is a long line that has two whitespaces  in a row.  This used to cause
  truncation of the header when folded""")
 
-    def test_splitter_split_on_punctuation_only_if_fws(self):
+    def test_splitter_split_on_punctuation_only_if_fws_with_header(self):
         eq = self.ndiffAssertEqual
         h = Header('thisverylongheaderhas;semicolons;and,commas,but'
             'they;arenotlegal;fold,points')
@@ -1472,6 +1509,35 @@ class TestMIMEApplication(unittest.TestCase):
         wireform = s.getvalue()
         msg2 = email.message_from_bytes(wireform)
         self.assertEqual(msg.get_payload(), '\uFFFD' * len(bytesdata))
+        self.assertEqual(msg2.get_payload(decode=True), bytesdata)
+
+    def test_binary_body_with_encode_quopri(self):
+        # Issue 14360.
+        bytesdata = b'\xfa\xfb\xfc\xfd\xfe\xff '
+        msg = MIMEApplication(bytesdata, _encoder=encoders.encode_quopri)
+        self.assertEqual(msg.get_payload(), '=FA=FB=FC=FD=FE=FF=20')
+        self.assertEqual(msg.get_payload(decode=True), bytesdata)
+        self.assertEqual(msg['Content-Transfer-Encoding'], 'quoted-printable')
+        s = BytesIO()
+        g = BytesGenerator(s)
+        g.flatten(msg)
+        wireform = s.getvalue()
+        msg2 = email.message_from_bytes(wireform)
+        self.assertEqual(msg.get_payload(), '=FA=FB=FC=FD=FE=FF=20')
+        self.assertEqual(msg2.get_payload(decode=True), bytesdata)
+        self.assertEqual(msg2['Content-Transfer-Encoding'], 'quoted-printable')
+
+    def test_binary_body_with_encode_base64(self):
+        bytesdata = b'\xfa\xfb\xfc\xfd\xfe\xff'
+        msg = MIMEApplication(bytesdata, _encoder=encoders.encode_base64)
+        self.assertEqual(msg.get_payload(), '+vv8/f7/\n')
+        self.assertEqual(msg.get_payload(decode=True), bytesdata)
+        s = BytesIO()
+        g = BytesGenerator(s)
+        g.flatten(msg)
+        wireform = s.getvalue()
+        msg2 = email.message_from_bytes(wireform)
+        self.assertEqual(msg.get_payload(), '+vv8/f7/\n')
         self.assertEqual(msg2.get_payload(decode=True), bytesdata)
 
 
@@ -2236,7 +2302,6 @@ class TestMIMEMessage(TestEmailBase):
         eq(subpart['subject'], subject)
 
     def test_bad_multipart(self):
-        eq = self.assertEqual
         msg1 = Message()
         msg1['Subject'] = 'subpart 1'
         msg2 = Message()
@@ -4019,6 +4084,10 @@ class TestQuopri(unittest.TestCase):
     def test_header_decode_non_ascii(self):
         self._test_header_decode('hello=C7there', 'hello\xc7there')
 
+    def test_header_decode_re_bug_18380(self):
+        # Issue 18380: Call re.sub with a positional argument for flags in the wrong position
+        self.assertEqual(quoprimime.header_decode('=30' * 257), '0' * 257)
+
     def _test_decode(self, encoded, expected_decoded, eol=None):
         if eol is None:
             decoded = quoprimime.decode(encoded)
@@ -4180,9 +4249,6 @@ class TestQuopri(unittest.TestCase):
     def test_encode_one_very_long_line(self):
         self._test_encode('x' * 200 + '\n',
                 2 * ('x' * 75 + '=\n') + 'x' * 50 + '\n')
-
-    def test_encode_one_long_line(self):
-        self._test_encode('x' * 100 + '\n', 'x' * 75 + '=\n' + 'x' * 25 + '\n')
 
     def test_encode_shortest_maxlinelen(self):
         self._test_encode('=' * 5, '=3D=\n' * 4 + '=3D', maxlinelen=4)

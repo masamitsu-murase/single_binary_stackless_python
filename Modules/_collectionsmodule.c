@@ -1689,10 +1689,18 @@ Count elements in the iterable, updating the mappping");
 static PyObject *
 _count_elements(PyObject *self, PyObject *args)
 {
+    _Py_IDENTIFIER(get);
+    _Py_IDENTIFIER(__setitem__);
     PyObject *it, *iterable, *mapping, *oldval;
     PyObject *newval = NULL;
     PyObject *key = NULL;
+    PyObject *zero = NULL;
     PyObject *one = NULL;
+    PyObject *bound_get = NULL;
+    PyObject *mapping_get;
+    PyObject *dict_get;
+    PyObject *mapping_setitem;
+    PyObject *dict_setitem;
 
     if (!PyArg_UnpackTuple(args, "_count_elements", 2, 2, &mapping, &iterable))
         return NULL;
@@ -1702,12 +1710,19 @@ _count_elements(PyObject *self, PyObject *args)
         return NULL;
 
     one = PyLong_FromLong(1);
-    if (one == NULL) {
-        Py_DECREF(it);
-        return NULL;
-    }
+    if (one == NULL)
+        goto done;
 
-    if (PyDict_CheckExact(mapping)) {
+    /* Only take the fast path when get() and __setitem__()
+     * have not been overridden.
+     */
+    mapping_get = _PyType_LookupId(Py_TYPE(mapping), &PyId_get);
+    dict_get = _PyType_LookupId(&PyDict_Type, &PyId_get);
+    mapping_setitem = _PyType_LookupId(Py_TYPE(mapping), &PyId___setitem__);
+    dict_setitem = _PyType_LookupId(&PyDict_Type, &PyId___setitem__);
+
+    if (mapping_get != NULL && mapping_get == dict_get &&
+        mapping_setitem != NULL && mapping_setitem == dict_setitem) {
         while (1) {
             key = PyIter_Next(it);
             if (key == NULL)
@@ -1727,23 +1742,25 @@ _count_elements(PyObject *self, PyObject *args)
             Py_DECREF(key);
         }
     } else {
+        bound_get = PyObject_GetAttrString(mapping, "get");
+        if (bound_get == NULL)
+            goto done;
+
+        zero = PyLong_FromLong(0);
+        if (zero == NULL)
+            goto done;
+
         while (1) {
             key = PyIter_Next(it);
             if (key == NULL)
                 break;
-            oldval = PyObject_GetItem(mapping, key);
-            if (oldval == NULL) {
-                if (!PyErr_Occurred() || !PyErr_ExceptionMatches(PyExc_KeyError))
-                    break;
-                PyErr_Clear();
-                Py_INCREF(one);
-                newval = one;
-            } else {
-                newval = PyNumber_Add(oldval, one);
-                Py_DECREF(oldval);
-                if (newval == NULL)
-                    break;
-            }
+            oldval = PyObject_CallFunctionObjArgs(bound_get, key, zero, NULL);
+            if (oldval == NULL)
+                break;
+            newval = PyNumber_Add(oldval, one);
+            Py_DECREF(oldval);
+            if (newval == NULL)
+                break;
             if (PyObject_SetItem(mapping, key, newval) == -1)
                 break;
             Py_CLEAR(newval);
@@ -1751,10 +1768,13 @@ _count_elements(PyObject *self, PyObject *args)
         }
     }
 
+done:
     Py_DECREF(it);
     Py_XDECREF(key);
     Py_XDECREF(newval);
-    Py_DECREF(one);
+    Py_XDECREF(bound_get);
+    Py_XDECREF(zero);
+    Py_XDECREF(one);
     if (PyErr_Occurred())
         return NULL;
     Py_RETURN_NONE;

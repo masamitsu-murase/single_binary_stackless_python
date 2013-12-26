@@ -95,7 +95,7 @@ w_more(int c, WFILE *p)
 }
 
 static void
-w_string(char *s, Py_ssize_t n, WFILE *p)
+w_string(const char *s, Py_ssize_t n, WFILE *p)
 {
     if (p->fp != NULL) {
         fwrite(s, 1, n, p->fp);
@@ -139,7 +139,14 @@ w_long(long x, WFILE *p)
 # define W_SIZE  w_long
 #endif
 
-/* We assume that Python longs are stored internally in base some power of
+static void
+w_pstring(const char *s, Py_ssize_t n, WFILE *p)
+{
+        W_SIZE(n, p);
+        w_string(s, n, p);
+}
+
+/* We assume that Python ints are stored internally in base some power of
    2**15; for the sake of portability we'll always read and write them in base
    exactly 2**15. */
 
@@ -313,9 +320,7 @@ w_object(PyObject *v, WFILE *p)
     }
     else if (PyBytes_CheckExact(v)) {
         w_byte(TYPE_STRING, p);
-        n = PyBytes_GET_SIZE(v);
-        W_SIZE(n, p);
-        w_string(PyBytes_AS_STRING(v), n, p);
+        w_pstring(PyBytes_AS_STRING(v), PyBytes_GET_SIZE(v), p);
     }
     else if (PyUnicode_CheckExact(v)) {
         PyObject *utf8;
@@ -326,9 +331,7 @@ w_object(PyObject *v, WFILE *p)
             return;
         }
         w_byte(TYPE_UNICODE, p);
-        n = PyBytes_GET_SIZE(utf8);
-        W_SIZE(n, p);
-        w_string(PyBytes_AS_STRING(utf8), n, p);
+        w_pstring(PyBytes_AS_STRING(utf8), PyBytes_GET_SIZE(utf8), p);
         Py_DECREF(utf8);
     }
     else if (PyTuple_CheckExact(v)) {
@@ -411,7 +414,6 @@ w_object(PyObject *v, WFILE *p)
     }
     else if (PyObject_CheckBuffer(v)) {
         /* Write unknown buffer-style objects as a string */
-        char *s;
         Py_buffer view;
         if (PyObject_GetBuffer(v, &view, PyBUF_SIMPLE) != 0) {
             w_byte(TYPE_UNKNOWN, p);
@@ -420,10 +422,7 @@ w_object(PyObject *v, WFILE *p)
             return;
         }
         w_byte(TYPE_STRING, p);
-        n = view.len;
-        s = view.buf;
-        W_SIZE(n, p);
-        w_string(s, n, p);
+        w_pstring(view.buf, view.len, p);
         PyBuffer_Release(&view);
     }
     else {
@@ -433,7 +432,7 @@ w_object(PyObject *v, WFILE *p)
     p->depth--;
 }
 
-/* version currently has no effect for writing longs. */
+/* version currently has no effect for writing ints. */
 void
 PyMarshal_WriteLongToFile(long x, FILE *fp, int version)
 {
@@ -491,8 +490,17 @@ r_string(char *s, Py_ssize_t n, RFILE *p)
             else {
                 read = PyBytes_GET_SIZE(data);
                 if (read > 0) {
-                    ptr = PyBytes_AS_STRING(data);
-                    memcpy(s, ptr, read);
+                    if (read > n) {
+                        PyErr_Format(PyExc_ValueError,
+                                    "read() returned too much data: "
+                                    "%zd bytes requested, %zd returned",
+                                    n, read);
+                        read = -1;
+                    }
+                    else {
+                        ptr = PyBytes_AS_STRING(data);
+                        memcpy(s, ptr, read);
+                    }
                 }
             }
             Py_DECREF(data);
@@ -734,11 +742,13 @@ r_object(RFILE *p)
             double dx;
             retval = NULL;
             n = r_byte(p);
-            if (n == EOF || r_string(buf, n, p) != n) {
+            if (n == EOF) {
                 PyErr_SetString(PyExc_EOFError,
                     "EOF read where object expected");
                 break;
             }
+            if (r_string(buf, n, p) != n)
+                break;
             buf[n] = '\0';
             dx = PyOS_string_to_double(buf, NULL, NULL);
             if (dx == -1.0 && PyErr_Occurred())
@@ -752,8 +762,6 @@ r_object(RFILE *p)
             unsigned char buf[8];
             double x;
             if (r_string((char*)buf, 8, p) != 8) {
-                PyErr_SetString(PyExc_EOFError,
-                    "EOF read where object expected");
                 retval = NULL;
                 break;
             }
@@ -772,21 +780,25 @@ r_object(RFILE *p)
             Py_complex c;
             retval = NULL;
             n = r_byte(p);
-            if (n == EOF || r_string(buf, n, p) != n) {
+            if (n == EOF) {
                 PyErr_SetString(PyExc_EOFError,
                     "EOF read where object expected");
                 break;
             }
+            if (r_string(buf, n, p) != n)
+                break;
             buf[n] = '\0';
             c.real = PyOS_string_to_double(buf, NULL, NULL);
             if (c.real == -1.0 && PyErr_Occurred())
                 break;
             n = r_byte(p);
-            if (n == EOF || r_string(buf, n, p) != n) {
+            if (n == EOF) {
                 PyErr_SetString(PyExc_EOFError,
                     "EOF read where object expected");
                 break;
             }
+            if (r_string(buf, n, p) != n)
+                break;
             buf[n] = '\0';
             c.imag = PyOS_string_to_double(buf, NULL, NULL);
             if (c.imag == -1.0 && PyErr_Occurred())
@@ -800,8 +812,6 @@ r_object(RFILE *p)
             unsigned char buf[8];
             Py_complex c;
             if (r_string((char*)buf, 8, p) != 8) {
-                PyErr_SetString(PyExc_EOFError,
-                    "EOF read where object expected");
                 retval = NULL;
                 break;
             }
@@ -811,8 +821,6 @@ r_object(RFILE *p)
                 break;
             }
             if (r_string((char*)buf, 8, p) != 8) {
-                PyErr_SetString(PyExc_EOFError,
-                    "EOF read where object expected");
                 retval = NULL;
                 break;
             }
@@ -843,8 +851,6 @@ r_object(RFILE *p)
         }
         if (r_string(PyBytes_AS_STRING(v), n, p) != n) {
             Py_DECREF(v);
-            PyErr_SetString(PyExc_EOFError,
-                            "EOF read where object expected");
             retval = NULL;
             break;
         }
@@ -872,8 +878,6 @@ r_object(RFILE *p)
         }
         if (r_string(buffer, n, p) != n) {
             PyMem_DEL(buffer);
-            PyErr_SetString(PyExc_EOFError,
-                "EOF read where object expected");
             retval = NULL;
             break;
         }

@@ -520,6 +520,8 @@ Glossary
       have a namespace containing arbitrary Python objects.  Modules are loaded
       into Python by the process of :term:`importing`.
 
+      See also :term:`package`.
+
    MRO
       See :term:`method resolution order`.
 
@@ -545,9 +547,9 @@ Glossary
       dictionaries.  There are the local, global and built-in namespaces as well
       as nested namespaces in objects (in methods).  Namespaces support
       modularity by preventing naming conflicts.  For instance, the functions
-      :func:`builtins.open` and :func:`os.open` are distinguished by their
-      namespaces.  Namespaces also aid readability and maintainability by making
-      it clear which module implements a function.  For instance, writing
+      :func:`builtins.open <.open>` and :func:`os.open` are distinguished by
+      their namespaces.  Namespaces also aid readability and maintainability by
+      making it clear which module implements a function.  For instance, writing
       :func:`random.seed` or :func:`itertools.islice` makes it clear that those
       functions are implemented by the :mod:`random` and :mod:`itertools`
       modules, respectively.
@@ -557,6 +559,8 @@ Glossary
       subpackages.  Namespace packages may have no physical representation,
       and specifically are not like a :term:`regular package` because they
       have no ``__init__.py`` file.
+
+      See also :term:`module`.
 
    nested scope
       The ability to refer to a variable in an enclosing definition.  For
@@ -570,8 +574,8 @@ Glossary
    new-style class
       Old name for the flavor of classes now used for all class objects.  In
       earlier Python versions, only new-style classes could use Python's newer,
-      versatile features like :attr:`__slots__`, descriptors, properties,
-      :meth:`__getattribute__`, class methods, and static methods.
+      versatile features like :attr:`~object.__slots__`, descriptors,
+      properties, :meth:`__getattribute__`, class methods, and static methods.
 
    object
       Any data with state (attributes or value) and defined behavior
@@ -579,9 +583,11 @@ Glossary
       class`.
 
    package
-      A Python module which can contain submodules or recursively,
+      A Python :term:`module` which can contain submodules or recursively,
       subpackages.  Technically, a package is a Python module with an
       ``__path__`` attribute.
+
+      See also :term:`regular package` and :term:`namespace package`.
 
    parameter
       A named entity in a :term:`function` (or method) definition that
@@ -728,6 +734,8 @@ Glossary
       A traditional :term:`package`, such as a directory containing an
       ``__init__.py`` file.
 
+      See also :term:`namespace package`.
+
    __slots__
       A declaration inside a class that saves memory by pre-declaring space for
       instance attributes and eliminating instance dictionaries.  Though
@@ -759,7 +767,7 @@ Glossary
 
    statement
       A statement is part of a suite (a "block" of code).  A statement is either
-      an :term:`expression` or a one of several constructs with a keyword, such
+      an :term:`expression` or one of several constructs with a keyword, such
       as :keyword:`if`, :keyword:`while` or :keyword:`for`.
 
    struct sequence
@@ -782,7 +790,8 @@ Glossary
    type
       The type of a Python object determines what kind of object it is; every
       object has a type.  An object's type is accessible as its
-      :attr:`__class__` attribute or can be retrieved with ``type(obj)``.
+      :attr:`~instance.__class__` attribute or can be retrieved with
+      ``type(obj)``.
 
    universal newlines
       A manner of interpreting text streams in which all of the following are

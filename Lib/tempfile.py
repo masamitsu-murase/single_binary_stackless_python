@@ -219,6 +219,13 @@ def _mkstemp_inner(dir, pre, suf, flags):
             return (fd, _os.path.abspath(file))
         except FileExistsError:
             continue    # try again
+        except PermissionError:
+            # This exception is thrown when a directory with the chosen name
+            # already exists on windows.
+            if _os.name == 'nt':
+                continue
+            else:
+                raise
 
     raise FileExistsError(_errno.EEXIST,
                           "No usable temporary file name found")
@@ -521,7 +528,7 @@ class SpooledTemporaryFile:
 
     # The method caching trick from NamedTemporaryFile
     # won't work here, because _file may change from a
-    # _StringIO instance to a real file. So we list
+    # BytesIO/StringIO instance to a real file. So we list
     # all the methods directly.
 
     # Context management protocol
@@ -634,7 +641,7 @@ class TemporaryDirectory(object):
         with TemporaryDirectory() as tmpdir:
             ...
 
-    Upon exiting the context, the directory and everthing contained
+    Upon exiting the context, the directory and everything contained
     in it are removed.
     """
 

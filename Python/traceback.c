@@ -255,9 +255,20 @@ _Py_DisplaySourceLine(PyObject *f, PyObject *filename, int lineno, int indent)
 
     /* use the right encoding to decode the file as unicode */
     fd = PyObject_AsFileDescriptor(binary);
+    if (fd < 0) {
+        Py_DECREF(io);
+        Py_DECREF(binary);
+        return 0;
+    }
     found_encoding = PyTokenizer_FindEncodingFilename(fd, filename);
     encoding = (found_encoding != NULL) ? found_encoding : "utf-8";
-    lseek(fd, 0, 0); /* Reset position */
+    /* Reset position */
+    if (lseek(fd, 0, SEEK_SET) == (off_t)-1) {
+        Py_DECREF(io);
+        Py_DECREF(binary);
+        PyMem_FREE(found_encoding);
+        return 0;
+    }
     fob = _PyObject_CallMethodId(io, &PyId_TextIOWrapper, "Os", binary, encoding);
     Py_DECREF(io);
     Py_DECREF(binary);
@@ -311,7 +322,7 @@ _Py_DisplaySourceLine(PyObject *f, PyObject *filename, int lineno, int indent)
     strcpy(buf, "          ");
     assert (strlen(buf) == 10);
     while (indent > 0) {
-        if(indent < 10)
+        if (indent < 10)
             buf[indent] = '\0';
         err = PyFile_WriteString(buf, f);
         if (err != 0)

@@ -23,12 +23,14 @@ algorithm (defined in Internet :rfc:`1321`).  The terms "secure hash" and
 digests.  The modern term is secure hash.
 
 .. note::
-   If you want the adler32 or crc32 hash functions they are available in
+
+   If you want the adler32 or crc32 hash functions, they are available in
    the :mod:`zlib` module.
 
 .. warning::
 
-   Some algorithms have known hash collision weaknesses, see the FAQ at the end.
+   Some algorithms have known hash collision weaknesses, refer to the "See
+   also" section at the end.
 
 There is one constructor method named for each type of :dfn:`hash`.  All return
 a hash object with the same simple interface. For example: use :func:`sha1` to
@@ -41,7 +43,7 @@ concatenation of the data fed to it so far using the :meth:`digest` or
 .. note::
 
    For better multithreading performance, the Python :term:`GIL` is released for
-   strings of more than 2047 bytes at object creation or on update.
+   data larger than 2047 bytes at object creation or on update.
 
 .. note::
 
@@ -132,7 +134,7 @@ A hash object has the following methods:
 
    .. versionchanged:: 3.1
       The Python GIL is released to allow other threads to run while hash
-      updates on data larger than 2048 bytes is taking place when using hash
+      updates on data larger than 2047 bytes is taking place when using hash
       algorithms supplied by OpenSSL.
 
 

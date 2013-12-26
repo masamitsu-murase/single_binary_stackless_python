@@ -90,13 +90,18 @@ class _HackedGetData:
     def get_data(self, path):
         """Gross hack to contort loader to deal w/ load_*()'s bad API."""
         if self.file and path == self.path:
-            with self.file:
+            if not self.file.closed:
+                file = self.file
+            else:
+                self.file = file = open(self.path, 'r')
+
+            with file:
                 # Technically should be returning bytes, but
                 # SourceLoader.get_code() just passed what is returned to
                 # compile() which can handle str. And converting to bytes would
                 # require figuring out the encoding to decode to and
                 # tokenize.detect_encoding() only accepts bytes.
-                return self.file.read()
+                return file.read()
         else:
             return super().get_data(path)
 
@@ -267,8 +272,10 @@ def reload(module):
         parent_name = name.rpartition('.')[0]
         if parent_name and parent_name not in sys.modules:
             msg = "parent {!r} not in sys.modules"
-            raise ImportError(msg.format(parentname), name=parent_name)
-        return module.__loader__.load_module(name)
+            raise ImportError(msg.format(parent_name), name=parent_name)
+        module.__loader__.load_module(name)
+        # The module may have replaced itself in sys.modules!
+        return sys.modules[module.__name__]
     finally:
         try:
             del _RELOADING[name]

@@ -111,7 +111,9 @@ class BaseRotatingHandler(logging.FileHandler):
                        what the source is rotated to, e.g. 'test.log.1'.
         """
         if not callable(self.rotator):
-            os.rename(source, dest)
+            # Issue 18940: A file may not have been created if delay is True.
+            if os.path.exists(source):
+                os.rename(source, dest)
         else:
             self.rotator(source, dest)
 
@@ -172,7 +174,8 @@ class RotatingFileHandler(BaseRotatingHandler):
             if os.path.exists(dfn):
                 os.remove(dfn)
             self.rotate(self.baseFilename, dfn)
-        self.stream = self._open()
+        if not self.delay:
+            self.stream = self._open()
 
     def shouldRollover(self, record):
         """
@@ -380,7 +383,8 @@ class TimedRotatingFileHandler(BaseRotatingHandler):
         if self.backupCount > 0:
             for s in self.getFilesToDelete():
                 os.remove(s)
-        self.stream = self._open()
+        if not self.delay:
+            self.stream = self._open()
         newRolloverAt = self.computeRollover(currentTime)
         while newRolloverAt <= currentTime:
             newRolloverAt = newRolloverAt + self.interval
@@ -882,6 +886,7 @@ class SysLogHandler(logging.Handler):
                 try:
                     self.socket.send(msg)
                 except socket.error:
+                    self.socket.close()
                     self._connect_unixsocket(self.address)
                     self.socket.send(msg)
             elif self.socktype == socket.SOCK_DGRAM:

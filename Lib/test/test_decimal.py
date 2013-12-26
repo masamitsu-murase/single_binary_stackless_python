@@ -1021,6 +1021,10 @@ class FormatTest(unittest.TestCase):
             ('/=10', '-45.6', '-/////45.6'),
             ('/=+10', '45.6', '+/////45.6'),
             ('/= 10', '45.6', ' /////45.6'),
+            ('\x00=10', '-inf', '-\x00Infinity'),
+            ('\x00^16', '-inf', '\x00\x00\x00-Infinity\x00\x00\x00\x00'),
+            ('\x00>10', '1.2345', '\x00\x00\x00\x001.2345'),
+            ('\x00<10', '1.2345', '1.2345\x00\x00\x00\x00'),
 
             # thousands separator
             (',', '1234567', '1,234,567'),
@@ -1834,7 +1838,7 @@ class UsabilityTest(unittest.TestCase):
         self.assertIs(max(d1,d2), d2)
         self.assertIs(max(d2,d1), d2)
 
-        #between Decimal and long
+        #between Decimal and int
         self.assertIs(min(d1,l2), d1)
         self.assertIs(min(l2,d1), d1)
         self.assertIs(max(l1,d2), d2)
@@ -5369,6 +5373,19 @@ class CWhitebox(unittest.TestCase):
             x = (1, (0, 1), "N")
             self.assertEqual(str(Decimal(x)), '-sNaN1')
 
+    def test_sizeof(self):
+        Decimal = C.Decimal
+        HAVE_CONFIG_64 = (C.MAX_PREC > 425000000)
+
+        self.assertGreater(Decimal(0).__sizeof__(), 0)
+        if HAVE_CONFIG_64:
+            x = Decimal(10**(19*24)).__sizeof__()
+            y = Decimal(10**(19*25)).__sizeof__()
+            self.assertEqual(y, x+8)
+        else:
+            x = Decimal(10**(9*24)).__sizeof__()
+            y = Decimal(10**(9*25)).__sizeof__()
+            self.assertEqual(y, x+4)
 
 all_tests = [
   CExplicitConstructionTest, PyExplicitConstructionTest,

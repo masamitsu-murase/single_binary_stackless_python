@@ -4,7 +4,7 @@
 
 /* Itertools module written and maintained
    by Raymond D. Hettinger <python@rcn.com>
-   Copyright (c) 2003 Python Software Foundation.
+   Copyright (c) 2003-2013 Python Software Foundation.
    All rights reserved.
 */
 
@@ -1554,7 +1554,8 @@ static PyMethodDef islice_methods[] = {
 };
 
 PyDoc_STRVAR(islice_doc,
-"islice(iterable, [start,] stop [, step]) --> islice object\n\
+"islice(iterable, stop) --> islice object\n\
+islice(iterable, start, stop[, step]) --> islice object\n\
 \n\
 Return an iterator whose next() method returns selected values from an\n\
 iterable.  If start is specified, will skip all preceding elements;\n\
@@ -2229,7 +2230,7 @@ static PyMethodDef product_methods[] = {
 };
 
 PyDoc_STRVAR(product_doc,
-"product(*iterables) --> product object\n\
+"product(*iterables, repeat=1) --> product object\n\
 \n\
 Cartesian product of input iterables.  Equivalent to nested for-loops.\n\n\
 For example, product(A, B) returns the same as:  ((x,y) for x in A for y in B).\n\
@@ -2712,20 +2713,20 @@ cwr_next(cwrobject *co)
     PyObject *result = co->result;
     Py_ssize_t n = PyTuple_GET_SIZE(pool);
     Py_ssize_t r = co->r;
-    Py_ssize_t i, j, index;
+    Py_ssize_t i, index;
 
     if (co->stopped)
         return NULL;
 
     if (result == NULL) {
-        /* On the first pass, initialize result tuple using the indices */
+        /* On the first pass, initialize result tuple with pool[0] */
         result = PyTuple_New(r);
         if (result == NULL)
             goto empty;
         co->result = result;
+        elem = PyTuple_GET_ITEM(pool, 0);
         for (i=0; i<r ; i++) {
-            index = indices[i];
-            elem = PyTuple_GET_ITEM(pool, index);
+            assert(indices[i] == 0);
             Py_INCREF(elem);
             PyTuple_SET_ITEM(result, i, elem);
         }
@@ -2748,27 +2749,23 @@ cwr_next(cwrobject *co)
            empty tuple is a singleton and cached in PyTuple's freelist. */
         assert(r == 0 || Py_REFCNT(result) == 1);
 
-    /* Scan indices right-to-left until finding one that is not
-     * at its maximum (n-1). */
+       /* Scan indices right-to-left until finding one that is not
+        * at its maximum (n-1). */
         for (i=r-1 ; i >= 0 && indices[i] == n-1; i--)
             ;
 
         /* If i is negative, then the indices are all at
-       their maximum value and we're done. */
+           their maximum value and we're done. */
         if (i < 0)
             goto empty;
 
         /* Increment the current index which we know is not at its
-       maximum.  Then set all to the right to the same value. */
-        indices[i]++;
-        for (j=i+1 ; j<r ; j++)
-            indices[j] = indices[j-1];
-
-        /* Update the result tuple for the new indices
-           starting with i, the leftmost index that changed */
+           maximum.  Then set all to the right to the same value. */
+        index = indices[i] + 1;
+        assert(index < n);
+        elem = PyTuple_GET_ITEM(pool, index);
         for ( ; i<r ; i++) {
-            index = indices[i];
-            elem = PyTuple_GET_ITEM(pool, index);
+            indices[i] = index;
             Py_INCREF(elem);
             oldelem = PyTuple_GET_ITEM(result, i);
             PyTuple_SET_ITEM(result, i, elem);
@@ -3977,10 +3974,10 @@ PyDoc_STRVAR(count_doc,
 Return a count object whose .__next__() method returns consecutive values.\n\
 Equivalent to:\n\n\
     def count(firstval=0, step=1):\n\
-    x = firstval\n\
-    while 1:\n\
-        yield x\n\
-        x += step\n");
+        x = firstval\n\
+        while 1:\n\
+            yield x\n\
+            x += step\n");
 
 static PyTypeObject count_type = {
     PyVarObject_HEAD_INIT(NULL, 0)
@@ -4452,13 +4449,14 @@ PyDoc_STRVAR(module_doc,
 "Functional tools for creating and using iterators.\n\
 \n\
 Infinite iterators:\n\
-count([n]) --> n, n+1, n+2, ...\n\
+count(start=0, step=1) --> start, start+step, start+2*step, ...\n\
 cycle(p) --> p0, p1, ... plast, p0, p1, ...\n\
 repeat(elem [,n]) --> elem, elem, elem, ... endlessly or up to n times\n\
 \n\
 Iterators terminating on the shortest input sequence:\n\
 accumulate(p[, func]) --> p0, p0+p1, p0+p1+p2\n\
 chain(p, q, ...) --> p0, p1, ... plast, q0, q1, ... \n\
+chain.from_iterable([p, q, ...]) --> p0, p1, ... plast, q0, q1, ... \n\
 compress(data, selectors) --> (d[0] if s[0]), (d[1] if s[1]), ...\n\
 dropwhile(pred, seq) --> seq[n], seq[n+1], starting when pred fails\n\
 groupby(iterable[, keyfunc]) --> sub-iterators grouped by value of keyfunc(v)\n\

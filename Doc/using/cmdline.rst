@@ -269,8 +269,8 @@ Miscellaneous options
 
 .. cmdoption:: -u
 
-   Force the binary layer of the stdin, stdout and stderr streams (which is
-   available as their ``buffer`` attribute) to be unbuffered.  The text I/O
+   Force the binary layer of the stdout and stderr streams (which is
+   available as their ``buffer`` attribute) to be unbuffered. The text I/O
    layer will still be line-buffered if writing to the console, or
    block-buffered if redirected to a non-interactive file.
 
@@ -561,6 +561,8 @@ conflict.
    :const:`SIGABRT`, :const:`SIGBUS` and :const:`SIGILL` signals to dump the
    Python traceback.  This is equivalent to :option:`-X` ``faulthandler``
    option.
+
+   .. versionadded:: 3.3
 
 
 Debug-mode variables

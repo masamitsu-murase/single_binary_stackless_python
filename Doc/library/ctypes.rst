@@ -198,7 +198,9 @@ argument values::
    >>>
 
 There are, however, enough ways to crash Python with :mod:`ctypes`, so you
-should be careful anyway.
+should be careful anyway.  The :mod:`faulthandler` module can be helpful in
+debugging crashes (e.g. from segmentation faults produced by erroneous C library
+calls).
 
 ``None``, integers, bytes objects and (unicode) strings are the only native
 Python objects that can directly be used as parameters in these function calls.
@@ -1274,7 +1276,7 @@ returns the full pathname, but since there is no predefined naming scheme a call
 like ``find_library("c")`` will fail and return ``None``.
 
 If wrapping a shared library with :mod:`ctypes`, it *may* be better to determine
-the shared library name at development type, and hardcode that into the wrapper
+the shared library name at development time, and hardcode that into the wrapper
 module instead of using :func:`find_library` to locate the library at runtime.
 
 
@@ -1907,8 +1909,8 @@ Utility functions
 
 .. function:: sizeof(obj_or_type)
 
-   Returns the size in bytes of a ctypes type or instance memory buffer. Does the
-   same as the C ``sizeof()`` function.
+   Returns the size in bytes of a ctypes type or instance memory buffer.
+   Does the same as the C ``sizeof`` operator.
 
 
 .. function:: string_at(address, size=-1)

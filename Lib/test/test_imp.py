@@ -5,6 +5,7 @@ import os.path
 import shutil
 import sys
 from test import support
+from test.test_importlib import util
 import unittest
 import warnings
 
@@ -247,6 +248,13 @@ class ImportTests(unittest.TestCase):
             return
         imp.load_module(name, None, *found[1:])
 
+    def test_multiple_calls_to_get_data(self):
+        # Issue #18755: make sure multiple calls to get_data() can succeed.
+        loader = imp._LoadSourceCompatibility('imp', imp.__file__,
+                                              open(imp.__file__))
+        loader.get_data(imp.__file__)  # File should be closed
+        loader.get_data(imp.__file__)  # Will need to create a newly opened file
+
 
 class ReloadTests(unittest.TestCase):
 
@@ -274,6 +282,32 @@ class ReloadTests(unittest.TestCase):
         with support.CleanImport('marshal'):
             import marshal
             imp.reload(marshal)
+
+    def test_with_deleted_parent(self):
+        # see #18681
+        from html import parser
+        html = sys.modules.pop('html')
+        def cleanup():
+            sys.modules['html'] = html
+        self.addCleanup(cleanup)
+        with self.assertRaisesRegex(ImportError, 'html'):
+            imp.reload(parser)
+
+    def test_module_replaced(self):
+        # see #18698
+        def code():
+            module = type(sys)('top_level')
+            module.spam = 3
+            sys.modules['top_level'] = module
+        mock = util.mock_modules('top_level',
+                                 module_code={'top_level': code})
+        with mock:
+            with util.import_state(meta_path=[mock]):
+                module = importlib.import_module('top_level')
+                reloaded = imp.reload(module)
+                actual = sys.modules['top_level']
+                self.assertEqual(actual.spam, 3)
+                self.assertEqual(reloaded.spam, 3)
 
 
 class PEP3147Tests(unittest.TestCase):

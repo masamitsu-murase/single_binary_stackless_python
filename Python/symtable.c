@@ -239,6 +239,7 @@ PySymtable_Build(mod_ty mod, const char *filename, PyFutureFeatures *future)
     asdl_seq *seq;
     int i;
     PyThreadState *tstate;
+    int recursion_limit = Py_GetRecursionLimit();
 
     if (st == NULL)
         return st;
@@ -251,8 +252,11 @@ PySymtable_Build(mod_ty mod, const char *filename, PyFutureFeatures *future)
         PySymtable_Free(st);
         return NULL;
     }
-    st->recursion_depth = tstate->recursion_depth * COMPILER_STACK_FRAME_SCALE;
-    st->recursion_limit = Py_GetRecursionLimit() * COMPILER_STACK_FRAME_SCALE;
+    /* Be careful here to prevent overflow. */
+    st->recursion_depth = (tstate->recursion_depth < INT_MAX / COMPILER_STACK_FRAME_SCALE) ?
+        tstate->recursion_depth * COMPILER_STACK_FRAME_SCALE : tstate->recursion_depth;
+    st->recursion_limit = (recursion_limit < INT_MAX / COMPILER_STACK_FRAME_SCALE) ?
+        recursion_limit * COMPILER_STACK_FRAME_SCALE : recursion_limit;
 
     /* Make the initial symbol information gathering pass */
     if (!GET_IDENTIFIER(top) ||
@@ -1236,7 +1240,14 @@ symtable_visit_stmt(struct symtable *st, stmt_ty s)
         asdl_seq *seq = s->v.Global.names;
         for (i = 0; i < asdl_seq_LEN(seq); i++) {
             identifier name = (identifier)asdl_seq_GET(seq, i);
-            long cur = symtable_lookup(st, name);
+            long cur;
+            if (st->st_cur->ste_type == ClassBlock &&
+                !PyUnicode_CompareWithASCIIString(name, "__class__")) {
+                PyErr_SetString(PyExc_SyntaxError, "cannot make __class__ global");
+                PyErr_SyntaxLocationEx(st->st_filename, s->lineno, s->col_offset);
+                return 0;
+            }
+            cur = symtable_lookup(st, name);
             if (cur < 0)
                 VISIT_QUIT(st, 0);
             if (cur & (DEF_LOCAL | USE)) {

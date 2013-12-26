@@ -677,15 +677,64 @@ class ElementTreeTest(unittest.TestCase):
         elem = ET.fromstring("<html><body>text</body></html>")
         self.assertEqual(ET.tostring(elem), b'<html><body>text</body></html>')
 
-    def test_encoding(encoding):
-        def check(encoding):
-            ET.XML("<?xml version='1.0' encoding='%s'?><xml />" % encoding)
-        check("ascii")
-        check("us-ascii")
-        check("iso-8859-1")
-        check("iso-8859-15")
-        check("cp437")
-        check("mac-roman")
+    def test_encoding(self):
+        def check(encoding, body=''):
+            xml = ("<?xml version='1.0' encoding='%s'?><xml>%s</xml>" %
+                   (encoding, body))
+            self.assertEqual(ET.XML(xml.encode(encoding)).text, body)
+            self.assertEqual(ET.XML(xml).text, body)
+        check("ascii", 'a')
+        check("us-ascii", 'a')
+        check("iso-8859-1", '\xbd')
+        check("iso-8859-15", '\u20ac')
+        check("cp437", '\u221a')
+        check("mac-roman", '\u02da')
+
+        def xml(encoding):
+            return "<?xml version='1.0' encoding='%s'?><xml />" % encoding
+        def bxml(encoding):
+            return xml(encoding).encode(encoding)
+        supported_encodings = [
+            'ascii', 'utf-8', 'utf-8-sig', 'utf-16', 'utf-16be', 'utf-16le',
+            'iso8859-1', 'iso8859-2', 'iso8859-3', 'iso8859-4', 'iso8859-5',
+            'iso8859-6', 'iso8859-7', 'iso8859-8', 'iso8859-9', 'iso8859-10',
+            'iso8859-13', 'iso8859-14', 'iso8859-15', 'iso8859-16',
+            'cp437', 'cp720', 'cp737', 'cp775', 'cp850', 'cp852',
+            'cp855', 'cp856', 'cp857', 'cp858', 'cp860', 'cp861', 'cp862',
+            'cp863', 'cp865', 'cp866', 'cp869', 'cp874', 'cp1006', 'cp1250',
+            'cp1251', 'cp1252', 'cp1253', 'cp1254', 'cp1255', 'cp1256',
+            'cp1257', 'cp1258',
+            'mac-cyrillic', 'mac-greek', 'mac-iceland', 'mac-latin2',
+            'mac-roman', 'mac-turkish',
+            'iso2022-jp', 'iso2022-jp-1', 'iso2022-jp-2', 'iso2022-jp-2004',
+            'iso2022-jp-3', 'iso2022-jp-ext',
+            'koi8-r', 'koi8-u',
+            'hz', 'ptcp154',
+        ]
+        for encoding in supported_encodings:
+            self.assertEqual(ET.tostring(ET.XML(bxml(encoding))), b'<xml />')
+
+        unsupported_ascii_compatible_encodings = [
+            'big5', 'big5hkscs',
+            'cp932', 'cp949', 'cp950',
+            'euc-jp', 'euc-jis-2004', 'euc-jisx0213', 'euc-kr',
+            'gb2312', 'gbk', 'gb18030',
+            'iso2022-kr', 'johab',
+            'shift-jis', 'shift-jis-2004', 'shift-jisx0213',
+            'utf-7',
+        ]
+        for encoding in unsupported_ascii_compatible_encodings:
+            self.assertRaises(ValueError, ET.XML, bxml(encoding))
+
+        unsupported_ascii_incompatible_encodings = [
+            'cp037', 'cp424', 'cp500', 'cp864', 'cp875', 'cp1026', 'cp1140',
+            'utf_32', 'utf_32_be', 'utf_32_le',
+        ]
+        for encoding in unsupported_ascii_incompatible_encodings:
+            self.assertRaises(ET.ParseError, ET.XML, bxml(encoding))
+
+        self.assertRaises(ValueError, ET.XML, xml('undefined').encode('ascii'))
+        self.assertRaises(LookupError, ET.XML, xml('xxx').encode('ascii'))
 
     def test_methods(self):
         # Test serialization methods.
@@ -701,6 +750,13 @@ class ElementTreeTest(unittest.TestCase):
         self.assertEqual(serialize(e, method="html"),
                 '<html><link><script>1 < 2</script></html>\n')
         self.assertEqual(serialize(e, method="text"), '1 < 2\n')
+
+    def test_issue18347(self):
+        e = ET.XML('<html><CamelCase>text</CamelCase></html>')
+        self.assertEqual(serialize(e),
+                '<html><CamelCase>text</CamelCase></html>')
+        self.assertEqual(serialize(e, method="html"),
+                '<html><CamelCase>text</CamelCase></html>')
 
     def test_entity(self):
         # Test entity handling.
@@ -1406,6 +1462,7 @@ class BugsTest(unittest.TestCase):
         ET.register_namespace('test10777', 'http://myuri/')
         ET.register_namespace('test10777', 'http://myuri/')
 
+
 # --------------------------------------------------------------------
 
 
@@ -1485,6 +1542,18 @@ class BasicElementTest(ElementTestCase, unittest.TestCase):
             self.assertEqual(e2.attrib['bar'], 42)
             self.assertEqual(len(e2), 2)
             self.assertEqualElements(e, e2)
+
+    def test_pickle_issue18997(self):
+        for dumper, loader in product(self.modules, repeat=2):
+            XMLTEXT = """<?xml version="1.0"?>
+                <group><dogs>4</dogs>
+                </group>"""
+            e1 = dumper.fromstring(XMLTEXT)
+            if hasattr(e1, '__getstate__'):
+                self.assertEqual(e1.__getstate__()['tag'], 'group')
+            e2 = self.pickleRoundTrip(e1, 'xml.etree.ElementTree', dumper, loader)
+            self.assertEqual(e2.tag, 'group')
+            self.assertEqual(e2[0].tag, 'dogs')
 
 
 class ElementTreeTypeTest(unittest.TestCase):
@@ -1622,6 +1691,20 @@ class ElementFindTest(unittest.TestCase):
         self.assertEqual(
             summarize_list(e.findall(".//{http://effbot.org/ns}tag")),
             ['{http://effbot.org/ns}tag'] * 3)
+
+    def test_findall_different_nsmaps(self):
+        root = ET.XML('''
+            <a xmlns:x="X" xmlns:y="Y">
+                <x:b><c/></x:b>
+                <b/>
+                <c><x:b/><b/></c><y:b/>
+            </a>''')
+        nsmap = {'xx': 'X'}
+        self.assertEqual(len(root.findall(".//xx:b", namespaces=nsmap)), 2)
+        self.assertEqual(len(root.findall(".//b", namespaces=nsmap)), 2)
+        nsmap = {'xx': 'Y'}
+        self.assertEqual(len(root.findall(".//xx:b", namespaces=nsmap)), 1)
+        self.assertEqual(len(root.findall(".//b", namespaces=nsmap)), 2)
 
     def test_bad_find(self):
         e = ET.XML(SAMPLE_XML)
@@ -1762,6 +1845,12 @@ class TreeBuilderTest(unittest.TestCase):
         parser.feed(self.sample1)
         self.assertIsNone(parser.close())
 
+    def test_treebuilder_elementfactory_none(self):
+        parser = ET.XMLParser(target=ET.TreeBuilder(element_factory=None))
+        parser.feed(self.sample1)
+        e = parser.close()
+        self._check_sample1_element(e)
+
     def test_subclass(self):
         class MyTreeBuilder(ET.TreeBuilder):
             def foobar(self, x):
@@ -1836,11 +1925,13 @@ class TreeBuilderTest(unittest.TestCase):
 
 
 class XMLParserTest(unittest.TestCase):
-    sample1 = '<file><line>22</line></file>'
-    sample2 = ('<!DOCTYPE html PUBLIC'
-        ' "-//W3C//DTD XHTML 1.0 Transitional//EN"'
-        ' "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">'
-        '<html>text</html>')
+    sample1 = b'<file><line>22</line></file>'
+    sample2 = (b'<!DOCTYPE html PUBLIC'
+        b' "-//W3C//DTD XHTML 1.0 Transitional//EN"'
+        b' "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">'
+        b'<html>text</html>')
+    sample3 = ('<?xml version="1.0" encoding="iso-8859-1"?>\n'
+        '<money value="$\xa3\u20ac\U0001017b">$\xa3\u20ac\U0001017b</money>')
 
     def _check_sample_element(self, e):
         self.assertEqual(e.tag, 'file')
@@ -1876,11 +1967,20 @@ class XMLParserTest(unittest.TestCase):
                 _doctype = (name, pubid, system)
 
         parser = MyParserWithDoctype()
-        parser.feed(self.sample2)
+        with self.assertWarns(DeprecationWarning):
+            parser.feed(self.sample2)
         parser.close()
         self.assertEqual(_doctype,
             ('html', '-//W3C//DTD XHTML 1.0 Transitional//EN',
              'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'))
+
+    def test_parse_string(self):
+        parser = ET.XMLParser(target=ET.TreeBuilder())
+        parser.feed(self.sample3)
+        e = parser.close()
+        self.assertEqual(e.tag, 'money')
+        self.assertEqual(e.attrib['value'], '$\xa3\u20ac\U0001017b')
+        self.assertEqual(e.text, '$\xa3\u20ac\U0001017b')
 
 
 class NamespaceParseTest(unittest.TestCase):
@@ -2291,6 +2391,7 @@ def test_main(module=None):
         ElementFindTest,
         ElementIterTest,
         TreeBuilderTest,
+        XMLParserTest,
         BugsTest,
         ]
 

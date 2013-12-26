@@ -507,7 +507,7 @@ nfd_nfkd(PyObject *self, PyObject *input, int k)
 
     stackptr = 0;
     isize = PyUnicode_GET_LENGTH(input);
-    /* Overallocate atmost 10 characters. */
+    /* Overallocate at most 10 characters. */
     space = (isize > 10 ? 10 : isize) + isize;
     osize = space;
     output = PyMem_Malloc(space * sizeof(Py_UCS4));
@@ -524,7 +524,7 @@ nfd_nfkd(PyObject *self, PyObject *input, int k)
         while(stackptr) {
             Py_UCS4 code = stack[--stackptr];
             /* Hangul Decomposition adds three characters in
-               a single step, so we need atleast that much room. */
+               a single step, so we need at least that much room. */
             if (space < 3) {
                 Py_UCS4 *new_output;
                 osize += 10;
@@ -1322,11 +1322,10 @@ PyDoc_STRVAR(unicodedata_docstring,
 "This module provides access to the Unicode Character Database which\n\
 defines character properties for all Unicode characters. The data in\n\
 this database is based on the UnicodeData.txt file version\n\
-6.0.0 which is publically available from ftp://ftp.unicode.org/.\n\
+" UNIDATA_VERSION " which is publically available from ftp://ftp.unicode.org/.\n\
 \n\
 The module uses the same names and symbols as defined by the\n\
-UnicodeData File Format 6.0.0 (see\n\
-http://www.unicode.org/reports/tr44/tr44-6.html).");
+UnicodeData File Format " UNIDATA_VERSION ".");
 
 
 static struct PyModuleDef unicodedatamodule = {

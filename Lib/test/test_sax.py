@@ -574,13 +574,17 @@ class StreamReaderWriterXmlgenTest(XmlgenTest, unittest.TestCase):
     def ioclass(self):
         writer = codecs.open(self.fname, 'w', encoding='ascii',
                              errors='xmlcharrefreplace', buffering=0)
-        self.addCleanup(support.unlink, self.fname)
-        writer.getvalue = self.getvalue
+        def cleanup():
+            writer.close()
+            support.unlink(self.fname)
+        self.addCleanup(cleanup)
+        def getvalue():
+            # Windows will not let use reopen without first closing
+            writer.close()
+            with open(writer.name, 'rb') as f:
+                return f.read()
+        writer.getvalue = getvalue
         return writer
-
-    def getvalue(self):
-        with open(self.fname, 'rb') as f:
-            return f.read()
 
     def xml(self, doc, encoding='iso-8859-1'):
         return ('<?xml version="1.0" encoding="%s"?>\n%s' %

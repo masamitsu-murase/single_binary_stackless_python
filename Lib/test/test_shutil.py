@@ -726,6 +726,32 @@ class TestShutil(unittest.TestCase):
             shutil.rmtree(src_dir)
             shutil.rmtree(os.path.dirname(dst_dir))
 
+    def test_copytree_retains_permissions(self):
+        tmp_dir = tempfile.mkdtemp()
+        src_dir = os.path.join(tmp_dir, 'source')
+        os.mkdir(src_dir)
+        dst_dir = os.path.join(tmp_dir, 'destination')
+        self.addCleanup(shutil.rmtree, tmp_dir)
+
+        os.chmod(src_dir, 0o777)
+        write_file((src_dir, 'permissive.txt'), '123')
+        os.chmod(os.path.join(src_dir, 'permissive.txt'), 0o777)
+        write_file((src_dir, 'restrictive.txt'), '456')
+        os.chmod(os.path.join(src_dir, 'restrictive.txt'), 0o600)
+        restrictive_subdir = tempfile.mkdtemp(dir=src_dir)
+        os.chmod(restrictive_subdir, 0o600)
+
+        shutil.copytree(src_dir, dst_dir)
+        self.assertEquals(os.stat(src_dir).st_mode, os.stat(dst_dir).st_mode)
+        self.assertEquals(os.stat(os.path.join(src_dir, 'permissive.txt')).st_mode,
+                          os.stat(os.path.join(dst_dir, 'permissive.txt')).st_mode)
+        self.assertEquals(os.stat(os.path.join(src_dir, 'restrictive.txt')).st_mode,
+                          os.stat(os.path.join(dst_dir, 'restrictive.txt')).st_mode)
+        restrictive_subdir_dst = os.path.join(dst_dir,
+                                              os.path.split(restrictive_subdir)[1])
+        self.assertEquals(os.stat(restrictive_subdir).st_mode,
+                          os.stat(restrictive_subdir_dst).st_mode)
+
     @unittest.skipUnless(hasattr(os, 'link'), 'requires os.link')
     def test_dont_copy_file_onto_link_to_itself(self):
         # Temporarily disable test on Windows.
@@ -1307,18 +1333,18 @@ class TestWhich(unittest.TestCase):
         # that exists, it should be returned.
         base_dir, tail_dir = os.path.split(self.dir)
         relpath = os.path.join(tail_dir, self.file)
-        with support.temp_cwd(path=base_dir):
+        with support.change_cwd(path=base_dir):
             rv = shutil.which(relpath, path=self.temp_dir)
             self.assertEqual(rv, relpath)
         # But it shouldn't be searched in PATH directories (issue #16957).
-        with support.temp_cwd(path=self.dir):
+        with support.change_cwd(path=self.dir):
             rv = shutil.which(relpath, path=base_dir)
             self.assertIsNone(rv)
 
     def test_cwd(self):
         # Issue #16957
         base_dir = os.path.dirname(self.dir)
-        with support.temp_cwd(path=self.dir):
+        with support.change_cwd(path=self.dir):
             rv = shutil.which(self.file, path=base_dir)
             if sys.platform == "win32":
                 # Windows: current directory implicitly on PATH
@@ -1327,15 +1353,19 @@ class TestWhich(unittest.TestCase):
                 # Other platforms: shouldn't match in the current directory.
                 self.assertIsNone(rv)
 
+    @unittest.skipIf(hasattr(os, 'geteuid') and os.geteuid() == 0,
+                     'non-root user required')
     def test_non_matching_mode(self):
         # Set the file read-only and ask for writeable files.
         os.chmod(self.temp_file.name, stat.S_IREAD)
+        if os.access(self.temp_file.name, os.W_OK):
+            self.skipTest("can't set the file read-only")
         rv = shutil.which(self.file, path=self.dir, mode=os.W_OK)
         self.assertIsNone(rv)
 
     def test_relative_path(self):
         base_dir, tail_dir = os.path.split(self.dir)
-        with support.temp_cwd(path=base_dir):
+        with support.change_cwd(path=base_dir):
             rv = shutil.which(self.file, path=tail_dir)
             self.assertEqual(rv, os.path.join(tail_dir, self.file))
 
@@ -1360,7 +1390,7 @@ class TestWhich(unittest.TestCase):
 
     def test_empty_path(self):
         base_dir = os.path.dirname(self.dir)
-        with support.temp_cwd(path=self.dir), \
+        with support.change_cwd(path=self.dir), \
              support.EnvironmentVarGuard() as env:
             env['PATH'] = self.dir
             rv = shutil.which(self.file, path='')

@@ -76,7 +76,7 @@ use cases, the underlying :class:`Popen` interface can be used directly.
    Run command with arguments.  Wait for command to complete. If the return
    code was zero then return, otherwise raise :exc:`CalledProcessError`. The
    :exc:`CalledProcessError` object will have the return code in the
-   :attr:`returncode` attribute.
+   :attr:`~CalledProcessError.returncode` attribute.
 
    The arguments shown above are merely the most common ones, described below
    in :ref:`frequently-used-arguments` (hence the use of keyword-only notation
@@ -122,8 +122,8 @@ use cases, the underlying :class:`Popen` interface can be used directly.
 
    If the return code was non-zero it raises a :exc:`CalledProcessError`. The
    :exc:`CalledProcessError` object will have the return code in the
-   :attr:`returncode` attribute and any output in the :attr:`output`
-   attribute.
+   :attr:`~CalledProcessError.returncode` attribute and any output in the
+   :attr:`~CalledProcessError.output` attribute.
 
    The arguments shown above are merely the most common ones, described below
    in :ref:`frequently-used-arguments` (hence the use of keyword-only notation
@@ -290,8 +290,12 @@ default values. The arguments that are most commonly needed are:
    .. index::
       single: universal newlines; subprocess module
 
-   If *universal_newlines* is ``True``, the file objects *stdin*, *stdout* and
-   *stderr* will be opened as text streams in :term:`universal newlines` mode
+   If *universal_newlines* is ``False`` the file objects *stdin*, *stdout* and
+   *stderr* will be opened as binary streams, and no line ending conversion is
+   done.
+
+   If *universal_newlines* is ``True``, these file objects
+   will be opened as text streams in :term:`universal newlines` mode
    using the encoding returned by :func:`locale.getpreferredencoding(False)
    <locale.getpreferredencoding>`.  For *stdin*, line ending characters
    ``'\n'`` in the input will be converted to the default line separator
@@ -537,7 +541,8 @@ functions.
 
    If *universal_newlines* is ``True``, the file objects *stdin*, *stdout*
    and *stderr* are opened as text streams in universal newlines mode, as
-   described above in :ref:`frequently-used-arguments`.
+   described above in :ref:`frequently-used-arguments`, otherwise they are
+   opened as binary streams.
 
    If given, *startupinfo* will be a :class:`STARTUPINFO` object, which is
    passed to the underlying ``CreateProcess`` function.
@@ -602,14 +607,14 @@ Instances of the :class:`Popen` class have the following methods:
 
 .. method:: Popen.poll()
 
-   Check if child process has terminated.  Set and return :attr:`returncode`
-   attribute.
+   Check if child process has terminated.  Set and return
+   :attr:`~Popen.returncode` attribute.
 
 
 .. method:: Popen.wait(timeout=None)
 
-   Wait for child process to terminate.  Set and return :attr:`returncode`
-   attribute.
+   Wait for child process to terminate.  Set and return
+   :attr:`~Popen.returncode` attribute.
 
    If the process does not terminate after *timeout* seconds, raise a
    :exc:`TimeoutExpired` exception.  It is safe to catch this exception and
@@ -855,8 +860,8 @@ In this section, "a becomes b" means that b can be used as a replacement for a.
 
    In addition, the replacements using :func:`check_output` will fail with a
    :exc:`CalledProcessError` if the requested operation produces a non-zero
-   return code. The output is still available as the ``output`` attribute of
-   the raised exception.
+   return code. The output is still available as the
+   :attr:`~CalledProcessError.output` attribute of the raised exception.
 
 In the following examples, we assume that the relevant functions have already
 been imported from the :mod:`subprocess` module.

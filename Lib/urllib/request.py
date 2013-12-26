@@ -2229,7 +2229,10 @@ def thishost():
     """Return the IP addresses of the current host."""
     global _thishost
     if _thishost is None:
-        _thishost = tuple(socket.gethostbyname_ex(socket.gethostname())[2])
+        try:
+            _thishost = tuple(socket.gethostbyname_ex(socket.gethostname())[2])
+        except socket.gaierror:
+            _thishost = tuple(socket.gethostbyname_ex('localhost')[2])
     return _thishost
 
 _ftperrors = None
@@ -2273,8 +2276,8 @@ class ftpwrapper:
         self.ftp = ftplib.FTP()
         self.ftp.connect(self.host, self.port, self.timeout)
         self.ftp.login(self.user, self.passwd)
-        for dir in self.dirs:
-            self.ftp.cwd(dir)
+        _target = '/'.join(self.dirs)
+        self.ftp.cwd(_target)
 
     def retrfile(self, file, type):
         import ftplib
@@ -2294,7 +2297,7 @@ class ftpwrapper:
                 conn, retrlen = self.ftp.ntransfercmd(cmd)
             except ftplib.error_perm as reason:
                 if str(reason)[:3] != '550':
-                    raise URLError('ftp error: %d' % reason).with_traceback(
+                    raise URLError('ftp error: %r' % reason).with_traceback(
                         sys.exc_info()[2])
         if not conn:
             # Set transfer mode to ASCII!
@@ -2306,7 +2309,7 @@ class ftpwrapper:
                     try:
                         self.ftp.cwd(file)
                     except ftplib.error_perm as reason:
-                        raise URLError('ftp error: %d' % reason) from reason
+                        raise URLError('ftp error: %r' % reason) from reason
                 finally:
                     self.ftp.cwd(pwd)
                 cmd = 'LIST ' + file

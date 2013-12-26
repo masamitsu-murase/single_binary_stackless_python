@@ -63,7 +63,7 @@ locale_encoding = locale_encoding.lower()
 encoding = locale_encoding  ### KBK 07Sep07  This is used all over IDLE, check!
                             ### 'encoding' is used below in encode(), check!
 
-coding_re = re.compile("coding[:=]\s*([-\w_.]+)")
+coding_re = re.compile(r'^[ \t\f]*#.*coding[:=][ \t]*([-\w.]+)', re.ASCII)
 
 def coding_spec(data):
     """Return the encoding declaration according to PEP 263.
@@ -84,14 +84,16 @@ def coding_spec(data):
         lines = data
     # consider only the first two lines
     if '\n' in lines:
-        lst = lines.split('\n')[:2]
+        lst = lines.split('\n', 2)[:2]
     elif '\r' in lines:
-        lst = lines.split('\r')[:2]
+        lst = lines.split('\r', 2)[:2]
     else:
-        lst = list(lines)
-    str = '\n'.join(lst)
-    match = coding_re.search(str)
-    if not match:
+        lst = [lines]
+    for line in lst:
+        match = coding_re.match(line)
+        if match is not None:
+            break
+    else:
         return None
     name = match.group(1)
     try:
@@ -208,12 +210,11 @@ class IOBinding:
         try:
             # open the file in binary mode so that we can handle
             # end-of-line convention ourselves.
-            f = open(filename,'rb')
-            two_lines = f.readline() + f.readline()
-            f.seek(0)
-            bytes = f.read()
-            f.close()
-        except IOError as msg:
+            with open(filename, 'rb') as f:
+                two_lines = f.readline() + f.readline()
+                f.seek(0)
+                bytes = f.read()
+        except OSError as msg:
             tkMessageBox.showerror("I/O Error", str(msg), master=self.text)
             return False
         chars, converted = self._decode(two_lines, bytes)
@@ -373,12 +374,10 @@ class IOBinding:
             text = text.replace("\n", self.eol_convention)
         chars = self.encode(text)
         try:
-            f = open(filename, "wb")
-            f.write(chars)
-            f.flush()
-            f.close()
+            with open(filename, "wb") as f:
+                f.write(chars)
             return True
-        except IOError as msg:
+        except OSError as msg:
             tkMessageBox.showerror("I/O Error", str(msg),
                                    master=self.text)
             return False

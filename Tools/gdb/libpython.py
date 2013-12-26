@@ -121,7 +121,7 @@ class StringTruncated(RuntimeError):
     pass
 
 class TruncatedStringIO(object):
-    '''Similar to cStringIO, but can truncate the output by raising a
+    '''Similar to io.StringIO, but can truncate the output by raising a
     StringTruncated exception'''
     def __init__(self, maxlen=None):
         self._val = ''
@@ -632,7 +632,7 @@ class PyDictObjectPtr(PyObjectPtr):
     def iteritems(self):
         '''
         Yields a sequence of (PyObjectPtr key, PyObjectPtr value) pairs,
-        analagous to dict.iteritems()
+        analogous to dict.iteritems()
         '''
         keys = self.field('ma_keys')
         values = self.field('ma_values')

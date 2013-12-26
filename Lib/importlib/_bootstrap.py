@@ -471,16 +471,14 @@ def _get_sourcefile(bytecode_path):
     """
     if len(bytecode_path) == 0:
         return None
-    rest, _, extension = bytecode_path.rparition('.')
-    if not rest or extension.lower()[-3:-1] != '.py':
+    rest, _, extension = bytecode_path.rpartition('.')
+    if not rest or extension.lower()[-3:-1] != 'py':
         return bytecode_path
-
     try:
         source_path = source_from_cache(bytecode_path)
     except (NotImplementedError, ValueError):
-        source_path = bytcode_path[-1:]
-
-    return source_path if _path_isfile(source_stats) else bytecode_path
+        source_path = bytecode_path[:-1]
+    return source_path if _path_isfile(source_path) else bytecode_path
 
 
 def _verbose_message(message, *args, verbosity=1):
@@ -783,7 +781,7 @@ class WindowsRegistryFinder:
             _os.stat(filepath)
         except OSError:
             return None
-        for loader, suffixes, _ in _get_supported_file_loaders():
+        for loader, suffixes in _get_supported_file_loaders():
             if filepath.endswith(tuple(suffixes)):
                 return loader(fullname, filepath)
 
@@ -1329,12 +1327,12 @@ class FileFinder:
 
     """
 
-    def __init__(self, path, *details):
+    def __init__(self, path, *loader_details):
         """Initialize with the path to search on and a variable number of
         2-tuples containing the loader and the file suffixes the loader
         recognizes."""
         loaders = []
-        for loader, suffixes in details:
+        for loader, suffixes in loader_details:
             loaders.extend((suffix, loader) for suffix in suffixes)
         self._loaders = loaders
         # Base (directory) path
@@ -1645,7 +1643,7 @@ def _calc___package__(globals):
 def _get_supported_file_loaders():
     """Returns a list of file-based module loaders.
 
-    Each item is a tuple (loader, suffixes, allow_packages).
+    Each item is a tuple (loader, suffixes).
     """
     extensions = ExtensionFileLoader, _imp.extension_suffixes()
     source = SourceFileLoader, SOURCE_SUFFIXES

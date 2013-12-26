@@ -1,4 +1,6 @@
-# Very rudimentary test of threading module
+"""
+Tests for the threading module.
+"""
 
 import test.support
 from test.support import verbose, strip_python_stderr, import_module
@@ -444,6 +446,45 @@ class ThreadTests(BaseTestCase):
         self.assertEqual(out, b'')
         self.assertEqual(err, b'')
 
+    @unittest.skipUnless(hasattr(os, 'fork'), "needs os.fork()")
+    def test_is_alive_after_fork(self):
+        # Try hard to trigger #18418: is_alive() could sometimes be True on
+        # threads that vanished after a fork.
+        old_interval = sys.getswitchinterval()
+        self.addCleanup(sys.setswitchinterval, old_interval)
+
+        # Make the bug more likely to manifest.
+        sys.setswitchinterval(1e-6)
+
+        for i in range(20):
+            t = threading.Thread(target=lambda: None)
+            t.start()
+            self.addCleanup(t.join)
+            pid = os.fork()
+            if pid == 0:
+                os._exit(1 if t.is_alive() else 0)
+            else:
+                pid, status = os.waitpid(pid, 0)
+                self.assertEqual(0, status)
+
+
+    def test_BoundedSemaphore_limit(self):
+        # BoundedSemaphore should raise ValueError if released too often.
+        for limit in range(1, 10):
+            bs = threading.BoundedSemaphore(limit)
+            threads = [threading.Thread(target=bs.acquire)
+                       for _ in range(limit)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+            threads = [threading.Thread(target=bs.release)
+                       for _ in range(limit)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+            self.assertRaises(ValueError, bs.release)
 
 class ThreadJoinOnShutdown(BaseTestCase):
 

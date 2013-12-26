@@ -45,35 +45,55 @@ PORT = 0  # someday pass in host, port for remote debug capability
 # internal warnings to the console.  ScriptBinding.check_syntax() will
 # temporarily redirect the stream to the shell window to display warnings when
 # checking user's code.
-global warning_stream
-warning_stream = sys.__stderr__
-try:
-    import warnings
-except ImportError:
-    pass
-else:
-    def idle_showwarning(message, category, filename, lineno,
-                         file=None, line=None):
-        if file is None:
-            file = warning_stream
-        try:
-            file.write(warnings.formatwarning(message, category, filename,
-                                              lineno, line=line))
-        except IOError:
-            pass  ## file (probably __stderr__) is invalid, warning dropped.
-    warnings.showwarning = idle_showwarning
-    def idle_formatwarning(message, category, filename, lineno, line=None):
-        """Format warnings the IDLE way"""
-        s = "\nWarning (from warnings module):\n"
-        s += '  File \"%s\", line %s\n' % (filename, lineno)
-        if line is None:
-            line = linecache.getline(filename, lineno)
-        line = line.strip()
-        if line:
-            s += "    %s\n" % line
-        s += "%s: %s\n>>> " % (category.__name__, message)
-        return s
-    warnings.formatwarning = idle_formatwarning
+warning_stream = sys.__stderr__  # None, at least on Windows, if no console.
+import warnings
+
+def idle_formatwarning(message, category, filename, lineno, line=None):
+    """Format warnings the IDLE way."""
+
+    s = "\nWarning (from warnings module):\n"
+    s += '  File \"%s\", line %s\n' % (filename, lineno)
+    if line is None:
+        line = linecache.getline(filename, lineno)
+    line = line.strip()
+    if line:
+        s += "    %s\n" % line
+    s += "%s: %s\n" % (category.__name__, message)
+    return s
+
+def idle_showwarning(
+        message, category, filename, lineno, file=None, line=None):
+    """Show Idle-format warning (after replacing warnings.showwarning).
+
+    The differences are the formatter called, the file=None replacement,
+    which can be None, the capture of the consequence AttributeError,
+    and the output of a hard-coded prompt.
+    """
+    if file is None:
+        file = warning_stream
+    try:
+        file.write(idle_formatwarning(
+                message, category, filename, lineno, line=line))
+        file.write(">>> ")
+    except (AttributeError, OSError):
+        pass  # if file (probably __stderr__) is invalid, skip warning.
+
+_warnings_showwarning = None
+
+def capture_warnings(capture):
+    "Replace warning.showwarning with idle_showwarning, or reverse."
+
+    global _warnings_showwarning
+    if capture:
+        if _warnings_showwarning is None:
+            _warnings_showwarning = warnings.showwarning
+            warnings.showwarning = idle_showwarning
+    else:
+        if _warnings_showwarning is not None:
+            warnings.showwarning = _warnings_showwarning
+            _warnings_showwarning = None
+
+capture_warnings(True)
 
 def extended_linecache_checkcache(filename=None,
                                   orig_checkcache=linecache.checkcache):
@@ -213,7 +233,7 @@ class PyShellEditorWindow(EditorWindow):
         try:
             with open(self.breakpointPath, "r") as fp:
                 lines = fp.readlines()
-        except IOError:
+        except OSError:
             lines = []
         try:
             with open(self.breakpointPath, "w") as new_file:
@@ -224,7 +244,7 @@ class PyShellEditorWindow(EditorWindow):
                 breaks = self.breakpoints
                 if breaks:
                     new_file.write(filename + '=' + str(breaks) + '\n')
-        except IOError as err:
+        except OSError as err:
             if not getattr(self.root, "breakpoint_error_displayed", False):
                 self.root.breakpoint_error_displayed = True
                 tkMessageBox.showerror(title='IDLE Error',
@@ -367,6 +387,7 @@ class ModifiedInterpreter(InteractiveInterpreter):
         self.port = PORT
         self.original_compiler_flags = self.compile.compiler.flags
 
+    _afterid = None
     rpcclt = None
     rpcsubproc = None
 
@@ -486,6 +507,8 @@ class ModifiedInterpreter(InteractiveInterpreter):
         threading.Thread(target=self.__request_interrupt).start()
 
     def kill_subprocess(self):
+        if self._afterid is not None:
+            self.tkconsole.text.after_cancel(self._afterid)
         try:
             self.rpcclt.listening_sock.close()
         except AttributeError:  # no socket
@@ -532,7 +555,7 @@ class ModifiedInterpreter(InteractiveInterpreter):
             return
         try:
             response = clt.pollresponse(self.active_seq, wait=0.05)
-        except (EOFError, IOError, KeyboardInterrupt):
+        except (EOFError, OSError, KeyboardInterrupt):
             # lost connection or subprocess terminated itself, restart
             # [the KBI is from rpc.SocketIO.handle_EOF()]
             if self.tkconsole.closing:
@@ -561,8 +584,8 @@ class ModifiedInterpreter(InteractiveInterpreter):
                 pass
         # Reschedule myself
         if not self.tkconsole.closing:
-            self.tkconsole.text.after(self.tkconsole.pollinterval,
-                                      self.poll_subprocess)
+            self._afterid = self.tkconsole.text.after(
+                self.tkconsole.pollinterval, self.poll_subprocess)
 
     debugger = None
 
@@ -822,7 +845,6 @@ class PyShell(OutputWindow):
     ]
 
     if macosxSupport.runningAsOSXApp():
-        del menu_specs[-3]
         menu_specs[-2] = ("windows", "_Window")
 
 
@@ -974,10 +996,6 @@ class PyShell(OutputWindow):
         self.stop_readline()
         self.canceled = True
         self.closing = True
-        # Wait for poll_subprocess() rescheduling to stop
-        self.text.after(2 * self.pollinterval, self.close2)
-
-    def close2(self):
         return EditorWindow.close(self)
 
     def _close(self):
@@ -1243,7 +1261,7 @@ class PyShell(OutputWindow):
     def resetoutput(self):
         source = self.text.get("iomark", "end-1c")
         if self.history:
-            self.history.history_store(source)
+            self.history.store(source)
         if self.text.get("end-2c") != "\n":
             self.text.insert("end-1c", "\n")
         self.text.mark_set("iomark", "end-1c")
@@ -1423,6 +1441,7 @@ echo "import sys; print(sys.argv)" | idle - "foobar"
 def main():
     global flist, root, use_subprocess
 
+    capture_warnings(True)
     use_subprocess = True
     enable_shell = False
     enable_edit = False
@@ -1555,7 +1574,10 @@ def main():
     while flist.inversedict:  # keep IDLE running while files are open.
         root.mainloop()
     root.destroy()
+    capture_warnings(False)
 
 if __name__ == "__main__":
     sys.modules['PyShell'] = sys.modules['__main__']
     main()
+
+capture_warnings(False)  # Make sure turned off; see issue 18081

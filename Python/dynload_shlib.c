@@ -90,7 +90,10 @@ dl_funcptr _PyImport_GetDynLoadFunc(const char *shortname,
     if (fp != NULL) {
         int i;
         struct stat statb;
-        fstat(fileno(fp), &statb);
+        if (fstat(fileno(fp), &statb) == -1) {
+            PyErr_SetFromErrno(PyExc_IOError);
+            return NULL;
+        }
         for (i = 0; i < nhandles; i++) {
             if (statb.st_dev == handles[i].dev &&
                 statb.st_ino == handles[i].ino) {

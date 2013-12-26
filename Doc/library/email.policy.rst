@@ -56,48 +56,61 @@ same keyword arguments as the class constructor and returning a new
 attributes values changed.
 
 As an example, the following code could be used to read an email message from a
-file on disk and pass it to the system ``sendmail`` program on a Unix system::
+file on disk and pass it to the system ``sendmail`` program on a Unix system:
 
-   >>> from email import msg_from_binary_file
+.. testsetup::
+
+   >>> from unittest import mock
+   >>> mocker = mock.patch('subprocess.Popen')
+   >>> m = mocker.start()
+   >>> proc = mock.MagicMock()
+   >>> m.return_value = proc
+   >>> proc.stdin.close.return_value = None
+   >>> mymsg = open('mymsg.txt', 'w')
+   >>> mymsg.write('To: abc@xyz.com\n\n')
+   17
+   >>> mymsg.flush()
+
+.. doctest::
+
+   >>> from email import message_from_binary_file
    >>> from email.generator import BytesGenerator
+   >>> from email import policy
    >>> from subprocess import Popen, PIPE
-   >>> with open('mymsg.txt', 'b') as f:
-   ...     msg = msg_from_binary_file(f)
-   >>> p = Popen(['sendmail', msg['To'][0].address], stdin=PIPE)
+   >>> with open('mymsg.txt', 'rb') as f:
+   ...     msg = message_from_binary_file(f, policy=policy.default)
+   >>> p = Popen(['sendmail', msg['To'].addresses[0]], stdin=PIPE)
    >>> g = BytesGenerator(p.stdin, policy=msg.policy.clone(linesep='\r\n'))
    >>> g.flatten(msg)
    >>> p.stdin.close()
    >>> rc = p.wait()
+
+.. testsetup::
+
+   >>> mymsg.close()
+   >>> mocker.stop()
+   >>> import os
+   >>> os.remove('mymsg.txt')
 
 Here we are telling :class:`~email.generator.BytesGenerator` to use the RFC
 correct line separator characters when creating the binary string to feed into
 ``sendmail's`` ``stdin``, where the default policy would use ``\n`` line
 separators.
 
-Some email package methods accept a *policy* keyword argument, allowing the
-policy to be overridden for that method.  For example, the following code uses
-the :meth:`~email.message.Message.as_string` method of the *msg* object from
-the previous example and writes the message to a file using the native line
-separators for the platform on which it is running::
-
-   >>> import os
-   >>> with open('converted.txt', 'wb') as f:
-   ...     f.write(msg.as_string(policy=msg.policy.clone(linesep=os.linesep))
-
 Policy objects can also be combined using the addition operator, producing a
 policy object whose settings are a combination of the non-default values of the
 summed objects::
 
-   >>> compat_SMTP = email.policy.clone(linesep='\r\n')
-   >>> compat_strict = email.policy.clone(raise_on_defect=True)
+   >>> compat_SMTP = policy.compat32.clone(linesep='\r\n')
+   >>> compat_strict = policy.compat32.clone(raise_on_defect=True)
    >>> compat_strict_SMTP = compat_SMTP + compat_strict
 
 This operation is not commutative; that is, the order in which the objects are
 added matters.  To illustrate::
 
-   >>> policy100 = compat32.clone(max_line_length=100)
-   >>> policy80 = compat32.clone(max_line_length=80)
-   >>> apolicy = policy100 + Policy80
+   >>> policy100 = policy.compat32.clone(max_line_length=100)
+   >>> policy80 = policy.compat32.clone(max_line_length=80)
+   >>> apolicy = policy100 + policy80
    >>> apolicy.max_line_length
    80
    >>> apolicy = policy80 + policy100
@@ -291,7 +304,7 @@ added matters.  To illustrate::
 
    This concrete :class:`Policy` is the backward compatibility policy.  It
    replicates the behavior of the email package in Python 3.2.  The
-   :mod:`policy` module also defines an instance of this class,
+   :mod:`~email.policy` module also defines an instance of this class,
    :const:`compat32`, that is used as the default policy.  Thus the default
    behavior of the email package is to maintain compatibility with Python 3.2.
 
@@ -435,10 +448,11 @@ added matters.  To illustrate::
 
    .. method:: fold_binary(name, value)
 
-      The same as :meth:`fold` if :attr:`cte_type` is ``7bit``, except that
-      the returned value is bytes.
+      The same as :meth:`fold` if :attr:`~Policy.cte_type` is ``7bit``, except
+      that the returned value is bytes.
 
-      If :attr:`cte_type` is ``8bit``, non-ASCII binary data is converted back
+      If :attr:`~Policy.cte_type` is ``8bit``, non-ASCII binary data is
+      converted back
       into bytes.  Headers with binary data are not refolded, regardless of the
       ``refold_header`` setting, since there is no way to know whether the
       binary data consists of single byte characters or multibyte characters.

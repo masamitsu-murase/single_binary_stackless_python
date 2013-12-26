@@ -435,21 +435,21 @@ remote server into a single request [#]_.
    is a :term:`generator`; iterating over this generator yields the individual
    results.
 
-A usage example of this class follows.  The server code ::
+A usage example of this class follows.  The server code::
 
    from xmlrpc.server import SimpleXMLRPCServer
 
-   def add(x,y):
-       return x+y
+   def add(x, y):
+       return x + y
 
    def subtract(x, y):
-       return x-y
+       return x - y
 
    def multiply(x, y):
-       return x*y
+       return x * y
 
    def divide(x, y):
-       return x/y
+       return x // y
 
    # A simple server with simple arithmetic functions
    server = SimpleXMLRPCServer(("localhost", 8000))
@@ -467,13 +467,13 @@ The client code for the preceding server::
 
    proxy = xmlrpc.client.ServerProxy("http://localhost:8000/")
    multicall = xmlrpc.client.MultiCall(proxy)
-   multicall.add(7,3)
-   multicall.subtract(7,3)
-   multicall.multiply(7,3)
-   multicall.divide(7,3)
+   multicall.add(7, 3)
+   multicall.subtract(7, 3)
+   multicall.multiply(7, 3)
+   multicall.divide(7, 3)
    result = multicall()
 
-   print("7+3=%d, 7-3=%d, 7*3=%d, 7/3=%d" % tuple(result))
+   print("7+3=%d, 7-3=%d, 7*3=%d, 7//3=%d" % tuple(result))
 
 
 Convenience Functions
