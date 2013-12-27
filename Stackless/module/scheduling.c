@@ -411,6 +411,7 @@ slp_call_schedule_fasthook(PyThreadState *ts, PyTaskletObject *prev, PyTaskletOb
 {
     int ret;
     PyObject *tmp;
+    PyTaskletObject * old_current;
     if (ts->st.schedlock) {
         Py_FatalError("Recursive scheduler call due to callbacks!");
         return;
@@ -422,7 +423,11 @@ slp_call_schedule_fasthook(PyThreadState *ts, PyTaskletObject *prev, PyTaskletOb
     ts->st.del_post_switch = NULL;
     
     ts->st.schedlock = 1;
+    old_current = ts->st.current;
+    if (prev)
+        ts->st.current = prev;
     ret = _slp_schedule_fasthook(prev, next);
+    ts->st.current = old_current;
     ts->st.schedlock = 0;
     if (ret) {
         PyObject *msg = PyString_FromString("Error in scheduling callback");

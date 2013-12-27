@@ -79,7 +79,6 @@ class SchedulingCallbackTestCase(StacklessTestCase):
         fu(c1p == c1, "No calls to previous callback after setting it to None")
         fu(c2p == c2, "No calls to previous callback after setting it to None")
 
-    @unittest.skip("fails due to bug https://bitbucket.org/stackless-dev/stackless/issue/42")
     def test2currentWithPrevAndNext(self):
         class Ex_Main(Exception):
             name = 'call_run'
