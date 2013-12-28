@@ -46,6 +46,10 @@ extern const char *PyWin_DLLVersionString;
 #include <langinfo.h>
 #endif
 
+#ifdef STACKLESS
+#include "core/stackless_impl.h"
+#endif
+
 PyObject *
 PySys_GetObject(char *name)
 {
@@ -382,6 +386,24 @@ trace_trampoline(PyObject *self, PyFrameObject *frame,
     }
     return 0;
 }
+
+#ifdef STACKLESS
+Py_tracefunc
+slp_get_sys_profile_func(void)
+{
+    if (trace_init() == -1)
+        return NULL;
+    return profile_trampoline;
+}
+
+Py_tracefunc
+slp_get_sys_trace_func(void)
+{
+    if (trace_init() == -1)
+        return NULL;
+    return trace_trampoline;
+}
+#endif
 
 static PyObject *
 sys_settrace(PyObject *self, PyObject *args)

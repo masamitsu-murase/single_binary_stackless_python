@@ -506,6 +506,9 @@ PyAPI_DATA(slp_schedule_hook_func) *_slp_schedule_fasthook;
 PyAPI_DATA(PyObject* ) _slp_schedule_hook;
 int slp_schedule_callback(PyTaskletObject *prev, PyTaskletObject *next);
 
+Py_tracefunc slp_get_sys_profile_func(void);
+Py_tracefunc slp_get_sys_trace_func(void);
+
 /* macro for use when interrupting tasklets from watchdog */
 #define TASKLET_NESTING_OK(task) \
     (ts->st.nesting_level == 0 || \

@@ -507,13 +507,8 @@ slp_restore_tracing(PyFrameObject *f, int exc, PyObject *retval)
     PyCFrameObject *cf = (PyCFrameObject *) f;
 
     f = cf->f_back;
-    ts->c_tracefunc = (Py_tracefunc)cf->any1;
-    ts->c_profilefunc = (Py_tracefunc)cf->any2;
-    ts->c_traceobj = cf->ob1;
-    ts->c_profileobj = cf->ob2;
-    ts->tracing = cf->i;
-    ts->use_tracing = cf->n;
-    /* the objects *have* extra references here */
+    PyEval_SetTrace((Py_tracefunc)cf->any1, cf->ob1);
+    PyEval_SetProfile((Py_tracefunc)cf->any2, cf->ob2);
     Py_DECREF(cf);
     ts->frame = f;
     return STACKLESS_PACK(retval);
@@ -986,18 +981,16 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
             Py_XINCREF(f->f_back);
             f->any1 = ts->c_tracefunc;
             f->any2 = ts->c_profilefunc;
+            assert(NULL == f->ob1);
+            assert(NULL == f->ob2);
             f->ob1 = ts->c_traceobj;
             f->ob2 = ts->c_profileobj;
-            /* trace/profile does not add references */
             Py_XINCREF(f->ob1);
             Py_XINCREF(f->ob2);
-            f->i = ts->tracing;
-            f->n = ts->use_tracing;
             prev->f.frame = (PyFrameObject *) f;
         }
-        ts->c_tracefunc = ts->c_profilefunc = NULL;
-        ts->c_traceobj = ts->c_profileobj = NULL;
-        ts->tracing = ts->use_tracing = 0;
+        PyEval_SetTrace(NULL, NULL);
+        PyEval_SetProfile(NULL, NULL);
     }
     assert(next->cstate != NULL);
 

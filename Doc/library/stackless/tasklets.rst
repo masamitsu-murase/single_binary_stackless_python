@@ -397,6 +397,19 @@ The following attributes allow a tasklets place in a chain to be identified:
 
    The next tasklet in the chain that this tasklet is linked into.
 
+The following attributes are intended only for implementing debuggers, 
+profilers, coverage tools and the like. Their behavior is part of the 
+implementation platform, rather than part of the language definition, 
+and thus may not be available in all |SLP| implementations.
+
+.. attribute:: tasklet.trace_function
+
+.. attribute:: tasklet.profile_function
+
+   The trace / profile function of the tasklet. These attributes 
+   are the tasklet counterparts of the functions :func:`sys.settrace`,
+   :func:`sys.gettrace`, :func:`sys.setprofile` and :func:`sys.getprofile`.
+
 
 ^^^^^^^^^^^^^^^^^^
 Tasklet Life Cycle
