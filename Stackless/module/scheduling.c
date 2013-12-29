@@ -1067,6 +1067,27 @@ hard_switching:
         if (did_switch)
             *did_switch = 1;
         *result = retval;
+
+        /* Now evaluate any pending pending slp_restore_tracing cframes.
+           They were inserted by tasklet_set_trace_function or 
+           tasklet_set_profile_function */
+        if (prev->cstate->nesting_level > 0) {
+            PyCFrameObject *f = (PyCFrameObject *)(ts->frame);
+            if (f && PyCFrame_Check(f) && f->f_execute == slp_restore_tracing) {
+                PyObject *retval;
+
+                /* the next frame must be a real frame */
+                assert(f->f_back && PyFrame_Check(f->f_back));
+
+                /* Hack: call the eval frame function directly */
+                retval = slp_restore_tracing((PyFrameObject *)f, 0, Py_None);
+                STACKLESS_UNPACK(retval);
+                if (NULL == retval)
+                    return -1;
+                assert(PyFrame_Check(ts->frame));
+            }
+        }
+        
         return 0;
     }
     else {
