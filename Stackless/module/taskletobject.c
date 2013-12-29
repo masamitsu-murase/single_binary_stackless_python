@@ -1653,10 +1653,15 @@ tasklet_set_trace_function(PyTaskletObject *task, PyObject *value)
     while (NULL != f && PyCFrame_Check(f)) {
         if (f->f_execute == slp_restore_tracing) {
             /* we found a restore tracing frame */
-            PyObject *temp = f->ob1;
+            PyObject *temp;
+            int c_functions = slp_encode_ctrace_functions(tf, f->any2);
+            if (c_functions < 0)
+                return -1;
+            temp = f->ob1;
             Py_XINCREF(value);
             f->ob1 = value;
             f->any1 = tf;
+            f->i = c_functions;
             Py_XDECREF(temp);
 
             return 0;
@@ -1673,7 +1678,11 @@ tasklet_set_trace_function(PyTaskletObject *task, PyObject *value)
     f = task->f.cframe;
     if (NULL != f) {
         /* Insert a new cframe */
-        PyCFrameObject *cf = slp_cframe_new(slp_restore_tracing, 0);
+        PyCFrameObject *cf;
+        int c_functions = slp_encode_ctrace_functions(tf, f->any2);
+        if (c_functions < 0)
+            return -1;
+        cf = slp_cframe_new(slp_restore_tracing, 0);
         if (cf == NULL)
             return -1;
         Py_INCREF(f);
@@ -1683,6 +1692,7 @@ tasklet_set_trace_function(PyTaskletObject *task, PyObject *value)
         assert(NULL == cf->ob1);
         cf->ob1 = value;
         cf->any1 = tf;
+        cf->i = c_functions;
         return 0;
     }
 
@@ -1744,11 +1754,16 @@ tasklet_set_profile_function(PyTaskletObject *task, PyObject *value)
     f = task->f.cframe;
     while (NULL != f && PyCFrame_Check(f)) {
         if (f->f_execute == slp_restore_tracing) {
+            PyObject *temp;
+            int c_functions = slp_encode_ctrace_functions(f->any1, tf);
+            if (c_functions < 0)
+                return -1;
             /* we found a restore tracing frame */
-            PyObject *temp = f->ob2;
+            temp = f->ob2;
             Py_XINCREF(value);
             f->ob2 = value;
             f->any2 = tf;
+            f->i = c_functions;
             Py_XDECREF(temp);
 
             return 0;
@@ -1765,7 +1780,11 @@ tasklet_set_profile_function(PyTaskletObject *task, PyObject *value)
     f = task->f.cframe;
     if (NULL != f) {
         /* Insert a new cframe */
-        PyCFrameObject *cf = slp_cframe_new(slp_restore_tracing, 0);
+        PyCFrameObject *cf;
+        int c_functions = slp_encode_ctrace_functions(f->any1, tf);
+        if (c_functions < 0)
+            return -1;
+        cf = slp_cframe_new(slp_restore_tracing, 0);
         if (cf == NULL)
             return -1;
         Py_INCREF(f);
@@ -1775,6 +1794,7 @@ tasklet_set_profile_function(PyTaskletObject *task, PyObject *value)
         assert(NULL == cf->ob2);
         cf->ob2 = value;
         cf->any2 = tf;
+        cf->i = c_functions;
         return 0;
     }
 

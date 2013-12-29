@@ -507,11 +507,45 @@ slp_restore_tracing(PyFrameObject *f, int exc, PyObject *retval)
     PyCFrameObject *cf = (PyCFrameObject *) f;
 
     f = cf->f_back;
+    if (NULL == cf->any1 && NULL == cf->any2) {
+        /* frame was created by unpickling */
+        if (cf->i & 1) {
+            Py_tracefunc func = slp_get_sys_trace_func();
+            if (NULL == func)
+                return NULL;
+            cf->any1 = func;
+        }
+        if (cf->i & 2) {
+            Py_tracefunc func = slp_get_sys_profile_func();
+            if (NULL == func)
+                return NULL;
+            cf->any2 = func;
+        }
+    }
     PyEval_SetTrace((Py_tracefunc)cf->any1, cf->ob1);
     PyEval_SetProfile((Py_tracefunc)cf->any2, cf->ob2);
     Py_DECREF(cf);
     ts->frame = f;
     return STACKLESS_PACK(retval);
+}
+
+int
+slp_encode_ctrace_functions(Py_tracefunc c_tracefunc, Py_tracefunc c_profilefunc)
+{
+    int encoded = 0;
+    if (c_tracefunc) {
+        Py_tracefunc func = slp_get_sys_trace_func();
+        if (NULL == func)
+            return -1;
+        encoded |= (c_tracefunc == func)<<0;
+    }
+    if (c_profilefunc) {
+        Py_tracefunc func = slp_get_sys_profile_func();
+        if (NULL == func)
+            return -1;
+        encoded |= (c_profilefunc == func)<<1;
+    }
+    return encoded;
 }
 
 /* jumping from a soft tasklet to a hard switched */
@@ -975,12 +1009,14 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
         /* build a shadow frame if we are returning here */
         if (prev->f.frame != NULL) {
             PyCFrameObject *f = slp_cframe_new(slp_restore_tracing, 0);
-            if (f == NULL)
+            int c_functions = slp_encode_ctrace_functions(ts->c_tracefunc, ts->c_profilefunc);
+            if (f == NULL || c_functions == -1)
                 return -1;
             f->f_back = prev->f.frame;
             Py_XINCREF(f->f_back);
             f->any1 = ts->c_tracefunc;
             f->any2 = ts->c_profilefunc;
+            f->i = c_functions;
             assert(NULL == f->ob1);
             assert(NULL == f->ob2);
             f->ob1 = ts->c_traceobj;

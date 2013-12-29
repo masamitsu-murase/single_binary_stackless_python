@@ -508,6 +508,7 @@ int slp_schedule_callback(PyTaskletObject *prev, PyTaskletObject *next);
 
 Py_tracefunc slp_get_sys_profile_func(void);
 Py_tracefunc slp_get_sys_trace_func(void);
+int slp_encode_ctrace_functions(Py_tracefunc c_tracefunc, Py_tracefunc c_profilefunc);
 
 /* macro for use when interrupting tasklets from watchdog */
 #define TASKLET_NESTING_OK(task) \
