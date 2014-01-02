@@ -1602,6 +1602,7 @@ tasklet_get_trace_function(PyTaskletObject *task)
 {
     PyThreadState *ts = task->cstate->tstate;
     PyCFrameObject *f;
+    PyTaskletTStateStruc *saved_ts;
 
     if (ts && ts->st.current == task) {
         /* current tasklet */
@@ -1625,6 +1626,17 @@ tasklet_get_trace_function(PyTaskletObject *task)
         f = (PyCFrameObject *)(f->f_back);
     }
 
+    /* try the saved tstate of a hard switched tasklet */
+    saved_ts = slp_get_saved_tstate(task);
+    if (NULL != saved_ts) {
+        PyObject *temp;
+        temp = saved_ts->c_traceobj;
+        if (NULL == temp)
+            temp = Py_None;
+        Py_INCREF(temp);
+        return temp;
+    }
+
     Py_INCREF(Py_None);
     return Py_None;
 }
@@ -1635,6 +1647,7 @@ tasklet_set_trace_function(PyTaskletObject *task, PyObject *value)
     PyThreadState *ts = task->cstate->tstate;
     PyCFrameObject *f;
     Py_tracefunc tf = NULL;
+    PyTaskletTStateStruc *saved_ts;
 
     if (Py_None == value)
         value = NULL;
@@ -1661,13 +1674,27 @@ tasklet_set_trace_function(PyTaskletObject *task, PyObject *value)
             Py_XINCREF(value);
             f->ob1 = value;
             f->any1 = tf;
-            f->i = c_functions;
+            f->n = c_functions;
             Py_XDECREF(temp);
 
             return 0;
         }
         f = (PyCFrameObject *)(f->f_back);
     }
+
+    /* try the saved tstate of a hard switched tasklet */
+    saved_ts = slp_get_saved_tstate(task);
+    if (NULL != saved_ts) {
+        PyObject *temp;
+        temp = saved_ts->c_traceobj;
+        Py_XINCREF(value);
+        saved_ts->c_traceobj = value;
+        saved_ts->c_tracefunc = tf;
+        Py_XDECREF(temp);
+
+        return 0;
+    }
+
     /* task is neither current nor has a restore_tracing frame.
        ==> tracing is currently off */
     if (NULL == value)
@@ -1692,7 +1719,10 @@ tasklet_set_trace_function(PyTaskletObject *task, PyObject *value)
         assert(NULL == cf->ob1);
         cf->ob1 = value;
         cf->any1 = tf;
-        cf->i = c_functions;
+        cf->n = c_functions;
+        assert(0 == cf->i);        /* ts->tracing */
+        assert(NULL == cf->any2);  /* ts->c_profilefunc */
+        assert(NULL == cf->ob2);   /* ts->c_profileobj */
         return 0;
     }
 
@@ -1704,6 +1734,7 @@ tasklet_get_profile_function(PyTaskletObject *task)
 {
     PyThreadState *ts = task->cstate->tstate;
     PyCFrameObject *f;
+    PyTaskletTStateStruc *saved_ts;
 
     if (ts && ts->st.current == task) {
         /* current tasklet */
@@ -1727,6 +1758,17 @@ tasklet_get_profile_function(PyTaskletObject *task)
         f = (PyCFrameObject *)(f->f_back);
     }
 
+    /* try the saved tstate of a hard switched tasklet */
+    saved_ts = slp_get_saved_tstate(task);
+    if (NULL != saved_ts) {
+        PyObject *temp;
+        temp = saved_ts->c_profileobj;
+        if (NULL == temp)
+            temp = Py_None;
+        Py_INCREF(temp);
+        return temp;
+    }
+
     Py_INCREF(Py_None);
     return Py_None;
 }
@@ -1737,6 +1779,7 @@ tasklet_set_profile_function(PyTaskletObject *task, PyObject *value)
     PyThreadState *ts = task->cstate->tstate;
     PyCFrameObject *f;
     Py_tracefunc tf = NULL;
+    PyTaskletTStateStruc *saved_ts;
 
     if (Py_None == value)
         value = NULL;
@@ -1763,13 +1806,27 @@ tasklet_set_profile_function(PyTaskletObject *task, PyObject *value)
             Py_XINCREF(value);
             f->ob2 = value;
             f->any2 = tf;
-            f->i = c_functions;
+            f->n = c_functions;
             Py_XDECREF(temp);
 
             return 0;
         }
         f = (PyCFrameObject *)(f->f_back);
     }
+
+    /* try the saved tstate of a hard switched tasklet */
+    saved_ts = slp_get_saved_tstate(task);
+    if (NULL != saved_ts) {
+        PyObject *temp;
+        temp = saved_ts->c_profileobj;
+        Py_XINCREF(value);
+        saved_ts->c_profileobj = value;
+        saved_ts->c_profilefunc = tf;
+        Py_XDECREF(temp);
+
+        return 0;
+    }
+
     /* task is neither current nor has a restore_tracing frame.
        ==> tracing is currently off */
     if (NULL == value)
@@ -1794,7 +1851,10 @@ tasklet_set_profile_function(PyTaskletObject *task, PyObject *value)
         assert(NULL == cf->ob2);
         cf->ob2 = value;
         cf->any2 = tf;
-        cf->i = c_functions;
+        cf->n = c_functions;
+        assert(0 == cf->i);        /* ts->tracing */
+        assert(NULL == cf->any1);  /* ts->c_tracefunc */
+        assert(NULL == cf->ob1);   /* ts->c_traceobj */
         return 0;
     }
 

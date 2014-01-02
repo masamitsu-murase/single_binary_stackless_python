@@ -5,6 +5,68 @@ import inspect
 from support import StacklessTestCase
 
 
+class TestTracingFlag(StacklessTestCase):
+    # Test that the PyThreadState tracing flag is preserved.
+    # The tracing flag in the PyThreadState structure indicates,
+    # that a tracing function is executed.
+    # To test this flag, a tasklet switch must occur during tracing.
+    # In a real application this could happen if a watchdog timeout
+    # is set.
+    # Because every trace function has C-state, this test can't test
+    # the preservation of the tracing flag in the soft-switching code.
+    def setUp(self):
+        if sys.gettrace():
+            self.skipTest("Trace function already active")
+        self.tracecount = 0
+        self.addCleanup(sys.settrace, None)
+        self.scheduleErrors = []
+
+    def foo(self):
+        pass
+
+    def trace_with_schedule(self, frame, event, arg):
+        # a trace function that switches tasks
+        count = self.tracecount
+        try:
+            self.tracecount += 1
+            tasklet = stackless.current
+            # print "   TraceFunc: %d %s %s in %s, line %s" % \
+            # (count, id(tasklet), event, frame.f_code.co_name, frame.f_lineno)
+            self.assertGreater(stackless.current.nesting_level, 0)
+            self.assertIsNotNone(tasklet.trace_function)
+            self.foo()
+            self.assertEqual(self.tracecount, count + 1)
+            stackless.schedule()
+            count = self.tracecount
+            self.foo()
+            tasklet = stackless.current
+            self.assertIsNotNone(tasklet.trace_function)
+            self.assertEqual(self.tracecount, count)
+        except Exception:
+            self.scheduleErrors.append(sys.exc_info())
+            sys.exc_clear()
+        return stackless.current.trace_function
+
+    def task(self):
+        count = self.tracecount
+        self.foo()
+        self.assertGreater(self.tracecount, count)
+
+    def testTracingFlagIsPreserved(self):
+        # create two tasklets and trace them
+        # the trace function calls stackless.schedule
+        tf = self.trace_with_schedule
+        t1 = stackless.tasklet(self.task)()
+        t1.trace_function = tf
+        t2 = stackless.tasklet(self.task)()
+        t2.trace_function = tf
+        stackless.run()
+        self.assertIsNone(sys.gettrace())
+        self.assertGreater(self.tracecount, 0)
+        # print "tracecount", self.tracecount
+        self.assertListEqual(self.scheduleErrors, [])
+
+
 # Test tasklet.trace_function and tasklet.profile_function
 class TestTracingProperties(StacklessTestCase):
     def setUp(self):
@@ -22,6 +84,18 @@ class TestTracingProperties(StacklessTestCase):
         return None
 
     def task(self, expected_trace_function=None, expected_profile_function=None):
+        # this task tests that the trace/profile function has the
+        # expected value
+        tasklet = stackless.current
+        self.assertIs(sys.gettrace(), expected_trace_function)
+        self.assertIs(tasklet.trace_function, expected_trace_function)
+        self.assertIs(sys.getprofile(), expected_profile_function)
+        self.assertIs(tasklet.profile_function, expected_profile_function)
+
+    def task2(self, expected_trace_function=None, expected_profile_function=None):
+        # task switches tasklets and then tests that the trace/profile function has the
+        # expected value
+        stackless.schedule()
         tasklet = stackless.current
         self.assertIs(sys.gettrace(), expected_trace_function)
         self.assertIs(tasklet.trace_function, expected_trace_function)
@@ -60,6 +134,8 @@ class TestTracingProperties(StacklessTestCase):
                                 setattr, t, "profile_function", self.nullTraceFunc)
 
     def testSetTraceOnTasklet1(self):
+        # Change trace state of a non-current tasklet
+        # create tasklet, set trace, clear trace, run
         tf = self.nullTraceFunc
         t = stackless.tasklet(self.task)()
         self.assertTrue(t.alive)
@@ -76,6 +152,8 @@ class TestTracingProperties(StacklessTestCase):
         self.assertEqual(self.tracecount, 0)
 
     def testSetTraceOnTasklet2(self):
+        # Change trace state of a non-current tasklet
+        # create tasklet, set trace, run
         tf = self.nullTraceFunc
         t = stackless.tasklet(self.task)(expected_trace_function=tf)
         self.assertTrue(t.alive)
@@ -88,7 +166,62 @@ class TestTracingProperties(StacklessTestCase):
         self.assertIsNone(t.profile_function)
         self.assertGreater(self.tracecount, 0)
 
+    def _testSetTraceOnTasklet3(self, t, tf):
+        t = stackless.tasklet(self.task2)()
+        t.trace_function = tf
+        t.run()
+        self.assertIs(t.trace_function, tf)
+        self.assertIsNone(t.profile_function)
+        self.assertGreater(self.tracecount, 0)
+        t.trace_function = None
+        stackless.run()
+        self.assertIsNone(t.trace_function)
+        self.assertIsNone(t.profile_function)
+
+    def testSetTraceOnTasklet3a(self):
+        # Change trace state of a non-current tasklet
+        # create tasklet (soft-switched), set trace, run, clear trace, run
+        tf = self.nullTraceFunc
+        t = stackless.tasklet(self.task2)()
+        self._testSetTraceOnTasklet3(t, tf)
+
+    def testSetTraceOnTasklet3b(self):
+        # Change trace state of a non-current tasklet
+        # create tasklet (hard-switched), set trace, run, clear trace, run
+        tf = self.nullTraceFunc
+        # enforce hard switching
+        t = stackless.tasklet(stackless.test_cstate)(self.task2)
+        self._testSetTraceOnTasklet3(t, tf)
+
+    def _testSetTraceOnTasklet4(self, t, tf):
+        t.run()
+        self.assertIsNone(t.trace_function)
+        self.assertIsNone(t.profile_function)
+        t.trace_function = tf
+        stackless.run()
+        self.assertIsNone(t.trace_function)
+        self.assertIsNone(t.profile_function)
+        self.assertGreater(self.tracecount, 0)
+
+    def testSetTraceOnTasklet4a(self):
+        # Change trace state of a non-current tasklet
+        # create tasklet (soft-switched), run, set trace, run
+        tf = self.nullTraceFunc
+        t = stackless.tasklet(self.task2)(expected_trace_function=tf)
+        self._testSetTraceOnTasklet4(t, tf)
+
+    def testSetTraceOnTasklet4b(self):
+        # Change trace state of a non-current tasklet
+        # create tasklet (hard-switched), run, set trace, run
+        tf = self.nullTraceFunc
+        # enforce hard switching
+        t = stackless.tasklet(stackless.test_cstate)
+        t(lambda: self.task2(expected_trace_function=tf))
+        self._testSetTraceOnTasklet4(t, tf)
+
     def testSetProfileOnTasklet1(self):
+        # Change profile state of a non-current tasklet
+        # create tasklet, set profile, clear profile, run
         tf = self.nullTraceFunc
         t = stackless.tasklet(self.task)()
         self.assertTrue(t.alive)
@@ -105,6 +238,8 @@ class TestTracingProperties(StacklessTestCase):
         self.assertEqual(self.tracecount, 0)
 
     def testSetProfileOnTasklet2(self):
+        # Change profile state of a non-current tasklet
+        # create tasklet, set profile, run
         tf = self.nullTraceFunc
         t = stackless.tasklet(self.task)(expected_profile_function=tf)
         self.assertTrue(t.alive)
@@ -117,7 +252,61 @@ class TestTracingProperties(StacklessTestCase):
         self.assertIsNone(t.profile_function)
         self.assertGreater(self.tracecount, 0)
 
+    def _testSetProfileOnTasklet3(self, t, tf):
+        t = stackless.tasklet(self.task2)()
+        t.profile_function = tf
+        t.run()
+        self.assertIs(t.profile_function, tf)
+        self.assertIsNone(t.trace_function)
+        self.assertGreater(self.tracecount, 0)
+        t.profile_function = None
+        stackless.run()
+        self.assertIsNone(t.trace_function)
+        self.assertIsNone(t.profile_function)
+
+    def testSetProfileOnTasklet3a(self):
+        # Change profile state of a non-current tasklet
+        # create tasklet (soft-switched), set profile, run, clear profile, run
+        tf = self.nullTraceFunc
+        t = stackless.tasklet(self.task2)()
+        self._testSetProfileOnTasklet3(t, tf)
+
+    def testSetProfileOnTasklet3b(self):
+        # Change profile state of a non-current tasklet
+        # create tasklet (hard-switched), set profile, run, clear profile, run
+        tf = self.nullTraceFunc
+        # enforce hard switching
+        t = stackless.tasklet(stackless.test_cstate)(self.task2)
+        self._testSetProfileOnTasklet3(t, tf)
+
+    def _testSetProfileOnTasklet4(self, t, tf):
+        t.run()
+        self.assertIsNone(t.trace_function)
+        self.assertIsNone(t.profile_function)
+        t.profile_function = tf
+        stackless.run()
+        self.assertIsNone(t.trace_function)
+        self.assertIsNone(t.profile_function)
+        self.assertGreater(self.tracecount, 0)
+
+    def testSetProfileOnTasklet4a(self):
+        # Change profile state of a non-current tasklet
+        # create tasklet (soft-switched), run, set profile, run
+        tf = self.nullTraceFunc
+        t = stackless.tasklet(self.task2)(expected_profile_function=tf)
+        self._testSetProfileOnTasklet4(t, tf)
+
+    def testSetProfileOnTasklet4b(self):
+        # Change profile state of a non-current tasklet
+        # create tasklet (hard-switched), run, set profile, run
+        tf = self.nullTraceFunc
+        # enforce hard switching
+        t = stackless.tasklet(stackless.test_cstate)
+        t(lambda: self.task2(expected_profile_function=tf))
+        self._testSetProfileOnTasklet4(t, tf)
+
     def testSetTraceAndProfileOnTasklet(self):
+        # test that you can set both, trace and profile
         tf = self.nullTraceFunc
         pf = self.nullTraceFunc
         t = stackless.tasklet(self.task)(expected_trace_function=tf,
@@ -265,6 +454,8 @@ class TestTracing(StacklessTestCase):
         seen = len([c for c in self.seen.itervalues() if c > 0])
         self.assertListEqual(self.schedule_callback_exc, [])
         self.assertListEqual(self.unexpected_trace_events, [])
+        # We won't see every line, because of if/else, try/except, comments, ...
+        # But we should see about 80%
         self.assertGreater(float(seen) / len(self.seen), 0.75)
 
 if __name__ == "__main__":

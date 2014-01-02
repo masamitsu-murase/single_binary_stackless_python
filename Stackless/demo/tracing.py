@@ -131,6 +131,10 @@ def schedule_cb(prev, next):
         current.trace_function = current_tf
 
 if __name__ == "__main__":
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == 'hard':
+        stackless.enable_softswitch(False)
+
     set_channel_callback(channel_cb)
     set_schedule_callback(schedule_cb)
 

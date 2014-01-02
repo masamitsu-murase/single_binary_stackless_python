@@ -72,6 +72,19 @@ typedef struct _tasklet_flags {
     unsigned int pending_irq: 1;
 } PyTaskletFlagStruc;
 
+/* a partial copy of PyThreadState. Used to preserve 
+   the state of a hard switched tasklet */
+typedef struct _tasklet_tstate {
+    int tracing;
+    Py_tracefunc c_profilefunc;
+    Py_tracefunc c_tracefunc;
+    PyObject *c_profileobj;
+    PyObject *c_traceobj;
+
+    PyObject *exc_type;
+    PyObject *exc_value;
+    PyObject *exc_traceback;
+} PyTaskletTStateStruc;
 
 typedef struct _tasklet {
     PyObject_HEAD
