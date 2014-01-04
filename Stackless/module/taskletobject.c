@@ -419,9 +419,9 @@ tasklet_reduce(PyTaskletObject * t)
 {
     PyObject *tup = NULL, *lis = NULL;
     PyFrameObject *f;
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = t->cstate->tstate;
 
-    if (t == ts->st.current)
+    if (ts && t == ts->st.current)
         RUNTIME_ERROR("You cannot __reduce__ the tasklet which is"
                       " current.", NULL);
     lis = PyList_New(0);
