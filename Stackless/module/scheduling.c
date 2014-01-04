@@ -409,7 +409,7 @@ slp_get_saved_tstate(PyTaskletObject *task) {
         p_max = &(cst->stack[max_search_size]);
     else
         p_max = &(cst->stack[cst->ob_size]);
-    for(p=cst->stack; p!=p_max; p++) {
+    for (p=cst->stack; p!=p_max; p++) {
         if (SAVED_TSTATE_MAGIC1 == *p) {
             saved_tstat_with_magic_t *sm = (saved_tstat_with_magic_t *)p;
             assert(sm->magic1 == SAVED_TSTATE_MAGIC1);
