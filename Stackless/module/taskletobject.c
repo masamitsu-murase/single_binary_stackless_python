@@ -775,9 +775,10 @@ impl_tasklet_run_remove(PyTaskletObject *task, int remove)
     } else {
         /* interthread. */
         PyThreadState *rts = task->cstate->tstate;
-        PyTaskletObject *current = rts->st.current;
+        PyTaskletObject *current;
         if (rts == NULL)
             RUNTIME_ERROR("tasklet has no thread", NULL);
+        current = rts->st.current;
         /* switching only makes sense on the same thread. */
         if (remove)
             RUNTIME_ERROR("can't switch to a different thread.", NULL);
