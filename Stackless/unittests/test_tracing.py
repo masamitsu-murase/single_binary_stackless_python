@@ -325,6 +325,31 @@ class TestTracingProperties(StacklessTestCase):
         self.assertIsNone(t.profile_function)
         self.assertGreater(self.tracecount, 0)
 
+    def testForeignThread(self):
+        """Ensure that you can't set a trace/profile function on the current tasklet of a different thread"""
+        try:
+            import threading
+        except ImportError:
+            self.skipTest("requires threading")
+
+        tasklet = stackless.current
+        tf = self.nullTraceFunc
+        ex = []
+
+        def target():
+            try:
+                self.assertRaises(RuntimeError, setattr, tasklet, "trace_function", tf)
+                self.assertRaises(RuntimeError, setattr, tasklet, "profile_function", tf)
+                self.assertRaises(RuntimeError, setattr, tasklet, "trace_function", None)
+                self.assertRaises(RuntimeError, setattr, tasklet, "profile_function", None)
+            except:
+                ex.extend(sys.exc_info())
+
+        t = threading.Thread(target=target)
+        t.start()
+        t.join()
+        if ex:
+            raise ex[0], ex[1], ex[2]
 
 # Test tracing. A simplified version of demo/tracing.py
 class mutex:

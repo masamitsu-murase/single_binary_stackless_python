@@ -1659,6 +1659,8 @@ tasklet_set_trace_function(PyTaskletObject *task, PyObject *value)
     }
     if (ts && ts->st.current == task) {
         /* current tasklet */
+        if (PyThreadState_GET() != ts)
+            RUNTIME_ERROR("You cannot set the trace function of the current tasklet of another thread", -1);
         PyEval_SetTrace(tf, value);
         return 0;
     }
@@ -1791,6 +1793,8 @@ tasklet_set_profile_function(PyTaskletObject *task, PyObject *value)
     }
     if (ts && ts->st.current == task) {
         /* current tasklet */
+        if (PyThreadState_GET() != ts)
+            RUNTIME_ERROR("You cannot set the profile function of the current tasklet of another thread", -1);
         PyEval_SetProfile(tf, value);
         return 0;
     }
