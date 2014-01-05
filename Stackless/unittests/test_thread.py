@@ -479,6 +479,59 @@ class DeadThreadTest(RemoteTaskletTests):
         t.bind_thread()
         self.assertEqual(t.thread_id, stackless.getcurrent().thread_id)
 
+    def test_methods_on_dead(self):
+        """test that tasklet methods on a dead tasklet behave well"""
+        class MyException(Exception):
+            pass
+
+        theThread, t = self.create_thread_task()
+        with theThread:
+            self.assertNotEqual(t.thread_id, -1)
+        self.assertEqual(t.thread_id, -1)
+
+        self.assertFalse(t.alive)
+        self.assertFalse(t.paused)
+        self.assertFalse(t.blocked)
+        self.assertFalse(t.scheduled)
+        self.assertTrue(t.restorable)
+        self.assertFalse(t.atomic)
+        self.assertFalse(t.block_trap)
+        self.assertFalse(t.ignore_nesting)
+        self.assertIsNone(t.next)
+        self.assertIsNone(t.prev)
+        # must not raise an exception
+        t.trace_function
+        t.profile_function
+        self.assertEqual(t.thread_id, -1)
+        t.bind(None)
+        self.assertEqual(t.thread_id, -1)
+        t.remove()
+        self.assertEqual(t.thread_id, -1)
+        t.bind(lambda: None)
+        self.assertEqual(t.thread_id, -1)
+        self.assertRaises(RuntimeError, t.setup)
+        self.assertEqual(t.thread_id, -1)
+        self.assertRaises(RuntimeError, t.bind, lambda: None, ())
+        self.assertEqual(t.thread_id, -1)
+        self.assertRaises(RuntimeError, t.insert)
+        self.assertEqual(t.thread_id, -1)
+        self.assertRaises(RuntimeError, t.run)
+        self.assertEqual(t.thread_id, -1)
+        self.assertRaises(RuntimeError, t.switch)
+        self.assertEqual(t.thread_id, -1)
+        self.assertRaises(MyException, t.raise_exception, MyException, 'test')
+        self.assertEqual(t.thread_id, -1)
+        self.assertRaises(RuntimeError, t.throw, MyException)
+        self.assertEqual(t.thread_id, -1)
+        t.__reduce__()
+        self.assertEqual(t.thread_id, -1)
+        t.set_atomic(t.set_atomic(True))
+        self.assertEqual(t.thread_id, -1)
+        t.set_ignore_nesting(t.set_ignore_nesting(1))
+        self.assertEqual(t.thread_id, -1)
+        t.bind(None)
+        self.assertEqual(t.thread_id, -1)
+
 #///////////////////////////////////////////////////////////////////////////////
 
 if __name__ == '__main__':
