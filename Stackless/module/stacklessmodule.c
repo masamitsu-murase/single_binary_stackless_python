@@ -1044,15 +1044,16 @@ void PyStackless_SetScheduleFastcallback(slp_schedule_hook_func func)
 
 int PyStackless_SetScheduleCallback(PyObject *callable)
 {
+    PyObject * temp = _slp_schedule_hook;
     if(callable != NULL && !PyCallable_Check(callable))
         TYPE_ERROR("schedule callback must be callable", -1);
-    Py_XDECREF(_slp_schedule_hook);
     Py_XINCREF(callable);
     _slp_schedule_hook = callable;
     if (callable!=NULL)
         PyStackless_SetScheduleFastcallback(slp_schedule_callback);
     else
         PyStackless_SetScheduleFastcallback(NULL);
+    Py_XDECREF(temp);
     return 0;
 }
 

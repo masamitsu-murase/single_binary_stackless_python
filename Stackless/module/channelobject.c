@@ -390,11 +390,12 @@ channel_callback(PyChannelObject *channel, PyTaskletObject *task, int sending, i
 
 int PyStackless_SetChannelCallback(PyObject *callable)
 {
+    PyObject * temp = channel_hook;
     if(callable != NULL && !PyCallable_Check(callable))
         TYPE_ERROR("channel callback must be callable", -1);
-    Py_XDECREF(channel_hook);
     Py_XINCREF(callable);
     channel_hook = callable;
+    Py_XDECREF(temp);
     return 0;
 }
 
