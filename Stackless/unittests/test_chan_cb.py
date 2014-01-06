@@ -47,6 +47,17 @@ class ChannelCallbackTestCase(StacklessTestCase):
         found = chanMon.history[0][-1]
         self.assertEqual(val, found)
 
+    def testGetCallback(self):
+        import stackless
+        mon = ChannelMonitor()
+        self.assertIsNone(stackless.get_channel_callback())
+        old = stackless.set_channel_callback(mon)
+        self.assertIsNone(old)
+        self.assertIs(stackless.get_channel_callback(), mon)
+        old = stackless.set_channel_callback(None)
+        self.assertIs(old, mon)
+        self.assertIsNone(stackless.get_channel_callback())
+
 
 if __name__ == '__main__':
     import sys

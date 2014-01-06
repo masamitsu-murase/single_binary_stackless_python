@@ -147,7 +147,8 @@ Callback related functions:
 
    Install a global channel callback.  Every send or receive action will result
    in *callable* being called.  Setting a value of ``None`` will result in the
-   callback being disabled.
+   callback being disabled. The function returns the previous channel callback or
+   ``None`` if none was installed.
    
    Example - installing a callback::
    
@@ -169,10 +170,16 @@ Callback related functions:
    indicates that the channel action will result in *tasklet* being blocked
    on *channel*.
    
+.. function:: get_channel_callback()
+
+   Get the current global channel callback. The function returns the 
+   current channel callback or ``None`` if none was installed.
+
 .. function:: set_schedule_callback(callable)
 
    Install a callback for scheduling.  Every scheduling event, whether
-   explicit or implicit, will result in *callable* being called.
+   explicit or implicit, will result in *callable* being called. The function
+   returns the previous channel callback or ``None`` if none was installed.
    
    Example - installing a callback::
    
@@ -184,6 +191,11 @@ Callback related functions:
    The *prev* callback argument is the tasklet that was just running.
    
    The *next* callback argument is the tasklet that is going to run now.
+
+.. function:: get_schedule_callback()
+
+   Get the current global schedule callback. The function returns the 
+   current schedule callback or ``None`` if none was installed.
 
 Scheduler state introspection related functions:
 

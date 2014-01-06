@@ -511,6 +511,8 @@ Py_tracefunc slp_get_sys_trace_func(void);
 int slp_encode_ctrace_functions(Py_tracefunc c_tracefunc, Py_tracefunc c_profilefunc);
 PyTaskletTStateStruc * slp_get_saved_tstate(PyTaskletObject *task);
 
+PyObject * slp_get_channel_callback(void);
+
 /* macro for use when interrupting tasklets from watchdog */
 #define TASKLET_NESTING_OK(task) \
     (ts->st.nesting_level == 0 || \

@@ -142,6 +142,15 @@ class SchedulingCallbackTestCase(StacklessTestCase):
             if ex:
                 self.assertEquals(ex.name, current_name)
 
+    def testGetCallback(self):
+        mon = SchedulingMonitor()
+        self.assertIsNone(stackless.get_schedule_callback())
+        old = stackless.set_schedule_callback(mon)
+        self.assertIsNone(old)
+        self.assertIs(stackless.get_schedule_callback(), mon)
+        old = stackless.set_schedule_callback(None)
+        self.assertIs(old, mon)
+        self.assertIsNone(stackless.get_schedule_callback())
 
 if __name__ == '__main__':
     if not sys.argv[1:]:
