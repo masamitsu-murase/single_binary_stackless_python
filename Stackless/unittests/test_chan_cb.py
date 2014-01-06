@@ -5,18 +5,18 @@ from support import StacklessTestCase
 
 class ChannelMonitor:
     "A channel monitor acting as a callback for set_channel_callback()."
-    
+
     def __init__(self):
         self.history = []
 
     def __call__(self, channel, tasklet, isSending, willBlock):
         tup = (channel, tasklet, isSending, willBlock, tasklet.tempval)
         self.history.append(tup)
-        
+
 
 class ChannelCallbackTestCase(StacklessTestCase):
     "A collection of channel callback tests."
-    
+
     def test0(self):
         "Simple monitored channel send from main tasklet."
 
@@ -24,8 +24,8 @@ class ChannelCallbackTestCase(StacklessTestCase):
 
         # create players
         chan = stackless.channel()
-        main = stackless.getmain() # implicit sender
-        receiver = stackless.tasklet(lambda ch:ch.receive())
+        main = stackless.getmain()  # implicit sender
+        receiver = stackless.tasklet(lambda ch: ch.receive())
         receiver = receiver(chan)
 
         # send a value to a monitored channel
@@ -38,11 +38,11 @@ class ChannelCallbackTestCase(StacklessTestCase):
         # compare sent value with monitored one
         # found = chanMon.history[0][1].tempval
         # self.assertEqual(val, found) # FAILS - why?
-        # 
+        #
         # fails, because the value is moved from sender to receiver
         # also, I need to modify channels a little :-)
         # this one works, because I keep a copy of the value.
-        # 
+        #
         # print chanMon.history
         found = chanMon.history[0][-1]
         self.assertEqual(val, found)
