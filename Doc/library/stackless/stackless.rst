@@ -235,9 +235,12 @@ Debugging related functions:
 
 .. function:: enable_softswitch(flag)
 
-   Control the switching behaviour.  Tasklets can be either switched by moving
-   stack slices around or by avoiding stack changes at all.  The latter is
-   only possible in the top interpreter level.
+   Control the switching behaviour. 
+   Tasklets can be either switched by moving C stack slices around
+   or by avoiding stack changes at all. The latter is only possible
+   in the top interpreter level. This flag exists once for the whole process.
+   For inquiry only, use 'None' as the flag.
+   By default, soft switching is enabled.
    
    Example - safely disabling soft switching::
    
