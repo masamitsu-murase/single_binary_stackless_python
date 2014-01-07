@@ -40,9 +40,11 @@ slp_null_error(void)
 PyFrameObject *
 slp_get_frame(PyTaskletObject *task)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts;
 
-    return ts->st.current == task ? ts->frame : task->f.frame;
+    assert(task->cstate != NULL);
+    ts = task->cstate->tstate;
+    return ts ? (ts->st.current == task ? ts->frame : task->f.frame) : NULL;
 }
 
 void slp_check_pending_irq()

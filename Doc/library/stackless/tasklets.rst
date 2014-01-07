@@ -383,6 +383,7 @@ The following attributes allow identification of tasklet place:
       def is_current(tasklet):
           return tasklet is stackless.current
 
+
 .. attribute:: tasklet.is_main
 
    This attribute is ``True`` if the tasklet is the main tasklet of the thread it
