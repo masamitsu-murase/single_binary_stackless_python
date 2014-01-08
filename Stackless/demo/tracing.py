@@ -1,7 +1,7 @@
-from stackless import *
-import types
-import traceback
+from __future__ import print_function
 
+from stackless import *
+import traceback
 
 def _tasklet__repr__(self):
     try:
@@ -60,19 +60,19 @@ m = Mutex()
 
 def task():
     name = getcurrent().name
-    print name, "acquiring"
+    print(name, "acquiring")
     m.lock()
-    print name, "switching"
+    print(name, "switching")
     schedule()
-    print name, "releasing"
+    print(name, "releasing")
     m.unlock()
 
 
 def trace_function(frame, event, arg):
     if frame.f_code.co_name in ('schedule_cb', 'channel_cb'):
         return None
-    print "         trace_function: %s %s in %s, line %s" % \
-        (stackless.current, event, frame.f_code.co_name, frame.f_lineno)
+    print("         trace_function: %s %s in %s, line %s" %
+        (stackless.current, event, frame.f_code.co_name, frame.f_lineno))
     if event in ('call', 'line', 'exception'):
         return trace_function
     return None
@@ -82,53 +82,61 @@ def channel_cb(channel, tasklet, sending, willblock):
     tf = tasklet.trace_function
     try:
         tasklet.trace_function = None
-        print "Channel CB, tasklet %r, %s%s" % \
-        (tasklet, ("recv", "send")[sending], ("", " will block")[willblock])
+        print("Channel CB, tasklet %r, %s%s" %
+        (tasklet, ("recv", "send")[sending], ("", " will block")[willblock]))
     finally:
         tasklet.trace_function = tf
 
 
 def schedule_cb(prev, next):
-    current = stackless.getcurrent()
-    current_tf = current.trace_function
+    current_tf = sys.gettrace()
     try:
-        current.trace_function = None
-        current_info = "Schedule CB, current %r, " % (current,)
+        sys.settrace(None)  # don't trace this callback
+        current_frame = sys._getframe()
         if current_tf is None:
             # also look at the previous frame, in case this callback is exempt
             # from tracing
-            f_back = current.frame.f_back
+            f_back = current_frame.f_back
             if f_back is not None:
                 current_tf = f_back.f_trace
 
+        current_info = "Schedule CB "
         if not prev:
-            print "%sstarting %r" % (current_info, next)
+            print("%sstarting %r" % (current_info, next))
         elif not next:
-            print "%sending %r" % (current_info, prev)
+            print("%sending %r" % (current_info, prev))
         else:
-            print "%sjumping from %s to %s" % (current_info, prev, next)
-        prev_tf = current_tf if prev is current else prev.trace_function
-        next_tf = current_tf if next is current else next.trace_function
-        print "    Current trace functions: prev: %r, next: %r" % \
-            (prev_tf, next_tf)
+            print("%sjumping from %s to %s" % (current_info, prev, next))
+
+        # Inform about the installed trace functions
+        
+        # 
+        prev_tf = current_tf if prev.frame is current_frame else prev.trace_function
+        next_tf = current_tf if next.frame is current_frame else next.trace_function
+        print("    Current trace functions: prev: %r, next: %r" %
+            (prev_tf, next_tf))
+
+        # Eventually set a trace function
         if next is not None:
             if not next.is_main:
                 tf = trace_function
             else:
                 tf = None
-            print "    Setting trace function for next: %r" % (tf,)
-            task = next.frame
-            if next is current:
-                task = task.f_back
-            while task is not None:
-                if isinstance(task, types.FrameType):
-                    task.f_trace = tf
-                task = task.f_back
+            print("    Setting trace function for next: %r" % (tf,))
+            # Set the "global" trace function for the tasklet
             next.trace_function = tf
+            # Set the "local" trace function for each frame
+            # This is required, if the tasklet is already running 
+            frame = next.frame
+            if frame is current_frame:
+                frame = frame.f_back
+            while frame is not None:
+                frame.f_trace = tf
+                frame = frame.f_back
     except:
         traceback.print_exc()
     finally:
-        current.trace_function = current_tf
+        sys.settrace(current_tf)
 
 if __name__ == "__main__":
     import sys
