@@ -73,15 +73,56 @@ What's New in Stackless 3.2.5?
 
 - Diable pre-emptive switching in switch-trapped mode.
 
-- Add tasklet.bind_thread() method, to re-bind a soft-switchable
+- When threads are killed, we try killing all their tasklets. They then
+  become thread-unbound, so that the Python(r) thread state can be safely
+  released. A tasklet without a thread reports its thread_id as -1.
+
+- https://bitbucket.org/stackless-dev/stackless/issue/26:
+  Add tasklet.bind_thread() method, to re-bind a soft-switchable
   tasklet to another thread.
 
-- Enhance tasklet.bind() so that it can bind arguments as well without
+- https://bitbucket.org/stackless-dev/stackless/issue/28:
+  Enhance tasklet.bind() so that it can bind arguments as well without
   making the tasklet runnable.
 
-- Add stackless.switch(), to do manual switching of tasklets without
+- https://bitbucket.org/stackless-dev/stackless/issue/29:
+  Add stackless.switch(), to do manual switching of tasklets without
   placing the source in the runnable queue.  I.e. the target is run and
   the source is paused.
+
+- https://bitbucket.org/stackless-dev/stackless/issue/38
+  Bug fix: An exception in the schedule callback caused an 
+  assertion failure in taskletobject.c, line 51
+
+- https://bitbucket.org/stackless-dev/stackless/issue/40
+  Bug fix: If a thread state had an exception and tracing was enabled, 
+  the exception was not preserved on a soft switch.
+
+- https://bitbucket.org/stackless-dev/stackless/issue/41
+  Bug fix: Traced tasklet is unpicklable
+
+- https://bitbucket.org/stackless-dev/stackless/issue/42
+  Bug fix: During the execution of the schedule callback the internal state 
+  of the interpreter was sometimes inconsistent. This caused tasklet related 
+  query methods and computed attributes to return incorrect results.
+
+- https://bitbucket.org/stackless-dev/stackless/issue/43
+  Enhancement: new attributes tasklet.trace_function and 
+  tasklet.profile_function
+
+- https://bitbucket.org/stackless-dev/stackless/issue/44
+  Bug fix: some computed tasklet attributes (i.e. tasklet.alive)
+  returned incorrect values when they were accessed from an thread the 
+  tasklet didn't belong to.
+
+- https://bitbucket.org/stackless-dev/stackless/issue/45
+  Enhancement: It is now possible to query installed schedule
+  and channel callback functions.
+
+- https://bitbucket.org/stackless-dev/stackless/issue/46
+  Bug fix: invoking tasklet.run() on a tasklet from a already
+  terminated thread no longer crashes the interpreter.
+
 
 - Fix unlinking of tasks in kill_tasks_with_stacks. The earlier code
   was a bit weird and would cause miscompilation on X64.
