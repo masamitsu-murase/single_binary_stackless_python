@@ -572,7 +572,12 @@ generic_channel_block(PyThreadState *ts, PyObject **result, PyChannelObject *sel
         RUNTIME_ERROR("this tasklet does not like to be"
                         " blocked.", -1);
     if (self->flags.closing) {
-        PyErr_SetNone(PyExc_StopIteration);
+        if (dir < 0)
+            /* receiving size */
+            PyErr_SetNone(PyExc_StopIteration);
+        else
+            /* sending side */
+            PyErr_SetNone(PyExc_GeneratorExit);
         return -1;
     }
 
