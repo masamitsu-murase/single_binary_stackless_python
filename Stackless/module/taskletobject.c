@@ -1420,26 +1420,30 @@ void PyTasklet_SetBlockTrap(PyTaskletObject *task, int value)
 static PyObject *
 tasklet_is_main(PyTaskletObject *task)
 {
-    return PyBool_FromLong(task == PyThreadState_GET()->st.main);
+    PyThreadState *ts = task->cstate->tstate;
+    return PyBool_FromLong(ts && task == ts->st.main);
 }
 
 int
 PyTasklet_IsMain(PyTaskletObject *task)
 {
-    return task == PyThreadState_GET()->st.main;
+    PyThreadState *ts = task->cstate->tstate;
+    return ts && task == ts->st.main;
 }
 
 
 static PyObject *
 tasklet_is_current(PyTaskletObject *task)
 {
-    return PyBool_FromLong(task == PyThreadState_GET()->st.current);
+    PyThreadState *ts = task->cstate->tstate;
+    return PyBool_FromLong(ts && task == ts->st.current);
 }
 
 int
 PyTasklet_IsCurrent(PyTaskletObject *task)
 {
-    return task == PyThreadState_GET()->st.current;
+    PyThreadState *ts = task->cstate->tstate;
+    return ts && task == ts->st.current;
 }
 
 
