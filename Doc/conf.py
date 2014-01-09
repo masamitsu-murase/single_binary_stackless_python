@@ -16,6 +16,22 @@ extensions = ['sphinx.ext.refcounting', 'sphinx.ext.coverage',
               'sphinx.ext.doctest', 'pyspecific']
 templates_path = ['tools/sphinxext']
 
+# Compatibility hack for Sphinx version 1.2 and later
+# without the 'sphinx.ext.refcounting' extension
+# Required for http://stackless.readthedocs.org
+try:
+    # this symbol is available starting from version 1.2
+    from sphinx import version_info
+except Exception:
+    pass # version is pre 1.2.
+else:
+    del version_info
+    del extensions[0]
+if os.environ.get('READTHEDOCS', None) == 'True':
+    # Use the Sphinx default theme, not the very neat theme of readthedocs.org
+    # See https://docs.readthedocs.org/en/latest/faq.html#i-want-to-use-the-blue-default-sphinx-theme
+    html_style = '/default.css'
+
 # General substitutions.
 project = 'Stackless-Python'
 copyright = '1990-%s, Python Software Foundation' % time.strftime('%Y')
