@@ -76,6 +76,11 @@ What's New in Stackless 2.7.6?
   Bug fix: invoking tasklet.run() on a tasklet from a already
   terminated thread no longer crashes the interpreter.
 
+- https://bitbucket.org/stackless-dev/stackless/issue/52
+  Use distinct product codes for the Stackless MSI installer.
+  Increment the value of the product code of the regular CPython release
+  by 8 if it is Stackless.
+
 
 What's New in Stackless 2.7.5?
 ==============================
