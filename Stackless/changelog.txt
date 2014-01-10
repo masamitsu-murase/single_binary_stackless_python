@@ -10,6 +10,10 @@ What's New in Stackless 2.7.6?
 
 *Release date: XXXX-XX-XX*
 
+- Issue #51:
+  The tasklet attrubtes "is_main" and "is_current" now are computed
+  relative to the tasklet's thread, not the calling thread.
+
 - http://www.stackless.com/ticket/24: Enable unbinding of tasklets.
   The method tasklet.bind(None) now unbinds a tasklet. 
 
