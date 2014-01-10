@@ -191,6 +191,12 @@ dll_path = os.path.join(srcdir, PCBUILD, dll_file)
 msilib.set_arch_from_file(dll_path)
 if msilib.pe_type(dll_path) != msilib.pe_type("msisupport.dll"):
     raise SystemError("msisupport.dll for incorrect architecture")
+if have_stackless:
+    # Bump the last digit of the code by two, so that 32-bit and 64-bit
+    # Stackless releases get separate product codes
+    digit = hex((int(product_code[-2],16)+8)%16)[-1]
+    product_code = product_code[:-2] + digit + '}'
+
 if msilib.Win64:
     upgrade_code = upgrade_code_64
     # Bump the last digit of the code by one, so that 32-bit and 64-bit
