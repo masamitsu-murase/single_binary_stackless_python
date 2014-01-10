@@ -572,12 +572,7 @@ generic_channel_block(PyThreadState *ts, PyObject **result, PyChannelObject *sel
         RUNTIME_ERROR("this tasklet does not like to be"
                         " blocked.", -1);
     if (self->flags.closing) {
-        if (dir < 0)
-            /* receiving size */
-            PyErr_SetNone(PyExc_StopIteration);
-        else
-            /* sending side */
-            PyErr_SetNone(PyExc_GeneratorExit);
+        PyErr_SetString(PyExc_ValueError, "Send/receive operation on a closed channel");
         return -1;
     }
 
@@ -881,8 +876,9 @@ channel_iternext(PyChannelObject *self)
 {
     STACKLESS_GETARG();
 
-    if (self->flags.closing && self->balance == 0) {
+    if (self->flags.closing && self->balance <= 0) {
         /* signal the end of the iteration */
+        PyErr_SetNone(PyExc_StopIteration);
         return NULL;
     }
     STACKLESS_PROMOTE_ALL();

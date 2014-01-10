@@ -230,6 +230,55 @@ class TestChannels(StacklessTestCase):
         self.assertEqual(count[0], 2)
 
 
+class TestClose(StacklessTestCase):
+    """Test using close semantics with channels"""
+    def setUp(self):
+        super(TestClose, self).setUp()
+        self.c = stackless.channel()
+
+    # TODO: This test shows how ill conceived the current closing/closed semantics are.
+    def testSequence(self):
+        def sender():
+            self.c.send_sequence(xrange(10))
+            self.c.close()
+            # this needs to change, close does not wake up a receiver, we must pump it
+            while self.c.closing and not self.c.closed:
+                self.c.send(None)
+
+        data = []
+        def receiver():
+            for i in self.c:
+                data.append(i)
+            #remove the extra "pump" nones at the end....
+            while data[-1] is None:
+                data.pop(-1)
+            data.append(10)
+
+        stackless.tasklet(sender)()
+        stackless.tasklet(receiver)()
+        stackless.run()
+        self.assertEqual(data, range(11))
+        self.assertTrue(self.c.closed)
+
+    def testSender(self):
+        self.c.close()
+        self.assertRaises(ValueError, self.c.send, None)
+
+    def testReceiver(self):
+        self.c.close()
+        self.assertRaises(ValueError, self.c.receive)
+
+    def testIterator(self):
+        self.c.close()
+        i = iter(self.c)
+        def n():
+            return next(i)
+        self.assertRaises(StopIteration, n)
+
+
+
+
+
 if __name__ == '__main__':
     import sys
     if not sys.argv[1:]:
