@@ -1435,7 +1435,7 @@ tasklet_end(PyObject *retval)
             else
                 txt = "the main tasklet is sending"
                     " without a receiver available.";
-            PyErr_SetString(PyExc_StopIteration, txt);
+            PyErr_SetString(PyExc_RuntimeError, txt);
             /* fall through to error handling */
             Py_DECREF(retval);
             retval = slp_curexc_to_bomb();
