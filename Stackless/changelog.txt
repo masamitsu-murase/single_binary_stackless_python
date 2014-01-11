@@ -10,6 +10,11 @@ What's New in Stackless 2.7.6?
 
 *Release date: XXXX-XX-XX*
 
+- Issue #50:
+  Don't raise StopIteration in a deadlock situation.
+  When a channel is closed, only raise StopIteration out of
+  channel.__next__.  Send/receive raise ValueError.
+
 - Issue #51:
   The tasklet attrubtes "is_main" and "is_current" now are computed
   relative to the tasklet's thread, not the calling thread.
