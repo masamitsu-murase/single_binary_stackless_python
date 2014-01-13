@@ -8,16 +8,12 @@ For other changes see Misc/NEWS.
 What's New in Stackless 2.7.6?
 ==============================
 
-*Release date: XXXX-XX-XX*
+*Release date: 2014-01-12*
 
-- Issue #50:
-  Don't raise StopIteration in a deadlock situation.
-  When a channel is closed, only raise StopIteration out of
-  channel.__next__.  Send/receive raise ValueError.
+- r82887: Fix incorrect error-handling in channel.send().
+  Fix PyTasklet_New_M().  You cannot call a __call__ method on an object.
 
-- Issue #51:
-  The tasklet attrubtes "is_main" and "is_current" now are computed
-  relative to the tasklet's thread, not the calling thread.
+- r82893: Fix incorrect run count beekeeping during cleanup.
 
 - http://www.stackless.com/ticket/24: Enable unbinding of tasklets.
   The method tasklet.bind(None) now unbinds a tasklet. 
@@ -84,6 +80,15 @@ What's New in Stackless 2.7.6?
 - https://bitbucket.org/stackless-dev/stackless/issue/46
   Bug fix: invoking tasklet.run() on a tasklet from a already
   terminated thread no longer crashes the interpreter.
+
+- https://bitbucket.org/stackless-dev/stackless/issue/50
+  Don't raise StopIteration in a deadlock situation.
+  When a channel is closed, only raise StopIteration out of
+  channel.__next__.  Send/receive raise ValueError.
+
+- https://bitbucket.org/stackless-dev/stackless/issue/51
+  The tasklet attrubtes "is_main" and "is_current" now are computed
+  relative to the tasklet's thread, not the calling thread.
 
 - https://bitbucket.org/stackless-dev/stackless/issue/52
   Use distinct product codes for the Stackless MSI installer.
