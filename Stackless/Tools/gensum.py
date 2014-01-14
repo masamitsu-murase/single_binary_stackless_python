@@ -10,7 +10,7 @@ import md5
 expected = "%s"
 fname = r"%s"
 print "expected digest", expected
-with file(fname", "rb") as f:
+with file(fname, "rb") as f:
     data = f.read()
 received = md5.md5(data).hexdigest()
 print ("matched" if received == expected else "NOT MATCHED!!")
