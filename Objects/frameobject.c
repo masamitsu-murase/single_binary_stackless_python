@@ -392,7 +392,7 @@ frame_getback(PyFrameObject *f, void *nope)
 {
     PyFrameObject *fb = f->f_back;
     PyObject *ret;
-    while (fb != NULL && ! PyFrame_Check(fb))
+    while (fb != NULL && ((PyObject *)fb) != Py_None && ! PyFrame_Check(fb))
         fb = fb->f_back;
     ret = (PyObject *) fb;
     if (ret == NULL)
