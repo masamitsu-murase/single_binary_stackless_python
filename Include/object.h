@@ -267,6 +267,12 @@ typedef struct {
     lenfunc mp_length;
     binaryfunc mp_subscript;
     objobjargproc mp_ass_subscript;
+#ifdef STACKLESS
+    /* we put the stackless method flags in here.  This keeps the basic PyTypeObject size
+     * constants and thus helps with compatibility with external types
+     */
+    slp_methodflags slpflags;
+#endif
 } PyMappingMethods;
 
 
@@ -389,20 +395,6 @@ typedef struct _typeobject {
     struct _typeobject *tp_prev;
     struct _typeobject *tp_next;
 #endif
-#ifdef STACKLESS
-	/* we need the extended structure right here */
-    PyNumberMethods as_number;
-    PyMappingMethods as_mapping;
-    PySequenceMethods as_sequence; /* as_sequence comes after as_mapping,
-                                      so that the mapping wins when both
-                                      the mapping and the sequence define
-                                      a given operator (e.g. __getitem__).
-                                      see add_operators() in typeobject.c . */
-    PyBufferProcs as_buffer;
-    PyObject *ht_name, *ht_slots;
-    /* here are optional user slots, followed by the members. */
-	slp_methodflags slpflags;
-#endif
 } PyTypeObject;
 #endif
 
@@ -422,14 +414,6 @@ typedef struct{
 PyAPI_FUNC(PyObject*) PyType_FromSpec(PyType_Spec*);
 
 #ifndef Py_LIMITED_API
-#ifdef STACKLESS
-
-#define VANILLA_PYTYPEOBJECT_SIZE ((size_t) &(((PyTypeObject *)0)->as_number))
-
-/* in Stackless, this is just a synonym */
-#define PyHeapTypeObject PyTypeObject
-
-#else
 
 /* The *real* layout of a type object when allocated on the heap */
 typedef struct _heaptypeobject {
@@ -453,7 +437,7 @@ typedef struct _heaptypeobject {
 /* access macro to the members which are floating "behind" the object */
 #define PyHeapType_GET_MEMBERS(etype) \
     ((PyMemberDef *)(((char *)etype) + Py_TYPE(etype)->tp_basicsize))
-#endif
+
 /* Generic type check */
 PyAPI_FUNC(int) PyType_IsSubtype(PyTypeObject *, PyTypeObject *);
 #define PyObject_TypeCheck(ob, tp) \
