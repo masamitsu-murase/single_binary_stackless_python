@@ -3807,9 +3807,13 @@ inherit_slots(PyTypeObject *type, PyTypeObject *base)
 #define COPYSLOT2(SLOT, SLPSLOT) \
     if (!type->SLOT && SLOTDEFINED(SLOT)) { \
         type->SLOT = base->SLOT; \
-        if (type->tp_flags & base->tp_flags & \
-            Py_TPFLAGS_HAVE_STACKLESS_EXTENSION) \
-            type->slpflags.SLPSLOT = base->slpflags.SLPSLOT; \
+        if ((type->tp_flags & base->tp_flags & \
+            Py_TPFLAGS_HAVE_STACKLESS_EXTENSION) && \
+            base->tp_as_mapping != NULL) { \
+            if (slp_prepare_slots(type)) \
+                Py_FatalError("No memory"); \
+            type->tp_as_mapping->slpflags.SLPSLOT = base->tp_as_mapping->slpflags.SLPSLOT; \
+        } \
     }
 
 #define COPYSLOT(SLOT) COPYSLOT2(SLOT, SLOT)
@@ -4019,11 +4023,14 @@ PyType_Ready(PyTypeObject *type)
 
 #ifdef STACKLESS
     /* extract/spread the stackless call flag */
-    if (type->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_EXTENSION) {
-        if (type->slpflags.tp_call)
+    if ((type->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_EXTENSION) && type->tp_as_mapping) {
+        if (type->tp_as_mapping->slpflags.tp_call) {
             type->tp_flags |= Py_TPFLAGS_HAVE_STACKLESS_CALL;
-        else if (type->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_CALL)
-            type->slpflags.tp_call = -1;
+        } else if (type->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_CALL) {
+            if (slp_prepare_slots(type))
+                return -1;
+            type->tp_as_mapping->slpflags.tp_call = -1;
+        }
     }
 #endif
 
@@ -5950,7 +5957,7 @@ typedef struct wrapperbase slotdef;
 
 #ifdef STACKLESS
 
-#define HEAPOFF(x) offsetof(PyHeapTypeObject, slpflags.x)
+#define HEAPOFF(x) offsetof(PyMappingMethods, slpflags.x)
 
 #define TPSLOT(NAME, SLOT, FUNCTION, WRAPPER, DOC) \
     {NAME, offsetof(PyTypeObject, SLOT), (void *)(FUNCTION), WRAPPER, \
@@ -6622,10 +6629,10 @@ add_operators(PyTypeObject *type)
             if (descr == NULL)
                 return -1;
 #ifdef STACKLESS
-            if (type->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_EXTENSION) {
+            if ((type->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_EXTENSION) && type->tp_as_mapping) {
                 PyWrapperDescrObject * d =
                     (PyWrapperDescrObject *) descr;
-                d->d_slpmask = ((signed char *) type)[p->slp_offset];
+                d->d_slpmask = ((signed char *) type->tp_as_mapping)[p->slp_offset];
             }
 #endif
             if (PyDict_SetItem(dict, p->name_strobj, descr) < 0)

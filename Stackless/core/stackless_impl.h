@@ -171,9 +171,11 @@ PyAPI_DATA(PyTypeObject) PyMethodWrapper_Type;
 #define STACKLESS_PROMOTE_FLAG(flag) \
     (stackless ? slp_try_stackless = (flag) : 0)
 
-#define STACKLESS_PROMOTE_METHOD(obj, meth) \
-    (obj->ob_type->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_EXTENSION ? \
-    slp_try_stackless = stackless & obj->ob_type->slpflags.meth : 0)
+#define STACKLESS_PROMOTE_METHOD(obj, meth) do { \
+    if ((obj->ob_type->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_EXTENSION) && \
+         obj->ob_type->tp_as_mapping) \
+        slp_try_stackless = stackless & obj->ob_type->tp_as_mapping->slpflags.meth; \
+} while (0)
 
 #define STACKLESS_PROMOTE_WRAPPER(wp) \
     (slp_try_stackless = stackless & wp->descr->d_slpmask)
@@ -512,6 +514,8 @@ int slp_encode_ctrace_functions(Py_tracefunc c_tracefunc, Py_tracefunc c_profile
 PyTaskletTStateStruc * slp_get_saved_tstate(PyTaskletObject *task);
 
 PyObject * slp_get_channel_callback(void);
+
+int slp_prepare_slots(PyTypeObject*);
 
 /* macro for use when interrupting tasklets from watchdog */
 #define TASKLET_NESTING_OK(task) \

@@ -1592,6 +1592,21 @@ int init_slpmoduletype(void)
     return 0;
 }
 
+int
+slp_prepare_slots(PyTypeObject * type)
+{
+    if (type->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_EXTENSION)
+        if (type->tp_as_mapping == NULL) {
+            type->tp_as_mapping = (PyMappingMethods *)PyMem_MALLOC(sizeof(PyMappingMethods));
+            if (!type->tp_as_mapping) {
+                PyErr_NoMemory();
+                return -1;
+            }
+            memset(type->tp_as_mapping, 0, sizeof(PyMappingMethods));
+        }
+    return 0;
+}
+
 static int init_stackless_methods(void)
 {
     _stackless_method *p = _stackless_methtable;
@@ -1603,7 +1618,9 @@ static int init_stackless_methods(void)
 
         if (ind)
             t = *((PyTypeObject **)t);
-        ((signed char *) t)[ofs] = -1;
+        if (slp_prepare_slots(t))
+            return -1;
+        ((signed char *) t->tp_as_mapping)[ofs] = -1;
     }
     return 0;
 }
