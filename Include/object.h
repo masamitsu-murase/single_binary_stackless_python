@@ -609,7 +609,6 @@ given type object has a specified feature.
 #define Py_TPFLAGS_TYPE_SUBCLASS        (1L<<31)
 
 #define Py_TPFLAGS_DEFAULT  ( \
-                 Py_TPFLAGS_HAVE_STACKLESS_EXTENSION | \
                  Py_TPFLAGS_HAVE_VERSION_TAG | \
                 0)
 

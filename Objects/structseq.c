@@ -338,6 +338,7 @@ PyStructSequence_InitType(PyTypeObject *type, PyStructSequence_Desc *desc)
 
     memcpy(type, &_struct_sequence_template, sizeof(PyTypeObject));
 
+    /* TODO: is this necessary now that things have been changed? */
 #ifdef STACKLESS
     if (!PyType_HasFeature(type, Py_TPFLAGS_HAVE_STACKLESS_EXTENSION)) {
     /* Extension compiled against vanilla Python with the unextended PyTypeObject. */
