@@ -211,6 +211,11 @@ PyAPI_DATA(PyTypeObject) PyMethodWrapper_Type;
 
 #define STACKLESS_DECLARE_METHOD(type, meth)
 
+/* This can be set to 0 to completely disable the augmentation of
+ * type info with stackless property.  For debugging.
+ */
+#define STACKLESS_NO_TYPEINFO 0
+
 /*
 
   How this works:

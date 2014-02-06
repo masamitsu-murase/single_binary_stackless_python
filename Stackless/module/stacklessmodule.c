@@ -1592,23 +1592,41 @@ int init_slpmoduletype(void)
     return 0;
 }
 
+/* This function is called to make sure the type has
+ * space in its tp_as_mapping to hold the slpslots.  If it has
+ * the Py_TMPFLAGS_HAVE_STACKLESS_EXTENSION bit, then any struct present
+ * is deemed large enough.  But if it is missing, then a struct already
+ * present needs to be grown.
+ */
 int
 slp_prepare_slots(PyTypeObject * type)
 {
-    if (type->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_EXTENSION)
-        if (type->tp_as_mapping == NULL) {
-            type->tp_as_mapping = (PyMappingMethods *)PyMem_MALLOC(sizeof(PyMappingMethods));
-            if (!type->tp_as_mapping) {
-                PyErr_NoMemory();
-                return -1;
+    PyMappingMethods *map, *old = type->tp_as_mapping;
+    if (old == NULL || !(type->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_EXTENSION)) {
+        /* need to allocate a new struct */
+        map = (PyMappingMethods *)PyMem_MALLOC(sizeof(PyMappingMethods));
+        if (map == NULL) {
+            PyErr_NoMemory();
+            return -1;
             }
-            memset(type->tp_as_mapping, 0, sizeof(PyMappingMethods));
+        memset(map, 0, sizeof(PyMappingMethods));
+        if (old) {
+            /* copy the old method slots, and mark the type */
+            memcpy(map, old, offsetof(PyMappingMethods, slpflags));
+            type->tp_flags |= Py_TPFLAGS_HAVE_STACKLESS_EXTENSION;
         }
+        /* we are leaking this pointer */
+        type->tp_as_mapping = map;
+    }
     return 0;
 }
 
+/* initial seeding of the stackless slot information into the types.
+ * it will then be propagated using slot copying
+ */
 static int init_stackless_methods(void)
 {
+#if !STACKLESS_NO_TYPEINFO
     _stackless_method *p = _stackless_methtable;
 
     for (; p->type != NULL; p++) {
@@ -1618,10 +1636,15 @@ static int init_stackless_methods(void)
 
         if (ind)
             t = *((PyTypeObject **)t);
+        /* this type has stackless slot methods.  Set the flag */
+        t->tp_flags |= Py_TPFLAGS_HAVE_STACKLESS_EXTENSION;
         if (slp_prepare_slots(t))
             return -1;
         ((signed char *) t->tp_as_mapping)[ofs] = -1;
+        if (t->tp_as_mapping->slpflags.tp_call)
+            t->tp_flags |= Py_TPFLAGS_HAVE_STACKLESS_CALL;  /* shortcut flag */
     }
+#endif
     return 0;
 }
 

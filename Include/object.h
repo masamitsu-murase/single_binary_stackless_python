@@ -651,7 +651,6 @@ manually remove this flag though!
                  Py_TPFLAGS_HAVE_WEAKREFS | \
                  Py_TPFLAGS_HAVE_ITER | \
                  Py_TPFLAGS_HAVE_CLASS | \
-                 Py_TPFLAGS_HAVE_STACKLESS_EXTENSION | \
                  Py_TPFLAGS_HAVE_INDEX | \
                  0)
 #define Py_TPFLAGS_DEFAULT_CORE (Py_TPFLAGS_DEFAULT_EXTERNAL | \

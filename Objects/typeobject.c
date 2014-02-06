@@ -3807,8 +3807,7 @@ inherit_slots(PyTypeObject *type, PyTypeObject *base)
 #define COPYSLOT2(SLOT, SLPSLOT) \
     if (!type->SLOT && SLOTDEFINED(SLOT)) { \
         type->SLOT = base->SLOT; \
-        if ((type->tp_flags & base->tp_flags & \
-            Py_TPFLAGS_HAVE_STACKLESS_EXTENSION) && \
+        if ((base->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_EXTENSION) && \
             base->tp_as_mapping != NULL) { \
             if (slp_prepare_slots(type)) \
                 Py_FatalError("No memory"); \
@@ -4002,6 +4001,14 @@ inherit_slots(PyTypeObject *type, PyTypeObject *base)
          * obvious to be done -- the type is on its own.
          */
     }
+#ifdef STACKLESS
+    /* set or clear the stackless call flag */
+    if ((type->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_EXTENSION) && type->tp_as_mapping &&
+            type->tp_as_mapping->slpflags.tp_call)
+        type->tp_flags |= Py_TPFLAGS_HAVE_STACKLESS_CALL;
+    else
+        type->tp_flags &= ~Py_TPFLAGS_HAVE_STACKLESS_CALL;
+#endif
 }
 
 static int add_operators(PyTypeObject *);
@@ -4021,18 +4028,7 @@ PyType_Ready(PyTypeObject *type)
 
     type->tp_flags |= Py_TPFLAGS_READYING;
 
-#ifdef STACKLESS
-    /* extract/spread the stackless call flag */
-    if ((type->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_EXTENSION) && type->tp_as_mapping) {
-        if (type->tp_as_mapping->slpflags.tp_call) {
-            type->tp_flags |= Py_TPFLAGS_HAVE_STACKLESS_CALL;
-        } else if (type->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_CALL) {
-            if (slp_prepare_slots(type))
-                return -1;
-            type->tp_as_mapping->slpflags.tp_call = -1;
-        }
-    }
-#endif
+
 
 #ifdef Py_TRACE_REFS
     /* PyType_Ready is the closest thing we have to a choke point
@@ -6393,7 +6389,7 @@ update_one_slot(PyTypeObject *type, slotdef *p)
         *ptr = specific;
     else
         *ptr = generic;
-#ifdef STACKLESS
+#if defined STACKLESS && !STACKLESS_NO_TYPEINFO
     if (ptr == (void**)&type->tp_call) {
         /* it is the __call__ attribute. */
         if (descr_call)
