@@ -2,7 +2,7 @@ import unittest
 import stackless
 import gc
 
-from support import StacklessTestCase
+from support import StacklessTestCase, captured_stderr
 
 
 """
@@ -170,7 +170,9 @@ class TestExceptionInScheduleCallback(StacklessTestCase):
         stackless.set_schedule_callback(self.scheduleCallback)
         self.addCleanup(stackless.set_schedule_callback, None)
         stackless.tasklet(lambda:None)()
-        stackless.run()
+        with captured_stderr() as stderr:
+            stackless.run()
+        self.assertTrue("scheduleCallback" in stderr.getvalue())
 
 if __name__ == '__main__':
     import sys

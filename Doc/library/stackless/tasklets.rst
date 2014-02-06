@@ -369,12 +369,24 @@ The following attributes allow identification of tasklet place:
 
 .. attribute:: tasklet.is_current
 
-   This attribute is ``True`` if the tasklet is the current tasklet.
+   This attribute is ``True`` if the tasklet is the current tasklet
+   of the thread it belongs to. To see if a tasklet is the currently executing
+   tasklet in the current thread use the following |PY| code::
+
+      import stackless
+      def is_current(tasklet):
+          return tasklet is stackless.current
 
 .. attribute:: tasklet.is_main
 
-   This attribute is ``True`` if the tasklet is the main tasklet.
+   This attribute is ``True`` if the tasklet is the main tasklet of the thread it
+   belongs to. To check if a tasklet is the main tasklet of the current thread
+   use the following |PY| code::
 
+      import stackless
+      def is_current_main(tasklet):
+          return tasklet is stackless.main
+   
 .. attribute:: tasklet.thread_id
 
    This attribute is the id of the thread the tasklet belongs to.  If its

@@ -267,7 +267,7 @@ class TestWatchdog(StacklessTestCase):
         t.insert()
         while stackless.runcount > 1:
             returned = stackless.run(100)
-            
+
     def test_run_return(self):
         #if the main tasklet had previously gone into C stack recusion-based switch, stackless.run() would give
         #strange results
@@ -280,18 +280,24 @@ class TestWatchdog(StacklessTestCase):
         t()
         r = stackless.run()
         self.assertEqual(r, None)
-        
-        
+
+    def test_lone_receive(self):
+
+        def f():
+            stackless.channel().receive()
+        stackless.tasklet(f)()
+        stackless.run()
+
 class TestWatchdogSoft(TestWatchdog):
     softSchedule = True
-    
+
 
     def __init__(self, *args):
         self.chans = [stackless.channel() for i in range(3)]
         #for c in self.chans:
         #    c.preference = 0
         TestWatchdog.__init__(self, *args)
-        
+
     def ChannelTasklet(self, i):
         a = i;
         b = (i+1)%3
@@ -306,8 +312,8 @@ class TestWatchdogSoft(TestWatchdog):
                 j = i+i
 
             self.chans[b].send(j)
-        
-        
+
+
     #test the soft interrupt on a chain of tasklets running
     def test_channelchain(self):
         c = [stackless.tasklet(self.ChannelTasklet) for i in range(3)]
@@ -322,10 +328,13 @@ class TestWatchdogSoft(TestWatchdog):
         finally:
             for t in c:
                 t.kill()
-            
-            
-        
-    
+
+class TestDeadlock(StacklessTestCase):
+    def testReceiveOnMain(self):
+        self.c = stackless.channel()
+        self.assertRaises(RuntimeError, self.c.receive)
+
+
 if __name__ == '__main__':
     import sys
     if not sys.argv[1:]:
