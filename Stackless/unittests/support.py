@@ -7,6 +7,19 @@ except:
 import unittest
 import re
 import types
+import contextlib
+import sys
+from io import StringIO
+
+@contextlib.contextmanager
+def captured_stderr():
+    old = sys.stderr
+    new = StringIO()
+    sys.stderr = new
+    try:
+        yield new
+    finally:
+        sys.stderr = old
 
 class RegexMixIn(object):
     """for pre-2.7 support """
