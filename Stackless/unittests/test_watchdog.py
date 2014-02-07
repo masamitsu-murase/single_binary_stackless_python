@@ -337,9 +337,60 @@ class TestWatchdogSoft(TestWatchdog):
                 t.kill()
 
 class TestDeadlock(StacklessTestCase):
+    """Test various deadlock scenarios"""
     def testReceiveOnMain(self):
+        """Thest that we get a deadock exception if main tries to block"""
         self.c = stackless.channel()
-        self.assertRaises(RuntimeError, self.c.receive)
+        self.assertRaisesRegexp(RuntimeError, "Deadlock", self.c.receive)
+
+    def test_main_receiving_endttasklet(self):
+        """Test that the main tasklet is interrupted when a tasklet ends"""
+        c = stackless.channel()
+        t = stackless.tasklet(lambda:None)()
+        self.assertRaisesRegexp(RuntimeError, "receiving", c.receive)
+
+    def test_main_sending_enddtasklet(self):
+        """Test that the main tasklet is interrupted when a tasklet ends"""
+        c = stackless.channel()
+        t = stackless.tasklet(lambda:None)()
+        self.assertRaisesRegexp(RuntimeError, "sending", c.send, None)
+
+    def test_main_gets_exception(self):
+        """Test that a custom exception is transfered to a blocked main"""
+        def task():
+            raise ZeroDivisionError("mumbai")
+        stackless.tasklet(task)()
+        self.assertRaisesRegexp(ZeroDivisionError, "mumbai", stackless.channel().receive)
+
+    def test_tasklet_deadlock(self):
+        """Test that a tasklet gets the "Deadlock" exception"""
+        mc = stackless.channel()
+        def task():
+            c = stackless.channel()
+            self.assertRaisesRegexp(RuntimeError, "Deadlock", c.receive)
+            mc.send(None)
+        t = stackless.tasklet(task)()
+        mc.receive()
+
+    def test_tasklet_and_main_receive(self):
+        """Test that the tasklet's deadlock exception gets transferred to a blocked main"""
+        mc = stackless.channel()
+        def task():
+            stackless.channel().receive()
+        t = stackless.tasklet(task)()
+        # main should get the tasklet's exception
+        self.assertRaisesRegexp(RuntimeError, "Deadlock", mc.receive)
+
+
+def load_tests(loader, tests, pattern):
+    """custom loader to run just a subset"""
+    suite = unittest.TestSuite()
+    test_cases = [TestDeadlock]
+    for test_class in test_cases:
+        tests = loader.loadTestsFromTestCase(test_class)
+        suite.addTests(tests)
+    return suite
+del load_tests #disabled
 
 
 if __name__ == '__main__':
