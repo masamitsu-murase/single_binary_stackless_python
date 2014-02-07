@@ -1426,8 +1426,12 @@ tasklet_end(PyObject *retval)
     if (next == NULL) {
         int blocked = ts->st.main->flags.blocked;
 
-        if (blocked) {
+        /* if we are blocking we must wake up main.  If there is no
+         * error, we need to create a deadlock error to wake main up on.
+         */
+        if (blocked && !PyBomb_Check(retval)) {
             char *txt;
+            PyObject *bomb;
             /* main was blocked and nobody can send */
             if (blocked < 0)
                 txt = "the main tasklet is receiving"
@@ -1437,12 +1441,13 @@ tasklet_end(PyObject *retval)
                     " without a receiver available.";
             PyErr_SetString(PyExc_RuntimeError, txt);
             /* fall through to error handling */
-            Py_DECREF(retval);
-            retval = slp_curexc_to_bomb();
+            bomb = slp_curexc_to_bomb();
             if (retval == NULL) {
                 schedule_fail = -1;
                 goto end;
             }
+            Py_REPLACE(retval, bomb);
+            TASKLET_SETVAL(task, retval);
         }
         next = ts->st.main;
     }
@@ -1456,9 +1461,9 @@ tasklet_end(PyObject *retval)
          * source of a reference cycle
          */
         assert(task->tempval == retval);
+        next = ts->st.main;
         TASKLET_CLAIMVAL(task, &retval);
         TASKLET_SETVAL_OWN(next, retval);
-        next = ts->st.main;
     }
     Py_DECREF(retval);
 
