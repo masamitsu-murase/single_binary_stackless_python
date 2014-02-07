@@ -381,11 +381,126 @@ class TestDeadlock(StacklessTestCase):
         # main should get the tasklet's exception
         self.assertRaisesRegexp(RuntimeError, "Deadlock", mc.receive)
 
+class TestNewWatchdog(StacklessTestCase):
+    """Tests for running stackless.run on non-main tasklet, and having nested run invocations"""
+    def worker_func(self):
+        stackless.schedule()
+        self.done += 1
+
+    def setUp(self):
+        super(TestNewWatchdog, self).setUp()
+        self.done = 0
+        self.worker = stackless.tasklet(self.worker_func)()
+
+    def test_run_from_worker(self):
+        """Test that run() works from a different tasklet"""
+        def runner_func():
+            stackless.run()
+            self.done += 1
+        t = stackless.tasklet(runner_func)()
+
+        # main runs as a normal tasklet now
+        while not self.done:
+            stackless.schedule()
+        # the runner is still paused, because the main tasklet wasn't blocked
+        self.assertEqual(self.done, 1)
+        #make runner exit
+        t.run()
+        self.assertTrue(self.done, 2)
+
+    def test_run_from_worker_main_blocked(self):
+        """main is blocked while a tasklet calls stackless.run()"""
+        c = stackless.channel()
+        def runner_func():
+            stackless.run()
+            self.done += 1
+            c.send(None)
+        t = stackless.tasklet(runner_func)()
+
+        # main blocks
+        c.receive()
+        self.assertEqual(self.done, 2)
+    def test_run_from_worker_main_running(self):
+        """Main calls run() to start inner tasklet that also calls run()"""
+        def runner_func():
+            stackless.run()
+            self.assertEqual(self.done, 1)
+            self.done += 1
+        t = stackless.tasklet(runner_func)()
+
+        # main calls run
+        stackless.run()
+        self.assertEqual(self.done, 2)
+
+    def test_inner_run_completes_first(self):
+        """Test that the outer run() is indeed paused when the inner one completes"""
+        def runner_func():
+            stackless.run()
+            self.assertTrue(stackless.main.paused)
+            self.done += 1
+        stackless.tasklet(runner_func)()
+        stackless.run()
+        self.assertEqual(self.done, 2)
+
+
+    def test_inner_run_gets_error(self):
+        """Test that an unhandled error is passed to the inner watchdog"""
+        def errfunc():
+            raise RuntimeError("foo")
+        def runner_func():
+            stackless.tasklet(errfunc)()
+            self.assertRaisesRegexp(RuntimeError, "foo", stackless.run)
+            self.done += 1
+        stackless.tasklet(runner_func)()
+        stackless.run()
+        self.assertEqual(self.done, 2)
+
+    def test_manual_wakeup(self):
+        """with nested run, the main tasklet is manually woken up, implicitly waking up the inner watchdogs."""
+        def wakeupfunc():
+            stackless.main.run()
+            self.done += 1
+        def runner_func():
+            stackless.tasklet(wakeupfunc)()
+            stackless.run()
+            self.done += 1
+        stackless.tasklet(runner_func)()
+        stackless.run()
+        self.assertEqual(self.done, 1) # only worker func has run now
+        # empty all tasklets
+        stackless.run()
+        self.assertEqual(self.done, 3) # all tasklets have completed.
+
+    def test_main_exiting(self):
+        """Verify behavior when main continues running and a taskler runs a watchdog """
+        def runner_func():
+            stackless.run()
+            self.done += 1
+
+        t = stackless.tasklet(runner_func)()
+
+        # let the scheduler run
+        while not self.done:
+            stackless.schedule()
+        self.assertEqual(self.done, 1) # only worker has finished.
+
+        #now, run stackless.run here
+        stackless.run()
+        # but nothing happened, because the other watchdog is not runnable
+        self.assertEqual(self.done, 1) # only worker has finished.
+        stackless.run()
+        self.assertEqual(self.done, 1) # the other tasklet is blocked.
+        stackless.schedule()
+        self.assertEqual(self.done, 1) # The other dude won't exit its run until we are no longer runnable.
+        self.assertTrue(t.alive)
+        t.kill()
+        self.assertFalse(t.alive)
+
 
 def load_tests(loader, tests, pattern):
     """custom loader to run just a subset"""
     suite = unittest.TestSuite()
-    test_cases = [TestDeadlock]
+    test_cases = [TestNewWatchdog]#, TestDeadlock]
     for test_class in test_cases:
         tests = loader.loadTestsFromTestCase(test_class)
         suite.addTests(tests)

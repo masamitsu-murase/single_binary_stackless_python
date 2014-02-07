@@ -742,6 +742,18 @@ void slp_thread_unblock(PyThreadState *nts)
 
 #endif
 
+/* find the correct target to wake up when we block.  The innermost watchdog
+ * or the main tasklet.  Returns a borrowed reference
+ */
+static PyTaskletObject *
+get_watchdog_or_main(PyThreadState *ts)
+{
+    if (ts->st.watchdogs == NULL || PyList_GET_SIZE(ts->st.watchdogs) == 0)
+        return ts->st.main;
+    return (PyTaskletObject*)PyList_GET_ITEM(
+        ts->st.watchdogs, PyList_GET_SIZE(ts->st.watchdogs) - 1);
+}
+
 static int
 schedule_task_block(PyObject **result, PyTaskletObject *prev, int stackless, int *did_switch)
 {
@@ -749,14 +761,18 @@ schedule_task_block(PyObject **result, PyTaskletObject *prev, int stackless, int
     PyObject *retval, *tmpval=NULL;
     PyTaskletObject *next = NULL;
     int fail, revive_main = 0;
+    PyTaskletObject *wakeup;
+    
+    /* which "main" do we awaken if we are blocking? */
+    wakeup = get_watchdog_or_main(ts);
 
 #ifdef WITH_THREAD
-    if ( !(ts->st.runflags & Py_WATCHDOG_THREADBLOCK) && ts->st.main->next == NULL)
+    if ( !(ts->st.runflags & Py_WATCHDOG_THREADBLOCK) && wakeup->next == NULL)
         /* we also must never block if watchdog is running not in threadblocking mode */
         revive_main = 1;
 
     if (revive_main)
-        assert(ts->st.main->next == NULL); /* main must be floating */
+        assert(wakeup->next == NULL); /* target must be floating */
 #endif
 
     if (revive_main || check_for_deadlock()) {
@@ -810,28 +826,28 @@ schedule_task_block(PyObject **result, PyTaskletObject *prev, int stackless, int
 
 cantblock:
     /* cannot block */
-    if (revive_main || (ts == slp_initial_tstate && ts->st.main->next == NULL)) {
+    if (revive_main || (ts == slp_initial_tstate && wakeup->next == NULL)) {
         /* emulate old revive_main behavior:
          * passing a value only if it is an exception
          */
         if (PyBomb_Check(prev->tempval)) {
-            TASKLET_CLAIMVAL(ts->st.main, &tmpval);
-            TASKLET_SETVAL(ts->st.main, prev->tempval);
+            TASKLET_CLAIMVAL(wakeup, &tmpval);
+            TASKLET_SETVAL(wakeup, prev->tempval);
         }
-        fail = slp_schedule_task(result, prev, ts->st.main, stackless, did_switch);
+        fail = slp_schedule_task(result, prev, wakeup, stackless, did_switch);
         if (fail && tmpval != NULL)
-            TASKLET_SETVAL_OWN(ts->st.main, tmpval);
+            TASKLET_SETVAL_OWN(wakeup, tmpval);
         else
             Py_XDECREF(tmpval);
         return fail;
     }
     if (!(retval = make_deadlock_bomb()))
         return -1;
-    TASKLET_CLAIMVAL(ts->st.main, &tmpval);
+    TASKLET_CLAIMVAL(wakeup, &tmpval);
     TASKLET_SETVAL_OWN(prev, retval);
     fail = slp_schedule_task(result, prev, prev, stackless, did_switch);
     if (fail && tmpval != NULL)
-        TASKLET_SETVAL_OWN(ts->st.main, tmpval);
+        TASKLET_SETVAL_OWN(wakeup, tmpval);
     else
         Py_XDECREF(tmpval);
     return fail;
@@ -1424,10 +1440,12 @@ tasklet_end(PyObject *retval)
 
     next = ts->st.current;
     if (next == NULL) {
-        int blocked = ts->st.main->flags.blocked;
+        /* there is no current tasklet to wakeup.  Must wakeup watchdog or main */
+        PyTaskletObject *wakeup = get_watchdog_or_main(ts);
+        int blocked = wakeup->flags.blocked;
 
-        /* if we are blocking we must wake up main.  If there is no
-         * error, we need to create a deadlock error to wake main up on.
+        /* If the target is blocked and there is no pending error,
+         * we need to create a deadlock error to wake it up with.
          */
         if (blocked && !PyBomb_Check(retval)) {
             char *txt;
@@ -1449,21 +1467,20 @@ tasklet_end(PyObject *retval)
             Py_REPLACE(retval, bomb);
             TASKLET_SETVAL(task, retval);
         }
-        next = ts->st.main;
+        next = wakeup;
     }
 
     if (PyBomb_Check(retval)) {
-        /*
-         * error handling: continue in the context of the main tasklet.
-         * Remove the bomb from the source since it is frequently the
-         * source of a reference cycle
-         * Remove the bomb from the source since it is frequently the
+        /* a bomb, due to deadlock or passed in, must wake up the correct
+         * tasklet
+         */
+        next = get_watchdog_or_main(ts);
+        /* Remove the bomb from the source since it is frequently the
          * source of a reference cycle
          */
         assert(task->tempval == retval);
         TASKLET_CLAIMVAL(task, &retval);
         TASKLET_SETVAL_OWN(next, retval);
-        next = ts->st.main;
     }
     Py_DECREF(retval);
 
