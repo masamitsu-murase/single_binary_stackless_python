@@ -1561,6 +1561,7 @@ _PyStackless_InitTypes(void)
         || init_flextype()
         || init_tasklettype()
         || init_channeltype()
+        || slp_init_bombtype()
         || PyType_Ready(&PyAtomic_Type)
         )
         return 0;

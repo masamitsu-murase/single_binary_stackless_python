@@ -439,7 +439,9 @@ do { \
 PyAPI_FUNC(PyObject *) slp_make_bomb(PyObject *klass, PyObject *args, char *msg);
 PyAPI_FUNC(PyObject *) slp_exc_to_bomb(PyObject *exc, PyObject *val, PyObject *tb);
 PyAPI_FUNC(PyObject *) slp_curexc_to_bomb(void);
+PyAPI_FUNC(PyObject *) slp_nomemory_bomb(void);
 PyAPI_FUNC(PyObject *) slp_bomb_explode(PyObject *bomb);
+PyAPI_FUNC(int) slp_init_bombtype(void);
 
 /* tasklet startup */
 
