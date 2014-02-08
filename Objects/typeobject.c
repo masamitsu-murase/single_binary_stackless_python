@@ -2204,7 +2204,11 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
     /* Initialize essential fields */
     type->tp_as_number = &et->as_number;
     type->tp_as_sequence = &et->as_sequence;
+#ifdef STACKLESS
+    type->tp_as_mapping = (PyMappingMethods *)&et->as_mapping;
+#else
     type->tp_as_mapping = &et->as_mapping;
+#endif
     type->tp_as_buffer = &et->as_buffer;
     type->tp_name = _PyUnicode_AsString(name);
     if (!type->tp_name) {
