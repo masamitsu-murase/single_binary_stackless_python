@@ -302,6 +302,15 @@ typedef struct {
 #endif
 } PyMappingMethods;
 
+#ifdef STACKLESS
+/* we need the original object for inclusion in the PyHeapTypeObject */
+typedef struct {
+    lenfunc mp_length;
+    binaryfunc mp_subscript;
+    objobjargproc mp_ass_subscript;
+} PyMappingMethods_Orig;
+#endif
+
 typedef struct {
     readbufferproc bf_getreadbuffer;
     writebufferproc bf_getwritebuffer;
@@ -426,7 +435,11 @@ typedef struct _heaptypeobject {
        in slotptr() in typeobject.c . */
     PyTypeObject ht_type;
     PyNumberMethods as_number;
+#ifdef STACKLESS
+    PyMappingMethods_Orig as_mapping;
+#else
     PyMappingMethods as_mapping;
+#endif
     PySequenceMethods as_sequence; /* as_sequence comes after as_mapping,
                                       so that the mapping wins when both
                                       the mapping and the sequence define
