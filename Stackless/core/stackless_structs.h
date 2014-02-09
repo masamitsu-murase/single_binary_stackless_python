@@ -223,10 +223,9 @@ PyAPI_DATA(PyTypeObject) PyCStack_Type;
 PyAPI_DATA(PyTypeObject) PyBomb_Type;
 #define PyBomb_Check(op) ((op)->ob_type == &PyBomb_Type)
 
-PyAPI_DATA(PyTypeObject*) PyTasklet_TypePtr;
-#define PyTasklet_Type (*PyTasklet_TypePtr)
-#define PyTasklet_Check(op) PyObject_TypeCheck(op, PyTasklet_TypePtr)
-#define PyTasklet_CheckExact(op) ((op)->ob_type == PyTasklet_TypePtr)
+PyAPI_DATA(PyTypeObject) PyTasklet_Type;
+#define PyTasklet_Check(op) PyObject_TypeCheck(op, &PyTasklet_Type)
+#define PyTasklet_CheckExact(op) ((op)->ob_type == &PyTasklet_Type)
 
 PyAPI_DATA(PyTypeObject) PyChannel_Type;
 #define PyChannel_Check(op) PyObject_TypeCheck(op, &PyChannel_Type)

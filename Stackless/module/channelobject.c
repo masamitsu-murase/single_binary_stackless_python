@@ -1225,15 +1225,4 @@ PyTypeObject PyChannel_Type = {
 };
 
 STACKLESS_DECLARE_METHOD(&PyChannel_Type, tp_iternext)
-
-/******************************************************
-
-  source module initialization
-
- ******************************************************/
-
-int init_channeltype(void)
-{
-    return PyType_Ready(&PyChannel_Type);
-}
 #endif

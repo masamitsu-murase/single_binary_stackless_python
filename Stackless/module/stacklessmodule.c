@@ -8,8 +8,6 @@
 #define IMPLEMENT_STACKLESSMODULE
 #include "platf/slp_platformselect.h"
 #include "core/cframeobject.h"
-#include "taskletobject.h"
-#include "channelobject.h"
 #include "pickling/prickelpit.h"
 #include "core/stackless_methods.h"
 #include "pythread.h"
@@ -1617,8 +1615,8 @@ _PyStackless_InitTypes(void)
         || init_stackless_methods()
         || init_cframetype()
         || init_flextype()
-        || init_tasklettype()
-        || init_channeltype()
+        || PyType_Ready(&PyTasklet_Type)
+        || PyType_Ready(&PyChannel_Type)
         || PyType_Ready(&PyAtomic_Type)
         )
         return 0;
