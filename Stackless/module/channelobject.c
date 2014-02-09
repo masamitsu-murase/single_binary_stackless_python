@@ -10,7 +10,6 @@
 #include "core/stackless_impl.h"
 #include "channelobject.h"
 
-
 static void
 channel_remove_all(PyObject *ob);
 
@@ -421,24 +420,6 @@ PyChannel_Send_M(PyChannelObject *self, PyObject *arg)
                                        arg);
 }
 
-int
-PyChannel_Send_nr(PyChannelObject *self, PyObject *arg)
-{
-    PyChannel_HeapType *t = (PyChannel_HeapType *) self->ob_type;
-
-    STACKLESS_PROPOSE_ALL();
-    return slp_return_wrapper(t->send(self, arg));
-}
-
-int
-PyChannel_Send(PyChannelObject *self, PyObject *arg)
-{
-    PyChannel_HeapType *t = (PyChannel_HeapType *) self->ob_type;
-
-    return slp_return_wrapper(t->send(self, arg));
-}
-
-
 static int
 generic_channel_cando(PyThreadState *ts, PyObject **result, PyChannelObject *self, int dir, int stackless);
 static int
@@ -600,7 +581,8 @@ generic_channel_block(PyThreadState *ts, PyObject **result, PyChannelObject *sel
     return fail;
 }
 
-static CHANNEL_SEND_HEAD(impl_channel_send)
+static PyObject *
+impl_channel_send(PyChannelObject *self, PyObject *arg)
 {
     STACKLESS_GETARG();
     PyThreadState *ts = PyThreadState_GET();
@@ -609,15 +591,24 @@ static CHANNEL_SEND_HEAD(impl_channel_send)
     return generic_channel_action(self, arg, 1, stackless);
 }
 
-static CHANNEL_SEND_HEAD(wrap_channel_send)
+int
+PyChannel_Send_nr(PyChannelObject *self, PyObject *arg)
 {
-    return PyObject_CallMethod((PyObject *) self, "send", "(O)", arg);
+    STACKLESS_PROPOSE_ALL();
+    return slp_return_wrapper(impl_channel_send(self, arg));
+}
+
+int
+PyChannel_Send(PyChannelObject *self, PyObject *arg)
+{
+    return slp_return_wrapper_hard(impl_channel_send(self, arg));
 }
 
 static PyObject *
-channel_send(PyObject *myself, PyObject *arg)
+channel_send(PyObject *self, PyObject *arg)
 {
-    return impl_channel_send((PyChannelObject*)myself, arg);
+    STACKLESS_GETARG();
+    return generic_channel_action((PyChannelObject*)self, arg, 1, stackless);
 }
 
 
@@ -634,15 +625,10 @@ PyChannel_SendException_M(PyChannelObject *self, PyObject *klass,
         "send_exception", "(OO)", klass, args);
 }
 
-int
-PyChannel_SendException(PyChannelObject *self, PyObject *klass, PyObject *args)
-{
-    PyChannel_HeapType *t = (PyChannel_HeapType *) self->ob_type;
+static CHANNEL_SEND_EXCEPTION_HEAD(impl_channel_send_exception);
 
-    return slp_return_wrapper(t->send_exception(self, klass, args));
-}
-
-static CHANNEL_SEND_EXCEPTION_HEAD(impl_channel_send_exception)
+static PyObject *
+impl_channel_send_exception(PyChannelObject *self, PyObject *klass, PyObject *args)
 {
     STACKLESS_GETARG();
     PyThreadState *ts = PyThreadState_GET();
@@ -660,10 +646,10 @@ static CHANNEL_SEND_EXCEPTION_HEAD(impl_channel_send_exception)
     return ret;
 }
 
-static CHANNEL_SEND_EXCEPTION_HEAD(wrap_channel_send_exception)
+int
+PyChannel_SendException(PyChannelObject *self, PyObject *klass, PyObject *args)
 {
-    return PyObject_CallMethod((PyObject *) self, "send_exception",
-                               "(OO)", klass, args);
+    return slp_return_wrapper_hard(impl_channel_send_exception(self, klass, args));
 }
 
 static PyObject *
@@ -709,14 +695,8 @@ PyChannel_SendThrow_M(PyChannelObject *self, PyObject *exc,
         "send_throw", "(OOO)", exc, val, tb);
 }
 
-int
-PyChannel_SendThrow(PyChannelObject *self, PyObject *exc, PyObject *val, PyObject *tb)
-{
-    PyChannel_HeapType *t = (PyChannel_HeapType *) self->ob_type;
-    return slp_return_wrapper(t->send_throw(self, exc, val, tb));
-}
-
-static CHANNEL_SEND_THROW_HEAD(impl_channel_send_throw)
+static PyObject *
+impl_channel_send_throw(PyChannelObject *self, PyObject *exc, PyObject *val, PyObject *tb)
 {
     STACKLESS_GETARG();
     PyThreadState *ts = PyThreadState_GET();
@@ -734,10 +714,10 @@ static CHANNEL_SEND_THROW_HEAD(impl_channel_send_throw)
     return ret;
 }
 
-static CHANNEL_SEND_THROW_HEAD(wrap_channel_send_throw)
+int
+PyChannel_SendThrow(PyChannelObject *self, PyObject *exc, PyObject *val, PyObject *tb)
 {
-    return PyObject_CallMethod((PyObject *) self, "send_throw",
-        "(OOO)", exc, val, tb);
+    return slp_return_wrapper_hard(impl_channel_send_throw(self, exc, val, tb));
 }
 
 static PyObject *
@@ -779,26 +759,8 @@ PyChannel_Receive_M(PyChannelObject *self)
     return PyStackless_CallMethod_Main((PyObject *) self, "receive", NULL);
 }
 
-PyObject *
-PyChannel_Receive_nr(PyChannelObject *self)
-{
-    PyChannel_HeapType *t = (PyChannel_HeapType *) self->ob_type;
-    PyObject *ret;
-
-    STACKLESS_PROPOSE_ALL();
-    ret = t->receive(self);
-    STACKLESS_ASSERT();
-    return ret;
-}
-
-PyObject *
-PyChannel_Receive(PyChannelObject *self)
-{
-    PyChannel_HeapType *t = (PyChannel_HeapType *) self->ob_type;
-    return t->receive(self);
-}
-
-static CHANNEL_RECEIVE_HEAD(impl_channel_receive)
+static PyObject *
+impl_channel_receive(PyChannelObject *self)
 {
     STACKLESS_GETARG();
     PyThreadState *ts = PyThreadState_GET();
@@ -807,9 +769,24 @@ static CHANNEL_RECEIVE_HEAD(impl_channel_receive)
     return generic_channel_action(self, Py_None, -1, stackless);
 }
 
-static CHANNEL_RECEIVE_HEAD(wrap_channel_receive)
+PyObject *
+PyChannel_Receive_nr(PyChannelObject *self)
 {
-    return PyObject_CallMethod((PyObject *) self, "receive", NULL);
+    PyObject *ret;
+
+    STACKLESS_PROPOSE_ALL();
+    ret = impl_channel_receive(self);
+    STACKLESS_ASSERT();
+    return ret;
+}
+
+PyObject *
+PyChannel_Receive(PyChannelObject *self)
+{
+    PyObject *ret = impl_channel_receive(self);
+    STACKLESS_ASSERT();
+    assert(!STACKLESS_UNWINDING(self));
+    return ret;
 }
 
 static PyObject *
@@ -913,7 +890,6 @@ a very efficient way to build fast pipes.");
 static PyObject *
 _channel_send_sequence(PyChannelObject *self, PyObject *v)
 {
-    PyChannel_HeapType *t = (PyChannel_HeapType *) self->ob_type;
     PyObject *it;
     int i;
     PyObject *ret;
@@ -930,7 +906,7 @@ _channel_send_sequence(PyChannelObject *self, PyObject *v)
                 goto error;
             break;
         }
-        ret = t->send(self, item);
+        ret = impl_channel_send(self, item);
         Py_DECREF(item);
         if (ret == NULL)
             goto error;
@@ -958,7 +934,6 @@ channel_seq_callback(PyFrameObject *_f, int exc, PyObject *retval)
     PyThreadState *ts;
     PyCFrameObject *f = (PyCFrameObject *) _f;
     PyChannelObject *ch;
-    PyChannel_HeapType *t;
     PyObject *item;
     int stage = f->n;
 
@@ -1002,9 +977,8 @@ back_with_data:
 
         /* send the data */
         ch = (PyChannelObject *) f->ob2;
-        t = (PyChannel_HeapType *) ch->ob_type;
         STACKLESS_PROPOSE_ALL();
-        retval = t->send(ch, item);
+        retval = impl_channel_send(ch, item);
         Py_DECREF(item);
         if (retval == NULL)
             goto exit_frame;
@@ -1166,16 +1140,6 @@ channel_setstate(PyObject *self, PyObject *args)
 }
 
 
-static PyCMethodDef
-channel_cmethods[] = {
-    CMETHOD_PUBLIC_ENTRY(PyChannel_HeapType, channel, send),
-    CMETHOD_PUBLIC_ENTRY(PyChannel_HeapType, channel, send_exception),
-    CMETHOD_PUBLIC_ENTRY(PyChannel_HeapType, channel, receive),
-    CMETHOD_PUBLIC_ENTRY(PyChannel_HeapType, channel, send_throw),
-    {NULL}                       /* sentinel */
-};
-
-
 #define PCF PyCFunction
 #define METH_KS METH_VARARGS | METH_KEYWORDS | METH_STACKLESS
 #define METH_VS METH_VARARGS | METH_STACKLESS
@@ -1215,10 +1179,10 @@ By receiving from a channel, a tasklet that is waiting to send\n\
 is resumed. If there is no waiting sender, the receiver is suspended.\
 ");
 
-PyTypeObject _PyChannel_Type = {
+PyTypeObject PyChannel_Type = {
     PyObject_HEAD_INIT(&PyType_Type)
     0,
-    "channel",
+    "stackless.channel",
     sizeof(PyChannelObject),
     0,
     (destructor)channel_dealloc,                /* tp_dealloc */
@@ -1260,9 +1224,7 @@ PyTypeObject _PyChannel_Type = {
     _PyObject_GC_Del,                           /* tp_free */
 };
 
-STACKLESS_DECLARE_METHOD(PyChannel_TypePtr, tp_iternext)
-
-PyTypeObject *PyChannel_TypePtr = &_PyChannel_Type;
+STACKLESS_DECLARE_METHOD(&PyChannel_Type, tp_iternext)
 
 /******************************************************
 
@@ -1272,13 +1234,6 @@ PyTypeObject *PyChannel_TypePtr = &_PyChannel_Type;
 
 int init_channeltype(void)
 {
-    PyTypeObject *t = &_PyChannel_Type;
-
-    if ( (t = PyFlexType_Build("stackless", "channel", t->tp_doc,
-                               t, sizeof(PyChannel_HeapType),
-                               channel_cmethods) ) == NULL)
-        return -1;
-    PyChannel_TypePtr = t;
-    return 0;
+    return PyType_Ready(&PyChannel_Type);
 }
 #endif

@@ -228,10 +228,9 @@ PyAPI_DATA(PyTypeObject*) PyTasklet_TypePtr;
 #define PyTasklet_Check(op) PyObject_TypeCheck(op, PyTasklet_TypePtr)
 #define PyTasklet_CheckExact(op) ((op)->ob_type == PyTasklet_TypePtr)
 
-PyAPI_DATA(PyTypeObject*) PyChannel_TypePtr;
-#define PyChannel_Type (*PyChannel_TypePtr)
-#define PyChannel_Check(op) PyObject_TypeCheck(op, PyChannel_TypePtr)
-#define PyChannel_CheckExact(op) ((op)->ob_type == PyChannel_TypePtr)
+PyAPI_DATA(PyTypeObject) PyChannel_Type;
+#define PyChannel_Check(op) PyObject_TypeCheck(op, &PyChannel_Type)
+#define PyChannel_CheckExact(op) ((op)->ob_type == &PyChannel_Type)
 
 /*** these are in other bits of C-Python(r) ***/
 PyAPI_DATA(PyTypeObject) PyDictIterKey_Type;
