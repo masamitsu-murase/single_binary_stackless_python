@@ -2476,7 +2476,11 @@ PyType_FromSpecWithBases(PyType_Spec *spec, PyObject *bases)
     /* Initialize essential fields */
     type->tp_as_number = &res->as_number;
     type->tp_as_sequence = &res->as_sequence;
+#ifdef STACKLESS
+    type->tp_as_mapping = (PyMappingMethods *)&res->as_mapping;
+#else
     type->tp_as_mapping = &res->as_mapping;
+#endif
     type->tp_as_buffer = &res->as_buffer;
     /* Set tp_base and tp_bases */
     type->tp_bases = bases;
