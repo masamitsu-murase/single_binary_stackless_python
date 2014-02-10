@@ -1938,6 +1938,10 @@
 					>
 				</File>
 				<File
+					RelativePath="..\Stackless\core\slp_exttype.h"
+					>
+				</File>
+				<File
 					RelativePath="..\Stackless\core\slp_transfer.c"
 					>
 				</File>
