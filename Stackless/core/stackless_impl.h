@@ -13,7 +13,6 @@ extern "C" {
 #include "compile.h"
 #include "frameobject.h"
 
-#include "module/flextype.h"
 #include "core/stackless_structs.h"
 #include "pickling/prickelpit.h"
 

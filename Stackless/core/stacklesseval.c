@@ -194,7 +194,7 @@ cstack_str(PyObject *o)
 PyTypeObject PyCStack_Type = {
     PyObject_HEAD_INIT(&PyType_Type)
     0,
-    "stackless.cstack",
+    "_stackless.cstack",
     sizeof(PyCStackObject),
     sizeof(PyObject *),
     (destructor)cstack_dealloc,         /* tp_dealloc */
@@ -376,20 +376,12 @@ void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
             /* unlink from runnable queue if it wasn't previously remove()'d */
             if (t->next) {
                 assert(t->prev);
-                chain = &t;
-                SLP_CHAIN_REMOVE(PyTaskletObject, chain, tmp, next, prev);
+                slp_current_remove_tasklet(t);
                 assert(t->cstate->tstate == ts);
-                ts->st.runcount--;
-                t = tmp;
-                if (ts->st.runcount == 0)
-                    assert(ts->st.current == NULL);
             } else
                 Py_INCREF(t); /* a new reference for the runnable queue */
             /* insert into the 'current' chain without modifying 'current' */
-            tmp = cs->tstate->st.current;
-            chain = &tmp;
-            SLP_CHAIN_INSERT(PyTaskletObject, chain, t, next, prev);
-            ts->st.runcount++;
+            slp_current_insert(t);
         }
 
         PyTasklet_Kill(t);

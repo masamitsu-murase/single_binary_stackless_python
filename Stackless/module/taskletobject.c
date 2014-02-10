@@ -1931,7 +1931,7 @@ module.\n\
 PyTypeObject PyTasklet_Type = {
     PyObject_HEAD_INIT(&PyType_Type)
     0,
-    "stackless.tasklet",
+    "_stackless.tasklet",
     sizeof(PyTaskletObject),
     0,
     (destructor)tasklet_dealloc,        /* tp_dealloc */

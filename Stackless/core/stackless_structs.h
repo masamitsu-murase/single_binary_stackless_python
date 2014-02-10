@@ -201,16 +201,6 @@ typedef struct _cframe {
 } PyCFrameObject;
 
 
-/*** important structures: slpmodule ***/
-
-typedef struct _slpmodule {
-    PyObject_HEAD
-    PyObject *md_dict;
-    /* the above is a copy of private PyModuleObject */
-    PyTypeObject *__tasklet__;
-    PyTypeObject *__channel__;
-} PySlpModuleObject;
-
 
 /*** associated type objects ***/
 
@@ -240,9 +230,6 @@ PyAPI_DATA(PyTypeObject) PySetIter_Type;
 PyAPI_DATA(PyTypeObject) PyRangeIter_Type;
 PyAPI_DATA(PyTypeObject) PyTupleIter_Type;
 PyAPI_DATA(PyTypeObject) PyEnum_Type;
-
-/*** the Stackless module itself ***/
-PyAPI_DATA(PyObject *) slp_module;
 
 #ifdef __cplusplus
 }

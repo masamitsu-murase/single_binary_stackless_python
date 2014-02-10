@@ -139,7 +139,7 @@ static PyMethodDef prefix##_methods[] = { \
 static struct _typeobject wrap_##type = { \
     PyObject_HEAD_INIT(&PyType_Type) \
     0, \
-    "stackless._wrap." name, \
+    "_stackless._wrap." name, \
     0, \
     0, \
     (destructor)_wrap_dealloc,              /* tp_dealloc */ \
@@ -2325,11 +2325,22 @@ slp_pickle_moduledict(PyObject *self, PyObject *args)
 int init_prickelpit(void)
 {
     PyObject *copy_reg;
+    PyObject *slp_module;
     int ret = 0;
 
-    types_mod = Py_InitModule("stackless._wrap", NULL);
-    if (types_mod == NULL) return -1;
-    if (PyObject_SetAttrString(slp_module, "_wrap", types_mod)) return -1;
+    slp_module = PyImport_ImportModule("_stackless");
+    if (slp_module == NULL)
+        return -1;
+
+    types_mod = Py_InitModule("_stackless._wrap", NULL);
+    if (types_mod == NULL) {
+        Py_DECREF(slp_module);
+        return -1;
+    }
+    ret = PyObject_SetAttrString(slp_module, "_wrap", types_mod);
+    Py_DECREF(slp_module);
+    if (ret)
+        return ret;
     copy_reg = PyImport_ImportModule("copy_reg");
     if (copy_reg != NULL) {
         pickle_reg = PyObject_GetAttrString(copy_reg, "pickle");

@@ -1182,7 +1182,7 @@ is resumed. If there is no waiting sender, the receiver is suspended.\
 PyTypeObject PyChannel_Type = {
     PyObject_HEAD_INIT(&PyType_Type)
     0,
-    "stackless.channel",
+    "_stackless.channel",
     sizeof(PyChannelObject),
     0,
     (destructor)channel_dealloc,                /* tp_dealloc */

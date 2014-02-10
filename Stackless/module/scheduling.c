@@ -255,7 +255,7 @@ t.run()  # let the bomb explode");
 PyTypeObject PyBomb_Type = {
     PyObject_HEAD_INIT(&PyType_Type)
     0,
-    "stackless.bomb",
+    "_stackless.bomb",
     sizeof(PyBombObject),
     0,
     (destructor)bomb_dealloc,                   /* tp_dealloc */
