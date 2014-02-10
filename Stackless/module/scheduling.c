@@ -16,6 +16,7 @@
 static PyBombObject *free_list = NULL;
 static int numfree = 0;         /* number of bombs currently in free_list */
 #define MAXFREELIST 20          /* max value for numfree */
+static PyBombObject *mem_bomb = NULL; /* a permanent bomb to use for memory errors */
 
 static void
 bomb_dealloc(PyBombObject *bomb)
@@ -174,12 +175,24 @@ slp_exc_to_bomb(PyObject *exc, PyObject *val, PyObject *tb)
 PyObject *
 slp_curexc_to_bomb(void)
 {
-    PyBombObject *bomb = new_bomb();
-
+    PyBombObject *bomb;
+    if (PyErr_ExceptionMatches(PyExc_MemoryError)) {
+        bomb = mem_bomb;
+        Py_INCREF(bomb);
+    } else
+        bomb = new_bomb();
     if (bomb != NULL)
         PyErr_Fetch(&bomb->curexc_type, &bomb->curexc_value,
                     &bomb->curexc_traceback);
     return (PyObject *) bomb;
+}
+
+/* create a memory error bomb and clear the exception state */
+PyObject *
+slp_nomemory_bomb(void)
+{
+    PyErr_NoMemory();
+    return slp_curexc_to_bomb();
 }
 
 /* set exception, consume bomb reference and return NULL */
@@ -294,6 +307,15 @@ PyTypeObject PyBomb_Type = {
     PyObject_GC_Del,                            /* tp_free */
 };
 
+int
+slp_init_bombtype(void)
+{
+    if (PyType_Ready(&PyBomb_Type))
+        return -1;
+    /* allocate the permanent bomb to use for mem errors */
+    mem_bomb = new_bomb();
+    return mem_bomb ? 0 : -1;
+}
 
 /*******************************************************************
 
@@ -1265,7 +1287,7 @@ tasklet_end(PyObject *retval)
             if (retval == NULL)
                 retval = slp_curexc_to_bomb();
             if (retval == NULL)
-                return NULL;
+                retval = slp_nomemory_bomb();
         }
     }
 
@@ -1321,8 +1343,12 @@ tasklet_end(PyObject *retval)
     if (next == NULL) {
         int blocked = ts->st.main->flags.blocked;
 
-        if (blocked) {
+        /* if we are blocking we must wake up main.  If there is no
+         * error, we need to create a deadlock error to wake main up on.
+         */
+        if (blocked && !PyBomb_Check(retval)) {
             char *txt;
+            PyObject *bomb;
             /* main was blocked and nobody can send */
             if (blocked < 0)
                 txt = "the main tasklet is receiving"
@@ -1332,12 +1358,11 @@ tasklet_end(PyObject *retval)
                     " without a receiver available.";
             PyErr_SetString(PyExc_RuntimeError, txt);
             /* fall through to error handling */
-            Py_DECREF(retval);
-            retval = slp_curexc_to_bomb();
-            if (retval == NULL) {
-                schedule_fail = -1;
-                goto end;
-            }
+            bomb = slp_curexc_to_bomb();
+            if (bomb == NULL)
+                bomb = slp_nomemory_bomb();
+            Py_REPLACE(retval, bomb);
+            TASKLET_SETVAL(task, retval);
         }
         next = ts->st.main;
     }
@@ -1351,9 +1376,9 @@ tasklet_end(PyObject *retval)
          * source of a reference cycle
          */
         assert(task->tempval == retval);
+        next = ts->st.main;
         TASKLET_CLAIMVAL(task, &retval);
         TASKLET_SETVAL_OWN(next, retval);
-        next = ts->st.main;
     }
     Py_DECREF(retval);
 

@@ -22,17 +22,9 @@ for line in sys.stdin:
         member = "as_buffer."+member
     res[int(m.group(2))] = member
 
-HTPREFIX = "ht_type."
 M = max(res.keys())+1
 for i in range(1,M):
     if i in res:
-        if res[i].startswith(HTPREFIX):
-            print("#ifdef STACKLESS")
-            print("  offsetof(PyHeapTypeObject, %s)," % res[i][len(HTPREFIX):])
-            print("#else")
-            print("  offsetof(PyHeapTypeObject, %s)," % res[i])
-            print("#endif")
-        else:
-            print("offsetof(PyHeapTypeObject, %s)," % res[i])
+        print("offsetof(PyHeapTypeObject, %s)," % res[i])
     else:
         print("0,")

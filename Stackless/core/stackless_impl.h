@@ -17,6 +17,22 @@ extern "C" {
 #include "core/stackless_structs.h"
 #include "pickling/prickelpit.h"
 
+#ifndef Py_REPLACE
+/* add the useful macros from http://bugs.python.org/issue20440 */
+#define Py_REPLACE(ptr, new_value) do { \
+    PyObject *__tmp__ = ptr; \
+    ptr = new_value; \
+    Py_DECREF(__tmp__); \
+} while (0)
+
+#define Py_XREPLACE(ptr, new_value) do { \
+    PyObject *__tmp__ = ptr; \
+    ptr = new_value; \
+    Py_XDECREF(__tmp__); \
+} while (0)
+
+#endif
+
 #undef STACKLESS_SPY
 /*
  * if a platform wants to support self-inspection via _peek,
@@ -165,9 +181,11 @@ PyAPI_DATA(PyTypeObject) PyClassMethodDescr_Type;
 #define STACKLESS_PROMOTE_FLAG(flag) \
     (stackless ? slp_try_stackless = (flag) : 0)
 
-#define STACKLESS_PROMOTE_METHOD(obj, meth) \
-    (obj->ob_type->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_EXTENSION ? \
-    slp_try_stackless = stackless & obj->ob_type->slpflags.meth : 0)
+#define STACKLESS_PROMOTE_METHOD(obj, meth) do { \
+    if ((obj->ob_type->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_EXTENSION) && \
+         obj->ob_type->tp_as_mapping) \
+        slp_try_stackless = stackless & obj->ob_type->tp_as_mapping->slpflags.meth; \
+} while (0)
 
 #define STACKLESS_PROMOTE_WRAPPER(wp) \
     (slp_try_stackless = stackless & wp->descr->d_slpmask)
@@ -192,6 +210,11 @@ PyAPI_DATA(PyTypeObject) PyClassMethodDescr_Type;
 /* this is just a tag to denote which methods are stackless */
 
 #define STACKLESS_DECLARE_METHOD(type, meth)
+
+/* This can be set to 0 to completely disable the augmentation of
+ * type info with stackless property.  For debugging.
+ */
+#define STACKLESS_NO_TYPEINFO 0
 
 /*
 
@@ -422,7 +445,9 @@ do { \
 PyAPI_FUNC(PyObject *) slp_make_bomb(PyObject *klass, PyObject *args, char *msg);
 PyAPI_FUNC(PyObject *) slp_exc_to_bomb(PyObject *exc, PyObject *val, PyObject *tb);
 PyAPI_FUNC(PyObject *) slp_curexc_to_bomb(void);
+PyAPI_FUNC(PyObject *) slp_nomemory_bomb(void);
 PyAPI_FUNC(PyObject *) slp_bomb_explode(PyObject *bomb);
+PyAPI_FUNC(int) slp_init_bombtype(void);
 
 /* tasklet startup */
 
@@ -479,6 +504,8 @@ typedef int (slp_schedule_hook_func) (PyTaskletObject *from,
 PyAPI_DATA(slp_schedule_hook_func) *_slp_schedule_fasthook;
 PyAPI_DATA(PyObject* ) _slp_schedule_hook;
 int slp_schedule_callback(PyTaskletObject *prev, PyTaskletObject *next);
+
+int slp_prepare_slots(PyTypeObject*);
 
 /* macro for use when interrupting tasklets from watchdog */
 #define TASKLET_NESTING_OK(task) \
