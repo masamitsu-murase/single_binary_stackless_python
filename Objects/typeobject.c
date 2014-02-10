@@ -2377,15 +2377,6 @@ PyType_FromSpec(PyType_Spec *spec)
     res->ht_name = PyUnicode_FromString(spec->name);
     if (!res->ht_name)
         goto fail;
-#ifdef STACKLESS
-    res->tp_name = _PyUnicode_AsString(res->ht_name);
-    if (!res->tp_name)
-        goto fail;
-
-    res->tp_basicsize = spec->basicsize;
-    res->tp_itemsize = spec->itemsize;
-    res->tp_flags = spec->flags | Py_TPFLAGS_HEAPTYPE;
-#else
     res->ht_type.tp_name = _PyUnicode_AsString(res->ht_name);
     if (!res->ht_type.tp_name)
         goto fail;
@@ -2393,7 +2384,6 @@ PyType_FromSpec(PyType_Spec *spec)
     res->ht_type.tp_basicsize = spec->basicsize;
     res->ht_type.tp_itemsize = spec->itemsize;
     res->ht_type.tp_flags = spec->flags | Py_TPFLAGS_HEAPTYPE;
-#endif
 
     for (slot = spec->slots; slot->slot; slot++) {
         if (slot->slot >= sizeof(slotoffsets)/sizeof(slotoffsets[0])) {
@@ -2410,19 +2400,6 @@ PyType_FromSpec(PyType_Spec *spec)
             if (tp_doc == NULL)
                 goto fail;
             memcpy(tp_doc, slot->pfunc, len);
-#ifdef STACKLESS
-            res->tp_doc = tp_doc;
-        }
-    }
-    if (res->tp_dealloc == NULL) {
-        /* It's a heap type, so needs the heap types' dealloc.
-           subtype_dealloc will call the base type's tp_dealloc, if
-           necessary. */
-        res->tp_dealloc = subtype_dealloc;
-    }
-
-    if (PyType_Ready(res) < 0)
-#else
             res->ht_type.tp_doc = tp_doc;
         }
     }
@@ -2434,7 +2411,6 @@ PyType_FromSpec(PyType_Spec *spec)
     }
 
     if (PyType_Ready(&res->ht_type) < 0)
-#endif
         goto fail;
 
     return (PyObject*)res;
