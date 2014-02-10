@@ -381,6 +381,16 @@ class TestDeadlock(StacklessTestCase):
         # main should get the tasklet's exception
         self.assertRaisesRegexp(RuntimeError, "Deadlock", mc.receive)
 
+    def test_error_propagation_when_not_deadlock(self):
+        def task1():
+            stackless.schedule()
+        def task2():
+            raise ZeroDivisionError("bar")
+
+        t1 = stackless.tasklet(task1)()
+        t2 = stackless.tasklet(task2)()
+        self.assertRaisesRegexp(ZeroDivisionError, "bar", stackless.run)
+
 class TestNewWatchdog(StacklessTestCase):
     """Tests for running stackless.run on non-main tasklet, and having nested run invocations"""
     def worker_func(self):
