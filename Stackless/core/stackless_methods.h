@@ -10,7 +10,7 @@ typedef struct {
 } _stackless_method;
 
 #define MFLAG_IND 0x8000
-#define MFLAG_OFS(meth) offsetof(PyTypeObject, slpflags.meth)
+#define MFLAG_OFS(meth) offsetof(PyMappingMethods, slpflags.meth)
 #define MFLAG_OFS_IND(meth) MFLAG_OFS(meth) + MFLAG_IND
 
 static _stackless_method _stackless_methtable[] = {

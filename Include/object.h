@@ -294,7 +294,22 @@ typedef struct {
     lenfunc mp_length;
     binaryfunc mp_subscript;
     objobjargproc mp_ass_subscript;
+#ifdef STACKLESS
+    /* we put the stackless method flags in here.  This keeps the basic PyTypeObject size
+     * constants and thus helps with compatibility with external types
+     */
+    slp_methodflags slpflags;
+#endif
 } PyMappingMethods;
+
+#ifdef STACKLESS
+/* we need the original object for inclusion in the PyHeapTypeObject */
+typedef struct {
+    lenfunc mp_length;
+    binaryfunc mp_subscript;
+    objobjargproc mp_ass_subscript;
+} PyMappingMethods_Orig;
+#endif
 
 typedef struct {
     readbufferproc bf_getreadbuffer;
@@ -412,32 +427,7 @@ typedef struct _typeobject {
     struct _typeobject *tp_prev;
     struct _typeobject *tp_next;
 #endif
-#ifdef STACKLESS
-    /* we need the extended structure right here */
-    PyNumberMethods as_number;
-    PyMappingMethods as_mapping;
-    PySequenceMethods as_sequence; /* as_sequence comes after as_mapping,
-                                      so that the mapping wins when both
-                                      the mapping and the sequence define
-                                      a given operator (e.g. __getitem__).
-                                      see add_operators() in typeobject.c . */
-    PyBufferProcs as_buffer;
-    PyObject *ht_name, *ht_slots;
-    slp_methodflags slpflags;
-#endif
 } PyTypeObject;
-
-
-#ifdef STACKLESS
-
-#define VANILLA_PYTYPEOBJECT_SIZE ((size_t) &(((PyTypeObject *)0)->as_number))
-
-/* in Stackless, this is just a synonym */
-#define PyHeapTypeObject PyTypeObject
-
-#define PyHeapType_GET_MEMBERS(etype) \
-    ((PyMemberDef *)(((char *)etype) + (etype)->ob_type->tp_basicsize))
-#else
 
 /* The *real* layout of a type object when allocated on the heap */
 typedef struct _heaptypeobject {
@@ -445,7 +435,11 @@ typedef struct _heaptypeobject {
        in slotptr() in typeobject.c . */
     PyTypeObject ht_type;
     PyNumberMethods as_number;
+#ifdef STACKLESS
+    PyMappingMethods_Orig as_mapping;
+#else
     PyMappingMethods as_mapping;
+#endif
     PySequenceMethods as_sequence; /* as_sequence comes after as_mapping,
                                       so that the mapping wins when both
                                       the mapping and the sequence define
@@ -459,8 +453,6 @@ typedef struct _heaptypeobject {
 /* access macro to the members which are floating "behind" the object */
 #define PyHeapType_GET_MEMBERS(etype) \
     ((PyMemberDef *)(((char *)etype) + Py_TYPE(etype)->tp_basicsize))
-
-#endif
 
 /* Generic type check */
 PyAPI_FUNC(int) PyType_IsSubtype(PyTypeObject *, PyTypeObject *);
@@ -672,7 +664,6 @@ manually remove this flag though!
                  Py_TPFLAGS_HAVE_WEAKREFS | \
                  Py_TPFLAGS_HAVE_ITER | \
                  Py_TPFLAGS_HAVE_CLASS | \
-                 Py_TPFLAGS_HAVE_STACKLESS_EXTENSION | \
                  Py_TPFLAGS_HAVE_INDEX | \
                  0)
 #define Py_TPFLAGS_DEFAULT_CORE (Py_TPFLAGS_DEFAULT_EXTERNAL | \

@@ -655,11 +655,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\Include\bytes_methods.h"
+				RelativePath="..\Include\bytearrayobject.h"
 				>
 			</File>
 			<File
-				RelativePath="..\Include\bytearrayobject.h"
+				RelativePath="..\Include\bytes_methods.h"
 				>
 			</File>
 			<File
@@ -1411,11 +1411,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\Objects\bytes_methods.c"
+				RelativePath="..\Objects\bytearrayobject.c"
 				>
 			</File>
 			<File
-				RelativePath="..\Objects\bytearrayobject.c"
+				RelativePath="..\Objects\bytes_methods.c"
 				>
 			</File>
 			<File
@@ -1926,6 +1926,10 @@
 					>
 				</File>
 				<File
+					RelativePath="..\Stackless\core\slp_exttype.h"
+					>
+				</File>
+				<File
 					RelativePath="..\Stackless\core\slp_transfer.c"
 					>
 				</File>
@@ -2006,7 +2010,7 @@
 						<Tool
 							Name="VCCustomBuildTool"
 							Description="Running ml64"
-							CommandLine="ml64 /nologo /c /Zi /Fo &quot;$(IntDir)\$(InputName) .obj&quot; &quot;$(InputPath)&quot;"
+							CommandLine="ml64 /nologo /c /Zi /Fo &quot;$(IntDir)\$(InputName) .obj&quot; &quot;$(InputPath)&quot;&#x0D;&#x0A;"
 							Outputs="$(IntDir)\$(InputName) .obj"
 						/>
 					</FileConfiguration>
@@ -2024,7 +2028,7 @@
 						<Tool
 							Name="VCCustomBuildTool"
 							Description="Running ml64"
-							CommandLine="ml64 /nologo /c /Zi /Fo &quot;$(IntDir)\$(InputName) .obj&quot; &quot;$(InputPath)&quot;"
+							CommandLine="ml64 /nologo /c /Zi /Fo &quot;$(IntDir)\$(InputName) .obj&quot; &quot;$(InputPath)&quot;&#x0D;&#x0A;"
 							Outputs="$(IntDir)\$(InputName) .obj"
 						/>
 					</FileConfiguration>
@@ -2042,7 +2046,7 @@
 						<Tool
 							Name="VCCustomBuildTool"
 							Description="Running ml64"
-							CommandLine="ml64 /nologo /c /Zi /Fo &quot;$(IntDir)\$(InputName) .obj&quot; &quot;$(InputPath)&quot;"
+							CommandLine="ml64 /nologo /c /Zi /Fo &quot;$(IntDir)\$(InputName) .obj&quot; &quot;$(InputPath)&quot;&#x0D;&#x0A;"
 							Outputs="$(IntDir)\$(InputName) .obj"
 						/>
 					</FileConfiguration>
@@ -2060,7 +2064,7 @@
 						<Tool
 							Name="VCCustomBuildTool"
 							Description="Running ml64"
-							CommandLine="ml64 /nologo /c /Zi /Fo &quot;$(IntDir)\$(InputName) .obj&quot; &quot;$(InputPath)&quot;"
+							CommandLine="ml64 /nologo /c /Zi /Fo &quot;$(IntDir)\$(InputName) .obj&quot; &quot;$(InputPath)&quot;&#x0D;&#x0A;"
 							Outputs="$(IntDir)\$(InputName) .obj"
 						/>
 					</FileConfiguration>
