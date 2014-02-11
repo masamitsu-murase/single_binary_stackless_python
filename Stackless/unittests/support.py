@@ -77,5 +77,5 @@ class AsTaskletTestCase(StacklessTestCase):
                 c.send_throw(*sys.exc_info())
         t = stackless.tasklet(helper)()
         result = c.receive()
-        #assert self._ran_AsTaskletTestCase_setUp
+        assert self._ran_AsTaskletTestCase_setUp
         return result
