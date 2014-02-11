@@ -764,21 +764,6 @@ void slp_thread_unblock(PyThreadState *nts)
 
 #endif
 
-/* find the correct target to wake up when we block.  The innermost watchdog
- * or the main tasklet.  Returns a borrowed reference
- * if "interrupt" is set, then we want the tasklet running the outermost
- * true watchdog, i.e. the one with interrupt conditions set.
- */
-PyTaskletObject *
-slp_get_watchdog(PyThreadState *ts, int interrupt)
-{
-    /* TODO: treat interrupt differently */
-    if (ts->st.watchdogs == NULL || PyList_GET_SIZE(ts->st.watchdogs) == 0)
-        return ts->st.main;
-    return (PyTaskletObject*)PyList_GET_ITEM(
-        ts->st.watchdogs, PyList_GET_SIZE(ts->st.watchdogs) - 1);
-}
-
 static int
 schedule_task_block(PyObject **result, PyTaskletObject *prev, int stackless, int *did_switch)
 {

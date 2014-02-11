@@ -506,11 +506,47 @@ class TestNewWatchdog(StacklessTestCase):
         t.kill()
         self.assertFalse(t.alive)
 
-    def test_soft_watchdog_on_tasklet(self):
+    def _test_watchdog_on_tasklet(self, soft):
+        def runner_func():
+            stackless.run(2, soft=soft, totaltimeout=True, ignore_nesting=True)
+            if stackless.getruncount():
+                self.done += 1 # we were interrupted
+            t1.kill()
+            t2.kill()
+
+        def task():
+            while True:
+                for i in xrange(100):
+                    i = i
+                stackless.schedule()
+
+        t1 = stackless.tasklet(task)()
+        t2 = stackless.tasklet(task)()
+        t3 = stackless.tasklet(runner_func)()
+
+        stackless.run()
+        self.assertEqual(self.done, 2)
+
+    def test_watchdog_on_tasklet_soft(self):
         """Verify that the tasklet running the watchdog is the one awoken"""
-        def runner_func():
-            stackless.run(2, soft=True, totaltimeout=True, ignore_nesting=True)
-            if stackless.getruncount():
+        self._test_watchdog_on_tasklet(True)
+
+    def test_watchdog_on_tasklet_hard(self):
+        """Verify that the tasklet running the watchdog is the one awoken (hard)"""
+        self._test_watchdog_on_tasklet(False)
+
+    def _test_watchdog_priority(self, soft):
+        self.awoken = 0
+        def runner_func(recursive, start):
+            if  recursive:
+                stackless.tasklet(runner_func)(recursive-1, start)
+            with stackless.atomic():
+                stackless.run(2, soft=soft, totaltimeout=True, ignore_nesting=True)
+                a = self.awoken
+                self.awoken += 1
+            if recursive == start:
+                # we are the first watchdog
+                self.assertEqual(a, 0) #the first to wake up
                 self.done += 1 # we were interrupted
             t1.kill()
             t2.kill()
@@ -523,34 +559,17 @@ class TestNewWatchdog(StacklessTestCase):
 
         t1 = stackless.tasklet(task)()
         t2 = stackless.tasklet(task)()
-        t3 = stackless.tasklet(runner_func)()
-
+        t3 = stackless.tasklet(runner_func)(3, 3)
         stackless.run()
         self.assertEqual(self.done, 2)
 
-    def test_hard_watchdog_on_tasklet(self):
-        """Verify that the tasklet running the (hard) watchdog is the one awoken"""
-        def runner_func():
-            interrupted = stackless.run(2, soft=False, totaltimeout=True, ignore_nesting=True)
-            self.assertTrue(interrupted)
-            if stackless.getruncount():
-                self.done += 1 # we were interrupted
-            t1.kill()
-            t2.kill()
+    def test_watchdog_priority_soft(self):
+        """Verify that outermost "real" watchdog gets awoken"""
+        self._test_watchdog_priority(True)
 
-        def task():
-            while True:
-                for i in xrange(100):
-                    i = i
-                stackless.schedule()
-
-        t1 = stackless.tasklet(task)()
-        t2 = stackless.tasklet(task)()
-        t3 = stackless.tasklet(runner_func)()
-
-        stackless.run()
-        self.assertEqual(self.done, 2)
-
+    def test_watchdog_priority_hard(self):
+        """Verify that outermost "real" watchdog gets awoken (hard)"""
+        self._test_watchdog_priority(False)
 
 def load_tests(loader, tests, pattern):
     """custom loader to run just a subset"""
