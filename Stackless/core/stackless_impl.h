@@ -16,6 +16,22 @@ extern "C" {
 #include "core/stackless_structs.h"
 #include "pickling/prickelpit.h"
 
+#ifndef Py_REPLACE
+/* add the useful macros from http://bugs.python.org/issue20440 */
+#define Py_REPLACE(ptr, new_value) do { \
+    PyObject *__tmp__ = ptr; \
+    ptr = new_value; \
+    Py_DECREF(__tmp__); \
+} while (0)
+
+#define Py_XREPLACE(ptr, new_value) do { \
+    PyObject *__tmp__ = ptr; \
+    ptr = new_value; \
+    Py_XDECREF(__tmp__); \
+} while (0)
+
+#endif
+
 #undef STACKLESS_SPY
 /*
  * if a platform wants to support self-inspection via _peek,
@@ -452,7 +468,9 @@ do { \
 PyAPI_FUNC(PyObject *) slp_make_bomb(PyObject *klass, PyObject *args, char *msg);
 PyAPI_FUNC(PyObject *) slp_exc_to_bomb(PyObject *exc, PyObject *val, PyObject *tb);
 PyAPI_FUNC(PyObject *) slp_curexc_to_bomb(void);
+PyAPI_FUNC(PyObject *) slp_nomemory_bomb(void);
 PyAPI_FUNC(PyObject *) slp_bomb_explode(PyObject *bomb);
+PyAPI_FUNC(int) slp_init_bombtype(void);
 
 /* tasklet startup */
 

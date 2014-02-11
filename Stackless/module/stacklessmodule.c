@@ -1504,6 +1504,7 @@ _PyStackless_InitTypes(void)
         || init_cframetype()
         || PyType_Ready(&PyTasklet_Type)
         || PyType_Ready(&PyChannel_Type)
+        || slp_init_bombtype()
         || PyType_Ready(&PyAtomic_Type)
         )
         return 0;

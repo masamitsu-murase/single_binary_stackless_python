@@ -371,8 +371,6 @@ void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
          * leaving it to run next.
          */
         if (!t->flags.blocked && t != cs->tstate->st.current) {
-            PyTaskletObject *tmp;
-            PyTaskletObject **chain;
             /* unlink from runnable queue if it wasn't previously remove()'d */
             if (t->next) {
                 assert(t->prev);
