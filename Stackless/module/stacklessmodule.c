@@ -409,6 +409,7 @@ interrupt_timeout_return(void)
 {
     PyThreadState *ts = PyThreadState_GET();
     PyTaskletObject *current = ts->st.current;
+    PyTaskletObject *watchdog;
     PyObject *ret;
 
     /*
@@ -436,8 +437,9 @@ interrupt_timeout_return(void)
     ts->st.interrupted = (PyObject*)ts->st.current;
     Py_INCREF(ts->st.interrupted);
 
-    /* switch to main tasklet */
-    slp_schedule_task(&ret, ts->st.current, ts->st.main, 1, 0);
+    /* switch to the watchdog tasklet */
+    watchdog = slp_get_watchdog(ts, 1);
+    slp_schedule_task(&ret, ts->st.current, watchdog, 1, 0);
     return ret;
 }
 

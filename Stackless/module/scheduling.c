@@ -766,10 +766,13 @@ void slp_thread_unblock(PyThreadState *nts)
 
 /* find the correct target to wake up when we block.  The innermost watchdog
  * or the main tasklet.  Returns a borrowed reference
+ * if "interrupt" is set, then we want the tasklet running the outermost
+ * true watchdog, i.e. the one with interrupt conditions set.
  */
-static PyTaskletObject *
-get_watchdog_or_main(PyThreadState *ts)
+PyTaskletObject *
+slp_get_watchdog(PyThreadState *ts, int interrupt)
 {
+    /* TODO: treat interrupt differently */
     if (ts->st.watchdogs == NULL || PyList_GET_SIZE(ts->st.watchdogs) == 0)
         return ts->st.main;
     return (PyTaskletObject*)PyList_GET_ITEM(
@@ -786,7 +789,7 @@ schedule_task_block(PyObject **result, PyTaskletObject *prev, int stackless, int
     PyTaskletObject *wakeup;
     
     /* which "main" do we awaken if we are blocking? */
-    wakeup = get_watchdog_or_main(ts);
+    wakeup = slp_get_watchdog(ts, 0);
 
 #ifdef WITH_THREAD
     if ( !(ts->st.runflags & Py_WATCHDOG_THREADBLOCK) && wakeup->next == NULL)
@@ -922,16 +925,20 @@ static void slp_schedule_soft_irq(PyThreadState *ts, PyTaskletObject *prev,
                                                    PyTaskletObject **next, int not_now)
 {
     PyTaskletObject *tmp;
+    PyTaskletObject *watchdog;
     assert(*next);
     if(!prev->flags.pending_irq || !(ts->st.runflags & PY_WATCHDOG_SOFT) )
         return; /* no soft interrupt pending */
 
-    prev->flags.pending_irq = 0;
-    if (ts->st.main->next != NULL)
-        return; /* main isn't floating, we are probably raising an exception */
+    watchdog = slp_get_watchdog(ts, 1);
 
-    /* if were were swithing from main or to main, we don't do anything */
-    if (prev == ts->st.main || *next == ts->st.main)
+    prev->flags.pending_irq = 0;
+    
+    if (watchdog->next != NULL)
+        return; /* target isn't floating, we are probably raising an exception */
+
+    /* if were were switching to or from our target, we don't do anything */
+    if (prev == watchdog || *next == watchdog)
         return;
 
     if (not_now || !TASKLET_NESTING_OK(prev)) {
@@ -951,11 +958,11 @@ static void slp_schedule_soft_irq(PyThreadState *ts, PyTaskletObject *prev,
      */
     tmp = ts->st.current;
     ts->st.current = *next;
-    slp_current_insert(ts->st.main);
-    Py_INCREF(ts->st.main);
+    slp_current_insert(watchdog);
+    Py_INCREF(watchdog);
     ts->st.current = tmp;
 
-    *next = ts->st.main;
+    *next = watchdog;
 }
 
 
@@ -1463,7 +1470,7 @@ tasklet_end(PyObject *retval)
     next = ts->st.current;
     if (next == NULL) {
         /* there is no current tasklet to wakeup.  Must wakeup watchdog or main */
-        PyTaskletObject *wakeup = get_watchdog_or_main(ts);
+        PyTaskletObject *wakeup = slp_get_watchdog(ts, 0);
         int blocked = wakeup->flags.blocked;
 
         /* If the target is blocked and there is no pending error,
@@ -1494,7 +1501,7 @@ tasklet_end(PyObject *retval)
         /* a bomb, due to deadlock or passed in, must wake up the correct
          * tasklet
          */
-        next = get_watchdog_or_main(ts);
+        next = slp_get_watchdog(ts, 0);
         /* Remove the bomb from the source since it is frequently the
          * source of a reference cycle
          */
