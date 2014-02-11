@@ -46,22 +46,6 @@ def transmogrify():
             return self.getmain()
         main = property(main, doc=getmain.__doc__)
 
-        @property
-        def __tasklet__(self):
-            """The default tasklet type to be used."""
-            return self.get__tasklet__()
-        @__tasklet__.setter
-        def __tasklet__(self, value):
-            self.set__tasklet__(value)
-
-        @property
-        def __channel__(self):
-            """The default channel type to be used."""
-            return self.get__channel__()
-        @__channel__.setter
-        def __channel__(self, value):
-            self.set__channel__(value)
-
         def debug(self):
             return self.getdebug()
         debug = property(debug, doc=getdebug.__doc__)

@@ -911,66 +911,6 @@ class TestSwitch(StacklessTestCase):
         self.assertTrue(self.finished)
 
 class TestModule(unittest.TestCase):
-    def test_get__tasklet__(self):
-        stackless.get__tasklet__()
-
-    def test_set__tasklet__(self):
-        org = stackless.get__tasklet__()
-        class foo(org):
-            pass
-        stackless.set__tasklet__(foo)
-        try:
-            self.assertEqual(stackless.get__tasklet__(), foo)
-        finally:
-            stackless.set__tasklet__(org)
-
-    def test__tasklet__(self):
-        # test the module property
-        org = stackless.__tasklet__
-        class foo(org):
-            pass
-        stackless.__tasklet__ = foo
-        try:
-            self.assertEqual(stackless.__tasklet__, foo)
-        finally:
-            stackless.__tasklet__ = org
-
-    def test__tasklet__typefail(self):
-        self.assertRaises(TypeError, stackless.set__tasklet__, None)
-        def foo():
-            stackless.__tasklet__ = "hello"
-        self.assertRaises(TypeError, foo)
-
-
-    def test_get__channel__(self):
-        stackless.get__channel__()
-
-    def test_set__channel__(self):
-        org = stackless.get__channel__()
-        class foo(org):
-            pass
-        stackless.set__channel__(foo)
-        try:
-            self.assertEqual(stackless.get__channel__(), foo)
-        finally:
-            stackless.set__channel__(org)
-
-    def test__channel__(self):
-        # test the module property
-        org = stackless.__channel__
-        class foo(org):
-            pass
-        stackless.__channel__ = foo
-        try:
-            self.assertEqual(stackless.__channel__, foo)
-        finally:
-            stackless.__channel__ = org
-
-    def test__tasklet__typefail(self):
-        self.assertRaises(TypeError, stackless.set__channel__, None)
-        def foo():
-            stackless.__channel__ = "hello"
-        self.assertRaises(TypeError, foo)
 
     def test_get_debug(self):
         self.assertIn(stackless.getdebug(), [True, False])
