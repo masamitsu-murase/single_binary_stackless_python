@@ -617,7 +617,10 @@ pop_watchdog(PyThreadState *ts)
     if ((PyObject *)t == PyList_GET_ITEM(ts->st.watchdogs, 0)) {
         /* clear it from the interrupt slot too */
         Py_INCREF(Py_None);
-        PyList_SET_ITEM(ts->st.watchdogs, 0, Py_None);
+        if(PyList_SetItem(ts->st.watchdogs, 0, Py_None)) {
+            Py_DECREF(t);
+            return NULL;
+        }
     }
     return t;
 }
