@@ -163,18 +163,19 @@ tasklet as default.\n\
 schedule_remove(retval=stackless.current) -- ditto, and remove self.");
 
 static PyObject *
+schedule(PyObject *self, PyObject *args, PyObject *kwds);
+static PyObject *
+schedule_remove(PyObject *self, PyObject *args, PyObject *kwds);
+
+static PyObject *
 PyStackless_Schedule_M(PyObject *retval, int remove)
 {
-    PyObject *result;
-    PyObject *slp_module = PyImport_ImportModule("_stackless");
-    if (!slp_module)
-        return NULL;
-    result =  PyStackless_CallMethod_Main(
-        slp_module,
-        remove ? "schedule_remove" : "schedule",
-        "O", retval);
-    Py_DECREF(slp_module);
-    return retval;
+    PyMethodDef sched = {"schedule", (PyCFunction)schedule, METH_VARARGS|METH_KEYWORDS};
+    PyMethodDef s_rem = {"schedule", (PyCFunction)schedule_remove, METH_VARARGS|METH_KEYWORDS};
+    if (remove)
+        return PyStackless_CallCMethod_Main(&s_rem, NULL, "O", retval);
+    else
+        return PyStackless_CallCMethod_Main(&sched, NULL, "O", retval);
 }
 
 PyObject *
@@ -448,15 +449,20 @@ interrupt_timeout_return(void)
 }
 
 static PyObject *
+run_watchdog(PyObject *self, PyObject *args, PyObject *kwds);
+
+static PyObject *
 PyStackless_RunWatchdog_M(long timeout, long flags)
 {
-    PyObject *result;
-    PyObject *slp_module = PyImport_ImportModule("_stackless");
-    if (slp_module == NULL)
-        return NULL;
-    result = PyStackless_CallMethod_Main(slp_module, "run", "(ll)", timeout, flags);
-    Py_DECREF(slp_module);
-    return result;
+    PyMethodDef def = {"run", (PyCFunction)run_watchdog, METH_VARARGS | METH_KEYWORDS};
+    int threadblock, soft, ignore_nesting, totaltimeout;
+    threadblock = (flags & Py_WATCHDOG_THREADBLOCK) ? 1 : 0;
+    soft =        (flags & PY_WATCHDOG_SOFT) ? 1 : 0;
+    ignore_nesting=(flags & PY_WATCHDOG_IGNORE_NESTING) ? 1 : 0;
+    totaltimeout =(flags & PY_WATCHDOG_TOTALTIMEOUT) ? 1 : 0;
+
+    return PyStackless_CallCMethod_Main(&def, NULL, "liii",
+        timeout, threadblock, soft, ignore_nesting, totaltimeout);
 }
 
 
@@ -994,6 +1000,34 @@ PyStackless_Call_Main(PyObject *func, PyObject *args, PyObject *kwds)
 
 /* this one is shamelessly copied from PyObject_CallMethod */
 
+static PyObject *
+build_args(char *format, va_list va)
+{
+    PyObject *args;
+    if (format && *format)
+        args = Py_VaBuildValue(format, va);
+    else
+        return PyTuple_New(0);
+    if (args == NULL)
+        return NULL;
+    
+    if (!PyTuple_Check(args)) {
+        PyObject *a;
+        a = PyTuple_New(1);
+        if (a == NULL)
+            goto fail;
+        if (PyTuple_SetItem(a, 0, args) < 0) {
+            Py_DECREF(a);
+            return NULL;
+        }
+        args = a;
+    }
+    return args;
+fail:
+    Py_DECREF(args);
+    return NULL;
+}
+
 PyObject *
 PyStackless_CallMethod_Main(PyObject *o, char *name, char *format, ...)
 {
@@ -1018,34 +1052,40 @@ PyStackless_CallMethod_Main(PyObject *o, char *name, char *format, ...)
     if (!PyCallable_Check(func))
         return slp_type_error("call of non-callable attribute");
 
-    if (format && *format) {
-        va_start(va, format);
-        args = Py_VaBuildValue(format, va);
-        va_end(va);
-    }
-    else
-        args = PyTuple_New(0);
-
-    if (!args)
+    va_start(va, format);
+    args = build_args(format, va);
+    va_end(va);
+    if (!args) {
+        Py_DECREF(func);
         return NULL;
-
-    if (!PyTuple_Check(args)) {
-        PyObject *a;
-
-        a = PyTuple_New(1);
-        if (a == NULL)
-            return NULL;
-        if (PyTuple_SetItem(a, 0, args) < 0)
-            return NULL;
-        args = a;
     }
 
     /* retval = PyObject_CallObject(func, args); */
     retval = PyStackless_Call_Main(func, args, NULL);
-
     Py_DECREF(args);
     Py_DECREF(func);
+    return retval;
+}
 
+PyObject *
+PyStackless_CallCMethod_Main(PyMethodDef *meth, PyObject *self, char *format, ...)
+{
+    va_list va;
+    PyObject *func = PyCFunction_New(meth, self);
+    PyObject *retval, *args;
+    if (!func)
+        return NULL;
+
+    va_start(va, format);
+    args = build_args(format, va);
+    va_end(va);
+    if (!args) {
+        Py_DECREF(func);
+        return NULL;
+    }
+    retval = PyStackless_Call_Main(func, args, NULL);
+    Py_DECREF(args);
+    Py_DECREF(func);
     return retval;
 }
 

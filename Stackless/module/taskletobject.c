@@ -597,14 +597,16 @@ side-effects. Therefore it is recommended to either run tasklets to the\n\
 end or to explicitly kill() them.\
 ");
 
+static PyObject *
+tasklet_remove(PyObject *self);
 
 static int
 PyTasklet_Remove_M(PyTaskletObject *task)
 {
-    PyObject *ret = PyStackless_CallMethod_Main(
-        (PyObject*)task, "remove", NULL);
-
-    return slp_return_wrapper(ret);
+    PyObject *ret;
+    PyMethodDef def = {"remove", (PyCFunction)tasklet_remove, METH_NOARGS};
+    ret = PyStackless_CallCMethod_Main(&def, (PyObject *) task, NULL);
+    return slp_return_wrapper_hard(ret);
 }
 
 static int
@@ -654,12 +656,15 @@ PyDoc_STRVAR(tasklet_insert__doc__,
 given that it isn't blocked.\n\
 Blocked tasklets need to be reactivated by channels.");
 
+static PyObject *
+tasklet_insert(PyObject *self);
+
 static int
 PyTasklet_Insert_M(PyTaskletObject *task)
 {
-    PyObject *ret = PyStackless_CallMethod_Main(
-        (PyObject*)task, "insert", NULL);
-    return slp_return_wrapper(ret);
+    PyMethodDef def = {"insert", (PyCFunction)tasklet_insert, METH_NOARGS};
+    PyObject *ret = PyStackless_CallCMethod_Main(&def, (PyObject *) task, NULL);
+    return slp_return_wrapper_hard(ret);
 }
 
 static int
@@ -708,9 +713,13 @@ PyDoc_STRVAR(tasklet_run__doc__,
 Blocked tasks need to be reactivated by channels.");
 
 static PyObject *
+tasklet_run(PyObject *self);
+
+static PyObject *
 PyTasklet_Run_M(PyTaskletObject *task)
 {
-    return PyStackless_CallMethod_Main((PyObject*)task, "run", NULL);
+    PyMethodDef def = {"run", (PyCFunction)tasklet_run, METH_NOARGS};
+    return PyStackless_CallCMethod_Main(&def, (PyObject *) task, NULL);
 }
 
 static PyObject *
@@ -821,9 +830,13 @@ custom scheduling behaviour.  Only works for tasklets of the\n\
 same thread.");
 
 static PyObject *
+tasklet_switch(PyObject *self);
+
+static PyObject *
 PyTasklet_Switch_M(PyTaskletObject *task)
 {
-    return PyStackless_CallMethod_Main((PyObject*)task, "switch", NULL);
+    PyMethodDef def = {"switch", (PyCFunction)tasklet_switch, METH_NOARGS};
+    return PyStackless_CallCMethod_Main(&def, (PyObject *) task, NULL);
 }
 
 int
@@ -1003,15 +1016,18 @@ PyDoc_STRVAR(tasklet_throw__doc__,
              merely made runnable, ready to raise the exception when run.");
 
 static PyObject *
+tasklet_throw(PyObject *myself, PyObject *args, PyObject *kwds);
+
+static PyObject *
 PyTasklet_Throw_M(PyTaskletObject *self, int pending, PyObject *exc,
                            PyObject *val, PyObject *tb)
 {
+    PyMethodDef def = {"throw", (PyCFunction)tasklet_throw, METH_VARARGS|METH_KEYWORDS};
     if (!val)
         val = Py_None;
     if (!tb)
         tb = Py_None;
-    return PyStackless_CallMethod_Main(
-        (PyObject*)self, "throw", "(OOOi)", exc, val, tb, pending);
+    return PyStackless_CallCMethod_Main(&def, (PyObject *) self, "OOOi",  exc, val, tb, pending);
 }
 
 static PyObject *
@@ -1113,11 +1129,14 @@ exc must be a subclass of Exception.\n\
 The tasklet is immediately activated.");
 
 static PyObject *
+tasklet_raise_exception(PyObject *myself, PyObject *args);
+
+static PyObject *
 PyTasklet_RaiseException_M(PyTaskletObject *self, PyObject *klass,
                            PyObject *args)
 {
-    return PyStackless_CallMethod_Main(
-        (PyObject*)self, "raise_exception", "(OO)", klass, args);
+    PyMethodDef def = {"raise_exception", (PyCFunction)tasklet_raise_exception, METH_VARARGS};
+    return PyStackless_CallCMethod_Main(&def, (PyObject *) self, "OO", klass, args);
 }
 
 static PyObject *

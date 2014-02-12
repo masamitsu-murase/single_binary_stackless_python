@@ -416,8 +416,8 @@ the runnables list.");
 static PyObject *
 PyChannel_Send_M(PyChannelObject *self, PyObject *arg)
 {
-    return PyStackless_CallMethod_Main((PyObject *) self, "send", "(O)",
-                                       arg);
+    PyMethodDef def = {"send", (PyCFunction)PyChannel_Send, METH_O};
+    return PyStackless_CallCMethod_Main(&def, (PyObject *) self, "O", arg);
 }
 
 static int
@@ -618,11 +618,14 @@ exc must be a subclass of Exception.\n\
 Behavior is like channel.send, but that the receiver gets an exception.");
 
 static PyObject *
+channel_send_exception(PyObject *myself, PyObject *args);
+
+static PyObject *
 PyChannel_SendException_M(PyChannelObject *self, PyObject *klass,
                           PyObject *args)
 {
-    return PyStackless_CallMethod_Main((PyObject *) self,
-        "send_exception", "(OO)", klass, args);
+    PyMethodDef def = {"send_exception", (PyCFunction)channel_send_exception, METH_VARARGS};
+    return PyStackless_CallCMethod_Main(&def, (PyObject *) self, "OO", klass, args);
 }
 
 static CHANNEL_SEND_EXCEPTION_HEAD(impl_channel_send_exception);
@@ -685,14 +688,17 @@ PyDoc_STRVAR(channel_send_throw__doc__,
 Behavior is like channel.send, but that the receiver gets an exception.");
 
 static PyObject *
+channel_send_throw(PyObject *myself, PyObject *args);
+
+static PyObject *
 PyChannel_SendThrow_M(PyChannelObject *self, PyObject *exc,
                           PyObject *val, PyObject *tb)
 {
+    PyMethodDef def = {"send_throw", (PyCFunction)channel_send_throw, METH_VARARGS};
     exc = exc ? exc : Py_None;
     val = val ? val : Py_None;
     tb = tb ? tb : Py_None;
-    return PyStackless_CallMethod_Main((PyObject *) self,
-        "send_throw", "(OOO)", exc, val, tb);
+    return PyStackless_CallCMethod_Main(&def, (PyObject *) self, "OOO", exc, val, tb);
 }
 
 static PyObject *
@@ -756,7 +762,8 @@ The above policy can be changed by setting channel flags.");
 static PyObject *
 PyChannel_Receive_M(PyChannelObject *self)
 {
-    return PyStackless_CallMethod_Main((PyObject *) self, "receive", NULL);
+    PyMethodDef def = {"receive", (PyCFunction)PyChannel_Receive, METH_NOARGS};
+    return PyStackless_CallCMethod_Main(&def, (PyObject *) self, NULL);
 }
 
 static PyObject *
