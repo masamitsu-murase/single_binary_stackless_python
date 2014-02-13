@@ -201,16 +201,6 @@ typedef struct _cframe {
 } PyCFrameObject;
 
 
-/*** important structures: slpmodule ***/
-
-typedef struct _slpmodule {
-    PyObject_HEAD
-    PyObject *md_dict;
-    /* the above is a copy of private PyModuleObject */
-    PyTypeObject *__tasklet__;
-    PyTypeObject *__channel__;
-} PySlpModuleObject;
-
 
 /*** associated type objects ***/
 
@@ -223,15 +213,13 @@ PyAPI_DATA(PyTypeObject) PyCStack_Type;
 PyAPI_DATA(PyTypeObject) PyBomb_Type;
 #define PyBomb_Check(op) ((op)->ob_type == &PyBomb_Type)
 
-PyAPI_DATA(PyTypeObject*) PyTasklet_TypePtr;
-#define PyTasklet_Type (*PyTasklet_TypePtr)
-#define PyTasklet_Check(op) PyObject_TypeCheck(op, PyTasklet_TypePtr)
-#define PyTasklet_CheckExact(op) ((op)->ob_type == PyTasklet_TypePtr)
+PyAPI_DATA(PyTypeObject) PyTasklet_Type;
+#define PyTasklet_Check(op) PyObject_TypeCheck(op, &PyTasklet_Type)
+#define PyTasklet_CheckExact(op) ((op)->ob_type == &PyTasklet_Type)
 
-PyAPI_DATA(PyTypeObject*) PyChannel_TypePtr;
-#define PyChannel_Type (*PyChannel_TypePtr)
-#define PyChannel_Check(op) PyObject_TypeCheck(op, PyChannel_TypePtr)
-#define PyChannel_CheckExact(op) ((op)->ob_type == PyChannel_TypePtr)
+PyAPI_DATA(PyTypeObject) PyChannel_Type;
+#define PyChannel_Check(op) PyObject_TypeCheck(op, &PyChannel_Type)
+#define PyChannel_CheckExact(op) ((op)->ob_type == &PyChannel_Type)
 
 /*** these are in other bits of C-Python(r) ***/
 PyAPI_DATA(PyTypeObject) PyDictIterKey_Type;
@@ -242,9 +230,6 @@ PyAPI_DATA(PyTypeObject) PySetIter_Type;
 PyAPI_DATA(PyTypeObject) PyRangeIter_Type;
 PyAPI_DATA(PyTypeObject) PyTupleIter_Type;
 PyAPI_DATA(PyTypeObject) PyEnum_Type;
-
-/*** the Stackless module itself ***/
-PyAPI_DATA(PyObject *) slp_module;
 
 #ifdef __cplusplus
 }

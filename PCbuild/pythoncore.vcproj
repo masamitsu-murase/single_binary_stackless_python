@@ -1906,14 +1906,6 @@
 					>
 				</File>
 				<File
-					RelativePath="..\Stackless\module\flextype.c"
-					>
-				</File>
-				<File
-					RelativePath="..\Stackless\module\flextype.h"
-					>
-				</File>
-				<File
 					RelativePath="..\Stackless\module\scheduling.c"
 					>
 				</File>
@@ -1923,10 +1915,6 @@
 				</File>
 				<File
 					RelativePath="..\Stackless\module\taskletobject.c"
-					>
-				</File>
-				<File
-					RelativePath="..\Stackless\module\taskletobject.h"
 					>
 				</File>
 			</Filter>

@@ -43,7 +43,7 @@ class StacklessTestCase(unittest.TestCase, RegexMixIn):
                 activeThreads[0].join(0.5)
             if threading.activeCount() > 1:
                 self.assertEqual(threading.activeCount(), 1, "Leakage from other threads, with %d threads running (1 expected)" % (threading.activeCount()))
-            
+
     SAFE_TESTCASE_ATTRIBUTES = unittest.TestCase(methodName='run').__dict__.keys()
     def _addSkip(self, result, reason):
         # Remove non standard attributes. They could render the test case object unpickleable.
@@ -69,6 +69,7 @@ class AsTaskletTestCase(StacklessTestCase):
     def run(self, result=None):
         c = stackless.channel()
         c.preference = 1 #sender priority
+        self._ran_AsTaskletTestCase_setUp = False
         def helper():
             try:
                 c.send(super(AsTaskletTestCase, self).run(result))

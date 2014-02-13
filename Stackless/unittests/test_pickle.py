@@ -201,7 +201,7 @@ def in_psyco():
         return __in_psyco__
     except NameError:
         return False
-    
+
 def is_soft():
     softswitch = stackless.enable_softswitch(0)
     stackless.enable_softswitch(softswitch)
@@ -455,7 +455,7 @@ class TestOldStackless_WrapFactories(StacklessTestCase):
 
         # an old pickle, protocol 0 of xrange(123, 798, 45)
         p = 'cstackless._wrap\nxrange\n(I123\nI798\nI45\ntR(tb.'
-		
+
         # Output of
         # from pickletools import dis; dis(p)
         #    0: c    GLOBAL     'stackless._wrap xrange'
@@ -470,7 +470,7 @@ class TestOldStackless_WrapFactories(StacklessTestCase):
         #   43: b    BUILD
         #   44: .    STOP
         # highest protocol among opcodes = 0
-		
+
         x = pickle.loads(p)
         self.assertIs(type(x), xrange)
         self.assertEqual(repr(x), repr(xrange(123, 798, 45)))
