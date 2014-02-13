@@ -264,7 +264,7 @@ static PyMemberDef cframe_memberlist[] = {
 
 PyTypeObject PyCFrame_Type = {
     PyObject_HEAD_INIT(&PyType_Type)
-    "stackless.cframe",
+    "_stackless.cframe",
     sizeof(PyCFrameObject),
     0,
     (destructor)cframe_dealloc,        /* tp_dealloc */
@@ -306,6 +306,8 @@ PyTypeObject PyCFrame_Type = {
 
 int init_cframetype(void)
 {
+    if (PyType_Ready(&PyCFrame_Type))
+        return -1;
     /* register the cframe exec func */
     return slp_register_execute(&PyCFrame_Type, "run_cframe",
                                 run_cframe, REF_INVALID_EXEC(run_cframe));

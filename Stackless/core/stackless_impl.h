@@ -13,7 +13,6 @@ extern "C" {
 #include "compile.h"
 #include "frameobject.h"
 
-#include "module/flextype.h"
 #include "core/stackless_structs.h"
 #include "pickling/prickelpit.h"
 
@@ -485,6 +484,7 @@ PyAPI_FUNC(PyCFrameObject *) slp_cframe_newfunc(PyObject *func,
 PyAPI_FUNC(PyFrameObject *) slp_get_frame(PyTaskletObject *task);
 PyAPI_FUNC(void) slp_check_pending_irq(void);
 PyAPI_FUNC(int) slp_return_wrapper(PyObject *retval);
+PyAPI_FUNC(int) slp_return_wrapper_hard(PyObject *retval);
 PyAPI_FUNC(int) slp_int_wrapper(PyObject *retval);
 PyAPI_FUNC(int) slp_current_wrapper(int(*func)(PyTaskletObject*),
                                     PyTaskletObject *task);

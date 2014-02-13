@@ -78,6 +78,17 @@ slp_return_wrapper(PyObject *retval)
 }
 
 int
+slp_return_wrapper_hard(PyObject *retval)
+{
+    STACKLESS_ASSERT();
+    if (retval == NULL)
+        return -1;
+    assert(!STACKLESS_UNWINDING(retval));
+    Py_DECREF(retval);
+    return 0;
+}
+
+int
 slp_int_wrapper(PyObject *retval)
 {
     int ret = -909090;

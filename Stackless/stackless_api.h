@@ -99,6 +99,11 @@ PyAPI_FUNC(int) PyTasklet_RaiseException(PyTaskletObject *self,
  * caller always should return NULL.
  */
 
+/* Similar function, but using the "throw" semantics */
+PyAPI_FUNC(int) PyTasklet_Throw(PyTaskletObject *self,
+                     int pending, PyObject *exc,
+                     PyObject *val, PyObject *tb);
+
 /*
  * Killing a tasklet.
  * PyExc_TaskletExit is raised for the tasklet.
@@ -214,9 +219,11 @@ PyAPI_FUNC(PyObject *) PyChannel_Receive_nr(PyChannelObject *self);
 PyAPI_FUNC(int) PyChannel_SendException(PyChannelObject *self,
                                         PyObject *klass, PyObject *value);
 /* 0 = success  -1 = failure */
-PyAPI_FUNC(int) PyChannel_SendException_nr(PyChannelObject *self,
-                       PyObject *klass, PyObject *value);
-/* 1 = soft switched  0 = hard switched  -1 = failure */
+
+/*
+ * Similar, but using the same arguments as "raise"
+ */;
+PyAPI_FUNC(int) PyChannel_SendThrow(PyChannelObject *self, PyObject *exc, PyObject *val, PyObject *tb);
 
 /* the next tasklet in the queue or None */
 PyAPI_FUNC(PyObject *) PyChannel_GetQueue(PyChannelObject *self);
@@ -390,6 +397,11 @@ PyAPI_FUNC(PyObject *) PyStackless_Call_Main(PyObject *func,
 PyAPI_FUNC(PyObject *) PyStackless_CallMethod_Main(PyObject *o, char *name,
 						   char *format, ...);
 
+/*
+ *convenience: Run any cmethod as the "main" Python(r) function.
+ */
+PyAPI_FUNC(PyObject *) PyStackless_CallCMethod_Main(
+                    PyMethodDef *meth, PyObject *self, char *format, ...);
 
 #ifdef __cplusplus
 }

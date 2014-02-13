@@ -9,8 +9,6 @@
 #define IMPLEMENT_STACKLESSMODULE
 #include "platf/slp_platformselect.h"
 #include "core/cframeobject.h"
-#include "taskletobject.h"
-#include "channelobject.h"
 #include "pickling/prickelpit.h"
 #include "core/stackless_methods.h"
 
@@ -83,7 +81,7 @@ current tasklet to true for the duration.\n");
 
 PyTypeObject PyAtomic_Type = {
     PyObject_HEAD_INIT(NULL)
-    "stackless.atomic",
+    "_stackless.atomic",
     sizeof(PyAtomicObject),
     0,
     atomic_dealloc,                             /* tp_dealloc */
@@ -135,8 +133,6 @@ atomic_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
  ******************************************************/
 
-PyObject *slp_module = NULL;
-
 PyThreadState *slp_initial_tstate = NULL;
 
 static void *slp_error_handler = NULL;
@@ -148,12 +144,19 @@ tasklet as default.\n\
 schedule_remove(retval=stackless.current) -- ditto, and remove self.");
 
 static PyObject *
+schedule(PyObject *self, PyObject *args, PyObject *kwds);
+static PyObject *
+schedule_remove(PyObject *self, PyObject *args, PyObject *kwds);
+
+static PyObject *
 PyStackless_Schedule_M(PyObject *retval, int remove)
 {
-    return PyStackless_CallMethod_Main(
-        slp_module,
-        remove ? "schedule_remove" : "schedule",
-        "O", retval);
+    PyMethodDef sched = {"schedule", (PyCFunction)schedule, METH_VARARGS|METH_KEYWORDS};
+    PyMethodDef s_rem = {"schedule", (PyCFunction)schedule_remove, METH_VARARGS|METH_KEYWORDS};
+    if (remove)
+        return PyStackless_CallCMethod_Main(&s_rem, NULL, "O", retval);
+    else
+        return PyStackless_CallCMethod_Main(&sched, NULL, "O", retval);
 }
 
 PyObject *
@@ -427,9 +430,20 @@ interrupt_timeout_return(void)
 }
 
 static PyObject *
+run_watchdog(PyObject *self, PyObject *args, PyObject *kwds);
+
+static PyObject *
 PyStackless_RunWatchdog_M(long timeout, long flags)
 {
-    return PyStackless_CallMethod_Main(slp_module, "run", "(ll)", timeout, flags);
+    PyMethodDef def = {"run", (PyCFunction)run_watchdog, METH_VARARGS | METH_KEYWORDS};
+    int threadblock, soft, ignore_nesting, totaltimeout;
+    threadblock = (flags & Py_WATCHDOG_THREADBLOCK) ? 1 : 0;
+    soft =        (flags & PY_WATCHDOG_SOFT) ? 1 : 0;
+    ignore_nesting=(flags & PY_WATCHDOG_IGNORE_NESTING) ? 1 : 0;
+    totaltimeout =(flags & PY_WATCHDOG_TOTALTIMEOUT) ? 1 : 0;
+
+    return PyStackless_CallCMethod_Main(&def, NULL, "liii",
+        timeout, threadblock, soft, ignore_nesting, totaltimeout);
 }
 
 
@@ -564,7 +578,7 @@ get_thread_info(PyObject *self, PyObject *args)
 static PyObject *
 slpmodule_reduce(PyObject *self)
 {
-    return PyObject_GetAttrString(slp_module, "__name__");
+    return PyUnicode_FromString("_stackless");
 }
 
 int
@@ -905,7 +919,7 @@ static int init_test_nostacklesscalltype(void)
 {
     static PyTypeObject test_nostacklesscallType = {
             PyObject_HEAD_INIT(&PyType_Type)
-            "stackless.test_nostacklesscall_type",   /*tp_name*/
+            "_stackless.test_nostacklesscall_type",   /*tp_name*/
             sizeof(test_nostacklesscallObject), /*tp_basicsize*/
             0,                         /*tp_itemsize*/
             0,                         /*tp_dealloc*/
@@ -964,6 +978,34 @@ PyStackless_Call_Main(PyObject *func, PyObject *args, PyObject *kwds)
 
 /* this one is shamelessly copied from PyObject_CallMethod */
 
+static PyObject *
+build_args(char *format, va_list va)
+{
+    PyObject *args;
+    if (format && *format)
+        args = Py_VaBuildValue(format, va);
+    else
+        return PyTuple_New(0);
+    if (args == NULL)
+        return NULL;
+    
+    if (!PyTuple_Check(args)) {
+        PyObject *a;
+        a = PyTuple_New(1);
+        if (a == NULL)
+            goto fail;
+        if (PyTuple_SetItem(a, 0, args) < 0) {
+            Py_DECREF(a);
+            return NULL;
+        }
+        args = a;
+    }
+    return args;
+fail:
+    Py_DECREF(args);
+    return NULL;
+}
+
 PyObject *
 PyStackless_CallMethod_Main(PyObject *o, char *name, char *format, ...)
 {
@@ -988,34 +1030,40 @@ PyStackless_CallMethod_Main(PyObject *o, char *name, char *format, ...)
     if (!PyCallable_Check(func))
         return slp_type_error("call of non-callable attribute");
 
-    if (format && *format) {
-        va_start(va, format);
-        args = Py_VaBuildValue(format, va);
-        va_end(va);
-    }
-    else
-        args = PyTuple_New(0);
-
-    if (!args)
+    va_start(va, format);
+    args = build_args(format, va);
+    va_end(va);
+    if (!args) {
+        Py_DECREF(func);
         return NULL;
-
-    if (!PyTuple_Check(args)) {
-        PyObject *a;
-
-        a = PyTuple_New(1);
-        if (a == NULL)
-            return NULL;
-        if (PyTuple_SetItem(a, 0, args) < 0)
-            return NULL;
-        args = a;
     }
 
     /* retval = PyObject_CallObject(func, args); */
     retval = PyStackless_Call_Main(func, args, NULL);
-
     Py_DECREF(args);
     Py_DECREF(func);
+    return retval;
+}
 
+PyObject *
+PyStackless_CallCMethod_Main(PyMethodDef *meth, PyObject *self, char *format, ...)
+{
+    va_list va;
+    PyObject *func = PyCFunction_New(meth, self);
+    PyObject *retval, *args;
+    if (!func)
+        return NULL;
+
+    va_start(va, format);
+    args = build_args(format, va);
+    va_end(va);
+    if (!args) {
+        Py_DECREF(func);
+        return NULL;
+    }
+    retval = PyStackless_Call_Main(func, args, NULL);
+    Py_DECREF(args);
+    Py_DECREF(func);
     return retval;
 }
 
@@ -1225,6 +1273,69 @@ _gc_track(PyObject *self, PyObject *ob)
 PyDoc_STRVAR(_gc_untrack__doc__,
 "_gc_untrack, gc_track -- remove or add an object from the gc list.");
 
+static PyObject *
+slpmodule_getdebug(PyObject *self)
+{
+#ifdef _DEBUG
+    PyObject *ret = Py_True;
+#else
+    PyObject *ret = Py_False;
+#endif
+    Py_INCREF(ret);
+    return ret;
+}
+
+PyDoc_STRVAR(slpmodule_getdebug__doc__,
+"Returns True if this is a DEBUG build");
+
+static PyObject *
+slpmodule_getuncollectables(PyObject *self)
+{
+    PyObject *lis = PyList_New(0);
+    PyCStackObject *cst = slp_cstack_chain;
+
+    if (lis == NULL)
+        return NULL;
+    do {
+        if (cst->task != NULL) {
+            if (PyList_Append(lis, (PyObject *) cst->task)) {
+                Py_DECREF(lis);
+                return NULL;
+            }
+        }
+        cst = cst->next;
+    } while (cst != slp_cstack_chain);
+    return lis;
+}
+
+PyDoc_STRVAR(slpmodule_getuncollectables__doc__,
+"Get a list of all tasklets which have a non-trivial C stack.\n\
+These might need to be killed manually in order to free memory,\n\
+since their C stack might prevent garbage collection.\n\
+Note that a tasklet is reported for every C stacks it has.");
+
+static PyObject *
+slpmodule_getthreads(PyObject *self)
+{
+    PyObject *lis = PyList_New(0);
+    PyThreadState *ts = PyThreadState_GET();
+    PyInterpreterState *interp = ts->interp;
+
+    if (lis == NULL)
+        return NULL;
+
+    for (ts = interp->tstate_head; ts != NULL; ts = ts->next) {
+        PyObject *id = PyLong_FromLong(ts->thread_id);
+
+        if (id == NULL || PyList_Append(lis, id))
+            return NULL;
+    }
+    PyList_Reverse(lis);
+    return lis;
+}
+
+PyDoc_STRVAR(slpmodule_getthreads__doc__,
+"Return a list of all thread ids, starting with main.");
 
 /* List of functions defined in the module */
 
@@ -1284,6 +1395,12 @@ static PyMethodDef stackless_methods[] = {
 #endif
     {"__reduce__",                  (PCF)slpmodule_reduce,      METH_NOARGS, NULL},
     {"__reduce_ex__",               (PCF)slpmodule_reduce,      METH_VARARGS, NULL},
+    {"getdebug",                   (PCF)slpmodule_getdebug,    METH_NOARGS,
+    slpmodule_getdebug__doc__},
+    {"getuncollectables",          (PCF)slpmodule_getuncollectables,    METH_NOARGS,
+    slpmodule_getuncollectables__doc__},
+    {"getthreads",                 (PCF)slpmodule_getthreads,    METH_NOARGS,
+    slpmodule_getthreads__doc__},
     {NULL,                          NULL}       /* sentinel */
 };
 
@@ -1294,242 +1411,6 @@ The essential objects are tasklets and channels.\n\
 Please refer to their documentation.\n\
 ");
 
-static PyTypeObject *PySlpModule_TypePtr;
-
-/* this is a modified clone of PyModule_New */
-
-static PyObject *
-slpmodule_new(const char *name)
-{
-    PySlpModuleObject *m;
-    PyObject *nameobj;
-    m = PyObject_GC_New(PySlpModuleObject, PySlpModule_TypePtr);
-    if (m == NULL)
-        return NULL;
-    m->md_def = NULL;
-    m->md_state = NULL;
-    m->__channel__ = NULL;
-    m->__tasklet__ = NULL;
-    nameobj = PyUnicode_FromString(name);
-    m->md_dict = PyDict_New();
-    if (m->md_dict == NULL || nameobj == NULL)
-        goto fail;
-    if (PyDict_SetItemString(m->md_dict, "__name__", nameobj) != 0)
-        goto fail;
-    if (PyDict_SetItemString(m->md_dict, "__doc__", Py_None) != 0)
-        goto fail;
-    if (PyDict_SetItemString(m->md_dict, "__package__", Py_None) != 0)
-        goto fail;
-    Py_DECREF(nameobj);
-    PyObject_GC_Track(m);
-    return (PyObject *)m;
-
-fail:
-    Py_XDECREF(nameobj);
-    Py_DECREF(m);
-    return NULL;
-}
-
-static void
-slpmodule_dealloc(PySlpModuleObject *m)
-{
-    PyObject_GC_UnTrack(m);
-    if (m->md_dict != NULL) {
-        _PyModule_Clear((PyObject *)m);
-        Py_DECREF(m->md_dict);
-    }
-    Py_XDECREF(m->__channel__);
-    Py_XDECREF(m->__tasklet__);
-    Py_TYPE(m)->tp_free((PyObject *)m);
-}
-
-
-static PyTypeObject *
-slpmodule_get__tasklet__(PySlpModuleObject *mod, void *context)
-{
-    Py_INCREF(mod->__tasklet__);
-    return mod->__tasklet__;
-}
-
-static int
-slpmodule_set__tasklet__(PySlpModuleObject *mod, PyTypeObject *type, void *context)
-{
-    if (!PyType_IsSubtype(type, &PyTasklet_Type))
-        TYPE_ERROR("__tasklet__ must be a tasklet subtype", -1);
-    Py_INCREF(type);
-    Py_CLEAR(mod->__tasklet__);
-    mod->__tasklet__ = type;
-    return 0;
-}
-
-static PyTypeObject *
-slpmodule_get__channel__(PySlpModuleObject *mod, void *context)
-{
-    Py_INCREF(mod->__channel__);
-    return mod->__channel__;
-}
-
-static int
-slpmodule_set__channel__(PySlpModuleObject *mod, PyTypeObject *type, void *context)
-{
-    if (!PyType_IsSubtype(type, &PyChannel_Type))
-        TYPE_ERROR("__channel__ must be a channel subtype", -1);
-    Py_INCREF(type);
-    Py_CLEAR(mod->__channel__);
-    mod->__channel__ = type;
-    return 0;
-}
-
-static PyObject *
-slpmodule_getdebug(PySlpModuleObject *mod)
-{
-#ifdef _DEBUG
-    PyObject *ret = Py_True;
-#else
-    PyObject *ret = Py_False;
-#endif
-    Py_INCREF(ret);
-    return ret;
-}
-
-PyDoc_STRVAR(uncollectables__doc__,
-"Get a list of all tasklets which have a non-trivial C stack.\n\
-These might need to be killed manually in order to free memory,\n\
-since their C stack might prevent garbage collection.\n\
-Note that a tasklet is reported for every C stacks it has.");
-
-static PyObject *
-slpmodule_getuncollectables(PySlpModuleObject *mod, void *context)
-{
-    PyObject *lis = PyList_New(0);
-    PyCStackObject *cst = slp_cstack_chain;
-
-    if (lis == NULL)
-        return NULL;
-    do {
-        if (cst->task != NULL) {
-            if (PyList_Append(lis, (PyObject *) cst->task)) {
-                Py_DECREF(lis);
-                return NULL;
-            }
-        }
-        cst = cst->next;
-    } while (cst != slp_cstack_chain);
-    return lis;
-}
-
-static PyObject *
-slpmodule_getthreads(PySlpModuleObject *mod, void *context)
-{
-    PyObject *lis = PyList_New(0);
-    PyThreadState *ts = PyThreadState_GET();
-    PyInterpreterState *interp = ts->interp;
-
-    if (lis == NULL)
-        return NULL;
-
-    for (ts = interp->tstate_head; ts != NULL; ts = ts->next) {
-        PyObject *id = PyLong_FromLong(ts->thread_id);
-
-        if (id == NULL || PyList_Append(lis, id))
-            return NULL;
-    }
-    PyList_Reverse(lis);
-    return lis;
-}
-
-
-static PyGetSetDef slpmodule_getsetlist[] = {
-    {"__tasklet__", (getter)slpmodule_get__tasklet__,
-                    (setter)slpmodule_set__tasklet__,
-     PyDoc_STR("The default tasklet type to be used.\n"
-     "It must be derived from the basic tasklet type.")},
-    {"__channel__", (getter)slpmodule_get__channel__,
-                    (setter)slpmodule_set__channel__,
-     PyDoc_STR("The default channel type to be used.\n"
-     "It must be derived from the basic channel type.")},
-    {"runcount",        (getter)getruncount, NULL,
-     PyDoc_STR("The number of currently runnable tasklets.")},
-    {"current",         (getter)getcurrent, NULL,
-     PyDoc_STR("The currently executing tasklet.")},
-    {"main",            (getter)getmain, NULL,
-     PyDoc_STR("The main tasklet of this thread.")},
-    {"debug",           (getter)slpmodule_getdebug, NULL,
-     PyDoc_STR("Flag telling whether this was a debug build.")},
-    {"uncollectables", (getter)slpmodule_getuncollectables, NULL,
-     uncollectables__doc__},
-    {"threads", (getter)slpmodule_getthreads, NULL,
-     PyDoc_STR("a list of all thread ids, starting with main.")},
-    {0},
-};
-
-PyDoc_STRVAR(PySlpModule_Type__doc__,
-"The stackless module has a special type derived from\n\
-the module type, in order to be able to override some attributes.\n\
-__tasklet__ and __channel__ are the default types\n\
-to be used when these objects must be instantiated internally.\n\
-runcount, current and main are attribute-like short-hands\n\
-for the getruncount, getcurrent and getmain module functions.\n\
-");
-
-static PyTypeObject PySlpModule_TypeTemplate = {
-    PyObject_HEAD_INIT(&PyType_Type)
-    "slpmodule",
-    sizeof(PySlpModuleObject),
-    0,
-    (destructor)slpmodule_dealloc,      /* tp_dealloc */
-    0,                                  /* tp_print */
-    0,                                  /* tp_getattr */
-    0,                                  /* tp_setattr */
-    0,                                  /* tp_compare */
-    0,                                  /* tp_repr */
-    0,                                  /* tp_as_number */
-    0,                                  /* tp_as_sequence */
-    0,                                  /* tp_as_mapping */
-    0,                                  /* tp_hash */
-    0,                                  /* tp_call */
-    0,                                  /* tp_str */
-    PyObject_GenericGetAttr,            /* tp_getattro */
-    PyObject_GenericSetAttr,            /* tp_setattro */
-    0,                                  /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE |
-        Py_TPFLAGS_HAVE_GC,             /* tp_flags */
-    PySlpModule_Type__doc__,            /* tp_doc */
-    0,                                  /* tp_traverse */
-    0,                                  /* tp_clear */
-    0,                                  /* tp_richcompare */
-    0,                                  /* tp_weaklistoffset */
-    0,                                  /* tp_iter */
-    0,                                  /* tp_iternext */
-    0,                                  /* tp_methods */
-    0,                                  /* tp_members */
-    slpmodule_getsetlist,               /* tp_getset */
-    &PyModule_Type,                     /* tp_base */
-    0,                                  /* tp_dict */
-    0,                                  /* tp_descr_get */
-    0,                                  /* tp_descr_set */
-    0,                                  /* tp_dictoffset */
-    0,                                  /* tp_init */
-    0,                                  /* tp_alloc */
-    0,                                  /* tp_new */
-    PyObject_GC_Del,                    /* tp_free */
-};
-
-
-int init_slpmoduletype(void)
-{
-    PyTypeObject *t = &PySlpModule_TypeTemplate;
-
-    if ( (t = PyFlexType_Build(
-                  "stackless", "slpmodule",t->tp_doc, t,
-                   sizeof(PyFlexTypeObject), NULL) ) == NULL)
-        return -1;
-    PySlpModule_TypePtr = t;
-    /* make sure that we cannot create any more instances */
-    PySlpModule_TypePtr->tp_new = NULL;
-    PySlpModule_TypePtr->tp_init = NULL;
-    return 0;
-}
 
 /* This function is called to make sure the type has
  * space in its tp_as_mapping to hold the slpslots.  If it has
@@ -1595,9 +1476,8 @@ _PyStackless_InitTypes(void)
     if (0
         || init_stackless_methods()
         || init_cframetype()
-        || init_flextype()
-        || init_tasklettype()
-        || init_channeltype()
+        || PyType_Ready(&PyTasklet_Type)
+        || PyType_Ready(&PyChannel_Type)
         || slp_init_bombtype()
         || PyType_Ready(&PyAtomic_Type)
         )
@@ -1605,18 +1485,12 @@ _PyStackless_InitTypes(void)
     return -1;
 }
 
-
 static struct PyModuleDef stacklessmodule = {
     PyModuleDef_HEAD_INIT,
-    "stackless",
+    "_stackless",
     stackless_doc,
     -1,
     stackless_methods,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    slpmodule_new
 };
 
 void
@@ -1624,11 +1498,7 @@ _PyStackless_Init(void)
 {
     PyObject *dict;
     PyObject *modules;
-    char *name = "stackless";
-    PySlpModuleObject *m;
-
-    if (init_slpmoduletype())
-        return;
+    PyObject *slp_module;
 
     /* record the thread state for thread support */
     slp_initial_tstate = PyThreadState_GET();
@@ -1639,7 +1509,7 @@ _PyStackless_Init(void)
         return; /* errors handled by caller */
 
     modules = PyImport_GetModuleDict();
-    if (PyDict_SetItemString(modules, name, slp_module)) {
+    if (PyDict_SetItemString(modules, stacklessmodule.m_name, slp_module)) {
         Py_DECREF(slp_module);
         return;
     }
@@ -1653,19 +1523,13 @@ _PyStackless_Init(void)
 #define INSERT(name, object) \
     if (PyDict_SetItemString(dict, name, (PyObject*)object) < 0) return
 
-    INSERT("slpmodule", PySlpModule_TypePtr);
     INSERT("cframe",    &PyCFrame_Type);
     INSERT("cstack",    &PyCStack_Type);
     INSERT("bomb",        &PyBomb_Type);
     INSERT("tasklet",   &PyTasklet_Type);
     INSERT("channel",   &PyChannel_Type);
     INSERT("_test_nostacklesscall", test_nostacklesscall);
-    INSERT("stackless", slp_module);
     INSERT("atomic",    &PyAtomic_Type);
-
-    m = (PySlpModuleObject *) slp_module;
-    slpmodule_set__tasklet__(m, &PyTasklet_Type, NULL);
-    slpmodule_set__channel__(m, &PyChannel_Type, NULL);
 }
 
 void

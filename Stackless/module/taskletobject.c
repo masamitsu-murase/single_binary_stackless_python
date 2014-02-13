@@ -8,7 +8,6 @@
 
 #ifdef STACKLESS
 #include "core/stackless_impl.h"
-#include "module/taskletobject.h"
 
 void
 slp_current_insert(PyTaskletObject *task)
@@ -591,25 +590,20 @@ side-effects. Therefore it is recommended to either run tasklets to the\n\
 end or to explicitly kill() them.\
 ");
 
+static PyObject *
+tasklet_remove(PyObject *self);
 
 static int
 PyTasklet_Remove_M(PyTaskletObject *task)
 {
-    PyObject *ret = PyStackless_CallMethod_Main(
-        (PyObject*)task, "remove", NULL);
-
-    return slp_return_wrapper(ret);
+    PyObject *ret;
+    PyMethodDef def = {"remove", (PyCFunction)tasklet_remove, METH_NOARGS};
+    ret = PyStackless_CallCMethod_Main(&def, (PyObject *) task, NULL);
+    return slp_return_wrapper_hard(ret);
 }
 
-int
-PyTasklet_Remove(PyTaskletObject *task)
-{
-    PyTasklet_HeapType *t = (PyTasklet_HeapType *)Py_TYPE(task);
-
-    return t->remove(task);
-}
-
-static TASKLET_REMOVE_HEAD(impl_tasklet_remove)
+static int
+impl_tasklet_remove(PyTaskletObject *task)
 {
     PyThreadState *ts = PyThreadState_GET();
     PyTaskletObject *hold = ts->st.current;
@@ -634,11 +628,10 @@ static TASKLET_REMOVE_HEAD(impl_tasklet_remove)
     return 0;
 }
 
-static TASKLET_REMOVE_HEAD(wrap_tasklet_remove)
+int
+PyTasklet_Remove(PyTaskletObject *task)
 {
-    PyObject * ret = PyObject_CallMethod((PyObject *)task, "remove", NULL);
-
-    return slp_return_wrapper(ret);
+    return impl_tasklet_remove(task);
 }
 
 static PyObject *
@@ -656,21 +649,25 @@ PyDoc_STRVAR(tasklet_insert__doc__,
 given that it isn't blocked.\n\
 Blocked tasklets need to be reactivated by channels.");
 
-int
-PyTasklet_Insert(PyTaskletObject *task)
-{
-    PyTasklet_HeapType *t = (PyTasklet_HeapType *)Py_TYPE(task);
+static PyObject *
+tasklet_insert(PyObject *self);
 
-    return t->insert(task);
+static int
+PyTasklet_Insert_M(PyTaskletObject *task)
+{
+    PyMethodDef def = {"insert", (PyCFunction)tasklet_insert, METH_NOARGS};
+    PyObject *ret = PyStackless_CallCMethod_Main(&def, (PyObject *) task, NULL);
+    return slp_return_wrapper_hard(ret);
 }
 
-static TASKLET_INSERT_HEAD(impl_tasklet_insert)
+static int
+impl_tasklet_insert(PyTaskletObject *task)
 {
     PyThreadState *ts = PyThreadState_GET();
 
     assert(PyTasklet_Check(task));
     if (ts->st.main == NULL)
-        return slp_current_wrapper(PyTasklet_Insert, task);
+        return PyTasklet_Insert_M(task);
     if (task->flags.blocked)
         RUNTIME_ERROR("You cannot run a blocked tasklet", -1);
     if (task->next == NULL) {
@@ -688,12 +685,10 @@ static TASKLET_INSERT_HEAD(impl_tasklet_insert)
     return 0;
 }
 
-static TASKLET_INSERT_HEAD(wrap_tasklet_insert)
+int
+PyTasklet_Insert(PyTaskletObject *task)
 {
-    PyObject * ret = PyObject_CallMethod(
-        (PyObject *)task, "insert", NULL);
-
-    return slp_return_wrapper(ret);
+    return impl_tasklet_insert(task);
 }
 
 static PyObject *
@@ -711,26 +706,29 @@ PyDoc_STRVAR(tasklet_run__doc__,
 Blocked tasks need to be reactivated by channels.");
 
 static PyObject *
+tasklet_run(PyObject *self);
+
+static PyObject *
 PyTasklet_Run_M(PyTaskletObject *task)
 {
-    return PyStackless_CallMethod_Main((PyObject*)task, "run", NULL);
+    PyMethodDef def = {"run", (PyCFunction)tasklet_run, METH_NOARGS};
+    return PyStackless_CallCMethod_Main(&def, (PyObject *) task, NULL);
 }
+
+static PyObject *
+impl_tasklet_run_remove(PyTaskletObject *task, int remove);
 
 int
 PyTasklet_Run_nr(PyTaskletObject *task)
 {
-    PyTasklet_HeapType *t = (PyTasklet_HeapType *)Py_TYPE(task);
-
     slp_try_stackless = 1;
-    return slp_return_wrapper(t->run(task));
+    return slp_return_wrapper(impl_tasklet_run_remove(task, 0));
 }
 
 int
 PyTasklet_Run(PyTaskletObject *task)
 {
-    PyTasklet_HeapType *t = (PyTasklet_HeapType *)Py_TYPE(task);
-
-    return slp_return_wrapper(t->run(task));
+    return slp_return_wrapper_hard(impl_tasklet_run_remove(task, 0));
 }
 
 static PyObject *
@@ -743,7 +741,8 @@ impl_tasklet_run_remove(PyTaskletObject *task, int remove)
     PyTaskletObject *prev = ts->st.current;
     
     assert(PyTasklet_Check(task));
-    if (ts->st.main == NULL) return PyTasklet_Run_M(task);
+    if (ts->st.main == NULL)
+        return PyTasklet_Run_M(task);
 
     /* we always call impl_tasklet_insert, so we must
      * also uninsert in case of failure
@@ -810,26 +809,10 @@ impl_tasklet_run_remove(PyTaskletObject *task, int remove)
     return ret;
 }
 
-static TASKLET_RUN_HEAD(impl_tasklet_run)
-{
-    return impl_tasklet_run_remove(task, 0);
-}
-
-static TASKLET_RUN_HEAD(wrap_tasklet_run)
-{
-    return PyObject_CallMethod((PyObject *)task, "run", NULL);
-}
-
-
 static PyObject *
 tasklet_run(PyObject *self)
 {
-    return impl_tasklet_run((PyTaskletObject *) self);
-}
-
-static TASKLET_RUN_HEAD(wrap_tasklet_switch)
-{
-    return PyObject_CallMethod((PyObject *)task, "switch", NULL);
+    return impl_tasklet_run_remove((PyTaskletObject *) self, 0);
 }
 
 PyDoc_STRVAR(tasklet_switch__doc__,
@@ -839,37 +822,32 @@ custom scheduling behaviour.  Only works for tasklets of the\n\
 same thread.");
 
 static PyObject *
+tasklet_switch(PyObject *self);
+
+static PyObject *
 PyTasklet_Switch_M(PyTaskletObject *task)
 {
-    return PyStackless_CallMethod_Main((PyObject*)task, "switch", NULL);
+    PyMethodDef def = {"switch", (PyCFunction)tasklet_switch, METH_NOARGS};
+    return PyStackless_CallCMethod_Main(&def, (PyObject *) task, NULL);
 }
 
 int
 PyTasklet_Switch_nr(PyTaskletObject *task)
 {
-    PyTasklet_HeapType *t = (PyTasklet_HeapType*)Py_TYPE(task);
-
     slp_try_stackless = 1;
-    return slp_return_wrapper(t->_switch(task));
+    return slp_return_wrapper(impl_tasklet_run_remove(task, 1));
 }
 
 int
 PyTasklet_Switch(PyTaskletObject *task)
 {
-    PyTasklet_HeapType *t = (PyTasklet_HeapType*)Py_TYPE(task);
-
-    return slp_return_wrapper(t->_switch(task));
-}
-
-static TASKLET_SWITCH_HEAD(impl_tasklet_switch)
-{
-    return impl_tasklet_run_remove(task, 1);
+    return slp_return_wrapper_hard(impl_tasklet_run_remove(task, 1));
 }
 
 static PyObject *
 tasklet_switch(PyObject *self)
 {
-    return impl_tasklet_switch((PyTaskletObject *) self);
+    return impl_tasklet_run_remove((PyTaskletObject *) self, 1);
 }
 
 PyDoc_STRVAR(tasklet_set_atomic__doc__,
@@ -886,16 +864,8 @@ Atomic behavior is additionally influenced by the interpreter nesting level.\
 See set_ignore_nesting.\
 ");
 
-
 int
 PyTasklet_SetAtomic(PyTaskletObject *task, int flag)
-{
-    PyTasklet_HeapType *t = (PyTasklet_HeapType *)Py_TYPE(task);
-
-    return t->set_atomic(task, flag);
-}
-
-static TASKLET_SETATOMIC_HEAD(impl_tasklet_set_atomic)
 {
     int ret = task->flags.atomic;
 
@@ -905,21 +875,13 @@ static TASKLET_SETATOMIC_HEAD(impl_tasklet_set_atomic)
     return ret;
 }
 
-static TASKLET_SETATOMIC_HEAD(wrap_tasklet_set_atomic)
-{
-    PyObject * ret = PyObject_CallMethod(
-        (PyObject *)task, "set_atomic", "(i)", flag);
-
-    return slp_int_wrapper(ret);
-}
-
 static PyObject *
 tasklet_set_atomic(PyObject *self, PyObject *flag)
 {
     if (! (flag && PyLong_Check(flag)) )
         TYPE_ERROR("set_atomic needs exactly one bool or integer",
                    NULL);
-    return PyBool_FromLong(impl_tasklet_set_atomic(
+    return PyBool_FromLong(PyTasklet_SetAtomic(
         (PyTaskletObject*)self, PyLong_AsLong(flag)));
 }
 
@@ -935,16 +897,8 @@ usage:\n\
     t.set_ignore_nesting(tmp)\
 ");
 
-
 int
 PyTasklet_SetIgnoreNesting(PyTaskletObject *task, int flag)
-{
-    PyTasklet_HeapType *t = (PyTasklet_HeapType *)Py_TYPE(task);
-
-    return t->set_ignore_nesting(task, flag);
-}
-
-static TASKLET_SETIGNORENESTING_HEAD(impl_tasklet_set_ignore_nesting)
 {
     int ret = task->flags.ignore_nesting;
 
@@ -954,21 +908,13 @@ static TASKLET_SETIGNORENESTING_HEAD(impl_tasklet_set_ignore_nesting)
     return ret;
 }
 
-static TASKLET_SETIGNORENESTING_HEAD(wrap_tasklet_set_ignore_nesting)
-{
-    PyObject * ret = PyObject_CallMethod(
-        (PyObject *)task, "set_ignore_nesting", "(i)", flag);
-
-    return slp_int_wrapper(ret);
-}
-
 static PyObject *
 tasklet_set_ignore_nesting(PyObject *self, PyObject *flag)
 {
     if (! (flag && PyLong_Check(flag)) )
         TYPE_ERROR("set_ignore_nesting needs exactly one bool or integer",
                    NULL);
-    return PyBool_FromLong(impl_tasklet_set_ignore_nesting(
+    return PyBool_FromLong(PyTasklet_SetIgnoreNesting(
     (PyTaskletObject*)self, PyLong_AsLong(flag)));
 }
 
@@ -1062,26 +1008,22 @@ PyDoc_STRVAR(tasklet_throw__doc__,
              merely made runnable, ready to raise the exception when run.");
 
 static PyObject *
+tasklet_throw(PyObject *myself, PyObject *args, PyObject *kwds);
+
+static PyObject *
 PyTasklet_Throw_M(PyTaskletObject *self, int pending, PyObject *exc,
                            PyObject *val, PyObject *tb)
 {
+    PyMethodDef def = {"throw", (PyCFunction)tasklet_throw, METH_VARARGS|METH_KEYWORDS};
     if (!val)
         val = Py_None;
     if (!tb)
         tb = Py_None;
-    return PyStackless_CallMethod_Main(
-        (PyObject*)self, "throw", "(OOOi)", exc, val, tb, pending);
+    return PyStackless_CallCMethod_Main(&def, (PyObject *) self, "OOOi",  exc, val, tb, pending);
 }
 
-int PyTasklet_Throw(PyTaskletObject *self, int pending, PyObject *exc,
-                             PyObject *val, PyObject *tb)
-{
-    PyTasklet_HeapType *t = (PyTasklet_HeapType *)Py_TYPE(self);
-
-    return slp_return_wrapper(t->_throw(self, pending, exc, val, tb));
-}
-
-static TASKLET_THROW_HEAD(impl_tasklet_throw)
+static PyObject *
+impl_tasklet_throw(PyTaskletObject *self, int pending, PyObject *exc, PyObject *val, PyObject *tb)
 {
     STACKLESS_GETARG();
     PyThreadState *ts = PyThreadState_GET();
@@ -1145,14 +1087,10 @@ static TASKLET_THROW_HEAD(impl_tasklet_throw)
     return ret;
 }
 
-static TASKLET_THROW_HEAD(wrap_tasklet_throw)
+int PyTasklet_Throw(PyTaskletObject *self, int pending, PyObject *exc,
+                             PyObject *val, PyObject *tb)
 {
-    if (!val)
-        val = Py_None;
-    if (!tb)
-        tb = Py_None;
-    return PyObject_CallMethod(
-        (PyObject *)self, "throw", "(OOOi)", exc, val, tb, pending);
+    return slp_return_wrapper_hard(impl_tasklet_throw(self, pending, exc, val, tb));
 }
 
 static PyObject *
@@ -1183,22 +1121,19 @@ exc must be a subclass of Exception.\n\
 The tasklet is immediately activated.");
 
 static PyObject *
+tasklet_raise_exception(PyObject *myself, PyObject *args);
+
+static PyObject *
 PyTasklet_RaiseException_M(PyTaskletObject *self, PyObject *klass,
                            PyObject *args)
 {
-    return PyStackless_CallMethod_Main(
-        (PyObject*)self, "raise_exception", "(OO)", klass, args);
+    PyMethodDef def = {"raise_exception", (PyCFunction)tasklet_raise_exception, METH_VARARGS};
+    return PyStackless_CallCMethod_Main(&def, (PyObject *) self, "OO", klass, args);
 }
 
-int PyTasklet_RaiseException(PyTaskletObject *self, PyObject *klass,
-                             PyObject *args)
-{
-    PyTasklet_HeapType *t = (PyTasklet_HeapType *)Py_TYPE(self);
+static PyObject *
+impl_tasklet_raise_exception(PyTaskletObject *self, PyObject *klass, PyObject *args)
 
-    return slp_return_wrapper(t->raise_exception(self, klass, args));
-}
-
-static TASKLET_RAISE_EXCEPTION_HEAD(impl_tasklet_raise_exception)
 {
     STACKLESS_GETARG();
     PyThreadState *ts = PyThreadState_GET();
@@ -1226,11 +1161,10 @@ static TASKLET_RAISE_EXCEPTION_HEAD(impl_tasklet_raise_exception)
     return ret;
 }
 
-
-static TASKLET_RAISE_EXCEPTION_HEAD(wrap_tasklet_raise_exception)
+int PyTasklet_RaiseException(PyTaskletObject *self, PyObject *klass,
+                             PyObject *args)
 {
-    return PyObject_CallMethod(
-        (PyObject *)self, "raise_exception", "(OO)", klass, args);
+    return slp_return_wrapper_hard(impl_tasklet_raise_exception(self, klass, args));
 }
 
 static PyObject *
@@ -1262,14 +1196,8 @@ The tasklet is immediately activated.\n\
 If the exception passes the toplevel frame of the tasklet,\n\
 the tasklet will silently die.");
 
-int PyTasklet_Kill(PyTaskletObject *task)
-{
-    PyTasklet_HeapType *t = (PyTasklet_HeapType *)Py_TYPE(task);
-
-    return slp_return_wrapper(t->kill(task, 0));
-}
-
-static TASKLET_KILL_HEAD(impl_tasklet_kill)
+static PyObject *
+impl_tasklet_kill(PyTaskletObject *task, int pending)
 {
     STACKLESS_GETARG();
     PyObject *ret;
@@ -1302,9 +1230,9 @@ static TASKLET_KILL_HEAD(impl_tasklet_kill)
     return ret;
 }
 
-static TASKLET_KILL_HEAD(wrap_tasklet_kill)
+int PyTasklet_Kill(PyTaskletObject *task)
 {
-    return PyObject_CallMethod((PyObject *)task, "kill", NULL);
+    return slp_return_wrapper_hard(impl_tasklet_kill(task, 0));
 }
 
 static PyObject *
@@ -1723,18 +1651,6 @@ static PyMethodDef tasklet_methods[] = {
     {NULL,     NULL}             /* sentinel */
 };
 
-static PyCMethodDef tasklet_cmethods[] = {
-    CMETHOD_PUBLIC_ENTRY(PyTasklet_HeapType, tasklet, insert),
-    CMETHOD_PUBLIC_ENTRY(PyTasklet_HeapType, tasklet, run),
-    CMETHOD_PUBLIC_ENTRY(PyTasklet_HeapType, tasklet, remove),
-    CMETHOD_PUBLIC_ENTRY(PyTasklet_HeapType, tasklet, set_atomic),
-    CMETHOD_PUBLIC_ENTRY(PyTasklet_HeapType, tasklet, set_ignore_nesting),
-    CMETHOD_PUBLIC_ENTRY(PyTasklet_HeapType, tasklet, raise_exception),
-    CMETHOD_PUBLIC_ENTRY(PyTasklet_HeapType, tasklet, kill),
-    CMETHOD_PUBLIC_ENTRY_EX(PyTasklet_HeapType, tasklet, throw, _throw),
-    {NULL}                       /* sentinel */
-};
-
 PyDoc_STRVAR(tasklet__doc__,
 "A tasklet object represents a tiny task in a Python(r) thread.\n\
 At program start, there is always one running main tasklet.\n\
@@ -1743,9 +1659,9 @@ module.\n\
 ");
 
 
-PyTypeObject _PyTasklet_Type = {
+PyTypeObject PyTasklet_Type = {
     PyObject_HEAD_INIT(&PyType_Type)
-    "tasklet",
+    "_stackless.tasklet",
     sizeof(PyTaskletObject),
     0,
     (destructor)tasklet_dealloc,        /* tp_dealloc */
@@ -1786,17 +1702,4 @@ PyTypeObject _PyTasklet_Type = {
     tasklet_new,                        /* tp_new */
     PyObject_GC_Del,                    /* tp_free */
 };
-PyTypeObject *PyTasklet_TypePtr = NULL;
-
-int init_tasklettype(void)
-{
-    PyTypeObject *t = &_PyTasklet_Type;
-
-    if ( (t = PyFlexType_Build("stackless", "tasklet", t->tp_doc, t,
-                               sizeof(PyTasklet_HeapType),
-                               tasklet_cmethods) ) == NULL)
-        return -1;
-    PyTasklet_TypePtr = t;
-    return 0;
-}
 #endif

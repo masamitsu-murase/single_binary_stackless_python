@@ -897,6 +897,27 @@ class TestSwitch(StacklessTestCase):
         t.switch()
         self.assertTrue(self.finished)
 
+class TestModule(unittest.TestCase):
+    def test_get_debug(self):
+        self.assertIn(stackless.getdebug(), [True, False])
+
+    def test_debug(self):
+        self.assertIn(stackless.debug, [True, False])
+
+    def test_get_uncollectables(self):
+        self.assertEqual(type(stackless.getuncollectables()), list)
+
+    def test_uncollectables(self):
+        self.assertEqual(type(stackless.uncollectables), list)
+
+
+    def test_get_threads(self):
+        self.assertEqual(type(stackless.getthreads()), list)
+
+    def test_threads(self):
+        self.assertEqual(type(stackless.threads), list)
+
+
 #///////////////////////////////////////////////////////////////////////////////
 
 if __name__ == '__main__':

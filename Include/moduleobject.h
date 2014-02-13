@@ -53,9 +53,6 @@ typedef struct PyModuleDef{
   traverseproc m_traverse;
   inquiry m_clear;
   freefunc m_free;
-#ifdef STACKLESS
-  PyObject *(*m_newfunc)(const char *name);
-#endif
 }PyModuleDef;
 
 
