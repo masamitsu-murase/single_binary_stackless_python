@@ -27,6 +27,6 @@ static _stackless_method _stackless_methtable[] = {
     /* from methodobject.c */
     {&PyCFunction_Type,        MFLAG_OFS(tp_call)},
     /* from channelobject.c */
-    {&PyChannel_TypePtr,        MFLAG_OFS_IND(tp_iternext)},
+    {&PyChannel_Type,                   MFLAG_OFS(tp_iternext)},
     {0, 0} /* sentinel */
 };

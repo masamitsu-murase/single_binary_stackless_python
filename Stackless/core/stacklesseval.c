@@ -193,7 +193,7 @@ cstack_str(PyObject *o)
 
 PyTypeObject PyCStack_Type = {
     PyObject_HEAD_INIT(&PyType_Type)
-    "stackless.cstack",
+    "_stackless.cstack",
     sizeof(PyCStackObject),
     sizeof(PyObject *),
     (destructor)cstack_dealloc,         /* tp_dealloc */

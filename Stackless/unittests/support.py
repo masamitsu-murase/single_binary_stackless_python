@@ -82,6 +82,7 @@ class AsTaskletTestCase(StacklessTestCase):
     def run(self, result=None):
         c = stackless.channel()
         c.preference = 1 #sender priority
+        self._ran_AsTaskletTestCase_setUp = False
         def helper():
             try:
                 c.send(super(AsTaskletTestCase, self).run(result))
