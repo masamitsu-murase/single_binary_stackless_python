@@ -493,8 +493,6 @@
     <ClInclude Include="..\Stackless\core\stackless_structs.h" />
     <ClInclude Include="..\Stackless\core\stackless_tstate.h" />
     <ClInclude Include="..\Stackless\module\channelobject.h" />
-    <ClInclude Include="..\Stackless\module\flextype.h" />
-    <ClInclude Include="..\Stackless\module\taskletobject.h" />
     <ClInclude Include="..\Stackless\pickling\prickelpit.h" />
     <ClInclude Include="..\Stackless\platf\slp_platformselect.h" />
     <ClInclude Include="..\Stackless\platf\switch_x64_msvc.h" />
@@ -678,7 +676,6 @@
     <ClCompile Include="..\Stackless\core\stacklesseval.c" />
     <ClCompile Include="..\Stackless\core\stackless_util.c" />
     <ClCompile Include="..\Stackless\module\channelobject.c" />
-    <ClCompile Include="..\Stackless\module\flextype.c" />
     <ClCompile Include="..\Stackless\module\scheduling.c" />
     <ClCompile Include="..\Stackless\module\stacklessmodule.c" />
     <ClCompile Include="..\Stackless\module\taskletobject.c" />

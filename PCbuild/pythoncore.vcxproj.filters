@@ -457,12 +457,6 @@
     <ClInclude Include="..\Stackless\module\channelobject.h">
       <Filter>Stackless\module</Filter>
     </ClInclude>
-    <ClInclude Include="..\Stackless\module\flextype.h">
-      <Filter>Stackless\module</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Stackless\module\taskletobject.h">
-      <Filter>Stackless\module</Filter>
-    </ClInclude>
     <ClInclude Include="..\Stackless\platf\slp_platformselect.h">
       <Filter>Stackless\platf</Filter>
     </ClInclude>
@@ -995,9 +989,6 @@
       <Filter>Stackless\core</Filter>
     </ClCompile>
     <ClCompile Include="..\Stackless\module\channelobject.c">
-      <Filter>Stackless\module</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Stackless\module\flextype.c">
       <Filter>Stackless\module</Filter>
     </ClCompile>
     <ClCompile Include="..\Stackless\module\scheduling.c">
