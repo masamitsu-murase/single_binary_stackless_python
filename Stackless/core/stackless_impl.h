@@ -140,6 +140,10 @@ PyAPI_DATA(PyTypeObject) PyClassMethodDescr_Type;
 
 #define PyMethodWrapper_Check(op) PyObject_TypeCheck(op, &_PyMethodWrapper_Type)
 
+/* access to the current watchdog tasklet */
+PyAPI_FUNC(PyTaskletObject *) slp_get_watchdog(PyThreadState *ts, int interrupt);
+
+
 /* fast (release) and safe (debug) access to the unwind token and retval */
 
 #ifdef Py_DEBUG
