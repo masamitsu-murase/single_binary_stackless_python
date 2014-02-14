@@ -2411,38 +2411,33 @@ static struct PyModuleDef _wrapmodule = {
     NULL,
     NULL
 };
-int init_prickelpit(void)
+
+PyObject*
+init_prickelpit(void)
 {
-    PyObject *copy_reg;
-    PyObject *slp_module;
+    PyObject *copy_reg, *tmp;
     int ret = 0;
 
-    slp_module = PyImport_ImportModule("_stackless");
-    if (slp_module == NULL)
-        return -1;
-
     types_mod = PyModule_Create(&_wrapmodule);
-    if (types_mod == NULL) {
-        Py_DECREF(slp_module);
-        return -1;
-    }
-    ret = PyObject_SetAttrString(slp_module, "_wrap", types_mod);
-    Py_DECREF(slp_module);
-    if (ret)
-        return ret;
-    if (PyDict_SetItemString(PyImport_GetModuleDict(),
-                             _wrapmodule.m_name, types_mod))
-        return -1;
+    if (types_mod == NULL)
+        return NULL;
     copy_reg = PyImport_ImportModule("copyreg");
-    if (copy_reg != NULL) {
-        pickle_reg = PyObject_GetAttrString(copy_reg, "pickle");
-        Py_CLEAR(copy_reg);
+    if (copy_reg == NULL) {
+        Py_CLEAR(types_mod);
+        return NULL;
     }
-    PyErr_Clear();
+    
+    pickle_reg = PyObject_GetAttrString(copy_reg, "pickle");
+    Py_DECREF(copy_reg);
+    if (pickle_reg == NULL) {
+        Py_CLEAR(types_mod);
+        return NULL;
+    }
     ret = initchain();
     Py_CLEAR(pickle_reg);
-    Py_CLEAR(types_mod);
-    return 0;
+    tmp = types_mod;
+    types_mod = NULL;
+    return tmp;
 }
 
 #endif

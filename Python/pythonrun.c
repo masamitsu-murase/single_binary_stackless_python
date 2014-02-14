@@ -388,10 +388,6 @@ _Py_InitializeEx_Private(int install_sigs, int install_importlib)
     if (install_sigs)
         initsigs(); /* Signal handling stuff, including initintr() */
 
-#ifdef STACKLESS
-	_PyStackless_Init();
-#endif
-
     initmain(interp); /* Module __main__ */
     if (initstdio() < 0)
         Py_FatalError(
