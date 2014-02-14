@@ -416,6 +416,7 @@ interrupt_timeout_return(void)
 {
     PyThreadState *ts = PyThreadState_GET();
     PyTaskletObject *current = ts->st.current;
+    PyTaskletObject *watchdog;
     PyObject *ret;
 
     /*
@@ -443,8 +444,9 @@ interrupt_timeout_return(void)
     ts->st.interrupted = (PyObject*)ts->st.current;
     Py_INCREF(ts->st.interrupted);
 
-    /* switch to main tasklet */
-    slp_schedule_task(&ret, ts->st.current, ts->st.main, 1, 0);
+    /* switch to the watchdog tasklet */
+    watchdog = slp_get_watchdog(ts, 1);
+    slp_schedule_task(&ret, ts->st.current, watchdog, 1, 0);
     return ret;
 }
 
@@ -472,57 +474,99 @@ PyStackless_RunWatchdog(long timeout)
     return PyStackless_RunWatchdogEx(timeout, 0);
 }
 
+static int
+push_watchdog(PyThreadState *ts, PyTaskletObject *t, int *interrupt);
+static PyTaskletObject *
+pop_watchdog(PyThreadState *ts);
+static int
+check_watchdog(PyThreadState *ts, PyTaskletObject *task);
+
 
 PyObject *
 PyStackless_RunWatchdogEx(long timeout, int flags)
 {
     PyThreadState *ts = PyThreadState_GET();
-    PyTaskletObject *victim;
+    PyTaskletObject *old_current, *victim;
     PyObject *retval;
     int fail;
+    PyObject* (*old_interrupt)(void);
+    int old_runflags;
+    long old_ticker, old_interval;
+    int interrupt = 0;
 
     if (ts->st.main == NULL)
         return PyStackless_RunWatchdog_M(timeout, flags);
-    if (ts->st.current != ts->st.main)
-        RUNTIME_ERROR(
-            "run() must be run from the main tasklet.",
-            NULL);
 
-    if (timeout <= 0)
-        ts->st.interrupt = NULL;
-    else
-        ts->st.interrupt = interrupt_timeout_return;
+    /* is this an interrupt watchdog?  Treat it differently. */
+    interrupt = timeout > 0;
 
-    ts->st.ticker = ts->st.interval = timeout;
+    /* push the current tasklet onto the watchdog stack */
+    if (push_watchdog(ts, ts->st.current, &interrupt))
+        return NULL;
 
-    /* remove main. Will get back at the end. */
-    slp_current_remove();
-    Py_DECREF(ts->st.main);
+    old_current = ts->st.current;
+    /* store wathhdog state and set up a new one, if we are the active intterupt watchdog */
+    if (interrupt) {
+        old_interrupt = ts->st.interrupt;
+        old_runflags = ts->st.runflags;
+        old_ticker = ts->st.ticker;
+        old_interval = ts->st.interval;
 
-    /* now let them run until the end. */
-    ts->st.runflags = flags;
-    fail = slp_schedule_task(&retval, ts->st.main, ts->st.current, 0, 0);
-    ts->st.runflags = 0;
-    ts->st.interrupt = NULL;
+        if (timeout <= 0)
+            ts->st.interrupt = NULL;
+        else
+            ts->st.interrupt = interrupt_timeout_return;
+        ts->st.ticker = ts->st.interval = timeout;
+        ts->st.runflags = flags;
+    }
+
+    /* run the watchdog */
+    Py_DECREF(ts->st.current);
+    slp_current_remove(); /* it still exists in the watchdog stack */
+    fail = slp_schedule_task(&retval, old_current, ts->st.current, 0, 0);
 
     if (fail) {
-        /* Couldn't switch for whatever reason */
-        slp_current_unremove(ts->st.main);
-        Py_INCREF(ts->st.main);
-    } else if (retval == NULL)
-        return NULL; /* we were handed an exception */
+        /* we failed to switch */
+        PyTaskletObject *undo = pop_watchdog(ts);
+        assert(undo == old_current);
+        slp_current_unremove(undo);
+        return NULL;
+    }
 
-    /* we should be back in the main tasklet */
-    assert(ts->st.current == ts->st.main);
-	
+    /* we are back in the original tasklet */
+    assert(old_current == ts->st.current);
+    if (check_watchdog(ts, old_current)) {
+        /* we were awoken.  But if there are deeper tasklets on the stack, we pop them here
+         * and make them runnable.  Those that are popped here by us, will know this because
+         * when they wake up, they won't be on the stack anymore
+         */
+        for(;;) {
+            PyTaskletObject *popped = pop_watchdog(ts);
+            if (popped != old_current)
+                /* popped a deeper tasklet. */
+                slp_current_insert(popped); /* steals reference */
+            else {
+                Py_DECREF(popped); /* we are already in st->ts.current */
+                break;
+            }
+        }
+        if (interrupt) {
+            ts->st.interrupt = old_interrupt;
+            ts->st.runflags = old_runflags;
+            ts->st.ticker = old_ticker;
+            ts->st.interval = old_interval;
+        }
+    }
+
     /* retval really should be PyNone here (or NULL).  Technically, it is the
      * tempval of some tasklet that has quit.  Even so, it is quite
      * useless to use.  run() must return None, or a tasklet
      */
+    if (retval == NULL)
+        return NULL;
     Py_DECREF(retval);
 
     /*
-     * back in main.
      * If we were interrupted and using hard interrupts (bit 1 in flags not set)
      * we need to return the interrupted tasklet)
      */
@@ -531,9 +575,7 @@ PyStackless_RunWatchdogEx(long timeout, int flags)
         ts->st.interrupted = NULL;
         if (!(flags & PY_WATCHDOG_SOFT)) {
             /* remove victim from runnable queue */
-            ts->st.current = victim;
-            slp_current_remove();
-            ts->st.current = (PyTaskletObject*)ts->st.main;
+            slp_current_remove_tasklet(victim);
             Py_DECREF(victim); /* the ref from the runqueue */
             return (PyObject*) victim;
         } else
@@ -541,6 +583,100 @@ PyStackless_RunWatchdogEx(long timeout, int flags)
             Py_DECREF(victim);
     }
     Py_RETURN_NONE;
+}
+
+static int
+push_watchdog(PyThreadState *ts, PyTaskletObject *t, int *interrupt)
+{
+    /* push ourselves on the stack of watchdogs.
+     * The zeroeth member is special, it is the tasklet that should be
+     * interrupted if the watchdog timer times out.  All the others
+     * are awoken in case the run-queue empties in a top-down fashion
+     */
+    if (ts->st.watchdogs == NULL) {
+        /* initialize it with a PyNone in theinterrupt slot */
+        ts->st.watchdogs = PyList_New(1);
+        if (ts->st.watchdogs == NULL)
+            return -1;
+        Py_INCREF(Py_None);
+        PyList_SET_ITEM(ts->st.watchdogs, 0, Py_None);
+    }
+    if (*interrupt) {
+        /* the caller is requesting to be the interrupt watchdog.  Let's see: */
+        if (PyList_GET_ITEM(ts->st.watchdogs, 0) != Py_None) {
+            /* no, someone else already is the interrupt watchdog */
+            *interrupt = 0;
+        } else {
+            Py_INCREF(t);
+            if (PyList_SetItem(ts->st.watchdogs, 0, (PyObject *)t))
+                return -1;
+        }
+    }
+    if (PyList_Append(ts->st.watchdogs, (PyObject*) t))
+        return -1;
+    return 0;
+}
+
+static PyTaskletObject *
+pop_watchdog(PyThreadState *ts)
+{
+    PyTaskletObject *t;
+    Py_ssize_t s;
+    if (ts->st.watchdogs == NULL || (s = PyList_GET_SIZE(ts->st.watchdogs)) == 1) {
+        PyErr_SetNone(PyExc_ValueError);
+        return NULL;
+    }
+    t = (PyTaskletObject*) PyList_GET_ITEM(ts->st.watchdogs, s - 1);
+    Py_INCREF(t);
+    if (PyList_SetSlice(ts->st.watchdogs, s - 1, s, NULL)) {
+        Py_DECREF(t);
+        return NULL;
+    }
+    if ((PyObject *)t == PyList_GET_ITEM(ts->st.watchdogs, 0)) {
+        /* clear it from the interrupt slot too */
+        Py_INCREF(Py_None);
+        if(PyList_SetItem(ts->st.watchdogs, 0, Py_None)) {
+            Py_DECREF(t);
+            return NULL;
+        }
+    }
+    return t;
+}
+
+/* check if a tasklet is on the watchdog stack */
+static int
+check_watchdog(PyThreadState *ts, PyTaskletObject *task)
+{
+    Py_ssize_t i = ts->st.watchdogs ? PyList_GET_SIZE(ts->st.watchdogs) : 0;
+    /* we don't check the "intterupt" slot, number 0 */
+    while (i > 1) {
+        if (PyList_GET_ITEM(ts->st.watchdogs, i-1) == (PyObject*)task)
+            return 1;
+        --i;
+    }
+    return 0;
+}
+
+/* find the correct target to wake up when we block.  The innermost watchdog
+ * or the main tasklet.  Returns a borrowed reference
+ * if "interrupt" is set, then we want the tasklet running the outermost
+ * true watchdog, i.e. the one with interrupt conditions set.
+ */
+PyTaskletObject *
+slp_get_watchdog(PyThreadState *ts, int interrupt)
+{
+    PyTaskletObject *t;
+    /* TODO: treat interrupt differently */
+    if (ts->st.watchdogs == NULL || PyList_GET_SIZE(ts->st.watchdogs) == 1)
+        return ts->st.main;
+    if (interrupt) {
+        t = (PyTaskletObject*)PyList_GET_ITEM(ts->st.watchdogs, 0);
+        if ((PyObject*)t == Py_None)
+            t = ts->st.main;  /* strange, there should be no interrupt in this case! */
+        return t;
+    }
+    return (PyTaskletObject*)PyList_GET_ITEM(
+        ts->st.watchdogs, PyList_GET_SIZE(ts->st.watchdogs) - 1);
 }
 
 static PyObject *

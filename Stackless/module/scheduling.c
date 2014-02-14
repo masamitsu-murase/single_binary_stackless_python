@@ -771,14 +771,18 @@ schedule_task_block(PyObject **result, PyTaskletObject *prev, int stackless, int
     PyObject *retval, *tmpval=NULL;
     PyTaskletObject *next = NULL;
     int fail, revive_main = 0;
+    PyTaskletObject *wakeup;
+    
+    /* which "main" do we awaken if we are blocking? */
+    wakeup = slp_get_watchdog(ts, 0);
 
 #ifdef WITH_THREAD
-    if ( !(ts->st.runflags & Py_WATCHDOG_THREADBLOCK) && ts->st.main->next == NULL)
+    if ( !(ts->st.runflags & Py_WATCHDOG_THREADBLOCK) && wakeup->next == NULL)
         /* we also must never block if watchdog is running not in threadblocking mode */
         revive_main = 1;
 
     if (revive_main)
-        assert(ts->st.main->next == NULL); /* main must be floating */
+        assert(wakeup->next == NULL); /* target must be floating */
 #endif
 
     if (revive_main || check_for_deadlock()) {
@@ -832,28 +836,28 @@ schedule_task_block(PyObject **result, PyTaskletObject *prev, int stackless, int
 
 cantblock:
     /* cannot block */
-    if (revive_main || (ts == slp_initial_tstate && ts->st.main->next == NULL)) {
+    if (revive_main || (ts == slp_initial_tstate && wakeup->next == NULL)) {
         /* emulate old revive_main behavior:
          * passing a value only if it is an exception
          */
         if (PyBomb_Check(prev->tempval)) {
-            TASKLET_CLAIMVAL(ts->st.main, &tmpval);
-            TASKLET_SETVAL(ts->st.main, prev->tempval);
+            TASKLET_CLAIMVAL(wakeup, &tmpval);
+            TASKLET_SETVAL(wakeup, prev->tempval);
         }
-        fail = slp_schedule_task(result, prev, ts->st.main, stackless, did_switch);
+        fail = slp_schedule_task(result, prev, wakeup, stackless, did_switch);
         if (fail && tmpval != NULL)
-            TASKLET_SETVAL_OWN(ts->st.main, tmpval);
+            TASKLET_SETVAL_OWN(wakeup, tmpval);
         else
             Py_XDECREF(tmpval);
         return fail;
     }
     if (!(retval = make_deadlock_bomb()))
         return -1;
-    TASKLET_CLAIMVAL(ts->st.main, &tmpval);
+    TASKLET_CLAIMVAL(wakeup, &tmpval);
     TASKLET_SETVAL_OWN(prev, retval);
     fail = slp_schedule_task(result, prev, prev, stackless, did_switch);
     if (fail && tmpval != NULL)
-        TASKLET_SETVAL_OWN(ts->st.main, tmpval);
+        TASKLET_SETVAL_OWN(wakeup, tmpval);
     else
         Py_XDECREF(tmpval);
     return fail;
@@ -906,16 +910,20 @@ static void slp_schedule_soft_irq(PyThreadState *ts, PyTaskletObject *prev,
                                                    PyTaskletObject **next, int not_now)
 {
     PyTaskletObject *tmp;
+    PyTaskletObject *watchdog;
     assert(*next);
     if(!prev->flags.pending_irq || !(ts->st.runflags & PY_WATCHDOG_SOFT) )
         return; /* no soft interrupt pending */
 
-    prev->flags.pending_irq = 0;
-    if (ts->st.main->next != NULL)
-        return; /* main isn't floating, we are probably raising an exception */
+    watchdog = slp_get_watchdog(ts, 1);
 
-    /* if were were swithing from main or to main, we don't do anything */
-    if (prev == ts->st.main || *next == ts->st.main)
+    prev->flags.pending_irq = 0;
+    
+    if (watchdog->next != NULL)
+        return; /* target isn't floating, we are probably raising an exception */
+
+    /* if were were switching to or from our target, we don't do anything */
+    if (prev == watchdog || *next == watchdog)
         return;
 
     if (not_now || !TASKLET_NESTING_OK(prev)) {
@@ -935,11 +943,11 @@ static void slp_schedule_soft_irq(PyThreadState *ts, PyTaskletObject *prev,
      */
     tmp = ts->st.current;
     ts->st.current = *next;
-    slp_current_insert(ts->st.main);
-    Py_INCREF(ts->st.main);
+    slp_current_insert(watchdog);
+    Py_INCREF(watchdog);
     ts->st.current = tmp;
 
-    *next = ts->st.main;
+    *next = watchdog;
 }
 
 
@@ -1446,10 +1454,12 @@ tasklet_end(PyObject *retval)
 
     next = ts->st.current;
     if (next == NULL) {
-        int blocked = ts->st.main->flags.blocked;
+        /* there is no current tasklet to wakeup.  Must wakeup watchdog or main */
+        PyTaskletObject *wakeup = slp_get_watchdog(ts, 0);
+        int blocked = wakeup->flags.blocked;
 
-        /* if we are blocking we must wake up main.  If there is no
-         * error, we need to create a deadlock error to wake main up on.
+        /* If the target is blocked and there is no pending error,
+         * we need to create a deadlock error to wake it up with.
          */
         if (blocked && !PyBomb_Check(retval)) {
             char *txt;
@@ -1469,19 +1479,18 @@ tasklet_end(PyObject *retval)
             Py_REPLACE(retval, bomb);
             TASKLET_SETVAL(task, retval);
         }
-        next = ts->st.main;
+        next = wakeup;
     }
 
     if (PyBomb_Check(retval)) {
-        /*
-         * error handling: continue in the context of the main tasklet.
-         * Remove the bomb from the source since it is frequently the
-         * source of a reference cycle
-         * Remove the bomb from the source since it is frequently the
+        /* a bomb, due to deadlock or passed in, must wake up the correct
+         * tasklet
+         */
+        next = slp_get_watchdog(ts, 0);
+        /* Remove the bomb from the source since it is frequently the
          * source of a reference cycle
          */
         assert(task->tempval == retval);
-        next = ts->st.main;
         TASKLET_CLAIMVAL(task, &retval);
         TASKLET_SETVAL_OWN(next, retval);
     }

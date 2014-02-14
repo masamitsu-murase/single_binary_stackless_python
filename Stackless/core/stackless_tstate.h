@@ -45,6 +45,7 @@ typedef struct _sts {
     PyObject *del_post_switch;                  /* To decref after a switch */
     PyObject *interrupted;                      /* The interrupted tasklet in stackles.run() */
     int switch_trap;                            /* if non-zero, switching is forbidden */
+    PyObject *watchdogs;                        /* the stack of currently running watchdogs */
 } PyStacklessState;
 
 /* internal macro to temporarily disable soft interrupts */
@@ -68,7 +69,8 @@ typedef struct _sts {
     tstate->st.runflags = 0; \
     tstate->st.del_post_switch = NULL; \
     tstate->st.interrupted = NULL; \
-    tstate->st.switch_trap = 0;
+    tstate->st.switch_trap = 0; \
+    tstate->st.watchdogs = NULL;
 
 
 /* note that the scheduler knows how to zap. It checks if it is in charge
@@ -84,7 +86,8 @@ void slp_kill_tasks_with_stacks(struct _ts *tstate);
     slp_kill_tasks_with_stacks(tstate); \
     Py_CLEAR(tstate->st.initial_stub); \
     Py_CLEAR(tstate->st.del_post_switch); \
-    Py_CLEAR(tstate->st.interrupted);
+    Py_CLEAR(tstate->st.interrupted); \
+    Py_CLEAR(tstate->st.watchdogs);
 
 #ifdef WITH_THREAD
 
