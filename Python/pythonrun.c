@@ -315,10 +315,6 @@ Py_InitializeEx(int install_sigs)
     if (install_sigs)
         initsigs(); /* Signal handling stuff, including initintr() */
 
-#ifdef STACKLESS
-	_PyStackless_Init();
-#endif
-
     initmain(); /* Module __main__ */
     if (initstdio() < 0)
         Py_FatalError(

@@ -30,6 +30,10 @@ extern PyObject* PyInit_gc(void);
 extern PyObject* PyInit__ast(void);
 extern PyObject* _PyWarnings_Init(void);
 extern PyObject* PyInit__string(void);
+#ifdef STACKLESS
+extern PyObject* PyInit__stackless(void);
+#endif
+
 
 struct _inittab _PyImport_Inittab[] = {
 
@@ -57,6 +61,11 @@ struct _inittab _PyImport_Inittab[] = {
 
     /* This lives in Objects/unicodeobject.c */
     {"_string", PyInit__string},
+
+#ifdef STACKLESS
+    /* in stackless/module/stacklessmodule.c */
+    {"_stackless", PyInit__stackless},
+#endif
 
     /* Sentinel */
     {0, 0}

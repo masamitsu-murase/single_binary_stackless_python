@@ -70,6 +70,10 @@ extern PyObject* PyInit__string(void);
 extern PyObject* PyMarshal_Init(void);
 extern PyObject* PyInit_imp(void);
 
+#ifdef STACKLESS
+extern PyObject* PyInit__stackless(void);
+#endif
+
 struct _inittab _PyImport_Inittab[] = {
 
     {"array", PyInit_array},
@@ -153,6 +157,10 @@ struct _inittab _PyImport_Inittab[] = {
     {"_io", PyInit__io},
     {"_pickle", PyInit__pickle},
     {"atexit", PyInit_atexit},
+
+#ifdef STACKLESS
+    {"_stackless", PyInit__stackless},
+#endif
 
     /* Sentinel */
     {0, 0}

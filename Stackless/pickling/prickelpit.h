@@ -54,7 +54,7 @@ PyAPI_DATA(char slp_pickle_moduledict__doc__[]);
 
 /* initialization */
 
-int init_prickelpit(void);
+PyObject *init_prickelpit(void);
 
 #ifdef __cplusplus
 }

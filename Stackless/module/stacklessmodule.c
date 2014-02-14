@@ -916,9 +916,7 @@ test_nostacklesscall_call(PyObject *f, PyObject *arg, PyObject *kw)
     return result;
 }
 
-static test_nostacklesscallObject *test_nostacklesscall = NULL;
-
-static int init_test_nostacklesscalltype(void)
+static PyObject *get_test_nostacklesscallobj(void)
 {
     static PyTypeObject test_nostacklesscallType = {
             PyObject_HEAD_INIT(&PyType_Type)
@@ -946,11 +944,8 @@ static int init_test_nostacklesscalltype(void)
 
     test_nostacklesscallType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&test_nostacklesscallType) < 0)
-        return -1;
-    test_nostacklesscall = PyObject_New(test_nostacklesscallObject, &test_nostacklesscallType);
-    if (NULL == test_nostacklesscall)
-        return -1;
-    return 0;
+        return NULL;
+    return (PyObject*)PyObject_New(test_nostacklesscallObject, &test_nostacklesscallType);
 }
 
 /******************************************************
@@ -1472,67 +1467,15 @@ static int init_stackless_methods(void)
 }
 
 /* this one must be called very early, before modules are used */
-
 int
 _PyStackless_InitTypes(void)
 {
     if (0
         || init_stackless_methods()
-        || init_cframetype()
-        || PyType_Ready(&PyTasklet_Type)
-        || PyType_Ready(&PyChannel_Type)
-        || slp_init_bombtype()
-        || PyType_Ready(&PyAtomic_Type)
+        || PyType_Ready(&PyTasklet_Type) /* need this early for the main tasklet */
         )
         return 0;
     return -1;
-}
-
-static struct PyModuleDef stacklessmodule = {
-    PyModuleDef_HEAD_INIT,
-    "_stackless",
-    stackless_doc,
-    -1,
-    stackless_methods,
-};
-
-void
-_PyStackless_Init(void)
-{
-    PyObject *dict;
-    PyObject *modules;
-    PyObject *slp_module;
-
-    /* record the thread state for thread support */
-    slp_initial_tstate = PyThreadState_GET();
-
-    /* Create the module and add the functions */
-    slp_module = PyModule_Create(&stacklessmodule);
-    if (slp_module == NULL)
-        return; /* errors handled by caller */
-
-    modules = PyImport_GetModuleDict();
-    if (PyDict_SetItemString(modules, stacklessmodule.m_name, slp_module)) {
-        Py_DECREF(slp_module);
-        return;
-    }
-    Py_DECREF(slp_module); /* Yes, it still exists, in modules! */
-
-    if (init_prickelpit()) return;
-    if (init_test_nostacklesscalltype()) return;
-
-    dict = PyModule_GetDict(slp_module);
-
-#define INSERT(name, object) \
-    if (PyDict_SetItemString(dict, name, (PyObject*)object) < 0) return
-
-    INSERT("cframe",    &PyCFrame_Type);
-    INSERT("cstack",    &PyCStack_Type);
-    INSERT("bomb",        &PyBomb_Type);
-    INSERT("tasklet",   &PyTasklet_Type);
-    INSERT("channel",   &PyChannel_Type);
-    INSERT("_test_nostacklesscall", test_nostacklesscall);
-    INSERT("atomic",    &PyAtomic_Type);
 }
 
 void
@@ -1541,6 +1484,69 @@ PyStackless_Fini(void)
     slp_scheduling_fini();
     slp_cframe_fini();
     slp_stacklesseval_fini();
+}
+
+PyMODINIT_FUNC
+PyInit__stackless(void)
+{
+    PyObject *slp_module, *dict, *tmp;
+    static struct PyModuleDef stacklessmodule = {
+        PyModuleDef_HEAD_INIT,
+        "_stackless",
+        stackless_doc,
+        -1,
+        stackless_methods,
+    };
+
+    if (0
+        || init_cframetype()
+        || PyType_Ready(&PyChannel_Type)
+        || slp_init_bombtype()
+        || PyType_Ready(&PyAtomic_Type)
+        )
+        return NULL;
+
+    /* record the thread state for thread support */
+    slp_initial_tstate = PyThreadState_GET();
+
+    /* Create the module and add the functions */
+    slp_module = PyModule_Create(&stacklessmodule);
+    if (slp_module == NULL)
+        return NULL;
+
+    dict = PyModule_GetDict(slp_module);
+
+#define INSERT(name, object) \
+    if (PyDict_SetItemString(dict, name, (PyObject*)object) < 0) goto fail;
+
+    INSERT("cframe",    &PyCFrame_Type);
+    INSERT("cstack",    &PyCStack_Type);
+    INSERT("bomb",        &PyBomb_Type);
+    INSERT("tasklet",   &PyTasklet_Type);
+    INSERT("channel",   &PyChannel_Type);
+    INSERT("atomic",    &PyAtomic_Type);
+
+    tmp = get_test_nostacklesscallobj();
+    if (!tmp)
+        goto fail;
+    INSERT("_test_nostacklesscall", tmp);
+    Py_DECREF(tmp);
+
+    /* add the prickelpit submodule */
+    tmp = init_prickelpit();
+    if (tmp == NULL)
+        goto fail;
+    INSERT("_wrap", tmp);
+    Py_DECREF(tmp);
+    if (PyDict_SetItemString(PyImport_GetModuleDict(),
+            "_stackless._wrap", tmp))
+        goto fail;;
+
+    return slp_module;
+fail:
+    Py_XDECREF(slp_module);
+    return NULL;
+#undef INSERT
 }
 
 #endif
