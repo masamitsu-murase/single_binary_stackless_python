@@ -213,53 +213,17 @@ tasklet_dealloc(PyTaskletObject *t)
     Py_TYPE(t)->tp_free((PyObject*)t);
 }
 
-
-static PyTaskletObject *
-PyTasklet_New_M(PyTypeObject *type, PyObject *func)
-{
-    char *fmt = "(O)";
-
-    if (func == NULL) fmt = NULL;
-    return (PyTaskletObject *) PyStackless_CallMethod_Main(
-        (PyObject*)type, NULL, fmt, func);
-}
-
 PyTaskletObject *
 PyTasklet_New(PyTypeObject *type, PyObject *func)
 {
-    PyThreadState *ts = PyThreadState_GET();
-    PyTaskletObject *t;
-
-    /* we always need a cstate, so be sure to initialize */
-    if (ts->st.initial_stub == NULL) return PyTasklet_New_M(type, func);
-    if (func != NULL && !PyCallable_Check(func))
-        TYPE_ERROR("tasklet function must be a callable", NULL);
-    if (type == NULL) type = &PyTasklet_Type;
-    assert(PyType_IsSubtype(type, &PyTasklet_Type));
-    t = (PyTaskletObject *) type->tp_alloc(type, 0);
-    if (t != NULL) {
-        *(int*)&t->flags = 0;
-        t->next = NULL;
-        t->prev = NULL;
-        t->f.frame = NULL;
-        if (func == NULL)
-            func = Py_None;
-        Py_INCREF(func);
-        t->tempval = func;
-        t->tsk_weakreflist = NULL;
-        Py_INCREF(ts->st.initial_stub);
-        t->cstate = ts->st.initial_stub;
-        t->def_globals = PyEval_GetGlobals();
-        Py_XINCREF(t->def_globals);
-        if (ts != slp_initial_tstate) {
-            /* make sure to kill tasklets with their thread */
-            if (slp_ensure_linkage(t)) {
-                Py_DECREF(t);
-                return NULL;
-            }
-        }
+    if (!PyType_IsSubtype(type, &PyTasklet_Type)) {
+        PyErr_SetNone(PyExc_TypeError);
+        return NULL;
     }
-    return t;
+    if (func)
+        return (PyTaskletObject*)PyObject_CallFunctionObjArgs((PyObject*)type, func, NULL);
+    else
+        return (PyTaskletObject*)PyObject_CallFunction((PyObject*)type, NULL);
 }
 
 static int
@@ -380,14 +344,48 @@ tasklet_bind(PyObject *self, PyObject *args, PyObject *kwargs)
 static PyObject *
 tasklet_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-    PyFunctionObject *func = NULL;
-    static char *kwlist[] = {"func", NULL};
+    PyThreadState *ts = PyThreadState_GET();
+    PyTaskletObject *t;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O:tasklet",
-                                     kwlist, &func))
+    /* we always need a cstate, so be sure to initialize */
+    if (ts->st.initial_stub == NULL) {
+        PyMethodDef def = {"__new__", (PyCFunction)tasklet_new, METH_NOARGS};
+        return PyStackless_CallCMethod_Main(&def, (PyObject*)type, NULL);
+    }
+    if (type == NULL)
+        type = &PyTasklet_Type;
+    t = (PyTaskletObject *) type->tp_alloc(type, 0);
+    if (t == NULL)
         return NULL;
-    return (PyObject*) PyTasklet_New(type, (PyObject*)func);
+    *(int*)&t->flags = 0;
+    t->next = NULL;
+    t->prev = NULL;
+    t->f.frame = NULL;
+    Py_INCREF(Py_None);
+    t->tempval = Py_None;
+    t->tsk_weakreflist = NULL;
+    Py_INCREF(ts->st.initial_stub);
+    t->cstate = ts->st.initial_stub;
+    t->def_globals = PyEval_GetGlobals();
+    Py_XINCREF(t->def_globals);
+    if (ts != slp_initial_tstate) {
+        /* make sure to kill tasklets with their thread */
+        if (slp_ensure_linkage(t)) {
+            Py_DECREF(t);
+            return NULL;
+        }
+    }
+    return (PyObject*) t;
 }
+
+static int
+tasklet_init(PyObject *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *result = tasklet_bind(self, args, kwds);
+    Py_DECREF(result);
+    return result != NULL ? 0 : -1;
+}
+
 
 /* tasklet pickling support */
 
@@ -1685,8 +1683,7 @@ PyTypeObject PyTasklet_Type = {
     (traverseproc)tasklet_traverse,     /* tp_traverse */
     (inquiry) tasklet_clear,            /* tp_clear */
     0,                                  /* tp_richcompare */
-    offsetof(PyTaskletObject, tsk_weakreflist),
-                                    /* tp_weaklistoffset */
+    offsetof(PyTaskletObject, tsk_weakreflist), /* tp_weaklistoffset */
     0,                                  /* tp_iter */
     0,                                  /* tp_iternext */
     tasklet_methods,                    /* tp_methods */
@@ -1697,7 +1694,7 @@ PyTypeObject PyTasklet_Type = {
     0,                                  /* tp_descr_get */
     0,                                  /* tp_descr_set */
     0,                                  /* tp_dictoffset */
-    0,                                  /* tp_init */
+    tasklet_init,                       /* tp_init */
     0,                                  /* tp_alloc */
     tasklet_new,                        /* tp_new */
     PyObject_GC_Del,                    /* tp_free */

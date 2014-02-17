@@ -10,6 +10,44 @@ What's New in Stackless 3.3.2?
 
 *Release date: XXXX-XX-XX*
 
+- Fix channel and tasklet initialization.  Initialization is now done
+  using __init__ methods.
+  Tasklet.__new__() now just binds the tasklet to the calling thread and
+  ignores extra arguments.
+  The tasklet.__init__() now works like tasklet.bind.
+  Channel.__new__() now ignores extra arguments.
+  These changes make subclassing taskelets and channels less confusing.
+
+- https://bitbucket.org/stackless-dev/stackless/commits/26a53cfeeeffeaacb55
+  Make stackless.run() more flexible.  It can now be called by any tasklet.
+  Without arguments, stackless.run() now nests, so that the innermost run()
+  is awoken when the run-queue empties.  With timeout arguments, the first
+  call to stackless.run() wins, so that it is possible to override
+  watchdog behaviour on the outside of the app.  subsequent timeout calls
+  to stackless.run() then behave as though they were called without
+  arguments.
+
+- https://bitbucket.org/stackless-dev/stackless/commits/2c252b72ddaf628fb1
+  Remove the "Flextype" internal type extension apparatus.  Tasklets
+  and channels are now regular builtin objects.  C api functions like
+  PyChannel_Send() no longer magically invoke python methods on subtypes.
+  "stackless" module is now composed of builting "_stackless" and the
+  regular "stackless.py" modules.  The latter of the two provides the
+  "attribute-like" module access.
+
+- https://bitbucket.org/stackless-dev/stackless/commits/949c518c67c75a1
+  Fix binary layout of PyTypeObject and PyHeapTypeObject for stackless,
+  restoring binary compatibility with extensions built with regular
+  Python.  In particular, extensions that themselves extend PyTypeObject,
+  such as PySize and PyQT, now work with stackless.
+
+- https://bitbucket.org/stackless-dev/stackless/commits/b373fc28f004c
+  Various fixes to deadlock detection and error porpagation.
+
+- https://bitbucket.org/stackless-dev/stackless/issue/54
+  Fix a crash
+
+
 - Issue #50:
   Don't raise StopIteration in a deadlock situation.
   When a channel is closed, only raise StopIteration out of
