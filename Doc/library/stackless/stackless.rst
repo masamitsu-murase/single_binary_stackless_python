@@ -78,6 +78,14 @@ The main scheduling related functions:
    given for *totaltimeout*, instead the scheduler is interrupted when it
    has run for *totaltimeout* instructions.
 
+   This function can be called from any tasklet.  When called without
+   arguments, the calls nest so that the innermost call will return
+   once the run-queue is emptied.  Calls with a *timeout* argument
+   however stack so that only the first one has any effect.  Subsequent
+   calls with *timeout* behave as though timeout were omitted.  This allows
+   a stackless application to be monitored on the outside without the
+   inner application modifying the outer behaviour.
+
    .. note::
    
       The most common use of this function is to call it either without
@@ -246,13 +254,19 @@ Debugging related functions:
 Attributes
 ----------
 
+   Rather unusually, the module contains *attributes* for convenient access to some
+   methods.  Since this is not general practice and involves some hacks to attain,
+   please consider this deprecated.  Use the corresponding module functions instead.
+
 .. attribute:: current
 
    The currently executing tasklet of this thread.
+   Equivalent function: :func: `getcurrent()`.
 
 .. attribute:: main
 
    The main tasklet of this thread.
+   Equivalent function: :func: `getmain()`.
 
 .. attribute:: runcount
 
@@ -267,6 +281,9 @@ Attributes
    
        The minimum value of :attr:`runcount` will be ``1``, as the calling
        tasklet will be included.
+
+   Equivalent function: :func: `getruncount()`.
+
    
 .. attribute:: threads
 
@@ -276,6 +293,8 @@ Attributes
    
        >>> stackless.threads
        [5148]
+
+   Equivalent function: :func: `getruncount()`.
 
 .. _slp-exc:
 
