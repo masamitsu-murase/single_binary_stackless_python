@@ -63,7 +63,7 @@ Example - how many tasklets are scheduled::
 The ``tasklet`` class
 ---------------------
 
-.. class:: tasklet(callable=None)
+.. class:: tasklet(callable=None, args=None, kwargs=None)
 
    This class exposes the form of lightweight thread (the tasklet) provided by
    |SLP|.  Wrapping a callable object and arguments to pass into
@@ -76,13 +76,19 @@ The ``tasklet`` class
    The above code is equivalent to::
    
    >>> t = stackless.tasklet()
+   >>> t.bind(func)
+   >>> t.setup(1, 2, 3, name="test")
+   
+   >>> t = stackless.tasklet()
    >>> t.bind(func, (1, 2, 3), {"name":"test"})
    >>> t.insert()
 
-   Note that there is no need to hold a reference to the created tasklet.
-   This is because the act of passing the arguments to it, implicitly
-   inserts it into the :ref:`scheduler <stackless-scheduler>`.
+   In fact, the *tasklet.__init__* method just calls :meth:`tasklet.bind`
+   and the *tasklet.__call__* method calls :meth:`tasklet.setup`.
 
+   Note that when an implicit :meth:`tasklet.insert` is invoked, there is no need
+   to hold a reference to the created tasklet.
+   
 .. method:: tasklet.bind(func=None, args=None, kwargs=None)
 
    Bind the tasklet to the given callable object, *func*::
