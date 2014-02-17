@@ -276,6 +276,16 @@ class TestClose(StacklessTestCase):
         self.assertRaises(StopIteration, n)
 
 
+class Subclassing(StacklessTestCase):
+    def test_init(self):
+        """Test that we can subclass channel without overriding __new__"""
+        class myclass(stackless.channel):
+            def __init__(self, name):
+                super(myclass, self).__init__()
+                self.name = name
+        name = "bong"
+        c = myclass(name)
+        self.assertEqual(c.name, name)
 
 
 

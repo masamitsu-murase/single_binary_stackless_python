@@ -1217,8 +1217,7 @@ initialize_main_and_current(void)
 {
     PyThreadState *ts = PyThreadState_GET();
     PyTaskletObject *task;
-    PyObject *noargs;
-
+    
     /* refuse executing main in an unhandled error context */
     if (! (PyErr_Occurred() == NULL || PyErr_Occurred() == Py_None) ) {
 #ifdef _DEBUG
@@ -1236,10 +1235,8 @@ initialize_main_and_current(void)
     return 1;
     }
 
-    noargs = PyTuple_New(0);
     task = (PyTaskletObject *) PyTasklet_Type.tp_new(
-                &PyTasklet_Type, noargs, NULL);
-    Py_DECREF(noargs);
+                &PyTasklet_Type, NULL, NULL);
     if (task == NULL) return -1;
     assert(task->cstate != NULL);
     ts->st.main = task;

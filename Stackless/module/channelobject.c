@@ -172,10 +172,6 @@ PyChannel_New(PyTypeObject *type)
 static PyObject *
 channel_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-    static char *argnames[] = {NULL};
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, ":channel", argnames))
-        return NULL;
     return (PyObject *)PyChannel_New(type);
 }
 
