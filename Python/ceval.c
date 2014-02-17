@@ -4536,7 +4536,7 @@ PyObject *
 PyEval_GetGlobals(void)
 {
     PyFrameObject *current_frame = PyEval_GetFrame();
-#ifdef STACKLESS
+#if 1 && defined STACKLESS
     if (current_frame == NULL) {
         PyThreadState *ts = PyThreadState_GET();
 
