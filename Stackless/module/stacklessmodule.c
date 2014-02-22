@@ -137,6 +137,24 @@ PyThreadState *slp_initial_tstate = NULL;
 
 static void *slp_error_handler = NULL;
 
+int 
+slp_pickle_with_tracing_state()
+{
+    PyObject *flag, *slp_module;
+    int result = -1;
+
+    slp_module = PyImport_ImportModule("_stackless");
+    if (slp_module == NULL)
+        return -1;
+    flag = PyObject_GetAttrString(slp_module, "pickle_with_tracing_state");
+    Py_DECREF(slp_module);
+    if (NULL != flag) {
+        result = PyObject_IsTrue(flag);
+        Py_DECREF(flag);
+    }
+    return result;
+}
+
 PyDoc_STRVAR(schedule__doc__,
 "schedule(retval=stackless.current) -- switch to the next runnable tasklet.\n\
 The return value for this call is retval, with the current\n\
@@ -1208,21 +1226,23 @@ void PyStackless_SetScheduleFastcallback(slp_schedule_hook_func func)
 
 int PyStackless_SetScheduleCallback(PyObject *callable)
 {
+    PyObject * temp = _slp_schedule_hook;
     if(callable != NULL && !PyCallable_Check(callable))
         TYPE_ERROR("schedule callback must be callable", -1);
     Py_XINCREF(callable);
-    Py_CLEAR(_slp_schedule_hook);
     _slp_schedule_hook = callable;
     if (callable!=NULL)
         PyStackless_SetScheduleFastcallback(slp_schedule_callback);
     else
         PyStackless_SetScheduleFastcallback(NULL);
+    Py_XDECREF(temp);
     return 0;
 }
 
 PyDoc_STRVAR(set_schedule_callback__doc__,
 "set_schedule_callback(callable) -- install a callback for scheduling.\n\
 Every explicit or implicit schedule will call the callback function.\n\
+Returns the previous callback or None, if none was installed.\n\
 Example:\n\
   def schedule_cb(prev, next):\n\
       ...\n\
@@ -1233,14 +1253,32 @@ Pass None to switch monitoring off again.");
 static PyObject *
 set_schedule_callback(PyObject *self, PyObject *arg)
 {
+    PyObject * old = _slp_schedule_hook;
+    if (NULL == old)
+        old = Py_None;
+    Py_INCREF(old);
     if (arg == Py_None)
         arg = NULL;
-    if (PyStackless_SetScheduleCallback(arg))
+    if (PyStackless_SetScheduleCallback(arg)) {
+        Py_DECREF(old);
         return NULL;
-    Py_INCREF(Py_None);
-    return Py_None;
+    }
+    return old;
 }
 
+PyDoc_STRVAR(get_schedule_callback__doc__,
+"get_schedule_callback() -- get the current callback for scheduling.\n\
+This function returns None, if no callback is installed.");
+
+static PyObject *
+get_schedule_callback(PyObject *self)
+{
+    PyObject *temp = _slp_schedule_hook;
+    if (NULL == temp)
+        temp = Py_None;
+    Py_INCREF(temp);
+    return temp;
+}
 
 PyDoc_STRVAR(set_channel_callback__doc__,
 "set_channel_callback(callable) -- install a callback for channels.\n\
@@ -1254,13 +1292,35 @@ Pass None to switch monitoring off again.");
 static PyObject *
 set_channel_callback(PyObject *self, PyObject *arg)
 {
+    PyObject * old = slp_get_channel_callback();
     if (arg == Py_None)
         arg = NULL;
-    if (PyStackless_SetChannelCallback(arg))
+    if (PyStackless_SetChannelCallback(arg)) {
+        Py_XDECREF(old);
         return NULL;
-    Py_INCREF(Py_None);
-    return Py_None;
+    }
+    if (NULL == old) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+    return old;
 }
+
+PyDoc_STRVAR(get_channel_callback__doc__,
+"get_channel_callback() -- get the current callback for channels.\n\
+This function returns None, if no callback is installed.");
+
+static PyObject *
+get_channel_callback(PyObject *self)
+{
+    PyObject *temp = slp_get_channel_callback();
+    if (NULL == temp) {
+        temp = Py_None;
+        Py_INCREF(temp);
+    }
+    return temp;
+}
+
 
 
 /******************************************************
@@ -1503,8 +1563,12 @@ static PyMethodDef stackless_methods[] = {
     test_cstate__doc__},
     {"set_channel_callback",        (PCF)set_channel_callback,  METH_O,
      set_channel_callback__doc__},
+    {"get_channel_callback",        (PCF)get_channel_callback,  METH_NOARGS,
+     get_channel_callback__doc__},
     {"set_schedule_callback",       (PCF)set_schedule_callback, METH_O,
      set_schedule_callback__doc__},
+    {"get_schedule_callback",       (PCF)get_schedule_callback, METH_NOARGS,
+     get_schedule_callback__doc__},
     {"_pickle_moduledict",          (PCF)slp_pickle_moduledict, METH_VARARGS,
      slp_pickle_moduledict__doc__},
     {"get_thread_info",             (PCF)get_thread_info,       METH_VARARGS,
@@ -1661,6 +1725,7 @@ PyInit__stackless(void)
     INSERT("tasklet",   &PyTasklet_Type);
     INSERT("channel",   &PyChannel_Type);
     INSERT("atomic",    &PyAtomic_Type);
+    INSERT("pickle_with_tracing_state", Py_False);
 
     tmp = get_test_nostacklesscallobj();
     if (!tmp)

@@ -379,14 +379,22 @@ channel_callback(PyChannelObject *channel, PyTaskletObject *task, int sending, i
 
 int PyStackless_SetChannelCallback(PyObject *callable)
 {
+    PyObject * temp = channel_hook;
     if(callable != NULL && !PyCallable_Check(callable))
         TYPE_ERROR("channel callback must be callable", -1);
-    Py_XDECREF(channel_hook);
     Py_XINCREF(callable);
     channel_hook = callable;
+    Py_XDECREF(temp);
     return 0;
 }
 
+PyObject *
+slp_get_channel_callback(void)
+{
+    PyObject *temp = channel_hook;
+    Py_XINCREF(temp);
+    return temp;
+}
 
 PyDoc_STRVAR(channel_send__doc__,
 "channel.send(value) -- send a value over the channel.\n\

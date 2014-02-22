@@ -1,6 +1,7 @@
 import unittest
 import stackless
 import gc
+import sys
 
 from support import StacklessTestCase, captured_stderr
 
@@ -173,6 +174,24 @@ class TestExceptionInScheduleCallback(StacklessTestCase):
         with captured_stderr() as stderr:
             stackless.run()
         self.assertTrue("scheduleCallback" in stderr.getvalue())
+
+class TestCrashUponFrameUnpickling(StacklessTestCase):
+    def testCrasher(self):
+        import pickle
+        frame = sys._getframe()
+        frameType = type(frame)
+        while frame and frame.f_back:
+            frame = frame.f_back
+        p = pickle.dumps(frame, -1)
+        frame = None
+        frame = pickle.loads(p)
+        self.assertIsInstance(frame, frameType)
+
+        # this access crashes Stackless versions released before Feb 2nd 2014
+        f_back = frame.f_back
+
+        self.assertIsNone(f_back)
+
 
 if __name__ == '__main__':
     import sys

@@ -155,7 +155,8 @@ Callback related functions:
 
    Install a global channel callback.  Every send or receive action will result
    in *callable* being called.  Setting a value of ``None`` will result in the
-   callback being disabled.
+   callback being disabled. The function returns the previous channel callback or
+   ``None`` if none was installed.
    
    Example - installing a callback::
    
@@ -177,10 +178,16 @@ Callback related functions:
    indicates that the channel action will result in *tasklet* being blocked
    on *channel*.
    
+.. function:: get_channel_callback()
+
+   Get the current global channel callback. The function returns the 
+   current channel callback or ``None`` if none was installed.
+
 .. function:: set_schedule_callback(callable)
 
    Install a callback for scheduling.  Every scheduling event, whether
-   explicit or implicit, will result in *callable* being called.
+   explicit or implicit, will result in *callable* being called. The function
+   returns the previous channel callback or ``None`` if none was installed.
    
    Example - installing a callback::
    
@@ -192,6 +199,11 @@ Callback related functions:
    The *prev* callback argument is the tasklet that was just running.
    
    The *next* callback argument is the tasklet that is going to run now.
+
+.. function:: get_schedule_callback()
+
+   Get the current global schedule callback. The function returns the 
+   current schedule callback or ``None`` if none was installed.
 
 Scheduler state introspection related functions:
 
@@ -235,9 +247,12 @@ Debugging related functions:
 
 .. function:: enable_softswitch(flag)
 
-   Control the switching behaviour.  Tasklets can be either switched by moving
-   stack slices around or by avoiding stack changes at all.  The latter is
-   only possible in the top interpreter level.
+   Control the switching behaviour. 
+   Tasklets can be either switched by moving C stack slices around
+   or by avoiding stack changes at all. The latter is only possible
+   in the top interpreter level. This flag exists once for the whole process.
+   For inquiry only, use 'None' as the flag.
+   By default, soft switching is enabled.
    
    Example - safely disabling soft switching::
    
@@ -295,6 +310,24 @@ Attributes
        [5148]
 
    Equivalent function: :func: `getruncount()`.
+
+.. attribute:: pickle_with_tracing_state
+
+   A boolean value, that indicates if a pickled tasklet contains
+   information about the tracing and/or profiling state of the tasklet.
+   By default :attr:`pickle_with_tracing_state` is `False`. Usually
+   there's no need to change this value.
+   
+   If you need to set this attribute on a per thread base,
+   you can redefine the attribute as a thread local property::
+   
+      >>> import stackless
+      >>> import threading
+      >>> stackless._pickle_with_tracing = threading.local()
+      >>> stackless.__class__.pickle_with_tracing = \
+      ...     property(fget=lambda m:getattr(m._pickle_with_tracing,'v',False),
+      ...              fset=lambda m,v:setattr(m._pickle_with_tracing, 'v', v),
+      ...              doc="thread local pickle_with_tracing flag")
 
 .. _slp-exc:
 
