@@ -351,49 +351,95 @@ slp_init_bombtype(void)
 slp_schedule_hook_func *_slp_schedule_fasthook;
 PyObject *_slp_schedule_hook;
 
+typedef struct {
+    intptr_t magic1;
+    PyTaskletTStateStruc s;
+    intptr_t magic2;
+} saved_tstat_with_magic_t;
+
+/* not a valid ptr and not a common integer */
+#define SAVED_TSTATE_MAGIC1 (((intptr_t)transfer_with_exc)+1)
+#define SAVED_TSTATE_MAGIC2 (-1*((intptr_t)transfer_with_exc))
+saved_tstat_with_magic_t * _dont_optimise_away_saved_tstat_with_magic;
+
 static int
 transfer_with_exc(PyCStackObject **cstprev, PyCStackObject *cst, PyTaskletObject *prev)
 {
     PyThreadState *ts = PyThreadState_GET();
-
-    int tracing = ts->tracing;
-    int use_tracing = ts->use_tracing;
-
-    Py_tracefunc c_profilefunc = ts->c_profilefunc;
-    Py_tracefunc c_tracefunc = ts->c_tracefunc;
-    PyObject *c_profileobj = ts->c_profileobj;
-    PyObject *c_traceobj = ts->c_traceobj;
-
-    PyObject *exc_type = ts->exc_type;
-    PyObject *exc_value = ts->exc_value;
-    PyObject *exc_traceback = ts->exc_traceback;
     int ret;
 
-    ts->exc_type = ts->exc_value = ts->exc_traceback = NULL;
-    ts->c_profilefunc = ts->c_tracefunc = NULL;
-    ts->c_profileobj = ts->c_traceobj = NULL;
-    ts->use_tracing = ts->tracing = 0;
+    saved_tstat_with_magic_t sm;
+    sm.magic1 = SAVED_TSTATE_MAGIC1;
+    sm.magic2 = SAVED_TSTATE_MAGIC2;
 
-    /* note that trace/profile are set without ref */
-    Py_XINCREF(c_profileobj);
-    Py_XINCREF(c_traceobj);
+    /* prevent overly compiler optimisation.
+    We store the address of sm into a global variable. 
+    This way the optimizer can't change the layout of the structure. */
+    _dont_optimise_away_saved_tstat_with_magic = &sm;
+
+    sm.s.tracing = ts->tracing;
+    sm.s.c_profilefunc = ts->c_profilefunc;
+    sm.s.c_tracefunc = ts->c_tracefunc;
+    sm.s.c_profileobj = ts->c_profileobj;
+    sm.s.c_traceobj = ts->c_traceobj;
+    Py_XINCREF(sm.s.c_profileobj);
+    Py_XINCREF(sm.s.c_traceobj);
+
+    sm.s.exc_type = ts->exc_type;
+    sm.s.exc_value = ts->exc_value;
+    sm.s.exc_traceback = ts->exc_traceback;
+
+    PyEval_SetTrace(NULL, NULL);
+    PyEval_SetProfile(NULL, NULL);
+    ts->tracing = 0;
+    ts->exc_type = ts->exc_value = ts->exc_traceback = NULL;
 
     ret = slp_transfer(cstprev, cst, prev);
 
-    ts->tracing = tracing;
-    ts->use_tracing = use_tracing;
+    ts->tracing = sm.s.tracing;
+    PyEval_SetTrace(sm.s.c_tracefunc, sm.s.c_traceobj);
+    PyEval_SetProfile(sm.s.c_profilefunc, sm.s.c_profileobj);
 
-    ts->c_profilefunc = c_profilefunc;
-    ts->c_tracefunc = c_tracefunc;
-    ts->c_profileobj = c_profileobj;
-    ts->c_traceobj = c_traceobj;
-    Py_XDECREF(c_profileobj);
-    Py_XDECREF(c_traceobj);
+    ts->exc_type = sm.s.exc_type;
+    ts->exc_value = sm.s.exc_value;
+    ts->exc_traceback = sm.s.exc_traceback;
 
-    ts->exc_type = exc_type;
-    ts->exc_value = exc_value;
-    ts->exc_traceback = exc_traceback;
+    sm.magic1 = 0;
+    sm.magic2 = 0;
+    Py_XDECREF(sm.s.c_profileobj);
+    Py_XDECREF(sm.s.c_traceobj);
+
     return ret;
+}
+
+PyTaskletTStateStruc *
+slp_get_saved_tstate(PyTaskletObject *task) {
+    /* typical offset of the structure from cstate->stack
+     * is about 20. Therefore 100 should be enough */
+    static const Py_ssize_t max_search_size = 100;
+    PyCStackObject *cst = task->cstate;
+    Py_ssize_t *p, *p_max;
+
+    if (cst->tstate && cst->tstate->st.current == task)
+        /* task is current */
+        return NULL;
+    if (cst->task != task)
+        return NULL;
+    assert(Py_SIZE(cst) >= 0);
+    if (Py_SIZE(cst) > max_search_size)
+        p_max = &(cst->stack[max_search_size]);
+    else
+        p_max = &(cst->stack[Py_SIZE(cst)]);
+    for (p=cst->stack; p!=p_max; p++) {
+        if (SAVED_TSTATE_MAGIC1 == *p) {
+            saved_tstat_with_magic_t *sm = (saved_tstat_with_magic_t *)p;
+            assert(sm->magic1 == SAVED_TSTATE_MAGIC1);
+            if (sm->magic2 == SAVED_TSTATE_MAGIC2)
+                /* got it */
+                return &(sm->s);
+        }
+    }
+    return NULL;
 }
 
 /* scheduler monitoring */
@@ -528,16 +574,46 @@ slp_restore_tracing(PyFrameObject *f, int exc, PyObject *retval)
     PyCFrameObject *cf = (PyCFrameObject *) f;
 
     f = cf->f_back;
-    ts->c_tracefunc = (Py_tracefunc)cf->any1;
-    ts->c_profilefunc = (Py_tracefunc)cf->any2;
-    ts->c_traceobj = cf->ob1;
-    ts->c_profileobj = cf->ob2;
+    if (NULL == cf->any1 && NULL == cf->any2) {
+        /* frame was created by unpickling */
+        if (cf->n & 1) {
+            Py_tracefunc func = slp_get_sys_trace_func();
+            if (NULL == func)
+                return NULL;
+            cf->any1 = func;
+        }
+        if (cf->n & 2) {
+            Py_tracefunc func = slp_get_sys_profile_func();
+            if (NULL == func)
+                return NULL;
+            cf->any2 = func;
+        }
+    }
     ts->tracing = cf->i;
-    ts->use_tracing = cf->n;
-    /* the objects *have* extra references here */
+    PyEval_SetTrace((Py_tracefunc)cf->any1, cf->ob1);
+    PyEval_SetProfile((Py_tracefunc)cf->any2, cf->ob2);
     Py_DECREF(cf);
     ts->frame = f;
     return STACKLESS_PACK(retval);
+}
+
+int
+slp_encode_ctrace_functions(Py_tracefunc c_tracefunc, Py_tracefunc c_profilefunc)
+{
+    int encoded = 0;
+    if (c_tracefunc) {
+        Py_tracefunc func = slp_get_sys_trace_func();
+        if (NULL == func)
+            return -1;
+        encoded |= (c_tracefunc == func)<<0;
+    }
+    if (c_profilefunc) {
+        Py_tracefunc func = slp_get_sys_profile_func();
+        if (NULL == func)
+            return -1;
+        encoded |= (c_profilefunc == func)<<1;
+    }
+    return encoded;
 }
 
 /* jumping from a soft tasklet to a hard switched */
@@ -1009,24 +1085,26 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
         /* build a shadow frame if we are returning here */
         if (prev->f.frame != NULL) {
             PyCFrameObject *f = slp_cframe_new(slp_restore_tracing, 0);
-            if (f == NULL)
+            int c_functions = slp_encode_ctrace_functions(ts->c_tracefunc, ts->c_profilefunc);
+            if (f == NULL || c_functions == -1)
                 return -1;
             f->f_back = prev->f.frame;
             Py_XINCREF(f->f_back);
             f->any1 = ts->c_tracefunc;
             f->any2 = ts->c_profilefunc;
+            f->i = ts->tracing;
+            f->n = c_functions;
+            assert(NULL == f->ob1);
+            assert(NULL == f->ob2);
             f->ob1 = ts->c_traceobj;
             f->ob2 = ts->c_profileobj;
-            /* trace/profile does not add references */
             Py_XINCREF(f->ob1);
             Py_XINCREF(f->ob2);
-            f->i = ts->tracing;
-            f->n = ts->use_tracing;
             prev->f.frame = (PyFrameObject *) f;
         }
-        ts->c_tracefunc = ts->c_profilefunc = NULL;
-        ts->c_traceobj = ts->c_profileobj = NULL;
-        ts->tracing = ts->use_tracing = 0;
+        PyEval_SetTrace(NULL, NULL);
+        PyEval_SetProfile(NULL, NULL);
+        ts->tracing = 0;
     }
     assert(next->cstate != NULL);
 
@@ -1103,6 +1181,27 @@ hard_switching:
         if (did_switch)
             *did_switch = 1;
         *result = retval;
+
+        /* Now evaluate any pending pending slp_restore_tracing cframes.
+           They were inserted by tasklet_set_trace_function or 
+           tasklet_set_profile_function */
+        if (prev->cstate->nesting_level > 0) {
+            PyCFrameObject *f = (PyCFrameObject *)(ts->frame);
+            if (f && PyCFrame_Check(f) && f->f_execute == slp_restore_tracing) {
+                PyObject *retval;
+
+                /* the next frame must be a real frame */
+                assert(f->f_back && PyFrame_Check(f->f_back));
+
+                /* Hack: call the eval frame function directly */
+                retval = slp_restore_tracing((PyFrameObject *)f, 0, Py_None);
+                STACKLESS_UNPACK(retval);
+                if (NULL == retval)
+                    return -1;
+                assert(PyFrame_Check(ts->frame));
+            }
+        }
+        
         return 0;
     }
     else {

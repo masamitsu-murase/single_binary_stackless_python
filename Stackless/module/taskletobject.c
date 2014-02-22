@@ -1528,6 +1528,274 @@ tasklet_thread_id(PyTaskletObject *task)
     return PyLong_FromLong(id);
 }
 
+static PyObject *
+tasklet_get_trace_function(PyTaskletObject *task)
+{
+    PyThreadState *ts = task->cstate->tstate;
+    PyCFrameObject *f;
+    PyTaskletTStateStruc *saved_ts;
+
+    if (ts && ts->st.current == task) {
+        /* current tasklet */
+        PyObject *temp = ts->c_traceobj;
+        if (temp == NULL)
+            temp = Py_None;
+        Py_INCREF(temp);
+        return temp;
+    }
+    
+    f = task->f.cframe;
+    while (NULL != f && PyCFrame_Check(f)) {
+        if (f->f_execute == slp_restore_tracing) {
+            /* we found a restore tracing frame */
+            PyObject *temp = f->ob1;
+            if (temp == NULL)
+                temp = Py_None;
+            Py_INCREF(temp);
+            return temp;
+        }
+        f = (PyCFrameObject *)(f->f_back);
+    }
+
+    /* try the saved tstate of a hard switched tasklet */
+    saved_ts = slp_get_saved_tstate(task);
+    if (NULL != saved_ts) {
+        PyObject *temp;
+        temp = saved_ts->c_traceobj;
+        if (NULL == temp)
+            temp = Py_None;
+        Py_INCREF(temp);
+        return temp;
+    }
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static int
+tasklet_set_trace_function(PyTaskletObject *task, PyObject *value)
+{
+    PyThreadState *ts = task->cstate->tstate;
+    PyCFrameObject *f;
+    Py_tracefunc tf = NULL;
+    PyTaskletTStateStruc *saved_ts;
+
+    if (Py_None == value)
+        value = NULL;
+    if (value) {
+        tf = slp_get_sys_trace_func();
+        if (NULL == tf)
+            return -1;
+    }
+    if (ts && ts->st.current == task) {
+        /* current tasklet */
+        if (PyThreadState_GET() != ts)
+            RUNTIME_ERROR("You cannot set the trace function of the current tasklet of another thread", -1);
+        PyEval_SetTrace(tf, value);
+        return 0;
+    }
+    
+    f = task->f.cframe;
+    while (NULL != f && PyCFrame_Check(f)) {
+        if (f->f_execute == slp_restore_tracing) {
+            /* we found a restore tracing frame */
+            PyObject *temp;
+            int c_functions = slp_encode_ctrace_functions(tf, f->any2);
+            if (c_functions < 0)
+                return -1;
+            temp = f->ob1;
+            Py_XINCREF(value);
+            f->ob1 = value;
+            f->any1 = tf;
+            f->n = c_functions;
+            Py_XDECREF(temp);
+
+            return 0;
+        }
+        f = (PyCFrameObject *)(f->f_back);
+    }
+
+    /* try the saved tstate of a hard switched tasklet */
+    saved_ts = slp_get_saved_tstate(task);
+    if (NULL != saved_ts) {
+        PyObject *temp;
+        temp = saved_ts->c_traceobj;
+        Py_XINCREF(value);
+        saved_ts->c_traceobj = value;
+        saved_ts->c_tracefunc = tf;
+        Py_XDECREF(temp);
+
+        return 0;
+    }
+
+    /* task is neither current nor has a restore_tracing frame.
+       ==> tracing is currently off */
+    if (NULL == value)
+        /* nothing to do */ 
+        return 0;
+
+    /* here we must add an restore tracing cframe */
+    f = task->f.cframe;
+    if (NULL != f) {
+        /* Insert a new cframe */
+        PyCFrameObject *cf;
+        int c_functions = slp_encode_ctrace_functions(tf, f->any2);
+        if (c_functions < 0)
+            return -1;
+        cf = slp_cframe_new(slp_restore_tracing, 0);
+        if (cf == NULL)
+            return -1;
+        Py_INCREF(f);
+        cf->f_back = (PyFrameObject *)f;
+        task->f.cframe = cf;
+        Py_INCREF(value);
+        assert(NULL == cf->ob1);
+        cf->ob1 = value;
+        cf->any1 = tf;
+        cf->n = c_functions;
+        assert(0 == cf->i);        /* ts->tracing */
+        assert(NULL == cf->any2);  /* ts->c_profilefunc */
+        assert(NULL == cf->ob2);   /* ts->c_profileobj */
+        return 0;
+    }
+
+    RUNTIME_ERROR("tasklet is not alive", -1);
+}
+
+static PyObject *
+tasklet_get_profile_function(PyTaskletObject *task)
+{
+    PyThreadState *ts = task->cstate->tstate;
+    PyCFrameObject *f;
+    PyTaskletTStateStruc *saved_ts;
+
+    if (ts && ts->st.current == task) {
+        /* current tasklet */
+        PyObject *temp = ts->c_profileobj;
+        if (temp == NULL)
+            temp = Py_None;
+        Py_INCREF(temp);
+        return temp;
+    }
+    
+    f = task->f.cframe;
+    while (NULL != f && PyCFrame_Check(f)) {
+        if (f->f_execute == slp_restore_tracing) {
+            /* we found a restore tracing frame */
+            PyObject *temp = f->ob2;
+            if (temp == NULL)
+                temp = Py_None;
+            Py_INCREF(temp);
+            return temp;
+        }
+        f = (PyCFrameObject *)(f->f_back);
+    }
+
+    /* try the saved tstate of a hard switched tasklet */
+    saved_ts = slp_get_saved_tstate(task);
+    if (NULL != saved_ts) {
+        PyObject *temp;
+        temp = saved_ts->c_profileobj;
+        if (NULL == temp)
+            temp = Py_None;
+        Py_INCREF(temp);
+        return temp;
+    }
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static int
+tasklet_set_profile_function(PyTaskletObject *task, PyObject *value)
+{
+    PyThreadState *ts = task->cstate->tstate;
+    PyCFrameObject *f;
+    Py_tracefunc tf = NULL;
+    PyTaskletTStateStruc *saved_ts;
+
+    if (Py_None == value)
+        value = NULL;
+    if (value) {
+        tf = slp_get_sys_profile_func();
+        if (NULL == tf)
+            return -1;
+    }
+    if (ts && ts->st.current == task) {
+        /* current tasklet */
+        if (PyThreadState_GET() != ts)
+            RUNTIME_ERROR("You cannot set the profile function of the current tasklet of another thread", -1);
+        PyEval_SetProfile(tf, value);
+        return 0;
+    }
+    
+    f = task->f.cframe;
+    while (NULL != f && PyCFrame_Check(f)) {
+        if (f->f_execute == slp_restore_tracing) {
+            PyObject *temp;
+            int c_functions = slp_encode_ctrace_functions(f->any1, tf);
+            if (c_functions < 0)
+                return -1;
+            /* we found a restore tracing frame */
+            temp = f->ob2;
+            Py_XINCREF(value);
+            f->ob2 = value;
+            f->any2 = tf;
+            f->n = c_functions;
+            Py_XDECREF(temp);
+
+            return 0;
+        }
+        f = (PyCFrameObject *)(f->f_back);
+    }
+
+    /* try the saved tstate of a hard switched tasklet */
+    saved_ts = slp_get_saved_tstate(task);
+    if (NULL != saved_ts) {
+        PyObject *temp;
+        temp = saved_ts->c_profileobj;
+        Py_XINCREF(value);
+        saved_ts->c_profileobj = value;
+        saved_ts->c_profilefunc = tf;
+        Py_XDECREF(temp);
+
+        return 0;
+    }
+
+    /* task is neither current nor has a restore_tracing frame.
+       ==> tracing is currently off */
+    if (NULL == value)
+        /* nothing to do */ 
+        return 0;
+
+    /* here we must add an restore tracing cframe */
+    f = task->f.cframe;
+    if (NULL != f) {
+        /* Insert a new cframe */
+        PyCFrameObject *cf;
+        int c_functions = slp_encode_ctrace_functions(f->any1, tf);
+        if (c_functions < 0)
+            return -1;
+        cf = slp_cframe_new(slp_restore_tracing, 0);
+        if (cf == NULL)
+            return -1;
+        Py_INCREF(f);
+        cf->f_back = (PyFrameObject *)f;
+        task->f.cframe = cf;
+        Py_INCREF(value);
+        assert(NULL == cf->ob2);
+        cf->ob2 = value;
+        cf->any2 = tf;
+        cf->n = c_functions;
+        assert(0 == cf->i);        /* ts->tracing */
+        assert(NULL == cf->any1);  /* ts->c_tracefunc */
+        assert(NULL == cf->ob1);   /* ts->c_traceobj */
+        return 0;
+    }
+
+    RUNTIME_ERROR("tasklet is not alive", -1);
+}
+
 static PyMemberDef tasklet_members[] = {
     {"cstate", T_OBJECT, offsetof(PyTaskletObject, cstate), READONLY,
      PyDoc_STR("the C stack object associated with the tasklet.\n\
@@ -1614,6 +1882,18 @@ static PyGetSetDef tasklet_getsetlist[] = {
 
     {"thread_id", (getter)tasklet_thread_id, NULL,
      PyDoc_STR("Return the thread id of the thread the tasklet belongs to.")},
+
+    {"trace_function", (getter)tasklet_get_trace_function,
+                   (setter)tasklet_set_trace_function,
+     PyDoc_STR("The trace function of this tasklet. None by default.\n"
+     "For the current tasklet this property is equivalent to sys.gettrace()\n"
+     "and sys.settrace().")},
+
+    {"profile_function", (getter)tasklet_get_profile_function,
+                   (setter)tasklet_set_profile_function,
+     PyDoc_STR("The trace function of this tasklet. None by default.\n"
+     "For the current tasklet this property is equivalent to sys.gettrace()\n"
+     "and sys.settrace().")},
 
     {0},
 };

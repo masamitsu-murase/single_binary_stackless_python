@@ -192,11 +192,7 @@ class TestTracingState(StacklessTestCase):
         saved = stackless.pickle_with_tracing_state
         stackless.pickle_with_tracing_state = True
         try:
-            # trace state can't be restored after unpickling,
-            # because the methods cframe.__reduce__, cframe.__setstate__ do not
-            # preserve the C-trace/C-profile functions.
-            self._testTracingOrProfileState(do_pickle=True, do_trace=True,
-                                            disable_trace_after_schedule=True)
+            self._testTracingOrProfileState(do_pickle=True, do_trace=True)
         finally:
             stackless.pickle_with_tracing_state = saved
 
