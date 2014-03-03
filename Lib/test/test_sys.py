@@ -841,10 +841,15 @@ class SizeofTest(unittest.TestCase):
         check((), vsize(''))
         check((1,2,3), vsize('') + 3*self.P)
         # type
-        # (PyTypeObject + PyNumberMethods + PyMappingMethods +
-        #  PySequenceMethods + PyBufferProcs)
-        s = vsize('P2P15Pl4PP9PP11PI') + struct.calcsize('16Pi17P 3P 10P 2P 2P')
+        # static type: PyTypeObject
+        s = vsize('P2n15Pl4Pn9Pn11PI')
         check(int, s)
+        # (PyTypeObject + PyNumberMethods + PyMappingMethods +
+        #  PySequenceMethods + PyBufferProcs + 4P)
+        s = vsize('P2n15Pl4Pn9Pn11PI') + struct.calcsize('34P 3P 10P 2P 4P')
+        # Separate block for PyDictKeysObject with 4 entries
+        s += struct.calcsize("2nPn") + 4*struct.calcsize("n2P")
+        # class
         class newstyleclass(object): pass
         check(newstyleclass, s)
         # dict with shared keys
