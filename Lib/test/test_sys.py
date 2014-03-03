@@ -729,12 +729,7 @@ class SizeofTest(unittest.TestCase):
         # type
         # (PyTypeObject + PyNumberMethods +  PyMappingMethods +
         #  PySequenceMethods + PyBufferProcs)
-        if haveStackless:
-            # The number of byte entries in the generated 'slp_methodflags'.
-            stacklessSize = '83c 0P'
-        else:
-            stacklessSize = ''
-        s = vsize('P2P15Pl4PP9PP11PI') + struct.calcsize('41P 10P 3P 6P' + stacklessSize)
+        s = vsize('P2P15Pl4PP9PP11PI') + struct.calcsize('41P 10P 3P 6P')
         class newstyleclass(object):
             pass
         check(newstyleclass, s)
