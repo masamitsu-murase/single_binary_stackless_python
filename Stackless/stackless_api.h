@@ -36,6 +36,7 @@ extern "C" {
 
 #include "core/stackless_impl.h"
 
+#ifdef STACKLESS
 /*
  * create a new tasklet object.
  * type must be derived from PyTasklet_Type or NULL.
@@ -402,6 +403,8 @@ PyAPI_FUNC(PyObject *) PyStackless_CallMethod_Main(PyObject *o, char *name,
  */
 PyAPI_FUNC(PyObject *) PyStackless_CallCMethod_Main(
                     PyMethodDef *meth, PyObject *self, char *format, ...);
+
+#endif /* STACKLESS */
 
 #ifdef __cplusplus
 }
