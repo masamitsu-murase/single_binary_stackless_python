@@ -351,7 +351,6 @@ PYTHON_OBJS=	\
 		Stackless/core/stacklesseval.o \
 		Stackless/core/stackless_util.o \
 		Stackless/module/channelobject.o \
-		Stackless/module/flextype.o \
 		Stackless/module/scheduling.o \
 		Stackless/module/stacklessmodule.o \
 		Stackless/module/taskletobject.o \
@@ -876,8 +875,6 @@ PYTHON_HEADERS= \
 		Stackless/core/stackless_structs.h \
 		Stackless/core/stackless_tstate.h \
 		Stackless/module/channelobject.h \
-		Stackless/module/flextype.h \
-		Stackless/module/taskletobject.h \
 		Stackless/pickling/prickelpit.h \
 		Stackless/platf/slp_platformselect.h \
 		Stackless/platf/switch_ppc_macosx.h \
