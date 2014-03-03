@@ -3737,6 +3737,7 @@ fast_yield:
     /* pop frame */
 /* exit_eval_frame: */
 #ifndef STACKLESS
+exit_eval_frame:
     Py_LeaveRecursiveCall();
     tstate->frame = f->f_back;
 
