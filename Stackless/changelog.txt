@@ -5,8 +5,10 @@ This file documents changes to the Stackless extension of C-Python.
 For other changes see Misc/NEWS.
 
 
-What's New in Stackless 2.7.6?
-==============================
+What's New in Stackless 2.7.6r2?
+================================
+
+*Release date: 2014-03-03*
 
 - Fix channel and tasklet initialization.  Initialization is now done
   using __init__ methods.
@@ -44,6 +46,9 @@ What's New in Stackless 2.7.6?
 
 - https://bitbucket.org/stackless-dev/stackless/issue/54
   Fix a crash
+
+What's New in Stackless 2.7.6?
+==============================
 
 *Release date: 2014-01-12*
 
