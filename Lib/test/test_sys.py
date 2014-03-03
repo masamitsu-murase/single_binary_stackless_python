@@ -841,28 +841,10 @@ class SizeofTest(unittest.TestCase):
         check((), vsize(''))
         check((1,2,3), vsize('') + 3*self.P)
         # type
-        # static type: PyTypeObject
-        s = vsize('P2n15Pl4Pn9Pn11PI')
-        try:
-            import stackless
-            # with stackless, this becomes the basic size, static types
-            # have the same size as dynamic types.
-            # (PyTypeObject + PyNumberMethods + PyMappingMethods +
-            #  PySequenceMethods + PyBufferProcs + 4P)
-            # The number of byte entries in the generated 'slp_methodflags'.
-            stacklessflags = '71c 0P'
-            s = vsize('P2n15Pl4Pn9Pn11PI' + '34P 3P 10P 2P 4P' + stacklessflags)
-        except:
-            stacklessflags = ''
-
-        check(int, s)
         # (PyTypeObject + PyNumberMethods + PyMappingMethods +
-        #  PySequenceMethods + PyBufferProcs + 4P)
-        s = vsize('P2n15Pl4Pn9Pn11PI') + struct.calcsize('34P 3P 10P 2P 4P')
-        # Separate block for PyDictKeysObject with 4 entries
-        s += struct.calcsize("2nPn") + 4*struct.calcsize("n2P")
-        s += struct.calcsize(stacklessflags)
-        # class
+        #  PySequenceMethods + PyBufferProcs)
+        s = vsize('P2P15Pl4PP9PP11PI') + struct.calcsize('16Pi17P 3P 10P 2P 2P')
+        check(int, s)
         class newstyleclass(object): pass
         check(newstyleclass, s)
         # dict with shared keys
