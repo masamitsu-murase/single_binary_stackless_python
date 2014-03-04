@@ -296,6 +296,9 @@ class TestConcretePickledTasklets(TestPickledTasklets):
     def testXrange(self):
         self.run_pickled(xrangetest, 20, 13)
 
+    def testXrangeExhausted(self):
+        self.run_pickled(xrangetest, 20, 19)
+
     def testRecursive(self):
         self.run_pickled(rectest, 13)
 
