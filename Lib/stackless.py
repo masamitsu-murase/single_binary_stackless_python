@@ -21,6 +21,24 @@ def __reduce__():
 def __reduce_ex_(*args):
     return "stackless"
 
+# Backwards support for unpickling older pickles, even from 2.7
+from _stackless import _wrap
+sys.modules["stackless._wrap"] = _wrap
+class range(object):
+    """
+    A fake range object that adds __setstate__ to mimic old
+    custom pickle additions from from 2.7
+    """
+    def __init__(self, *args):
+        self.args = args
+    def __setstate__(self, *args):
+        # fautly pickle code passes an empty tuple through!
+        pass
+    def __iter__(self):
+        return iter(range(*self.args))
+_wrap.range = range
+del range
+
 def transmogrify():
     """
     this function creates a subclass of the ModuleType with properties.

@@ -394,11 +394,13 @@ highest protocol among opcodes = 2
 DATA3 = b'\x80\x02c__builtin__\nset\nq\x00]q\x01(K\x01K\x02e\x85q\x02Rq\x03.'
 
 # xrange(5) pickled from 2.x with protocol 2
+DATA4 = b'\x80\x02c__builtin__\nxrange\nq\x00K\x00K\x05K\x01\x87q\x01Rq\x02.'
 try:
     import stackless
-    DATA4 = b'\x80\x02c_stackless._wrap\nrange\nq\x00K\x00K\x05K\x01\x87q\x01Rq\x02)b.'
+    DATA4_SLP = b'\x80\x02cstackless._wrap\nrange\nq\x00K\x00K\x05K\x01\x87q\x01Rq\x02)b.'
 except:
-    DATA4 = b'\x80\x02c__builtin__\nxrange\nq\x00K\x00K\x05K\x01\x87q\x01Rq\x02.'
+    DATA4_SLP = DATA4
+    
 
 # a SimpleCookie() object pickled from 2.x with protocol 2
 DATA5 = (b'\x80\x02cCookie\nSimpleCookie\nq\x00)\x81q\x01U\x03key'
@@ -1147,8 +1149,13 @@ class AbstractPickleTests(unittest.TestCase):
         # Unpickle non-trivial data from Python 2.x.
         loaded = self.loads(DATA3)
         self.assertEqual(loaded, set([1, 2]))
-        loaded = self.loads(DATA4)
-        self.assertEqual(type(loaded), type(range(0)))
+        loaded = self.loads(DATA4_SLP)
+        try:
+            import stackless
+        except ImportError:
+            self.assertEqual(type(loaded), type(range(0)))
+        else:
+            pass # stackless provides a fake range for unpickling
         self.assertEqual(list(loaded), list(range(5)))
         loaded = self.loads(DATA5)
         self.assertEqual(type(loaded), SimpleCookie)
