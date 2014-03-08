@@ -48,7 +48,7 @@ are always available.  They are listed here in alphabetical order.
 
 .. function:: all(iterable)
 
-   Return True if all elements of the *iterable* are true (or if the iterable
+   Return ``True`` if all elements of the *iterable* are true (or if the iterable
    is empty).  Equivalent to::
 
       def all(iterable):
@@ -60,8 +60,8 @@ are always available.  They are listed here in alphabetical order.
 
 .. function:: any(iterable)
 
-   Return True if any element of the *iterable* is true.  If the iterable
-   is empty, return False.  Equivalent to::
+   Return ``True`` if any element of the *iterable* is true.  If the iterable
+   is empty, return ``False``.  Equivalent to::
 
       def any(iterable):
           for element in iterable:
@@ -193,9 +193,9 @@ are always available.  They are listed here in alphabetical order.
 .. function:: compile(source, filename, mode, flags=0, dont_inherit=False, optimize=-1)
 
    Compile the *source* into a code or AST object.  Code objects can be executed
-   by :func:`exec` or :func:`eval`.  *source* can either be a string or an AST
-   object.  Refer to the :mod:`ast` module documentation for information on how
-   to work with AST objects.
+   by :func:`exec` or :func:`eval`.  *source* can either be a normal string, a
+   byte string, or an AST object.  Refer to the :mod:`ast` module documentation
+   for information on how to work with AST objects.
 
    The *filename* argument should give the file from which the code was read;
    pass some recognizable value if it wasn't read from a file (``'<string>'`` is
@@ -890,7 +890,7 @@ are always available.  They are listed here in alphabetical order.
      the buffer will typically be 4096 or 8192 bytes long.
 
    * "Interactive" text files (files for which :meth:`~io.IOBase.isatty`
-     returns True) use line buffering.  Other text files use the policy
+     returns ``True``) use line buffering.  Other text files use the policy
      described above for binary files.
 
    *encoding* is the name of the encoding used to decode or encode the file.

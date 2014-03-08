@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Copyright 2001-2013 by Vinay Sajip. All Rights Reserved.
 #
 # Permission to use, copy, modify, and distribute this software and its
@@ -959,19 +957,21 @@ if threading:
 
 @unittest.skipUnless(threading, 'Threading required for this test.')
 class SMTPHandlerTest(BaseTest):
+    TIMEOUT = 8.0
     def test_basic(self):
         sockmap = {}
         server = TestSMTPServer(('localhost', 0), self.process_message, 0.001,
                                 sockmap)
         server.start()
         addr = ('localhost', server.port)
-        h = logging.handlers.SMTPHandler(addr, 'me', 'you', 'Log', timeout=5.0)
+        h = logging.handlers.SMTPHandler(addr, 'me', 'you', 'Log',
+                                         timeout=self.TIMEOUT)
         self.assertEqual(h.toaddrs, ['you'])
         self.messages = []
         r = logging.makeLogRecord({'msg': 'Hello'})
         self.handled = threading.Event()
         h.handle(r)
-        self.handled.wait(5.0)  # 14314: don't wait forever
+        self.handled.wait(self.TIMEOUT)  # 14314: don't wait forever
         server.stop()
         self.assertTrue(self.handled.is_set())
         self.assertEqual(len(self.messages), 1)
@@ -3334,6 +3334,22 @@ class BasicConfigTest(unittest.TestCase):
 
         # level is not explicitly set
         self.assertEqual(logging.root.level, self.original_logging_level)
+
+    def test_strformatstyle(self):
+        with captured_stdout() as output:
+            logging.basicConfig(stream=sys.stdout, style="{")
+            logging.error("Log an error")
+            sys.stdout.seek(0)
+            self.assertEqual(output.getvalue().strip(),
+                "ERROR:root:Log an error")
+
+    def test_stringtemplatestyle(self):
+        with captured_stdout() as output:
+            logging.basicConfig(stream=sys.stdout, style="$")
+            logging.error("Log an error")
+            sys.stdout.seek(0)
+            self.assertEqual(output.getvalue().strip(),
+                "ERROR:root:Log an error")
 
     def test_filename(self):
         logging.basicConfig(filename='test.log')

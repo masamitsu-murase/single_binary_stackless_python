@@ -201,7 +201,7 @@ Ellipsis
             single: True
 
          These represent the truth values False and True.  The two objects representing
-         the values False and True are the only Boolean objects. The Boolean type is a
+         the values ``False`` and ``True`` are the only Boolean objects. The Boolean type is a
          subtype of the integer type, and Boolean values behave like the values 0 and 1,
          respectively, in almost all contexts, the exception being that when converted to
          a string, the strings ``"False"`` or ``"True"`` are returned, respectively.
@@ -495,7 +495,7 @@ Callable types
       | :attr:`__annotations__` | A dict containing annotations | Writable  |
       |                         | of parameters.  The keys of   |           |
       |                         | the dict are the parameter    |           |
-      |                         | names, or ``'return'`` for    |           |
+      |                         | names, and ``'return'`` for   |           |
       |                         | the return annotation, if     |           |
       |                         | provided.                     |           |
       +-------------------------+-------------------------------+-----------+
@@ -1571,7 +1571,7 @@ Notes on using *__slots__*
   program undefined.  In the future, a check may be added to prevent this.
 
 * Nonempty *__slots__* does not work for classes derived from "variable-length"
-  built-in types such as :class:`int`, :class:`str` and :class:`tuple`.
+  built-in types such as :class:`int`, :class:`bytes` and :class:`tuple`.
 
 * Any non-string iterable may be assigned to *__slots__*. Mappings may also be
   used; however, in the future, special meaning may be assigned to the values

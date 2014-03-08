@@ -198,6 +198,10 @@ class TimeTestCase(unittest.TestCase):
         with self.assertRaises(ValueError) as e:
             time.strptime('', '%D')
         self.assertIs(e.exception.__suppress_context__, True)
+        # additional check for IndexError branch (issue #19545)
+        with self.assertRaises(ValueError) as e:
+            time.strptime('19', '%Y %')
+        self.assertIs(e.exception.__suppress_context__, True)
 
     def test_asctime(self):
         time.asctime(time.gmtime(self.t))
@@ -372,7 +376,8 @@ class TimeTestCase(unittest.TestCase):
         t2 = time.monotonic()
         dt = t2 - t1
         self.assertGreater(t2, t1)
-        self.assertAlmostEqual(dt, 0.5, delta=0.2)
+        # Issue #20101: On some Windows machines, dt may be slightly low
+        self.assertTrue(0.45 <= dt <= 1.0, dt)
 
         info = time.get_clock_info('monotonic')
         self.assertTrue(info.monotonic)
@@ -459,8 +464,7 @@ class TestLocale(unittest.TestCase):
         try:
             tmp = locale.setlocale(locale.LC_ALL, "fr_FR")
         except locale.Error:
-            # skip this test
-            return
+            self.skipTest('could not set locale.LC_ALL to fr_FR')
         # This should not cause an exception
         time.strftime("%B", (2009,2,1,0,0,0,0,0,0))
 

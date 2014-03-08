@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 #
 # Unit tests for the multiprocessing package
 #
@@ -202,7 +200,7 @@ class _TestProcess(BaseTestCase):
 
     def test_current(self):
         if self.TYPE == 'threads':
-            return
+            self.skipTest('test not appropriate for {}'.format(self.TYPE))
 
         current = self.current_process()
         authkey = current.authkey
@@ -216,7 +214,7 @@ class _TestProcess(BaseTestCase):
 
     def test_daemon_argument(self):
         if self.TYPE == "threads":
-            return
+            self.skipTest('test not appropriate for {}'.format(self.TYPE))
 
         # By default uses the current process's daemon flag.
         proc0 = self.Process(target=self._test)
@@ -281,7 +279,7 @@ class _TestProcess(BaseTestCase):
 
     def test_terminate(self):
         if self.TYPE == 'threads':
-            return
+            self.skipTest('test not appropriate for {}'.format(self.TYPE))
 
         p = self.Process(target=self._test_terminate)
         p.daemon = True
@@ -385,7 +383,7 @@ class _TestProcess(BaseTestCase):
 
     def test_sentinel(self):
         if self.TYPE == "threads":
-            return
+            self.skipTest('test not appropriate for {}'.format(self.TYPE))
         event = self.Event()
         p = self.Process(target=self._test_sentinel, args=(event,))
         with self.assertRaises(ValueError):
@@ -441,7 +439,7 @@ class _TestSubclassingProcess(BaseTestCase):
     def test_stderr_flush(self):
         # sys.stderr is flushed at process shutdown (issue #13812)
         if self.TYPE == "threads":
-            return
+            self.skipTest('test not appropriate for {}'.format(self.TYPE))
 
         testfn = test.support.TESTFN
         self.addCleanup(test.support.unlink, testfn)
@@ -469,12 +467,12 @@ class _TestSubclassingProcess(BaseTestCase):
     def test_sys_exit(self):
         # See Issue 13854
         if self.TYPE == 'threads':
-            return
+            self.skipTest('test not appropriate for {}'.format(self.TYPE))
 
         testfn = test.support.TESTFN
         self.addCleanup(test.support.unlink, testfn)
 
-        for reason, code in (([1, 2, 3], 1), ('ignore this', 0)):
+        for reason, code in (([1, 2, 3], 1), ('ignore this', 1)):
             p = self.Process(target=self._test_sys_exit, args=(reason, testfn))
             p.daemon = True
             p.start()
@@ -678,7 +676,7 @@ class _TestQueue(BaseTestCase):
         try:
             self.assertEqual(q.qsize(), 0)
         except NotImplementedError:
-            return
+            self.skipTest('qsize method not implemented')
         q.put(1)
         self.assertEqual(q.qsize(), 1)
         q.put(5)
@@ -723,7 +721,7 @@ class _TestQueue(BaseTestCase):
         start = time.time()
         self.assertRaises(pyqueue.Empty, q.get, True, 0.2)
         delta = time.time() - start
-        self.assertGreaterEqual(delta, 0.19)
+        self.assertGreaterEqual(delta, 0.18)
 
 #
 #
@@ -786,7 +784,7 @@ class _TestSemaphore(BaseTestCase):
 
     def test_timeout(self):
         if self.TYPE != 'processes':
-            return
+            self.skipTest('test not appropriate for {}'.format(self.TYPE))
 
         sem = self.Semaphore(0)
         acquire = TimingWrapper(sem.acquire)
@@ -1406,7 +1404,7 @@ class _TestBarrier(BaseTestCase):
 
     def test_thousand(self):
         if self.TYPE == 'manager':
-            return
+            self.skipTest('test not appropriate for {}'.format(self.TYPE))
         passes = 1000
         lock = self.Lock()
         conn, child_conn = self.Pipe(False)
@@ -1698,6 +1696,16 @@ class _TestPool(BaseTestCase):
         self.assertEqual(2, len(call_args))
         self.assertIsInstance(call_args[1], ValueError)
 
+    def test_map_unplicklable(self):
+        # Issue #19425 -- failure to pickle should not cause a hang
+        if self.TYPE == 'threads':
+            self.skipTest('test not appropriate for {}'.format(self.TYPE))
+        class A(object):
+            def __reduce__(self):
+                raise RuntimeError('cannot pickle')
+        with self.assertRaises(RuntimeError):
+            self.pool.map(sqr, [A()]*10)
+
     def test_map_chunksize(self):
         try:
             self.pool.map_async(sqr, [], chunksize=1).get(timeout=TIMEOUT1)
@@ -1711,7 +1719,7 @@ class _TestPool(BaseTestCase):
         self.assertTimingAlmostEqual(get.elapsed, TIMEOUT1)
 
     def test_async_timeout(self):
-        res = self.pool.apply_async(sqr, (6, TIMEOUT2 + 0.2))
+        res = self.pool.apply_async(sqr, (6, TIMEOUT2 + 1.0))
         get = TimingWrapper(res.get)
         self.assertRaises(multiprocessing.TimeoutError, get, timeout=TIMEOUT2)
         self.assertTimingAlmostEqual(get.elapsed, TIMEOUT2)
@@ -2190,7 +2198,7 @@ class _TestConnection(BaseTestCase):
 
     def test_sendbytes(self):
         if self.TYPE != 'processes':
-            return
+            self.skipTest('test not appropriate for {}'.format(self.TYPE))
 
         msg = latin('abcdefghijklmnopqrstuvwxyz')
         a, b = self.Pipe()

@@ -2924,7 +2924,6 @@ sock_recvfrom_into(PySocketSockObject *s, PyObject *args, PyObject* kwds)
         return NULL;
     buf = pbuf.buf;
     buflen = pbuf.len;
-    assert(buf != 0 && buflen > 0);
 
     if (recvlen < 0) {
         PyBuffer_Release(&pbuf);
@@ -2935,6 +2934,11 @@ sock_recvfrom_into(PySocketSockObject *s, PyObject *args, PyObject* kwds)
     if (recvlen == 0) {
         /* If nbytes was not specified, use the buffer's length */
         recvlen = buflen;
+    } else if (recvlen > buflen) {
+        PyBuffer_Release(&pbuf);
+        PyErr_SetString(PyExc_ValueError,
+                        "nbytes is greater than the length of the buffer");
+        return NULL;
     }
 
     readlen = sock_recvfrom_guts(s, buf, recvlen, flags, &addr);

@@ -66,6 +66,32 @@ class TestNtpath(unittest.TestCase):
                ('', '\\\\conky\\\\mountpoint\\foo\\bar'))
         tester('ntpath.splitdrive("//conky//mountpoint/foo/bar")',
                ('', '//conky//mountpoint/foo/bar'))
+        # Issue #19911: UNC part containing U+0130
+        self.assertEqual(ntpath.splitdrive('//conky/MOUNTPOİNT/foo/bar'),
+                         ('//conky/MOUNTPOİNT', '/foo/bar'))
+
+    def test_splitunc(self):
+        with self.assertWarns(DeprecationWarning):
+            ntpath.splitunc('')
+        with support.check_warnings(('', DeprecationWarning)):
+            tester('ntpath.splitunc("c:\\foo\\bar")',
+                   ('', 'c:\\foo\\bar'))
+            tester('ntpath.splitunc("c:/foo/bar")',
+                   ('', 'c:/foo/bar'))
+            tester('ntpath.splitunc("\\\\conky\\mountpoint\\foo\\bar")',
+                   ('\\\\conky\\mountpoint', '\\foo\\bar'))
+            tester('ntpath.splitunc("//conky/mountpoint/foo/bar")',
+                   ('//conky/mountpoint', '/foo/bar'))
+            tester('ntpath.splitunc("\\\\\\conky\\mountpoint\\foo\\bar")',
+                   ('', '\\\\\\conky\\mountpoint\\foo\\bar'))
+            tester('ntpath.splitunc("///conky/mountpoint/foo/bar")',
+                   ('', '///conky/mountpoint/foo/bar'))
+            tester('ntpath.splitunc("\\\\conky\\\\mountpoint\\foo\\bar")',
+                   ('', '\\\\conky\\\\mountpoint\\foo\\bar'))
+            tester('ntpath.splitunc("//conky//mountpoint/foo/bar")',
+                   ('', '//conky//mountpoint/foo/bar'))
+            self.assertEqual(ntpath.splitunc('//conky/MOUNTPOİNT/foo/bar'),
+                             ('//conky/MOUNTPOİNT', '/foo/bar'))
 
     def test_split(self):
         tester('ntpath.split("c:\\foo\\bar")', ('c:\\foo', 'bar'))
@@ -218,7 +244,7 @@ class TestNtpath(unittest.TestCase):
             import nt
             tester('ntpath.abspath("C:\\")', "C:\\")
         except ImportError:
-            pass
+            self.skipTest('nt module not available')
 
     def test_relpath(self):
         currentdir = os.path.split(os.getcwd())[-1]

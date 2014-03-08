@@ -409,7 +409,7 @@ always available.
    * On Mac OS X, the encoding is ``'utf-8'``.
 
    * On Unix, the encoding is the user's preference according to the result of
-     nl_langinfo(CODESET), or ``'utf-8'`` if ``nl_langinfo(CODESET)`` failed.
+     nl_langinfo(CODESET).
 
    * On Windows NT+, file names are Unicode natively, so no conversion is
      performed. :func:`getfilesystemencoding` still returns ``'mbcs'``, as
@@ -420,8 +420,7 @@ always available.
    * On Windows 9x, the encoding is ``'mbcs'``.
 
    .. versionchanged:: 3.2
-      On Unix, use ``'utf-8'`` instead of ``None`` if ``nl_langinfo(CODESET)``
-      failed. :func:`getfilesystemencoding` result cannot be ``None``.
+      :func:`getfilesystemencoding` result cannot be ``None`` anymore.
 
 
 .. function:: getrefcount(object)
@@ -1032,7 +1031,7 @@ always available.
    :func:`open` function.  Their parameters are chosen as follows:
 
    * The character encoding is platform-dependent.  Under Windows, if the stream
-     is interactive (that is, if its :meth:`isatty` method returns True), the
+     is interactive (that is, if its :meth:`isatty` method returns ``True``), the
      console codepage is used, otherwise the ANSI code page.  Under other
      platforms, the locale encoding is used (see :meth:`locale.getpreferredencoding`).
 
@@ -1188,5 +1187,5 @@ always available.
 
 .. rubric:: Citations
 
-.. [C99] ISO/IEC 9899:1999.  "Programming languages -- C."  A public draft of this standard is available at http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1256.pdf .
+.. [C99] ISO/IEC 9899:1999.  "Programming languages -- C."  A public draft of this standard is available at http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1256.pdf\ .
 

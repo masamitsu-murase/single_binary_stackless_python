@@ -2850,6 +2850,36 @@ save_notimplemented(PicklerObject *self, PyObject *obj)
 }
 
 static int
+save_singleton_type(PicklerObject *self, PyObject *obj, PyObject *singleton)
+{
+    PyObject *reduce_value;
+    int status;
+
+    reduce_value = Py_BuildValue("O(O)", &PyType_Type, singleton);
+    if (reduce_value == NULL) {
+        return -1;
+    }
+    status = save_reduce(self, reduce_value, obj);
+    Py_DECREF(reduce_value);
+    return status;
+}
+
+static int
+save_type(PicklerObject *self, PyObject *obj)
+{
+    if (obj == (PyObject *)&_PyNone_Type) {
+        return save_singleton_type(self, obj, Py_None);
+    }
+    else if (obj == (PyObject *)&PyEllipsis_Type) {
+        return save_singleton_type(self, obj, Py_Ellipsis);
+    }
+    else if (obj == (PyObject *)&_PyNotImplemented_Type) {
+        return save_singleton_type(self, obj, Py_NotImplemented);
+    }
+    return save_global(self, obj, NULL);
+}
+
+static int
 save_pers(PicklerObject *self, PyObject *obj, PyObject *func)
 {
     PyObject *pid = NULL;
@@ -3220,7 +3250,7 @@ save(PicklerObject *self, PyObject *obj, int pers_save)
         goto done;
     }
     else if (type == &PyType_Type) {
-        status = save_global(self, obj, NULL);
+        status = save_type(self, obj);
         goto done;
     }
     else if (type == &PyFunction_Type) {
@@ -4743,7 +4773,7 @@ load_persid(UnpicklerObject *self)
     if (self->pers_func) {
         if ((len = _Unpickler_Readline(self, &s)) < 0)
             return -1;
-        if (len < 2)
+        if (len < 1)
             return bad_readline();
 
         pid = PyBytes_FromStringAndSize(s, len - 1);

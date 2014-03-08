@@ -28,6 +28,12 @@ probably additional platforms, as long as OpenSSL is installed on that platform.
    operating system socket APIs.  The installed version of OpenSSL may also
    cause variations in behavior.
 
+.. warning::
+   Don't use this module without reading the :ref:`ssl-security`.  Doing so
+   may lead to a false sense of security, as the default settings of the
+   ssl module are not necessarily appropriate for your application.
+
+
 This section documents the objects and functions in the ``ssl`` module; for more
 general information about TLS, SSL, and certificates, the reader is referred to
 the documents in the "See Also" section at the bottom.
@@ -135,13 +141,16 @@ instead.
 
    Takes an instance ``sock`` of :class:`socket.socket`, and returns an instance
    of :class:`ssl.SSLSocket`, a subtype of :class:`socket.socket`, which wraps
-   the underlying socket in an SSL context.  For client-side sockets, the
-   context construction is lazy; if the underlying socket isn't connected yet,
-   the context construction will be performed after :meth:`connect` is called on
-   the socket.  For server-side sockets, if the socket has no remote peer, it is
-   assumed to be a listening socket, and the server-side SSL wrapping is
-   automatically performed on client connections accepted via the :meth:`accept`
-   method.  :func:`wrap_socket` may raise :exc:`SSLError`.
+   the underlying socket in an SSL context.  ``sock`` must be a
+   :data:`~socket.SOCK_STREAM` socket; other socket types are unsupported.
+
+   For client-side sockets, the context construction is lazy; if the
+   underlying socket isn't connected yet, the context construction will be
+   performed after :meth:`connect` is called on the socket.  For
+   server-side sockets, if the socket has no remote peer, it is assumed
+   to be a listening socket, and the server-side SSL wrapping is
+   automatically performed on client connections accepted via the
+   :meth:`accept` method.  :func:`wrap_socket` may raise :exc:`SSLError`.
 
    The ``keyfile`` and ``certfile`` parameters specify optional files which
    contain a certificate to be used to identify the local side of the
@@ -239,7 +248,7 @@ Random generation
 .. function:: RAND_pseudo_bytes(num)
 
    Returns (bytes, is_cryptographic): bytes are *num* pseudo-random bytes,
-   is_cryptographic is True if the bytes generated are cryptographically
+   is_cryptographic is ``True`` if the bytes generated are cryptographically
    strong. Raises an :class:`SSLError` if the operation is not supported by the
    current RAND method.
 
@@ -252,8 +261,8 @@ Random generation
 
 .. function:: RAND_status()
 
-   Returns True if the SSL pseudo-random number generator has been seeded with
-   'enough' randomness, and False otherwise.  You can use :func:`ssl.RAND_egd`
+   Returns ``True`` if the SSL pseudo-random number generator has been seeded with
+   'enough' randomness, and ``False`` otherwise.  You can use :func:`ssl.RAND_egd`
    and :func:`ssl.RAND_add` to increase the randomness of the pseudo-random
    number generator.
 
@@ -830,7 +839,10 @@ to speed up repeated connections from the same clients.
       server_hostname=None)
 
    Wrap an existing Python socket *sock* and return an :class:`SSLSocket`
-   object.  The SSL socket is tied to the context, its settings and
+   object.  *sock* must be a :data:`~socket.SOCK_STREAM` socket; other socket
+   types are unsupported.
+
+   The returned SSL socket is tied to the context, its settings and
    certificates.  The parameters *server_side*, *do_handshake_on_connect*
    and *suppress_ragged_eofs* have the same meaning as in the top-level
    :func:`wrap_socket` function.
@@ -1305,6 +1317,17 @@ OpenSSL's documentation about the `cipher list
 format <http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT>`_.
 If you want to check which ciphers are enabled by a given cipher list,
 use the ``openssl ciphers`` command on your system.
+
+Multi-processing
+^^^^^^^^^^^^^^^^
+
+If using this module as part of a multi-processed application (using,
+for example the :mod:`multiprocessing` or :mod:`concurrent.futures` modules),
+be aware that OpenSSL's internal random number generator does not properly
+handle forked processes.  Applications must change the PRNG state of the
+parent process if they use any SSL feature with :func:`os.fork`.  Any
+successful call of :func:`~ssl.RAND_add`, :func:`~ssl.RAND_bytes` or
+:func:`~ssl.RAND_pseudo_bytes` is sufficient.
 
 
 .. seealso::

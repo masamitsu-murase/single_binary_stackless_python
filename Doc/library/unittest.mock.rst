@@ -299,11 +299,11 @@ the `new_callable` argument to `patch`.
         assert the mock has been called with the specified calls.
         The `mock_calls` list is checked for the calls.
 
-        If `any_order` is False (the default) then the calls must be
+        If `any_order` is false (the default) then the calls must be
         sequential. There can be extra calls before or after the
         specified calls.
 
-        If `any_order` is True then the calls can be in any order, but
+        If `any_order` is true then the calls can be in any order, but
         they must all appear in :attr:`mock_calls`.
 
             >>> mock = Mock(return_value=None)
@@ -1180,7 +1180,7 @@ patch.dict
     `values` can be a dictionary of values to set in the dictionary. `values`
     can also be an iterable of `(key, value)` pairs.
 
-    If `clear` is True then the dictionary will be cleared before the new
+    If `clear` is true then the dictionary will be cleared before the new
     values are set.
 
     `patch.dict` can also be called with arbitrary keyword arguments to set
@@ -1632,17 +1632,17 @@ Methods and their defaults:
 * ``__gt__``: NotImplemented
 * ``__le__``: NotImplemented
 * ``__ge__``: NotImplemented
-* ``__int__`` : 1
-* ``__contains__`` : False
-* ``__len__`` : 1
-* ``__iter__`` : iter([])
-* ``__exit__`` : False
-* ``__complex__`` : 1j
-* ``__float__`` : 1.0
-* ``__bool__`` : True
-* ``__index__`` : 1
-* ``__hash__`` : default hash for the mock
-* ``__str__`` : default str for the mock
+* ``__int__``: 1
+* ``__contains__``: False
+* ``__len__``: 1
+* ``__iter__``: iter([])
+* ``__exit__``: False
+* ``__complex__``: 1j
+* ``__float__``: 1.0
+* ``__bool__``: True
+* ``__index__``: 1
+* ``__hash__``: default hash for the mock
+* ``__str__``: default str for the mock
 * ``__sizeof__``: default sizeof for the mock
 
 For example:

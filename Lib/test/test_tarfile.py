@@ -41,6 +41,7 @@ class TarTest:
     tarname = tarname
     suffix = ''
     open = io.FileIO
+    taropen = tarfile.TarFile.taropen
 
     @property
     def mode(self):
@@ -51,18 +52,21 @@ class GzipTest:
     tarname = gzipname
     suffix = 'gz'
     open = gzip.GzipFile if gzip else None
+    taropen = tarfile.TarFile.gzopen
 
 @support.requires_bz2
 class Bz2Test:
     tarname = bz2name
     suffix = 'bz2'
     open = bz2.BZ2File if bz2 else None
+    taropen = tarfile.TarFile.bz2open
 
 @support.requires_lzma
 class LzmaTest:
     tarname = xzname
     suffix = 'xz'
     open = lzma.LZMAFile if lzma else None
+    taropen = tarfile.TarFile.xzopen
 
 
 class ReadTest(TarTest):
@@ -232,6 +236,17 @@ class CommonReadTest(ReadTest):
         finally:
             tar.close()
 
+    def test_non_existent_tarfile(self):
+        # Test for issue11513: prevent non-existent gzipped tarfiles raising
+        # multiple exceptions.
+        test = 'xxx'
+        if sys.platform == 'win32' and '|' in self.mode:
+            # Issue #20384: On Windows os.open() error message doesn't
+            # contain file name.
+            test = ''
+        with self.assertRaisesRegex(FileNotFoundError, test):
+            tarfile.open("xxx", self.mode)
+
     def test_null_tarfile(self):
         # Test for issue6123: Allow opening empty archives.
         # This test guarantees that tarfile.open() does not treat an empty
@@ -280,6 +295,16 @@ class MiscReadTestBase(CommonReadTest):
         fobj.name = ""
         with tarfile.open(fileobj=fobj, mode=self.mode) as tar:
             self.assertEqual(tar.name, None)
+
+    def test_illegal_mode_arg(self):
+        with open(tmpname, 'wb'):
+            pass
+        with self.assertRaisesRegex(ValueError, 'mode must be '):
+            tar = self.taropen(tmpname, 'q')
+        with self.assertRaisesRegex(ValueError, 'mode must be '):
+            tar = self.taropen(tmpname, 'rw')
+        with self.assertRaisesRegex(ValueError, 'mode must be '):
+            tar = self.taropen(tmpname, '')
 
     def test_fileobj_with_offset(self):
         # Skip the first member and store values from the second member
@@ -444,11 +469,7 @@ class MiscReadTest(MiscReadTestBase, unittest.TestCase):
     test_fail_comp = None
 
 class GzipMiscReadTest(GzipTest, MiscReadTestBase, unittest.TestCase):
-    def test_non_existent_targz_file(self):
-        # Test for issue11513: prevent non-existent gzipped tarfiles raising
-        # multiple exceptions.
-        with self.assertRaisesRegex(FileNotFoundError, "xxx"):
-            tarfile.open("xxx", self.mode)
+    pass
 
 class Bz2MiscReadTest(Bz2Test, MiscReadTestBase, unittest.TestCase):
     def test_no_name_argument(self):
@@ -839,6 +860,12 @@ class WriteTestBase(TarTest):
         tar.addfile(tarfile.TarInfo("foo"))
         tar.close()
         self.assertFalse(fobj.closed, "external fileobjs must never closed")
+        # Issue #20238: Incomplete gzip output with mode="w:gz"
+        data = fobj.getvalue()
+        del tar
+        support.gc_collect()
+        self.assertFalse(fobj.closed)
+        self.assertEqual(data, fobj.getvalue())
 
 
 class WriteTest(WriteTestBase, unittest.TestCase):
@@ -1132,6 +1159,22 @@ class WriteTest(WriteTestBase, unittest.TestCase):
                 tar.close()
         finally:
             os.chdir(cwd)
+
+    def test_open_nonwritable_fileobj(self):
+        for exctype in OSError, EOFError, RuntimeError:
+            class BadFile(io.BytesIO):
+                first = True
+                def write(self, data):
+                    if self.first:
+                        self.first = False
+                        raise exctype
+
+            f = BadFile()
+            with self.assertRaises(exctype):
+                tar = tarfile.open(tmpname, self.mode, fileobj=f,
+                                   format=tarfile.PAX_FORMAT,
+                                   pax_headers={'non': 'empty'})
+            self.assertFalse(f.closed)
 
 class GzipWriteTest(GzipTest, WriteTest):
     pass

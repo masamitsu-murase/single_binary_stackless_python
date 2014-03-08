@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import os
 import email
 import urllib.parse
@@ -353,12 +351,15 @@ class TestUrlopen(unittest.TestCase):
     def setUp(self):
         super(TestUrlopen, self).setUp()
         # Ignore proxies for localhost tests.
+        self.old_environ = os.environ.copy()
         os.environ['NO_PROXY'] = '*'
         self.server = None
 
     def tearDown(self):
         if self.server is not None:
             self.server.stop()
+        os.environ.clear()
+        os.environ.update(self.old_environ)
         super(TestUrlopen, self).tearDown()
 
     def urlopen(self, url, data=None, **kwargs):

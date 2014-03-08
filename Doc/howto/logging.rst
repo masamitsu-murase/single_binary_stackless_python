@@ -122,7 +122,8 @@ Logging to a file
 ^^^^^^^^^^^^^^^^^
 
 A very common situation is that of recording logging events in a file, so let's
-look at that next::
+look at that next. Be sure to try the following in a newly-started Python
+interpreter, and don't just continue from the session described above::
 
    import logging
    logging.basicConfig(filename='example.log',level=logging.DEBUG)
@@ -238,7 +239,7 @@ uses the old, %-style of string formatting. This is for backwards
 compatibility: the logging package pre-dates newer formatting options such as
 :meth:`str.format` and :class:`string.Template`. These newer formatting
 options *are* supported, but exploring them is outside the scope of this
-tutorial.
+tutorial: see :ref:`formatting-styles` for more information.
 
 
 Changing the format of displayed messages

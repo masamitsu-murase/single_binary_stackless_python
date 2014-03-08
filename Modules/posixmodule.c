@@ -1742,7 +1742,7 @@ win32_xstat_impl(const char *path, struct win32_stat *result,
         /* FILE_FLAG_BACKUP_SEMANTICS is required to open a directory */
         /* FILE_FLAG_OPEN_REPARSE_POINT does not follow the symlink.
            Because of this, calls like GetFinalPathNameByHandle will return
-           the symlink path agin and not the actual final path. */
+           the symlink path again and not the actual final path. */
         FILE_ATTRIBUTE_NORMAL|FILE_FLAG_BACKUP_SEMANTICS|
             FILE_FLAG_OPEN_REPARSE_POINT,
         NULL);
@@ -1838,7 +1838,7 @@ win32_xstat_impl_w(const wchar_t *path, struct win32_stat *result,
         /* FILE_FLAG_BACKUP_SEMANTICS is required to open a directory */
         /* FILE_FLAG_OPEN_REPARSE_POINT does not follow the symlink.
            Because of this, calls like GetFinalPathNameByHandle will return
-           the symlink path agin and not the actual final path. */
+           the symlink path again and not the actual final path. */
         FILE_ATTRIBUTE_NORMAL|FILE_FLAG_BACKUP_SEMANTICS|
             FILE_FLAG_OPEN_REPARSE_POINT,
         NULL);
@@ -8050,14 +8050,14 @@ iov_setup(struct iovec **iov, Py_buffer **buf, PyObject *seq, int cnt, int type)
     *iov = PyMem_New(struct iovec, cnt);
     if (*iov == NULL) {
         PyErr_NoMemory();
-        return total;
+        return -1;
     }
 
     *buf = PyMem_New(Py_buffer, cnt);
     if (*buf == NULL) {
         PyMem_Del(*iov);
         PyErr_NoMemory();
-        return total;
+        return -1;
     }
 
     for (i = 0; i < cnt; i++) {
@@ -8082,7 +8082,7 @@ fail:
         PyBuffer_Release(&(*buf)[j]);
     }
     PyMem_Del(*buf);
-    return 0;
+    return -1;
 }
 
 static void
@@ -8100,9 +8100,12 @@ iov_cleanup(struct iovec *iov, Py_buffer *buf, int cnt)
 #ifdef HAVE_READV
 PyDoc_STRVAR(posix_readv__doc__,
 "readv(fd, buffers) -> bytesread\n\n\
-Read from a file descriptor into a number of writable buffers. buffers\n\
-is an arbitrary sequence of writable buffers.\n\
-Returns the total number of bytes read.");
+Read from a file descriptor fd into a number of mutable, bytes-like\n\
+objects (\"buffers\").  readv will transfer data into each buffer\n\
+until it is full and then move on to the next buffer in the sequence\n\
+to hold the rest of the data.\n\n\
+readv returns the total number of bytes read (which may be less than\n\
+the total capacity of all the buffers.");
 
 static PyObject *
 posix_readv(PyObject *self, PyObject *args)
@@ -8122,7 +8125,7 @@ posix_readv(PyObject *self, PyObject *args)
     }
     cnt = PySequence_Size(seq);
 
-    if (!iov_setup(&iov, &buf, seq, cnt, PyBUF_WRITABLE))
+    if (iov_setup(&iov, &buf, seq, cnt, PyBUF_WRITABLE) < 0)
         return NULL;
 
     Py_BEGIN_ALLOW_THREADS
@@ -8130,6 +8133,9 @@ posix_readv(PyObject *self, PyObject *args)
     Py_END_ALLOW_THREADS
 
     iov_cleanup(iov, buf, cnt);
+    if (n < 0)
+        return posix_error();
+
     return PyLong_FromSsize_t(n);
 }
 #endif
@@ -8254,8 +8260,8 @@ posix_sendfile(PyObject *self, PyObject *args, PyObject *kwdict)
             Py_ssize_t i = 0; /* Avoid uninitialized warning */
             sf.hdr_cnt = PySequence_Size(headers);
             if (sf.hdr_cnt > 0 &&
-                !(i = iov_setup(&(sf.headers), &hbuf,
-                                headers, sf.hdr_cnt, PyBUF_SIMPLE)))
+                (i = iov_setup(&(sf.headers), &hbuf,
+                                headers, sf.hdr_cnt, PyBUF_SIMPLE)) < 0)
                 return NULL;
 #ifdef __APPLE__
             sbytes += i;
@@ -8271,8 +8277,8 @@ posix_sendfile(PyObject *self, PyObject *args, PyObject *kwdict)
             Py_ssize_t i = 0; /* Avoid uninitialized warning */
             sf.trl_cnt = PySequence_Size(trailers);
             if (sf.trl_cnt > 0 &&
-                !(i = iov_setup(&(sf.trailers), &tbuf,
-                                trailers, sf.trl_cnt, PyBUF_SIMPLE)))
+                (i = iov_setup(&(sf.trailers), &tbuf,
+                                trailers, sf.trl_cnt, PyBUF_SIMPLE)) < 0)
                 return NULL;
 #ifdef __APPLE__
             sbytes += i;
@@ -8462,9 +8468,10 @@ posix_pipe2(PyObject *self, PyObject *arg)
 #ifdef HAVE_WRITEV
 PyDoc_STRVAR(posix_writev__doc__,
 "writev(fd, buffers) -> byteswritten\n\n\
-Write the contents of buffers to a file descriptor, where buffers is an\n\
-arbitrary sequence of buffers.\n\
-Returns the total bytes written.");
+Write the contents of *buffers* to file descriptor *fd*. *buffers*\n\
+must be a sequence of bytes-like objects.\n\n\
+writev writes the contents of each object to the file descriptor\n\
+and returns the total number of bytes written.");
 
 static PyObject *
 posix_writev(PyObject *self, PyObject *args)
@@ -8483,7 +8490,7 @@ posix_writev(PyObject *self, PyObject *args)
     }
     cnt = PySequence_Size(seq);
 
-    if (!iov_setup(&iov, &buf, seq, cnt, PyBUF_SIMPLE)) {
+    if (iov_setup(&iov, &buf, seq, cnt, PyBUF_SIMPLE) < 0) {
         return NULL;
     }
 
@@ -8492,6 +8499,9 @@ posix_writev(PyObject *self, PyObject *args)
     Py_END_ALLOW_THREADS
 
     iov_cleanup(iov, buf, cnt);
+    if (res < 0)
+        return posix_error();
+
     return PyLong_FromSsize_t(res);
 }
 #endif
@@ -11857,7 +11867,7 @@ all_ins(PyObject *d)
     if (ins(d, "SCHED_FIFO", (long)SCHED_FIFO)) return -1;
     if (ins(d, "SCHED_RR", (long)SCHED_RR)) return -1;
 #ifdef SCHED_SPORADIC
-    if (ins(d, "SCHED_SPORADIC", (long)SCHED_SPORADIC) return -1;
+    if (ins(d, "SCHED_SPORADIC", (long)SCHED_SPORADIC)) return -1;
 #endif
 #ifdef SCHED_BATCH
     if (ins(d, "SCHED_BATCH", (long)SCHED_BATCH)) return -1;

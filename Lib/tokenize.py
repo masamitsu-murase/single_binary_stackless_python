@@ -32,6 +32,7 @@ from codecs import lookup, BOM_UTF8
 import collections
 from io import TextIOWrapper
 cookie_re = re.compile(r'^[ \t\f]*#.*coding[:=][ \t]*([-\w.]+)', re.ASCII)
+blank_re = re.compile(br'^[ \t\f]*(?:[#\r\n]|$)', re.ASCII)
 
 import token
 __all__ = token.__all__ + ["COMMENT", "tokenize", "detect_encoding",
@@ -333,7 +334,7 @@ def _get_normal_name(orig_enc):
 def detect_encoding(readline):
     """
     The detect_encoding() function is used to detect the encoding that should
-    be used to decode a Python source file.  It requires one argment, readline,
+    be used to decode a Python source file.  It requires one argument, readline,
     in the same way as the tokenize() generator.
 
     It will call readline a maximum of twice, and return the encoding used
@@ -409,6 +410,8 @@ def detect_encoding(readline):
     encoding = find_cookie(first)
     if encoding:
         return encoding, [first]
+    if not blank_re.match(first):
+        return default, [first]
 
     second = read_or_stop()
     if not second:

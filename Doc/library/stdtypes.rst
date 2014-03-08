@@ -1149,6 +1149,9 @@ application).
       fail, the entire sort operation will fail (and the list will likely be left
       in a partially modified state).
 
+      :meth:`sort` accepts two arguments that can only be passed by keyword
+      (:ref:`keyword-only arguments <keyword-only_parameter>`):
+
       *key* specifies a function of one argument that is used to extract a
       comparison key from each list element (for example, ``key=str.lower``).
       The key corresponding to each item in the list is calculated once and
@@ -1580,7 +1583,7 @@ expression support in the :mod:`re` module).
 .. method:: str.format_map(mapping)
 
    Similar to ``str.format(**mapping)``, except that ``mapping`` is
-   used directly and not copied to a :class:`dict` .  This is useful
+   used directly and not copied to a :class:`dict`.  This is useful
    if for example ``mapping`` is a dict subclass:
 
    >>> class Default(dict):
@@ -2844,7 +2847,7 @@ The constructors for both classes work the same:
 
    .. method:: isdisjoint(other)
 
-      Return True if the set has no elements in common with *other*.  Sets are
+      Return ``True`` if the set has no elements in common with *other*.  Sets are
       disjoint if and only if their intersection is the empty set.
 
    .. method:: issubset(other)

@@ -434,20 +434,19 @@ functions.
       untrusted input.  See the warning under :ref:`frequently-used-arguments`
       for details.
 
-   *bufsize* will be supplied as the corresponding argument to the :meth:`io.open`
-   function when creating the stdin/stdout/stderr pipe file objects:
-   :const:`0` means unbuffered (read and write are one system call and can return short),
-   :const:`1` means line buffered, any other positive value means use a buffer of
-   approximately that size.  A negative bufsize (the default) means
-   the system default of io.DEFAULT_BUFFER_SIZE will be used.
+   *bufsize* will be supplied as the corresponding argument to the :func:`open`
+   function when creating the stdin/stdout/stderr pipe file objects: :const:`0`
+   means unbuffered (read and write are one system call and can return short),
+   :const:`1` means line buffered, any other positive value means use a buffer
+   of approximately that size.  A negative bufsize (the default) means the
+   system default of io.DEFAULT_BUFFER_SIZE will be used.
 
-   .. versionchanged:: 3.2.4, 3.3.1
-
+   .. versionchanged:: 3.3.1
       *bufsize* now defaults to -1 to enable buffering by default to match the
-      behavior that most code expects.  In 3.2.0 through 3.2.3 and 3.3.0 it
-      incorrectly defaulted to :const:`0` which was unbuffered and allowed
-      short reads.  This was unintentional and did not match the behavior of
-      Python 2 as most code expected.
+      behavior that most code expects.  In versions prior to Python 3.2.4 and
+      3.3.1 it incorrectly defaulted to :const:`0` which was unbuffered
+      and allowed short reads.  This was unintentional and did not match the
+      behavior of Python 2 as most code expected.
 
    The *executable* argument specifies a replacement program to execute.   It
    is very seldom needed.  When ``shell=False``, *executable* replaces the
@@ -513,7 +512,7 @@ functions.
    *executable* (or for the first item in *args*) relative to *cwd* if the
    executable path is a relative path.
 
-   If *restore_signals* is True (the default) all signals that Python has set to
+   If *restore_signals* is true (the default) all signals that Python has set to
    SIG_IGN are restored to SIG_DFL in the child process before the exec.
    Currently this includes the SIGPIPE, SIGXFZ and SIGXFSZ signals.
    (Unix only)
@@ -521,7 +520,7 @@ functions.
    .. versionchanged:: 3.2
       *restore_signals* was added.
 
-   If *start_new_session* is True the setsid() system call will be made in the
+   If *start_new_session* is true the setsid() system call will be made in the
    child process prior to the execution of the subprocess.  (Unix only)
 
    .. versionchanged:: 3.2
@@ -706,21 +705,29 @@ The following attributes are also available:
 
 .. attribute:: Popen.stdin
 
-   If the *stdin* argument was :data:`PIPE`, this attribute is a :term:`file
-   object` that provides input to the child process.  Otherwise, it is ``None``.
+   If the *stdin* argument was :data:`PIPE`, this attribute is a writeable
+   stream object as returned by :func:`open`. If the *universal_newlines*
+   argument was ``True``, the stream is a text stream, otherwise it is a byte
+   stream. If the *stdin* argument was not :data:`PIPE`, this attribute is
+   ``None``.
 
 
 .. attribute:: Popen.stdout
 
-   If the *stdout* argument was :data:`PIPE`, this attribute is a :term:`file
-   object` that provides output from the child process.  Otherwise, it is ``None``.
+   If the *stdout* argument was :data:`PIPE`, this attribute is a readable
+   stream object as returned by :func:`open`. Reading from the stream provides
+   output from the child process. If the *universal_newlines* argument was
+   ``True``, the stream is a text stream, otherwise it is a byte stream. If the
+   *stdout* argument was not :data:`PIPE`, this attribute is ``None``.
 
 
 .. attribute:: Popen.stderr
 
-   If the *stderr* argument was :data:`PIPE`, this attribute is a :term:`file
-   object` that provides error output from the child process.  Otherwise, it is
-   ``None``.
+   If the *stderr* argument was :data:`PIPE`, this attribute is a readable
+   stream object as returned by :func:`open`. Reading from the stream provides
+   error output from the child process. If the *universal_newlines* argument was
+   ``True``, the stream is a text stream, otherwise it is a byte stream. If the
+   *stderr* argument was not :data:`PIPE`, this attribute is ``None``.
 
 
 .. attribute:: Popen.pid
@@ -1050,10 +1057,12 @@ handling consistency are valid for these functions.
 
    Return ``(status, output)`` of executing *cmd* in a shell.
 
-   Execute the string *cmd* in a shell with :func:`os.popen` and return a 2-tuple
-   ``(status, output)``.  *cmd* is actually run as ``{ cmd ; } 2>&1``, so that the
-   returned output will contain output or error messages.  A trailing newline is
-   stripped from the output.  The exit status for the command can be interpreted
+   Execute the string *cmd* in a shell with :class:`Popen` and return a 2-tuple
+   ``(status, output)`` via :func:`Popen.communicate`. Universal newlines mode
+   is used; see the notes on :ref:`frequently-used-arguments` for more details.
+
+   A trailing newline is stripped from the output.
+   The exit status for the command can be interpreted
    according to the rules for the C function :c:func:`wait`.  Example::
 
       >>> subprocess.getstatusoutput('ls /bin/ls')
@@ -1063,7 +1072,8 @@ handling consistency are valid for these functions.
       >>> subprocess.getstatusoutput('/bin/junk')
       (256, 'sh: /bin/junk: not found')
 
-   Availability: UNIX.
+   .. versionchanged:: 3.3
+      Availability: Unix & Windows
 
 
 .. function:: getoutput(cmd)
@@ -1076,7 +1086,8 @@ handling consistency are valid for these functions.
       >>> subprocess.getoutput('ls /bin/ls')
       '/bin/ls'
 
-   Availability: UNIX.
+   .. versionchanged:: 3.3
+      Availability: Unix & Windows
 
 
 Notes

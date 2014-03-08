@@ -1429,10 +1429,11 @@ class TarFile(object):
            can be determined, `mode' is overridden by `fileobj's mode.
            `fileobj' is not closed, when TarFile is closed.
         """
-        if len(mode) > 1 or mode not in "raw":
+        modes = {"r": "rb", "a": "r+b", "w": "wb"}
+        if mode not in modes:
             raise ValueError("mode must be 'r', 'a' or 'w'")
         self.mode = mode
-        self._mode = {"r": "rb", "a": "r+b", "w": "wb"}[mode]
+        self._mode = modes[mode]
 
         if not fileobj:
             if self.mode == "a" and not os.path.exists(name):
@@ -1588,7 +1589,7 @@ class TarFile(object):
             filemode = filemode or "r"
             comptype = comptype or "tar"
 
-            if filemode not in "rw":
+            if filemode not in ("r", "w"):
                 raise ValueError("mode must be 'r' or 'w'")
 
             stream = _Stream(name, filemode, comptype, fileobj, bufsize)
@@ -1600,7 +1601,7 @@ class TarFile(object):
             t._extfileobj = False
             return t
 
-        elif mode in "aw":
+        elif mode in ("a", "w"):
             return cls.taropen(name, mode, fileobj, **kwargs)
 
         raise ValueError("undiscernible mode")
@@ -1609,7 +1610,7 @@ class TarFile(object):
     def taropen(cls, name, mode="r", fileobj=None, **kwargs):
         """Open uncompressed tar archive name for reading or writing.
         """
-        if len(mode) > 1 or mode not in "raw":
+        if mode not in ("r", "a", "w"):
             raise ValueError("mode must be 'r', 'a' or 'w'")
         return cls(name, mode, fileobj, **kwargs)
 
@@ -1618,7 +1619,7 @@ class TarFile(object):
         """Open gzip compressed tar archive name for reading or writing.
            Appending is not allowed.
         """
-        if len(mode) > 1 or mode not in "rw":
+        if mode not in ("r", "w"):
             raise ValueError("mode must be 'r' or 'w'")
 
         try:
@@ -1627,21 +1628,24 @@ class TarFile(object):
         except (ImportError, AttributeError):
             raise CompressionError("gzip module is not available")
 
-        extfileobj = fileobj is not None
         try:
             fileobj = gzip.GzipFile(name, mode + "b", compresslevel, fileobj)
-            t = cls.taropen(name, mode, fileobj, **kwargs)
-        except IOError:
-            if not extfileobj and fileobj is not None:
-                fileobj.close()
-            if fileobj is None:
-                raise
-            raise ReadError("not a gzip file")
-        except:
-            if not extfileobj and fileobj is not None:
-                fileobj.close()
+        except OSError:
+            if fileobj is not None and mode == 'r':
+                raise ReadError("not a gzip file")
             raise
-        t._extfileobj = extfileobj
+
+        try:
+            t = cls.taropen(name, mode, fileobj, **kwargs)
+        except OSError:
+            fileobj.close()
+            if mode == 'r':
+                raise ReadError("not a gzip file")
+            raise
+        except:
+            fileobj.close()
+            raise
+        t._extfileobj = False
         return t
 
     @classmethod
@@ -1649,7 +1653,7 @@ class TarFile(object):
         """Open bzip2 compressed tar archive name for reading or writing.
            Appending is not allowed.
         """
-        if len(mode) > 1 or mode not in "rw":
+        if mode not in ("r", "w"):
             raise ValueError("mode must be 'r' or 'w'.")
 
         try:
@@ -1664,7 +1668,12 @@ class TarFile(object):
             t = cls.taropen(name, mode, fileobj, **kwargs)
         except (IOError, EOFError):
             fileobj.close()
-            raise ReadError("not a bzip2 file")
+            if mode == 'r':
+                raise ReadError("not a bzip2 file")
+            raise
+        except:
+            fileobj.close()
+            raise
         t._extfileobj = False
         return t
 
@@ -1687,7 +1696,12 @@ class TarFile(object):
             t = cls.taropen(name, mode, fileobj, **kwargs)
         except (lzma.LZMAError, EOFError):
             fileobj.close()
-            raise ReadError("not an lzma file")
+            if mode == 'r':
+                raise ReadError("not an lzma file")
+            raise
+        except:
+            fileobj.close()
+            raise
         t._extfileobj = False
         return t
 

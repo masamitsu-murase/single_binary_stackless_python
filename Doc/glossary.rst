@@ -41,7 +41,7 @@ Glossary
 
    argument
       A value passed to a :term:`function` (or :term:`method`) when calling the
-      function.  There are two types of arguments:
+      function.  There are two kinds of argument:
 
       * :dfn:`keyword argument`: an argument preceded by an identifier (e.g.
         ``name=``) in a function call or passed as a value in a dictionary
@@ -77,6 +77,13 @@ Glossary
    BDFL
       Benevolent Dictator For Life, a.k.a. `Guido van Rossum
       <http://www.python.org/~guido/>`_, Python's creator.
+
+   binary file
+      A :term:`file object` able to read and write
+      :term:`bytes-like objects <bytes-like object>`.
+
+      .. seealso::
+         A :term:`text file` reads and writes :class:`str` objects.
 
    bytes-like object
       An object that supports the :ref:`bufferobjects`, like :class:`bytes`,
@@ -225,10 +232,11 @@ Glossary
       etc.).  File objects are also called :dfn:`file-like objects` or
       :dfn:`streams`.
 
-      There are actually three categories of file objects: raw binary files,
-      buffered binary files and text files.  Their interfaces are defined in the
-      :mod:`io` module.  The canonical way to create a file object is by using
-      the :func:`open` function.
+      There are actually three categories of file objects: raw
+      :term:`binary files <binary file>`, buffered
+      :term:`binary files <binary file>` and :term:`text files <text file>`.
+      Their interfaces are defined in the :mod:`io` module.  The canonical
+      way to create a file object is by using the :func:`open` function.
 
    file-like object
       A synonym for :term:`file object`.
@@ -592,7 +600,7 @@ Glossary
    parameter
       A named entity in a :term:`function` (or method) definition that
       specifies an :term:`argument` (or in some cases, arguments) that the
-      function can accept.  There are five types of parameters:
+      function can accept.  There are five kinds of parameter:
 
       * :dfn:`positional-or-keyword`: specifies an argument that can be passed
         either :term:`positionally <argument>` or as a :term:`keyword argument
@@ -605,6 +613,8 @@ Glossary
         by position.  Python has no syntax for defining positional-only
         parameters.  However, some built-in functions have positional-only
         parameters (e.g. :func:`abs`).
+
+      .. _keyword-only_parameter:
 
       * :dfn:`keyword-only`: specifies an argument that can be supplied only
         by keyword.  Keyword-only parameters can be defined by including a
@@ -777,6 +787,14 @@ Glossary
       methods like :meth:`~collections.somenamedtuple._make` or
       :meth:`~collections.somenamedtuple._asdict`. Examples of struct sequences
       include :data:`sys.float_info` and the return value of :func:`os.stat`.
+
+   text file
+      A :term:`file object` able to read and write :class:`str` objects.
+      Often, a text file actually accesses a byte-oriented datastream
+      and handles the text encoding automatically.
+
+      .. seealso::
+         A :term:`binary file` reads and write :class:`bytes` objects.
 
    triple-quoted string
       A string which is bound by three instances of either a quotation mark

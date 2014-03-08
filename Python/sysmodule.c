@@ -769,6 +769,10 @@ sys_getwindowsversion(PyObject *self)
     PyStructSequence_SET_ITEM(version, pos++, PyLong_FromLong(ver.wSuiteMask));
     PyStructSequence_SET_ITEM(version, pos++, PyLong_FromLong(ver.wProductType));
 
+    if (PyErr_Occurred()) {
+        Py_DECREF(version);
+        return NULL;
+    }
     return version;
 }
 
@@ -1430,6 +1434,7 @@ make_flags(void)
 #undef SetFlag
 
     if (PyErr_Occurred()) {
+        Py_DECREF(seq);
         return NULL;
     }
     return seq;
@@ -1921,7 +1926,7 @@ sys_update_path(int argc, wchar_t **argv)
 #else /* All other filename syntaxes */
     if (_HAVE_SCRIPT_ARGUMENT(argc, argv)) {
 #if defined(HAVE_REALPATH)
-        if (_Py_wrealpath(argv0, fullpath, PATH_MAX)) {
+        if (_Py_wrealpath(argv0, fullpath, Py_ARRAY_LENGTH(fullpath))) {
             argv0 = fullpath;
         }
 #endif

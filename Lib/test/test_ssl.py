@@ -126,6 +126,10 @@ class BasicSocketTests(unittest.TestCase):
         else:
             self.assertRaises(ssl.SSLError, ssl.RAND_bytes, 16)
 
+        # negative num is invalid
+        self.assertRaises(ValueError, ssl.RAND_bytes, -5)
+        self.assertRaises(ValueError, ssl.RAND_pseudo_bytes, -5)
+
         self.assertRaises(TypeError, ssl.RAND_egd, 1)
         self.assertRaises(TypeError, ssl.RAND_egd, 'foo', 1)
         ssl.RAND_add("this is a random string", 75.0)
@@ -489,6 +493,18 @@ class BasicSocketTests(unittest.TestCase):
             support.gc_collect()
         self.assertIn(r, str(cm.warning.args[0]))
 
+    def test_unsupported_dtls(self):
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.addCleanup(s.close)
+        with self.assertRaises(NotImplementedError) as cx:
+            ssl.wrap_socket(s, cert_reqs=ssl.CERT_NONE)
+        self.assertEqual(str(cx.exception), "only stream sockets are supported")
+        ctx = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+        with self.assertRaises(NotImplementedError) as cx:
+            ctx.wrap_socket(s)
+        self.assertEqual(str(cx.exception), "only stream sockets are supported")
+
+
 class ContextTests(unittest.TestCase):
 
     @skip_if_broken_ubuntu_ssl
@@ -518,9 +534,7 @@ class ContextTests(unittest.TestCase):
     @skip_if_broken_ubuntu_ssl
     def test_options(self):
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
-        # OP_ALL is the default value
-        self.assertEqual(ssl.OP_ALL, ctx.options)
-        ctx.options |= ssl.OP_NO_SSLv2
+        # OP_ALL | OP_NO_SSLv2 is the default value
         self.assertEqual(ssl.OP_ALL | ssl.OP_NO_SSLv2,
                          ctx.options)
         ctx.options |= ssl.OP_NO_SSLv3
@@ -835,8 +849,10 @@ class NetworkedTests(unittest.TestCase):
                                 cert_reqs=ssl.CERT_REQUIRED,
                                 ca_certs=SVN_PYTHON_ORG_ROOT_CERT)
             try:
-                self.assertEqual(errno.ECONNREFUSED,
-                                 s.connect_ex(("svn.python.org", 444)))
+                rc = s.connect_ex(("svn.python.org", 444))
+                # Issue #19919: Windows machines or VMs hosted on Windows
+                # machines sometimes return EWOULDBLOCK.
+                self.assertIn(rc, (errno.ECONNREFUSED, errno.EWOULDBLOCK))
             finally:
                 s.close()
 
@@ -1424,9 +1440,9 @@ else:
                               ssl.get_protocol_name(server_protocol),
                               certtype))
         client_context = ssl.SSLContext(client_protocol)
-        client_context.options = ssl.OP_ALL | client_options
+        client_context.options |= client_options
         server_context = ssl.SSLContext(server_protocol)
-        server_context.options = ssl.OP_ALL | server_options
+        server_context.options |= server_options
         for ctx in (client_context, server_context):
             ctx.verify_mode = certsreqs
             # NOTE: we must enable "ALL" ciphers, otherwise an SSLv23 client
@@ -1567,7 +1583,7 @@ else:
             try_protocol_combo(ssl.PROTOCOL_SSLv2, ssl.PROTOCOL_SSLv2, True)
             try_protocol_combo(ssl.PROTOCOL_SSLv2, ssl.PROTOCOL_SSLv2, True, ssl.CERT_OPTIONAL)
             try_protocol_combo(ssl.PROTOCOL_SSLv2, ssl.PROTOCOL_SSLv2, True, ssl.CERT_REQUIRED)
-            try_protocol_combo(ssl.PROTOCOL_SSLv2, ssl.PROTOCOL_SSLv23, True)
+            try_protocol_combo(ssl.PROTOCOL_SSLv2, ssl.PROTOCOL_SSLv23, False)
             try_protocol_combo(ssl.PROTOCOL_SSLv2, ssl.PROTOCOL_SSLv3, False)
             try_protocol_combo(ssl.PROTOCOL_SSLv2, ssl.PROTOCOL_TLSv1, False)
             # SSLv23 client with specific SSL options
@@ -1575,9 +1591,9 @@ else:
                 # No SSLv2 => client will use an SSLv3 hello on recent OpenSSLs
                 try_protocol_combo(ssl.PROTOCOL_SSLv2, ssl.PROTOCOL_SSLv23, False,
                                    client_options=ssl.OP_NO_SSLv2)
-            try_protocol_combo(ssl.PROTOCOL_SSLv2, ssl.PROTOCOL_SSLv23, True,
+            try_protocol_combo(ssl.PROTOCOL_SSLv2, ssl.PROTOCOL_SSLv23, False,
                                client_options=ssl.OP_NO_SSLv3)
-            try_protocol_combo(ssl.PROTOCOL_SSLv2, ssl.PROTOCOL_SSLv23, True,
+            try_protocol_combo(ssl.PROTOCOL_SSLv2, ssl.PROTOCOL_SSLv23, False,
                                client_options=ssl.OP_NO_TLSv1)
 
         @skip_if_broken_ubuntu_ssl

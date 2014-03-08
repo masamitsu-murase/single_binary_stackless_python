@@ -19,8 +19,6 @@ from pickle import bytes_types
 # kind of outer loop.
 protocols = range(pickle.HIGHEST_PROTOCOL + 1)
 
-ascii_char_size = 1
-
 
 # Return True if opcode code appears in the pickle, else False.
 def opcode_in_pickle(code, pickle):
@@ -413,6 +411,71 @@ DATA5 = (b'\x80\x02cCookie\nSimpleCookie\nq\x00)\x81q\x01U\x03key'
 # set([3]) pickled from 2.x with protocol 2
 DATA6 = b'\x80\x02c__builtin__\nset\nq\x00]q\x01K\x03a\x85q\x02Rq\x03.'
 
+python2_exceptions_without_args = (
+    ArithmeticError,
+    AssertionError,
+    AttributeError,
+    BaseException,
+    BufferError,
+    BytesWarning,
+    DeprecationWarning,
+    EOFError,
+    EnvironmentError,
+    Exception,
+    FloatingPointError,
+    FutureWarning,
+    GeneratorExit,
+    IOError,
+    ImportError,
+    ImportWarning,
+    IndentationError,
+    IndexError,
+    KeyError,
+    KeyboardInterrupt,
+    LookupError,
+    MemoryError,
+    NameError,
+    NotImplementedError,
+    OSError,
+    OverflowError,
+    PendingDeprecationWarning,
+    ReferenceError,
+    RuntimeError,
+    RuntimeWarning,
+    # StandardError is gone in Python 3, we map it to Exception
+    StopIteration,
+    SyntaxError,
+    SyntaxWarning,
+    SystemError,
+    SystemExit,
+    TabError,
+    TypeError,
+    UnboundLocalError,
+    UnicodeError,
+    UnicodeWarning,
+    UserWarning,
+    ValueError,
+    Warning,
+    ZeroDivisionError,
+)
+
+exception_pickle = b'\x80\x02cexceptions\n?\nq\x00)Rq\x01.'
+
+# Exception objects without arguments pickled from 2.x with protocol 2
+DATA7 = {
+    exception :
+    exception_pickle.replace(b'?', exception.__name__.encode("ascii"))
+    for exception in python2_exceptions_without_args
+}
+
+# StandardError is mapped to Exception, test that separately
+DATA8 = exception_pickle.replace(b'?', b'StandardError')
+
+# UnicodeEncodeError object pickled from 2.x with protocol 2
+DATA9 = (b'\x80\x02cexceptions\nUnicodeEncodeError\n'
+         b'q\x00(U\x05asciiq\x01X\x03\x00\x00\x00fooq\x02K\x00K\x01'
+         b'U\x03badq\x03tq\x04Rq\x05.')
+
 
 def create_data():
     c = C()
@@ -773,6 +836,15 @@ class AbstractPickleTests(unittest.TestCase):
             s = self.dumps(NotImplemented, proto)
             u = self.loads(s)
             self.assertEqual(NotImplemented, u)
+
+    def test_singleton_types(self):
+        # Issue #6477: Test that types of built-in singletons can be pickled.
+        singletons = [None, ..., NotImplemented]
+        for singleton in singletons:
+            for proto in protocols:
+                s = self.dumps(type(singleton), proto)
+                u = self.loads(s)
+                self.assertIs(type(singleton), u)
 
     # Tests for protocol 2
 
@@ -1162,6 +1234,21 @@ class AbstractPickleTests(unittest.TestCase):
         self.assertEqual(list(loaded.keys()), ["key"])
         self.assertEqual(loaded["key"].value, "Set-Cookie: key=value")
 
+        for (exc, data) in DATA7.items():
+            loaded = self.loads(data)
+            self.assertIs(type(loaded), exc)
+
+        loaded = self.loads(DATA8)
+        self.assertIs(type(loaded), Exception)
+
+        loaded = self.loads(DATA9)
+        self.assertIs(type(loaded), UnicodeEncodeError)
+        self.assertEqual(loaded.object, "foo")
+        self.assertEqual(loaded.encoding, "ascii")
+        self.assertEqual(loaded.start, 0)
+        self.assertEqual(loaded.end, 1)
+        self.assertEqual(loaded.reason, "bad")
+
     def test_pickle_to_2x(self):
         # Pickle non-trivial data with protocol 2, expecting that it yields
         # the same result as Python 2.x did.
@@ -1253,7 +1340,7 @@ class BigmemPickleTests(unittest.TestCase):
 
     # Binary protocols can serialize longs of up to 2GB-1
 
-    @bigmemtest(size=_2G, memuse=1 + 1, dry_run=False)
+    @bigmemtest(size=_2G, memuse=3.6, dry_run=False)
     def test_huge_long_32b(self, size):
         data = 1 << (8 * size)
         try:
@@ -1269,7 +1356,7 @@ class BigmemPickleTests(unittest.TestCase):
     # (older protocols don't have a dedicated opcode for bytes and are
     # too inefficient)
 
-    @bigmemtest(size=_2G, memuse=1 + 1, dry_run=False)
+    @bigmemtest(size=_2G, memuse=2.5, dry_run=False)
     def test_huge_bytes_32b(self, size):
         data = b"abcd" * (size // 4)
         try:
@@ -1285,7 +1372,7 @@ class BigmemPickleTests(unittest.TestCase):
         finally:
             data = None
 
-    @bigmemtest(size=_4G, memuse=1 + 1, dry_run=False)
+    @bigmemtest(size=_4G, memuse=2.5, dry_run=False)
     def test_huge_bytes_64b(self, size):
         data = b"a" * size
         try:
@@ -1300,7 +1387,7 @@ class BigmemPickleTests(unittest.TestCase):
     # All protocols use 1-byte per printable ASCII character; we add another
     # byte because the encoded form has to be copied into the internal buffer.
 
-    @bigmemtest(size=_2G, memuse=2 + ascii_char_size, dry_run=False)
+    @bigmemtest(size=_2G, memuse=8, dry_run=False)
     def test_huge_str_32b(self, size):
         data = "abcd" * (size // 4)
         try:
@@ -1317,7 +1404,7 @@ class BigmemPickleTests(unittest.TestCase):
     # BINUNICODE (protocols 1, 2 and 3) cannot carry more than
     # 2**32 - 1 bytes of utf-8 encoded unicode.
 
-    @bigmemtest(size=_4G, memuse=1 + ascii_char_size, dry_run=False)
+    @bigmemtest(size=_4G, memuse=8, dry_run=False)
     def test_huge_str_64b(self, size):
         data = "a" * size
         try:
@@ -1510,30 +1597,34 @@ class AbstractPersistentPicklerTests(unittest.TestCase):
         if isinstance(object, int) and object % 2 == 0:
             self.id_count += 1
             return str(object)
+        elif object == "test_false_value":
+            self.false_count += 1
+            return ""
         else:
             return None
 
     def persistent_load(self, oid):
-        self.load_count += 1
-        object = int(oid)
-        assert object % 2 == 0
-        return object
+        if not oid:
+            self.load_false_count += 1
+            return "test_false_value"
+        else:
+            self.load_count += 1
+            object = int(oid)
+            assert object % 2 == 0
+            return object
 
     def test_persistence(self):
-        self.id_count = 0
-        self.load_count = 0
-        L = list(range(10))
-        self.assertEqual(self.loads(self.dumps(L)), L)
-        self.assertEqual(self.id_count, 5)
-        self.assertEqual(self.load_count, 5)
-
-    def test_bin_persistence(self):
-        self.id_count = 0
-        self.load_count = 0
-        L = list(range(10))
-        self.assertEqual(self.loads(self.dumps(L, 1)), L)
-        self.assertEqual(self.id_count, 5)
-        self.assertEqual(self.load_count, 5)
+        L = list(range(10)) + ["test_false_value"]
+        for proto in protocols:
+            self.id_count = 0
+            self.false_count = 0
+            self.load_false_count = 0
+            self.load_count = 0
+            self.assertEqual(self.loads(self.dumps(L, proto)), L)
+            self.assertEqual(self.id_count, 5)
+            self.assertEqual(self.false_count, 1)
+            self.assertEqual(self.load_count, 5)
+            self.assertEqual(self.load_false_count, 1)
 
 
 class AbstractPicklerUnpicklerObjectTests(unittest.TestCase):

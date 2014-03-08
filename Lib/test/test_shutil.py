@@ -194,37 +194,37 @@ class TestShutil(unittest.TestCase):
         self.assertIn(errors[1][2][1].filename, possible_args)
 
 
-    # See bug #1071513 for why we don't run this on cygwin
-    # and bug #1076467 for why we don't run this as root.
-    if (hasattr(os, 'chmod') and sys.platform[:6] != 'cygwin'
-        and not (hasattr(os, 'geteuid') and os.geteuid() == 0)):
-        def test_on_error(self):
-            self.errorState = 0
-            os.mkdir(TESTFN)
-            self.addCleanup(shutil.rmtree, TESTFN)
+    @unittest.skipUnless(hasattr(os, 'chmod'), 'requires os.chmod()')
+    @unittest.skipIf(sys.platform[:6] == 'cygwin',
+                     "This test can't be run on Cygwin (issue #1071513).")
+    @unittest.skipIf(hasattr(os, 'geteuid') and os.geteuid() == 0,
+                     "This test can't be run reliably as root (issue #1076467).")
+    def test_on_error(self):
+        self.errorState = 0
+        os.mkdir(TESTFN)
+        self.addCleanup(shutil.rmtree, TESTFN)
 
-            self.child_file_path = os.path.join(TESTFN, 'a')
-            self.child_dir_path = os.path.join(TESTFN, 'b')
-            support.create_empty_file(self.child_file_path)
-            os.mkdir(self.child_dir_path)
-            old_dir_mode = os.stat(TESTFN).st_mode
-            old_child_file_mode = os.stat(self.child_file_path).st_mode
-            old_child_dir_mode = os.stat(self.child_dir_path).st_mode
-            # Make unwritable.
-            new_mode = stat.S_IREAD|stat.S_IEXEC
-            os.chmod(self.child_file_path, new_mode)
-            os.chmod(self.child_dir_path, new_mode)
-            os.chmod(TESTFN, new_mode)
+        self.child_file_path = os.path.join(TESTFN, 'a')
+        self.child_dir_path = os.path.join(TESTFN, 'b')
+        support.create_empty_file(self.child_file_path)
+        os.mkdir(self.child_dir_path)
+        old_dir_mode = os.stat(TESTFN).st_mode
+        old_child_file_mode = os.stat(self.child_file_path).st_mode
+        old_child_dir_mode = os.stat(self.child_dir_path).st_mode
+        # Make unwritable.
+        new_mode = stat.S_IREAD|stat.S_IEXEC
+        os.chmod(self.child_file_path, new_mode)
+        os.chmod(self.child_dir_path, new_mode)
+        os.chmod(TESTFN, new_mode)
 
-            self.addCleanup(os.chmod, TESTFN, old_dir_mode)
-            self.addCleanup(os.chmod, self.child_file_path, old_child_file_mode)
-            self.addCleanup(os.chmod, self.child_dir_path, old_child_dir_mode)
+        self.addCleanup(os.chmod, TESTFN, old_dir_mode)
+        self.addCleanup(os.chmod, self.child_file_path, old_child_file_mode)
+        self.addCleanup(os.chmod, self.child_dir_path, old_child_dir_mode)
 
-            shutil.rmtree(TESTFN, onerror=self.check_args_to_onerror)
-            # Test whether onerror has actually been called.
-            self.assertEqual(self.errorState, 3,
-                             "Expected call to onerror function did not "
-                             "happen.")
+        shutil.rmtree(TESTFN, onerror=self.check_args_to_onerror)
+        # Test whether onerror has actually been called.
+        self.assertEqual(self.errorState, 3,
+                         "Expected call to onerror function did not happen.")
 
     def check_args_to_onerror(self, func, arg, exc):
         # test_rmtree_errors deliberately runs rmtree
@@ -287,18 +287,20 @@ class TestShutil(unittest.TestCase):
         self.assertNotEqual(os.stat(src).st_mode, os.stat(dst).st_mode)
         shutil.copymode(src, dst)
         self.assertEqual(os.stat(src).st_mode, os.stat(dst).st_mode)
-        # follow src link
-        os.chmod(dst, stat.S_IRWXO)
-        shutil.copymode(src_link, dst)
-        self.assertEqual(os.stat(src).st_mode, os.stat(dst).st_mode)
-        # follow dst link
-        os.chmod(dst, stat.S_IRWXO)
-        shutil.copymode(src, dst_link)
-        self.assertEqual(os.stat(src).st_mode, os.stat(dst).st_mode)
-        # follow both links
-        os.chmod(dst, stat.S_IRWXO)
-        shutil.copymode(src_link, dst)
-        self.assertEqual(os.stat(src).st_mode, os.stat(dst).st_mode)
+        # On Windows, os.chmod does not follow symlinks (issue #15411)
+        if os.name != 'nt':
+            # follow src link
+            os.chmod(dst, stat.S_IRWXO)
+            shutil.copymode(src_link, dst)
+            self.assertEqual(os.stat(src).st_mode, os.stat(dst).st_mode)
+            # follow dst link
+            os.chmod(dst, stat.S_IRWXO)
+            shutil.copymode(src, dst_link)
+            self.assertEqual(os.stat(src).st_mode, os.stat(dst).st_mode)
+            # follow both links
+            os.chmod(dst, stat.S_IRWXO)
+            shutil.copymode(src_link, dst_link)
+            self.assertEqual(os.stat(src).st_mode, os.stat(dst).st_mode)
 
     @unittest.skipUnless(hasattr(os, 'lchmod'), 'requires os.lchmod')
     @support.skip_unless_symlink
@@ -428,7 +430,7 @@ class TestShutil(unittest.TestCase):
         os.setxattr(src, 'user.foo', b'42')
         os.setxattr(src, 'user.bar', b'43')
         shutil._copyxattr(src, dst)
-        self.assertEqual(os.listxattr(src), os.listxattr(dst))
+        self.assertEqual(sorted(os.listxattr(src)), sorted(os.listxattr(dst)))
         self.assertEqual(
                 os.getxattr(src, 'user.foo'),
                 os.getxattr(dst, 'user.foo'))
@@ -742,21 +744,19 @@ class TestShutil(unittest.TestCase):
         os.chmod(restrictive_subdir, 0o600)
 
         shutil.copytree(src_dir, dst_dir)
-        self.assertEquals(os.stat(src_dir).st_mode, os.stat(dst_dir).st_mode)
-        self.assertEquals(os.stat(os.path.join(src_dir, 'permissive.txt')).st_mode,
-                          os.stat(os.path.join(dst_dir, 'permissive.txt')).st_mode)
-        self.assertEquals(os.stat(os.path.join(src_dir, 'restrictive.txt')).st_mode,
-                          os.stat(os.path.join(dst_dir, 'restrictive.txt')).st_mode)
+        self.assertEqual(os.stat(src_dir).st_mode, os.stat(dst_dir).st_mode)
+        self.assertEqual(os.stat(os.path.join(src_dir, 'permissive.txt')).st_mode,
+                         os.stat(os.path.join(dst_dir, 'permissive.txt')).st_mode)
+        self.assertEqual(os.stat(os.path.join(src_dir, 'restrictive.txt')).st_mode,
+                         os.stat(os.path.join(dst_dir, 'restrictive.txt')).st_mode)
         restrictive_subdir_dst = os.path.join(dst_dir,
                                               os.path.split(restrictive_subdir)[1])
-        self.assertEquals(os.stat(restrictive_subdir).st_mode,
-                          os.stat(restrictive_subdir_dst).st_mode)
+        self.assertEqual(os.stat(restrictive_subdir).st_mode,
+                         os.stat(restrictive_subdir_dst).st_mode)
 
+    @unittest.skipIf(os.name == 'nt', 'temporarily disabled on Windows')
     @unittest.skipUnless(hasattr(os, 'link'), 'requires os.link')
     def test_dont_copy_file_onto_link_to_itself(self):
-        # Temporarily disable test on Windows.
-        if os.name == 'nt':
-            return
         # bug 851123.
         os.mkdir(TESTFN)
         src = os.path.join(TESTFN, 'cheese')
@@ -806,38 +806,39 @@ class TestShutil(unittest.TestCase):
         finally:
             shutil.rmtree(TESTFN, ignore_errors=True)
 
-    if hasattr(os, "mkfifo"):
-        # Issue #3002: copyfile and copytree block indefinitely on named pipes
-        def test_copyfile_named_pipe(self):
-            os.mkfifo(TESTFN)
-            try:
-                self.assertRaises(shutil.SpecialFileError,
-                                  shutil.copyfile, TESTFN, TESTFN2)
-                self.assertRaises(shutil.SpecialFileError,
-                                  shutil.copyfile, __file__, TESTFN)
-            finally:
-                os.remove(TESTFN)
+    # Issue #3002: copyfile and copytree block indefinitely on named pipes
+    @unittest.skipUnless(hasattr(os, "mkfifo"), 'requires os.mkfifo()')
+    def test_copyfile_named_pipe(self):
+        os.mkfifo(TESTFN)
+        try:
+            self.assertRaises(shutil.SpecialFileError,
+                                shutil.copyfile, TESTFN, TESTFN2)
+            self.assertRaises(shutil.SpecialFileError,
+                                shutil.copyfile, __file__, TESTFN)
+        finally:
+            os.remove(TESTFN)
 
-        @support.skip_unless_symlink
-        def test_copytree_named_pipe(self):
-            os.mkdir(TESTFN)
+    @unittest.skipUnless(hasattr(os, "mkfifo"), 'requires os.mkfifo()')
+    @support.skip_unless_symlink
+    def test_copytree_named_pipe(self):
+        os.mkdir(TESTFN)
+        try:
+            subdir = os.path.join(TESTFN, "subdir")
+            os.mkdir(subdir)
+            pipe = os.path.join(subdir, "mypipe")
+            os.mkfifo(pipe)
             try:
-                subdir = os.path.join(TESTFN, "subdir")
-                os.mkdir(subdir)
-                pipe = os.path.join(subdir, "mypipe")
-                os.mkfifo(pipe)
-                try:
-                    shutil.copytree(TESTFN, TESTFN2)
-                except shutil.Error as e:
-                    errors = e.args[0]
-                    self.assertEqual(len(errors), 1)
-                    src, dst, error_msg = errors[0]
-                    self.assertEqual("`%s` is a named pipe" % pipe, error_msg)
-                else:
-                    self.fail("shutil.Error should have been raised")
-            finally:
-                shutil.rmtree(TESTFN, ignore_errors=True)
-                shutil.rmtree(TESTFN2, ignore_errors=True)
+                shutil.copytree(TESTFN, TESTFN2)
+            except shutil.Error as e:
+                errors = e.args[0]
+                self.assertEqual(len(errors), 1)
+                src, dst, error_msg = errors[0]
+                self.assertEqual("`%s` is a named pipe" % pipe, error_msg)
+            else:
+                self.fail("shutil.Error should have been raised")
+        finally:
+            shutil.rmtree(TESTFN, ignore_errors=True)
+            shutil.rmtree(TESTFN2, ignore_errors=True)
 
     def test_copytree_special_func(self):
 
@@ -1544,7 +1545,11 @@ class TestMove(unittest.TestCase):
         dst_link = os.path.join(self.dst_dir, 'quux')
         shutil.move(dst, dst_link)
         self.assertTrue(os.path.islink(dst_link))
-        self.assertEqual(os.path.realpath(src), os.path.realpath(dst_link))
+        # On Windows, os.path.realpath does not follow symlinks (issue #9949)
+        if os.name == 'nt':
+            self.assertEqual(os.path.realpath(src), os.readlink(dst_link))
+        else:
+            self.assertEqual(os.path.realpath(src), os.path.realpath(dst_link))
 
     @support.skip_unless_symlink
     @mock_rename

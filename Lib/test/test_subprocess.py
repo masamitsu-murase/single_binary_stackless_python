@@ -1559,6 +1559,27 @@ class POSIXProcessTestCase(BaseTestCase):
         # all standard fds closed.
         self.check_close_std_fds([0, 1, 2])
 
+    def test_small_errpipe_write_fd(self):
+        """Issue #15798: Popen should work when stdio fds are available."""
+        new_stdin = os.dup(0)
+        new_stdout = os.dup(1)
+        try:
+            os.close(0)
+            os.close(1)
+
+            # Side test: if errpipe_write fails to have its CLOEXEC
+            # flag set this should cause the parent to think the exec
+            # failed.  Extremely unlikely: everyone supports CLOEXEC.
+            subprocess.Popen([
+                    sys.executable, "-c",
+                    "print('AssertionError:0:CLOEXEC failure.')"]).wait()
+        finally:
+            # Restore original stdin and stdout
+            os.dup2(new_stdin, 0)
+            os.dup2(new_stdout, 1)
+            os.close(new_stdin)
+            os.close(new_stdout)
+
     def test_remapping_std_fds(self):
         # open up some temporary files
         temps = [mkstemp() for i in range(3)]
@@ -2133,13 +2154,6 @@ class Win32ProcessTestCase(BaseTestCase):
     def test_terminate_dead(self):
         self._kill_dead_process('terminate')
 
-
-# The module says:
-#   "NB This only works (and is only relevant) for UNIX."
-#
-# Actually, getoutput should work on any platform with an os.popen, but
-# I'll take the comment as given, and skip this suite.
-@unittest.skipUnless(os.name == 'posix', "only relevant for UNIX")
 class CommandTests(unittest.TestCase):
     def test_getoutput(self):
         self.assertEqual(subprocess.getoutput('echo xyzzy'), 'xyzzy')
@@ -2153,8 +2167,8 @@ class CommandTests(unittest.TestCase):
         try:
             dir = tempfile.mkdtemp()
             name = os.path.join(dir, "foo")
-
-            status, output = subprocess.getstatusoutput('cat ' + name)
+            status, output = subprocess.getstatusoutput(
+                ("type " if mswindows else "cat ") + name)
             self.assertNotEqual(status, 0)
         finally:
             if dir is not None:

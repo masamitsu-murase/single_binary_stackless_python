@@ -91,7 +91,7 @@ This example uses the iterator form::
 
 .. seealso::
 
-   http://code.google.com/p/pysqlite/
+   https://github.com/ghaering/pysqlite
       The pysqlite web page -- sqlite3 is developed externally under the name
       "pysqlite".
 
@@ -229,10 +229,10 @@ Module functions and constants
 .. function:: enable_callback_tracebacks(flag)
 
    By default you will not get any tracebacks in user-defined functions,
-   aggregates, converters, authorizer callbacks etc. If you want to debug them, you
-   can call this function with *flag* as True. Afterwards, you will get tracebacks
-   from callbacks on ``sys.stderr``. Use :const:`False` to disable the feature
-   again.
+   aggregates, converters, authorizer callbacks etc. If you want to debug them,
+   you can call this function with *flag* set to ``True``. Afterwards, you will
+   get tracebacks from callbacks on ``sys.stderr``. Use :const:`False` to
+   disable the feature again.
 
 
 .. _sqlite3-connection-objects:

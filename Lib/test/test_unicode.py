@@ -955,6 +955,7 @@ class UnicodeTest(string_tests.CommonTest,
                          '')
 
         self.assertEqual("{[{}]}".format({"{}": 5}), "5")
+        self.assertEqual("0x{:0{:d}X}".format(0x0,16), "0x0000000000000000")
 
     def test_format_map(self):
         self.assertEqual(''.format_map({}), '')
@@ -1951,12 +1952,12 @@ class UnicodeTest(string_tests.CommonTest,
         self.assertEqual(repr('\U00010000'), "'%c'" % (0x10000,)) # printable
         self.assertEqual(repr('\U00014000'), "'\\U00014000'")     # nonprintable
 
+    # This test only affects 32-bit platforms because expandtabs can only take
+    # an int as the max value, not a 64-bit C long.  If expandtabs is changed
+    # to take a 64-bit long, this test should apply to all platforms.
+    @unittest.skipIf(sys.maxsize > (1 << 32) or struct.calcsize('P') != 4,
+                     'only applies to 32-bit platforms')
     def test_expandtabs_overflows_gracefully(self):
-        # This test only affects 32-bit platforms because expandtabs can only take
-        # an int as the max value, not a 64-bit C long.  If expandtabs is changed
-        # to take a 64-bit long, this test should apply to all platforms.
-        if sys.maxsize > (1 << 32) or struct.calcsize('P') != 4:
-            return
         self.assertRaises(OverflowError, 't\tt\t'.expandtabs, sys.maxsize)
 
     @support.cpython_only

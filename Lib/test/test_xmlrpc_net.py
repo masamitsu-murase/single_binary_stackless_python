@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import collections.abc
 import errno
 import socket
@@ -20,7 +18,6 @@ class CurrentTimeTest(unittest.TestCase):
             t0 = server.currentTime.getCurrentTime()
         except socket.error as e:
             self.skipTest("network error: %s" % e)
-            return
 
         # Perform a minimal sanity check on the result, just to be sure
         # the request means what we think it means.
@@ -44,7 +41,6 @@ class CurrentTimeTest(unittest.TestCase):
             builders = server.getAllBuilders()
         except socket.error as e:
             self.skipTest("network error: %s" % e)
-            return
         self.addCleanup(lambda: server('close')())
 
         # Perform a minimal sanity check on the result, just to be sure

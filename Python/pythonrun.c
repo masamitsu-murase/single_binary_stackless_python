@@ -830,8 +830,9 @@ Py_GetPythonHome(void)
     if (home == NULL && !Py_IgnoreEnvironmentFlag) {
         char* chome = Py_GETENV("PYTHONHOME");
         if (chome) {
-            size_t r = mbstowcs(env_home, chome, PATH_MAX+1);
-            if (r != (size_t)-1 && r <= PATH_MAX)
+            size_t size = Py_ARRAY_LENGTH(env_home);
+            size_t r = mbstowcs(env_home, chome, size);
+            if (r != (size_t)-1 && r < size)
                 home = env_home;
         }
 
@@ -2261,6 +2262,7 @@ err_input(perrdetail *err)
     PyObject *v, *w, *errtype, *errtext;
     PyObject *msg_obj = NULL;
     char *msg = NULL;
+    int offset = err->offset;
 
     errtype = PyExc_SyntaxError;
     switch (err->error) {
@@ -2345,11 +2347,20 @@ err_input(perrdetail *err)
         errtext = Py_None;
         Py_INCREF(Py_None);
     } else {
-        errtext = PyUnicode_DecodeUTF8(err->text, strlen(err->text),
+        errtext = PyUnicode_DecodeUTF8(err->text, err->offset,
                                        "replace");
+        if (errtext != NULL) {
+            Py_ssize_t len = strlen(err->text);
+            offset = (int)PyUnicode_GET_LENGTH(errtext);
+            if (len != err->offset) {
+                Py_DECREF(errtext);
+                errtext = PyUnicode_DecodeUTF8(err->text, len,
+                                               "replace");
+            }
+        }
     }
     v = Py_BuildValue("(OiiN)", err->filename,
-                      err->lineno, err->offset, errtext);
+                      err->lineno, offset, errtext);
     if (v != NULL) {
         if (msg_obj)
             w = Py_BuildValue("(OO)", msg_obj, v);

@@ -8,7 +8,7 @@ import textwrap
 
 from unittest import mock
 
-from distutils.dist import Distribution, fix_help_options
+from distutils.dist import Distribution, fix_help_options, DistributionMetadata
 from distutils.cmd import Command
 
 from test.support import TESTFN, captured_stdout, run_unittest
@@ -387,6 +387,33 @@ class MetadataTestCase(support.TempdirManager, support.EnvironGuard,
                   if line.strip() != '']
         self.assertTrue(output)
 
+
+    def test_read_metadata(self):
+        attrs = {"name": "package",
+                 "version": "1.0",
+                 "long_description": "desc",
+                 "description": "xxx",
+                 "download_url": "http://example.com",
+                 "keywords": ['one', 'two'],
+                 "requires": ['foo']}
+
+        dist = Distribution(attrs)
+        metadata = dist.metadata
+
+        # write it then reloads it
+        PKG_INFO = io.StringIO()
+        metadata.write_pkg_file(PKG_INFO)
+        PKG_INFO.seek(0)
+        metadata.read_pkg_file(PKG_INFO)
+
+        self.assertEqual(metadata.name, "package")
+        self.assertEqual(metadata.version, "1.0")
+        self.assertEqual(metadata.description, "xxx")
+        self.assertEqual(metadata.download_url, 'http://example.com')
+        self.assertEqual(metadata.keywords, ['one', 'two'])
+        self.assertEqual(metadata.platforms, ['UNKNOWN'])
+        self.assertEqual(metadata.obsoletes, None)
+        self.assertEqual(metadata.requires, ['foo'])
 
 def test_suite():
     suite = unittest.TestSuite()

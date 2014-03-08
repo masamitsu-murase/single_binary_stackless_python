@@ -662,7 +662,6 @@ def list2cmdline(seq):
 
 # Various tools for executing commands and looking at their output and status.
 #
-# NB This only works (and is only relevant) for POSIX.
 
 def getstatusoutput(cmd):
     """Return (status, output) of executing cmd in a shell.
@@ -681,21 +680,15 @@ def getstatusoutput(cmd):
     >>> subprocess.getstatusoutput('/bin/junk')
     (256, 'sh: /bin/junk: not found')
     """
-    with os.popen('{ ' + cmd + '; } 2>&1', 'r') as pipe:
-        try:
-            text = pipe.read()
-            sts = pipe.close()
-        except:
-            process = pipe._proc
-            process.kill()
-            process.wait()
-            raise
-    if sts is None:
-        sts = 0
-    if text[-1:] == '\n':
-        text = text[:-1]
-    return sts, text
-
+    try:
+        data = check_output(cmd, shell=True, universal_newlines=True, stderr=STDOUT)
+        status = 0
+    except CalledProcessError as ex:
+        data = ex.output
+        status = ex.returncode
+    if data[-1:] == '\n':
+        data = data[:-1]
+    return status, data
 
 def getoutput(cmd):
     """Return output (stdout or stderr) of executing cmd in a shell.
@@ -1628,6 +1621,9 @@ class Popen(object):
 
             self._save_input(input)
 
+            if self._input:
+                input_view = memoryview(self._input)
+
             while self._fd2file:
                 timeout = self._remaining_time(endtime)
                 if timeout is not None and timeout < 0:
@@ -1645,8 +1641,8 @@ class Popen(object):
 
                 for fd, mode in ready:
                     if mode & select.POLLOUT:
-                        chunk = self._input[self._input_offset :
-                                            self._input_offset + _PIPE_BUF]
+                        chunk = input_view[self._input_offset :
+                                           self._input_offset + _PIPE_BUF]
                         try:
                             self._input_offset += os.write(fd, chunk)
                         except OSError as e:
@@ -1658,7 +1654,7 @@ class Popen(object):
                             if self._input_offset >= len(self._input):
                                 close_unregister_and_remove(fd)
                     elif mode & select_POLLIN_POLLPRI:
-                        data = os.read(fd, 4096)
+                        data = os.read(fd, 32768)
                         if not data:
                             close_unregister_and_remove(fd)
                         self._fd2output[fd].append(data)

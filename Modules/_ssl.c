@@ -70,9 +70,7 @@ enum py_ssl_cert_requirements {
 };
 
 enum py_ssl_version {
-#ifndef OPENSSL_NO_SSL2
     PY_SSL_VERSION_SSL2,
-#endif
     PY_SSL_VERSION_SSL3=1,
     PY_SSL_VERSION_SSL23,
     PY_SSL_VERSION_TLS1
@@ -1169,7 +1167,7 @@ static PyObject *PySSL_cipher (PySSLSocket *self) {
             goto fail0;
         PyTuple_SET_ITEM(retval, 0, v);
     }
-    cipher_protocol = SSL_CIPHER_get_version(current);
+    cipher_protocol = (char *) SSL_CIPHER_get_version(current);
     if (cipher_protocol == NULL) {
         Py_INCREF(Py_None);
         PyTuple_SET_ITEM(retval, 1, Py_None);
@@ -1737,6 +1735,7 @@ context_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     char *kwlist[] = {"protocol", NULL};
     PySSLContext *self;
     int proto_version = PY_SSL_VERSION_SSL23;
+    long options;
     SSL_CTX *ctx = NULL;
 
     if (!PyArg_ParseTupleAndKeywords(
@@ -1782,8 +1781,10 @@ context_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 #endif
     /* Defaults */
     SSL_CTX_set_verify(self->ctx, SSL_VERIFY_NONE, NULL);
-    SSL_CTX_set_options(self->ctx,
-                        SSL_OP_ALL & ~SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS);
+    options = SSL_OP_ALL & ~SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS;
+    if (proto_version != PY_SSL_VERSION_SSL2)
+        options |= SSL_OP_NO_SSLv2;
+    SSL_CTX_set_options(self->ctx, options);
 
 #define SID_CTX "Python"
     SSL_CTX_set_session_id_context(self->ctx, (const unsigned char *) SID_CTX,
@@ -2485,6 +2486,11 @@ PySSL_RAND(int len, int pseudo)
     unsigned long err;
     const char *errstr;
     PyObject *v;
+
+    if (len < 0) {
+        PyErr_SetString(PyExc_ValueError, "num must be positive");
+        return NULL;
+    }
 
     bytes = PyBytes_FromStringAndSize(NULL, len);
     if (bytes == NULL)

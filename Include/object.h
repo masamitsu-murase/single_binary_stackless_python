@@ -854,6 +854,9 @@ they can have object code that is not dependent on Python compilation flags.
 PyAPI_FUNC(void) Py_IncRef(PyObject *);
 PyAPI_FUNC(void) Py_DecRef(PyObject *);
 
+PyAPI_DATA(PyTypeObject) _PyNone_Type;
+PyAPI_DATA(PyTypeObject) _PyNotImplemented_Type;
+
 /*
 _Py_NoneStruct is an object of undefined type which can be used in contexts
 where NULL (nil) is not suitable (since NULL often means 'error').

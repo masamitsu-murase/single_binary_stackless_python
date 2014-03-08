@@ -84,7 +84,7 @@ Terms and conditions for accessing or otherwise using Python
    analyze, test, perform and/or display publicly, prepare derivative works,
    distribute, and otherwise use Python |release| alone or in any derivative
    version, provided, however, that PSF's License Agreement and PSF's notice of
-   copyright, i.e., "Copyright © 2001-2013 Python Software Foundation; All Rights
+   copyright, i.e., "Copyright © 2001-2014 Python Software Foundation; All Rights
    Reserved" are retained in Python |release| alone or in any derivative version
    prepared by Licensee.
 
@@ -844,4 +844,37 @@ used for the build::
 
   Jean-loup Gailly        Mark Adler
   jloup@gzip.org          madler@alumni.caltech.edu
+
+
+libmpdec
+--------
+
+The :mod:`_decimal` Module is built using an included copy of the libmpdec
+library unless the build is configured ``--with-system-libmpdec``::
+
+   Copyright (c) 2008-2016 Stefan Krah. All rights reserved.
+
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions
+   are met:
+
+   1. Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+
+   THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS "AS IS" AND
+   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+   ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+   FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+   OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+   HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+   LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+   OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+   SUCH DAMAGE.
+
 

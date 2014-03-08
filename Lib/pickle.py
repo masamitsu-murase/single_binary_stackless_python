@@ -740,31 +740,18 @@ class _Pickler:
 
         self.memoize(obj)
 
-    def save_function(self, obj):
-        try:
-            return self.save_global(obj)
-        except PicklingError as e:
-            pass
-        # Check copy_reg.dispatch_table
-        reduce = dispatch_table.get(type(obj))
-        if reduce:
-            rv = reduce(obj)
-        else:
-            # Check for a __reduce_ex__ method, fall back to __reduce__
-            reduce = getattr(obj, "__reduce_ex__", None)
-            if reduce:
-                rv = reduce(self.proto)
-            else:
-                reduce = getattr(obj, "__reduce__", None)
-                if reduce:
-                    rv = reduce()
-                else:
-                    raise e
-        return self.save_reduce(obj=obj, *rv)
+    def save_type(self, obj):
+        if obj is type(None):
+            return self.save_reduce(type, (None,), obj=obj)
+        elif obj is type(NotImplemented):
+            return self.save_reduce(type, (NotImplemented,), obj=obj)
+        elif obj is type(...):
+            return self.save_reduce(type, (...,), obj=obj)
+        return self.save_global(obj)
 
-    dispatch[FunctionType] = save_function
+    dispatch[FunctionType] = save_global
     dispatch[BuiltinFunctionType] = save_global
-    dispatch[type] = save_global
+    dispatch[type] = save_type
 
 # Pickling helpers
 

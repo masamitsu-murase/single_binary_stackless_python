@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import unittest
 import sys
 import os
@@ -35,6 +33,7 @@ class TclTest(unittest.TestCase):
 
     def setUp(self):
         self.interp = Tcl()
+        self.wantobjects = self.interp.tk.wantobjects()
 
     def testEval(self):
         tcl = self.interp
@@ -167,22 +166,70 @@ class TclTest(unittest.TestCase):
         def passValue(value):
             return self.interp.call('set', '_', value)
 
-        self.assertEqual(passValue(True), True)
-        self.assertEqual(passValue(False), False)
+        self.assertEqual(passValue(True), True if self.wantobjects else '1')
+        self.assertEqual(passValue(False), False if self.wantobjects else '0')
         self.assertEqual(passValue('string'), 'string')
         self.assertEqual(passValue('string\u20ac'), 'string\u20ac')
         for i in (0, 1, -1, 2**31-1, -2**31):
-            self.assertEqual(passValue(i), i)
+            self.assertEqual(passValue(i), i if self.wantobjects else str(i))
         for f in (0.0, 1.0, -1.0, 1/3,
                   sys.float_info.min, sys.float_info.max,
                   -sys.float_info.min, -sys.float_info.max):
-            self.assertEqual(passValue(f), f)
-        for f in float('nan'), float('inf'), -float('inf'):
-            if f != f: # NaN
-                self.assertNotEqual(passValue(f), f)
-            else:
+            if self.wantobjects:
                 self.assertEqual(passValue(f), f)
-        self.assertEqual(passValue((1, '2', (3.4,))), (1, '2', (3.4,)))
+            else:
+                self.assertEqual(float(passValue(f)), f)
+        if self.wantobjects:
+            f = passValue(float('nan'))
+            self.assertNotEqual(f, f)
+            self.assertEqual(passValue(float('inf')), float('inf'))
+            self.assertEqual(passValue(-float('inf')), -float('inf'))
+        else:
+            f = float(passValue(float('nan')))
+            self.assertNotEqual(f, f)
+            self.assertEqual(float(passValue(float('inf'))), float('inf'))
+            self.assertEqual(float(passValue(-float('inf'))), -float('inf'))
+        self.assertEqual(passValue((1, '2', (3.4,))),
+                         (1, '2', (3.4,)) if self.wantobjects else '1 2 3.4')
+
+    def test_user_command(self):
+        result = None
+        def testfunc(arg):
+            nonlocal result
+            result = arg
+            return arg
+        self.interp.createcommand('testfunc', testfunc)
+        def check(value, expected, eq=self.assertEqual):
+            r = self.interp.call('testfunc', value)
+            self.assertIsInstance(result, str)
+            eq(result, expected)
+            self.assertIsInstance(r, str)
+            eq(r, expected)
+        def float_eq(actual, expected):
+            expected = float(expected)
+            self.assertAlmostEqual(float(actual), expected,
+                                   delta=abs(expected) * 1e-10)
+        def nan_eq(actual, expected):
+            actual = float(actual)
+            self.assertNotEqual(actual, actual)
+
+        check(True, '1')
+        check(False, '0')
+        check('string', 'string')
+        check('string\xbd', 'string\xbd')
+        check('string\u20ac', 'string\u20ac')
+        for i in (0, 1, -1, 2**31-1, -2**31):
+            check(i, str(i))
+        for f in (0.0, 1.0, -1.0):
+            check(f, repr(f))
+        for f in (1/3.0, sys.float_info.min, sys.float_info.max,
+                  -sys.float_info.min, -sys.float_info.max):
+            check(f, f, eq=float_eq)
+        check(float('inf'), 'Inf', eq=float_eq)
+        check(-float('inf'), '-Inf', eq=float_eq)
+        check(float('nan'), 'NaN', eq=nan_eq)
+        check((), '')
+        check((1, (2,), (3, 4), '5 6', ()), '1 2 {3 4} {5 6} {}')
 
     def test_splitlist(self):
         splitlist = self.interp.tk.splitlist
@@ -207,12 +254,15 @@ class TclTest(unittest.TestCase):
             ('a 3.4', ('a', '3.4')),
             (('a', 3.4), ('a', 3.4)),
             ((), ()),
-            (call('list', 1, '2', (3.4,)), (1, '2', (3.4,))),
+            (call('list', 1, '2', (3.4,)),
+                (1, '2', (3.4,)) if self.wantobjects else
+                ('1', '2', '3.4')),
         ]
         if tcl_version >= (8, 5):
             testcases += [
                 (call('dict', 'create', 1, '\u20ac', b'\xe2\x82\xac', (3.4,)),
-                        (1, '\u20ac', '\u20ac', (3.4,))),
+                    (1, '\u20ac', '\u20ac', (3.4,)) if self.wantobjects else
+                    ('1', '\u20ac', '\u20ac', '3.4')),
             ]
         for arg, res in testcases:
             self.assertEqual(splitlist(arg), res, msg=arg)
@@ -244,12 +294,15 @@ class TclTest(unittest.TestCase):
             (('a', 3.4), ('a', 3.4)),
             (('a', (2, 3.4)), ('a', (2, 3.4))),
             ((), ()),
-            (call('list', 1, '2', (3.4,)), (1, '2', (3.4,))),
+            (call('list', 1, '2', (3.4,)),
+                (1, '2', (3.4,)) if self.wantobjects else
+                ('1', '2', '3.4')),
         ]
         if tcl_version >= (8, 5):
             testcases += [
                 (call('dict', 'create', 12, '\u20ac', b'\xe2\x82\xac', (3.4,)),
-                        (12, '\u20ac', '\u20ac', (3.4,))),
+                    (12, '\u20ac', '\u20ac', (3.4,)) if self.wantobjects else
+                    ('12', '\u20ac', '\u20ac', '3.4')),
             ]
         for arg, res in testcases:
             self.assertEqual(split(arg), res, msg=arg)
@@ -300,6 +353,12 @@ class BigmemTclTest(unittest.TestCase):
     def test_huge_string(self, size):
         value = ' ' * size
         self.assertRaises(OverflowError, self.interp.call, 'set', '_', value)
+
+
+def setUpModule():
+    if support.verbose:
+        tcl = Tcl()
+        print('patchlevel =', tcl.call('info', 'patchlevel'))
 
 
 def test_main():
