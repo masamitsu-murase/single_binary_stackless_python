@@ -17,7 +17,6 @@ import stat
 import tempfile
 import unittest
 import warnings
-import _testcapi
 
 _DUMMY_SYMLINK = os.path.join(tempfile.gettempdir(),
                               support.TESTFN + '-dummy-symlink')
@@ -615,7 +614,12 @@ class PosixTester(unittest.TestCase):
         except OSError:
             pass
 
+    @support.cpython_only
+    @unittest.skipUnless(hasattr(os, 'pipe2'), "test needs os.pipe2()")
+    @support.requires_linux_version(2, 6, 27)
+    def test_pipe2_c_limits(self):
         # Issue 15989
+        import _testcapi
         self.assertRaises(OverflowError, os.pipe2, _testcapi.INT_MAX + 1)
         self.assertRaises(OverflowError, os.pipe2, _testcapi.UINT_MAX + 1)
 
@@ -1140,7 +1144,7 @@ class PosixGroupsTester(unittest.TestCase):
     def test_initgroups(self):
         # find missing group
 
-        g = max(self.saved_groups) + 1
+        g = max(self.saved_groups or [0]) + 1
         name = pwd.getpwuid(posix.getuid()).pw_name
         posix.initgroups(name, g)
         self.assertIn(g, posix.getgroups())

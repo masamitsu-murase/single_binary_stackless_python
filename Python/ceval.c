@@ -3708,8 +3708,7 @@ fast_yield:
                 if (call_trace(tstate->c_tracefunc,
                                tstate->c_traceobj, f,
                                PyTrace_RETURN, retval)) {
-                    Py_XDECREF(retval);
-                    retval = NULL;
+                    Py_CLEAR(retval);
                     why = WHY_EXCEPTION;
                 }
             }
@@ -3727,8 +3726,7 @@ fast_yield:
             else if (call_trace(tstate->c_profilefunc,
                                 tstate->c_profileobj, f,
                                 PyTrace_RETURN, retval)) {
-                Py_XDECREF(retval);
-                retval = NULL;
+                Py_CLEAR(retval);
                 /* why = WHY_EXCEPTION; */
             }
         }
@@ -4166,8 +4164,7 @@ PyEval_EvalCodeEx(PyObject *_co, PyObject *globals, PyObject *locals,
     if (co->co_flags & CO_GENERATOR) {
         /* Don't need to keep the reference to f_back, it will be set
          * when the generator is resumed. */
-        Py_XDECREF(f->f_back);
-        f->f_back = NULL;
+        Py_CLEAR(f->f_back);
 
         PCALL(PCALL_GENERATOR);
 
