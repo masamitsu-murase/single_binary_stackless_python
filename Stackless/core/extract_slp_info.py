@@ -54,7 +54,7 @@ def generate():
 typedef struct _slp_methodflags {\
 """, file=f)
     for slot in slotnames:
-        print("\tsigned char %s;" % slot, file=f)
+        print("    signed char %s;" % slot, file=f)
     print("} slp_methodflags;", file=f)
     print("Found", len(slotnames), "slots")
 

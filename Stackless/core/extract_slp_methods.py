@@ -26,7 +26,7 @@ def cfiles(rootpath):
 
 def parse(fname):
     find = "STACKLESS_DECLARE_METHOD"
-    txt = open(fname).read()
+    txt = open(fname, encoding="ISO-8859-1").read()
     if txt.find(find) < 0:
         return
 
@@ -59,22 +59,22 @@ static _stackless_method _stackless_methtable[] = {\
         if not found:
             continue
         name = os.path.split(fname)[-1]
-        print("\t/* from %s */" % name, file=f)
+        print("    /* from %s */" % name, file=f)
         for line in found:
             typ, meth = line.split("(")[-1].split(")")[0].split(", ")
-            tabs = "\t"
+            tabs = "    "
             lng = len(typ) + 2
             while lng < 24:
-                tabs += "\t"
-                lng += 8
+                tabs += "    "
+                lng += 4
             ind = ""
             if not typ.startswith("&"):
                 # indirection flag
                 ind = "_IND"
                 typ = "&" + typ
-            print("\t{%s,%sMFLAG_OFS%s(%s)}," % \
+            print("    {%s,%sMFLAG_OFS%s(%s)}," % \
                   (typ, tabs, ind, meth), file=f)
-    print("\t{0, 0} /* sentinel */", file=f)
+    print("    {0, 0} /* sentinel */", file=f)
     print("};", file=f)
 
 if __name__ == "__main__":
