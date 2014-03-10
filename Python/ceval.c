@@ -1626,8 +1626,7 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
             PyObject *ires; \
             ires = tstate->st.interrupt(); \
             if (ires == NULL) { \
-                why = WHY_EXCEPTION; \
-                goto on_error; \
+                goto error; \
             } \
             else if (STACKLESS_UNWINDING(ires)) { \
                 goto stackless_interrupt_call; \
@@ -1638,6 +1637,7 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
     } \
     tstate->st.tick_counter++;
 
+    PyObject *slpretval;
 #endif /* STACKLESS */
 
     co = f->f_code;
@@ -1701,13 +1701,6 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
     if (throwflag) /* support for generator.throw() */
         goto error;
 
-#ifdef Py_DEBUG
-    /* PyEval_EvalFrameEx() must not be called with an exception set,
-       because it may clear it (directly or indirectly) and so the
-       caller looses its exception */
-    assert(!PyErr_Occurred());
-#endif
-
 
 #ifdef STACKLESS
     if (f->f_execute == PyEval_EvalFrame_value) {
@@ -1769,7 +1762,8 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
             /* finalise the WITH_CLEANUP operation */
 
             if (retval) {
-                u = TOP();
+                PyObject *u = TOP();
+                int err;
                 if (u != Py_None)
                     err = PyObject_IsTrue(retval);
                 else
@@ -1778,10 +1772,10 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
 
                 if (err >= 0) {
                     if (err > 0) {
-                        err = 0;
                         /* There was an exception and a true return */
-                        v = SECOND();
-                        w = THIRD();
+                        PyObject *v = SECOND();
+                        PyObject *w = THIRD();
+                        err = 0;
                         STACKADJ(-2);
                         Py_INCREF(Py_None);
                         SET_TOP(Py_None);
@@ -1811,10 +1805,15 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
     }
 
     /* always check for an error flag */
-    if (retval == NULL) {
-        why = WHY_EXCEPTION;
-        goto on_error;
-    }
+    if (retval == NULL)
+        goto error;
+#endif
+
+#ifdef Py_DEBUG
+    /* PyEval_EvalFrameEx() must not be called with an exception set,
+       because it may clear it (directly or indirectly) and so the
+       caller looses its exception */
+    assert(!PyErr_Occurred());
 #endif
 
     for (;;) {
@@ -3266,15 +3265,18 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
         TARGET(FOR_ITER) {
             /* before: [iter]; after: [iter, iter()] *or* [] */
             PyObject *iter = TOP();
+            PyObject *next;
 #ifdef STACKLESS
             {
-                STACKLESS_PROPOSE_METHOD(v, tp_iternext);
+                STACKLESS_PROPOSE_METHOD(iter, tp_iternext);
                 next = (*iter->ob_type->tp_iternext)(iter);
                 STACKLESS_ASSERT();
             }
-            if (STACKLESS_UNWINDING(x))
+            slpretval = next;
+            if (STACKLESS_UNWINDING(next))
                 goto stackless_iter;
 stackless_iter_return:
+            next = slpretval;
 #else
             next = (*iter->ob_type->tp_iternext)(iter);
 #endif
@@ -3345,10 +3347,12 @@ stackless_iter_return:
             if (res == NULL)
                 goto error;
 #ifdef STACKLESS
-            if (STACKLESS_UNWINDING(x)) {
+            slpretval = res;
+            if (STACKLESS_UNWINDING(res)) {
                 goto stackless_setup_with;
             }
 stackless_setup_with_return:
+            res = slpretval;
 #endif
             /* Setup the finally block before pushing the result
                of __enter__ on the stack. */
@@ -3439,10 +3443,12 @@ stackless_setup_with_return:
             if (res == NULL)
                 goto error;
 #ifdef STACKLESS
-            if (STACKLESS_UNWINDING(x)) {
+            slpretval = res;
+            if (STACKLESS_UNWINDING(res)) {
                 goto stackless_with_cleanup;
             }
 stackless_with_cleanup_return:
+            res = slpretval;
 #endif
 
             if (exc != Py_None)
@@ -3473,10 +3479,12 @@ stackless_with_cleanup_return:
 #endif
             stack_pointer = sp;
 #ifdef STACKLESS
-            if (STACKLESS_UNWINDING(x)) {
+            slpretval = res;
+            if (STACKLESS_UNWINDING(res)) {
                 goto stackless_call;
             }
 stackless_call_return:
+            res = slpretval;
 #endif
             PUSH(res);
             if (res == NULL)
@@ -3525,7 +3533,8 @@ stackless_call_return:
                 Py_DECREF(o);
             }
 #ifdef STACKLESS
-            if (STACKLESS_UNWINDING(x)) {
+            slpretval = res;
+            if (STACKLESS_UNWINDING(res)) {
                 goto stackless_call;
             }
 #endif
@@ -3899,7 +3908,7 @@ stackless_call_with_opcode:
     next_instr -= (oparg >> 16) ? 6 : 3;
 
 stackless_call:
-    retval = x;
+    retval = slpretval;
     /*
      * keep the reference to the frame to be called.
      */
@@ -3922,7 +3931,7 @@ stackless_call:
     if (STACKLESS_UNWINDING(retval))
         STACKLESS_UNPACK(retval);
 
-    x = retval;
+    slpretval = retval;
     f->f_stacktop = NULL;
     if (f->f_execute == PyEval_EvalFrame_iter) {
         next_instr += (oparg >> 16) ? 6 : 3;

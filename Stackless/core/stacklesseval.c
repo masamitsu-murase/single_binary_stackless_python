@@ -612,8 +612,6 @@ slp_gen_send_ex(PyGenObject *ob, PyObject *arg, int exc)
         *(f->f_stacktop++) = retval;
     }
 
-    /* XXX give the patch to python-dev */
-    f->f_tstate = ts;
     /* Generators always return to their most recent caller, not
      * necessarily their creator. */
     Py_XINCREF(ts->frame);

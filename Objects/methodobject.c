@@ -99,7 +99,9 @@ PyCFunction_Call(PyObject *func, PyObject *arg, PyObject *kw)
     PyCFunctionObject* f = (PyCFunctionObject*)func;
     PyCFunction meth = PyCFunction_GET_FUNCTION(func);
     PyObject *self = PyCFunction_GET_SELF(func);
+#ifndef STACKLESS
     PyObject *res;
+#endif
     Py_ssize_t size;
 
 #ifdef STACKLESS

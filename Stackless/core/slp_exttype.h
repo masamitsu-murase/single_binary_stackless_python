@@ -65,13 +65,13 @@ typedef struct _slp_methodflags {
     signed char tp_init;
     signed char tp_alloc;
     signed char tp_is_gc;
+    signed char tp_finalize;
     signed char tp_free;
+    signed char tp_getattr;
+    signed char tp_setattr;
     signed char tp_hash;
     signed char tp_getattro;
-    signed char tp_getattr;
     signed char tp_setattro;
-    signed char tp_setattr;
     signed char tp_richcompare;
     signed char tp_new;
-    signed char tp_del;
 } slp_methodflags;
