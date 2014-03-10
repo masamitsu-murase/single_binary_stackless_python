@@ -45,7 +45,7 @@ PyMethod_Self(PyObject *im)
 PyObject *
 PyMethod_New(PyObject *func, PyObject *self)
 {
-    register PyMethodObject *im;
+    PyMethodObject *im;
     if (self == NULL) {
         PyErr_BadInternalCall();
         return NULL;
@@ -53,7 +53,7 @@ PyMethod_New(PyObject *func, PyObject *self)
     im = free_list;
     if (im != NULL) {
         free_list = (PyMethodObject *)(im->im_self);
-        PyObject_INIT(im, &PyMethod_Type);
+        (void)PyObject_INIT(im, &PyMethod_Type);
         numfree--;
     }
     else {
@@ -69,6 +69,30 @@ PyMethod_New(PyObject *func, PyObject *self)
     _PyObject_GC_TRACK(im);
     return (PyObject *)im;
 }
+
+static PyObject *
+method_reduce(PyMethodObject *im)
+{
+    PyObject *self = PyMethod_GET_SELF(im);
+    PyObject *func = PyMethod_GET_FUNCTION(im);
+    PyObject *builtins;
+    PyObject *getattr;
+    PyObject *funcname;
+    _Py_IDENTIFIER(getattr);
+
+    funcname = _PyObject_GetAttrId(func, &PyId___name__);
+    if (funcname == NULL) {
+        return NULL;
+    }
+    builtins = PyEval_GetBuiltins();
+    getattr = _PyDict_GetItemId(builtins, &PyId_getattr);
+    return Py_BuildValue("O(ON)", getattr, self, funcname);
+}
+
+static PyMethodDef method_methods[] = {
+    {"__reduce__", (PyCFunction)method_reduce, METH_NOARGS, NULL},
+    {NULL, NULL}
+};
 
 /* Descriptors for PyMethod attributes */
 
@@ -165,7 +189,7 @@ method_new(PyTypeObject* type, PyObject* args, PyObject *kw)
 }
 
 static void
-method_dealloc(register PyMethodObject *im)
+method_dealloc(PyMethodObject *im)
 {
     _PyObject_GC_UNTRACK(im);
     if (im->im_weakreflist != NULL)
@@ -371,7 +395,7 @@ PyTypeObject PyMethod_Type = {
     offsetof(PyMethodObject, im_weakreflist), /* tp_weaklistoffset */
     0,                                          /* tp_iter */
     0,                                          /* tp_iternext */
-    0,                                          /* tp_methods */
+    method_methods,                             /* tp_methods */
     method_memberlist,                          /* tp_members */
     method_getset,                              /* tp_getset */
     0,                                          /* tp_base */
@@ -515,7 +539,7 @@ instancemethod_call(PyObject *self, PyObject *arg, PyObject *kw)
 
 static PyObject *
 instancemethod_descr_get(PyObject *descr, PyObject *obj, PyObject *type) {
-    register PyObject *func = PyInstanceMethod_GET_FUNCTION(descr);
+    PyObject *func = PyInstanceMethod_GET_FUNCTION(descr);
     if (obj == NULL) {
         Py_INCREF(func);
         return func;
