@@ -5,10 +5,10 @@ This file documents changes to the Stackless extension of C-Python.
 For other changes see Misc/NEWS.
 
 
-What's New in Stackless 3.3.2?
+What's New in Stackless 3.3.5?
 ==============================
 
-*Release date: XXXX-XX-XX*
+*Release date: 2014-03-11*
 
 - Fix channel and tasklet initialization.  Initialization is now done
   using __init__ methods.
