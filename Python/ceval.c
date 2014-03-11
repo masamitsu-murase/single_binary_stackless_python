@@ -1215,6 +1215,7 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
     return PyEval_EvalFrame_value(f, throwflag, retval);
 exit_eval_frame:
     Py_LeaveRecursiveCall();
+    f->f_executing = 0;
     tstate->frame = f->f_back;
     return NULL;
 }
@@ -1637,7 +1638,6 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
     } \
     tstate->st.tick_counter++;
 
-    PyObject *slpretval;
 #endif /* STACKLESS */
 
     co = f->f_code;
@@ -3272,11 +3272,12 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
                 next = (*iter->ob_type->tp_iternext)(iter);
                 STACKLESS_ASSERT();
             }
-            slpretval = next;
-            if (STACKLESS_UNWINDING(next))
+            if (STACKLESS_UNWINDING(next)) {
+                retval = next;
                 goto stackless_iter;
 stackless_iter_return:
-            next = slpretval;
+                next = retval;
+            }
 #else
             next = (*iter->ob_type->tp_iternext)(iter);
 #endif
@@ -3344,16 +3345,16 @@ stackless_iter_return:
             res = PyObject_CallFunctionObjArgs(enter, NULL);
             STACKLESS_ASSERT();
             Py_DECREF(enter);
+#ifdef STACKLESS
+            if (STACKLESS_UNWINDING(res)) {
+                retval = res;
+                goto stackless_setup_with;
+stackless_setup_with_return:
+                res = retval;
+            }
+#endif
             if (res == NULL)
                 goto error;
-#ifdef STACKLESS
-            slpretval = res;
-            if (STACKLESS_UNWINDING(res)) {
-                goto stackless_setup_with;
-            }
-stackless_setup_with_return:
-            res = slpretval;
-#endif
             /* Setup the finally block before pushing the result
                of __enter__ on the stack. */
             PyFrame_BlockSetup(f, SETUP_FINALLY, INSTR_OFFSET() + oparg,
@@ -3440,16 +3441,16 @@ stackless_setup_with_return:
             res = PyObject_CallFunctionObjArgs(exit_func, exc, val, tb, NULL);
             STACKLESS_ASSERT();
             Py_DECREF(exit_func);
+#ifdef STACKLESS
+            if (STACKLESS_UNWINDING(res)) {
+                retval = res;
+                goto stackless_with_cleanup;
+stackless_with_cleanup_return:
+                res = retval;
+            }
+#endif
             if (res == NULL)
                 goto error;
-#ifdef STACKLESS
-            slpretval = res;
-            if (STACKLESS_UNWINDING(res)) {
-                goto stackless_with_cleanup;
-            }
-stackless_with_cleanup_return:
-            res = slpretval;
-#endif
 
             if (exc != Py_None)
                 err = PyObject_IsTrue(res);
@@ -3479,12 +3480,12 @@ stackless_with_cleanup_return:
 #endif
             stack_pointer = sp;
 #ifdef STACKLESS
-            slpretval = res;
             if (STACKLESS_UNWINDING(res)) {
+                retval = res;
                 goto stackless_call;
-            }
 stackless_call_return:
-            res = slpretval;
+                res = retval;
+            }
 #endif
             PUSH(res);
             if (res == NULL)
@@ -3533,8 +3534,8 @@ stackless_call_return:
                 Py_DECREF(o);
             }
 #ifdef STACKLESS
-            slpretval = res;
             if (STACKLESS_UNWINDING(res)) {
+                retval = res;
                 goto stackless_call;
             }
 #endif
@@ -3889,6 +3890,7 @@ exit_eval_frame:
 
 #else
     Py_LeaveRecursiveCall();
+    f->f_executing = 0;
     tstate->frame = f->f_back;
     Py_DECREF(f);
     return retval;
@@ -3908,7 +3910,6 @@ stackless_call_with_opcode:
     next_instr -= (oparg >> 16) ? 6 : 3;
 
 stackless_call:
-    retval = slpretval;
     /*
      * keep the reference to the frame to be called.
      */
@@ -3931,7 +3932,6 @@ stackless_call:
     if (STACKLESS_UNWINDING(retval))
         STACKLESS_UNPACK(retval);
 
-    slpretval = retval;
     f->f_stacktop = NULL;
     if (f->f_execute == PyEval_EvalFrame_iter) {
         next_instr += (oparg >> 16) ? 6 : 3;
