@@ -24,7 +24,6 @@ _multiprocessing = test_support.import_module('_multiprocessing')
 # message: "No module named _multiprocessing". _multiprocessing is not compiled
 # without thread support.
 import threading
-import pickle
 
 # Work around broken sem_open implementations
 test_support.import_module('multiprocessing.synchronize')
@@ -1118,16 +1117,6 @@ class _TestPool(BaseTestCase):
         self.assertEqual(pmap(sqr, range(100), chunksize=20),
                          map(sqr, range(100)))
 
-    def test_map_unplicklable(self):
-        # Issue #19425 -- failure to pickle should not cause a hang
-        if self.TYPE == 'threads':
-            return
-        class A(object):
-            def __reduce__(self):
-                raise RuntimeError('cannot pickle')
-        with self.assertRaises(RuntimeError):
-            self.pool.map(sqr, [A()]*10)
-
     def test_map_chunksize(self):
         try:
             self.pool.map_async(sqr, [], chunksize=1).get(timeout=TIMEOUT1)
@@ -1206,12 +1195,8 @@ class _TestPool(BaseTestCase):
         p.close()
         p.join()
 
-class Unpickleable(object):
-    def __reduce__(self):
-        raise pickle.PicklingError("intentionally unpickleable")
-
 def unpickleable_result():
-    return Unpickleable()
+    return lambda: 42
 
 class _TestPoolWorkerErrors(BaseTestCase):
     ALLOWED_TYPES = ('processes', )

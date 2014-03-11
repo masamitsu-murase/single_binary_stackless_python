@@ -53,55 +53,47 @@ class PosixTester(unittest.TestCase):
                     posix_func()
                     self.assertRaises(TypeError, posix_func, 1)
 
-    @unittest.skipUnless(hasattr(posix, 'getresuid'),
-                         'test needs posix.getresuid()')
-    def test_getresuid(self):
-        user_ids = posix.getresuid()
-        self.assertEqual(len(user_ids), 3)
-        for val in user_ids:
-            self.assertGreaterEqual(val, 0)
+    if hasattr(posix, 'getresuid'):
+        def test_getresuid(self):
+            user_ids = posix.getresuid()
+            self.assertEqual(len(user_ids), 3)
+            for val in user_ids:
+                self.assertGreaterEqual(val, 0)
 
-    @unittest.skipUnless(hasattr(posix, 'getresgid'),
-                         'test needs posix.getresgid()')
-    def test_getresgid(self):
-        group_ids = posix.getresgid()
-        self.assertEqual(len(group_ids), 3)
-        for val in group_ids:
-            self.assertGreaterEqual(val, 0)
+    if hasattr(posix, 'getresgid'):
+        def test_getresgid(self):
+            group_ids = posix.getresgid()
+            self.assertEqual(len(group_ids), 3)
+            for val in group_ids:
+                self.assertGreaterEqual(val, 0)
 
-    @unittest.skipUnless(hasattr(posix, 'setresuid'),
-                         'test needs posix.setresuid()')
-    def test_setresuid(self):
-        current_user_ids = posix.getresuid()
-        self.assertIsNone(posix.setresuid(*current_user_ids))
-        # -1 means don't change that value.
-        self.assertIsNone(posix.setresuid(-1, -1, -1))
+    if hasattr(posix, 'setresuid'):
+        def test_setresuid(self):
+            current_user_ids = posix.getresuid()
+            self.assertIsNone(posix.setresuid(*current_user_ids))
+            # -1 means don't change that value.
+            self.assertIsNone(posix.setresuid(-1, -1, -1))
 
-    @unittest.skipUnless(hasattr(posix, 'setresuid'),
-                         'test needs posix.setresuid()')
-    def test_setresuid_exception(self):
-        # Don't do this test if someone is silly enough to run us as root.
-        current_user_ids = posix.getresuid()
-        if 0 not in current_user_ids:
-            new_user_ids = (current_user_ids[0]+1, -1, -1)
-            self.assertRaises(OSError, posix.setresuid, *new_user_ids)
+        def test_setresuid_exception(self):
+            # Don't do this test if someone is silly enough to run us as root.
+            current_user_ids = posix.getresuid()
+            if 0 not in current_user_ids:
+                new_user_ids = (current_user_ids[0]+1, -1, -1)
+                self.assertRaises(OSError, posix.setresuid, *new_user_ids)
 
-    @unittest.skipUnless(hasattr(posix, 'setresgid'),
-                         'test needs posix.setresgid()')
-    def test_setresgid(self):
-        current_group_ids = posix.getresgid()
-        self.assertIsNone(posix.setresgid(*current_group_ids))
-        # -1 means don't change that value.
-        self.assertIsNone(posix.setresgid(-1, -1, -1))
+    if hasattr(posix, 'setresgid'):
+        def test_setresgid(self):
+            current_group_ids = posix.getresgid()
+            self.assertIsNone(posix.setresgid(*current_group_ids))
+            # -1 means don't change that value.
+            self.assertIsNone(posix.setresgid(-1, -1, -1))
 
-    @unittest.skipUnless(hasattr(posix, 'setresgid'),
-                         'test needs posix.setresgid()')
-    def test_setresgid_exception(self):
-        # Don't do this test if someone is silly enough to run us as root.
-        current_group_ids = posix.getresgid()
-        if 0 not in current_group_ids:
-            new_group_ids = (current_group_ids[0]+1, -1, -1)
-            self.assertRaises(OSError, posix.setresgid, *new_group_ids)
+        def test_setresgid_exception(self):
+            # Don't do this test if someone is silly enough to run us as root.
+            current_group_ids = posix.getresgid()
+            if 0 not in current_group_ids:
+                new_group_ids = (current_group_ids[0]+1, -1, -1)
+                self.assertRaises(OSError, posix.setresgid, *new_group_ids)
 
     @unittest.skipUnless(hasattr(posix, 'initgroups'),
                          "test needs os.initgroups()")
@@ -128,118 +120,107 @@ class PosixTester(unittest.TestCase):
             else:
                 self.fail("Expected OSError to be raised by initgroups")
 
-    @unittest.skipUnless(hasattr(posix, 'statvfs'),
-                         'test needs posix.statvfs()')
     def test_statvfs(self):
-        self.assertTrue(posix.statvfs(os.curdir))
+        if hasattr(posix, 'statvfs'):
+            self.assertTrue(posix.statvfs(os.curdir))
 
-    @unittest.skipUnless(hasattr(posix, 'fstatvfs'),
-                         'test needs posix.fstatvfs()')
     def test_fstatvfs(self):
-        fp = open(test_support.TESTFN)
-        try:
-            self.assertTrue(posix.fstatvfs(fp.fileno()))
-        finally:
-            fp.close()
+        if hasattr(posix, 'fstatvfs'):
+            fp = open(test_support.TESTFN)
+            try:
+                self.assertTrue(posix.fstatvfs(fp.fileno()))
+            finally:
+                fp.close()
 
-    @unittest.skipUnless(hasattr(posix, 'ftruncate'),
-                         'test needs posix.ftruncate()')
     def test_ftruncate(self):
-        fp = open(test_support.TESTFN, 'w+')
-        try:
-            # we need to have some data to truncate
-            fp.write('test')
-            fp.flush()
-            posix.ftruncate(fp.fileno(), 0)
-        finally:
-            fp.close()
+        if hasattr(posix, 'ftruncate'):
+            fp = open(test_support.TESTFN, 'w+')
+            try:
+                # we need to have some data to truncate
+                fp.write('test')
+                fp.flush()
+                posix.ftruncate(fp.fileno(), 0)
+            finally:
+                fp.close()
 
-    @unittest.skipUnless(hasattr(posix, 'dup'),
-                         'test needs posix.dup()')
     def test_dup(self):
-        fp = open(test_support.TESTFN)
-        try:
-            fd = posix.dup(fp.fileno())
-            self.assertIsInstance(fd, int)
-            os.close(fd)
-        finally:
-            fp.close()
+        if hasattr(posix, 'dup'):
+            fp = open(test_support.TESTFN)
+            try:
+                fd = posix.dup(fp.fileno())
+                self.assertIsInstance(fd, int)
+                os.close(fd)
+            finally:
+                fp.close()
 
-    @unittest.skipUnless(hasattr(posix, 'confstr'),
-                         'test needs posix.confstr()')
     def test_confstr(self):
-        self.assertRaises(ValueError, posix.confstr, "CS_garbage")
-        self.assertEqual(len(posix.confstr("CS_PATH")) > 0, True)
+        if hasattr(posix, 'confstr'):
+            self.assertRaises(ValueError, posix.confstr, "CS_garbage")
+            self.assertEqual(len(posix.confstr("CS_PATH")) > 0, True)
 
-    @unittest.skipUnless(hasattr(posix, 'dup2'),
-                         'test needs posix.dup2()')
     def test_dup2(self):
-        fp1 = open(test_support.TESTFN)
-        fp2 = open(test_support.TESTFN)
-        try:
-            posix.dup2(fp1.fileno(), fp2.fileno())
-        finally:
-            fp1.close()
-            fp2.close()
+        if hasattr(posix, 'dup2'):
+            fp1 = open(test_support.TESTFN)
+            fp2 = open(test_support.TESTFN)
+            try:
+                posix.dup2(fp1.fileno(), fp2.fileno())
+            finally:
+                fp1.close()
+                fp2.close()
 
     def fdopen_helper(self, *args):
         fd = os.open(test_support.TESTFN, os.O_RDONLY)
         fp2 = posix.fdopen(fd, *args)
         fp2.close()
 
-    @unittest.skipUnless(hasattr(posix, 'fdopen'),
-                         'test needs posix.fdopen()')
     def test_fdopen(self):
-        self.fdopen_helper()
-        self.fdopen_helper('r')
-        self.fdopen_helper('r', 100)
+        if hasattr(posix, 'fdopen'):
+            self.fdopen_helper()
+            self.fdopen_helper('r')
+            self.fdopen_helper('r', 100)
 
-    @unittest.skipUnless(hasattr(posix, 'O_EXLOCK'),
-                         'test needs posix.O_EXLOCK')
     def test_osexlock(self):
-        fd = os.open(test_support.TESTFN,
-                     os.O_WRONLY|os.O_EXLOCK|os.O_CREAT)
-        self.assertRaises(OSError, os.open, test_support.TESTFN,
-                          os.O_WRONLY|os.O_EXLOCK|os.O_NONBLOCK)
-        os.close(fd)
-
-        if hasattr(posix, "O_SHLOCK"):
+        if hasattr(posix, "O_EXLOCK"):
             fd = os.open(test_support.TESTFN,
-                         os.O_WRONLY|os.O_SHLOCK|os.O_CREAT)
+                         os.O_WRONLY|os.O_EXLOCK|os.O_CREAT)
             self.assertRaises(OSError, os.open, test_support.TESTFN,
                               os.O_WRONLY|os.O_EXLOCK|os.O_NONBLOCK)
             os.close(fd)
 
-    @unittest.skipUnless(hasattr(posix, 'O_SHLOCK'),
-                         'test needs posix.O_SHLOCK')
+            if hasattr(posix, "O_SHLOCK"):
+                fd = os.open(test_support.TESTFN,
+                             os.O_WRONLY|os.O_SHLOCK|os.O_CREAT)
+                self.assertRaises(OSError, os.open, test_support.TESTFN,
+                                  os.O_WRONLY|os.O_EXLOCK|os.O_NONBLOCK)
+                os.close(fd)
+
     def test_osshlock(self):
-        fd1 = os.open(test_support.TESTFN,
-                      os.O_WRONLY|os.O_SHLOCK|os.O_CREAT)
-        fd2 = os.open(test_support.TESTFN,
-                      os.O_WRONLY|os.O_SHLOCK|os.O_CREAT)
-        os.close(fd2)
-        os.close(fd1)
-
-        if hasattr(posix, "O_EXLOCK"):
-            fd = os.open(test_support.TESTFN,
+        if hasattr(posix, "O_SHLOCK"):
+            fd1 = os.open(test_support.TESTFN,
                          os.O_WRONLY|os.O_SHLOCK|os.O_CREAT)
-            self.assertRaises(OSError, os.open, test_support.TESTFN,
-                              os.O_RDONLY|os.O_EXLOCK|os.O_NONBLOCK)
-            os.close(fd)
+            fd2 = os.open(test_support.TESTFN,
+                          os.O_WRONLY|os.O_SHLOCK|os.O_CREAT)
+            os.close(fd2)
+            os.close(fd1)
 
-    @unittest.skipUnless(hasattr(posix, 'fstat'),
-                         'test needs posix.fstat()')
+            if hasattr(posix, "O_EXLOCK"):
+                fd = os.open(test_support.TESTFN,
+                             os.O_WRONLY|os.O_SHLOCK|os.O_CREAT)
+                self.assertRaises(OSError, os.open, test_support.TESTFN,
+                                  os.O_RDONLY|os.O_EXLOCK|os.O_NONBLOCK)
+                os.close(fd)
+
     def test_fstat(self):
-        fp = open(test_support.TESTFN)
-        try:
-            self.assertTrue(posix.fstat(fp.fileno()))
-        finally:
-            fp.close()
+        if hasattr(posix, 'fstat'):
+            fp = open(test_support.TESTFN)
+            try:
+                self.assertTrue(posix.fstat(fp.fileno()))
+            finally:
+                fp.close()
 
-    @unittest.skipUnless(hasattr(posix, 'stat'),
-                         'test needs posix.stat()')
     def test_stat(self):
-        self.assertTrue(posix.stat(test_support.TESTFN))
+        if hasattr(posix, 'stat'):
+            self.assertTrue(posix.stat(test_support.TESTFN))
 
     def _test_all_chown_common(self, chown_func, first_param, stat_func):
         """Common code for chown, fchown and lchown tests."""
@@ -332,62 +313,59 @@ class PosixTester(unittest.TestCase):
         self._test_all_chown_common(posix.lchown, test_support.TESTFN,
                                     getattr(posix, 'lstat', None))
 
-    @unittest.skipUnless(hasattr(posix, 'chdir'), 'test needs posix.chdir()')
     def test_chdir(self):
-        posix.chdir(os.curdir)
-        self.assertRaises(OSError, posix.chdir, test_support.TESTFN)
+        if hasattr(posix, 'chdir'):
+            posix.chdir(os.curdir)
+            self.assertRaises(OSError, posix.chdir, test_support.TESTFN)
 
-    @unittest.skipUnless(hasattr(posix, 'lsdir'), 'test needs posix.lsdir()')
     def test_lsdir(self):
-        self.assertIn(test_support.TESTFN, posix.lsdir(os.curdir))
+        if hasattr(posix, 'lsdir'):
+            self.assertIn(test_support.TESTFN, posix.lsdir(os.curdir))
 
-    @unittest.skipUnless(hasattr(posix, 'access'), 'test needs posix.access()')
     def test_access(self):
-        self.assertTrue(posix.access(test_support.TESTFN, os.R_OK))
+        if hasattr(posix, 'access'):
+            self.assertTrue(posix.access(test_support.TESTFN, os.R_OK))
 
-    @unittest.skipUnless(hasattr(posix, 'umask'), 'test needs posix.umask()')
     def test_umask(self):
-        old_mask = posix.umask(0)
-        self.assertIsInstance(old_mask, int)
-        posix.umask(old_mask)
+        if hasattr(posix, 'umask'):
+            old_mask = posix.umask(0)
+            self.assertIsInstance(old_mask, int)
+            posix.umask(old_mask)
 
-    @unittest.skipUnless(hasattr(posix, 'strerror'),
-                         'test needs posix.strerror()')
     def test_strerror(self):
-        self.assertTrue(posix.strerror(0))
+        if hasattr(posix, 'strerror'):
+            self.assertTrue(posix.strerror(0))
 
-    @unittest.skipUnless(hasattr(posix, 'pipe'), 'test needs posix.pipe()')
     def test_pipe(self):
-        reader, writer = posix.pipe()
-        os.close(reader)
-        os.close(writer)
+        if hasattr(posix, 'pipe'):
+            reader, writer = posix.pipe()
+            os.close(reader)
+            os.close(writer)
 
-    @unittest.skipUnless(hasattr(posix, 'tempnam'),
-                         'test needs posix.tempnam()')
     def test_tempnam(self):
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", "tempnam", DeprecationWarning)
-            self.assertTrue(posix.tempnam())
-            self.assertTrue(posix.tempnam(os.curdir))
-            self.assertTrue(posix.tempnam(os.curdir, 'blah'))
+        if hasattr(posix, 'tempnam'):
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", "tempnam", DeprecationWarning)
+                self.assertTrue(posix.tempnam())
+                self.assertTrue(posix.tempnam(os.curdir))
+                self.assertTrue(posix.tempnam(os.curdir, 'blah'))
 
-    @unittest.skipUnless(hasattr(posix, 'tmpfile'),
-                         'test needs posix.tmpfile()')
     def test_tmpfile(self):
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", "tmpfile", DeprecationWarning)
-            fp = posix.tmpfile()
-            fp.close()
+        if hasattr(posix, 'tmpfile'):
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", "tmpfile", DeprecationWarning)
+                fp = posix.tmpfile()
+                fp.close()
 
-    @unittest.skipUnless(hasattr(posix, 'utime'), 'test needs posix.utime()')
     def test_utime(self):
-        now = time.time()
-        posix.utime(test_support.TESTFN, None)
-        self.assertRaises(TypeError, posix.utime, test_support.TESTFN, (None, None))
-        self.assertRaises(TypeError, posix.utime, test_support.TESTFN, (now, None))
-        self.assertRaises(TypeError, posix.utime, test_support.TESTFN, (None, now))
-        posix.utime(test_support.TESTFN, (int(now), int(now)))
-        posix.utime(test_support.TESTFN, (now, now))
+        if hasattr(posix, 'utime'):
+            now = time.time()
+            posix.utime(test_support.TESTFN, None)
+            self.assertRaises(TypeError, posix.utime, test_support.TESTFN, (None, None))
+            self.assertRaises(TypeError, posix.utime, test_support.TESTFN, (now, None))
+            self.assertRaises(TypeError, posix.utime, test_support.TESTFN, (None, now))
+            posix.utime(test_support.TESTFN, (int(now), int(now)))
+            posix.utime(test_support.TESTFN, (now, now))
 
     def _test_chflags_regular_file(self, chflags_func, target_file):
         st = os.stat(target_file)
@@ -450,57 +428,56 @@ class PosixTester(unittest.TestCase):
         finally:
             posix.lchflags(_DUMMY_SYMLINK, dummy_symlink_st.st_flags)
 
-    @unittest.skipUnless(hasattr(posix, 'getcwd'),
-                         'test needs posix.getcwd()')
     def test_getcwd_long_pathnames(self):
-        dirname = 'getcwd-test-directory-0123456789abcdef-01234567890abcdef'
-        curdir = os.getcwd()
-        base_path = os.path.abspath(test_support.TESTFN) + '.getcwd'
+        if hasattr(posix, 'getcwd'):
+            dirname = 'getcwd-test-directory-0123456789abcdef-01234567890abcdef'
+            curdir = os.getcwd()
+            base_path = os.path.abspath(test_support.TESTFN) + '.getcwd'
 
-        try:
-            os.mkdir(base_path)
-            os.chdir(base_path)
-        except:
-#           Just returning nothing instead of the SkipTest exception,
-#           because the test results in Error in that case.
-#           Is that ok?
-#            raise unittest.SkipTest, "cannot create directory for testing"
-            return
+            try:
+                os.mkdir(base_path)
+                os.chdir(base_path)
+            except:
+#               Just returning nothing instead of the SkipTest exception,
+#               because the test results in Error in that case.
+#               Is that ok?
+#                raise unittest.SkipTest, "cannot create directory for testing"
+                return
 
-        try:
-            def _create_and_do_getcwd(dirname, current_path_length = 0):
-                try:
-                    os.mkdir(dirname)
-                except:
-                    raise unittest.SkipTest, "mkdir cannot create directory sufficiently deep for getcwd test"
+            try:
+                def _create_and_do_getcwd(dirname, current_path_length = 0):
+                    try:
+                        os.mkdir(dirname)
+                    except:
+                        raise unittest.SkipTest, "mkdir cannot create directory sufficiently deep for getcwd test"
 
-                os.chdir(dirname)
-                try:
-                    os.getcwd()
-                    if current_path_length < 4099:
-                        _create_and_do_getcwd(dirname, current_path_length + len(dirname) + 1)
-                except OSError as e:
-                    expected_errno = errno.ENAMETOOLONG
-                    # The following platforms have quirky getcwd()
-                    # behaviour -- see issue 9185 and 15765 for
-                    # more information.
-                    quirky_platform = (
-                        'sunos' in sys.platform or
-                        'netbsd' in sys.platform or
-                        'openbsd' in sys.platform
-                    )
-                    if quirky_platform:
-                        expected_errno = errno.ERANGE
-                    self.assertEqual(e.errno, expected_errno)
-                finally:
-                    os.chdir('..')
-                    os.rmdir(dirname)
+                    os.chdir(dirname)
+                    try:
+                        os.getcwd()
+                        if current_path_length < 4099:
+                            _create_and_do_getcwd(dirname, current_path_length + len(dirname) + 1)
+                    except OSError as e:
+                        expected_errno = errno.ENAMETOOLONG
+                        # The following platforms have quirky getcwd()
+                        # behaviour -- see issue 9185 and 15765 for
+                        # more information.
+                        quirky_platform = (
+                            'sunos' in sys.platform or
+                            'netbsd' in sys.platform or
+                            'openbsd' in sys.platform
+                        )
+                        if quirky_platform:
+                            expected_errno = errno.ERANGE
+                        self.assertEqual(e.errno, expected_errno)
+                    finally:
+                        os.chdir('..')
+                        os.rmdir(dirname)
 
-            _create_and_do_getcwd(dirname)
+                _create_and_do_getcwd(dirname)
 
-        finally:
-            os.chdir(curdir)
-            shutil.rmtree(base_path)
+            finally:
+                os.chdir(curdir)
+                shutil.rmtree(base_path)
 
     @unittest.skipUnless(hasattr(os, 'getegid'), "test needs os.getegid()")
     def test_getgroups(self):
@@ -545,7 +522,7 @@ class PosixGroupsTester(unittest.TestCase):
             posix.initgroups(name, self.saved_groups[0])
 
     @unittest.skipUnless(hasattr(posix, 'initgroups'),
-                         'test needs posix.initgroups()')
+                         "test needs posix.initgroups()")
     def test_initgroups(self):
         # find missing group
 
@@ -555,7 +532,7 @@ class PosixGroupsTester(unittest.TestCase):
         self.assertIn(g, posix.getgroups())
 
     @unittest.skipUnless(hasattr(posix, 'setgroups'),
-                         'test needs posix.setgroups()')
+                         "test needs posix.setgroups()")
     def test_setgroups(self):
         for groups in [[0], range(16)]:
             posix.setgroups(groups)

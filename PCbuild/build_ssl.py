@@ -24,7 +24,7 @@ from __future__ import with_statement, print_function
 # python.exe build_ssl.py Release x64
 # python.exe build_ssl.py Release Win32
 
-import os, sys, re, shutil,subprocess
+import os, sys, re, shutil
 
 # Find all "foo.exe" files on the PATH.
 def find_all_on_path(filename, extras = None):
@@ -47,9 +47,10 @@ def find_all_on_path(filename, extras = None):
 # is available.
 def find_working_perl(perls):
     for perl in perls:
-        p = subprocess.Popen('"%s" -e "use Win32;"' % perl,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        out, err = p.communicate()
-        if len(err):
+        fh = os.popen('"%s" -e "use Win32;"' % perl)
+        fh.read()
+        rc = fh.close()
+        if rc:
             continue
         return perl
     print("Can not find a suitable PERL:")

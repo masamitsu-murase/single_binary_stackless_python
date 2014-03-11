@@ -138,15 +138,18 @@ class TclTest(unittest.TestCase):
         tcl = self.interp
         self.assertRaises(TclError,tcl.eval,'package require DNE')
 
-    @unittest.skipUnless(sys.platform == 'win32', "only applies to Windows")
     def testLoadWithUNC(self):
+        import sys
+        if sys.platform != 'win32':
+            return
+
         # Build a UNC path from the regular path.
         # Something like
         #   \\%COMPUTERNAME%\c$\python27\python.exe
 
         fullname = os.path.abspath(sys.executable)
         if fullname[1] != ':':
-            self.skipTest('unusable path: %r' % fullname)
+            return
         unc_name = r'\\%s\%s$\%s' % (os.environ['COMPUTERNAME'],
                                     fullname[0],
                                     fullname[3:])
@@ -155,14 +158,7 @@ class TclTest(unittest.TestCase):
             env.unset("TCL_LIBRARY")
             cmd = '%s -c "import Tkinter; print Tkinter"' % (unc_name,)
 
-            try:
-                p = Popen(cmd, stdout=PIPE, stderr=PIPE)
-            except WindowsError as e:
-                if e.winerror == 5:
-                    self.skipTest('Not permitted to start the child process')
-                else:
-                    raise
-
+            p = Popen(cmd, stdout=PIPE, stderr=PIPE)
             out_data, err_data = p.communicate()
 
             msg = '\n\n'.join(['"Tkinter.py" not in output',
