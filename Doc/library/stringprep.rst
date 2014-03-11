@@ -3,6 +3,7 @@
 
 .. module:: stringprep
    :synopsis: String preparation, as per RFC 3453
+   :deprecated:
 .. moduleauthor:: Martin v. Löwis <martin@v.loewis.de>
 .. sectionauthor:: Martin v. Löwis <martin@v.loewis.de>
 

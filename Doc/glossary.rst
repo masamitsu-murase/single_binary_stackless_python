@@ -787,14 +787,6 @@ Glossary
       A form of :term:`generic function` dispatch where the implementation is
       chosen based on the type of a single argument.
 
-      The :class:`collections.abc.Sequence` abstract base class
-      defines a much richer interface that goes beyond just
-      :meth:`__getitem__` and :meth:`__len__`, adding :meth:`count`,
-      :meth:`index`, :meth:`__contains__`, and
-      :meth:`__reversed__`. Types that implement this expanded
-      interface can be registered explicitly using
-      :func:`~abc.register`.
-
    slice
       An object usually containing a portion of a :term:`sequence`.  A slice is
       created using the subscript notation, ``[]`` with colons between numbers

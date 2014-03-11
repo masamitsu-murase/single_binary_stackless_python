@@ -41,10 +41,9 @@ idle class. For the benefit of buildbot machines that do not have a graphics
 screen, gui tests must be 'guarded' by "requires('gui')" in a setUp
 function or method. This will typically be setUpClass.
 
-To avoid interfering with other gui tests, all gui objects must be destroyed
-and deleted by the end of the test.  If a widget, such as a Tk root, is created
-in a setUpX function, destroy it in the corresponding tearDownX.  For module
-and class attributes, also delete the widget.
+All gui objects must be destroyed by the end of the test, perhaps in a tearDown
+function. Creating the Tk root directly in a setUp allows a reference to be saved
+so it can be properly destroyed in the corresponding tearDown. 
 ---
     @classmethod
     def setUpClass(cls):
@@ -54,7 +53,6 @@ and class attributes, also delete the widget.
     @classmethod
     def tearDownClass(cls):
         cls.root.destroy()
-        del cls.root
 ---
 
 Support.requires('gui') returns true if it is either called in a main module
@@ -107,4 +105,4 @@ makes other tests fail (issue 18081).
 To run an individual Testcase or test method, extend the dotted name given to
 unittest on the command line. (But gui tests will not this way.)
 
-python -m unittest -v idlelib.idle_test.test_xyz.Test_case.test_meth
+python -m unittest -v idlelib.idle_test.text_xyz.Test_case.test_meth

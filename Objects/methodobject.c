@@ -142,13 +142,13 @@ PyCFunction_Call(PyObject *func, PyObject *arg, PyObject *kw)
         break;
     default:
         PyErr_SetString(PyExc_SystemError, "Bad call flags in "
-                "PyCFunction_Call. METH_OLDARGS is no "
-                "longer supported!");
-            
+                        "PyCFunction_Call. METH_OLDARGS is no "
+                        "longer supported!");
+
         return NULL;
     }
     PyErr_Format(PyExc_TypeError, "%.200s() takes no keyword arguments",
-             f->m_ml->ml_name);
+                 f->m_ml->ml_name);
     return NULL;
 
 #undef CHECK_RESULT

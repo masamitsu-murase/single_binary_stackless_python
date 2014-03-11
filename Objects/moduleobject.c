@@ -137,8 +137,7 @@ PyModule_Create2(struct PyModuleDef* module, int module_api_version)
             _Py_PackageContext = NULL;
         }
     }
-    m = (PyModuleObject*)PyModule_New(name);
-    if (m == NULL)
+    if ((m = (PyModuleObject*)PyModule_New(name)) == NULL)
         return NULL;
 
     if (module->m_size > 0) {
@@ -328,8 +327,7 @@ _PyModule_Clear(PyObject *m)
                     else
                         PyErr_Clear();
                 }
-                if (PyDict_SetItem(d, key, Py_None) != 0)
-                    PyErr_Clear();
+                PyDict_SetItem(d, key, Py_None);
             }
         }
     }
@@ -348,8 +346,7 @@ _PyModule_Clear(PyObject *m)
                     else
                         PyErr_Clear();
                 }
-                if (PyDict_SetItem(d, key, Py_None) != 0)
-                    PyErr_Clear();
+                PyDict_SetItem(d, key, Py_None);
             }
         }
     }

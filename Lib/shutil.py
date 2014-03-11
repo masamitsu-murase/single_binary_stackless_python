@@ -483,8 +483,7 @@ rmtree.avoids_symlink_attacks = _use_fd_functions
 def _basename(path):
     # A basename() variant which first strips the trailing slash, if present.
     # Thus we always get the last component of the path, even for directories.
-    sep = os.path.sep + (os.path.altsep or '')
-    return os.path.basename(path.rstrip(sep))
+    return os.path.basename(path.rstrip(os.path.sep))
 
 def move(src, dst):
     """Recursively move a file or directory to another location. This is

@@ -290,7 +290,7 @@ class ModuleFinder:
             if fp.read(4) != imp.get_magic():
                 self.msgout(2, "raise ImportError: Bad magic number", pathname)
                 raise ImportError("Bad magic number in %s" % pathname)
-            fp.read(8)  # Skip mtime and size.
+            fp.read(4)
             co = marshal.load(fp)
         else:
             co = None

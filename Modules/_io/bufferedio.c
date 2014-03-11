@@ -2305,14 +2305,9 @@ bufferedrwpair_dealloc(rwpair *self)
 static PyObject *
 _forward_call(buffered *self, _Py_Identifier *name, PyObject *args)
 {
-    PyObject *func, *ret;
-    if (self == NULL) {
-        PyErr_SetString(PyExc_ValueError,
-                        "I/O operation on uninitialized object");
-        return NULL;
-    }
+    PyObject *func = _PyObject_GetAttrId((PyObject *)self, name);
+    PyObject *ret;
 
-    func = _PyObject_GetAttrId((PyObject *)self, name);
     if (func == NULL) {
         PyErr_SetString(PyExc_AttributeError, name->string);
         return NULL;
