@@ -8,6 +8,14 @@ For other changes see Misc/NEWS.
 What's New in Stackless 2.7.6r2?
 ================================
 
+*Release date: 2014-03-11*
+
+- Remove various changes that are do not belong to mainline v2.7.6 Python
+  and do not belong in the Stackless patch.
+
+What's New in Stackless 2.7.6r2?
+================================
+
 *Release date: 2014-03-03*
 
 - Fix channel and tasklet initialization.  Initialization is now done
