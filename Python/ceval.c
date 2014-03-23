@@ -3344,16 +3344,16 @@ stackless_iter_return:
             res = PyObject_CallFunctionObjArgs(enter, NULL);
             STACKLESS_ASSERT();
             Py_DECREF(enter);
+#ifdef STACKLESS
+            if (STACKLESS_UNWINDING(res)) {
+                slpretval = res;
+                goto stackless_setup_with;
+stackless_setup_with_return:
+                res = slpretval;
+            }
+#endif
             if (res == NULL)
                 goto error;
-#ifdef STACKLESS
-            slpretval = res;
-            if (STACKLESS_UNWINDING(res)) {
-                goto stackless_setup_with;
-            }
-stackless_setup_with_return:
-            res = slpretval;
-#endif
             /* Setup the finally block before pushing the result
                of __enter__ on the stack. */
             PyFrame_BlockSetup(f, SETUP_FINALLY, INSTR_OFFSET() + oparg,
@@ -3440,16 +3440,20 @@ stackless_setup_with_return:
             res = PyObject_CallFunctionObjArgs(exit_func, exc, val, tb, NULL);
             STACKLESS_ASSERT();
             Py_DECREF(exit_func);
+#ifdef STACKLESS
+            if (STACKLESS_UNWINDING(res)) {
+                slpretval = res;
+                goto stackless_with_cleanup;
+stackless_with_cleanup_return:
+                res = slpretval;
+                /* recompute exc after the goto */
+                exc = TOP();
+                if (PyLong_Check(exc))
+                    exc = Py_None;
+            }
+#endif
             if (res == NULL)
                 goto error;
-#ifdef STACKLESS
-            slpretval = res;
-            if (STACKLESS_UNWINDING(res)) {
-                goto stackless_with_cleanup;
-            }
-stackless_with_cleanup_return:
-            res = slpretval;
-#endif
 
             if (exc != Py_None)
                 err = PyObject_IsTrue(res);
@@ -3479,12 +3483,12 @@ stackless_with_cleanup_return:
 #endif
             stack_pointer = sp;
 #ifdef STACKLESS
-            slpretval = res;
             if (STACKLESS_UNWINDING(res)) {
+                slpretval = res;
                 goto stackless_call;
-            }
 stackless_call_return:
-            res = slpretval;
+                res = slpretval;
+            }
 #endif
             PUSH(res);
             if (res == NULL)
@@ -3533,8 +3537,8 @@ stackless_call_return:
                 Py_DECREF(o);
             }
 #ifdef STACKLESS
-            slpretval = res;
             if (STACKLESS_UNWINDING(res)) {
+                slpretval = res;
                 goto stackless_call;
             }
 #endif
