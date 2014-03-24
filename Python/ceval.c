@@ -3447,6 +3447,10 @@ stackless_setup_with_return:
                 goto stackless_with_cleanup;
 stackless_with_cleanup_return:
                 res = retval;
+                /* recompute exc after the goto */
+                exc = TOP();
+                if (PyLong_Check(exc))
+                    exc = Py_None;
             }
 #endif
             if (res == NULL)

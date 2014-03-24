@@ -495,7 +495,9 @@ setup_context(Py_ssize_t stack_level, PyObject **filename, int *lineno,
         f = (PyFrameObject *)PyTasklet_GetFrame((PyTaskletObject*)current);
         Py_DECREF(current);
         Py_XDECREF(f); /* turn it into a borrowed reference */
-    } else
+    }
+    /* fallback to the state frame */
+    if (f == NULL)
         f = PyThreadState_GET()->frame;
 #else
     PyFrameObject *f = PyThreadState_GET()->frame;
