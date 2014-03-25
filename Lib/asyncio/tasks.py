@@ -7,11 +7,12 @@ __all__ = ['coroutine', 'Task',
            'gather', 'shield',
            ]
 
-import collections
 import concurrent.futures
 import functools
 import inspect
 import linecache
+import os
+import sys
 import traceback
 import weakref
 
@@ -28,7 +29,8 @@ from .log import logger
 # before you define your coroutines.  A downside of using this feature
 # is that tracebacks show entries for the CoroWrapper.__next__ method
 # when _DEBUG is true.
-_DEBUG = False
+_DEBUG = (not sys.flags.ignore_environment
+          and bool(os.environ.get('PYTHONASYNCIODEBUG')))
 
 
 class CoroWrapper:
@@ -181,7 +183,7 @@ class Task(futures.Future):
 
         The frames are always ordered from oldest to newest.
 
-        The optional limit gives the maximum nummber of frames to
+        The optional limit gives the maximum number of frames to
         return; by default all available frames are returned.  Its
         meaning differs depending on whether a stack or a traceback is
         returned: the newest frames of a stack are returned, but the
@@ -358,6 +360,8 @@ def wait(fs, *, loop=None, timeout=None, return_when=ALL_COMPLETED):
     Note: This does not raise TimeoutError! Futures that aren't done
     when the timeout occurs are returned in the second set.
     """
+    if isinstance(fs, futures.Future) or iscoroutine(fs):
+        raise TypeError("expect a list of futures, not %s" % type(fs).__name__)
     if not fs:
         raise ValueError('Set of coroutines/Futures is empty.')
 
@@ -461,7 +465,11 @@ def _wait(fs, timeout, return_when, loop):
 
 # This is *not* a @coroutine!  It is just an iterator (yielding Futures).
 def as_completed(fs, *, loop=None, timeout=None):
-    """Return an iterator whose values, when waited for, are Futures.
+    """Return an iterator whose values are coroutines.
+
+    When waiting for the yielded coroutines you'll get the results (or
+    exceptions!) of the original Futures (or coroutines), in the order
+    in which and as soon as they complete.
 
     This differs from PEP 3148; the proper way to use this is:
 
@@ -469,35 +477,45 @@ def as_completed(fs, *, loop=None, timeout=None):
             result = yield from f  # The 'yield from' may raise.
             # Use result.
 
-    Raises TimeoutError if the timeout occurs before all Futures are
-    done.
+    If a timeout is specified, the 'yield from' will raise
+    TimeoutError when the timeout occurs before all Futures are done.
 
     Note: The futures 'f' are not necessarily members of fs.
     """
+    if isinstance(fs, futures.Future) or iscoroutine(fs):
+        raise TypeError("expect a list of futures, not %s" % type(fs).__name__)
     loop = loop if loop is not None else events.get_event_loop()
-    deadline = None if timeout is None else loop.time() + timeout
     todo = {async(f, loop=loop) for f in set(fs)}
-    completed = collections.deque()
+    from .queues import Queue  # Import here to avoid circular import problem.
+    done = Queue(loop=loop)
+    timeout_handle = None
+
+    def _on_timeout():
+        for f in todo:
+            f.remove_done_callback(_on_completion)
+            done.put_nowait(None)  # Queue a dummy value for _wait_for_one().
+        todo.clear()  # Can't do todo.remove(f) in the loop.
+
+    def _on_completion(f):
+        if not todo:
+            return  # _on_timeout() was here first.
+        todo.remove(f)
+        done.put_nowait(f)
+        if not todo and timeout_handle is not None:
+            timeout_handle.cancel()
 
     @coroutine
     def _wait_for_one():
-        while not completed:
-            timeout = None
-            if deadline is not None:
-                timeout = deadline - loop.time()
-                if timeout < 0:
-                    raise futures.TimeoutError()
-            done, pending = yield from _wait(
-                todo, timeout, FIRST_COMPLETED, loop)
-            # Multiple callers might be waiting for the same events
-            # and getting the same outcome.  Dedupe by updating todo.
-            for f in done:
-                if f in todo:
-                    todo.remove(f)
-                    completed.append(f)
-        f = completed.popleft()
-        return f.result()  # May raise.
+        f = yield from done.get()
+        if f is None:
+            # Dummy value from _on_timeout().
+            raise futures.TimeoutError
+        return f.result()  # May raise f.exception().
 
+    for f in todo:
+        f.add_done_callback(_on_completion)
+    if todo and timeout is not None:
+        timeout_handle = loop.call_later(timeout, _on_timeout)
     for _ in range(len(todo)):
         yield _wait_for_one()
 

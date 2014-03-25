@@ -14,6 +14,7 @@ import sys
 import types
 import unicodedata
 import unittest
+import unittest.mock
 
 try:
     from concurrent.futures import ThreadPoolExecutor
@@ -577,6 +578,46 @@ class TestClassesAndFunctions(unittest.TestCase):
                                      kwonlyargs_e=['arg'],
                                      formatted='(*, arg)')
 
+    def test_argspec_api_ignores_wrapped(self):
+        # Issue 20684: low level introspection API must ignore __wrapped__
+        @functools.wraps(mod.spam)
+        def ham(x, y):
+            pass
+        # Basic check
+        self.assertArgSpecEquals(ham, ['x', 'y'], formatted='(x, y)')
+        self.assertFullArgSpecEquals(ham, ['x', 'y'], formatted='(x, y)')
+        self.assertFullArgSpecEquals(functools.partial(ham),
+                                     ['x', 'y'], formatted='(x, y)')
+        # Other variants
+        def check_method(f):
+            self.assertArgSpecEquals(f, ['self', 'x', 'y'],
+                                        formatted='(self, x, y)')
+        class C:
+            @functools.wraps(mod.spam)
+            def ham(self, x, y):
+                pass
+            pham = functools.partialmethod(ham)
+            @functools.wraps(mod.spam)
+            def __call__(self, x, y):
+                pass
+        check_method(C())
+        check_method(C.ham)
+        check_method(C().ham)
+        check_method(C.pham)
+        check_method(C().pham)
+
+        class C_new:
+            @functools.wraps(mod.spam)
+            def __new__(self, x, y):
+                pass
+        check_method(C_new)
+
+        class C_init:
+            @functools.wraps(mod.spam)
+            def __init__(self, x, y):
+                pass
+        check_method(C_init)
+
     def test_getfullargspec_signature_attr(self):
         def test():
             pass
@@ -602,6 +643,13 @@ class TestClassesAndFunctions(unittest.TestCase):
 
         self.assertFullArgSpecEquals(_pickle.Pickler(io.BytesIO()).dump,
                                      args_e=['self', 'obj'], formatted='(self, obj)')
+
+        self.assertFullArgSpecEquals(
+             os.stat,
+             args_e=['path'],
+             kwonlyargs_e=['dir_fd', 'follow_symlinks'],
+             kwonlydefaults_e={'dir_fd': None, 'follow_symlinks': True},
+             formatted='(path, *, dir_fd=None, follow_symlinks=True)')
 
     @cpython_only
     @unittest.skipIf(MISSING_C_DOCSTRINGS,
@@ -1716,6 +1764,11 @@ class TestSignatureObject(unittest.TestCase):
                 __call__ = type
             test_callable(ThisWorksNow())
 
+        # Regression test for issue #20786
+        test_unbound_method(dict.__delitem__)
+        test_unbound_method(property.__delete__)
+
+
     @cpython_only
     @unittest.skipIf(MISSING_C_DOCSTRINGS,
                      "Signature information for builtins requires docstrings")
@@ -1788,6 +1841,21 @@ class TestSignatureObject(unittest.TestCase):
                          ((('args', ..., ..., "var_positional"),
                            ('kwargs', ..., ..., "var_keyword")),
                            ...))
+
+        # Test with cython-like builtins:
+        _orig_isdesc = inspect.ismethoddescriptor
+        def _isdesc(obj):
+            if hasattr(obj, '_builtinmock'):
+                return True
+            return _orig_isdesc(obj)
+
+        with unittest.mock.patch('inspect.ismethoddescriptor', _isdesc):
+            builtin_func = funclike(func)
+            # Make sure that our mock setup is working
+            self.assertFalse(inspect.ismethoddescriptor(builtin_func))
+            builtin_func._builtinmock = True
+            self.assertTrue(inspect.ismethoddescriptor(builtin_func))
+            self.assertEqual(inspect.signature(builtin_func), sig_func)
 
     def test_signature_functionlike_class(self):
         # We only want to duck type function-like objects,
@@ -2389,6 +2457,22 @@ class TestSignatureObject(unittest.TestCase):
         sig = sig.replace(return_annotation=42)
         self.assertEqual(sig.return_annotation, 42)
         self.assertEqual(sig, inspect.signature(test))
+
+    def test_signature_on_mangled_parameters(self):
+        class Spam:
+            def foo(self, __p1:1=2, *, __p2:2=3):
+                pass
+        class Ham(Spam):
+            pass
+
+        self.assertEqual(self.signature(Spam.foo),
+                         ((('self', ..., ..., "positional_or_keyword"),
+                           ('_Spam__p1', 2, 1, "positional_or_keyword"),
+                           ('_Spam__p2', 3, 2, "keyword_only")),
+                          ...))
+
+        self.assertEqual(self.signature(Spam.foo),
+                         self.signature(Ham.foo))
 
 
 class TestParameterObject(unittest.TestCase):

@@ -102,7 +102,8 @@ Run an event loop
 
    Run until the :class:`Future` is done.
 
-   If the argument is a coroutine, it is wrapped in a :class:`Task`.
+   If the argument is a :ref:`coroutine <coroutine>`, it is wrapped
+   in a :class:`Task`.
 
    Return the Future's result, or raise its exception.
 
@@ -142,6 +143,8 @@ Calls
    Any positional arguments after the callback will be passed to the
    callback when it is called.
 
+   An instance of :class:`asyncio.Handle` is returned.
+
 .. method:: BaseEventLoop.call_soon_threadsafe(callback, \*args)
 
    Like :meth:`call_soon`, but thread safe.
@@ -157,14 +160,17 @@ Which clock is used depends on the (platform-specific) event loop
 implementation; ideally it is a monotonic clock.  This will generally be
 a different clock than :func:`time.time`.
 
+.. note::
+
+   Timeouts (relative *delay* or absolute *when*) should not exceed one day.
+
 
 .. method:: BaseEventLoop.call_later(delay, callback, *args)
 
    Arrange for the *callback* to be called after the given *delay*
    seconds (either an int or float).
 
-   A "handle" is returned: an opaque object with a :meth:`cancel` method
-   that can be used to cancel the call.
+   An instance of :class:`asyncio.Handle` is returned.
 
    *callback* will be called exactly once per call to :meth:`call_later`.
    If two callbacks are scheduled for exactly the same time, it is
@@ -197,10 +203,12 @@ Creating connections
 .. method:: BaseEventLoop.create_connection(protocol_factory, host=None, port=None, \*, ssl=None, family=0, proto=0, flags=0, sock=None, local_addr=None, server_hostname=None)
 
    Create a streaming transport connection to a given Internet *host* and
-   *port*.  *protocol_factory* must be a callable returning a
-   :ref:`protocol <asyncio-protocol>` instance.
+   *port*: socket family :py:data:`~socket.AF_INET` or
+   :py:data:`~socket.AF_INET6` depending on *host* (or *family* if specified),
+   socket type :py:data:`~socket.SOCK_STREAM`.  *protocol_factory* must be a
+   callable returning a :ref:`protocol <asyncio-protocol>` instance.
 
-   This method returns a :ref:`coroutine object <coroutine>` which will try to
+   This method is a :ref:`coroutine <coroutine>` which will try to
    establish the connection in the background.  When successful, the
    coroutine returns a ``(transport, protocol)`` pair.
 
@@ -261,13 +269,42 @@ Creating connections
       (:class:`StreamReader`, :class:`StreamWriter`) instead of a protocol.
 
 
+.. method:: BaseEventLoop.create_datagram_endpoint(protocol_factory, local_addr=None, remote_addr=None, \*, family=0, proto=0, flags=0)
+
+   Create datagram connection: socket family :py:data:`~socket.AF_INET` or
+   :py:data:`~socket.AF_INET6` depending on *host* (or *family* if specified),
+   socket type :py:data:`~socket.SOCK_DGRAM`.
+
+   This method is a :ref:`coroutine <coroutine>` which will try to
+   establish the connection in the background.  When successful, the
+   coroutine returns a ``(transport, protocol)`` pair.
+
+   See the :meth:`BaseEventLoop.create_connection` method for parameters.
+
+
+.. method:: BaseEventLoop.create_unix_connection(protocol_factory, path, \*, ssl=None, sock=None, server_hostname=None)
+
+   Create UNIX connection: socket family :py:data:`~socket.AF_UNIX`, socket
+   type :py:data:`~socket.SOCK_STREAM`. The :py:data:`~socket.AF_UNIX` socket
+   family is used to communicate between processes on the same machine
+   efficiently.
+
+   This method is a :ref:`coroutine <coroutine>` which will try to
+   establish the connection in the background.  When successful, the
+   coroutine returns a ``(transport, protocol)`` pair.
+
+   See the :meth:`BaseEventLoop.create_connection` method for parameters.
+
+   Availability: UNIX.
+
+
 Creating listening connections
 ------------------------------
 
 .. method:: BaseEventLoop.create_server(protocol_factory, host=None, port=None, \*, family=socket.AF_UNSPEC, flags=socket.AI_PASSIVE, sock=None, backlog=100, ssl=None, reuse_address=None)
 
-   A :ref:`coroutine function <coroutine>` which creates a TCP server bound to host and
-   port.
+   A :ref:`coroutine <coroutine>` method which creates a TCP server bound to
+   host and port.
 
    The return value is a :class:`AbstractServer` object which can be used to stop
    the service.
@@ -296,18 +333,18 @@ Creating listening connections
    expire. If not specified will automatically be set to True on
    UNIX.
 
-   This method returns a :ref:`coroutine object <coroutine>`.
-
    .. seealso::
 
       The function :func:`start_server` creates a (:class:`StreamReader`,
       :class:`StreamWriter`) pair and calls back a function with this pair.
 
-.. method:: BaseEventLoop.create_datagram_endpoint(protocol_factory, local_addr=None, remote_addr=None, \*, family=0, proto=0, flags=0)
 
-   Create datagram connection.
+.. method:: BaseEventLoop.create_unix_server(protocol_factory, path=None, \*, sock=None, backlog=100, ssl=None)
 
-   This method returns a :ref:`coroutine object <coroutine>`.
+   Similar to :meth:`BaseEventLoop.create_server`, but specific to the
+   socket family :py:data:`~socket.AF_UNIX`.
+
+   Availability: UNIX.
 
 
 
@@ -342,7 +379,7 @@ Low-level socket operations
    representing the data received.  The maximum amount of data to be received
    at once is specified by *nbytes*.
 
-   This method returns a :ref:`coroutine object <coroutine>`.
+   This method is a :ref:`coroutine <coroutine>`.
 
    .. seealso::
 
@@ -354,9 +391,9 @@ Low-level socket operations
    This method continues to send data from *data* until either all data has
    been sent or an error occurs.  ``None`` is returned on success.  On error,
    an exception is raised, and there is no way to determine how much data, if
-   any, was successfully sent.
+   any, was successfully processed by the receiving end of the connection.
 
-   This method returns a :ref:`coroutine object <coroutine>`.
+   This method is a :ref:`coroutine <coroutine>`.
 
    .. seealso::
 
@@ -366,7 +403,13 @@ Low-level socket operations
 
    Connect to a remote socket at *address*.
 
-   This method returns a :ref:`coroutine object <coroutine>`.
+   The *address* must be already resolved to avoid the trap of hanging the
+   entire event loop when the address requires doing a DNS lookup.  For
+   example, it must be an IP address, not an hostname, for
+   :py:data:`~socket.AF_INET` and :py:data:`~socket.AF_INET6` address families.
+   Use :meth:`getaddrinfo` to resolve the hostname asynchronously.
+
+   This method is a :ref:`coroutine <coroutine>`.
 
    .. seealso::
 
@@ -383,7 +426,7 @@ Low-level socket operations
    and *address* is the address bound to the socket on the other end of the
    connection.
 
-   This method returns a :ref:`coroutine object <coroutine>`.
+   This method is a :ref:`coroutine <coroutine>`.
 
    .. seealso::
 
@@ -396,13 +439,13 @@ Resolve host name
 
 .. method:: BaseEventLoop.getaddrinfo(host, port, \*, family=0, type=0, proto=0, flags=0)
 
-   Similar to the :meth:`socket.getaddrinfo`  function, but return a
-   :ref:`coroutine object <coroutine>`.
+   This method is a :ref:`coroutine <coroutine>`, similar to
+   :meth:`socket.getaddrinfo` function but non-blocking.
 
 .. method:: BaseEventLoop.getnameinfo(sockaddr, flags=0)
 
-   Similar to the :meth:`socket.getnameinfo`  function, but return a
-   :ref:`coroutine object <coroutine>`.
+   This method is a :ref:`coroutine <coroutine>`, similar to
+   :meth:`socket.getnameinfo` function but non-blocking.
 
 
 Running subprocesses
@@ -424,19 +467,63 @@ Run subprocesses asynchronously using the :mod:`subprocess` module.
    :class:`SelectSelector` or :class:`PollSelector` to handle character devices
    on Mac OS X 10.6 (Snow Leopard) and later.
 
-.. method:: BaseEventLoop.subprocess_exec(protocol_factory, \*args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=False, shell=False, bufsize=0, \*\*kwargs)
+.. method:: BaseEventLoop.subprocess_exec(protocol_factory, \*args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, \*\*kwargs)
 
-   XXX
+   Create a subprocess from one or more string arguments, where the first string
+   specifies the program to execute, and the remaining strings specify the
+   program's arguments. (Thus, together the string arguments form the
+   ``sys.argv`` value of the program, assuming it is a Python script.) This is
+   similar to the standard library :class:`subprocess.Popen` class called with
+   shell=False and the list of strings passed as the first argument;
+   however, where :class:`~subprocess.Popen` takes a single argument which is
+   list of strings, :func:`subprocess_exec` takes multiple string arguments.
 
-   This method returns a :ref:`coroutine object <coroutine>`.
+   Other parameters:
+
+   * *stdin*: Either a file-like object representing the pipe to be connected
+     to the subprocess's standard input stream using
+     :meth:`~BaseEventLoop.connect_write_pipe`, or the constant
+     :const:`subprocess.PIPE` (the default). By default a new pipe will be
+     created and connected.
+
+   * *stdout*: Either a file-like object representing the pipe to be connected
+     to the subprocess's standard output stream using
+     :meth:`~BaseEventLoop.connect_read_pipe`, or the constant
+     :const:`subprocess.PIPE` (the default). By default a new pipe will be
+     created and connected.
+
+   * *stderr*: Either a file-like object representing the pipe to be connected
+     to the subprocess's standard error stream using
+     :meth:`~BaseEventLoop.connect_read_pipe`, or one of the constants
+     :const:`subprocess.PIPE` (the default) or :const:`subprocess.STDOUT`.
+     By default a new pipe will be created and connected. When
+     :const:`subprocess.STDOUT` is specified, the subprocess's standard error
+     stream will be connected to the same pipe as the standard output stream.
+
+   * All other keyword arguments are passed to :class:`subprocess.Popen`
+     without interpretation, except for *bufsize*, *universal_newlines* and
+     *shell*, which should not be specified at all.
+
+   Returns a pair of ``(transport, protocol)``, where *transport* is an
+   instance of :class:`BaseSubprocessTransport`.
+
+   This method is a :ref:`coroutine <coroutine>`.
 
    See the constructor of the :class:`subprocess.Popen` class for parameters.
 
-.. method:: BaseEventLoop.subprocess_shell(protocol_factory, cmd, \*, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=False, shell=True, bufsize=0, \*\*kwargs)
+.. method:: BaseEventLoop.subprocess_shell(protocol_factory, cmd, \*, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, \*\*kwargs)
 
-   XXX
+   Create a subprocess from *cmd*, which is a string using the platform's
+   "shell" syntax. This is similar to the standard library
+   :class:`subprocess.Popen` class called with ``shell=True``.
 
-   This method returns a :ref:`coroutine object <coroutine>`.
+   See :meth:`~BaseEventLoop.subprocess_exec` for more details about
+   the remaining arguments.
+
+   Returns a pair of ``(transport, protocol)``, where *transport* is an
+   instance of :class:`BaseSubprocessTransport`.
+
+   This method is a :ref:`coroutine <coroutine>`.
 
    See the constructor of the :class:`subprocess.Popen` class for parameters.
 
@@ -449,7 +536,7 @@ Run subprocesses asynchronously using the :mod:`subprocess` module.
    Return pair (transport, protocol), where transport support
    :class:`ReadTransport` interface.
 
-   This method returns a :ref:`coroutine object <coroutine>`.
+   This method is a :ref:`coroutine <coroutine>`.
 
 .. method:: BaseEventLoop.connect_write_pipe(protocol_factory, pipe)
 
@@ -460,7 +547,7 @@ Run subprocesses asynchronously using the :mod:`subprocess` module.
    Return pair (transport, protocol), where transport support
    :class:`WriteTransport` interface.
 
-   This method returns a :ref:`coroutine object <coroutine>`.
+   This method is a :ref:`coroutine <coroutine>`.
 
 .. seealso::
 
@@ -502,12 +589,80 @@ pool of processes). By default, an event loop uses a thread pool executor
 
    Arrange for a callback to be called in the specified executor.
 
-   *executor* is a :class:`~concurrent.futures.Executor` instance,
-   the default executor is used if *executor* is ``None``.
+   The *executor* argument should be an :class:`~concurrent.futures.Executor`
+   instance. The default executor is used if *executor* is ``None``.
+
+   This method is a :ref:`coroutine <coroutine>`.
 
 .. method:: BaseEventLoop.set_default_executor(executor)
 
    Set the default executor used by :meth:`run_in_executor`.
+
+
+Error Handling API
+------------------
+
+Allows to customize how exceptions are handled in the event loop.
+
+.. method:: BaseEventLoop.set_exception_handler(handler)
+
+   Set *handler* as the new event loop exception handler.
+
+   If *handler* is ``None``, the default exception handler will
+   be set.
+
+   If *handler* is a callable object, it should have a
+   matching signature to ``(loop, context)``, where ``loop``
+   will be a reference to the active event loop, ``context``
+   will be a ``dict`` object (see :meth:`call_exception_handler`
+   documentation for details about context).
+
+.. method:: BaseEventLoop.default_exception_handler(context)
+
+   Default exception handler.
+
+   This is called when an exception occurs and no exception
+   handler is set, and can be called by a custom exception
+   handler that wants to defer to the default behavior.
+
+   *context* parameter has the same meaning as in
+   :meth:`call_exception_handler`.
+
+.. method:: BaseEventLoop.call_exception_handler(context)
+
+   Call the current event loop exception handler.
+
+   *context* is a ``dict`` object containing the following keys
+   (new keys may be introduced later):
+
+   * 'message': Error message;
+   * 'exception' (optional): Exception object;
+   * 'future' (optional): :class:`asyncio.Future` instance;
+   * 'handle' (optional): :class:`asyncio.Handle` instance;
+   * 'protocol' (optional): :ref:`Protocol <asyncio-protocol>` instance;
+   * 'transport' (optional): :ref:`Transport <asyncio-transport>` instance;
+   * 'socket' (optional): :class:`socket.socket` instance.
+
+   .. note::
+
+       Note: this method should not be overloaded in subclassed
+       event loops.  For any custom exception handling, use
+       :meth:`set_exception_handler()` method.
+
+Debug mode
+----------
+
+.. method:: BaseEventLoop.get_debug()
+
+   Get the debug mode (:class:`bool`) of the event loop, ``False`` by default.
+
+.. method:: BaseEventLoop.set_debug(enabled: bool)
+
+   Set the debug mode of the event loop.
+
+.. seealso::
+
+   The :ref:`Develop with asyncio <asyncio-dev>` section.
 
 
 Server
@@ -523,7 +678,21 @@ Server
 
    .. method:: wait_closed()
 
-      Coroutine to wait until service is closed.
+      A :ref:`coroutine <coroutine>` to wait until service is closed.
+
+
+Handle
+------
+
+.. class:: Handle
+
+   A callback wrapper object returned by :func:`BaseEventLoop.call_soon`,
+   :func:`BaseEventLoop.call_soon_threadsafe`, :func:`BaseEventLoop.call_later`,
+   and :func:`BaseEventLoop.call_at`.
+
+   .. method:: cancel()
+
+   Cancel the call.
 
 
 .. _asyncio-hello-world-callback:

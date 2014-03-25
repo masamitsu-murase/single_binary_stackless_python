@@ -115,13 +115,22 @@ class EnumMeta(type):
         # Reverse value->name map for hashable values.
         enum_class._value2member_map_ = {}
 
-        # check for a supported pickle protocols, and if not present sabotage
-        # pickling, since it won't work anyway
-        if member_type is not object:
-            methods = ('__getnewargs_ex__', '__getnewargs__',
-                    '__reduce_ex__', '__reduce__')
-            if not any(map(member_type.__dict__.get, methods)):
-                _make_class_unpicklable(enum_class)
+        # If a custom type is mixed into the Enum, and it does not know how
+        # to pickle itself, pickle.dumps will succeed but pickle.loads will
+        # fail.  Rather than have the error show up later and possibly far
+        # from the source, sabotage the pickle protocol for this class so
+        # that pickle.dumps also fails.
+        #
+        # However, if the new class implements its own __reduce_ex__, do not
+        # sabotage -- it's on them to make sure it works correctly.  We use
+        # __reduce_ex__ instead of any of the others as it is preferred by
+        # pickle over __reduce__, and it handles all pickle protocols.
+        if '__reduce_ex__' not in classdict:
+            if member_type is not object:
+                methods = ('__getnewargs_ex__', '__getnewargs__',
+                        '__reduce_ex__', '__reduce__')
+                if not any(m in member_type.__dict__ for m in methods):
+                    _make_class_unpicklable(enum_class)
 
         # instantiate them, checking for duplicates as we go
         # we instantiate first instead of checking for duplicates first in case
@@ -167,7 +176,7 @@ class EnumMeta(type):
 
         # double check that repr and friends are not the mixin's or various
         # things break (such as pickle)
-        for name in ('__repr__', '__str__', '__format__', '__getnewargs__', '__reduce_ex__'):
+        for name in ('__repr__', '__str__', '__format__', '__reduce_ex__'):
             class_method = getattr(enum_class, name)
             obj_method = getattr(member_type, name, None)
             enum_method = getattr(first_enum, name, None)
@@ -191,13 +200,22 @@ class EnumMeta(type):
         to an enumeration member (i.e. Color(3)) and for the functional API
         (i.e. Color = Enum('Color', names='red green blue')).
 
-        When used for the functional API: `module`, if set, will be stored in
-        the new class' __module__ attribute; `type`, if set, will be mixed in
-        as the first base class.
+        When used for the functional API:
 
-        Note: if `module` is not set this routine will attempt to discover the
-        calling module by walking the frame stack; if this is unsuccessful
-        the resulting class will not be pickleable.
+        `value` will be the name of the new class.
+
+        `names` should be either a string of white-space/comma delimited names
+        (values will start at 1), or an iterator/mapping of name, value pairs.
+
+        `module` should be set to the module this class is being created in;
+        if it is not set, an attempt to find that module will be made, but if
+        it fails the class will not be picklable.
+
+        `qualname` should be set to the actual location this class can be found
+        at in its module; by default it is set to the global scope.  If this is
+        not correct, unpickling will fail in some circumstances.
+
+        `type`, if set, will be mixed in as the first base class.
 
         """
         if names is None:  # simple value lookup
@@ -465,14 +483,11 @@ class Enum(metaclass=EnumMeta):
             val = self.value
         return cls.__format__(val, format_spec)
 
-    def __getnewargs__(self):
-        return (self._value_, )
-
     def __hash__(self):
         return hash(self._name_)
 
     def __reduce_ex__(self, proto):
-        return self.__class__, self.__getnewargs__()
+        return self.__class__, (self._value_, )
 
     # DynamicClassAttribute is used to provide access to the `name` and
     # `value` properties of enum members while keeping some measure of

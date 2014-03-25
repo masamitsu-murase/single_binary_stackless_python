@@ -433,8 +433,8 @@ def add_ui(db):
 
     compileargs = r'-Wi "[TARGETDIR]Lib\compileall.py" -f -x "bad_coding|badsyntax|site-packages|py2_|lib2to3\\tests|venv\\scripts" "[TARGETDIR]Lib"'
     lib2to3args = r'-c "import lib2to3.pygram, lib2to3.patcomp;lib2to3.patcomp.PatternCompiler()"'
-    updatepipargs = r'-m ensurepip -U'
-    removepipargs = r'-m ensurepip._uninstall'
+    updatepipargs = r'-m ensurepip -U --default-pip'
+    removepipargs = r'-B -m ensurepip._uninstall'
     # See "CustomAction Table"
     add_data(db, "CustomAction", [
         # msidbCustomActionTypeFirstSequence + msidbCustomActionTypeTextData + msidbCustomActionTypeProperty
@@ -448,12 +448,13 @@ def add_ui(db):
         ("SetLauncherDirToWindows", 307, "LAUNCHERDIR", "[WindowsFolder]"),
         # msidbCustomActionTypeExe + msidbCustomActionTypeSourceFile
         # See "Custom Action Type 18"
-        ("CompilePyc", 18, "python.exe", compileargs),
-        ("CompilePyo", 18, "python.exe", "-O "+compileargs),
-        ("CompileGrammar", 18, "python.exe", lib2to3args),
         # msidbCustomActionTypeInScript (1024); run during actual installation
-        ("UpdatePip", 18+1024, "python.exe", updatepipargs),
-        ("RemovePip", 18, "python.exe", removepipargs),
+        # msidbCustomActionTypeNoImpersonate (2048); run action in system account, not user account
+        ("CompilePyc", 18+1024+2048, "python.exe", compileargs),
+        ("CompilePyo", 18+1024+2048, "python.exe", "-O "+compileargs),
+        ("CompileGrammar", 18+1024+2048, "python.exe", lib2to3args),
+        ("UpdatePip", 18+1024+2048, "python.exe", updatepipargs),
+        ("RemovePip", 18+1024+2048, "python.exe", removepipargs),
         ])
 
     # UI Sequences, see "InstallUISequence Table", "Using a Sequence Table"
@@ -496,17 +497,14 @@ def add_ui(db):
              # remove pip when state changes to INSTALLSTATE_ABSENT
              # run before RemoveFiles
              ("RemovePip", "&pip_feature=2", 3499),
-             ("CompilePyc", "COMPILEALL", 6800),
-             ("CompilePyo", "COMPILEALL", 6801),
-             ("CompileGrammar", "COMPILEALL", 6802),
+             ("CompilePyc", "COMPILEALL", 4002),
+             ("CompilePyo", "COMPILEALL", 4003),
+             ("CompileGrammar", "COMPILEALL", 4004),
             ])
     add_data(db, "AdminExecuteSequence",
             [("InitialTargetDir", 'TARGETDIR=""', 750),
              ("SetDLLDirToTarget", 'DLLDIR=""', 751),
              ("SetLauncherDirToTarget", 'LAUNCHERDIR=""', 752),
-             ("CompilePyc", "COMPILEALL", 6800),
-             ("CompilePyo", "COMPILEALL", 6801),
-             ("CompileGrammar", "COMPILEALL", 6802),
             ])
 
     #####################################################################
@@ -1351,8 +1349,6 @@ def add_registry(db):
         tcltkshortcuts = [
               ("IDLE", "MenuDir", "IDLE|IDLE (Python GUI)", "pythonw.exe",
                tcltk.id, r'"[TARGETDIR]Lib\idlelib\idle.pyw"', None, None, "python_icon.exe", 0, None, "TARGETDIR"),
-              ("PyDoc", "MenuDir", "MODDOCS|Module Docs", "pythonw.exe",
-               tcltk.id, r'"[TARGETDIR]Tools\scripts\pydocgui.pyw"', None, None, "python_icon.exe", 0, None, "TARGETDIR"),
               ]
     add_data(db, "Shortcut",
              tcltkshortcuts +
@@ -1367,6 +1363,8 @@ def add_registry(db):
               ("Manual", "MenuDir", "MANUAL|Python Manuals", "REGISTRY.doc",
                "[#%s]" % docfile, None,
                None, None, None, None, None, None),
+              ("PyDoc", "MenuDir", "MODDOCS|Module Docs", "python.exe",
+               default_feature.id, r'-m pydoc -b', None, None, "python_icon.exe", 0, None, "TARGETDIR"),
               ("Uninstall", "MenuDir", "UNINST|Uninstall Python", "REGISTRY",
                SystemFolderName+"msiexec",  "/x%s" % product_code,
                None, None, None, None, None, None),

@@ -146,7 +146,6 @@ class Process:
 
     @tasks.coroutine
     def communicate(self, input=None):
-        loop = self._transport._loop
         if input:
             stdin = self._feed_stdin(input)
         else:
@@ -160,7 +159,7 @@ class Process:
         else:
             stderr = self._noop()
         stdin, stdout, stderr = yield from tasks.gather(stdin, stdout, stderr,
-                                                        loop=loop)
+                                                        loop=self._loop)
         yield from self.wait()
         return (stdout, stderr)
 
@@ -180,15 +179,17 @@ def create_subprocess_shell(cmd, stdin=None, stdout=None, stderr=None,
     return Process(transport, protocol, loop)
 
 @tasks.coroutine
-def create_subprocess_exec(*args, stdin=None, stdout=None, stderr=None,
-                           loop=None, limit=streams._DEFAULT_LIMIT, **kwds):
+def create_subprocess_exec(program, *args, stdin=None, stdout=None,
+                           stderr=None, loop=None,
+                           limit=streams._DEFAULT_LIMIT, **kwds):
     if loop is None:
         loop = events.get_event_loop()
     protocol_factory = lambda: SubprocessStreamProtocol(limit=limit,
                                                         loop=loop)
     transport, protocol = yield from loop.subprocess_exec(
                                             protocol_factory,
-                                            *args, stdin=stdin, stdout=stdout,
+                                            program, *args,
+                                            stdin=stdin, stdout=stdout,
                                             stderr=stderr, **kwds)
     yield from protocol.waiter
     return Process(transport, protocol, loop)

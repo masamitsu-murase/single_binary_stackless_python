@@ -2,6 +2,60 @@
 Python News
 +++++++++++
 
+What's New in Python 3.4.0?
+===========================
+
+Release date: 2014-03-16
+
+Library
+-------
+
+- Issue #20939: Fix test_geturl failure in test_urllibnet due to
+  new redirect of http://www.python.org/ to https://www.python.org.
+
+Documentation
+-------------
+
+- Merge in all documentation changes since branching 3.4.0rc1.
+
+
+What's New in Python 3.4.0 release candidate 3?
+===============================================
+
+Release date: 2014-03-09
+
+Core and Builtins
+-----------------
+
+- Issue #20786: Fix signatures for dict.__delitem__ and
+  property.__delete__ builtins.
+
+Library
+-------
+
+- Issue #20839: Don't trigger a DeprecationWarning in the still supported
+  pkgutil.get_loader() API when __loader__ isn't set on a module (nor
+  when pkgutil.find_loader() is called directly).
+
+Build
+-----
+
+- Issue #14512: Launch pydoc -b instead of pydocgui.pyw on Windows.
+
+- Issue #20748: Uninstalling pip does not leave behind the pyc of
+  the uninstaller anymore.
+
+- Issue #20568: The Windows installer now installs the unversioned ``pip``
+  command in addition to the versioned ``pip3`` and ``pip3.4`` commands.
+
+- Issue #20757: The ensurepip helper for the Windows uninstaller now skips
+  uninstalling pip (rather than failing) if the user has updated pip to a
+  different version from the one bundled with ensurepip.
+
+- Issue #20465: Update OS X and Windows installer builds to use
+  SQLite 3.8.3.1.
+
+
 What's New in Python 3.4.0 release candidate 2?
 ===============================================
 
@@ -10,8 +64,75 @@ Release date: 2014-02-23
 Core and Builtins
 -----------------
 
+- Issue #20625: Parameter names in __annotations__ were not mangled properly.
+  Discovered by Jonas Wielicki, patch by Yury Selivanov.
+
+- Issue #20261: In pickle, lookup __getnewargs__ and __getnewargs_ex__ on the
+  type of the object.
+
+- Issue #20619: Give the AST nodes of keyword-only arguments a column and line
+  number.
+
+- Issue #20526: Revert changes of issue #19466 which introduces a regression:
+  don't clear anymore the state of Python threads early during the Python
+  shutdown.
+
 Library
 -------
+
+- Issue #20710: The pydoc summary line no longer displays the "self" parameter
+  for bound methods.
+
+- Issue #20566: Change asyncio.as_completed() to use a Queue, to
+  avoid O(N**2) behavior.
+
+- Issue #20704: Implement new debug API in asyncio. Add new methods
+  BaseEventLoop.set_debug() and BaseEventLoop.get_debug().
+  Add support for setting 'asyncio.tasks._DEBUG' variable with
+  'PYTHONASYNCIODEBUG' environment variable.
+
+- asyncio: Refactoring and fixes: BaseEventLoop.sock_connect() raises an
+  error if the address is not resolved; use __slots__ in Handle and
+  TimerHandle; as_completed() and wait() raise TypeError if the passed
+  list of Futures is a single Future; call_soon() and other 'call_*()'
+  functions raise TypeError if the passed callback is a coroutine
+  function; _ProactorBasePipeTransport uses _FlowControlMixin;
+  WriteTransport.set_write_buffer_size() calls _maybe_pause_protocol()
+  to consider pausing receiving if the watermark limits have changed;
+  fix _check_resolved_address() for IPv6 address; and other minor
+  improvements, along with multiple documentation updates.
+
+- Issue #20684: Fix inspect.getfullargspec() to not to follow __wrapped__
+  chains. Make its behaviour consistent with bound methods first argument.
+  Patch by Nick Coghlan and Yury Selivanov.
+
+- Issue #20681: Add new error handling API in asyncio. New APIs:
+  loop.set_exception_handler(), loop.default_exception_handler(), and
+  loop.call_exception_handler().
+
+- Issue #20673: Implement support for UNIX Domain Sockets in asyncio.
+  New APIs: loop.create_unix_connection(), loop.create_unix_server(),
+  streams.open_unix_connection(), and streams.start_unix_server().
+
+- Issue #20616: Add a format() method to tracemalloc.Traceback.
+
+- Issue #19744: the ensurepip installation step now just prints a warning to
+  stderr rather than failing outright if SSL/TLS is unavailable. This allows
+  local installation of POSIX builds without SSL/TLS support.
+
+- Issue #20594: Avoid name clash with the libc function posix_close.
+
+Build
+-----
+
+- Issue #20641: Run MSI custom actions (pip installation, pyc compilation)
+  with the NoImpersonate flag, to support elevated execution (UAC).
+
+- Issue #20221: Removed conflicting (or circular) hypot definition when
+  compiled with VS 2010 or above.  Initial patch by Tabrez Mohammed.
+
+- Issue #20609: Restored the ability to build 64-bit Windows binaries on
+  32-bit Windows, which was broken by the change in issue #19788.
 
 
 What's New in Python 3.4.0 release candidate 1?
@@ -21,6 +142,9 @@ Release date: 2014-02-10
 
 Core and Builtins
 -----------------
+
+- Issue #19255: The builtins module is restored to initial value before
+  cleaning other modules.  The sys and builtins modules are cleaned last.
 
 - Issue #20437: Fixed 22 potential bugs when deleting objects references.
 
@@ -2868,6 +2992,9 @@ Library
 - Issue #17467: add readline and readlines support to mock_open in
   unittest.mock.
 
+- Issue #13248: removed deprecated and undocumented difflib.isbjunk,
+  isbpopular.
+
 - Issue #17192: Update the ctypes module's libffi to v3.0.13.  This
   specifically addresses a stack misalignment issue on x86 and issues on
   some more recent platforms.
@@ -4292,8 +4419,6 @@ Core and Builtins
 
 Library
 -------
-
-- Issue #13248: removed deprecated and undocumented difflib.isbjunk, isbpopular.
 
 - Issue #13370: Ensure that ctypes works on Mac OS X when Python is compiled
   using the clang compiler.

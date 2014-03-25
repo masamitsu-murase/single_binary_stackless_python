@@ -1532,9 +1532,16 @@ compiler_visit_argannotation(struct compiler *c, identifier id,
     expr_ty annotation, PyObject *names)
 {
     if (annotation) {
+        PyObject *mangled;
         VISIT(c, expr, annotation);
-        if (PyList_Append(names, id))
+        mangled = _Py_Mangle(c->u->u_private, id);
+        if (!mangled)
             return -1;
+        if (PyList_Append(names, mangled) < 0) {
+            Py_DECREF(mangled);
+            return -1;
+        }
+        Py_DECREF(mangled);
     }
     return 0;
 }

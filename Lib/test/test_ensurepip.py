@@ -196,10 +196,12 @@ class TestUninstall(EnsurepipMixin, unittest.TestCase):
             ensurepip._uninstall_helper()
         self.run_pip.assert_not_called()
 
-    def test_uninstall_fails_with_wrong_version(self):
+    def test_uninstall_skipped_with_warning_for_wrong_version(self):
         with fake_pip("not a valid version"):
-            with self.assertRaises(RuntimeError):
+            with test.support.captured_stderr() as stderr:
                 ensurepip._uninstall_helper()
+        warning = stderr.getvalue().strip()
+        self.assertIn("only uninstall a matching version", warning)
         self.run_pip.assert_not_called()
 
 
@@ -281,12 +283,20 @@ class TestMissingSSL(EnsurepipMixin, unittest.TestCase):
         self.run_pip.assert_not_called()
         self.assertIn("PIP_THIS_SHOULD_STAY", self.os_environ)
 
+    def test_main_exits_early_with_warning(self):
+        with test.support.captured_stderr() as stderr:
+            ensurepip_no_ssl._main(["--version"])
+        warning = stderr.getvalue().strip()
+        self.assertTrue(warning.endswith("requires SSL/TLS"), warning)
+        self.run_pip.assert_not_called()
+
 # Basic testing of the main functions and their argument parsing
 
 EXPECTED_VERSION_OUTPUT = "pip " + ensurepip._PIP_VERSION
 
 class TestBootstrappingMainFunction(EnsurepipMixin, unittest.TestCase):
 
+    @requires_usable_pip
     def test_bootstrap_version(self):
         with test.support.captured_stdout() as stdout:
             with self.assertRaises(SystemExit):

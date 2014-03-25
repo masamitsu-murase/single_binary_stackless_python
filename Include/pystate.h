@@ -36,7 +36,6 @@ typedef struct _is {
     int codecs_initialized;
     int fscodec_initialized;
 
-
 #ifdef HAVE_DLOPEN
     int dlopenflags;
 #endif
@@ -44,6 +43,7 @@ typedef struct _is {
     int tscdump;
 #endif
 
+    PyObject *builtins_copy;
 } PyInterpreterState;
 #endif
 

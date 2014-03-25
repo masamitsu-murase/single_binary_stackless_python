@@ -3744,7 +3744,7 @@ _PyObject_GetNewArguments(PyObject *obj, PyObject **args, PyObject **kwargs)
 
     /* We first attempt to fetch the arguments for __new__ by calling
        __getnewargs_ex__ on the object. */
-    getnewargs_ex = _PyObject_GetAttrId(obj, &PyId___getnewargs_ex__);
+    getnewargs_ex = _PyObject_LookupSpecial(obj, &PyId___getnewargs_ex__);
     if (getnewargs_ex != NULL) {
         PyObject *newargs = PyObject_CallObject(getnewargs_ex, NULL);
         Py_DECREF(getnewargs_ex);
@@ -3791,16 +3791,13 @@ _PyObject_GetNewArguments(PyObject *obj, PyObject **args, PyObject **kwargs)
             return -1;
         }
         return 0;
-    } else {
-        if (!PyErr_ExceptionMatches(PyExc_AttributeError)) {
-            return -1;
-        }
-        PyErr_Clear();
+    } else if (PyErr_Occurred()) {
+        return -1;
     }
 
     /* The object does not have __getnewargs_ex__ so we fallback on using
        __getnewargs__ instead. */
-    getnewargs = _PyObject_GetAttrId(obj, &PyId___getnewargs__);
+    getnewargs = _PyObject_LookupSpecial(obj, &PyId___getnewargs__);
     if (getnewargs != NULL) {
         *args = PyObject_CallObject(getnewargs, NULL);
         Py_DECREF(getnewargs);
@@ -3816,11 +3813,8 @@ _PyObject_GetNewArguments(PyObject *obj, PyObject **args, PyObject **kwargs)
         }
         *kwargs = NULL;
         return 0;
-    } else {
-        if (!PyErr_ExceptionMatches(PyExc_AttributeError)) {
-            return -1;
-        }
-        PyErr_Clear();
+    } else if (PyErr_Occurred()) {
+        return -1;
     }
 
     /* The object does not have __getnewargs_ex__ and __getnewargs__. This may
@@ -6365,7 +6359,7 @@ static slotdef slotdefs[] = {
            "__set__($self, instance, value, /)\n--\n\nSet an attribute of instance to value."),
     TPSLOT("__delete__", tp_descr_set, slot_tp_descr_set,
            wrap_descr_delete,
-           "__delete__(instance, /)\n--\n\nDelete an attribute of instance."),
+           "__delete__($self, instance, /)\n--\n\nDelete an attribute of instance."),
     FLSLOT("__init__", tp_init, slot_tp_init, (wrapperfunc)wrap_init,
            "__init__($self, /, *args, **kwargs)\n--\n\n"
            "Initialize self.  See help(type(self)) for accurate signature.",
@@ -6462,7 +6456,7 @@ static slotdef slotdefs[] = {
            "__setitem__($self, key, value, /)\n--\n\nSet self[key] to value."),
     MPSLOT("__delitem__", mp_ass_subscript, slot_mp_ass_subscript,
            wrap_delitem,
-           "__delitem__(key)\n--\n\nDelete self[key]."),
+           "__delitem__($self, key, /)\n--\n\nDelete self[key]."),
 
     SQSLOT("__len__", sq_length, slot_sq_length, wrap_lenfunc,
            "__len__($self, /)\n--\n\nReturn len(self)."),
