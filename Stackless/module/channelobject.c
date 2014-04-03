@@ -624,8 +624,6 @@ PyChannel_SendException_M(PyChannelObject *self, PyObject *klass,
     return PyStackless_CallCMethod_Main(&def, (PyObject *) self, "OO", klass, args);
 }
 
-static CHANNEL_SEND_EXCEPTION_HEAD(impl_channel_send_exception);
-
 static PyObject *
 impl_channel_send_exception(PyChannelObject *self, PyObject *klass, PyObject *args)
 {
@@ -1009,7 +1007,6 @@ channel_send_sequence(PyChannelObject *self, PyObject *v)
 {
     STACKLESS_GETARG();
     PyThreadState *ts = PyThreadState_GET();
-    /*unused: PyChannel_HeapType *t = (PyChannel_HeapType *) self->ob_type;*/
     PyObject *it;
     PyCFrameObject *f;
 
