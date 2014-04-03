@@ -611,8 +611,7 @@ static int
 impl_tasklet_remove(PyTaskletObject *task)
 {
     PyThreadState *ts = PyThreadState_GET();
-    PyTaskletObject *hold = ts->st.current;
-
+    
     assert(PyTasklet_Check(task));
     if (ts->st.main == NULL) return PyTasklet_Remove_M(task);
     assert(ts->st.current != NULL);
@@ -737,6 +736,9 @@ PyTasklet_Run(PyTaskletObject *task)
 }
 
 static PyObject *
+PyTasklet_Switch_M(PyTaskletObject *task);
+
+static PyObject *
 impl_tasklet_run_remove(PyTaskletObject *task, int remove)
 {
     STACKLESS_GETARG();
@@ -746,8 +748,13 @@ impl_tasklet_run_remove(PyTaskletObject *task, int remove)
     PyTaskletObject *prev = ts->st.current;
     
     assert(PyTasklet_Check(task));
-    if (ts->st.main == NULL)
-        return PyTasklet_Run_M(task);
+    if (ts->st.main == NULL) {
+        if (!remove)
+            return PyTasklet_Run_M(task);
+        else
+            return PyTasklet_Switch_M(task);
+    }
+    
 
     /* we always call impl_tasklet_insert, so we must
      * also uninsert in case of failure
