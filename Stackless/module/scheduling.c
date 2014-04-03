@@ -448,8 +448,7 @@ int
 slp_schedule_callback(PyTaskletObject *prev, PyTaskletObject *next)
 {
     PyObject *args;
-    PyThreadState *ts = PyThreadState_GET();
-
+    
     if (prev == NULL) prev = (PyTaskletObject *)Py_None;
     if (next == NULL) next = (PyTaskletObject *)Py_None;
     args = Py_BuildValue("(OO)", prev, next);
@@ -1266,7 +1265,6 @@ schedule_task_destruct(PyObject **retval, PyTaskletObject *prev, PyTaskletObject
      * field to help us with that, someone else with decref it.
      */
     PyThreadState *ts = PyThreadState_GET();
-    PyObject *tmpval=NULL;
     int fail = 0;
 
     /* we should have no nesting level */
