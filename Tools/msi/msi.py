@@ -189,11 +189,6 @@ dll_path = os.path.join(srcdir, PCBUILD, dll_file)
 msilib.set_arch_from_file(dll_path)
 if msilib.pe_type(dll_path) != msilib.pe_type("msisupport.dll"):
     raise SystemError("msisupport.dll for incorrect architecture")
-if have_stackless:
-    # Bump the last digit of the code by two, so that 32-bit and 64-bit
-    # Stackless releases get separate product codes
-    digit = hex((int(product_code[-2],16)+8)%16)[-1]
-    product_code = product_code[:-2] + digit + '}'
 
 if msilib.Win64:
     upgrade_code = upgrade_code_64
@@ -207,6 +202,12 @@ else:
                     'http://www.python.org/ftp/python/%s.%s.%s/python-%s%s.msi' %
                     (major, minor, micro, full_current_version, msilib.arch_ext))
     product_code = '{%s}' % product_code
+
+if have_stackless:
+    # Bump the last digit of the code by two, so that 32-bit and 64-bit
+    # Stackless releases get separate product codes
+    digit = hex((int(product_code[-2],16)+8)%16)[-1]
+    product_code = product_code[:-2] + digit + '}'
 
 if testpackage:
     ext = 'px'
@@ -942,7 +943,7 @@ class PyDirectory(Directory):
 
 def hgmanifest():
     # Fetch file list from Mercurial
-    process = subprocess.Popen(['hg', 'manifest'], stdout=subprocess.PIPE)
+    process = subprocess.Popen(['hg', 'manifest', '-q'], stdout=subprocess.PIPE)
     stdout, stderr = process.communicate()
     # Create nested directories for file tree
     result = {}
