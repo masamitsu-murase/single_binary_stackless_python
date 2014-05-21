@@ -192,7 +192,6 @@ class TestCrashUponFrameUnpickling(StacklessTestCase):
 
         self.assertIsNone(f_back)
 
-    # @unittest.skip("unfixed, crashes python")
     def testMissingLocalsplusCrasher(self):
         # A test case for issue #61 https://bitbucket.org/stackless-dev/stackless/issue/61
         #
