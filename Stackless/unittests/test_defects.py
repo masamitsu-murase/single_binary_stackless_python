@@ -2,6 +2,7 @@ import unittest
 import stackless
 import gc
 import sys
+import types
 
 from support import StacklessTestCase
 
@@ -191,6 +192,44 @@ class TestCrashUponFrameUnpickling(StacklessTestCase):
 
         self.assertIsNone(f_back)
 
+    # @unittest.skip("unfixed, crashes python")
+    def testMissingLocalsplusCrasher(self):
+        # A test case for issue #61 https://bitbucket.org/stackless-dev/stackless/issue/61
+        #
+        # Some versions of stackless create pickles of frames with the localsplus tuple set to None.
+        # This test creates a frame with localsplus=None and ensures that Python does not crash upon
+        # accessing frame.f_locals
+        def reduce_current():
+            result = []
+
+            def func(current):
+                result.append(stackless._wrap.frame.__reduce__(current.frame))
+            stackless.tasklet().bind(func, (stackless.current,)).run()
+            return result[0]
+
+        func, args, state = reduce_current()
+        # state is a tuple of the form
+        # ('f_code', 'valid', 'exec_name', 'f_globals', 'have_locals',
+        #  'f_locals', 'f_trace', 'exc_as_tuple', 'f_lasti', 'f_lineno',
+        #  'blockstack_as_tuple', 'localsplus_as_tuple')
+        self.assertEqual(len(state), 12)
+
+        state = list(state)
+
+        # set valid=0, localsplus_as_tuple=None
+        state[1] = 0
+        state[-1] = None
+
+        state = tuple(state)
+        # create the frame
+        frame = func(*args)
+        frame.__setstate__(state)
+        self.assertIsInstance(frame, types.FrameType)
+
+        # this access crashes Stackless versions released before May 20th 2014
+        f_locals = frame.f_locals
+
+        self.assertIsInstance(f_locals, dict)
 
 if __name__ == '__main__':
     if not sys.argv[1:]:
