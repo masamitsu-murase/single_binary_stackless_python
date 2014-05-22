@@ -801,8 +801,10 @@ frameobject_reduce(PyFrameObject *f)
         if (localsplus_as_tuple == NULL) goto err_exit;
     }
     else {
-        localsplus_as_tuple = Py_None;
-        Py_INCREF(Py_None);
+        localsplus_as_tuple = slp_into_tuple_with_nulls(
+            f->f_localsplus, f->f_valuestack - f->f_localsplus);
+        if (localsplus_as_tuple == NULL) goto err_exit;
+
         /* frames without a stacktop cannot be run */
         valid = 0;
     }
