@@ -21,6 +21,9 @@ def __reduce__():
 def __reduce_ex_(*args):
     return "stackless"
 
+from _stackless import _wrap
+sys.modules["stackless._wrap"] = _wrap
+
 def transmogrify():
     """
     this function creates a subclass of the ModuleType with properties.
