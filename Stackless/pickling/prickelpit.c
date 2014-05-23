@@ -798,8 +798,10 @@ frameobject_reduce(PyFrameObject *f)
         if (localsplus_as_tuple == NULL) goto err_exit;
     }
     else {
-        localsplus_as_tuple = Py_None;
-        Py_INCREF(Py_None);
+        localsplus_as_tuple = slp_into_tuple_with_nulls(
+            f->f_localsplus, f->f_valuestack - f->f_localsplus);
+        if (localsplus_as_tuple == NULL) goto err_exit;
+
         /* frames without a stacktop cannot be run */
         valid = 0;
     }
@@ -959,8 +961,30 @@ frame_setstate(PyFrameObject *f, PyObject *args)
                                                    localsplus_as_tuple);
     }
     else if (localsplus_as_tuple == Py_None) {
+        int ncells, nfreevars;
+
         f->f_stacktop = NULL;
         valid = 0;  /* cannot run frame without stack */
+
+        /* Now handle pickles without localsplus in case of cell variables.
+           Python requires that localsplus[index_of_a_cellvar] is a cell object.
+           Otherwise PyFrame_FastToLocals() crashes in frameobject.c: map_to_dict */
+        ncells = PyTuple_GET_SIZE(f->f_code->co_cellvars);
+        nfreevars = PyTuple_GET_SIZE(f->f_code->co_freevars);
+        if (ncells || nfreevars) {
+            PyObject **values;
+
+            assert(f->f_code->co_nlocals + ncells + nfreevars == f->f_valuestack - f->f_localsplus);
+
+            values = f->f_localsplus + f->f_code->co_nlocals;
+            for(i = ncells + nfreevars; --i >= 0; ) {
+                if (values[i] == NULL) {
+                    values[i] = PyCell_New(NULL);  /* uninitialised variable */
+                } else {
+                    assert(PyCell_Check(values[i]));
+                }
+            }
+        }
     }
     else {
         PyErr_SetString(PyExc_TypeError, "stack must be tuple or None for frame");
