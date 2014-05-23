@@ -442,6 +442,45 @@ class TestConcretePickledTasklets(TestPickledTasklets):
         f2 = pickle.loads(pickle.dumps(f1))
         self.assertEqual(f1.__module__, f2.__module__)
 
+
+class TestFramePickling(StacklessTestCase):
+    def testLocalplus(self):
+        result = []
+
+        def reduce_current():
+            """This function has exactly one local variable (func), one cellvar (result2) and one freevar (result)"""
+            result2 = result  # create the cell variable
+
+            def func(current):
+                result2.append(stackless._wrap.frame.__reduce__(current.frame))
+            stackless.tasklet().bind(func, (stackless.current,)).run()
+            return result[0]
+
+        cell_type = type(reduce_current.__closure__[0])
+
+        state = reduce_current()[2]
+        self.assertIsInstance(state, tuple)
+        self.assertEqual(len(state), 12)
+
+        code = state[0]
+        self.assertIsInstance(code, types.CodeType)
+        ncellvars = len(code.co_cellvars)
+        nfreevars = len(code.co_freevars)
+        self.assertEquals(ncellvars, 1)
+        self.assertEquals(nfreevars, 1)
+
+        localsplus_as_tuple = state[-1]
+        valid = state[1]
+
+        self.assertEqual(valid, int(stackless.enable_softswitch(None)))
+        self.assertIsInstance(localsplus_as_tuple, tuple)
+        self.assertGreaterEqual(len(localsplus_as_tuple), 1 + code.co_nlocals + ncellvars + nfreevars)
+        for i in range(ncellvars + nfreevars):
+            cell = localsplus_as_tuple[1 + code.co_nlocals + i]
+            self.assertIsInstance(cell, cell_type)
+            self.assertIs(cell.cell_contents, result)
+
+
 class TestDictViewPickling(TestPickledTasklets):
     def testDictKeyViewPickling(self):
         # stackless python prior to 2.7.3 used to register its own __reduce__
