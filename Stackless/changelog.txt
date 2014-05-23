@@ -5,7 +5,19 @@ This file documents changes to the Stackless extension of C-Python.
 For other changes see Misc/NEWS.
 
 
-What's New in Stackless 2.7.6r2?
+What's New in Stackless 2.7.X?
+===============================
+
+*Release date: XXXX-XX-XX*
+
+- Fix compiler warnings found on MAC.
+
+- https://bitbucket.org/stackless-dev/stackless/issue/61
+  Fix a crash after unpickling hard switched tasklet. It is now
+  always possible to inspect the local variables (frame.f_locals)
+  of an unpickled frame object.
+
+What's New in Stackless 2.7.6r3?
 ================================
 
 *Release date: 2014-03-11*
