@@ -506,6 +506,7 @@ SimpleExtendsException(PyExc_Exception, StopIteration,
 SimpleExtendsException(PyExc_BaseException, GeneratorExit,
                        "Request that a generator exit.");
 
+
 /*
  *    SystemExit extends BaseException
  */
@@ -1656,6 +1657,10 @@ UnicodeEncodeError_str(PyObject *self)
     PyObject *reason_str = NULL;
     PyObject *encoding_str = NULL;
 
+    if (!uself->object)
+        /* Not properly initialized. */
+        return PyUnicode_FromString("");
+
     /* Get reason and encoding as strings, which they might not be if
        they've been modified after we were contructed. */
     reason_str = PyObject_Str(uself->reason);
@@ -1740,6 +1745,10 @@ UnicodeDecodeError_str(PyObject *self)
     PyObject *result = NULL;
     PyObject *reason_str = NULL;
     PyObject *encoding_str = NULL;
+
+    if (!uself->object)
+        /* Not properly initialized. */
+        return PyUnicode_FromString("");
 
     /* Get reason and encoding as strings, which they might not be if
        they've been modified after we were contructed. */
@@ -1837,6 +1846,10 @@ UnicodeTranslateError_str(PyObject *self)
     PyUnicodeErrorObject *uself = (PyUnicodeErrorObject *)self;
     PyObject *result = NULL;
     PyObject *reason_str = NULL;
+
+    if (!uself->object)
+        /* Not properly initialized. */
+        return PyUnicode_FromString("");
 
     /* Get reason as a string, which it might not be if it's been
        modified after we were contructed. */

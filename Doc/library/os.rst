@@ -157,7 +157,9 @@ process and user.
 
    Availability: Unix.
 
-   .. note:: On Mac OS X, :func:`getgroups` behavior differs somewhat from
+   .. note::
+
+      On Mac OS X, :func:`getgroups` behavior differs somewhat from
       other Unix platforms. If the Python interpreter was built with a
       deployment target of :const:`10.5` or earlier, :func:`getgroups` returns
       the list of effective group ids associated with the current user process;
@@ -461,8 +463,9 @@ These functions create new file objects. (See also :func:`open`.)
    .. index:: single: I/O control; buffering
 
    Return an open file object connected to the file descriptor *fd*.  The *mode*
-   and *bufsize* arguments have the same meaning as the corresponding arguments to
-   the built-in :func:`open` function.
+   and *bufsize* arguments have the same meaning as the corresponding arguments
+   to the built-in :func:`open` function.  If :func:`fdopen` raises an
+   exception, it leaves *fd* untouched (unclosed).
 
    Availability: Unix, Windows.
 
@@ -744,7 +747,7 @@ as internal buffering of data.
    by *how*: :const:`SEEK_SET` or ``0`` to set the position relative to the
    beginning of the file; :const:`SEEK_CUR` or ``1`` to set it relative to the
    current position; :const:`SEEK_END` or ``2`` to set it relative to the end of
-   the file.
+   the file. Return the new cursor position in bytes, starting from the beginning.
 
    Availability: Unix, Windows.
 
@@ -1935,6 +1938,10 @@ written in Python, such as a mail server's external command delivery program.
 
    Note that some platforms including FreeBSD <= 6.3, Cygwin and OS/2 EMX have
    known issues when using fork() from a thread.
+
+   .. warning::
+
+      See :mod:`ssl` for applications that use the SSL module with fork().
 
    Availability: Unix.
 

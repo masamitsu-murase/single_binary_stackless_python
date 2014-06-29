@@ -421,7 +421,9 @@ class Wave_write:
             data = self._convert(data)
         if self._sampwidth > 1 and big_endian:
             import array
-            data = array.array(_array_fmts[self._sampwidth], data)
+            a = array.array(_array_fmts[self._sampwidth])
+            a.fromstring(data)
+            data = a
             assert data.itemsize == self._sampwidth
             data.byteswap()
             data.tofile(self._file)

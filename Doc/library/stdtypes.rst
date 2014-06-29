@@ -399,8 +399,8 @@ All :class:`numbers.Real` types (:class:`int`, :class:`long`, and
 | ``math.trunc(x)``  | *x* truncated to Integral          |        |
 +--------------------+------------------------------------+--------+
 | ``round(x[, n])``  | *x* rounded to n digits,           |        |
-|                    | rounding half to even. If n is     |        |
-|                    | omitted, it defaults to 0.         |        |
+|                    | rounding ties away from zero. If n |        |
+|                    | is omitted, it defaults to 0.      |        |
 +--------------------+------------------------------------+--------+
 | ``math.floor(x)``  | the greatest integral float <= *x* |        |
 +--------------------+------------------------------------+--------+
@@ -754,11 +754,11 @@ are sequences of the same type; *n*, *i* and *j* are integers:
 +------------------+--------------------------------+----------+
 | ``max(s)``       | largest item of *s*            |          |
 +------------------+--------------------------------+----------+
-| ``s.index(i)``   | index of the first occurrence  |          |
-|                  | of *i* in *s*                  |          |
+| ``s.index(x)``   | index of the first occurrence  |          |
+|                  | of *x* in *s*                  |          |
 +------------------+--------------------------------+----------+
-| ``s.count(i)``   | total number of occurrences of |          |
-|                  | *i* in *s*                     |          |
+| ``s.count(x)``   | total number of occurrences of |          |
+|                  | *x* in *s*                     |          |
 +------------------+--------------------------------+----------+
 
 Sequence types also support comparisons. In particular, tuples and lists
@@ -1668,9 +1668,8 @@ Notes:
       Previously, all negative indices were truncated to zero.
 
 (6)
-   The :meth:`pop` method is only supported by the list and array types.  The
-   optional argument *i* defaults to ``-1``, so that by default the last item is
-   removed and returned.
+   The :meth:`pop` method's optional argument *i* defaults to ``-1``, so that
+   by default the last item is removed and returned.
 
 (7)
    The :meth:`sort` and :meth:`reverse` methods modify the list in place for
@@ -1783,7 +1782,7 @@ The constructors for both classes work the same:
 
    .. method:: isdisjoint(other)
 
-      Return True if the set has no elements in common with *other*.  Sets are
+      Return ``True`` if the set has no elements in common with *other*.  Sets are
       disjoint if and only if their intersection is the empty set.
 
       .. versionadded:: 2.6
