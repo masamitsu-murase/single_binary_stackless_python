@@ -1195,8 +1195,12 @@ class _TestPool(BaseTestCase):
         p.close()
         p.join()
 
+class Unpickleable(object):
+    def __reduce__(self):
+        raise pickle.PicklingError("intentionally unpickleable")
+
 def unpickleable_result():
-    return lambda: 42
+    return Unpickleable()
 
 class _TestPoolWorkerErrors(BaseTestCase):
     ALLOWED_TYPES = ('processes', )
