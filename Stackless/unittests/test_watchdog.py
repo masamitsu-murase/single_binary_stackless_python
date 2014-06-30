@@ -506,7 +506,7 @@ class TestNewWatchdog(StacklessTestCase):
 
         def task():
             while True:
-                for i in range(100):
+                for i in range(200):
                     i = i
                 stackless.schedule()
 
