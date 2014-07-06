@@ -2,6 +2,150 @@
 Python News
 +++++++++++
 
+What's New in Python 2.7.8?
+===========================
+
+*Release date: 2014-06-29*
+
+Core and Builtins
+-----------------
+
+- Issue #4346: In PyObject_CallMethod and PyObject_CallMethodObjArgs, don't
+  overwrite the error set in PyObject_GetAttr.
+
+- Issue #21831: Avoid integer overflow when large sizes and offsets are given to
+  the buffer type.
+
+- Issue #1856: Avoid crashes and lockups when daemon threads run while the
+  interpreter is shutting down; instead, these threads are now killed when they
+  try to take the GIL.
+
+- Issue #19656: Running Python with the -3 option now also warns about
+  non-ascii bytes literals.
+
+- Issue #21642: If the conditional if-else expression, allow an integer written
+  with no space between itself and the ``else`` keyword (e.g. ``True if 42else
+  False``) to be valid syntax.
+
+- Issue #21523: Fix over-pessimistic computation of the stack effect of
+  some opcodes in the compiler.  This also fixes a quadratic compilation
+  time issue noticeable when compiling code with a large number of "and"
+  and "or" operators.
+
+Library
+-------
+
+- Issue #21652: Prevent mimetypes.type_map from containing unicode keys on
+  Windows.
+
+- Issue #21729: Used the "with" statement in the dbm.dumb module to ensure
+  files closing.
+
+- Issue #21672: Fix the behavior of ntpath.join on UNC-style paths.
+
+- Issue #19145:  The times argument for itertools.repeat now handles
+  negative values the same way for keyword arguments as it does for
+  positional arguments.
+
+- Issue #21832:  Require named tuple inputs to be exact strings.
+
+- Issue #8343:  Named group error messages in the re module did not show
+  the name of the erroneous group.
+
+- Issue #21491: SocketServer: Fix a race condition in child processes reaping.
+
+- Issue #21635:  The difflib SequenceMatcher.get_matching_blocks() method
+  cache didn't match the actual result.  The former was a list of tuples
+  and the latter was a list of named tuples.
+
+- Issue #21722: The distutils "upload" command now exits with a non-zero
+  return code when uploading fails.  Patch by Martin Dengler.
+
+- Issue #21766: Prevent a security hole in CGIHTTPServer by URL unquoting paths
+  before checking for a CGI script at that path.
+
+- Issue #21310: Fixed possible resource leak in failed open().
+
+- Issue #21304: Backport the key derivation function hashlib.pbkdf2_hmac from
+  Python 3 per PEP 466.
+
+- Issue #11709: Fix the pydoc.help function to not fail when sys.stdin is not a
+  valid file.
+
+- Issue #13223: Fix pydoc.writedoc so that the HTML documentation for methods
+  that use 'self' in the example code is generated correctly.
+
+- Issue #21552: Fixed possible integer overflow of too long string lengths in
+  the tkinter module on 64-bit platforms.
+
+- Issue #14315: The zipfile module now ignores extra fields in the central
+  directory that are too short to be parsed instead of letting a struct.unpack
+  error bubble up as this "bad data" appears in many real world zip files in
+  the wild and is ignored by other zip tools.
+
+- Issue #21402: Tkinter.ttk now works when default root window is not set.
+
+- Issue #10203: sqlite3.Row now truly supports sequence protocol.  In particulr
+  it supports reverse() and negative indices.  Original patch by Claudiu Popa.
+
+- Issue #8743: Fix interoperability between set objects and the
+  collections.Set() abstract base class.
+
+- Issue #21481:  Argparse equality and inequality tests now return
+  NotImplemented when comparing to an unknown type.
+
+IDLE
+----
+
+- Issue #21686: add unittest for HyperParser. Original patch by Saimadhav
+  Heblikar.
+
+- Issue #12387: Add missing upper(lower)case versions of default Windows key
+  bindings for Idle so Caps Lock does not disable them. Patch by Roger Serwy.
+
+- Issue #21695: Closing a Find-in-files output window while the search is
+  still in progress no longer closes Idle.
+
+- Issue #18910: Add unittest for textView. Patch by Phil Webster.
+
+- Issue #18292: Add unittest for AutoExpand. Patch by Saihadhav Heblikar.
+
+- Issue #18409: Add unittest for AutoComplete. Patch by Phil Webster.
+
+Tests
+-----
+
+- Issue #20155: Changed HTTP method names in failing tests in test_httpservers
+  so that packet filtering software (specifically Windows Base Filtering Engine)
+  does not interfere with the transaction semantics expected by the tests.
+
+- Issue #19493: Refactored the ctypes test package to skip tests explicitly
+  rather than silently.
+
+- Issue #18492: All resources are now allowed when tests are not run by
+  regrtest.py.
+
+- Issue #21605: Added tests for Tkinter images.
+
+- Issue #21493: Added test for ntpath.expanduser().  Original patch by
+  Claudiu Popa.
+
+- Issue #19925: Added tests for the spwd module. Original patch by Vajrasky Kok.
+
+- Issue #13355: random.triangular() no longer fails with a ZeroDivisionError
+  when low equals high.
+
+- Issue #21522: Added Tkinter tests for Listbox.itemconfigure(),
+  PanedWindow.paneconfigure(), and Menu.entryconfigure().
+
+- Issue #20635: Added tests for Tk geometry managers.
+
+Windows
+-------
+
+- Issue #21671, CVE-2014-0224: The bundled version of OpenSSL has been
+  updated to 1.0.1h.
+
 What's New in Python 2.7.7
 ==========================
 

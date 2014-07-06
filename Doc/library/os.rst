@@ -257,7 +257,7 @@ process and user.
 
    .. index:: single: user; id
 
-   Return the current process's user id.
+   Return the current process's real user id.
 
    Availability: Unix.
 
@@ -1382,9 +1382,8 @@ Files and Directories
 
    .. versionchanged:: 2.3
       If :func:`stat_float_times` returns ``True``, the time values are floats, measuring
-      seconds. Fractions of a second may be reported if the system supports that. On
-      Mac OS, the times are always floats. See :func:`stat_float_times` for further
-      discussion.
+      seconds. Fractions of a second may be reported if the system supports that.
+      See :func:`stat_float_times` for further discussion.
 
    On some Unix systems (such as Linux), the following attributes may also be
    available:
@@ -1399,12 +1398,6 @@ Files and Directories
 
    * :attr:`st_gen` - file generation number
    * :attr:`st_birthtime` - time of file creation
-
-   On Mac OS systems, the following attributes may also be available:
-
-   * :attr:`st_rsize`
-   * :attr:`st_creator`
-   * :attr:`st_type`
 
    On RISCOS systems, the following attributes are also available:
 
@@ -1604,9 +1597,11 @@ Files and Directories
 
    If optional argument *topdown* is ``True`` or not specified, the triple for a
    directory is generated before the triples for any of its subdirectories
-   (directories are generated top-down).  If *topdown* is ``False``, the triple for a
-   directory is generated after the triples for all of its subdirectories
-   (directories are generated bottom-up).
+   (directories are generated top-down).  If *topdown* is ``False``, the triple
+   for a directory is generated after the triples for all of its subdirectories
+   (directories are generated bottom-up). No matter the value of *topdown*, the
+   list of subdirectories is retrieved before the tuples for the directory and
+   its subdirectories are generated.
 
    When *topdown* is ``True``, the caller can modify the *dirnames* list in-place
    (perhaps using :keyword:`del` or slice assignment), and :func:`walk` will only
