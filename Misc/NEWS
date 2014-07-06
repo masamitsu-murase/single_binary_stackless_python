@@ -2,6 +2,18 @@
 Python News
 +++++++++++
 
+What's New in Python 2.7.9?
+==========================
+
+*Release date: XXXX-XX-XX*
+
+Core and Builtins
+-----------------
+
+Library
+-------
+
+
 What's New in Python 2.7.8?
 ===========================
 
@@ -139,6 +151,11 @@ Tests
   PanedWindow.paneconfigure(), and Menu.entryconfigure().
 
 - Issue #20635: Added tests for Tk geometry managers.
+
+Build
+-----
+
+- Issue #21811: Anticipated fixes to support OS X versions > 10.9.
 
 Windows
 -------
