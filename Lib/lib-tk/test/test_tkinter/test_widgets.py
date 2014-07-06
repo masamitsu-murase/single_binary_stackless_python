@@ -1,6 +1,7 @@
 import unittest
 import Tkinter
 import os
+import sys
 from test.test_support import requires, run_unittest
 
 from test_ttk.support import (tcl_version, requires_tcl, get_tk_patchlevel,
@@ -8,7 +9,8 @@ from test_ttk.support import (tcl_version, requires_tcl, get_tk_patchlevel,
 from widget_tests import (
     add_standard_options, noconv, noconv_meth, int_round, pixels_round,
     AbstractWidgetTest, StandardOptionsTests,
-    IntegerSizeTests, PixelSizeTests)
+    IntegerSizeTests, PixelSizeTests,
+    setUpModule)
 
 requires('gui')
 
@@ -258,6 +260,8 @@ class MenubuttonTest(AbstractLabelTest, unittest.TestCase):
 
     test_highlightthickness = StandardOptionsTests.test_highlightthickness.im_func
 
+    @unittest.skipIf(sys.platform == 'darwin',
+                     'crashes with Cocoa Tk (issue19733)')
     def test_image(self):
         widget = self.create()
         image = Tkinter.PhotoImage('image1')
@@ -322,10 +326,11 @@ class EntryTest(AbstractWidgetTest, unittest.TestCase):
         self.checkColorParam(widget, 'disabledbackground')
 
     def test_insertborderwidth(self):
-        widget = self.create()
-        self.checkPixelsParam(widget, 'insertborderwidth', 0, 1.3, -2)
-        self.checkParam(widget, 'insertborderwidth', 2, expected=1)
-        self.checkParam(widget, 'insertborderwidth', '10p', expected=1)
+        widget = self.create(insertwidth=100)
+        self.checkPixelsParam(widget, 'insertborderwidth',
+                              0, 1.3, 2.6, 6, -2, '10p')
+        # insertborderwidth is bounded above by a half of insertwidth.
+        self.checkParam(widget, 'insertborderwidth', 60, expected=100//2)
 
     def test_insertwidth(self):
         widget = self.create()

@@ -371,8 +371,7 @@ trace_trampoline(PyObject *self, PyFrameObject *frame,
     result = call_trampoline(tstate, callback, frame, what, arg);
     if (result == NULL) {
         PyEval_SetTrace(NULL, NULL);
-        Py_XDECREF(frame->f_trace);
-        frame->f_trace = NULL;
+        Py_CLEAR(frame->f_trace);
         return -1;
     }
     if (result != Py_None) {
@@ -638,6 +637,10 @@ sys_getwindowsversion(PyObject *self)
     PyStructSequence_SET_ITEM(version, pos++, PyInt_FromLong(ver.wSuiteMask));
     PyStructSequence_SET_ITEM(version, pos++, PyInt_FromLong(ver.wProductType));
 
+    if (PyErr_Occurred()) {
+        Py_DECREF(version);
+        return NULL;
+    }
     return version;
 }
 
@@ -1287,6 +1290,7 @@ make_flags(void)
 #undef SetFlag
 
     if (PyErr_Occurred()) {
+        Py_DECREF(seq);
         return NULL;
     }
     return seq;

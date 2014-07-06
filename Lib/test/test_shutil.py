@@ -651,16 +651,14 @@ class TestMove(unittest.TestCase):
     def test_move_file_other_fs(self):
         # Move a file to an existing dir on another filesystem.
         if not self.dir_other_fs:
-            # skip
-            return
+            self.skipTest('dir on other filesystem not available')
         self._check_move_file(self.src_file, self.file_other_fs,
             self.file_other_fs)
 
     def test_move_file_to_dir_other_fs(self):
         # Move a file to another location on another filesystem.
         if not self.dir_other_fs:
-            # skip
-            return
+            self.skipTest('dir on other filesystem not available')
         self._check_move_file(self.src_file, self.dir_other_fs,
             self.file_other_fs)
 
@@ -678,8 +676,7 @@ class TestMove(unittest.TestCase):
     def test_move_dir_other_fs(self):
         # Move a dir to another location on another filesystem.
         if not self.dir_other_fs:
-            # skip
-            return
+            self.skipTest('dir on other filesystem not available')
         dst_dir = tempfile.mktemp(dir=self.dir_other_fs)
         try:
             self._check_move_dir(self.src_dir, dst_dir, dst_dir)
@@ -697,10 +694,18 @@ class TestMove(unittest.TestCase):
     def test_move_dir_to_dir_other_fs(self):
         # Move a dir inside an existing dir on another filesystem.
         if not self.dir_other_fs:
-            # skip
-            return
+            self.skipTest('dir on other filesystem not available')
         self._check_move_dir(self.src_dir, self.dir_other_fs,
             os.path.join(self.dir_other_fs, os.path.basename(self.src_dir)))
+
+    def test_move_dir_sep_to_dir(self):
+        self._check_move_dir(self.src_dir + os.path.sep, self.dst_dir,
+            os.path.join(self.dst_dir, os.path.basename(self.src_dir)))
+
+    @unittest.skipUnless(os.path.altsep, 'requires os.path.altsep')
+    def test_move_dir_altsep_to_dir(self):
+        self._check_move_dir(self.src_dir + os.path.altsep, self.dst_dir,
+            os.path.join(self.dst_dir, os.path.basename(self.src_dir)))
 
     def test_existing_file_inside_dest_dir(self):
         # A file with the same name inside the destination dir already exists.

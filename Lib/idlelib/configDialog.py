@@ -71,16 +71,17 @@ class ConfigDialog(Toplevel):
                 page_names=['Fonts/Tabs','Highlighting','Keys','General'])
         frameActionButtons = Frame(self,pady=2)
         #action buttons
-        if macosxSupport.runningAsOSXApp():
+        if macosxSupport.isAquaTk():
             # Changing the default padding on OSX results in unreadable
             # text in the buttons
             paddingArgs={}
         else:
             paddingArgs={'padx':6, 'pady':3}
 
-        self.buttonHelp = Button(frameActionButtons,text='Help',
-                command=self.Help,takefocus=FALSE,
-                **paddingArgs)
+# Comment out button creation and packing until implement self.Help
+##        self.buttonHelp = Button(frameActionButtons,text='Help',
+##                command=self.Help,takefocus=FALSE,
+##                **paddingArgs)
         self.buttonOk = Button(frameActionButtons,text='Ok',
                 command=self.Ok,takefocus=FALSE,
                 **paddingArgs)
@@ -94,7 +95,7 @@ class ConfigDialog(Toplevel):
         self.CreatePageHighlight()
         self.CreatePageKeys()
         self.CreatePageGeneral()
-        self.buttonHelp.pack(side=RIGHT,padx=5)
+##        self.buttonHelp.pack(side=RIGHT,padx=5)
         self.buttonOk.pack(side=LEFT,padx=5)
         self.buttonApply.pack(side=LEFT,padx=5)
         self.buttonCancel.pack(side=LEFT,padx=5)

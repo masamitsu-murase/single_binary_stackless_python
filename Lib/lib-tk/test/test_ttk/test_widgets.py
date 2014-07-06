@@ -6,10 +6,11 @@ import sys
 
 import support
 from test_functions import MockTclObj, MockStateSpec
-from support import tcl_version
+from support import tcl_version, get_tk_patchlevel
 from widget_tests import (add_standard_options, noconv, noconv_meth,
     AbstractWidgetTest, StandardOptionsTests,
-    IntegerSizeTests, PixelSizeTests)
+    IntegerSizeTests, PixelSizeTests,
+    setUpModule)
 
 requires('gui')
 
@@ -20,7 +21,7 @@ class StandardTtkOptionsTests(StandardOptionsTests):
         widget = self.create()
         self.assertEqual(widget['class'], '')
         errmsg='attempt to change read-only option'
-        if tcl_version < (8, 6):
+        if get_tk_patchlevel() < (8, 6, 0): # actually this was changed in 8.6b3
             errmsg='Attempt to change read-only option'
         self.checkInvalidParam(widget, 'class', 'Foo', errmsg=errmsg)
         widget2 = self.create(class_='Foo')
@@ -274,7 +275,7 @@ class CheckbuttonTest(AbstractLabelTest, unittest.TestCase):
         cbtn['command'] = ''
         res = cbtn.invoke()
         self.assertFalse(str(res))
-        self.assertFalse(len(success) > 1)
+        self.assertLessEqual(len(success), 1)
         self.assertEqual(cbtn['offvalue'],
             cbtn.tk.globalgetvar(cbtn['variable']))
 
@@ -382,15 +383,21 @@ class ComboboxTest(AbstractWidgetTest, unittest.TestCase):
 
         # testing values with empty string set through configure
         self.combo.configure(values=[1, '', 2])
-        self.assertEqual(self.combo['values'], ('1', '', '2'))
+        self.assertEqual(self.combo['values'],
+                         ('1', '', '2') if self.wantobjects else
+                         '1 {} 2')
 
         # testing values with spaces
         self.combo['values'] = ['a b', 'a\tb', 'a\nb']
-        self.assertEqual(self.combo['values'], ('a b', 'a\tb', 'a\nb'))
+        self.assertEqual(self.combo['values'],
+                         ('a b', 'a\tb', 'a\nb') if self.wantobjects else
+                         '{a b} {a\tb} {a\nb}')
 
         # testing values with special characters
         self.combo['values'] = [r'a\tb', '"a"', '} {']
-        self.assertEqual(self.combo['values'], (r'a\tb', '"a"', '} {'))
+        self.assertEqual(self.combo['values'],
+                         (r'a\tb', '"a"', '} {') if self.wantobjects else
+                         r'a\\tb {"a"} \}\ \{')
 
         # out of range
         self.assertRaises(Tkinter.TclError, self.combo.current,
@@ -400,7 +407,8 @@ class ComboboxTest(AbstractWidgetTest, unittest.TestCase):
 
         # testing creating combobox with empty string in values
         combo2 = ttk.Combobox(values=[1, 2, ''])
-        self.assertEqual(combo2['values'], ('1', '2', ''))
+        self.assertEqual(combo2['values'],
+                         ('1', '2', '') if self.wantobjects else '1 2 {}')
         combo2.destroy()
 
 
@@ -455,7 +463,7 @@ class EntryTest(AbstractWidgetTest, unittest.TestCase):
     def test_bbox(self):
         self.assertEqual(len(self.entry.bbox(0)), 4)
         for item in self.entry.bbox(0):
-            self.assertTrue(isinstance(item, int))
+            self.assertIsInstance(item, int)
 
         self.assertRaises(Tkinter.TclError, self.entry.bbox, 'noindex')
         self.assertRaises(Tkinter.TclError, self.entry.bbox, None)
@@ -569,7 +577,7 @@ class PanedWindowTest(AbstractWidgetTest, unittest.TestCase):
         widget = self.create()
         self.assertEqual(str(widget['orient']), 'vertical')
         errmsg='attempt to change read-only option'
-        if tcl_version < (8, 6):
+        if get_tk_patchlevel() < (8, 6, 0): # actually this was changed in 8.6b3
             errmsg='Attempt to change read-only option'
         self.checkInvalidParam(widget, 'orient', 'horizontal',
                 errmsg=errmsg)
@@ -653,10 +661,12 @@ class PanedWindowTest(AbstractWidgetTest, unittest.TestCase):
 
         child = ttk.Label()
         self.paned.add(child)
-        self.assertTrue(isinstance(self.paned.pane(0), dict))
-        self.assertEqual(self.paned.pane(0, weight=None), 0)
+        self.assertIsInstance(self.paned.pane(0), dict)
+        self.assertEqual(self.paned.pane(0, weight=None),
+                         0 if self.wantobjects else '0')
         # newer form for querying a single option
-        self.assertEqual(self.paned.pane(0, 'weight'), 0)
+        self.assertEqual(self.paned.pane(0, 'weight'),
+                         0 if self.wantobjects else '0')
         self.assertEqual(self.paned.pane(0), self.paned.pane(str(child)))
 
         self.assertRaises(Tkinter.TclError, self.paned.pane, 0,
@@ -680,8 +690,8 @@ class PanedWindowTest(AbstractWidgetTest, unittest.TestCase):
 
         curr_pos = self.paned.sashpos(0)
         self.paned.sashpos(0, 1000)
-        self.assertTrue(curr_pos != self.paned.sashpos(0))
-        self.assertTrue(isinstance(self.paned.sashpos(0), int))
+        self.assertNotEqual(curr_pos, self.paned.sashpos(0))
+        self.assertIsInstance(self.paned.sashpos(0), int)
 
 
 @add_standard_options(StandardTtkOptionsTests)
@@ -711,20 +721,25 @@ class RadiobuttonTest(AbstractLabelTest, unittest.TestCase):
         cbtn = ttk.Radiobutton(command=cb_test, variable=myvar, value=0)
         cbtn2 = ttk.Radiobutton(command=cb_test, variable=myvar, value=1)
 
+        if self.wantobjects:
+            conv = lambda x: x
+        else:
+            conv = int
+
         res = cbtn.invoke()
         self.assertEqual(res, "cb test called")
-        self.assertEqual(cbtn['value'], myvar.get())
+        self.assertEqual(conv(cbtn['value']), myvar.get())
         self.assertEqual(myvar.get(),
-            cbtn.tk.globalgetvar(cbtn['variable']))
+            conv(cbtn.tk.globalgetvar(cbtn['variable'])))
         self.assertTrue(success)
 
         cbtn2['command'] = ''
         res = cbtn2.invoke()
         self.assertEqual(str(res), '')
-        self.assertFalse(len(success) > 1)
-        self.assertEqual(cbtn2['value'], myvar.get())
+        self.assertLessEqual(len(success), 1)
+        self.assertEqual(conv(cbtn2['value']), myvar.get())
         self.assertEqual(myvar.get(),
-            cbtn.tk.globalgetvar(cbtn['variable']))
+            conv(cbtn.tk.globalgetvar(cbtn['variable'])))
 
         self.assertEqual(str(cbtn['variable']), str(cbtn2['variable']))
 
@@ -812,10 +827,15 @@ class ScaleTest(AbstractWidgetTest, unittest.TestCase):
 
 
     def test_get(self):
+        if self.wantobjects:
+            conv = lambda x: x
+        else:
+            conv = float
+
         scale_width = self.scale.winfo_width()
         self.assertEqual(self.scale.get(scale_width, 0), self.scale['to'])
 
-        self.assertEqual(self.scale.get(0, 0), self.scale['from'])
+        self.assertEqual(conv(self.scale.get(0, 0)), conv(self.scale['from']))
         self.assertEqual(self.scale.get(), self.scale['value'])
         self.scale['value'] = 30
         self.assertEqual(self.scale.get(), self.scale['value'])
@@ -825,32 +845,37 @@ class ScaleTest(AbstractWidgetTest, unittest.TestCase):
 
 
     def test_set(self):
+        if self.wantobjects:
+            conv = lambda x: x
+        else:
+            conv = float
+
         # set restricts the max/min values according to the current range
-        max = self.scale['to']
+        max = conv(self.scale['to'])
         new_max = max + 10
         self.scale.set(new_max)
-        self.assertEqual(self.scale.get(), max)
-        min = self.scale['from']
+        self.assertEqual(conv(self.scale.get()), max)
+        min = conv(self.scale['from'])
         self.scale.set(min - 1)
-        self.assertEqual(self.scale.get(), min)
+        self.assertEqual(conv(self.scale.get()), min)
 
         # changing directly the variable doesn't impose this limitation tho
         var = Tkinter.DoubleVar()
         self.scale['variable'] = var
         var.set(max + 5)
-        self.assertEqual(self.scale.get(), var.get())
-        self.assertEqual(self.scale.get(), max + 5)
+        self.assertEqual(conv(self.scale.get()), var.get())
+        self.assertEqual(conv(self.scale.get()), max + 5)
         del var
 
         # the same happens with the value option
         self.scale['value'] = max + 10
-        self.assertEqual(self.scale.get(), max + 10)
-        self.assertEqual(self.scale.get(), self.scale['value'])
+        self.assertEqual(conv(self.scale.get()), max + 10)
+        self.assertEqual(conv(self.scale.get()), conv(self.scale['value']))
 
         # nevertheless, note that the max/min values we can get specifying
         # x, y coords are the ones according to the current range
-        self.assertEqual(self.scale.get(0, 0), min)
-        self.assertEqual(self.scale.get(self.scale.winfo_width(), 0), max)
+        self.assertEqual(conv(self.scale.get(0, 0)), min)
+        self.assertEqual(conv(self.scale.get(self.scale.winfo_width(), 0)), max)
 
         self.assertRaises(Tkinter.TclError, self.scale.set, None)
 
@@ -983,7 +1008,7 @@ class NotebookTest(AbstractWidgetTest, unittest.TestCase):
         self.nb.add(self.child2)
         self.assertEqual(self.nb.tabs(), tabs)
         self.assertEqual(self.nb.index(self.child2), child2_index)
-        self.assertTrue(str(self.child2) == self.nb.tabs()[child2_index])
+        self.assertEqual(str(self.child2), self.nb.tabs()[child2_index])
         # but the tab next to it (not hidden) is the one selected now
         self.assertEqual(self.nb.index('current'), curr + 1)
 
@@ -996,19 +1021,19 @@ class NotebookTest(AbstractWidgetTest, unittest.TestCase):
         tabs = self.nb.tabs()
         child1_index = self.nb.index(self.child1)
         self.nb.forget(self.child1)
-        self.assertFalse(str(self.child1) in self.nb.tabs())
+        self.assertNotIn(str(self.child1), self.nb.tabs())
         self.assertEqual(len(tabs) - 1, len(self.nb.tabs()))
 
         self.nb.add(self.child1)
         self.assertEqual(self.nb.index(self.child1), 1)
-        self.assertFalse(child1_index == self.nb.index(self.child1))
+        self.assertNotEqual(child1_index, self.nb.index(self.child1))
 
 
     def test_index(self):
         self.assertRaises(Tkinter.TclError, self.nb.index, -1)
         self.assertRaises(Tkinter.TclError, self.nb.index, None)
 
-        self.assertTrue(isinstance(self.nb.index('end'), int))
+        self.assertIsInstance(self.nb.index('end'), int)
         self.assertEqual(self.nb.index(self.child1), 0)
         self.assertEqual(self.nb.index(self.child2), 1)
         self.assertEqual(self.nb.index('end'), 2)
@@ -1072,7 +1097,7 @@ class NotebookTest(AbstractWidgetTest, unittest.TestCase):
         self.assertRaises(Tkinter.TclError, self.nb.tab, 'notab')
         self.assertRaises(Tkinter.TclError, self.nb.tab, None)
 
-        self.assertTrue(isinstance(self.nb.tab(self.child1), dict))
+        self.assertIsInstance(self.nb.tab(self.child1), dict)
         self.assertEqual(self.nb.tab(self.child1, text=None), 'a')
         # newer form for querying a single option
         self.assertEqual(self.nb.tab(self.child1, 'text'), 'a')
@@ -1193,7 +1218,7 @@ class TreeviewTest(AbstractWidgetTest, unittest.TestCase):
 
         bbox = self.tv.bbox(children[0])
         self.assertEqual(len(bbox), 4)
-        self.assertTrue(isinstance(bbox, tuple))
+        self.assertIsInstance(bbox, tuple)
         for item in bbox:
             if not isinstance(item, int):
                 self.fail("Invalid bounding box: %s" % bbox)
@@ -1204,6 +1229,8 @@ class TreeviewTest(AbstractWidgetTest, unittest.TestCase):
         self.tv.column('test', width=50)
         bbox_column0 = self.tv.bbox(children[0], 0)
         root_width = self.tv.column('#0', width=None)
+        if not self.wantobjects:
+            root_width = int(root_width)
         self.assertEqual(bbox_column0[0], bbox[0] + root_width)
 
         # verify that bbox of a closed item is the empty string
@@ -1216,7 +1243,7 @@ class TreeviewTest(AbstractWidgetTest, unittest.TestCase):
         self.assertEqual(self.tv.get_children(), ())
 
         item_id = self.tv.insert('', 'end')
-        self.assertTrue(isinstance(self.tv.get_children(), tuple))
+        self.assertIsInstance(self.tv.get_children(), tuple)
         self.assertEqual(self.tv.get_children()[0], item_id)
 
         # add item_id and child3 as children of child2
@@ -1241,14 +1268,17 @@ class TreeviewTest(AbstractWidgetTest, unittest.TestCase):
 
     def test_column(self):
         # return a dict with all options/values
-        self.assertTrue(isinstance(self.tv.column('#0'), dict))
+        self.assertIsInstance(self.tv.column('#0'), dict)
         # return a single value of the given option
-        self.assertTrue(isinstance(self.tv.column('#0', width=None), int))
+        if self.wantobjects:
+            self.assertIsInstance(self.tv.column('#0', width=None), int)
         # set a new value for an option
         self.tv.column('#0', width=10)
         # testing new way to get option value
-        self.assertEqual(self.tv.column('#0', 'width'), 10)
-        self.assertEqual(self.tv.column('#0', width=None), 10)
+        self.assertEqual(self.tv.column('#0', 'width'),
+                         10 if self.wantobjects else '10')
+        self.assertEqual(self.tv.column('#0', width=None),
+                         10 if self.wantobjects else '10')
         # check read-only option
         self.assertRaises(Tkinter.TclError, self.tv.column, '#0', id='X')
 
@@ -1356,7 +1386,7 @@ class TreeviewTest(AbstractWidgetTest, unittest.TestCase):
 
     def test_heading(self):
         # check a dict is returned
-        self.assertTrue(isinstance(self.tv.heading('#0'), dict))
+        self.assertIsInstance(self.tv.heading('#0'), dict)
 
         # check a value is returned
         self.tv.heading('#0', text='hi')
@@ -1461,13 +1491,16 @@ class TreeviewTest(AbstractWidgetTest, unittest.TestCase):
         # unicode values
         value = u'\xe1ba'
         item = self.tv.insert('', 'end', values=(value, ))
-        self.assertEqual(self.tv.item(item, 'values'), (value, ))
-        self.assertEqual(self.tv.item(item, values=None), (value, ))
+        self.assertEqual(self.tv.item(item, 'values'),
+                         (value,) if self.wantobjects else value)
+        self.assertEqual(self.tv.item(item, values=None),
+                         (value,) if self.wantobjects else value)
 
-        self.tv.item(item, values=list(self.tv.item(item, values=None)))
-        self.assertEqual(self.tv.item(item, values=None), (value, ))
+        self.tv.item(item, values=self.root.splitlist(self.tv.item(item, values=None)))
+        self.assertEqual(self.tv.item(item, values=None),
+                         (value,) if self.wantobjects else value)
 
-        self.assertTrue(isinstance(self.tv.item(item), dict))
+        self.assertIsInstance(self.tv.item(item), dict)
 
         # erase item values
         self.tv.item(item, values='')
@@ -1475,17 +1508,21 @@ class TreeviewTest(AbstractWidgetTest, unittest.TestCase):
 
         # item tags
         item = self.tv.insert('', 'end', tags=[1, 2, value])
-        self.assertEqual(self.tv.item(item, tags=None), ('1', '2', value))
+        self.assertEqual(self.tv.item(item, tags=None),
+                         ('1', '2', value) if self.wantobjects else
+                         '1 2 %s' % value)
         self.tv.item(item, tags=[])
         self.assertFalse(self.tv.item(item, tags=None))
         self.tv.item(item, tags=(1, 2))
-        self.assertEqual(self.tv.item(item, tags=None), ('1', '2'))
+        self.assertEqual(self.tv.item(item, tags=None),
+                         ('1', '2') if self.wantobjects else '1 2')
 
         # values with spaces
         item = self.tv.insert('', 'end', values=('a b c',
             '%s %s' % (value, value)))
         self.assertEqual(self.tv.item(item, values=None),
-            ('a b c', '%s %s' % (value, value)))
+            ('a b c', '%s %s' % (value, value)) if self.wantobjects else
+            '{a b c} {%s %s}' % (value, value))
 
         # text
         self.assertEqual(self.tv.item(
@@ -1502,19 +1539,24 @@ class TreeviewTest(AbstractWidgetTest, unittest.TestCase):
         self.assertEqual(self.tv.set(item), {'A': 'a', 'B': 'b'})
 
         self.tv.set(item, 'B', 'a')
-        self.assertEqual(self.tv.item(item, values=None), ('a', 'a'))
+        self.assertEqual(self.tv.item(item, values=None),
+                         ('a', 'a') if self.wantobjects else 'a a')
 
         self.tv['columns'] = ['B']
         self.assertEqual(self.tv.set(item), {'B': 'a'})
 
         self.tv.set(item, 'B', 'b')
         self.assertEqual(self.tv.set(item, column='B'), 'b')
-        self.assertEqual(self.tv.item(item, values=None), ('b', 'a'))
+        self.assertEqual(self.tv.item(item, values=None),
+                         ('b', 'a') if self.wantobjects else 'b a')
 
         self.tv.set(item, 'B', 123)
-        self.assertEqual(self.tv.set(item, 'B'), 123)
-        self.assertEqual(self.tv.item(item, values=None), (123, 'a'))
-        self.assertEqual(self.tv.set(item), {'B': 123})
+        self.assertEqual(self.tv.set(item, 'B'),
+                         123 if self.wantobjects else '123')
+        self.assertEqual(self.tv.item(item, values=None),
+                         (123, 'a') if self.wantobjects else '123 a')
+        self.assertEqual(self.tv.set(item),
+                         {'B': 123} if self.wantobjects else {'B': '123'})
 
         # inexistent column
         self.assertRaises(Tkinter.TclError, self.tv.set, item, 'A')
@@ -1568,7 +1610,7 @@ class TreeviewTest(AbstractWidgetTest, unittest.TestCase):
             'blue')
         self.assertEqual(str(self.tv.tag_configure('test', foreground=None)),
             'blue')
-        self.assertTrue(isinstance(self.tv.tag_configure('test'), dict))
+        self.assertIsInstance(self.tv.tag_configure('test'), dict)
 
 
 @add_standard_options(StandardTtkOptionsTests)

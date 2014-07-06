@@ -47,6 +47,9 @@ class TempDirMixin(object):
 
     def tearDown(self):
         os.chdir(self.old_dir)
+        for root, dirs, files in os.walk(self.temp_dir, topdown=False):
+            for name in files:
+                os.chmod(os.path.join(self.temp_dir, name), stat.S_IWRITE)
         shutil.rmtree(self.temp_dir, True)
 
     def create_readonly_file(self, filename):
@@ -2935,6 +2938,60 @@ class TestHelpBiggerOptionals(HelpTestCase):
     version = '''\
         0.1
         '''
+
+class TestShortColumns(HelpTestCase):
+    '''Test extremely small number of columns.
+
+    TestCase prevents "COLUMNS" from being too small in the tests themselves,
+    but we don't want any exceptions thrown in such case. Only ugly representation.
+    '''
+    def setUp(self):
+        env = test_support.EnvironmentVarGuard()
+        env.set("COLUMNS", '15')
+        self.addCleanup(env.__exit__)
+
+    parser_signature            = TestHelpBiggerOptionals.parser_signature
+    argument_signatures         = TestHelpBiggerOptionals.argument_signatures
+    argument_group_signatures   = TestHelpBiggerOptionals.argument_group_signatures
+    usage = '''\
+        usage: PROG
+               [-h]
+               [-v]
+               [-x]
+               [--y Y]
+               foo
+               bar
+        '''
+    help = usage + '''\
+
+        DESCRIPTION
+
+        positional arguments:
+          foo
+            FOO HELP
+          bar
+            BAR HELP
+
+        optional arguments:
+          -h, --help
+            show this
+            help
+            message and
+            exit
+          -v, --version
+            show
+            program's
+            version
+            number and
+            exit
+          -x
+            X HELP
+          --y Y
+            Y HELP
+
+        EPILOG
+    '''
+    version                     = TestHelpBiggerOptionals.version
 
 
 class TestHelpBiggerOptionalGroups(HelpTestCase):

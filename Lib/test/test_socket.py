@@ -1,12 +1,9 @@
-#!/usr/bin/env python
-
 import unittest
 from test import test_support
 
 import errno
 import socket
 import select
-import _testcapi
 import time
 import traceback
 import Queue
@@ -331,13 +328,13 @@ class GeneralModuleTests(unittest.TestCase):
             ip = socket.gethostbyname(hostname)
         except socket.error:
             # Probably name lookup wasn't set up right; skip this test
-            return
+            self.skipTest('name lookup failure')
         self.assertTrue(ip.find('.') >= 0, "Error resolving host to ip.")
         try:
             hname, aliases, ipaddrs = socket.gethostbyaddr(ip)
         except socket.error:
             # Probably a similar problem as above; skip this test
-            return
+            self.skipTest('address lookup failure')
         all_host_names = [hostname, hname] + aliases
         fqhn = socket.getfqdn(ip)
         if not fqhn in all_host_names:
@@ -491,9 +488,9 @@ class GeneralModuleTests(unittest.TestCase):
         try:
             from socket import inet_pton, AF_INET6, has_ipv6
             if not has_ipv6:
-                return
+                self.skipTest('IPv6 not available')
         except ImportError:
-            return
+            self.skipTest('could not import needed symbols from socket')
         f = lambda a: inet_pton(AF_INET6, a)
 
         self.assertEqual('\x00' * 16, f('::'))
@@ -525,9 +522,9 @@ class GeneralModuleTests(unittest.TestCase):
         try:
             from socket import inet_ntop, AF_INET6, has_ipv6
             if not has_ipv6:
-                return
+                self.skipTest('IPv6 not available')
         except ImportError:
-            return
+            self.skipTest('could not import needed symbols from socket')
         f = lambda a: inet_ntop(AF_INET6, a)
 
         self.assertEqual('::', f('\x00' * 16))
@@ -567,7 +564,7 @@ class GeneralModuleTests(unittest.TestCase):
             my_ip_addr = socket.gethostbyname(socket.gethostname())
         except socket.error:
             # Probably name lookup wasn't set up right; skip this test
-            return
+            self.skipTest('name lookup failure')
         self.assertIn(name[0], ("0.0.0.0", my_ip_addr), '%s invalid' % name[0])
         self.assertEqual(name[1], port)
 
@@ -666,9 +663,15 @@ class GeneralModuleTests(unittest.TestCase):
         socket.getaddrinfo(None, 0, socket.AF_UNSPEC, socket.SOCK_STREAM, 0,
                            socket.AI_PASSIVE)
 
-        # Issue 17269
+        # Issue 17269: test workaround for OS X platform bug segfault
         if hasattr(socket, 'AI_NUMERICSERV'):
-            socket.getaddrinfo("localhost", None, 0, 0, 0, socket.AI_NUMERICSERV)
+            try:
+                # The arguments here are undefined and the call may succeed
+                # or fail.  All we care here is that it doesn't segfault.
+                socket.getaddrinfo("localhost", None, 0, 0, 0,
+                                   socket.AI_NUMERICSERV)
+            except socket.gaierror:
+                pass
 
     def check_sendall_interrupted(self, with_timeout):
         # socketpair() is not stricly required, but it makes things easier.
@@ -713,7 +716,10 @@ class GeneralModuleTests(unittest.TestCase):
             srv.listen(backlog)
             srv.close()
 
+    @test_support.cpython_only
+    def test_listen_backlog_overflow(self):
         # Issue 15989
+        import _testcapi
         srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         srv.bind((HOST, 0))
         self.assertRaises(OverflowError, srv.listen, _testcapi.INT_MAX + 1)
@@ -786,10 +792,10 @@ class BasicTCPTest(SocketConnectedTest):
         big_chunk = 'f' * 2048
         self.serv_conn.sendall(big_chunk)
 
+    @unittest.skipUnless(hasattr(socket, 'fromfd'),
+                         'socket.fromfd not availble')
     def testFromFd(self):
         # Testing fromfd()
-        if not hasattr(socket, "fromfd"):
-            return # On Windows, this doesn't exist
         fd = self.cli_conn.fileno()
         sock = socket.fromfd(fd, socket.AF_INET, socket.SOCK_STREAM)
         self.addCleanup(sock.close)
@@ -819,6 +825,14 @@ class BasicTCPTest(SocketConnectedTest):
         self.done.wait()
 
     def _testShutdown(self):
+        self.serv_conn.send(MSG)
+        self.serv_conn.shutdown(2)
+
+    testShutdown_overflow = test_support.cpython_only(testShutdown)
+
+    @test_support.cpython_only
+    def _testShutdown_overflow(self):
+        import _testcapi
         self.serv_conn.send(MSG)
         # Issue 15989
         self.assertRaises(OverflowError, self.serv_conn.shutdown,
@@ -913,13 +927,22 @@ class NonBlockingTCPTests(ThreadedTCPSocketTest):
             pass
         end = time.time()
         self.assertTrue((end - start) < 1.0, "Error setting non-blocking mode.")
-        # Issue 15989
-        if _testcapi.UINT_MAX < _testcapi.ULONG_MAX:
-            self.serv.setblocking(_testcapi.UINT_MAX + 1)
-            self.assertIsNone(self.serv.gettimeout())
 
     def _testSetBlocking(self):
         pass
+
+    @test_support.cpython_only
+    def testSetBlocking_overflow(self):
+        # Issue 15989
+        import _testcapi
+        if _testcapi.UINT_MAX >= _testcapi.ULONG_MAX:
+            self.skipTest('needs UINT_MAX < ULONG_MAX')
+        self.serv.setblocking(False)
+        self.assertEqual(self.serv.gettimeout(), 0.0)
+        self.serv.setblocking(_testcapi.UINT_MAX + 1)
+        self.assertIsNone(self.serv.gettimeout())
+
+    _testSetBlocking_overflow = test_support.cpython_only(_testSetBlocking)
 
     def testAccept(self):
         # Testing non-blocking accept
@@ -1619,6 +1642,23 @@ class BufferIOTest(SocketConnectedTest):
         self.assertEqual(msg, MSG)
 
     _testRecvFromIntoMemoryview = _testRecvFromIntoArray
+
+    def testRecvFromIntoSmallBuffer(self):
+        # See issue #20246.
+        buf = bytearray(8)
+        self.assertRaises(ValueError, self.cli_conn.recvfrom_into, buf, 1024)
+
+    def _testRecvFromIntoSmallBuffer(self):
+        with test_support.check_py3k_warnings():
+            buf = buffer(MSG)
+        self.serv_conn.send(buf)
+
+    def testRecvFromIntoEmptyBuffer(self):
+        buf = bytearray()
+        self.cli_conn.recvfrom_into(buf)
+        self.cli_conn.recvfrom_into(buf, 0)
+
+    _testRecvFromIntoEmptyBuffer = _testRecvFromIntoArray
 
 
 TIPC_STYPE = 2000

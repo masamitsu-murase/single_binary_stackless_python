@@ -1,9 +1,12 @@
 # Common tests for test_tkinter/test_widgets.py and test_ttk/test_widgets.py
 
+import unittest
+import sys
 import Tkinter
 from ttk import setup_master, Scale
 from test_ttk.support import (tcl_version, requires_tcl, get_tk_patchlevel,
                               pixels_conv, tcl_obj_eq)
+import test.test_support
 
 
 noconv = noconv_meth = False
@@ -64,9 +67,7 @@ class AbstractWidgetTest(object):
         if not isinstance(widget, Scale):
             t = widget.configure(name)
             self.assertEqual(len(t), 5)
-            ## XXX
-            if not isinstance(t[4], tuple):
-                self.assertEqual2(t[4], expected, eq=eq)
+            self.assertEqual2(t[4], expected, eq=eq)
 
     def checkInvalidParam(self, widget, name, value, errmsg=None,
                           keep_orig=True):
@@ -253,8 +254,14 @@ class StandardOptionsTests(object):
         widget = self.create()
         self.checkParam(widget, 'bitmap', 'questhead')
         self.checkParam(widget, 'bitmap', 'gray50')
-        self.checkInvalidParam(widget, 'bitmap', 'spam',
-                errmsg='bitmap "spam" not defined')
+        filename = test.test_support.findfile('python.xbm', subdir='imghdrdata')
+        self.checkParam(widget, 'bitmap', '@' + filename)
+        # Cocoa Tk widgets don't detect invalid -bitmap values
+        # See https://core.tcl.tk/tk/info/31cd33dbf0
+        if not ('aqua' in self.root.tk.call('tk', 'windowingsystem') and
+                'AppKit' in self.root.winfo_server()):
+            self.checkInvalidParam(widget, 'bitmap', 'spam',
+                    errmsg='bitmap "spam" not defined')
 
     def test_borderwidth(self):
         widget = self.create()
@@ -308,6 +315,8 @@ class StandardOptionsTests(object):
         self.checkParam(widget, 'highlightthickness', -2, expected=0,
                         conv=self._conv_pixels)
 
+    @unittest.skipIf(sys.platform == 'darwin',
+                     'crashes with Cocoa Tk (issue19733)')
     def test_image(self):
         widget = self.create()
         self.checkImageParam(widget, 'image')
@@ -510,3 +519,8 @@ def add_standard_options(*source_classes):
                     setattr(cls, methodname, test)
         return cls
     return decorator
+
+def setUpModule():
+    if test.test_support.verbose:
+        tcl = Tkinter.Tcl()
+        print 'patchlevel =', tcl.call('info', 'patchlevel')

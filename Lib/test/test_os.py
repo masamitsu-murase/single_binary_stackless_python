@@ -258,7 +258,7 @@ class StatAttributeTests(unittest.TestCase):
         except OSError, e:
             # On AtheOS, glibc always returns ENOSYS
             if e.errno == errno.ENOSYS:
-                return
+                self.skipTest('glibc always returns ENOSYS on AtheOS')
 
         # Make sure direct access works
         self.assertEqual(result.f_bfree, result[3])
@@ -338,7 +338,7 @@ class StatAttributeTests(unittest.TestCase):
             os.stat(r"c:\pagefile.sys")
         except WindowsError, e:
             if e.errno == 2: # file does not exist; cannot run test
-                return
+                self.skipTest(r'c:\pagefile.sys does not exist')
             self.fail("Could not stat pagefile.sys")
 
 from test import mapping_tests
