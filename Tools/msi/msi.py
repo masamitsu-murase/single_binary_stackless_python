@@ -908,8 +908,8 @@ def generate_license():
     for name, pat, file in (("bzip2","bzip2-*", "LICENSE"),
                       ("Berkeley DB", "db-*", "LICENSE"),
                       ("openssl", "openssl-*", "LICENSE"),
-                      ("Tcl", "tcl8*", "license.terms"),
-                      ("Tk", "tk8*", "license.terms"),
+                      ("Tcl", "tcl-8*", "license.terms"),
+                      ("Tk", "tk-8*", "license.terms"),
                       ("Tix", "tix-*", "license.terms")):
         out.write("\nThis copy of Python includes a copy of %s, which is licensed under the following terms:\n\n" % name)
         dirs = glob.glob(srcdir+"/../"+pat)
