@@ -461,7 +461,6 @@ PyAPI_FUNC(void*) PyType_GetSlot(PyTypeObject*, int);
 #endif
 
 #ifndef Py_LIMITED_API
-
 /* The *real* layout of a type object when allocated on the heap */
 typedef struct _heaptypeobject {
     /* Note: there's a dependency on the order of these members
@@ -484,11 +483,10 @@ typedef struct _heaptypeobject {
     /* here are optional user slots, followed by the members. */
 } PyHeapTypeObject;
 
-#endif
-
 /* access macro to the members which are floating "behind" the object */
 #define PyHeapType_GET_MEMBERS(etype) \
     ((PyMemberDef *)(((char *)etype) + Py_TYPE(etype)->tp_basicsize))
+#endif
 
 /* Generic type check */
 PyAPI_FUNC(int) PyType_IsSubtype(PyTypeObject *, PyTypeObject *);

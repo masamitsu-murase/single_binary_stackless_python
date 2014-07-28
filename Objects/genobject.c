@@ -376,6 +376,7 @@ failed_throw:
     return NULL;
 }
 
+
 static PyObject *
 gen_iternext(PyGenObject *gen)
 {

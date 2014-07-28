@@ -541,6 +541,7 @@ ComplexExtendsException(
 SimpleExtendsException(PyExc_BaseException, GeneratorExit,
                        "Request that a generator exit.");
 
+
 /*
  *    SystemExit extends BaseException
  */

@@ -965,7 +965,7 @@ class PyDirectory(Directory):
 
 def hgmanifest():
     # Fetch file list from Mercurial
-    process = subprocess.Popen(['hg', 'manifest', '-q'], stdout=subprocess.PIPE)
+    process = subprocess.Popen(['hg', 'manifest'], stdout=subprocess.PIPE)
     stdout, stderr = process.communicate()
     # Create nested directories for file tree
     result = {}

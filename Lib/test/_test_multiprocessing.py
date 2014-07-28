@@ -1846,7 +1846,7 @@ class _TestPoolWorkerErrors(BaseTestCase):
         p.join()
 
     @unittest.skipIf(usingStackless, "Stackless can pickle lambdas")
-    def test_unpickleable_result(self):    
+    def test_unpickleable_result(self):
         from multiprocessing.pool import MaybeEncodingError
         p = multiprocessing.Pool(2)
 

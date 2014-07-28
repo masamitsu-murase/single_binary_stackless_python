@@ -4642,8 +4642,6 @@ PyType_Ready(PyTypeObject *type)
 
     type->tp_flags |= Py_TPFLAGS_READYING;
 
-
-
 #ifdef Py_TRACE_REFS
     /* PyType_Ready is the closest thing we have to a choke point
      * for type objects, so is the best place I can think of to try
