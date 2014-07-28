@@ -377,7 +377,7 @@ linearly scanned again. :c:func:`select` is O(highest file descriptor), while
 
    Modifies an already registered fd. This has the same effect as
    ``register(fd, eventmask)``.  Attempting to modify a file descriptor
-   that was never registered causes an :exc:`IOError` exception with errno
+   that was never registered causes an :exc:`OSError` exception with errno
    :const:`ENOENT` to be raised.
 
 

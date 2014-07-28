@@ -28,10 +28,10 @@ handler or to report an error condition "just like" the situation in which the
 interpreter raises the same exception; but beware that there is nothing to
 prevent user code from raising an inappropriate error.
 
-The built-in exception classes can be sub-classed to define new exceptions;
-programmers are encouraged to at least derive new exceptions from the
-:exc:`Exception` class and not :exc:`BaseException`.  More information on
-defining exceptions is available in the Python Tutorial under
+The built-in exception classes can be subclassed to define new exceptions;
+programmers are encouraged to derive new exceptions from the :exc:`Exception`
+class or one of its subclasses, and not from :exc:`BaseException`.  More
+information on defining exceptions is available in the Python Tutorial under
 :ref:`tut-userexceptions`.
 
 When raising (or re-raising) an exception in an :keyword:`except` clause
@@ -82,7 +82,7 @@ The following exceptions are used mostly as base classes for other exceptions.
    .. attribute:: args
 
       The tuple of arguments given to the exception constructor.  Some built-in
-      exceptions (like :exc:`IOError`) expect a certain number of arguments and
+      exceptions (like :exc:`OSError`) expect a certain number of arguments and
       assign a special meaning to the elements of this tuple, while others are
       usually called only with a single string giving an error message.
 
@@ -161,7 +161,7 @@ The following exceptions are the exceptions that are usually raised.
 
 .. exception:: GeneratorExit
 
-   Raise when a :term:`generator`\'s :meth:`close` method is called.  It
+   Raised when a :term:`generator`\'s :meth:`close` method is called.  It
    directly inherits from :exc:`BaseException` instead of :exc:`Exception` since
    it is technically not an error.
 

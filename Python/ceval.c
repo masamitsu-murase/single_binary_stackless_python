@@ -2517,7 +2517,7 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
                 if (v == Py_None)
                     retval = Py_TYPE(reciever)->tp_iternext(reciever);
                 else
-                    retval = _PyObject_CallMethodId(reciever, &PyId_send, "O", v);
+                    retval = _PyObject_CallMethodIdObjArgs(reciever, &PyId_send, v, NULL);
             }
             Py_DECREF(v);
             if (retval == NULL) {

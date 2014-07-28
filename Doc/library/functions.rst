@@ -773,7 +773,7 @@ are always available.  They are listed here in alphabetical order.
    already arranged into argument tuples, see :func:`itertools.starmap`\.
 
 
-.. function:: max(iterable, *[, default, key])
+.. function:: max(iterable, *[, key, default])
               max(arg1, arg2, *args[, key])
 
    Return the largest item in an iterable or the largest of two or more
@@ -781,7 +781,7 @@ are always available.  They are listed here in alphabetical order.
 
    If one positional argument is provided, it should be an :term:`iterable`.
    The largest item in the iterable is returned.  If two or more positional
-   arguments are provided, the smallest of the positional arguments is
+   arguments are provided, the largest of the positional arguments is
    returned.
 
    There are two optional keyword-only arguments. The *key* argument specifies
@@ -807,7 +807,7 @@ are always available.  They are listed here in alphabetical order.
    :ref:`typememoryview` for more information.
 
 
-.. function:: min(iterable, *[, default, key])
+.. function:: min(iterable, *[, key, default])
               min(arg1, arg2, *args[, key])
 
    Return the smallest item in an iterable or the smallest of two or more
@@ -831,6 +831,7 @@ are always available.  They are listed here in alphabetical order.
 
    .. versionadded:: 3.4
       The *default* keyword-only argument.
+
 
 .. function:: next(iterator[, default])
 

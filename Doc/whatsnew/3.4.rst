@@ -1456,7 +1456,7 @@ OpenSSL does not do any CRL verification by default.  (Contributed by
 Christien Heimes in :issue:`8813`.)
 
 New :class:`~ssl.SSLContext` method :meth:`~ssl.SSLContext.load_default_certs`
-loads a set of dfault "certificate authority" (CA) certificates from default
+loads a set of default "certificate authority" (CA) certificates from default
 locations, which vary according to the platform.  It can be used to load both
 TLS web server authentication certificates
 (``purpose=``:data:`~ssl.Purpose.SERVER_AUTH`) for a client to use to verify a
@@ -1839,7 +1839,7 @@ Python's default implementation to a SipHash implementation on platforms that
 have a 64 bit data type.  Any performance differences in comparison with the
 older FNV algorithm are trivial.
 
-The PEP adds additional fields to the :func:`sys.hash_info` struct sequence to
+The PEP adds additional fields to the :attr:`sys.hash_info` struct sequence to
 describe the hash algorithm in use by the currently executing binary.  Otherwise,
 the PEP does not alter any existing CPython APIs.
 
@@ -2350,7 +2350,7 @@ Changes in the Python API
 * :meth:`ssl.SSLSocket.getpeercert` and :meth:`ssl.SSLSocket.do_handshake`
   now raise an :exc:`OSError` with ``ENOTCONN`` when the ``SSLSocket`` is not
   connected, instead of the previous behavior of raising an
-  :exc:`AttributError`.  In addition, :meth:`~ssl.SSLSocket.getpeercert`
+  :exc:`AttributeError`.  In addition, :meth:`~ssl.SSLSocket.getpeercert`
   will raise a :exc:`ValueError` if the handshake has not yet been done.
 
 * :func:`base64.b32decode` now raises a :exc:`binascii.Error` when the

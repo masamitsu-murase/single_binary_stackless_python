@@ -323,8 +323,6 @@ Sequences
          object: mutable sequence
          object: mutable
          pair: assignment; statement
-         single: delete
-         statement: del
          single: subscription
          single: slicing
 
@@ -1465,6 +1463,14 @@ class' :attr:`__dict__`.
 .. method:: object.__delete__(self, instance)
 
    Called to delete the attribute on an instance *instance* of the owner class.
+
+
+The attribute :attr:`__objclass__` is interpreted by the :mod:`inspect` module
+as specifying the class where this object was defined (setting this
+appropriately can assist in runtime introspection of dynamic class attributes).
+For callables, it may indicate that an instance of the given type (or a
+subclass) is expected or required as the first positional argument (for example,
+CPython sets this attribute for unbound methods that are implemented in C).
 
 
 .. _descriptor-invocation:

@@ -416,7 +416,7 @@ module. Here is a basic working example::
        Simple TCP socket-based logging receiver suitable for testing.
        """
 
-       allow_reuse_address = 1
+       allow_reuse_address = True
 
        def __init__(self, host='localhost',
                     port=logging.handlers.DEFAULT_TCP_LOGGING_PORT,
@@ -1308,7 +1308,7 @@ This dictionary is passed to :func:`~config.dictConfig` to put the configuration
     }
 
 For more information about this configuration, you can see the `relevant
-section <https://docs.djangoproject.com/en/1.3/topics/logging/#configuring-logging>`_
+section <https://docs.djangoproject.com/en/1.6/topics/logging/#configuring-logging>`_
 of the Django documentation.
 
 .. _cookbook-rotator-namer:

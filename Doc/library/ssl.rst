@@ -250,13 +250,13 @@ purposes.
    :const:`None`, this function can choose to trust the system's default
    CA certificates instead.
 
-   The settings in Python 3.4 are: :data:`PROTOCOL_TLSv1` with high encryption
-   cipher suites without RC4 and without unauthenticated cipher suites.
-   Passing :data:`~Purpose.SERVER_AUTH` as *purpose* sets
-   :data:`~SSLContext.verify_mode` to :data:`CERT_REQUIRED` and either
-   loads CA certificates (when at least one of *cafile*, *capath* or *cadata*
-   is given) or uses :meth:`SSLContext.load_default_certs` to load default
-   CA certificates.
+   The settings in Python 3.4 are: :data:`PROTOCOL_SSLv23`, :data:`OP_NO_SSLv2`,
+   and :data:`OP_NO_SSLv3` with high encryption cipher suites without RC4 and
+   without unauthenticated cipher suites. Passing :data:`~Purpose.SERVER_AUTH`
+   as *purpose* sets :data:`~SSLContext.verify_mode` to :data:`CERT_REQUIRED`
+   and either loads CA certificates (when at least one of *cafile*, *capath* or
+   *cadata* is given) or uses :meth:`SSLContext.load_default_certs` to load
+   default CA certificates.
 
    .. note::
       The protocol, options, cipher and other settings may change to more
@@ -265,6 +265,19 @@ purposes.
 
       If your application needs specific settings, you should create a
       :class:`SSLContext` and apply the settings yourself.
+
+   .. note::
+      If you find that when certain older clients or servers attempt to connect
+      with a :class:`SSLContext` created by this function that they get an
+      error stating "Protocol or cipher suite mismatch", it may be that they
+      only support SSL3.0 which this function excludes using the
+      :data:`OP_NO_SSLv3`. SSL3.0 has problematic security due to a number of
+      poor implementations and it's reliance on MD5 within the protocol. If you
+      wish to continue to use this function but still allow SSL 3.0 connections
+      you can re-enable them using::
+
+         ctx = ssl.create_default_context(Purpose.CLIENT_AUTH)
+         ctx.options &= ~ssl.OP_NO_SSLv3
 
    .. versionadded:: 3.4
 
@@ -1326,20 +1339,9 @@ If you are going to require validation of the other side of the connection's
 certificate, you need to provide a "CA certs" file, filled with the certificate
 chains for each issuer you are willing to trust.  Again, this file just contains
 these chains concatenated together.  For validation, Python will use the first
-chain it finds in the file which matches.  Some "standard" root certificates are
-available from various certification authorities: `CACert.org
-<http://www.cacert.org/index.php?id=3>`_, `Thawte
-<http://www.thawte.com/roots/>`_, `Verisign
-<http://www.verisign.com/support/roots.html>`_, `Positive SSL
-<http://www.PositiveSSL.com/ssl-certificate-support/cert_installation/UTN-USERFirst-Hardware.crt>`_
-(used by python.org), `Equifax and GeoTrust
-<http://www.geotrust.com/resources/root_certificates/index.asp>`_.
-
-In general, if you are using SSL3 or TLS1, you don't need to put the full chain
-in your "CA certs" file; you only need the root certificates, and the remote
-peer is supposed to furnish the other certificates necessary to chain from its
-certificate to a root certificate.  See :rfc:`4158` for more discussion of the
-way in which certification chains can be built.
+chain it finds in the file which matches.  The platform's certificates file can
+be used by calling :meth:`SSLContext.load_default_certs`, this is done
+automatically with :func:`.create_default_context`.
 
 Combined key and certificate
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1542,7 +1544,7 @@ waiting for clients to connect::
 
    import socket, ssl
 
-   context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
+   context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
    context.load_cert_chain(certfile="mycertfile", keyfile="mykeyfile")
 
    bindsocket = socket.socket()
@@ -1586,8 +1588,19 @@ the sockets in non-blocking mode and use an event loop).
 Notes on non-blocking sockets
 -----------------------------
 
-When working with non-blocking sockets, there are several things you need
-to be aware of:
+SSL sockets behave slightly different than regular sockets in
+non-blocking mode. When working with non-blocking sockets, there are
+thus several things you need to be aware of:
+
+- Most :class:`SSLSocket` methods will raise either
+  :exc:`SSLWantWriteError` or :exc:`SSLWantReadError` instead of
+  :exc:`BlockingIOError` if an I/O operation would
+  block. :exc:`SSLWantReadError` will be raised if a read operation on
+  the underlying socket is necessary, and :exc:`SSLWantWriteError` for
+  a write operation on the underlying socket. Note that attempts to
+  *write* to an SSL socket may require *reading* from the underlying
+  socket first, and attempts to *read* from the SSL socket may require
+  a prior *write* to the underlying socket.
 
 - Calling :func:`~select.select` tells you that the OS-level socket can be
   read from (or written to), but it does not imply that there is sufficient
@@ -1596,8 +1609,14 @@ to be aware of:
   and :meth:`SSLSocket.send` failures, and retry after another call to
   :func:`~select.select`.
 
+- Conversely, since the SSL layer has its own framing, a SSL socket may
+  still have data available for reading without :func:`~select.select`
+  being aware of it.  Therefore, you should first call
+  :meth:`SSLSocket.recv` to drain any potentially available data, and then
+  only block on a :func:`~select.select` call if still necessary.
+
   (of course, similar provisions apply when using other primitives such as
-  :func:`~select.poll`)
+  :func:`~select.poll`, or those in the :mod:`selectors` module)
 
 - The SSL handshake itself will be non-blocking: the
   :meth:`SSLSocket.do_handshake` method has to be retried until it returns
@@ -1619,9 +1638,40 @@ to be aware of:
 Security considerations
 -----------------------
 
-Verifying certificates
-^^^^^^^^^^^^^^^^^^^^^^
+Best defaults
+^^^^^^^^^^^^^
 
+For **client use**, if you don't have any special requirements for your
+security policy, it is highly recommended that you use the
+:func:`create_default_context` function to create your SSL context.
+It will load the system's trusted CA certificates, enable certificate
+validation and hostname checking, and try to choose reasonably secure
+protocol and cipher settings.
+
+For example, here is how you would use the :class:`smtplib.SMTP` class to
+create a trusted, secure connection to a SMTP server::
+
+   >>> import ssl, smtplib
+   >>> smtp = smtplib.SMTP("mail.python.org", port=587)
+   >>> context = ssl.create_default_context()
+   >>> smtp.starttls(context=context)
+   (220, b'2.0.0 Ready to start TLS')
+
+If a client certificate is needed for the connection, it can be added with
+:meth:`SSLContext.load_cert_chain`.
+
+By contrast, if you create the SSL context by calling the :class:`SSLContext`
+constructor yourself, it will not have certificate validation nor hostname
+checking enabled by default.  If you do so, please read the paragraphs below
+to achieve a good security level.
+
+Manual settings
+^^^^^^^^^^^^^^^
+
+Verifying certificates
+''''''''''''''''''''''
+
+When calling the the :class:`SSLContext` constructor directly,
 :const:`CERT_NONE` is the default.  Since it does not authenticate the other
 peer, it can be insecure, especially in client mode where most of time you
 would like to ensure the authenticity of the server you're talking to.
@@ -1645,7 +1695,7 @@ to specify :const:`CERT_REQUIRED` and similarly check the client certificate.
       by default).
 
 Protocol versions
-^^^^^^^^^^^^^^^^^
+'''''''''''''''''
 
 SSL version 2 is considered insecure and is therefore dangerous to use.  If
 you want maximum compatibility between clients and servers, it is recommended
@@ -1655,27 +1705,20 @@ SSLv2 explicitly using the :data:`SSLContext.options` attribute::
    context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
    context.options |= ssl.OP_NO_SSLv2
 
-The SSL context created above will allow SSLv3 and TLSv1 connections, but
-not SSLv2.
+The SSL context created above will allow SSLv3 and TLSv1 (and later, if
+supported by your system) connections, but not SSLv2.
 
 Cipher selection
-^^^^^^^^^^^^^^^^
+''''''''''''''''
 
 If you have advanced security requirements, fine-tuning of the ciphers
 enabled when negotiating a SSL session is possible through the
 :meth:`SSLContext.set_ciphers` method.  Starting from Python 3.2.3, the
 ssl module disables certain weak ciphers by default, but you may want
-to further restrict the cipher choice.  For example::
-
-   context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
-   context.set_ciphers('HIGH:!aNULL:!eNULL')
-
-The ``!aNULL:!eNULL`` part of the cipher spec is necessary to disable ciphers
-which don't provide both encryption and authentication.  Be sure to read
-OpenSSL's documentation about the `cipher list
-format <http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT>`_.
-If you want to check which ciphers are enabled by a given cipher list,
-use the ``openssl ciphers`` command on your system.
+to further restrict the cipher choice. Be sure to read OpenSSL's documentation
+about the `cipher list format <http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT>`_.
+If you want to check which ciphers are enabled by a given cipher list, use the
+``openssl ciphers`` command on your system.
 
 Multi-processing
 ^^^^^^^^^^^^^^^^

@@ -9,7 +9,7 @@ Transports  and protocols (low-level API)
 Transports
 ==========
 
-Transports are classed provided by :mod:`asyncio` in order to abstract
+Transports are classes provided by :mod:`asyncio` in order to abstract
 various kinds of communication channels.  You generally won't instantiate
 a transport yourself; instead, you will call a :class:`BaseEventLoop` method
 which will create the transport and try to initiate the underlying
@@ -89,7 +89,7 @@ ReadTransport
    .. method:: pause_reading()
 
       Pause the receiving end of the transport.  No data will be passed to
-      the protocol's :meth:`data_received` method until meth:`resume_reading`
+      the protocol's :meth:`data_received` method until :meth:`resume_reading`
       is called.
 
    .. method:: resume_reading()

@@ -711,7 +711,7 @@ By default, these interpret the number as decimal, so that ``int('0144') ==
 144`` and ``int('0x144')`` raises :exc:`ValueError`. ``int(string, base)`` takes
 the base to convert from as a second optional argument, so ``int('0x144', 16) ==
 324``.  If the base is specified as 0, the number is interpreted using Python's
-rules: a leading '0' indicates octal, and '0x' indicates a hex number.
+rules: a leading '0o' indicates octal, and '0x' indicates a hex number.
 
 Do not use the built-in function :func:`eval` if all you need is to convert
 strings to numbers.  :func:`eval` will be significantly slower and it presents a
@@ -732,7 +732,7 @@ To convert, e.g., the number 144 to the string '144', use the built-in type
 constructor :func:`str`.  If you want a hexadecimal or octal representation, use
 the built-in functions :func:`hex` or :func:`oct`.  For fancy formatting, see
 the :ref:`string-formatting` section, e.g. ``"{:04d}".format(144)`` yields
-``'0144'`` and ``"{:.3f}".format(1/3)`` yields ``'0.333'``.
+``'0144'`` and ``"{:.3f}".format(1.0/3.0)`` yields ``'0.333'``.
 
 
 How do I modify a string in place?
