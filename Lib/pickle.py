@@ -978,7 +978,6 @@ class _Pickler:
     dispatch[FunctionType] = save_global
     dispatch[type] = save_type
 
-# This is no longer used to find classes, but still for functions
 
 # Unpickling machinery
 
