@@ -1,5 +1,18 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+from __future__ import division, absolute_import, print_function, unicode_literals
+
+import sys
+
+PY3 = sys.version_info[0] >= 3
+
 # speed test
-import time, sys, thread
+import time, sys
+if PY3:
+    import _thread as thread
+    xrange = range
+else:
+    import thread
 
 class StacklessError(Exception): pass
 
@@ -8,7 +21,7 @@ try:
     IS_SLP = True
 except ImportError:
     IS_SLP = False
-    print "This is not Stackless Python. Most tests will not work."
+    print("This is not Stackless Python. Most tests will not work.")
     def schedule(*args):
         raise StacklessError
     test_outside = test_cframe = test_cframe_nr = schedule
@@ -36,12 +49,14 @@ except ImportError:
         finally:
             tasklist = []
 
-print sys.version
+print(sys.version)
 
 args_given = None
 try:
     args_given = int(sys.argv[1])
-except: sys.exc_clear()
+except: 
+    if not PY3: # PY3 does it alone
+        sys.exc_clear()
 
 def f(n, sched):
     for i in xrange(0, n, 20):
@@ -57,9 +72,9 @@ def cleanup():
             task.kill()
 
 def tester(func, niter, args, msg, ntasks=10, run=run):
-    print "%8d %s" % (niter, msg, ),
+    print("%8d %s" % (niter, msg, ), end=' ')
     clock = time.clock
-    args = (niter / ntasks,) + args
+    args = (niter // ntasks,) + args
     diff = 0
     try:
         for i in range(ntasks):
@@ -68,11 +83,11 @@ def tester(func, niter, args, msg, ntasks=10, run=run):
         run()
         diff = clock() - start
         if diff == 0:
-            print 'no timing possible'
+            print('no timing possible')
         else:
-            print "took %9.5f seconds, rate = %10d/s" % (diff, niter/diff)
+            print("took %9.5f seconds, rate = %10d/s" % (diff, niter/diff))
     except StacklessError:
-        print "could not run, this is not Stackless"
+        print("could not run, this is not Stackless")
     return diff
 
 # generator test
@@ -151,9 +166,9 @@ def chantest(n, nest=0, use_thread=False, bulk = False):
     recv = chan.receive
     def xrecv():
         if chan.balance:
-            print "receiving from", id(chan.queue), "siblings=", getruncount()
+            print("receiving from", id(chan.queue), "siblings=", getruncount())
         else:
-            print "blocking"
+            print("blocking")
             chan.receive()
             getcurrent().next.run()
             schedule()
@@ -165,7 +180,7 @@ def chantest(n, nest=0, use_thread=False, bulk = False):
 
 if 0:
     def cb(*args):
-        print args
+        print(args)
     set_channel_callback(cb)
     
 niter = 10000000
@@ -183,7 +198,7 @@ if IS_SLP:
         try:
             stackless.current.next.kill()
         except:
-            print "*** GHOST ALERT ***"
+            print("*** GHOST ALERT ***")
             raise
     
 enable_softswitch(0)
@@ -208,23 +223,23 @@ res.append(tester(test_cframe, niter, (100,),   "cframe 100 words   "))
 
 if IS_SLP:
     if len(res) >= 2:
-        print "The penalty per stack word is about %0.3f percent of raw switching." % (
-            (res[-1]-res[-2]) / res[-2])
+        print("The penalty per stack word is about %0.3f percent of raw switching." % (
+            (res[-1]-res[-2]) / res[-2]))
 
     import struct
     adrsize = len(struct.pack("P", 0))
     def stacksize(tasklet):
-        stack = str(tasklet.cstate)
+        stack = bytes(tasklet.cstate)
         return len(stack)/adrsize
 
     tmp = enable_softswitch(0)
     t = tasklet(f)(1, schedule)
-    print "Stack size of initial stub   =", stacksize(t)
+    print("Stack size of initial stub   =", stacksize(t))
     schedule()
-    print "Stack size of frame tasklet  =", stacksize(t)
+    print("Stack size of frame tasklet  =", stacksize(t))
     t = tasklet(test_cframe)(1)
     schedule()
-    print "Stack size of cframe tasklet =", stacksize(t)
+    print("Stack size of cframe tasklet =", stacksize(t))
 
     enable_softswitch(tmp)
     # clear all tasklets
