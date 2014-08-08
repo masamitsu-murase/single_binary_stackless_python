@@ -697,8 +697,9 @@ gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result)
         Py_XDECREF(t);
         Py_XDECREF(v);
         Py_XDECREF(tb);
-        Py_DECREF(f);
+        f->f_gen = NULL;
         gen->gi_frame = NULL;
+        Py_DECREF(f);
     }
 
     Py_DECREF(gen);
