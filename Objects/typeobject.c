@@ -6261,22 +6261,22 @@ typedef struct wrapperbase slotdef;
     ETSLOT(NAME, as_number.SLOT, FUNCTION, WRAPPER, DOC, SLOT)
 #define UNSLOT(NAME, SLOT, FUNCTION, WRAPPER, DOC) \
     ETSLOT(NAME, as_number.SLOT, FUNCTION, WRAPPER, \
-           "x." NAME "() <==> " DOC, SLOT)
+           NAME "($self, /)\n--\n\n" DOC, SLOT)
 #define IBSLOT(NAME, SLOT, FUNCTION, WRAPPER, DOC) \
     ETSLOT(NAME, as_number.SLOT, FUNCTION, WRAPPER, \
-           "x." NAME "(y) <==> x" DOC "y", SLOT)
+           NAME "($self, value, /)\n--\n\nReturn self" DOC "value.", SLOT)
 #define BINSLOT(NAME, SLOT, FUNCTION, DOC) \
     ETSLOT(NAME, as_number.SLOT, FUNCTION, wrap_binaryfunc_l, \
-           "x." NAME "(y) <==> x" DOC "y", SLOT)
+           NAME "($self, value, /)\n--\n\nReturn self" DOC "value.", SLOT)
 #define RBINSLOT(NAME, SLOT, FUNCTION, DOC) \
     ETSLOT(NAME, as_number.SLOT, FUNCTION, wrap_binaryfunc_r, \
-           "x." NAME "(y) <==> y" DOC "x", SLOT)
+           NAME "($self, value, /)\n--\n\nReturn value" DOC "self.", SLOT)
 #define BINSLOTNOTINFIX(NAME, SLOT, FUNCTION, DOC) \
     ETSLOT(NAME, as_number.SLOT, FUNCTION, wrap_binaryfunc_l, \
-           "x." NAME "(y) <==> " DOC, SLOT)
+           NAME "($self, value, /)\n--\n\n" DOC, SLOT)
 #define RBINSLOTNOTINFIX(NAME, SLOT, FUNCTION, DOC) \
     ETSLOT(NAME, as_number.SLOT, FUNCTION, wrap_binaryfunc_r, \
-           "x." NAME "(y) <==> " DOC, SLOT)
+           NAME "($self, value, /)\n--\n\n" DOC, SLOT)
 #else
 
 #define TPSLOT(NAME, SLOT, FUNCTION, WRAPPER, DOC) \
