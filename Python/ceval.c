@@ -1733,6 +1733,8 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
                  * somebody might inject this as a real
                  * exception.
                  */
+                if (tstate->c_tracefunc != NULL)
+                    call_exc_trace(tstate->c_tracefunc, tstate->c_traceobj, tstate, f);
                 PyErr_Clear();
                 retval = POP();
                 Py_DECREF(retval);
