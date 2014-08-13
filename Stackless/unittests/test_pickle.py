@@ -1,7 +1,8 @@
 import sys
 import types
 import unittest
-import cPickle as pickle
+import pickle
+import cPickle
 import gc
 
 from stackless import schedule, tasklet, stackless
@@ -13,7 +14,7 @@ from support import StacklessTestCase
 #we need to make it appear that pickling them is ok, otherwise we will fail when pickling
 #closures that refer to test runner instances
 import copy_reg
-import sys
+
 def reduce(obj):
     return object, () #just create an empty object instance
 copy_reg.pickle(type(sys.stdout), reduce, object)
@@ -207,9 +208,24 @@ def is_soft():
     stackless.enable_softswitch(softswitch)
     return softswitch and not in_psyco()
 
-class TestPickledTasklets(StacklessTestCase):
+
+class PyPickleMixin(object):
+    def dumps(self, *args, **kw):
+        return pickle.dumps(*args, **kw)
+    def loads(self, *args, **kw):
+        return pickle.loads(*args, **kw)
+
+
+class CPickleMixin(object):
+    def dumps(self, *args, **kw):
+        return cPickle.dumps(*args, **kw)
+    def loads(self, *args, **kw):
+        return cPickle.loads(*args, **kw)
+
+
+class AbstractTestPickledTasklets(StacklessTestCase):
     def setUp(self):
-        super(TestPickledTasklets, self).setUp()
+        super(AbstractTestPickledTasklets, self).setUp()
         self.verbose = VERBOSE
 
     def tearDown(self):
@@ -222,7 +238,7 @@ class TestPickledTasklets(StacklessTestCase):
             current.kill()
             current = next
 
-        super(TestPickledTasklets, self).tearDown()
+        super(AbstractTestPickledTasklets, self).tearDown()
 
         del self.verbose
 
@@ -242,14 +258,14 @@ class TestPickledTasklets(StacklessTestCase):
         #t.tempval = None
 
         if self.verbose: print "pickling"
-        pi = pickle.dumps(t)
+        pi = self.dumps(t)
 
         # if self.verbose: print repr(pi)
         # why do we want to remove it?
         # t.remove()
 
         if self.verbose: print "unpickling"
-        ip = pickle.loads(pi)
+        ip = self.loads(pi)
 
         if self.verbose: print "starting unpickled tasklet"
         if is_soft():
@@ -280,11 +296,12 @@ class TestPickledTasklets(StacklessTestCase):
     except AttributeError:
         have_fromkeys = False
 
-class TestConcretePickledTasklets(TestPickledTasklets):
+
+class PickledTaskletTestCases(object):
     def testClassPersistence(self):
         t1 = CustomTasklet(nothing)()
-        s = pickle.dumps(t1)
-        t2 = pickle.loads(s)
+        s = self.dumps(t1)
+        t2 = self.loads(s)
         self.assertEqual(t1.__class__, t2.__class__)
 
     def testGenerator(self):
@@ -333,7 +350,7 @@ class TestConcretePickledTasklets(TestPickledTasklets):
     def testRecursiveLambda(self):
         recurse = lambda self, next: \
             next-1 and self(self, next-1) or (schedule(), 42)[1]
-        pickle.loads(pickle.dumps(recurse))
+        self.loads(self.dumps(recurse))
         self.run_pickled(recurse, recurse, 13)
 
     def testRecursiveEmbedded(self):
@@ -401,9 +418,9 @@ class TestConcretePickledTasklets(TestPickledTasklets):
         t = stackless.tasklet(tc.run)()
         t.run()
         # Pickle the tasklet that is blocking.
-        s = pickle.dumps(t)
+        s = self.dumps(t)
         # Unpickle it again, but don't hold a reference.
-        pickle.loads(s)
+        self.loads(s)
         # Force the collection of the unpickled tasklet.
         gc.collect()
 
@@ -432,22 +449,27 @@ class TestConcretePickledTasklets(TestPickledTasklets):
         t2 = stackless.tasklet(receiver)(c)
         t1.run()
 
-        pickle.dumps(t1)
+        self.dumps(t1)
 
     def testSubmoduleImporting(self):
         # When a submodule was pickled, it would unpickle as the
         # module instead.
         import xml.sax
         m1 = xml.sax
-        m2 = pickle.loads(pickle.dumps(m1))
+        m2 = self.loads(self.dumps(m1))
         self.assertEqual(m1, m2)
 
     def testFunctionModulePreservation(self):
         # The 'module' name on the function was not being preserved.
         f1 = lambda: None
-        f2 = pickle.loads(pickle.dumps(f1))
+        f2 = self.loads(self.dumps(f1))
         self.assertEqual(f1.__module__, f2.__module__)
 
+class TestPickledTaskletsPy(AbstractTestPickledTasklets, PickledTaskletTestCases, PyPickleMixin):
+    pass
+
+class TestPickledTaskletsC(AbstractTestPickledTasklets, PickledTaskletTestCases, CPickleMixin):
+    pass
 
 class TestFramePickling(StacklessTestCase):
     def testLocalplus(self):
@@ -472,8 +494,8 @@ class TestFramePickling(StacklessTestCase):
         self.assertIsInstance(code, types.CodeType)
         ncellvars = len(code.co_cellvars)
         nfreevars = len(code.co_freevars)
-        self.assertEquals(ncellvars, 1)
-        self.assertEquals(nfreevars, 1)
+        self.assertEqual(ncellvars, 1)
+        self.assertEqual(nfreevars, 1)
 
         localsplus_as_tuple = state[-1]
         valid = state[1]
@@ -487,7 +509,7 @@ class TestFramePickling(StacklessTestCase):
             self.assertIs(cell.cell_contents, result)
 
 
-class TestOldStackless_WrapFactories(StacklessTestCase):
+class OldStackless_WrapFactories_TestCases(object):
     def testXrange(self):
         # Stackless prior to version 2.7.3 used to register its own __reduce__
         # method for xrange with copy_reg. This method returnd the function
@@ -513,9 +535,16 @@ class TestOldStackless_WrapFactories(StacklessTestCase):
         #   44: .    STOP
         # highest protocol among opcodes = 0
 
-        x = pickle.loads(p)
+        x = self.loads(p)
         self.assertIs(type(x), xrange)
         self.assertEqual(repr(x), repr(xrange(123, 798, 45)))
+
+class TestOldStackless_WrapFactoriesPy(StacklessTestCase, OldStackless_WrapFactories_TestCases, PyPickleMixin):
+    pass
+
+class TestOldStackless_WrapFactoriesC(StacklessTestCase, OldStackless_WrapFactories_TestCases, CPickleMixin):
+    pass
+
 
 if __name__ == '__main__':
     if not sys.argv[1:]:
