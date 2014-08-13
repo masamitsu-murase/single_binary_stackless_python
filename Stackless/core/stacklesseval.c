@@ -570,7 +570,7 @@ typedef struct {
  * was not faster, but considerably slower than this solution.
  */
 
-PyObject* gen_iternext_callback(PyFrameObject *f, int exc, PyObject *retval);
+PyObject* gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result);
 
 PyObject *
 slp_gen_send_ex(PyGenObject *ob, PyObject *arg, int exc)
