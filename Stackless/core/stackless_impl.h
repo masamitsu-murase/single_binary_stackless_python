@@ -173,6 +173,9 @@ PyAPI_FUNC(PyTaskletObject *) slp_get_watchdog(PyThreadState *ts, int interrupt)
 #define STACKLESS_UNWINDING(obj) \
     ((PyObject *) (obj) == (PyObject *) Py_UnwindToken)
 
+#define STACKLESS_RETVAL(obj) \
+    (STACKLESS_UNWINDING(obj) ? Py_UnwindToken->tempval : (obj))
+
 /* macros for setting/resetting the stackless flag */
 
 #define STACKLESS_GETARG() int stackless = (stackless = slp_try_stackless, \

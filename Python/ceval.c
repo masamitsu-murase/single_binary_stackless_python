@@ -3829,8 +3829,13 @@ fast_block_end:
     if (why != WHY_RETURN)
         retval = NULL;
 
+#ifdef STACKLESS
+    assert((STACKLESS_RETVAL(retval) != NULL && !PyErr_Occurred())
+            || (STACKLESS_RETVAL(retval) == NULL && PyErr_Occurred()));
+#else
     assert((retval != NULL && !PyErr_Occurred())
             || (retval == NULL && PyErr_Occurred()));
+#endif
 
 fast_yield:
     if (co->co_flags & CO_GENERATOR && (why == WHY_YIELD || why == WHY_RETURN)) {
@@ -4886,8 +4891,13 @@ PyEval_CallObjectWithKeywords(PyObject *func, PyObject *arg, PyObject *kw)
     STACKLESS_ASSERT();
     Py_DECREF(arg);
 
+#ifdef STACKLESS
+    assert((STACKLESS_RETVAL(result) != NULL && !PyErr_Occurred())
+           || (STACKLESS_RETVAL(result) == NULL && PyErr_Occurred()));
+#else
     assert((result != NULL && !PyErr_Occurred())
            || (result == NULL && PyErr_Occurred()));
+#endif
     return result;
 }
 
@@ -5042,8 +5052,13 @@ call_function(PyObject ***pp_stack, int oparg
         READ_TIMESTAMP(*pintr1);
         Py_DECREF(func);
     }
+#ifdef STACKLESS
+    assert((STACKLESS_RETVAL(x) != NULL && !PyErr_Occurred())
+           || (STACKLESS_RETVAL(x) == NULL && PyErr_Occurred()));
+#else
     assert((x != NULL && !PyErr_Occurred())
            || (x == NULL && PyErr_Occurred()));
+#endif
 
     /* Clear the stack of the function object.  Also removes
        the arguments in case they weren't consumed already
@@ -5055,8 +5070,13 @@ call_function(PyObject ***pp_stack, int oparg
         PCALL(PCALL_POP);
     }
 
+#ifdef STACKLESS
+    assert((STACKLESS_RETVAL(x) != NULL && !PyErr_Occurred())
+           || (STACKLESS_RETVAL(x) == NULL && PyErr_Occurred()));
+#else
     assert((x != NULL && !PyErr_Occurred())
            || (x == NULL && PyErr_Occurred()));
+#endif
     return x;
 }
 
@@ -5356,8 +5376,13 @@ ext_call_fail:
     Py_XDECREF(callargs);
     Py_XDECREF(kwdict);
     Py_XDECREF(stararg);
+#ifdef STACKLESS
+    assert((STACKLESS_RETVAL(result) != NULL && !PyErr_Occurred())
+           || (STACKLESS_RETVAL(result) == NULL && PyErr_Occurred()));
+#else
     assert((result != NULL && !PyErr_Occurred())
            || (result == NULL && PyErr_Occurred()));
+#endif
     return result;
 }
 
