@@ -499,7 +499,8 @@ class TestFramePickling(StacklessTestCase):
         localsplus_as_tuple = state[-1]
         valid = state[1]
 
-        self.assertEqual(valid, int(stackless.enable_softswitch(None)))
+        self.assertEqual(valid, int(stackless.enable_softswitch(None) and
+                                    stackless.current.nesting_level == 0))
         self.assertIsInstance(localsplus_as_tuple, tuple)
         self.assertGreaterEqual(len(localsplus_as_tuple), 1 + code.co_nlocals + ncellvars + nfreevars)
         for i in range(ncellvars + nfreevars):
