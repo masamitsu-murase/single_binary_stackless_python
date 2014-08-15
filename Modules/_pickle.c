@@ -3759,7 +3759,14 @@ save(PicklerObject *self, PyObject *obj, int pers_save)
     }
     else if (type == &PyFunction_Type) {
         status = save_global(self, obj, NULL);
-        goto done;
+#ifdef STACKLESS
+        if (status < 0 && PyErr_ExceptionMatches(_Pickle_GetGlobalState()->PickleError)) {
+            /* fall back to reduce */
+            PyErr_Clear();
+        }
+        else
+#endif
+            goto done;
     }
 
     /* XXX: This part needs some unit tests. */

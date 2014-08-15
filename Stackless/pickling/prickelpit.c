@@ -1406,6 +1406,7 @@ static int init_itertype(void)
   pickling of class/instance methods (PyMethod)
 
  ******************************************************/
+#if PY_VERSION_HEX < 0x03040000 /* Native support in python 3.4 and above */
 
 static PyTypeObject wrap_PyMethod_Type;
 
@@ -1432,6 +1433,8 @@ static int init_methodtype(void)
 }
 #undef initchain
 #define initchain init_methodtype
+#endif
+
 /******************************************************
 
   pickling of dictviews
@@ -2106,6 +2109,7 @@ static int init_rangetype(void)
   pickling of method wrappers
 
  ******************************************************/
+#if PY_VERSION_HEX < 0x03040000 /* Native support in python 3.4 and above */
 
 /*
  * unfortunately we have to copy here.
@@ -2209,7 +2213,7 @@ static int init_methodwrappertype(void)
 }
 #undef initchain
 #define initchain init_methodwrappertype
-
+#endif
 
 /******************************************************
 
