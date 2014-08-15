@@ -2,6 +2,7 @@
 
 #include "Python.h"
 #include "structmember.h"
+#include "core/stackless_impl.h"
 
 #define TP_DESCR_GET(t) ((t)->tp_descr_get)
 
@@ -321,6 +322,7 @@ method_traverse(PyMethodObject *im, visitproc visit, void *arg)
 static PyObject *
 method_call(PyObject *func, PyObject *arg, PyObject *kw)
 {
+    STACKLESS_GETARG();
     PyObject *self = PyMethod_GET_SELF(func);
     PyObject *result;
 
@@ -344,7 +346,9 @@ method_call(PyObject *func, PyObject *arg, PyObject *kw)
         }
         arg = newarg;
     }
+    STACKLESS_PROMOTE_ALL();
     result = PyObject_Call((PyObject *)func, arg, kw);
+    STACKLESS_ASSERT();
     Py_DECREF(arg);
     return result;
 }
@@ -403,6 +407,8 @@ PyTypeObject PyMethod_Type = {
     0,                                          /* tp_alloc */
     method_new,                                 /* tp_new */
 };
+
+STACKLESS_DECLARE_METHOD(&PyMethod_Type, tp_call)
 
 /* Clear out the free list */
 

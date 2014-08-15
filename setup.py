@@ -600,7 +600,7 @@ class PyBuildExt(build_ext):
         # heapq
         exts.append( Extension("_heapq", ["_heapqmodule.c"]) )
         # C-optimized pickle replacement
-        exts.append( Extension("_pickle", ["_pickle.c"]) )
+        exts.append( Extension("_pickle", ["_pickle.c", '../Stackless/pickling/safe_pickle.c']) )
         # atexit
         exts.append( Extension("atexit", ["atexitmodule.c"]) )
         # _json speedups

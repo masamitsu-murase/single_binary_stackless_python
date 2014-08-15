@@ -179,6 +179,12 @@ mingw_lib = os.path.join(srcdir, PCBUILD, "libpython%s%s.a" % (major, minor))
 
 have_mingw = build_mingw_lib(lib_file, def_file, dll_file, mingw_lib)
 
+try:
+    import stackless
+    have_stackless = True
+except ImportError:
+    have_stackless = False
+
 # Determine the target architecture
 if os.system("nmake /nologo /c /f msisupport.mak") != 0:
     raise RuntimeError("'nmake /f msisupport.mak' failed")
@@ -199,6 +205,12 @@ else:
                     'http://www.python.org/ftp/python/%s.%s.%s/python-%s%s.msi' %
                     (major, minor, micro, full_current_version, msilib.arch_ext))
     product_code = '{%s}' % product_code
+
+if have_stackless:
+    # Bump the last digit of the code by two, so that 32-bit and 64-bit
+    # Stackless releases get separate product codes
+    digit = hex((int(product_code[-2],16)+8)%16)[-1]
+    product_code = product_code[:-2] + digit + '}'
 
 if testpackage:
     ext = 'px'
@@ -230,17 +242,19 @@ def build_database():
         uc = upgrade_code
     if msilib.Win64:
         productsuffix = " (64-bit)"
+        productsuffix = " (Stackless) (64-bit)"
     else:
         productsuffix = ""
+        productsuffix = " (Stackless)"
     # schema represents the installer 2.0 database schema.
     # sequence is the set of standard sequences
     # (ui/execute, admin/advt/install)
-    msiname = "python-%s%s.msi" % (full_current_version, msilib.arch_ext)
+    msiname = "python-%s%s-stackless.msi" % (full_current_version, msilib.arch_ext)
     db = msilib.init_database(msiname,
                   schema, ProductName="Python "+full_current_version+productsuffix,
                   ProductCode=product_code,
                   ProductVersion=current_version,
-                  Manufacturer=u"Python Software Foundation",
+                  Manufacturer=u"The Stackless Team",
                   request_uac = True)
     # The default sequencing of the RemoveExistingProducts action causes
     # removal of files that got just installed. Place it after
@@ -1129,6 +1143,18 @@ def add_files(db):
     lib = PyDirectory(db, cab, root, "include", "include", "INCLUDE|include")
     lib.glob("*.h")
     lib.add_file("pyconfig.h", src="../PC/pyconfig.h")
+    # Add the Stackless headers in a sub-directory.
+    if have_stackless:
+        slp = "Stackless"
+        lib = PyDirectory(db, cab, lib, os.path.join("..", slp), slp, "%s|%s" % (lib.make_short(slp), slp))
+        lib.glob("*.h")
+        for f in os.listdir(lib.absolute):
+            slpsubdir = os.path.join(lib.absolute, f)
+            if os.path.isdir(slpsubdir):
+                if f not in ("core", "module", "pickling", "platf"):
+                    continue
+                sublib = PyDirectory(db, cab, lib, f, f, "%s|%s" % (parent.make_short(f), f))
+                sublib.glob("*.h")
     # Add import libraries
     lib = PyDirectory(db, cab, root, PCBUILD, "libs", "LIBS|libs")
     for f in dlls:
@@ -1360,7 +1386,7 @@ def add_registry(db):
 def build_pdbzip():
     pdbexclude = ['kill_python.pdb', 'make_buildinfo.pdb',
                   'make_versioninfo.pdb']
-    path = "python-%s%s-pdb.zip" % (full_current_version, msilib.arch_ext)
+    path = "python-%s%s-pdb-stackless.zip" % (full_current_version, msilib.arch_ext)
     pdbzip = zipfile.ZipFile(path, 'w')
     for f in glob.glob1(os.path.join(srcdir, PCBUILD), "*.pdb"):
         if f not in pdbexclude and not f.endswith('_d.pdb'):

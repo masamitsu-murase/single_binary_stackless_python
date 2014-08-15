@@ -16,6 +16,7 @@
 #include "marshal.h"
 #include "osdefs.h"
 #include <locale.h>
+#include "core/stackless_impl.h"
 
 #ifdef HAVE_SIGNAL_H
 #include <signal.h>
@@ -379,6 +380,13 @@ _Py_InitializeEx_Private(int install_sigs, int install_importlib)
     _PyGILState_Init(interp, tstate);
 #endif /* WITH_THREAD */
 
+#ifdef STACKLESS
+	if (!_PyStackless_InitTypes()) {
+		PyErr_Print();
+		Py_FatalError("Py_Initialize: can't init stackless types");
+	}
+#endif
+
     _Py_ReadyTypes();
 
     if (!_PyFrame_Init())
@@ -576,6 +584,9 @@ Py_Finalize(void)
      * the threads created via Threading.
      */
     call_py_exitfuncs();
+#ifdef STACKLESS
+	PyStackless_kill_tasks_with_stacks(1);
+#endif
 
     /* Get current thread state and interpreter pointer */
     tstate = PyThreadState_GET();
@@ -698,7 +709,9 @@ Py_Finalize(void)
 
     /* Cleanup Unicode implementation */
     _PyUnicode_Fini();
-
+#ifdef STACKLESS
+    PyStackless_Fini();
+#endif
     /* reset file system default encoding */
     if (!Py_HasFileSystemDefaultEncoding && Py_FileSystemDefaultEncoding) {
         PyMem_RawFree((char*)Py_FileSystemDefaultEncoding);
@@ -1822,12 +1835,23 @@ handle_system_exit(void)
     /* NOTREACHED */
 }
 
+#ifdef STACKLESS
+void PyStackless_HandleSystemExit(void)
+{
+	handle_system_exit();
+}
+#endif
+
 void
 PyErr_PrintEx(int set_sys_last_vars)
 {
     PyObject *exception, *v, *tb, *hook;
 
+#ifdef STACKLESS
+	if (PyErr_ExceptionMatches(PyExc_SystemExit) && !PyErr_ExceptionMatches(PyExc_TaskletExit)) {
+#else
     if (PyErr_ExceptionMatches(PyExc_SystemExit)) {
+#endif
         handle_system_exit();
     }
     PyErr_Fetch(&exception, &v, &tb);
@@ -1853,7 +1877,11 @@ PyErr_PrintEx(int set_sys_last_vars)
         PyObject *result = PyEval_CallObject(hook, args);
         if (result == NULL) {
             PyObject *exception2, *v2, *tb2;
+#ifdef STACKLESS
+            if (PyErr_ExceptionMatches(PyExc_SystemExit) && !PyErr_ExceptionMatches(PyExc_TaskletExit)) {
+#else
             if (PyErr_ExceptionMatches(PyExc_SystemExit)) {
+#endif
                 handle_system_exit();
             }
             PyErr_Fetch(&exception2, &v2, &tb2);
@@ -2095,6 +2123,7 @@ PyObject *
 PyRun_StringFlags(const char *str, int start, PyObject *globals,
                   PyObject *locals, PyCompilerFlags *flags)
 {
+    STACKLESS_GETARG();
     PyObject *ret = NULL;
     mod_ty mod;
     PyArena *arena;
@@ -2109,8 +2138,10 @@ PyRun_StringFlags(const char *str, int start, PyObject *globals,
         return NULL;
 
     mod = PyParser_ASTFromStringObject(str, filename, start, flags, arena);
-    if (mod != NULL)
+    if (mod != NULL) {
+        STACKLESS_PROMOTE_ALL();
         ret = run_mod(mod, filename, globals, locals, flags, arena);
+    }
     PyArena_Free(arena);
     return ret;
 }
@@ -2119,6 +2150,7 @@ PyObject *
 PyRun_FileExFlags(FILE *fp, const char *filename_str, int start, PyObject *globals,
                   PyObject *locals, int closeit, PyCompilerFlags *flags)
 {
+    STACKLESS_GETARG();
     PyObject *ret = NULL;
     mod_ty mod;
     PyArena *arena = NULL;
@@ -2139,6 +2171,7 @@ PyRun_FileExFlags(FILE *fp, const char *filename_str, int start, PyObject *globa
     if (mod == NULL) {
         goto exit;
     }
+    STACKLESS_PROMOTE_ALL();
     ret = run_mod(mod, filename, globals, locals, flags, arena);
 
 exit:
@@ -2181,12 +2214,15 @@ static PyObject *
 run_mod(mod_ty mod, PyObject *filename, PyObject *globals, PyObject *locals,
             PyCompilerFlags *flags, PyArena *arena)
 {
+    STACKLESS_GETARG();
     PyCodeObject *co;
     PyObject *v;
     co = PyAST_CompileObject(mod, filename, flags, -1, arena);
     if (co == NULL)
         return NULL;
+    STACKLESS_PROMOTE_ALL();
     v = PyEval_EvalCode((PyObject*)co, globals, locals);
+    STACKLESS_ASSERT();
     Py_DECREF(co);
     return v;
 }

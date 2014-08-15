@@ -112,6 +112,10 @@ PyAPI_FUNC(PyObject *) PyEval_GetCallStats(PyObject *);
 PyAPI_FUNC(PyObject *) PyEval_EvalFrame(struct _frame *);
 PyAPI_FUNC(PyObject *) PyEval_EvalFrameEx(struct _frame *f, int exc);
 
+#ifdef STACKLESS
+PyAPI_FUNC(PyObject *) PyEval_EvalFrame_slp(struct _frame *f, int exc, PyObject *retval);
+PyAPI_FUNC(PyObject *) PyEval_EvalFrameEx_slp(struct _frame *f, int exc, PyObject *retval);
+#endif
 /* Interface for threads.
 
    A module that plans to do a blocking system call (or something else

@@ -521,9 +521,48 @@ untrack_dicts(PyGC_Head *head)
 }
 
 /* Return true if object has a pre-PEP 442 finalization method. */
+/* STACKLESS addition to support collection of tasklets */
+
+/* A traversal callback for has_finalisers.  It is a dummy, used to identify
+ * this phase of finalizer discovery by its function pointer, and thus
+ * enable the action of PyObject_GC_Collectable() below.
+ */
+static int
+visit_has_finalizer(PyObject *op, void *data)
+{
+    assert(op != NULL);
+    return 0;
+}
+
+/* An object can call this function from its traversal function
+ * to indicate whether it wishes to be collected or not
+ * this is useful for objects that have state that determines
+ * whether non-trivial actions need to be undertaken when
+ * it is deleted.
+ */
+PyAPI_FUNC(void)
+PyObject_GC_Collectable(PyObject *op, visitproc proc, void *arg,
+                        int can_collect)
+{
+    /* only do this during the move_finalizers phase */
+    if (proc == &visit_has_finalizer)
+        *(int*)arg = can_collect;
+}
+
 static int
 has_legacy_finalizer(PyObject *op)
 {
+    /* first, dynamic decision per object */
+    traverseproc traverse;
+    int collectable;
+    traverse = Py_TYPE(op)->tp_traverse;
+    collectable = -1;
+    (void) traverse(op,
+                    (visitproc)visit_has_finalizer,
+                    (void *)&collectable);
+    if (collectable >= 0)
+        return collectable == 0;
+
     return op->ob_type->tp_del != NULL;
 }
 
@@ -905,8 +944,16 @@ collect(int generation, Py_ssize_t *n_collected, Py_ssize_t *n_uncollectable,
     Py_ssize_t n = 0; /* # unreachable objects that couldn't be collected */
     PyGC_Head *young; /* the generation we are examining */
     PyGC_Head *old; /* next older generation */
+#ifdef STACKLESS
+    /* unlinking may occur in a different tasklet during collection
+     * so these must not be on the stack
+     */
+    static PyGC_Head unreachable; /* non-problematic unreachable trash */
+    static PyGC_Head finalizers;  /* objects with, & reachable from, __del__ */
+#else
     PyGC_Head unreachable; /* non-problematic unreachable trash */
     PyGC_Head finalizers;  /* objects with, & reachable from, __del__ */
+#endif
     PyGC_Head *gc;
     _PyTime_timeval t1;
 

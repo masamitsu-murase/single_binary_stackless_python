@@ -373,6 +373,10 @@ traceback_get_frames(traceback_t *traceback)
     }
 
     for (pyframe = tstate->frame; pyframe != NULL; pyframe = pyframe->f_back) {
+#ifdef STACKLESS
+        if (!PyFrame_Check(pyframe))
+            continue;  /* skip C-frames */
+#endif
         tracemalloc_get_frame(pyframe, &traceback->frames[traceback->nframe]);
         assert(traceback->frames[traceback->nframe].filename != NULL);
         assert(traceback->frames[traceback->nframe].lineno >= 0);

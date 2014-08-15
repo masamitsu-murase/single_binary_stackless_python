@@ -16,8 +16,24 @@ extensions = ['sphinx.ext.coverage', 'sphinx.ext.doctest',
               'pyspecific', 'c_annotations']
 templates_path = ['tools/sphinxext']
 
+# Compatibility hack for Sphinx version 1.2 and later
+# without the 'sphinx.ext.refcounting' extension
+# Required for http://stackless.readthedocs.org
+try:
+    # this symbol is available starting from version 1.2
+    from sphinx import version_info
+except Exception:
+    pass # version is pre 1.2.
+else:
+    del version_info
+    del extensions[0]
+if os.environ.get('READTHEDOCS', None) == 'True':
+    # Use the Sphinx default theme, not the very neat theme of readthedocs.org
+    # See https://docs.readthedocs.org/en/latest/faq.html#i-want-to-use-the-blue-default-sphinx-theme
+    html_style = '/default.css'
+
 # General substitutions.
-project = 'Python'
+project = 'Stackless-Python'
 copyright = '1990-%s, Python Software Foundation' % time.strftime('%Y')
 
 # The default replacements for |version| and |release|.
@@ -196,3 +212,19 @@ coverage_c_regexes = {
 coverage_ignore_c_items = {
 #    'cfunction': [...]
 }
+
+# For Stackless
+rst_epilog = u"""
+.. |PPL| replace::
+   *Python\xae* programming language
+
+.. |SLP| replace::
+   *Stackless-Python*
+
+.. |PY| replace::
+   *Python\xae*
+
+.. |CPY| replace::
+   standard *Python\xae*
+
+"""

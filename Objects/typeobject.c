@@ -3,6 +3,7 @@
 #include "Python.h"
 #include "frameobject.h"
 #include "structmember.h"
+#include "core/stackless_impl.h"
 
 #include <ctype.h>
 
@@ -1372,6 +1373,7 @@ _PyObject_LookupSpecial(PyObject *self, _Py_Identifier *attrid)
 static PyObject *
 call_method(PyObject *o, _Py_Identifier *nameid, char *format, ...)
 {
+    STACKLESS_GETARG();
     va_list va;
     PyObject *args, *func = 0, *retval;
     va_start(va, format);
@@ -1395,7 +1397,9 @@ call_method(PyObject *o, _Py_Identifier *nameid, char *format, ...)
         return NULL;
 
     assert(PyTuple_Check(args));
+    STACKLESS_PROMOTE_ALL();
     retval = PyObject_Call(func, args, NULL);
+    STACKLESS_ASSERT();
 
     Py_DECREF(args);
     Py_DECREF(func);
@@ -1408,6 +1412,7 @@ call_method(PyObject *o, _Py_Identifier *nameid, char *format, ...)
 static PyObject *
 call_maybe(PyObject *o, _Py_Identifier *nameid, char *format, ...)
 {
+    STACKLESS_GETARG();
     va_list va;
     PyObject *args, *func = 0, *retval;
     va_start(va, format);
@@ -1431,7 +1436,9 @@ call_maybe(PyObject *o, _Py_Identifier *nameid, char *format, ...)
         return NULL;
 
     assert(PyTuple_Check(args));
+    STACKLESS_PROMOTE_ALL();
     retval = PyObject_Call(func, args, NULL);
+    STACKLESS_ASSERT();
 
     Py_DECREF(args);
     Py_DECREF(func);
@@ -2366,7 +2373,11 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
     /* Initialize essential fields */
     type->tp_as_number = &et->as_number;
     type->tp_as_sequence = &et->as_sequence;
+#ifdef STACKLESS
+    type->tp_as_mapping = (PyMappingMethods *)&et->as_mapping;
+#else
     type->tp_as_mapping = &et->as_mapping;
+#endif
     type->tp_as_buffer = &et->as_buffer;
     type->tp_name = _PyUnicode_AsString(name);
     if (!type->tp_name)
@@ -2610,7 +2621,11 @@ PyType_FromSpecWithBases(PyType_Spec *spec, PyObject *bases)
     /* Initialize essential fields */
     type->tp_as_number = &res->as_number;
     type->tp_as_sequence = &res->as_sequence;
+#ifdef STACKLESS
+    type->tp_as_mapping = (PyMappingMethods *)&res->as_mapping;
+#else
     type->tp_as_mapping = &res->as_mapping;
+#endif
     type->tp_as_buffer = &res->as_buffer;
     /* Set tp_base and tp_bases */
     type->tp_bases = bases;
@@ -3221,11 +3236,21 @@ excess_args(PyObject *args, PyObject *kwds)
         (kwds && PyDict_Check(kwds) && PyDict_Size(kwds));
 }
 
+#ifdef STACKLESS
+PyObject * generic_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+int generic_init(PyObject *ob, PyObject *args, PyObject *kwds);
+#endif
+
 static int
 object_init(PyObject *self, PyObject *args, PyObject *kwds)
 {
     int err = 0;
     PyTypeObject *type = Py_TYPE(self);
+#ifdef STACKLESS
+        /* The following checking clashes with Stackless unpickling. */
+        if (type->tp_init == generic_init)
+            type = type->tp_base;
+#endif
     if (excess_args(args, kwds) &&
         (type->tp_new == object_new || type->tp_init != object_init)) {
         PyErr_SetString(PyExc_TypeError, "object.__init__() takes no parameters");
@@ -4425,6 +4450,27 @@ inherit_slots(PyTypeObject *type, PyTypeObject *base)
     (base->SLOT != 0 && \
      (basebase == NULL || base->SLOT != basebase->SLOT))
 
+#ifdef STACKLESS
+
+#define COPYSLOT2(SLOT, SLPSLOT) \
+    if (!type->SLOT && SLOTDEFINED(SLOT)) { \
+        type->SLOT = base->SLOT; \
+        if ((base->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_EXTENSION) && \
+            base->tp_as_mapping != NULL) { \
+            if (slp_prepare_slots(type)) \
+                Py_FatalError("No memory"); \
+            type->tp_as_mapping->slpflags.SLPSLOT = base->tp_as_mapping->slpflags.SLPSLOT; \
+        } \
+    }
+
+#define COPYSLOT(SLOT) COPYSLOT2(SLOT, SLOT)
+
+#define COPYNUM(SLOT) COPYSLOT2(tp_as_number->SLOT, SLOT)
+#define COPYSEQ(SLOT) COPYSLOT2(tp_as_sequence->SLOT, SLOT)
+#define COPYMAP(SLOT) COPYSLOT2(tp_as_mapping->SLOT, SLOT)
+#define COPYBUF(SLOT) COPYSLOT2(tp_as_buffer->SLOT, SLOT)
+
+#else
 #define COPYSLOT(SLOT) \
     if (!type->SLOT && SLOTDEFINED(SLOT)) type->SLOT = base->SLOT
 
@@ -4432,6 +4478,8 @@ inherit_slots(PyTypeObject *type, PyTypeObject *base)
 #define COPYSEQ(SLOT) COPYSLOT(tp_as_sequence->SLOT)
 #define COPYMAP(SLOT) COPYSLOT(tp_as_mapping->SLOT)
 #define COPYBUF(SLOT) COPYSLOT(tp_as_buffer->SLOT)
+
+#endif
 
     /* This won't inherit indirect slots (from tp_as_number etc.)
        if type doesn't provide the space. */
@@ -4569,6 +4617,14 @@ inherit_slots(PyTypeObject *type, PyTypeObject *base)
          * obvious to be done -- the type is on its own.
          */
     }
+#ifdef STACKLESS
+    /* set or clear the stackless call flag */
+    if ((type->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_EXTENSION) && type->tp_as_mapping &&
+            type->tp_as_mapping->slpflags.tp_call)
+        type->tp_flags |= Py_TPFLAGS_HAVE_STACKLESS_CALL;
+    else
+        type->tp_flags &= ~Py_TPFLAGS_HAVE_STACKLESS_CALL;
+#endif
 }
 
 static int add_operators(PyTypeObject *);
@@ -5728,12 +5784,15 @@ SLOT1(slot_nb_inplace_true_divide, "__itruediv__", PyObject *, "O")
 static PyObject *
 slot_tp_repr(PyObject *self)
 {
+    STACKLESS_GETARG();
     PyObject *func, *res;
     _Py_IDENTIFIER(__repr__);
 
     func = lookup_method(self, &PyId___repr__);
     if (func != NULL) {
+        STACKLESS_PROMOTE_ALL();
         res = PyEval_CallObject(func, NULL);
+        STACKLESS_ASSERT();
         Py_DECREF(func);
         return res;
     }
@@ -5745,13 +5804,16 @@ slot_tp_repr(PyObject *self)
 static PyObject *
 slot_tp_str(PyObject *self)
 {
+    STACKLESS_GETARG();
     PyObject *func, *res;
     _Py_IDENTIFIER(__str__);
 
     func = lookup_method(self, &PyId___str__);
     if (func == NULL)
         return NULL;
+    STACKLESS_PROMOTE_ALL();
     res = PyEval_CallObject(func, NULL);
+    STACKLESS_ASSERT();
     Py_DECREF(func);
     return res;
 }
@@ -5759,6 +5821,7 @@ slot_tp_str(PyObject *self)
 static Py_hash_t
 slot_tp_hash(PyObject *self)
 {
+    STACKLESS_GETARG(); /* not supported */
     PyObject *func, *res;
     Py_ssize_t h;
 
@@ -5806,6 +5869,7 @@ slot_tp_hash(PyObject *self)
 static PyObject *
 slot_tp_call(PyObject *self, PyObject *args, PyObject *kwds)
 {
+    STACKLESS_GETARG();
     _Py_IDENTIFIER(__call__);
     PyObject *meth = lookup_method(self, &PyId___call__);
     PyObject *res;
@@ -5813,8 +5877,34 @@ slot_tp_call(PyObject *self, PyObject *args, PyObject *kwds)
     if (meth == NULL)
         return NULL;
 
+#ifdef STACKLESS
+    /* PyObject_Call does not call Py_EnterRecursiveCall if soft switching is enabled. 
+       Therefore we must call Py_EnterRecursiveCall here to limit the stack depth. 
+       Scenario:
+           class A(object):
+               pass
+           A.__call__ = A() # that's right
+           a = A() # ok
+           a() # infinite recursion
+       This bounces between slot_tp_call() and PyObject_Call() without
+       ever hitting eval_frame() (which has the main recursion check). 
+       
+       Call Py_EnterRecursiveCall only if soft switching. If we would call it 
+       allways, we would halve the possible recursion depth. This could break code. */
+    if (stackless)
+        if (Py_EnterRecursiveCall(" in __call__")) {
+            Py_DECREF(meth);
+            return NULL;
+        }
+#endif
+    STACKLESS_PROMOTE_ALL();
     res = PyObject_Call(meth, args, kwds);
-
+    STACKLESS_ASSERT();
+#ifdef STACKLESS
+    /* see the assert above. */
+    if (stackless)
+        Py_LeaveRecursiveCall();
+#endif
     Py_DECREF(meth);
     return res;
 }
@@ -5833,7 +5923,13 @@ slot_tp_call(PyObject *self, PyObject *args, PyObject *kwds)
 static PyObject *
 slot_tp_getattro(PyObject *self, PyObject *name)
 {
-    return call_method(self, &PyId___getattribute__, "(O)", name);
+    STACKLESS_GETARG();
+    PyObject *ret;
+
+    STACKLESS_PROMOTE_ALL();
+    ret = call_method(self, &PyId___getattribute__, "(O)", name);
+    STACKLESS_ASSERT();
+    return ret;
 }
 
 static PyObject *
@@ -5857,6 +5953,7 @@ call_attribute(PyObject *self, PyObject *attr, PyObject *name)
 static PyObject *
 slot_tp_getattr_hook(PyObject *self, PyObject *name)
 {
+    STACKLESS_GETARG(); /* partially supported */
     PyTypeObject *tp = Py_TYPE(self);
     PyObject *getattr, *getattribute, *res;
     _Py_IDENTIFIER(__getattr__);
@@ -5867,10 +5964,13 @@ slot_tp_getattr_hook(PyObject *self, PyObject *name)
        _PyType_Lookup and create the method only when needed, with
        call_attribute. */
     getattr = _PyType_LookupId(tp, &PyId___getattr__);
+    STACKLESS_PROMOTE_ALL();
     if (getattr == NULL) {
         /* No __getattr__ hook: use a simpler dispatcher */
         tp->tp_getattro = slot_tp_getattro;
-        return slot_tp_getattro(self, name);
+        res = slot_tp_getattro(self, name);
+        STACKLESS_ASSERT();
+        return res;
     }
     Py_INCREF(getattr);
     /* speed hack: we could use lookup_maybe, but that would resolve the
@@ -5891,15 +5991,18 @@ slot_tp_getattr_hook(PyObject *self, PyObject *name)
     }
     if (res == NULL && PyErr_ExceptionMatches(PyExc_AttributeError)) {
         PyErr_Clear();
+        STACKLESS_PROMOTE_ALL();
         res = call_attribute(self, getattr, name);
     }
     Py_DECREF(getattr);
+    STACKLESS_ASSERT();
     return res;
 }
 
 static int
 slot_tp_setattro(PyObject *self, PyObject *name, PyObject *value)
 {
+    STACKLESS_GETARG(); /* not supported */
     PyObject *res;
     _Py_IDENTIFIER(__delattr__);
     _Py_IDENTIFIER(__setattr__);
@@ -5926,6 +6029,7 @@ static _Py_Identifier name_op[] = {
 static PyObject *
 slot_tp_richcompare(PyObject *self, PyObject *other, int op)
 {
+    STACKLESS_GETARG();
     PyObject *func, *args, *res;
 
     func = lookup_method(self, &name_op[op]);
@@ -5937,7 +6041,9 @@ slot_tp_richcompare(PyObject *self, PyObject *other, int op)
     if (args == NULL)
         res = NULL;
     else {
+        STACKLESS_PROMOTE_ALL();
         res = PyObject_Call(func, args, NULL);
+        STACKLESS_ASSERT();
         Py_DECREF(args);
     }
     Py_DECREF(func);
@@ -5947,6 +6053,7 @@ slot_tp_richcompare(PyObject *self, PyObject *other, int op)
 static PyObject *
 slot_tp_iter(PyObject *self)
 {
+    STACKLESS_GETARG();
     PyObject *func, *res;
     _Py_IDENTIFIER(__iter__);
 
@@ -5955,7 +6062,9 @@ slot_tp_iter(PyObject *self)
         PyObject *args;
         args = res = PyTuple_New(0);
         if (args != NULL) {
+            STACKLESS_PROMOTE_ALL();
             res = PyObject_Call(func, args, NULL);
+            STACKLESS_ASSERT();
             Py_DECREF(args);
         }
         Py_DECREF(func);
@@ -5976,16 +6085,24 @@ slot_tp_iter(PyObject *self)
 static PyObject *
 slot_tp_iternext(PyObject *self)
 {
+    STACKLESS_GETARG();
     _Py_IDENTIFIER(__next__);
-    return call_method(self, &PyId___next__, "()");
+    PyObject *ret;
+
+    STACKLESS_PROMOTE_ALL();
+    ret = call_method(self, &PyId___next__, "()");
+    STACKLESS_ASSERT();
+    return ret;
 }
 
 static PyObject *
 slot_tp_descr_get(PyObject *self, PyObject *obj, PyObject *type)
 {
+    STACKLESS_GETARG();
     PyTypeObject *tp = Py_TYPE(self);
     PyObject *get;
     _Py_IDENTIFIER(__get__);
+    PyObject *ret;
 
     get = _PyType_LookupId(tp, &PyId___get__);
     if (get == NULL) {
@@ -5999,12 +6116,16 @@ slot_tp_descr_get(PyObject *self, PyObject *obj, PyObject *type)
         obj = Py_None;
     if (type == NULL)
         type = Py_None;
-    return PyObject_CallFunctionObjArgs(get, self, obj, type, NULL);
+    STACKLESS_PROMOTE_ALL();
+    ret = PyObject_CallFunctionObjArgs(get, self, obj, type, NULL);
+    STACKLESS_ASSERT();
+    return ret;
 }
 
 static int
 slot_tp_descr_set(PyObject *self, PyObject *target, PyObject *value)
 {
+    STACKLESS_GETARG(); /* not supported */
     PyObject *res;
     _Py_IDENTIFIER(__delete__);
     _Py_IDENTIFIER(__set__);
@@ -6022,6 +6143,7 @@ slot_tp_descr_set(PyObject *self, PyObject *target, PyObject *value)
 static int
 slot_tp_init(PyObject *self, PyObject *args, PyObject *kwds)
 {
+    STACKLESS_GETARG(); /* not yet supported */
     _Py_IDENTIFIER(__init__);
     PyObject *meth = lookup_method(self, &PyId___init__);
     PyObject *res;
@@ -6046,6 +6168,7 @@ slot_tp_init(PyObject *self, PyObject *args, PyObject *kwds)
 static PyObject *
 slot_tp_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
+    STACKLESS_GETARG();
     PyObject *func;
     PyObject *newargs, *x;
     Py_ssize_t i, n;
@@ -6065,7 +6188,9 @@ slot_tp_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
         Py_INCREF(x);
         PyTuple_SET_ITEM(newargs, i+1, x);
     }
+    STACKLESS_PROMOTE_ALL();
     x = PyObject_Call(func, newargs, kwds);
+    STACKLESS_ASSERT();
     Py_DECREF(newargs);
     Py_DECREF(func);
     return x;
@@ -6074,6 +6199,7 @@ slot_tp_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 static void
 slot_tp_finalize(PyObject *self)
 {
+    STACKLESS_GETARG(); /* not supported */
     _Py_IDENTIFIER(__del__);
     PyObject *del, *res;
     PyObject *error_type, *error_value, *error_traceback;
@@ -6121,6 +6247,46 @@ typedef struct wrapperbase slotdef;
 #undef BINSLOT
 #undef RBINSLOT
 
+#ifdef STACKLESS
+
+#define HEAPOFF(x) offsetof(PyMappingMethods, slpflags.x)
+
+#define TPSLOT(NAME, SLOT, FUNCTION, WRAPPER, DOC) \
+    {NAME, offsetof(PyTypeObject, SLOT), (void *)(FUNCTION), WRAPPER, \
+     PyDoc_STR(DOC), 0, 0, HEAPOFF(SLOT)}
+#define FLSLOT(NAME, SLOT, FUNCTION, WRAPPER, DOC, FLAGS) \
+    {NAME, offsetof(PyTypeObject, SLOT), (void *)(FUNCTION), WRAPPER, \
+     PyDoc_STR(DOC), FLAGS, 0, HEAPOFF(SLOT)}
+#define ETSLOT(NAME, SLOT, FUNCTION, WRAPPER, DOC, SLPSLOT) \
+    {NAME, offsetof(PyHeapTypeObject, SLOT), (void *)(FUNCTION), WRAPPER, \
+     PyDoc_STR(DOC), 0, 0, HEAPOFF(SLPSLOT)}
+
+#define SQSLOT(NAME, SLOT, FUNCTION, WRAPPER, DOC) \
+    ETSLOT(NAME, as_sequence.SLOT, FUNCTION, WRAPPER, DOC, SLOT)
+#define MPSLOT(NAME, SLOT, FUNCTION, WRAPPER, DOC) \
+    ETSLOT(NAME, as_mapping.SLOT, FUNCTION, WRAPPER, DOC, SLOT)
+#define NBSLOT(NAME, SLOT, FUNCTION, WRAPPER, DOC) \
+    ETSLOT(NAME, as_number.SLOT, FUNCTION, WRAPPER, DOC, SLOT)
+#define UNSLOT(NAME, SLOT, FUNCTION, WRAPPER, DOC) \
+    ETSLOT(NAME, as_number.SLOT, FUNCTION, WRAPPER, \
+           NAME "($self, /)\n--\n\n" DOC, SLOT)
+#define IBSLOT(NAME, SLOT, FUNCTION, WRAPPER, DOC) \
+    ETSLOT(NAME, as_number.SLOT, FUNCTION, WRAPPER, \
+           NAME "($self, value, /)\n--\n\nReturn self" DOC "value.", SLOT)
+#define BINSLOT(NAME, SLOT, FUNCTION, DOC) \
+    ETSLOT(NAME, as_number.SLOT, FUNCTION, wrap_binaryfunc_l, \
+           NAME "($self, value, /)\n--\n\nReturn self" DOC "value.", SLOT)
+#define RBINSLOT(NAME, SLOT, FUNCTION, DOC) \
+    ETSLOT(NAME, as_number.SLOT, FUNCTION, wrap_binaryfunc_r, \
+           NAME "($self, value, /)\n--\n\nReturn value" DOC "self.", SLOT)
+#define BINSLOTNOTINFIX(NAME, SLOT, FUNCTION, DOC) \
+    ETSLOT(NAME, as_number.SLOT, FUNCTION, wrap_binaryfunc_l, \
+           NAME "($self, value, /)\n--\n\n" DOC, SLOT)
+#define RBINSLOTNOTINFIX(NAME, SLOT, FUNCTION, DOC) \
+    ETSLOT(NAME, as_number.SLOT, FUNCTION, wrap_binaryfunc_r, \
+           NAME "($self, value, /)\n--\n\n" DOC, SLOT)
+#else
+
 #define TPSLOT(NAME, SLOT, FUNCTION, WRAPPER, DOC) \
     {NAME, offsetof(PyTypeObject, SLOT), (void *)(FUNCTION), WRAPPER, \
      PyDoc_STR(DOC)}
@@ -6154,6 +6320,8 @@ typedef struct wrapperbase slotdef;
 #define RBINSLOTNOTINFIX(NAME, SLOT, FUNCTION, DOC) \
     ETSLOT(NAME, as_number.SLOT, FUNCTION, wrap_binaryfunc_r, \
            NAME "($self, value, /)\n--\n\n" DOC)
+
+#endif
 
 static slotdef slotdefs[] = {
     TPSLOT("__getattribute__", tp_getattr, NULL, NULL, ""),
@@ -6428,6 +6596,9 @@ update_one_slot(PyTypeObject *type, slotdef *p)
     int use_generic = 0;
     int offset = p->offset;
     void **ptr = slotptr(type, offset);
+#ifdef STACKLESS
+    PyObject *descr_call = NULL;
+#endif
 
     if (ptr == NULL) {
         do {
@@ -6443,6 +6614,10 @@ update_one_slot(PyTypeObject *type, slotdef *p)
             }
             continue;
         }
+#ifdef STACKLESS
+        if (ptr == (void**)&type->tp_call)
+            descr_call = descr;
+#endif
         if (Py_TYPE(descr) == &PyWrapperDescr_Type &&
             ((PyWrapperDescrObject *)descr)->d_base->name_strobj == p->name_strobj) {
             void **tptr = resolve_slotdups(type, p->name_strobj);
@@ -6497,6 +6672,41 @@ update_one_slot(PyTypeObject *type, slotdef *p)
         *ptr = specific;
     else
         *ptr = generic;
+#if defined STACKLESS && !STACKLESS_NO_TYPEINFO
+    if (ptr == (void**)&type->tp_call) {
+        /* it is the __call__ attribute. */
+        if (descr_call)
+        {
+            /* type is callable: set Py_TPFLAGS_HAVE_STACKLESS_CALL */
+            if (type->tp_call == slot_tp_call) {
+                /* Common case:
+                 * slot_tp_call implements the stackless call protocol and
+                 * delegates to PyObject_Call. PyObject_Call checks
+                 * Py_TPFLAGS_HAVE_STACKLESS_CALL of the called object at
+                 * call time. This is sufficient to prevent protocol violations. */
+                type->tp_flags |= Py_TPFLAGS_HAVE_STACKLESS_CALL;
+            }
+            else {
+                /* Custom tp_call slot function: set Py_TPFLAGS_HAVE_STACKLESS_CALL
+                 * based on the __call__ implementation.
+                 * The variable "descr" contains the __call__ method. */
+                PyTypeObject *tpcheck = Py_TYPE(descr_call);
+                if (tpcheck == &PyWrapperDescr_Type)
+                    tpcheck = ((PyDescrObject *)descr_call)->d_type;
+                if (tpcheck->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_CALL)
+                    type->tp_flags |= Py_TPFLAGS_HAVE_STACKLESS_CALL;
+                else
+                    type->tp_flags &= ~Py_TPFLAGS_HAVE_STACKLESS_CALL;
+            }
+        }
+        else {
+            /* reset the flag in case it was set. Can happen if
+               someone deletes the __call__ special attribute from type:
+               del Class.__call__ */
+            type->tp_flags &= ~Py_TPFLAGS_HAVE_STACKLESS_CALL;
+        }
+    }
+#endif
     return p;
 }
 
@@ -6706,6 +6916,13 @@ add_operators(PyTypeObject *type)
             descr = PyDescr_NewWrapper(type, p, *ptr);
             if (descr == NULL)
                 return -1;
+#ifdef STACKLESS
+            if ((type->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_EXTENSION) && type->tp_as_mapping) {
+                PyWrapperDescrObject * d =
+                    (PyWrapperDescrObject *) descr;
+                d->d_slpmask = ((signed char *) type->tp_as_mapping)[p->slp_offset];
+            }
+#endif
             if (PyDict_SetItem(dict, p->name_strobj, descr) < 0)
                 return -1;
             Py_DECREF(descr);

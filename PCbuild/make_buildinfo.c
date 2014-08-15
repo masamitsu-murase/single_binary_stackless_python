@@ -178,7 +178,7 @@ int main(int argc, char*argv[])
     }
     strcat_s(command, CMD_SIZE, " -Fo\"");
     strcat_s(command, CMD_SIZE, tmppath);
-    strcat_s(command, CMD_SIZE, "getbuildinfo.o\" -I..\\Include -I..\\PC");
+    strcat_s(command, CMD_SIZE, "getbuildinfo.o\" -I..\\Include -I..\\PC -I..\\Stackless");
     puts(command); fflush(stdout);
     result = system(command);
     if (do_unlink) {

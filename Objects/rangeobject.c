@@ -831,6 +831,13 @@ static PyMethodDef rangeiter_methods[] = {
 
 static PyObject *rangeiter_new(PyTypeObject *, PyObject *args, PyObject *kw);
 
+#ifdef STACKLESS
+PyTypeObject PyRangeIter_Type;
+#define Pyrangeiter_Type PyRangeIter_Type
+#else
+   PyTypeObject Pyrangeiter_Type;
+#endif
+
 PyTypeObject PyRangeIter_Type = {
         PyVarObject_HEAD_INIT(&PyType_Type, 0)
         "range_iterator",                        /* tp_name */

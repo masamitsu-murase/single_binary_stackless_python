@@ -21,6 +21,12 @@ import operator
 import test.support
 import test.script_helper
 
+try:
+    import stackless
+    usingStackless = True
+except ImportError:
+    usingStackless = False
+
 
 # Skip tests if _multiprocessing wasn't built.
 _multiprocessing = test.support.import_module('_multiprocessing')
@@ -30,6 +36,7 @@ test.support.import_module('multiprocessing.synchronize')
 # message: "No module named _multiprocessing". _multiprocessing is not compiled
 # without thread support.
 import threading
+import pickle
 
 import multiprocessing.dummy
 import multiprocessing.connection
@@ -1824,8 +1831,12 @@ class _TestPool(BaseTestCase):
 def raising():
     raise KeyError("key")
 
+class Unpickleable(object):
+    def __reduce__(self):
+        raise pickle.PicklingError("intentionally unpickleable")
+
 def unpickleable_result():
-    return lambda: 42
+    return Unpickleable()
 
 class _TestPoolWorkerErrors(BaseTestCase):
     ALLOWED_TYPES = ('processes', )
@@ -1845,6 +1856,7 @@ class _TestPoolWorkerErrors(BaseTestCase):
         p.close()
         p.join()
 
+    @unittest.skipIf(usingStackless, "Stackless can pickle lambdas")
     def test_unpickleable_result(self):
         from multiprocessing.pool import MaybeEncodingError
         p = multiprocessing.Pool(2)

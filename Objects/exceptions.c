@@ -597,6 +597,15 @@ ComplexExtendsException(PyExc_BaseException, SystemExit, SystemExit,
                         0, 0, SystemExit_members, 0, 0,
                         "Request to exit from the interpreter.");
 
+#ifdef STACKLESS
+/*
+ *    TaskletExit extends SystemExit
+ */
+MiddlingExtendsException(PyExc_SystemExit, TaskletExit, SystemExit,
+                       "This exception is used to silently kill a tasklet");
+#endif
+
+
 /*
  *    KeyboardInterrupt extends BaseException
  */
@@ -2466,6 +2475,9 @@ _PyExc_Init(PyObject *bltinmod)
     PRE_INIT(TypeError)
     PRE_INIT(StopIteration)
     PRE_INIT(GeneratorExit)
+#ifdef STACKLESS
+    PRE_INIT(TaskletExit);
+#endif
     PRE_INIT(SystemExit)
     PRE_INIT(KeyboardInterrupt)
     PRE_INIT(ImportError)
@@ -2536,6 +2548,9 @@ _PyExc_Init(PyObject *bltinmod)
     POST_INIT(TypeError)
     POST_INIT(StopIteration)
     POST_INIT(GeneratorExit)
+#ifdef STACKLESS
+    POST_INIT(TaskletExit)
+#endif
     POST_INIT(SystemExit)
     POST_INIT(KeyboardInterrupt)
     POST_INIT(ImportError)

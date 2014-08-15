@@ -4,6 +4,7 @@
 #include "Python.h"
 #include "code.h"
 #include "structmember.h"
+#include "core/stackless_impl.h"
 
 PyObject *
 PyFunction_NewWithQualName(PyObject *code, PyObject *globals, PyObject *qualname)
@@ -463,6 +464,10 @@ The optional closure tuple supplies the bindings for free variables.");
    for every elt in closure, type(elt) == cell
 */
 
+#ifdef STACKLESS
+extern PyTypeObject *_Pywrap_PyCell_Type;
+#endif
+
 static PyObject *
 func_new(PyTypeObject* type, PyObject* args, PyObject* kw)
 {
@@ -516,7 +521,11 @@ func_new(PyTypeObject* type, PyObject* args, PyObject* kw)
         Py_ssize_t i;
         for (i = 0; i < nclosure; i++) {
             PyObject *o = PyTuple_GET_ITEM(closure, i);
+#ifdef STACKLESS
+            if (!PyCell_Check(o) && (Py_TYPE(o) != _Pywrap_PyCell_Type)) {
+#else
             if (!PyCell_Check(o)) {
+#endif
                 return PyErr_Format(PyExc_TypeError,
                     "arg 5 (closure) expected cell, found %s",
                                     o->ob_type->tp_name);
@@ -593,6 +602,7 @@ func_traverse(PyFunctionObject *f, visitproc visit, void *arg)
 static PyObject *
 function_call(PyObject *func, PyObject *arg, PyObject *kw)
 {
+    STACKLESS_GETARG();
     PyObject *result;
     PyObject *argdefs;
     PyObject *kwtuple = NULL;
@@ -629,6 +639,7 @@ function_call(PyObject *func, PyObject *arg, PyObject *kw)
         nk = 0;
     }
 
+   	STACKLESS_PROMOTE_ALL();
     result = PyEval_EvalCodeEx(
         PyFunction_GET_CODE(func),
         PyFunction_GET_GLOBALS(func), (PyObject *)NULL,
@@ -636,6 +647,7 @@ function_call(PyObject *func, PyObject *arg, PyObject *kw)
         k, nk, d, nd,
         PyFunction_GET_KW_DEFAULTS(func),
         PyFunction_GET_CLOSURE(func));
+    STACKLESS_ASSERT();
 
     Py_XDECREF(kwtuple);
 
@@ -694,6 +706,7 @@ PyTypeObject PyFunction_Type = {
     func_new,                                   /* tp_new */
 };
 
+STACKLESS_DECLARE_METHOD(&PyFunction_Type, tp_call)
 
 /* Class method object */
 

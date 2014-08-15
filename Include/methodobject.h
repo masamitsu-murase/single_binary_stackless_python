@@ -71,6 +71,12 @@ PyAPI_FUNC(PyObject *) PyCFunction_NewEx(PyMethodDef *, PyObject *,
 
 #define METH_COEXIST   0x0040
 
+#ifdef STACKLESS
+#define METH_STACKLESS 0x0080
+#else
+#define METH_STACKLESS 0x0000
+#endif
+
 #ifndef Py_LIMITED_API
 typedef struct {
     PyObject_HEAD

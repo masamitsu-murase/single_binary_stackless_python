@@ -385,6 +385,13 @@ class _Pickler:
         self.bin = protocol >= 1
         self.fast = 0
         self.fix_imports = fix_imports and protocol < 3
+        ## Stackless addition BEGIN
+        try:
+            from stackless import _pickle_moduledict
+        except ImportError:
+            _pickle_moduledict = lambda self, obj:None
+        self._pickle_moduledict = _pickle_moduledict
+        ## Stackless addition END
 
     def clear_memo(self):
         """Clears the pickler's "memo".
@@ -803,6 +810,11 @@ class _Pickler:
                 return
 
     def save_dict(self, obj):
+        ## Stackless addition BEGIN
+        modict_saver = self._pickle_moduledict(self, obj)
+        if modict_saver is not None:
+            return self.save_reduce(*modict_saver)
+        ## Stackless addition END
         if self.bin:
             self.write(EMPTY_DICT)
         else:   # proto 0 -- can't use EMPTY_DICT
@@ -963,7 +975,29 @@ class _Pickler:
             return self.save_reduce(type, (...,), obj=obj)
         return self.save_global(obj)
 
-    dispatch[FunctionType] = save_global
+    def save_function(self, obj):
+        try:
+            return self.save_global(obj)
+        except PicklingError as e:
+            pass
+        # Check copy_reg.dispatch_table
+        reduce = dispatch_table.get(type(obj))
+        if reduce:
+            rv = reduce(obj)
+        else:
+            # Check for a __reduce_ex__ method, fall back to __reduce__
+            reduce = getattr(obj, "__reduce_ex__", None)
+            if reduce:
+                rv = reduce(self.proto)
+            else:
+                reduce = getattr(obj, "__reduce__", None)
+                if reduce:
+                    rv = reduce()
+                else:
+                    raise e
+        return self.save_reduce(obj=obj, *rv)
+
+    dispatch[FunctionType] = save_function
     dispatch[type] = save_type
 
 

@@ -711,6 +711,7 @@ CC
 EXPORT_MACOSX_DEPLOYMENT_TARGET
 CONFIGURE_MACOSX_DEPLOYMENT_TARGET
 SGI_ABI
+SLPFLAGS
 _PYTHON_HOST_PLATFORM
 MACHDEP
 FRAMEWORKINSTALLAPPSPREFIX
@@ -725,6 +726,7 @@ PYTHONFRAMEWORKPREFIX
 PYTHONFRAMEWORKDIR
 PYTHONFRAMEWORKIDENTIFIER
 PYTHONFRAMEWORK
+STACKLESS_FRHACK
 LIPO_32BIT_FLAGS
 ARCH_RUN_32BIT
 UNIVERSALSDK
@@ -789,6 +791,7 @@ enable_option_checking
 enable_universalsdk
 with_universal_archs
 with_framework_name
+enable_stacklessfewerregisters
 enable_framework
 with_gcc
 with_cxx_main
@@ -1446,6 +1449,8 @@ Optional Features:
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-universalsdk[=SDKDIR]
                           Build fat binary against Mac OS X SDK
+  --enable-stacklessfewerregisters
+                          save fewer registers building c-stack switching
   --enable-framework[=INSTALLDIR]
                           Build (MacOSX|Darwin) framework
   --enable-shared         disable/enable building shared python library

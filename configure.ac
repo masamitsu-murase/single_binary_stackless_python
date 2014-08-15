@@ -232,6 +232,12 @@ AC_ARG_WITH(framework-name,
     PYTHONFRAMEWORKDIR=Python.framework
     PYTHONFRAMEWORKIDENTIFIER=org.python.python
 ])
+
+AC_ARG_ENABLE(stacklessfewerregisters,
+	AC_HELP_STRING(--enable-stacklessfewerregisters, save fewer registers building c-stack switching),
+[STACKLESS_FRHACK=1],[ STACKLESS_FRHACK=0 ])
+AC_SUBST(STACKLESS_FRHACK)
+
 dnl quadrigraphs "@<:@" and "@:>@" produce "[" and "]" in the output
 AC_ARG_ENABLE(framework,
               AS_HELP_STRING([--enable-framework@<:@=INSTALLDIR@:>@], [Build (MacOSX|Darwin) framework]),
@@ -423,6 +429,17 @@ if test "$cross_compiling" = yes; then
 	_PYTHON_HOST_PLATFORM="$MACHDEP${_host_cpu:+-$_host_cpu}"
 fi
 	
+# Stackless flags for compiling the hard switching code
+case $MACHDEP in
+	darwin)
+		SLPFLAGS="-fomit-frame-pointer -O2"
+		;;
+	*)
+		SLPFLAGS="-fno-omit-frame-pointer -O2"
+		;;
+esac
+AC_SUBST(SLPFLAGS)
+
 # Some systems cannot stand _XOPEN_SOURCE being defined at all; they
 # disable features if it is defined, without any means to access these
 # features as extensions. For these systems, we skip the definition of
@@ -1290,6 +1307,7 @@ yes)
                 ;;
     esac
 
+    BASECFLAGS="${BASECFLAGS} -DSTACKLESS_FRHACK=${STACKLESS_FRHACK}"
     case $ac_sys_system in
 	SCO_SV*)
 	    BASECFLAGS="$BASECFLAGS -m486 -DSCO5"
@@ -4781,7 +4799,7 @@ do
 done
 
 AC_SUBST(SRCDIRS)
-SRCDIRS="Parser Grammar Objects Python Modules Mac Programs"
+SRCDIRS="Parser Grammar Objects Python Modules Mac Programs Stackless Stackless/core Stackless/module Stackless/pickling"
 AC_MSG_CHECKING(for build directories)
 for dir in $SRCDIRS; do
     if test ! -d $dir; then
@@ -4872,6 +4890,13 @@ if test "$have_gcc_asm_for_x87" = yes; then
         ;;
     esac
 fi
+AC_SUBST(SLPFLAGS)
+SLPFLAGS="-fno-omit-frame-pointer -O2"
+case $MACHDEP in
+darwin) SLPFLAGS="-fomit-frame-pointer -O2";;
+'') SLPFLAGS="-fno-omit-frame-pointer -O2";;
+esac
+
 
 # ensurepip option
 AC_MSG_CHECKING(for ensurepip)

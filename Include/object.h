@@ -4,6 +4,9 @@
 extern "C" {
 #endif
 
+#ifdef STACKLESS
+#include "core/slp_exttype.h"
+#endif
 
 /* Object and type object interface */
 
@@ -298,8 +301,22 @@ typedef struct {
     lenfunc mp_length;
     binaryfunc mp_subscript;
     objobjargproc mp_ass_subscript;
+#ifdef STACKLESS
+    /* we put the stackless method flags in here.  This keeps the basic PyTypeObject size
+     * constants and thus helps with compatibility with external types
+     */
+    slp_methodflags slpflags;
+#endif
 } PyMappingMethods;
 
+#ifdef STACKLESS
+/* we need the original object for inclusion in the PyHeapTypeObject */
+typedef struct {
+    lenfunc mp_length;
+    binaryfunc mp_subscript;
+    objobjargproc mp_ass_subscript;
+} PyMappingMethods_Orig;
+#endif
 
 typedef struct {
      getbufferproc bf_getbuffer;
@@ -453,7 +470,11 @@ typedef struct _heaptypeobject {
        in slotptr() in typeobject.c . */
     PyTypeObject ht_type;
     PyNumberMethods as_number;
+#ifdef STACKLESS
+    PyMappingMethods_Orig as_mapping;
+#else
     PyMappingMethods as_mapping;
+#endif
     PySequenceMethods as_sequence; /* as_sequence comes after as_mapping,
                                       so that the mapping wins when both
                                       the mapping and the sequence define
@@ -621,7 +642,8 @@ given type object has a specified feature.
 
 /* These two bits are preserved for Stackless Python, next after this is 17 */
 #ifdef STACKLESS
-#define Py_TPFLAGS_HAVE_STACKLESS_EXTENSION (3UL << 15)
+#define Py_TPFLAGS_HAVE_STACKLESS_CALL (1L<<15)
+#define Py_TPFLAGS_HAVE_STACKLESS_EXTENSION (1L<<16)
 #else
 #define Py_TPFLAGS_HAVE_STACKLESS_EXTENSION 0
 #endif
@@ -644,7 +666,6 @@ given type object has a specified feature.
 #define Py_TPFLAGS_TYPE_SUBCLASS        (1UL << 31)
 
 #define Py_TPFLAGS_DEFAULT  ( \
-                 Py_TPFLAGS_HAVE_STACKLESS_EXTENSION | \
                  Py_TPFLAGS_HAVE_VERSION_TAG | \
                 0)
 

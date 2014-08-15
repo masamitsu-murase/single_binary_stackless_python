@@ -10,7 +10,9 @@
 #define OFF(x) offsetof(PyFrameObject, x)
 
 static PyMemberDef frame_memberlist[] = {
+#ifndef STACKLESS
     {"f_back",          T_OBJECT,       OFF(f_back),      READONLY},
+#endif
     {"f_code",          T_OBJECT,       OFF(f_code),      READONLY},
     {"f_builtins",      T_OBJECT,       OFF(f_builtins),  READONLY},
     {"f_globals",       T_OBJECT,       OFF(f_globals),   READONLY},
@@ -359,7 +361,30 @@ frame_settrace(PyFrameObject *f, PyObject* v, void *closure)
 }
 
 
+#ifdef STACKLESS
+
+static PyObject *
+frame_getback(PyFrameObject *f, void *nope)
+{
+	PyFrameObject *fb = f->f_back;
+	PyObject *ret;
+    /* move over cframe objects but halt at NULL or None */
+	while (fb != NULL && (PyObject*)fb != Py_None && !PyFrame_Check(fb))
+		fb = fb->f_back;
+	ret = (PyObject *) fb;
+	if (ret == NULL)
+		ret = Py_None;
+    Py_INCREF(ret);
+    return ret;
+}
+
+#endif
+
+
 static PyGetSetDef frame_getsetlist[] = {
+#ifdef STACKLESS
+    {"f_back",	(getter)frame_getback, NULL, NULL},
+#endif
     {"f_locals",        (getter)frame_getlocals, NULL, NULL},
     {"f_lineno",        (getter)frame_getlineno,
                     (setter)frame_setlineno, NULL},
@@ -733,6 +758,9 @@ PyFrame_New(PyThreadState *tstate, PyCodeObject *code, PyObject *globals,
     f->f_executing = 0;
     f->f_gen = NULL;
 
+#ifdef STACKLESS
+    f->f_execute = NULL;
+#endif
     _PyObject_GC_TRACK(f);
     return f;
 }

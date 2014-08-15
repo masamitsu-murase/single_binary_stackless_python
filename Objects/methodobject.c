@@ -3,6 +3,7 @@
 
 #include "Python.h"
 #include "structmember.h"
+#include "core/stackless_impl.h"
 
 /* Free list for method objects to safe malloc/free overhead
  * The m_self element is used to chain the objects.
@@ -77,36 +78,50 @@ PyCFunction_GetFlags(PyObject *op)
     return PyCFunction_GET_FLAGS(op);
 }
 
+#ifdef STACKLESS
+#define WRAP_RETURN(call) { \
+	PyObject * retval; \
+	STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS); \
+	retval = (call); \
+	CHECK_RESULT(retval); \
+	STACKLESS_ASSERT(); \
+	return retval; \
+}
+#else
+#define WRAP_RETURN(call) return (call);
+#endif
+
 PyObject *
 PyCFunction_Call(PyObject *func, PyObject *arg, PyObject *kw)
 {
+    STACKLESS_GETARG();
 #define CHECK_RESULT(res) assert(res != NULL || PyErr_Occurred())
 
     PyCFunctionObject* f = (PyCFunctionObject*)func;
     PyCFunction meth = PyCFunction_GET_FUNCTION(func);
     PyObject *self = PyCFunction_GET_SELF(func);
+#ifndef STACKLESS
     PyObject *res;
+#endif
     Py_ssize_t size;
 
+#ifdef STACKLESS
+    switch (PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_STACKLESS)) {
+#else
     switch (PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST)) {
+#endif
     case METH_VARARGS:
         if (kw == NULL || PyDict_Size(kw) == 0) {
-            res = (*meth)(self, arg);
-            CHECK_RESULT(res);
-            return res;
+            WRAP_RETURN( (*meth)(self, arg) )
         }
         break;
     case METH_VARARGS | METH_KEYWORDS:
-        res = (*(PyCFunctionWithKeywords)meth)(self, arg, kw);
-        CHECK_RESULT(res);
-        return res;
+        WRAP_RETURN( (*(PyCFunctionWithKeywords)meth)(self, arg, kw) )
     case METH_NOARGS:
         if (kw == NULL || PyDict_Size(kw) == 0) {
             size = PyTuple_GET_SIZE(arg);
             if (size == 0) {
-                res = (*meth)(self, NULL);
-                CHECK_RESULT(res);
-                return res;
+                WRAP_RETURN( (*meth)(self, NULL) )
             }
             PyErr_Format(PyExc_TypeError,
                 "%.200s() takes no arguments (%zd given)",
@@ -118,9 +133,7 @@ PyCFunction_Call(PyObject *func, PyObject *arg, PyObject *kw)
         if (kw == NULL || PyDict_Size(kw) == 0) {
             size = PyTuple_GET_SIZE(arg);
             if (size == 1) {
-                res = (*meth)(self, PyTuple_GET_ITEM(arg, 0));
-                CHECK_RESULT(res);
-                return res;
+                WRAP_RETURN( (*meth)(self, PyTuple_GET_ITEM(arg, 0)) )
             }
             PyErr_Format(PyExc_TypeError,
                 "%.200s() takes exactly one argument (%zd given)",
@@ -365,6 +378,8 @@ PyTypeObject PyCFunction_Type = {
     0,                                          /* tp_base */
     0,                                          /* tp_dict */
 };
+
+STACKLESS_DECLARE_METHOD(&PyCFunction_Type, tp_call)
 
 /* Clear out the free list */
 
