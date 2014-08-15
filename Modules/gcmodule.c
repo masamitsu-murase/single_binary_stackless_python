@@ -551,7 +551,7 @@ has_finalizer(PyObject *op)
     if (collectable >= 0)
         return collectable == 0;
 
-   if (PyGen_CheckExact(op))
+    if (PyGen_CheckExact(op))
         return PyGen_NeedsFinalizing((PyGenObject *)op);
     else
         return op->ob_type->tp_del != NULL;
