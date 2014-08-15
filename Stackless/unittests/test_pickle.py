@@ -1,7 +1,7 @@
 import sys
 import types
 import unittest
-import pickle as pickle
+import pickle
 import gc
 
 from stackless import schedule, tasklet, stackless
@@ -201,9 +201,25 @@ def is_soft():
     stackless.enable_softswitch(softswitch)
     return softswitch
 
-class TestPickledTasklets(StacklessTestCase):
+
+class PyPickleMixin(object):
+    def dumps(self, obj, protocol=None, *, fix_imports=True):
+        return pickle._dumps(obj, protocol=protocol, fix_imports=fix_imports)
+
+    def loads(self, s, *, fix_imports=True, encoding="ASCII", errors="strict"):
+        return pickle._loads(s, fix_imports=fix_imports, encoding=encoding, errors=errors)
+
+
+class CPickleMixin(object):
+    def dumps(self, obj, protocol=None, *, fix_imports=True):
+        return pickle.dumps(obj, protocol=protocol, fix_imports=fix_imports)
+    def loads(self, s, *, fix_imports=True, encoding="ASCII", errors="strict"):
+        return pickle.loads(s, fix_imports=fix_imports, encoding=encoding, errors=errors)
+
+
+class AbstractTestPickledTasklets(StacklessTestCase):
     def setUp(self):
-        super(TestPickledTasklets, self).setUp()
+        super(AbstractTestPickledTasklets, self).setUp()
         self.verbose = VERBOSE
 
     def tearDown(self):
@@ -216,7 +232,7 @@ class TestPickledTasklets(StacklessTestCase):
             current.kill()
             current = next
 
-        super(TestPickledTasklets, self).tearDown()
+        super(AbstractTestPickledTasklets, self).tearDown()
 
         del self.verbose
 
@@ -236,14 +252,14 @@ class TestPickledTasklets(StacklessTestCase):
         #t.tempval = None
 
         if self.verbose: print("pickling")
-        pi = pickle.dumps(t)
+        pi = self.dumps(t)
 
         # if self.verbose: print repr(pi)
         # why do we want to remove it?
         # t.remove()
 
         if self.verbose: print("unpickling")
-        ip = pickle.loads(pi)
+        ip = self.loads(pi)
 
         if self.verbose: print("starting unpickled tasklet")
         if is_soft():
@@ -274,11 +290,12 @@ class TestPickledTasklets(StacklessTestCase):
     except AttributeError:
         have_fromkeys = False
 
-class TestConcretePickledTasklets(TestPickledTasklets):
+
+class PickledTaskletTestCases(object):
     def testClassPersistence(self):
         t1 = CustomTasklet(nothing)()
-        s = pickle.dumps(t1)
-        t2 = pickle.loads(s)
+        s = self.dumps(t1)
+        t2 = self.loads(s)
         self.assertEqual(t1.__class__, t2.__class__)
 
     def testGenerator(self):
@@ -327,7 +344,7 @@ class TestConcretePickledTasklets(TestPickledTasklets):
     def testRecursiveLambda(self):
         recurse = lambda self, next: \
             next-1 and self(self, next-1) or (schedule(), 42)[1]
-        pickle.loads(pickle.dumps(recurse))
+        self.loads(self.dumps(recurse))
         self.run_pickled(recurse, recurse, 13)
 
     def testRecursiveEmbedded(self):
@@ -395,9 +412,9 @@ class TestConcretePickledTasklets(TestPickledTasklets):
         t = stackless.tasklet(tc.run)()
         t.run()
         # Pickle the tasklet that is blocking.
-        s = pickle.dumps(t)
+        s = self.dumps(t)
         # Unpickle it again, but don't hold a reference.
-        pickle.loads(s)
+        self.loads(s)
         # Force the collection of the unpickled tasklet.
         gc.collect()
 
@@ -426,22 +443,27 @@ class TestConcretePickledTasklets(TestPickledTasklets):
         t2 = stackless.tasklet(receiver)(c)
         t1.run()
 
-        pickle.dumps(t1)
+        self.dumps(t1)
 
     def testSubmoduleImporting(self):
         # When a submodule was pickled, it would unpickle as the
         # module instead.
         import xml.sax
         m1 = xml.sax
-        m2 = pickle.loads(pickle.dumps(m1))
+        m2 = self.loads(self.dumps(m1))
         self.assertEqual(m1, m2)
 
     def testFunctionModulePreservation(self):
         # The 'module' name on the function was not being preserved.
         f1 = lambda: None
-        f2 = pickle.loads(pickle.dumps(f1))
+        f2 = self.loads(self.dumps(f1))
         self.assertEqual(f1.__module__, f2.__module__)
 
+class TestPickledTaskletsPy(AbstractTestPickledTasklets, PickledTaskletTestCases, PyPickleMixin):
+    pass
+
+class TestPickledTaskletsC(AbstractTestPickledTasklets, PickledTaskletTestCases, CPickleMixin):
+    pass
 
 class TestFramePickling(StacklessTestCase):
     def testLocalplus(self):
@@ -466,13 +488,14 @@ class TestFramePickling(StacklessTestCase):
         self.assertIsInstance(code, types.CodeType)
         ncellvars = len(code.co_cellvars)
         nfreevars = len(code.co_freevars)
-        self.assertEquals(ncellvars, 1)
-        self.assertEquals(nfreevars, 1)
+        self.assertEqual(ncellvars, 1)
+        self.assertEqual(nfreevars, 1)
 
         localsplus_as_tuple = state[-1]
         valid = state[1]
 
-        self.assertEqual(valid, int(stackless.enable_softswitch(None)))
+        self.assertEqual(valid, int(stackless.enable_softswitch(None) and
+                                    stackless.current.nesting_level == 0))
         self.assertIsInstance(localsplus_as_tuple, tuple)
         self.assertGreaterEqual(len(localsplus_as_tuple), 1 + code.co_nlocals + ncellvars + nfreevars)
         for i in range(ncellvars + nfreevars):
@@ -481,25 +504,31 @@ class TestFramePickling(StacklessTestCase):
             self.assertIs(cell.cell_contents, result)
 
 
-class TestDictViewPickling(TestPickledTasklets):
+class DictViewPicklingTestCases(object):
     def testDictKeyViewPickling(self):
         # stackless python prior to 2.7.3 used to register its own __reduce__
         d = { 1: 2 }
         view1 = d.keys()
-        view2 = pickle.loads(pickle.dumps(view1))
+        view2 = self.loads(self.dumps(view1))
         self.assertEqual(list(view1), list(view2))
 
     def testDictItemViewPickling(self):
         d = { 1: 2 }
         view1 = d.items()
-        view2 = pickle.loads(pickle.dumps(view1))
+        view2 = self.loads(self.dumps(view1))
         self.assertEqual(list(view1), list(view2))
 
     def testDictValueViewPickling(self):
         d = { 1: 2 }
         view1 = d.values()
-        view2 = pickle.loads(pickle.dumps(view1))
+        view2 = self.loads(self.dumps(view1))
         self.assertEqual(list(view1), list(view2))
+
+class TestDictViewPicklingPy(AbstractTestPickledTasklets, DictViewPicklingTestCases, PyPickleMixin):
+    pass
+
+class TestDictViewPicklingC(AbstractTestPickledTasklets, DictViewPicklingTestCases, CPickleMixin):
+    pass
 
 if __name__ == '__main__':
     if not sys.argv[1:]:
