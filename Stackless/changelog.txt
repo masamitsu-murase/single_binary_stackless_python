@@ -10,6 +10,10 @@ What's New in Stackless 3.X.X?
 
 *Release date: XXXX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issue/71
+  Fix a regression in Lib/pickle.py. Pickling functions
+  didn't work any longer.
+
 - Fix compiler warnings found on MAC.
 
 - https://bitbucket.org/stackless-dev/stackless/issue/61
