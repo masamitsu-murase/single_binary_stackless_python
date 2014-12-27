@@ -70,15 +70,18 @@ The module provides the following classes:
       *source_address* was added.
 
 
-.. class:: HTTPSConnection(host[, port[, key_file[, cert_file[, strict[, timeout[, source_address]]]]]])
+.. class:: HTTPSConnection(host[, port[, key_file[, cert_file[, strict[, timeout[, source_address[, context]]]]]]])
 
    A subclass of :class:`HTTPConnection` that uses SSL for communication with
-   secure servers.  Default port is ``443``. *key_file* is the name of a PEM
-   formatted file that contains your private key. *cert_file* is a PEM formatted
-   certificate chain file.
+   secure servers.  Default port is ``443``.  If *context* is specified, it must
+   be a :class:`ssl.SSLContext` instance describing the various SSL options.
 
-   .. warning::
-      This does not do any verification of the server's certificate.
+   *key_file* and *cert_file* are deprecated, please use
+   :meth:`ssl.SSLContext.load_cert_chain` instead, or let
+   :func:`ssl.create_default_context` select the system's trusted CA
+   certificates for you.
+
+   Please read :ref:`ssl-security` for more information on best practices.
 
    .. versionadded:: 2.0
 
@@ -87,6 +90,14 @@ The module provides the following classes:
 
    .. versionchanged:: 2.7
       *source_address* was added.
+
+   .. versionchanged:: 2.7.9
+      *context* was added.
+
+      This class now performs all the necessary certificate and hostname checks
+      by default. To revert to the previous, unverified, behavior
+      :func:`ssl._create_unverified_context` can be passed to the *context*
+      parameter.
 
 
 .. class:: HTTPResponse(sock, debuglevel=0, strict=0)

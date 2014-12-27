@@ -690,7 +690,12 @@ makefmt(char *fmt, int longflag, int size_tflag, int zeropad, int width, int pre
     *fmt = '\0';
 }
 
-#define appendstring(string) {for (copy = string;*copy;) *s++ = *copy++;}
+#define appendstring(string) \
+    do { \
+        for (copy = string;*copy; copy++) { \
+            *s++ = (unsigned char)*copy; \
+        } \
+    } while (0)
 
 PyObject *
 PyUnicode_FromFormatV(const char *format, va_list vargs)
@@ -845,7 +850,7 @@ PyUnicode_FromFormatV(const char *format, va_list vargs)
                 str = PyObject_Str(obj);
                 if (!str)
                     goto fail;
-                n += PyUnicode_GET_SIZE(str);
+                n += PyString_GET_SIZE(str);
                 /* Remember the str and switch to the next slot */
                 *callresult++ = str;
                 break;
@@ -1006,15 +1011,10 @@ PyUnicode_FromFormatV(const char *format, va_list vargs)
             case 'S':
             case 'R':
             {
-                Py_UNICODE *ucopy;
-                Py_ssize_t usize;
-                Py_ssize_t upos;
+                const char *str = PyString_AS_STRING(*callresult);
                 /* unused, since we already have the result */
                 (void) va_arg(vargs, PyObject *);
-                ucopy = PyUnicode_AS_UNICODE(*callresult);
-                usize = PyUnicode_GET_SIZE(*callresult);
-                for (upos = 0; upos<usize;)
-                    *s++ = ucopy[upos++];
+                appendstring(str);
                 /* We're done with the unicode()/repr() => forget it */
                 Py_DECREF(*callresult);
                 /* switch to next unicode()/repr() result */
@@ -1510,9 +1510,15 @@ int unicode_decode_call_errorhandler(const char *errors, PyObject **errorHandler
        when there are no errors in the rest of the string) */
     repptr = PyUnicode_AS_UNICODE(repunicode);
     repsize = PyUnicode_GET_SIZE(repunicode);
-    requiredsize = *outpos + repsize + insize-newpos;
+    requiredsize = *outpos;
+    if (requiredsize > PY_SSIZE_T_MAX - repsize)
+        goto overflow;
+    requiredsize += repsize;
+    if (requiredsize > PY_SSIZE_T_MAX - (insize - newpos))
+        goto overflow;
+    requiredsize += insize - newpos;
     if (requiredsize > outsize) {
-        if (requiredsize<2*outsize)
+        if (outsize <= PY_SSIZE_T_MAX/2 && requiredsize < 2*outsize)
             requiredsize = 2*outsize;
         if (_PyUnicode_Resize(output, requiredsize) < 0)
             goto onError;
@@ -1529,6 +1535,11 @@ int unicode_decode_call_errorhandler(const char *errors, PyObject **errorHandler
   onError:
     Py_XDECREF(restuple);
     return res;
+
+  overflow:
+    PyErr_SetString(PyExc_OverflowError,
+                    "decoded result is too long for a Python string");
+    goto onError;
 }
 
 /* --- UTF-7 Codec -------------------------------------------------------- */
@@ -3646,7 +3657,7 @@ static PyObject *unicode_encode_ucs1(const Py_UNICODE *p,
             const Py_UNICODE *collstart = p;
             const Py_UNICODE *collend = p;
             /* find all unecodable characters */
-            while ((collend < endp) && ((*collend)>=limit))
+            while ((collend < endp) && ((*collend) >= limit))
                 ++collend;
             /* cache callback name lookup (if not done yet, i.e. it's the first error) */
             if (known_errorHandler==-1) {
@@ -3666,34 +3677,41 @@ static PyObject *unicode_encode_ucs1(const Py_UNICODE *p,
                 raise_encode_exception(&exc, encoding, startp, size, collstart-startp, collend-startp, reason);
                 goto onError;
             case 2: /* replace */
-                while (collstart++<collend)
+                while (collstart++ < collend)
                     *str++ = '?'; /* fall through */
             case 3: /* ignore */
                 p = collend;
                 break;
             case 4: /* xmlcharrefreplace */
-                respos = str-PyString_AS_STRING(res);
+                respos = str - PyString_AS_STRING(res);
                 /* determine replacement size (temporarily (mis)uses p) */
-                for (p = collstart, repsize = 0; p < collend;) {
+                requiredsize = respos;
+                for (p = collstart; p < collend;) {
                     Py_UCS4 ch = _Py_UNICODE_NEXT(p, collend);
+                    Py_ssize_t incr;
                     if (ch < 10)
-                        repsize += 2+1+1;
+                        incr = 2+1+1;
                     else if (ch < 100)
-                        repsize += 2+2+1;
+                        incr = 2+2+1;
                     else if (ch < 1000)
-                        repsize += 2+3+1;
+                        incr = 2+3+1;
                     else if (ch < 10000)
-                        repsize += 2+4+1;
+                        incr = 2+4+1;
                     else if (ch < 100000)
-                        repsize += 2+5+1;
+                        incr = 2+5+1;
                     else if (ch < 1000000)
-                        repsize += 2+6+1;
+                        incr = 2+6+1;
                     else
-                        repsize += 2+7+1;
+                        incr = 2+7+1;
+                    if (requiredsize > PY_SSIZE_T_MAX - incr)
+                        goto overflow;
+                    requiredsize += incr;
                 }
-                requiredsize = respos+repsize+(endp-collend);
+                if (requiredsize > PY_SSIZE_T_MAX - (endp - collend))
+                    goto overflow;
+                requiredsize += endp - collend;
                 if (requiredsize > ressize) {
-                    if (requiredsize<2*ressize)
+                    if (ressize <= PY_SSIZE_T_MAX/2 && requiredsize < 2*ressize)
                         requiredsize = 2*ressize;
                     if (_PyString_Resize(&res, requiredsize))
                         goto onError;
@@ -3716,11 +3734,16 @@ static PyObject *unicode_encode_ucs1(const Py_UNICODE *p,
                 /* need more space? (at least enough for what we have+the
                    replacement+the rest of the string, so we won't have to
                    check space for encodable characters) */
-                respos = str-PyString_AS_STRING(res);
+                respos = str - PyString_AS_STRING(res);
                 repsize = PyUnicode_GET_SIZE(repunicode);
-                requiredsize = respos+repsize+(endp-collend);
+                if (respos > PY_SSIZE_T_MAX - repsize)
+                    goto overflow;
+                requiredsize = respos + repsize;
+                if (requiredsize > PY_SSIZE_T_MAX - (endp - collend))
+                    goto overflow;
+                requiredsize += endp - collend;
                 if (requiredsize > ressize) {
-                    if (requiredsize<2*ressize)
+                    if (ressize <= PY_SSIZE_T_MAX/2 && requiredsize < 2*ressize)
                         requiredsize = 2*ressize;
                     if (_PyString_Resize(&res, requiredsize)) {
                         Py_DECREF(repunicode);
@@ -3731,7 +3754,7 @@ static PyObject *unicode_encode_ucs1(const Py_UNICODE *p,
                 }
                 /* check if there is anything unencodable in the replacement
                    and copy it to the output */
-                for (uni2 = PyUnicode_AS_UNICODE(repunicode);repsize-->0; ++uni2, ++str) {
+                for (uni2 = PyUnicode_AS_UNICODE(repunicode); repsize-->0; ++uni2, ++str) {
                     c = *uni2;
                     if (c >= limit) {
                         raise_encode_exception(&exc, encoding, startp, size,
@@ -3747,13 +3770,17 @@ static PyObject *unicode_encode_ucs1(const Py_UNICODE *p,
         }
     }
     /* Resize if we allocated to much */
-    respos = str-PyString_AS_STRING(res);
-    if (respos<ressize)
+    respos = str - PyString_AS_STRING(res);
+    if (respos < ressize)
         /* If this falls res will be NULL */
         _PyString_Resize(&res, respos);
     Py_XDECREF(errorHandler);
     Py_XDECREF(exc);
     return res;
+
+  overflow:
+    PyErr_SetString(PyExc_OverflowError,
+                    "encoded result is too long for a Python string");
 
   onError:
     Py_XDECREF(res);

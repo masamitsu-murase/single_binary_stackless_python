@@ -33,13 +33,6 @@ module-level functions and :class:`RegexObject` methods.  The functions are
 shortcuts that don't require you to compile a regex object first, but miss some
 fine-tuning parameters.
 
-.. seealso::
-
-   Mastering Regular Expressions
-      Book on regular expressions by Jeffrey Friedl, published by O'Reilly.  The
-      second edition of the book no longer covers Python at all, but the first
-      edition covered writing good regular expression patterns in great detail.
-
 
 .. _re-syntax:
 
@@ -373,7 +366,7 @@ the second character.  For example, ``\$`` matches the character ``'$'``.
    database.
 
 ``\S``
-   When the :const:`UNICODE` flags is not specified, matches any non-whitespace
+   When the :const:`UNICODE` flag is not specified, matches any non-whitespace
    character; this is equivalent to the set ``[^ \t\n\r\f\v]`` The
    :const:`LOCALE` flag has no extra effect on non-whitespace match.  If
    :const:`UNICODE` is set, then any character not marked as space in the
@@ -393,7 +386,7 @@ the second character.  For example, ``\$`` matches the character ``'$'``.
    any non-alphanumeric character; this is equivalent to the set ``[^a-zA-Z0-9_]``.
    With :const:`LOCALE`, it will match any character not in the set ``[0-9_]``, and
    not defined as alphanumeric for the current locale. If :const:`UNICODE` is set,
-   this will match anything other than ``[0-9_]`` plus characters classied as
+   this will match anything other than ``[0-9_]`` plus characters classified as
    not alphanumeric in the Unicode character properties database.
 
 ``\Z``
@@ -417,6 +410,14 @@ Octal escapes are included in a limited form: If the first digit is a 0, or if
 there are three octal digits, it is considered an octal escape. Otherwise, it is
 a group reference.  As for string literals, octal escapes are always at most
 three digits in length.
+
+.. seealso::
+
+   Mastering Regular Expressions
+      Book on regular expressions by Jeffrey Friedl, published by O'Reilly.  The
+      second edition of the book no longer covers Python at all, but the first
+      edition covered writing good regular expression patterns in great detail.
+
 
 
 .. _contents-of-module-re:

@@ -39,7 +39,9 @@ The Short Version
 
 With that done, your options are:
 
-* If you are dropping Python 2 support, use 2to3_ to port to Python 3
+* If you are dropping Python 2 support, use :ref:`2to3 <2to3-reference>` to port
+  to Python 3
+
 * If you are keeping Python 2 support, then start writing Python 2/3-compatible
   code starting **TODAY**
 
@@ -84,11 +86,11 @@ that you can make sure that you detect breakage during the transition. Tests als
 tend to be simpler than the code they are testing so it gives you an idea of how
 easy it can be to port code.
 
-Drop support for older Python versions if possible. `Python 2.5`_
+Drop support for older Python versions if possible. Python 2.5
 introduced a lot of useful syntax and libraries which have become idiomatic
-in Python 3. `Python 2.6`_ introduced future statements which makes
+in Python 3. Python 2.6 introduced future statements which makes
 compatibility much easier if you are going from Python 2 to 3.
-`Python 2.7`_ continues the trend in the stdlib. Choose the newest version
+Python 2.7 continues the trend in the stdlib. Choose the newest version
 of Python which you believe can be your minimum support version
 and work from there.
 
@@ -142,19 +144,19 @@ for you.
 Support Python 2.7
 //////////////////
 
-As a first step, make sure that your project is compatible with `Python 2.7`_.
+As a first step, make sure that your project is compatible with Python 2.7.
 This is just good to do as Python 2.7 is the last release of Python 2 and thus
 will be used for a rather long time. It also allows for use of the ``-3`` flag
 to Python to help discover places in your code where compatibility might be an
 issue (the ``-3`` flag is in Python 2.6 but Python 2.7 adds more warnings).
 
-Try to Support `Python 2.6`_ and Newer Only
-///////////////////////////////////////////
+Try to Support Python 2.6 and Newer Only
+////////////////////////////////////////
 
-While not possible for all projects, if you can support `Python 2.6`_ and newer
+While not possible for all projects, if you can support Python 2.6 and newer
 **only**, your life will be much easier. Various future statements, stdlib
 additions, etc. exist only in Python 2.6 and later which greatly assist in
-supporting Python 3. But if you project must keep support for `Python 2.5`_ then
+supporting Python 3. But if you project must keep support for Python 2.5 then
 it is still possible to simultaneously support Python 3.
 
 Below are the benefits you gain if you only have to support Python 2.6 and
@@ -213,10 +215,10 @@ Discussed in more detail below, but you should use this future statement to
 prevent yourself from accidentally using implicit relative imports.
 
 
-Supporting `Python 2.5`_ and Newer Only
-///////////////////////////////////////
+Supporting Python 2.5 and Newer Only
+////////////////////////////////////
 
-If you are supporting `Python 2.5`_ and newer there are still some features of
+If you are supporting Python 2.5 and newer there are still some features of
 Python that you can utilize.
 
 
@@ -228,11 +230,11 @@ Implicit relative imports (e.g., importing ``spam.bacon`` from within
 This future statement moves away from that and allows the use of explicit
 relative imports (e.g., ``from . import bacon``).
 
-In `Python 2.5`_ you must use
+In Python 2.5 you must use
 the __future__ statement to get to use explicit relative imports and prevent
-implicit ones. In `Python 2.6`_ explicit relative imports are available without
+implicit ones. In Python 2.6 explicit relative imports are available without
 the statement, but you still want the __future__ statement to prevent implicit
-relative imports. In `Python 2.7`_ the __future__ statement is not needed. In
+relative imports. In Python 2.7 the __future__ statement is not needed. In
 other words, unless you are only supporting Python 2.7 or a version earlier
 than Python 2.5, use this __future__ statement.
 
@@ -259,7 +261,7 @@ In Python 2.5 and earlier the syntax to access the current exception is::
      # Current exception is 'exc'.
      pass
 
-This syntax changed in Python 3 (and backported to `Python 2.6`_ and later)
+This syntax changed in Python 3 (and backported to Python 2.6 and later)
 to::
 
    try:
@@ -345,7 +347,7 @@ possibilities:
 Subclass ``object``
 '''''''''''''''''''
 
-New-style classes have been around since `Python 2.2`_. You need to make sure
+New-style classes have been around since Python 2.2. You need to make sure
 you are subclassing from ``object`` to avoid odd edge cases involving method
 resolution order, etc. This continues to be totally valid in Python 3 (although
 unneeded as all classes implicitly inherit from ``object``).
@@ -533,7 +535,7 @@ Update ``map`` for imbalanced input sequences
 '''''''''''''''''''''''''''''''''''''''''''''
 
 With Python 2, when ``map`` was given more than one input sequence it would pad
-the shorter sequences with `None` values, returning a sequence as long as the
+the shorter sequences with ``None`` values, returning a sequence as long as the
 longest input sequence.
 
 With Python 3, if the input sequences to ``map`` are of unequal length, ``map``
@@ -563,10 +565,9 @@ Supporting Only Python 3 Going Forward From Python 2 Code
 ---------------------------------------------------------
 
 If you have Python 2 code but going forward only want to improve it as Python 3
-code, then you can use 2to3_ to translate your Python 2 code to Python 3 code.
-This is only recommended, though, if your current version of your project is
-going into maintenance mode and you want all new features to be exclusive to
-Python 3.
+code, then you can use :ref:`2to3 <2to3-reference>` to translate your Python 2
+code to Python 3 code.  This is only recommended, though, if your current
+version of your project is going into maintenance mode and you want all new features to be exclusive to Python 3.
 
 
 Backporting Python 3 code to Python 2
@@ -588,7 +589,7 @@ thanks for making public their tips for porting Python 2 code to Python 3 (and
 thus helping provide information for this document and its various revisions
 over the years):
 
-* http://wiki.python.org/moin/PortingPythonToPy3k
+* https://wiki.python.org/moin/PortingPythonToPy3k
 * http://python3porting.com/
 * http://docs.pythonsprints.com/python3_porting/py-porting.html
 * http://techspot.zzzeek.org/2011/01/24/zzzeek-s-guide-to-python-3-porting/
@@ -601,25 +602,16 @@ If you feel there is something missing from this document that should be added,
 please email the python-porting_ mailing list.
 
 
-
-.. _2to3: http://docs.python.org/2/library/2to3.html
 .. _3to2: https://pypi.python.org/pypi/3to2
 .. _Cheeseshop: PyPI_
 .. _coverage: https://pypi.python.org/pypi/coverage
 .. _future: http://python-future.org/
 .. _modernize: https://github.com/mitsuhiko/python-modernize
 .. _Porting to Python 3: http://python3porting.com/
-.. _PyPI: http://pypi.python.org/
-.. _Python 2.2: http://www.python.org/2.2.x
-.. _Python 2.5: http://www.python.org/2.5.x
-.. _Python 2.6: http://www.python.org/2.6.x
-.. _Python 2.7: http://www.python.org/2.7.x
-.. _Python 2.5: http://www.python.org/2.5.x
-.. _Python 3.3: http://www.python.org/3.3.x
+.. _PyPI: https://pypi.python.org/pypi
 .. _Python 3 Packages: https://pypi.python.org/pypi?:action=browse&c=533&show=all
 .. _Python 3 Q & A: http://ncoghlan-devs-python-notes.readthedocs.org/en/latest/python3/questions_and_answers.html
-.. _python-porting: http://mail.python.org/mailman/listinfo/python-porting
+.. _python-porting: https://mail.python.org/mailman/listinfo/python-porting
 .. _six: https://pypi.python.org/pypi/six
 .. _tox: https://pypi.python.org/pypi/tox
 .. _trove classifiers: https://pypi.python.org/pypi?%3Aaction=list_classifiers
-

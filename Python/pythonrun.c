@@ -92,8 +92,6 @@ int _Py_QnewFlag = 0;
 int Py_NoUserSiteDirectory = 0; /* for -s and site.py */
 int Py_HashRandomizationFlag = 0; /* for -R and PYTHONHASHSEED */
 
-PyThreadState *_Py_Finalizing = NULL;
-
 
 /* Hack to force loading of object files */
 int (*_PyOS_mystrnicmp_hack)(const char *, const char *, Py_ssize_t) = \
@@ -166,7 +164,6 @@ Py_InitializeEx(int install_sigs)
     if (initialized)
         return;
     initialized = 1;
-    _Py_Finalizing = NULL;
 
     if ((p = Py_GETENV("PYTHONDEBUG")) && *p != '\0')
         Py_DebugFlag = add_flag(Py_DebugFlag, p);
@@ -440,15 +437,11 @@ Py_Finalize(void)
 #ifdef STACKLESS
     PyStackless_kill_tasks_with_stacks(1);
 #endif
+    initialized = 0;
 
     /* Get current thread state and interpreter pointer */
     tstate = PyThreadState_GET();
     interp = tstate->interp;
-
-    /* Remaining threads (e.g. daemon threads) will automatically exit
-       after taking the GIL (in PyEval_RestoreThread()). */
-    _Py_Finalizing = tstate;
-    initialized = 0;
 
     /* Disable signal handling */
     PyOS_FiniInterrupts();
@@ -551,6 +544,7 @@ Py_Finalize(void)
     PyInt_Fini();
     PyFloat_Fini();
     PyDict_Fini();
+    _PyRandom_Fini();
 
 #ifdef Py_USING_UNICODE
     /* Cleanup Unicode implementation */

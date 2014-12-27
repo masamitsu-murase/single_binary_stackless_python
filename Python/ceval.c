@@ -357,12 +357,6 @@ PyEval_RestoreThread(PyThreadState *tstate)
     if (interpreter_lock) {
         int err = errno;
         PyThread_acquire_lock(interpreter_lock, 1);
-        /* _Py_Finalizing is protected by the GIL */
-        if (_Py_Finalizing && tstate != _Py_Finalizing) {
-            PyThread_release_lock(interpreter_lock);
-            PyThread_exit_thread();
-            assert(0);  /* unreachable */
-        }
         errno = err;
     }
 #endif
@@ -1337,12 +1331,6 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
 
                 PyThread_acquire_lock(interpreter_lock, 1);
 
-                /* Check if we should make a quick exit. */
-                if (_Py_Finalizing && _Py_Finalizing != tstate) {
-                    PyThread_release_lock(interpreter_lock);
-                    PyThread_exit_thread();
-                }
-
                 if (PyThreadState_Swap(tstate) != NULL)
                     Py_FatalError("ceval: orphan tstate");
 
@@ -2269,9 +2257,13 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
                 if (err == 0) continue;
                 break;
             }
+            t = PyObject_Repr(w);
+            if (t == NULL)
+                break;
             PyErr_Format(PyExc_SystemError,
                          "no locals found when storing %s",
-                         PyObject_REPR(w));
+                         PyString_AS_STRING(t));
+            Py_DECREF(t);
             break;
 
         case DELETE_NAME:
@@ -2283,9 +2275,13 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
                                          w);
                 break;
             }
+            t = PyObject_Repr(w);
+            if (t == NULL)
+                break;
             PyErr_Format(PyExc_SystemError,
                          "no locals when deleting %s",
-                         PyObject_REPR(w));
+                         PyString_AS_STRING(w));
+            Py_DECREF(t);
             break;
 
         PREDICTED_WITH_ARG(UNPACK_SEQUENCE);
@@ -2358,10 +2354,14 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
         case LOAD_NAME:
             w = GETITEM(names, oparg);
             if ((v = f->f_locals) == NULL) {
+                why = WHY_EXCEPTION;
+                t = PyObject_Repr(w);
+                if (t == NULL)
+                    break;
                 PyErr_Format(PyExc_SystemError,
                              "no locals when loading %s",
-                             PyObject_REPR(w));
-                why = WHY_EXCEPTION;
+                             PyString_AS_STRING(w));
+                Py_DECREF(t);
                 break;
             }
             if (PyDict_CheckExact(v)) {

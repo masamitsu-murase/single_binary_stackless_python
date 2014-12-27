@@ -234,7 +234,7 @@ Ellipsis
       at the mercy of the underlying machine architecture (and C or Java
       implementation) for the accepted range and handling of overflow. Python does not
       support single-precision floating point numbers; the savings in processor and
-      memory usage that are usually the reason for using these is dwarfed by the
+      memory usage that are usually the reason for using these are dwarfed by the
       overhead of using objects in Python, so there is no reason to complicate the
       language with two kinds of floating point numbers.
 
@@ -783,7 +783,7 @@ Classes
    inheritance structures where there are multiple inheritance paths
    leading back to a common ancestor. Additional details on the C3 MRO used by
    new-style classes can be found in the documentation accompanying the
-   2.3 release at http://www.python.org/download/releases/2.3/mro/.
+   2.3 release at https://www.python.org/download/releases/2.3/mro/.
 
    .. XXX: Could we add that MRO doc as an appendix to the language ref?
 
@@ -1117,18 +1117,19 @@ New-style and classic classes
 
 Classes and instances come in two flavors: old-style (or classic) and new-style.
 
-Up to Python 2.1, old-style classes were the only flavour available to the user.
-The concept of (old-style) class is unrelated to the concept of type: if *x* is
-an instance of an old-style class, then ``x.__class__`` designates the class of
-*x*, but ``type(x)`` is always ``<type 'instance'>``.  This reflects the fact
-that all old-style instances, independently of their class, are implemented with
-a single built-in type, called ``instance``.
+Up to Python 2.1 the concept of ``class`` was unrelated to the concept of
+``type``, and old-style classes were the only flavor available.  For an
+old-style class, the statement ``x.__class__`` provides the class of *x*, but
+``type(x)`` is always ``<type 'instance'>``.  This reflects the fact that all
+old-style instances, independent of their class, are implemented with a single
+built-in type, called ``instance``.
 
-New-style classes were introduced in Python 2.2 to unify classes and types.  A
-new-style class is neither more nor less than a user-defined type.  If *x* is an
-instance of a new-style class, then ``type(x)`` is typically the same as
-``x.__class__`` (although this is not guaranteed - a new-style class instance is
-permitted to override the value returned for ``x.__class__``).
+New-style classes were introduced in Python 2.2 to unify the concepts of
+``class`` and ``type``.  A new-style class is simply a user-defined type,
+no more, no less.  If *x* is an instance of a new-style class, then ``type(x)``
+is typically the same as ``x.__class__`` (although this is not guaranteed -- a
+new-style class instance is permitted to override the value returned for
+``x.__class__``).
 
 The major motivation for introducing new-style classes is to provide a unified
 object model with a full meta-model.  It also has a number of practical
@@ -1147,7 +1148,7 @@ in case of multiple inheritance.
 
 While this manual aims to provide comprehensive coverage of Python's class
 mechanics, it may still be lacking in some areas when it comes to its coverage
-of new-style classes. Please see http://www.python.org/doc/newstyle/ for
+of new-style classes. Please see https://www.python.org/doc/newstyle/ for
 sources of additional information.
 
 .. index::
@@ -1155,8 +1156,7 @@ sources of additional information.
    single: class; classic
    single: class; old-style
 
-Old-style classes are removed in Python 3, leaving only the semantics of
-new-style classes.
+Old-style classes are removed in Python 3, leaving only new-style classes.
 
 
 .. _specialnames:

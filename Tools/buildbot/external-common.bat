@@ -1,7 +1,8 @@
 @rem Common file shared between external.bat and external-amd64.bat.  Responsible for
-@rem fetching external components into the root\.. buildbot directories.
+@rem fetching external components into the root\externals directory.
 
-cd ..
+if not exist externals mkdir externals
+cd externals
 @rem XXX: If you need to force the buildbots to start from a fresh environment, uncomment
 @rem the following, check it in, then check it out, comment it out, then check it back in.
 @rem if exist bzip2-1.0.6 rd /s/q bzip2-1.0.6
@@ -23,6 +24,8 @@ cd ..
 @rem if exist openssl-0.9.8y rd /s/q openssl-0.9.8y
 @rem if exist openssl-1.0.1g rd /s/q openssl-1.0.1g
 @rem if exist openssl-1.0.1h rd /s/q openssl-1.0.1h
+@rem if exist openssl-1.0.1i rd /s/q openssl-1.0.1i
+@rem if exist openssl-1.0.1j rd /s/q openssl-1.0.1j
 @rem if exist sqlite-3.6.21 rd /s/q sqlite-3.6.21
 
 @rem bzip
@@ -35,9 +38,13 @@ if not exist bzip2-1.0.6 (
 if exist db-4.4.20 rd /s/q db-4.4.20
 if not exist db-4.7.25.0 svn export http://svn.python.org/projects/external/db-4.7.25.0
 
+@rem NASM, for OpenSSL build
+@rem if exist nasm-2.11.06 rd /s/q nasm-2.11.06
+if not exist nasm-2.11.06 svn export http://svn.python.org/projects/external/nasm-2.11.06
+
 @rem OpenSSL
-if exist openssl-1.0.1g rd /s/q openssl-1.0.1g
-if not exist openssl-1.0.1h svn export http://svn.python.org/projects/external/openssl-1.0.1h
+if exist openssl-1.0.1i rd /s/q openssl-1.0.1i
+if not exist openssl-1.0.1j svn export http://svn.python.org/projects/external/openssl-1.0.1j
 
 @rem tcl/tk
 if not exist tcl-8.5.15.0 (

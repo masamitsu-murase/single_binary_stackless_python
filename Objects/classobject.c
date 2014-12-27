@@ -5,7 +5,7 @@
 #include "structmember.h"
 #include "core/stackless_impl.h"
 
-/* Free list for method objects to safe malloc/free overhead
+/* Free list for method objects to save malloc/free overhead
  * The im_self element is used to chain the elements.
  */
 static PyMethodObject *free_list;

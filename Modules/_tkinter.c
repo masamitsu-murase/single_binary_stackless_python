@@ -408,8 +408,8 @@ Merge(PyObject *args)
                 PyErr_SetString(PyExc_OverflowError, "tuple is too long");
                 goto finally;
             }
-            argv = (char **)ckalloc((size_t)argc * sizeof(char *));
-            fv = (int *)ckalloc((size_t)argc * sizeof(int));
+            argv = (char **)attemptckalloc((size_t)argc * sizeof(char *));
+            fv = (int *)attemptckalloc((size_t)argc * sizeof(int));
             if (argv == NULL || fv == NULL) {
                 PyErr_NoMemory();
                 goto finally;
@@ -468,8 +468,10 @@ unicode_FromTclStringAndSize(const char *s, Py_ssize_t size)
             const char *e = s + size;
             PyErr_Clear();
             q = buf = (char *)PyMem_Malloc(size);
-            if (buf == NULL)
+            if (buf == NULL) {
+                PyErr_NoMemory();
                 return NULL;
+            }
             while (s != e) {
                 if (s + 1 != e && s[0] == '\xc0' && s[1] == '\x80') {
                     *q++ = '\0';
@@ -752,7 +754,7 @@ Tkapp_New(char *screenName, char *baseName, char *className,
         Tcl_SetVar(v->interp, "tcl_interactive", "0", TCL_GLOBAL_ONLY);
 
     /* This is used to get the application class for Tk 4.1 and up */
-    argv0 = (char*)ckalloc(strlen(className) + 1);
+    argv0 = (char*)attemptckalloc(strlen(className) + 1);
     if (!argv0) {
         PyErr_NoMemory();
         Py_DECREF(v);
@@ -786,7 +788,7 @@ Tkapp_New(char *screenName, char *baseName, char *className,
         if (use)
             len += strlen(use) + sizeof "-use ";
 
-        args = (char*)ckalloc(len);
+        args = (char*)attemptckalloc(len);
         if (!args) {
             PyErr_NoMemory();
             Py_DECREF(v);
@@ -1050,11 +1052,13 @@ AsObj(PyObject *value)
         Py_ssize_t size, i;
 
         size = PyTuple_Size(value);
+        if (size == 0)
+            return Tcl_NewListObj(0, NULL);
         if (!CHECK_SIZE(size, sizeof(Tcl_Obj *))) {
             PyErr_SetString(PyExc_OverflowError, "tuple is too long");
             return NULL;
         }
-        argv = (Tcl_Obj **) ckalloc(((size_t)size) * sizeof(Tcl_Obj *));
+        argv = (Tcl_Obj **) attemptckalloc(((size_t)size) * sizeof(Tcl_Obj *));
         if(!argv)
           return 0;
         for (i = 0; i < size; i++)
@@ -1073,6 +1077,8 @@ AsObj(PyObject *value)
         Tcl_UniChar *outbuf = NULL;
         Py_ssize_t i;
         size_t allocsize;
+        if (size == 0)
+            return Tcl_NewUnicodeObj((const void *)"", 0);
         if (!CHECK_SIZE(size, sizeof(Tcl_UniChar))) {
             PyErr_SetString(PyExc_OverflowError, "string is too long");
             return NULL;
@@ -1081,7 +1087,7 @@ AsObj(PyObject *value)
             return Tcl_NewUnicodeObj(inbuf, size);
         allocsize = ((size_t)size) * sizeof(Tcl_UniChar);
         if (allocsize >= size)
-            outbuf = (Tcl_UniChar*)ckalloc(allocsize);
+            outbuf = (Tcl_UniChar*)attemptckalloc(allocsize);
         /* Else overflow occurred, and we take the next exit */
         if (!outbuf) {
             PyErr_NoMemory();
@@ -1270,7 +1276,7 @@ Tkapp_CallArgs(PyObject *args, Tcl_Obj** objStore, int *pobjc)
                 PyErr_SetString(PyExc_OverflowError, "tuple is too long");
                 return NULL;
             }
-            objv = (Tcl_Obj **)ckalloc(((size_t)objc) * sizeof(Tcl_Obj *));
+            objv = (Tcl_Obj **)attemptckalloc(((size_t)objc) * sizeof(Tcl_Obj *));
             if (objv == NULL) {
                 PyErr_NoMemory();
                 objc = 0;
@@ -1408,7 +1414,11 @@ Tkapp_Call(PyObject *selfptr, PyObject *args)
         PyObject *exc_type, *exc_value, *exc_tb;
         if (!WaitForMainloop(self))
             return NULL;
-        ev = (Tkapp_CallEvent*)ckalloc(sizeof(Tkapp_CallEvent));
+        ev = (Tkapp_CallEvent*)attemptckalloc(sizeof(Tkapp_CallEvent));
+        if (ev == NULL) {
+            PyErr_NoMemory();
+            return NULL;
+        }
         ev->ev.proc = (Tcl_EventProc*)Tkapp_CallProc;
         ev->self = self;
         ev->args = args;
@@ -1698,8 +1708,11 @@ var_invoke(EventFunc func, PyObject *selfptr, PyObject *args, int flags)
         if (!WaitForMainloop(self))
             return NULL;
 
-        ev = (VarEvent*)ckalloc(sizeof(VarEvent));
-
+        ev = (VarEvent*)attemptckalloc(sizeof(VarEvent));
+        if (ev == NULL) {
+            PyErr_NoMemory();
+            return NULL;
+        }
         ev->self = selfptr;
         ev->args = args;
         ev->flags = flags;
@@ -2310,7 +2323,12 @@ Tkapp_CreateCommand(PyObject *selfptr, PyObject *args)
 #ifdef WITH_THREAD
     if (self->threaded && self->thread_id != Tcl_GetCurrentThread()) {
         Tcl_Condition cond = NULL;
-        CommandEvent *ev = (CommandEvent*)ckalloc(sizeof(CommandEvent));
+        CommandEvent *ev = (CommandEvent*)attemptckalloc(sizeof(CommandEvent));
+        if (ev == NULL) {
+            PyErr_NoMemory();
+            PyMem_DEL(data);
+            return NULL;
+        }
         ev->ev.proc = (Tcl_EventProc*)Tkapp_CommandProc;
         ev->interp = self->interp;
         ev->create = 1;
@@ -2357,7 +2375,11 @@ Tkapp_DeleteCommand(PyObject *selfptr, PyObject *args)
     if (self->threaded && self->thread_id != Tcl_GetCurrentThread()) {
         Tcl_Condition cond = NULL;
         CommandEvent *ev;
-        ev = (CommandEvent*)ckalloc(sizeof(CommandEvent));
+        ev = (CommandEvent*)attemptckalloc(sizeof(CommandEvent));
+        if (ev == NULL) {
+            PyErr_NoMemory();
+            return NULL;
+        }
         ev->ev.proc = (Tcl_EventProc*)Tkapp_CommandProc;
         ev->interp = self->interp;
         ev->create = 0;
@@ -2937,6 +2959,33 @@ Tkapp_WillDispatch(PyObject *self, PyObject *args)
     return Py_None;
 }
 
+/* Convert Python string or any buffer compatible object to Tcl byte-array
+ * object.  Use it to pass binary data (e.g. image's data) to Tcl/Tk commands.
+ */
+static PyObject *
+Tkapp_CreateByteArray(PyObject *self, PyObject *args)
+{
+    Py_buffer view;
+    Tcl_Obj* obj;
+    PyObject *res = NULL;
+
+    if (!PyArg_ParseTuple(args, "s*:_createbytearray", &view))
+        return NULL;
+
+    if (view.len >= INT_MAX) {
+        PyErr_SetString(PyExc_OverflowError, "string is too long");
+        return NULL;
+    }
+    obj = Tcl_NewByteArrayObj(view.buf, (int)view.len);
+    if (obj == NULL) {
+        PyBuffer_Release(&view);
+        return Tkinter_Error(self);
+    }
+    res = newPyTclObject(obj);
+    PyBuffer_Release(&view);
+    return res;
+}
+
 
 /**** Tkapp Method List ****/
 
@@ -2979,6 +3028,7 @@ static PyMethodDef Tkapp_methods[] =
     {"quit",                   Tkapp_Quit, METH_VARARGS},
     {"interpaddr",         Tkapp_InterpAddr, METH_VARARGS},
     {"loadtk",                 Tkapp_TkInit, METH_NOARGS},
+    {"_createbytearray",       Tkapp_CreateByteArray, METH_VARARGS},
     {NULL,                     NULL}
 };
 

@@ -587,7 +587,7 @@ file from your processes. The existing :class:`FileHandler` and subclasses do
 not make use of :mod:`multiprocessing` at present, though they may do so in the
 future. Note that at present, the :mod:`multiprocessing` module does not provide
 working lock functionality on all platforms (see
-http://bugs.python.org/issue3770).
+https://bugs.python.org/issue3770).
 
 
 Using file rotation
@@ -846,15 +846,20 @@ Customizing handlers with :func:`dictConfig`
 There are times when you want to customize logging handlers in particular ways,
 and if you use :func:`dictConfig` you may be able to do this without
 subclassing. As an example, consider that you may want to set the ownership of a
-log file. On POSIX, this is easily done using :func:`shutil.chown`, but the file
+log file. On POSIX, this is easily done using :func:`os.chown`, but the file
 handlers in the stdlib don't offer built-in support. You can customize handler
 creation using a plain function such as::
 
     def owned_file_handler(filename, mode='a', encoding=None, owner=None):
         if owner:
+            import os, pwd, grp
+            # convert user and group names to uid and gid
+            uid = pwd.getpwnam(owner[0]).pw_uid
+            gid = grp.getgrnam(owner[1]).gr_gid
+            owner = (uid, gid)
             if not os.path.exists(filename):
                 open(filename, 'a').close()
-            shutil.chown(filename, *owner)
+            os.chown(filename, *owner)
         return logging.FileHandler(filename, mode, encoding)
 
 You can then specify, in a logging configuration passed to :func:`dictConfig`,
