@@ -529,6 +529,18 @@ class SwitchTest(RemoteTaskletTests):
             self.assertRaisesRegexp(RuntimeError, "different thread", t.switch)
 
 
+class SetupFromDifferentThreadTest(RemoteTaskletTests):
+    # Test case for issue #60 https://bitbucket.org/stackless-dev/stackless/issue/60
+    def create_tasklet(self, action, *args, **kw):
+        self.tasklet = stackless.tasklet(action)
+        self.event.set()
+
+    def test_setup_from_other_thread(self):
+        theThread, t = self.create_thread_task()
+        t.setup()
+        theThread.join()
+
+
 if __name__ == '__main__':
     import sys
     if not sys.argv[1:]:
