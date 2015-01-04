@@ -10,6 +10,16 @@ What's New in Stackless 2.7.X?
 
 *Release date: XXXX-XX-XX*
 
+
+What's New in Stackless 2.7.7 and 2.7.8
+=======================================
+
+*Release date: 2014-07-06*
+
+- Fix for test_watchdog_on_tasklet_hard due to re !!!. The caching behaviour 
+  of re.py was changed in debug mode, which influenced the number of opcodes 
+  spent in our test.
+
 - Fix compiler warnings found on MAC.
 
 - https://bitbucket.org/stackless-dev/stackless/issue/61
