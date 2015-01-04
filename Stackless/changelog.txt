@@ -10,6 +10,8 @@ What's New in Stackless 2.7.X?
 
 *Release date: XXXX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issue/60
+  Fix a crash
 
 What's New in Stackless 2.7.7 and 2.7.8
 =======================================
