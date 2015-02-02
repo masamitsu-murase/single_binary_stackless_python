@@ -10,6 +10,8 @@ What's New in Stackless 2.7.X?
 
 *Release date: XXXX-XX-XX*
 
+- Mac and Windows installers only: update openssl to version 1.0.1l
+
 - https://bitbucket.org/stackless-dev/stackless/issue/60
   Fix a crash
 

@@ -43,8 +43,8 @@ if not exist db-4.7.25.0 svn export http://svn.python.org/projects/external/db-4
 if not exist nasm-2.11.06 svn export http://svn.python.org/projects/external/nasm-2.11.06
 
 @rem OpenSSL
-if exist openssl-1.0.1i rd /s/q openssl-1.0.1i
-if not exist openssl-1.0.1j svn export http://svn.python.org/projects/external/openssl-1.0.1j
+if exist openssl-1.0.1j rd /s/q openssl-1.0.1j
+if not exist openssl-1.0.1l svn export http://svn.python.org/projects/external/openssl-1.0.1l
 
 @rem tcl/tk
 if not exist tcl-8.5.15.0 (
