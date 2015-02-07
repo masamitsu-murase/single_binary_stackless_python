@@ -5,10 +5,10 @@ This file documents changes to the Stackless extension of C-Python.
 For other changes see Misc/NEWS.
 
 
-What's New in Stackless 2.7.X?
-===============================
+What's New in Stackless 2.7.9?
+==============================
 
-*Release date: XXXX-XX-XX*
+*Release date: 2015-02-07*
 
 - Mac and Windows installers only: update openssl to version 1.0.1l
 
