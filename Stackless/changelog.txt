@@ -4,6 +4,11 @@ Stackless-Python News
 This file documents changes to the Stackless extension of C-Python.
 For other changes see Misc/NEWS.
 
+What's New in Stackless 3.X.X?
+==============================
+
+*Release date: XXXX-XX-XX*
+
 
 What's New in Stackless 3.2.6?
 ==============================
