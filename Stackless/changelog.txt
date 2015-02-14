@@ -10,6 +10,9 @@ What's New in Stackless 3.X.X?
 
 *Release date: XXXX-XX-XX*
 
+- Windows installer: update tcl and tk to version 8.5.15.0 
+  and tix to version 8.4.3.5. Python 2.7.9 uses the same versions.
+
 - https://bitbucket.org/stackless-dev/stackless/issue/60
   Fix a crash
 

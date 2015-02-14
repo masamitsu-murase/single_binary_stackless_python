@@ -11,10 +11,10 @@ import sys
 here = os.path.abspath(os.path.dirname(__file__))
 par = os.path.pardir
 
-tclver = ('8','5','11', '0')
+tclver = ('8','5','15', '0')
 TCL = "tcl-" + '.'.join(tclver)
-TK = "tk-8.5.11.0"
-TIX = "tix-8.4.3.x"
+TK = "tk-8.5.15.0"
+TIX = "tix-8.4.3.5"
 
 ROOT = os.path.abspath(os.path.join(here, par, par))
 # Windows 2000 compatibility: WINVER 0x0500
