@@ -7,7 +7,7 @@ import types
 
 import _stackless
 from _stackless import *
-# various deugging things starting with underscore
+# various debugging things starting with underscore
 from _stackless import _test_nostacklesscall, _pickle_moduledict, _gc_track, _gc_untrack
 try:
     from _stackless import _peek  # defined if compiled with STACKLESS_SPY
@@ -86,7 +86,7 @@ def transmogrify():
     del m.transmogrify, m.types, m.sys
 
     # odd curiosity, the stackless module contains a reference to itself
-    # deprectated, of course
+    # deprecated, of course
     m.stackless = m
 
     sys.modules["stackless"] = m

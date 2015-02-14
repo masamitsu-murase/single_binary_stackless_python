@@ -88,10 +88,20 @@ cstack_dealloc(PyCStackObject *cst)
 PyCStackObject *
 slp_cstack_new(PyCStackObject **cst, intptr_t *stackref, PyTaskletObject *task)
 {
-    PyThreadState *ts = PyThreadState_GET();
-    intptr_t *stackbase = ts->st.cstack_base;
-    ptrdiff_t size = stackbase - stackref;
+    PyThreadState *ts;
+    intptr_t *stackbase;
+    ptrdiff_t size;
 
+    if (task && task->cstate) {
+        ts = task->cstate->tstate;
+        assert(ts);
+    } else
+        ts = PyThreadState_GET();
+
+    stackbase = ts->st.cstack_base;
+    size = stackbase - stackref;
+
+    assert(size == 0 || ts == PyThreadState_GET());
     assert(size >= 0);
 
     if (*cst != NULL) {
@@ -118,8 +128,7 @@ slp_cstack_new(PyCStackObject **cst, intptr_t *stackref, PyTaskletObject *task)
     (*cst)->nesting_level = ts->st.nesting_level;
 #ifdef _SEH32
     //save the SEH handler
-    (*cst)->exception_list = (DWORD)
-                __readfsdword(FIELD_OFFSET(NT_TIB, ExceptionList));
+    (*cst)->exception_list = 0;
 #endif
     return *cst;
 }
@@ -135,6 +144,7 @@ slp_cstack_save(PyCStackObject *cstprev)
     //save the SEH handler
     cstprev->exception_list = (DWORD)
                 __readfsdword(FIELD_OFFSET(NT_TIB, ExceptionList));
+    assert(cstprev->exception_list);
 #endif
     return stsizeb;
 }
@@ -152,6 +162,7 @@ slp_cstack_restore(PyCStackObject *cst)
            Py_SIZE(cst) * sizeof(intptr_t));
 #ifdef _SEH32
     //restore the SEH handler
+    assert(cst->exception_list);
     __writefsdword(FIELD_OFFSET(NT_TIB, ExceptionList), (DWORD)(cst->exception_list));
     #pragma warning(default:4733)
 #endif
