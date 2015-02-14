@@ -10,6 +10,17 @@ What's New in Stackless 3.X.X?
 
 *Release date: XXXX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issue/60
+  Fix a crash
+
+- https://bitbucket.org/stackless-dev/stackless/issue/71
+  Fix a regression in Lib/pickle.py. Pickling functions
+  didn't work any longer.
+
+- Fix for test_watchdog_on_tasklet_hard due to re !!!. The caching behaviour 
+  of re.py was changed in debug mode, which influenced the number of opcodes 
+  spent in our test.
+
 - Fix compiler warnings found on MAC.
 
 - https://bitbucket.org/stackless-dev/stackless/issue/61
