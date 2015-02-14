@@ -52,6 +52,7 @@ BADCERT = data_file("badcert.pem")
 WRONGCERT = data_file("XXXnonexisting.pem")
 BADKEY = data_file("badkey.pem")
 NOKIACERT = data_file("nokia.pem")
+NULLBYTECERT = data_file("nullbytecert.pem")
 
 
 def handle_error(prefix):
@@ -138,6 +139,27 @@ class BasicSocketTests(unittest.TestCase):
         self.assertEqual(p['subjectAltName'],
                          (('DNS', 'projects.developer.nokia.com'),
                           ('DNS', 'projects.forum.nokia.com'))
+                        )
+
+    def test_parse_cert_CVE_2013_4073(self):
+        p = ssl._ssl._test_decode_cert(NULLBYTECERT)
+        if support.verbose:
+            sys.stdout.write("\n" + pprint.pformat(p) + "\n")
+        subject = ((('countryName', 'US'),),
+                   (('stateOrProvinceName', 'Oregon'),),
+                   (('localityName', 'Beaverton'),),
+                   (('organizationName', 'Python Software Foundation'),),
+                   (('organizationalUnitName', 'Python Core Development'),),
+                   (('commonName', 'null.python.org\x00example.org'),),
+                   (('emailAddress', 'python-dev@python.org'),))
+        self.assertEqual(p['subject'], subject)
+        self.assertEqual(p['issuer'], subject)
+        self.assertEqual(p['subjectAltName'],
+                         (('DNS', 'altnull.python.org\x00example.com'),
+                         ('email', 'null@python.org\x00user@example.org'),
+                         ('URI', 'http://null.python.org\x00http://example.org'),
+                         ('IP Address', '192.0.2.1'),
+                         ('IP Address', '2001:DB8:0:0:0:0:0:1\n'))
                         )
 
     def test_DER_to_PEM(self):
@@ -271,6 +293,13 @@ class BasicSocketTests(unittest.TestCase):
         fail(cert, 'foo.a.com')
         fail(cert, 'bar.foo.com')
 
+        # NULL bytes are bad, CVE-2013-4073
+        cert = {'subject': ((('commonName',
+                              'null.python.org\x00example.org'),),)}
+        ok(cert, 'null.python.org\x00example.org') # or raise an error?
+        fail(cert, 'example.org')
+        fail(cert, 'null.python.org')
+
         # Slightly fake real-world example
         cert = {'notAfter': 'Jun 26 21:41:46 2011 GMT',
                 'subject': ((('commonName', 'linuxfrz.org'),),),
@@ -325,6 +354,17 @@ class BasicSocketTests(unittest.TestCase):
         # Empty cert / no cert
         self.assertRaises(ValueError, ssl.match_hostname, None, 'example.com')
         self.assertRaises(ValueError, ssl.match_hostname, {}, 'example.com')
+
+        # Issue #17980: avoid denials of service by refusing more than one
+        # wildcard per fragment.
+        cert = {'subject': ((('commonName', 'a*b.com'),),)}
+        ok(cert, 'axxb.com')
+        cert = {'subject': ((('commonName', 'a*b.co*'),),)}
+        ok(cert, 'axxb.com')
+        cert = {'subject': ((('commonName', 'a*b*.com'),),)}
+        with self.assertRaises(ssl.CertificateError) as cm:
+            ssl.match_hostname(cert, 'axxbxxc.com')
+        self.assertIn("too many wildcards", str(cm.exception))
 
     def test_server_side(self):
         # server_hostname doesn't work for server sockets
@@ -679,12 +719,15 @@ class NetworkedTests(unittest.TestCase):
 
     def test_get_server_certificate(self):
         with support.transient_internet("svn.python.org"):
-            pem = ssl.get_server_certificate(("svn.python.org", 443))
+            pem = ssl.get_server_certificate(("svn.python.org", 443),
+                                             ssl.PROTOCOL_SSLv23)
             if not pem:
                 self.fail("No server certificate on svn.python.org:443!")
 
             try:
-                pem = ssl.get_server_certificate(("svn.python.org", 443), ca_certs=CERTFILE)
+                pem = ssl.get_server_certificate(("svn.python.org", 443),
+                                                 ssl.PROTOCOL_SSLv23,
+                                                 ca_certs=CERTFILE)
             except ssl.SSLError as x:
                 #should fail
                 if support.verbose:
@@ -692,7 +735,9 @@ class NetworkedTests(unittest.TestCase):
             else:
                 self.fail("Got server certificate %s for svn.python.org!" % pem)
 
-            pem = ssl.get_server_certificate(("svn.python.org", 443), ca_certs=SVN_PYTHON_ORG_ROOT_CERT)
+            pem = ssl.get_server_certificate(("svn.python.org", 443),
+                                             ssl.PROTOCOL_SSLv23,
+                                             ca_certs=SVN_PYTHON_ORG_ROOT_CERT)
             if not pem:
                 self.fail("No server certificate on svn.python.org:443!")
             if support.verbose:

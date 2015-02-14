@@ -1,6 +1,111 @@
-++++++++++
++++++++++++
 Python News
 +++++++++++
+
+What's New in Python 3.2.6?
+===========================
+
+*Release date: 11-Oct-2014*
+
+Core and Builtins
+-----------------
+
+- Issue #19529: Fix a potential crash in converting Unicode objects to wchar_t
+  when Py_UNICODE is 4 bytes but wchar_t is 2 bytes, for example on AIX.
+
+Library
+-------
+
+- Issue #16040: CVE-2013-1752: nntplib: Limit maximum line lengths to 2048 to
+  prevent readline() calls from consuming too much memory.  Patch by Jyrki
+  Pulliainen.
+
+- Issue #16039: CVE-2013-1752: Change use of readline in imaplib module to limit
+  line length.  Patch by Emil Lind.
+
+- Issue #22421: Fix a regression that caused the pydoc server to be bound to
+  all interfaces instead of only localhost.
+
+- Issue #22419: Limit the length of incoming HTTP request in wsgiref server to
+  65536 bytes and send a 414 error code for higher lengths. Patch contributed
+  by Devin Cook.
+
+- Issue #22517: When a io.BufferedRWPair object is deallocated, clear its
+  weakrefs.
+
+- Issue #16041: CVE-2013-1752: poplib: Limit maximum line lengths to 2048 to
+  prevent readline() calls from consuming too much memory.  Patch by Jyrki
+  Pulliainen.
+
+- Issue #16042: CVE-2013-1752: smtplib: Limit amount of data read by
+  limiting the call to readline().  Original patch by Christian Heimes.
+
+- Issue #16038: CVE-2013-1752: ftplib: Limit amount of data read by
+  limiting the call to readline().  Original patch by Michał
+  Jastrzębski and Giampaolo Rodola.
+
+- Issue #16037: HTTPMessage.readheaders() raises an HTTPException when more than
+  100 headers are read.  Adapted from patch by Jyrki Pulliainen.
+
+- Issue #18709: Fix CVE-2013-4238. The SSL module now handles NULL bytes
+  inside subjectAltName correctly. Formerly the module has used OpenSSL's
+  GENERAL_NAME_print() function to get the string represention of ASN.1
+  strings for ``rfc822Name`` (email), ``dNSName`` (DNS) and
+  ``uniformResourceIdentifier`` (URI).
+
+- Lax cookie parsing in http.cookies could be a security issue when combined
+  with non-standard cookie handling in some Web browsers.  Reported by
+  Sergey Bobrov.
+
+- Issue #19855: uuid.getnode() on Unix now looks on the PATH for the
+  executables used to find the mac address, with /sbin and /usr/sbin as
+  fallbacks.
+
+- Issue #11508: Fixed uuid.getnode() and uuid.uuid1() on environment with
+  virtual interface.  Original patch by Kent Frazier.
+
+- Issue #18784: The uuid module no more attempts to load libc via ctypes.CDLL,
+  if all necessary functions are already found in libuuid.
+  Patch by Evgeny Sologubov.
+
+- Issue #16102: Make uuid._netbios_getnode() work again on Python 3.
+
+- Issue #21766: Prevent a security hole in CGIHTTPServer by URL unquoting paths
+  before checking for a CGI script at that path.
+
+- Fix arbitrary memory access in JSONDecoder.raw_decode with a negative second
+  parameter. Bug reported by Guido Vranken.
+
+- Issue #21082: In os.makedirs, do not set the process-wide umask. Note this
+  changes behavior of makedirs when exist_ok=True.
+
+- Issue #20246: Fix buffer overflow in socket.recvfrom_into.
+
+- Issue #12226: HTTPS is now used by default when connecting to PyPI.
+
+- Issue #19435: Fix directory traversal attack on CGIHttpRequestHandler.
+
+- Issue #14984: On POSIX systems, when netrc is called without a filename
+  argument (and therefore is reading the user's $HOME/.netrc file), it now
+  enforces the same security rules as typical ftp clients: the .netrc file must
+  be owned by the user that owns the process and must not be readable by any
+  other user.
+
+- Fix tkinter regression introduced by the security fix in issue #16248.
+
+- Issue #17980: Fix possible abuse of ssl.match_hostname() for denial of
+  service using certificates with many wildcards (CVE-2013-2099).
+
+- Issue #21323: Fix http.server to again handle scripts in CGI subdirectories,
+  broken by the fix for security issue #19435.  Patch by Zach Byrne.
+
+Tests
+-----
+
+- Issue #20939: Avoid various network test failures due to new
+  redirect of http://www.python.org/ to https://www.python.org:
+  use http://www.example.com instead.
+
 
 What's New in Python 3.2.5?
 ===========================
@@ -9,6 +114,9 @@ What's New in Python 3.2.5?
 
 Library
 -------
+
+- Issue #17980: Fix possible abuse of ssl.match_hostname() for denial of
+  service using certificates with many wildcards (CVE-2013-2099).
 
 - Issue #17192: Restore the patch for Issue #11729 and Issue #10309
   which were omitted in 3.2.4 when updating the bundled version of

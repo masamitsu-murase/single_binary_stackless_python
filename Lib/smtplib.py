@@ -62,6 +62,7 @@ SMTP_PORT = 25
 SMTP_SSL_PORT = 465
 CRLF = "\r\n"
 bCRLF = b"\r\n"
+_MAXLINE = 8192 # more than 8 times larger than RFC 821, 4.5.3
 
 OLDSTYLE_AUTH = re.compile(r"auth=(.*)", re.I)
 
@@ -188,10 +189,14 @@ else:
         def __init__(self, sslobj):
             self.sslobj = sslobj
 
-        def readline(self):
+        def readline(self, size=-1):
+            if size < 0:
+                size = None
             str = b""
             chr = None
             while chr != b"\n":
+                if size is not None and len(str) > size:
+                    break
                 chr = self.sslobj.read(1)
                 if not chr:
                     break
@@ -363,7 +368,7 @@ class SMTP:
             self.file = self.sock.makefile('rb')
         while 1:
             try:
-                line = self.file.readline()
+                line = self.file.readline(_MAXLINE + 1)
             except socket.error as e:
                 self.close()
                 raise SMTPServerDisconnected("Connection unexpectedly closed: "
@@ -373,6 +378,8 @@ class SMTP:
                 raise SMTPServerDisconnected("Connection unexpectedly closed")
             if self.debuglevel > 0:
                 print('reply:', repr(line), file=stderr)
+            if len(line) > _MAXLINE:
+                raise SMTPResponseException(500, "Line too long.")
             resp.append(line[4:].strip(b' \t\r\n'))
             code = line[:3]
             # Check that the error code is syntactically correct.

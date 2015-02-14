@@ -946,7 +946,7 @@ class CGIHTTPRequestHandler(SimpleHTTPRequestHandler):
         (and the next character is a '/' or the end of the string).
 
         """
-        collapsed_path = _url_collapse_path(self.path)
+        collapsed_path = _url_collapse_path(urllib.parse.unquote(self.path))
         dir_sep = collapsed_path.find('/', 1)
         head, tail = collapsed_path[:dir_sep], collapsed_path[dir_sep+1:]
         if head in self.cgi_directories:
@@ -968,10 +968,9 @@ class CGIHTTPRequestHandler(SimpleHTTPRequestHandler):
 
     def run_cgi(self):
         """Execute a CGI script."""
-        path = self.path
         dir, rest = self.cgi_info
-
-        i = path.find('/', len(dir) + 1)
+        path = dir + '/' + rest
+        i = path.find('/', len(dir)+1)
         while i >= 0:
             nextdir = path[:i]
             nextrest = path[i+1:]
@@ -979,7 +978,7 @@ class CGIHTTPRequestHandler(SimpleHTTPRequestHandler):
             scriptdir = self.translate_path(nextdir)
             if os.path.isdir(scriptdir):
                 dir, rest = nextdir, nextrest
-                i = path.find('/', len(dir) + 1)
+                i = path.find('/', len(dir)+1)
             else:
                 break
 

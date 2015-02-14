@@ -1188,11 +1188,8 @@ Files and Directories
    The default *mode* is ``0o777`` (octal).  On some systems, *mode* is
    ignored.  Where it is used, the current umask value is first masked out.
 
-   If *exists_ok* is ``False`` (the default), an :exc:`OSError` is raised if
-   the target directory already exists.  If *exists_ok* is ``True`` an
-   :exc:`OSError` is still raised if the umask-masked *mode* is different from
-   the existing mode, on systems where the mode is used.  :exc:`OSError` will
-   also be raised if the directory creation fails.
+   If *exist_ok* is ``False`` (the default), an :exc:`OSError` is raised if the
+   target directory already exists.
 
    .. note::
 
@@ -1203,6 +1200,13 @@ Files and Directories
 
    .. versionadded:: 3.2
       The *exist_ok* parameter.
+
+   .. versionchanged:: 3.2.6
+
+      Before Python 3.2.6, if *exist_ok* was ``True`` and the directory existed,
+      :func:`makedirs` would still raise an error if *mode* did not match the
+      mode of the existing directory. Since this behavior was impossible to
+      implement safely, it was removed in Python 3.2.6. See :issue:`21082`.
 
 
 .. function:: pathconf(path, name)
@@ -1804,6 +1808,10 @@ written in Python, such as a mail server's external command delivery program.
 
    Note that some platforms including FreeBSD <= 6.3, Cygwin and OS/2 EMX have
    known issues when using fork() from a thread.
+
+   .. warning::
+
+      See :mod:`ssl` for applications that use the SSL module with fork().
 
    Availability: Unix.
 
