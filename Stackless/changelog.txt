@@ -10,6 +10,8 @@ What's New in Stackless 3.X.X?
 
 *Release date: XXXX-XX-XX*
 
+- Windows installer: update openssl to version 1.0.1l.
+
 - Windows installer: update tcl and tk to version 8.5.15.0 
   and tix to version 8.4.3.5. Python 2.7.9 uses the same versions.
 

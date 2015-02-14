@@ -134,7 +134,7 @@ _ssl
 
     Get the source code through
 
-    svn export http://svn.python.org/projects/external/openssl-1.0.1e
+    svn export http://svn.python.org/projects/external/openssl-1.0.1l
 
     ** NOTE: if you use the Tools\buildbot\external(-amd64).bat approach for
     obtaining external sources then you don't need to manually get the source
@@ -144,7 +144,7 @@ _ssl
     You can (theoretically) use any version of OpenSSL you like - the
     build process will automatically select the latest version.
 
-    You must install the NASM assembler 2.10 or newer from
+    You must install the NASM assembler 2.11.06 or newer from
         http://nasm.sf.net
     for x86 builds.  Put nasm.exe anywhere in your PATH. More recent
     versions of OpenSSL may need a later version of NASM. If OpenSSL's self
