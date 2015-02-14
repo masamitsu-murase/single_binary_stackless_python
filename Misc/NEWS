@@ -2,6 +2,77 @@
 Python News
 +++++++++++
 
+What's New in Python 3.3.6?
+===========================
+
+*Release date: 11-Oct-2014*
+
+Core and Builtins
+-----------------
+
+- Issue #22518: Fixed integer overflow issues in "backslashreplace",
+  "xmlcharrefreplace", and "surrogatepass" error handlers.
+
+- Issue #22520: Fix overflow checking when generating the repr of a unicode
+  object.
+
+- Issue #22519: Fix overflow checking in PyBytes_Repr.
+
+- Issue #22518: Fix integer overflow issues in latin-1 encoding.
+
+Library
+-------
+
+- Issue #22517: When a io.BufferedRWPair object is deallocated, clear its
+  weakrefs.
+
+- Issue #22419: Limit the length of incoming HTTP request in wsgiref server to
+  65536 bytes and send a 414 error code for higher lengths. Patch contributed
+  by Devin Cook.
+
+- Lax cookie parsing in http.cookies could be a security issue when combined
+  with non-standard cookie handling in some Web browsers.  Reported by
+  Sergey Bobrov.
+
+- Issue #21766: Prevent a security hole in CGIHTTPServer by URL unquoting paths
+  before checking for a CGI script at that path.
+
+- Fix arbitrary memory access in JSONDecoder.raw_decode with a negative second
+  parameter. Bug reported by Guido Vranken.
+
+- Issue #20633: Replace relative import by absolute import.
+
+- Issue #21082: In os.makedirs, do not set the process-wide umask. Note this
+  changes behavior of makedirs when exist_ok=True.
+
+- Issue #20875: Prevent possible gzip "'read' is not defined" NameError.
+  Patch by Claudiu Popa.
+
+- Issue #11599: When an external command (e.g. compiler) fails, distutils now
+  prints out the whole command line (instead of just the command name) if the
+  environment variable DISTUTILS_DEBUG is set.
+
+- Issue #4931: distutils should not produce unhelpful "error: None" messages
+  anymore.  distutils.util.grok_environment_error is kept but doc-deprecated.
+
+- Issue #20283: RE pattern methods now accept the string keyword parameters
+  as documented.  The pattern and source keyword parameters are left as
+  deprecated aliases.
+
+- Issue #21323: Fix http.server to again handle scripts in CGI subdirectories,
+  broken by the fix for security issue #19435.  Patch by Zach Byrne.
+
+Tests
+-----
+
+- Issue #17752: Fix distutils tests when run from the installed location.
+
+- Issue #20946: Correct alignment assumptions of some ctypes tests.
+
+- Issue #20939: Fix test_geturl failure in test_urllibnet due to
+  new redirect of http://www.python.org/ to https://www.python.org.
+
+
 What's New in Python 3.3.5?
 ===========================
 

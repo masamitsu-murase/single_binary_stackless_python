@@ -9,7 +9,7 @@
 
 The :mod:`subprocess` module allows you to spawn new processes, connect to their
 input/output/error pipes, and obtain their return codes.  This module intends to
-replace several other, older modules and functions, such as::
+replace several older modules and functions::
 
    os.system
    os.spawn*
@@ -702,6 +702,12 @@ The following attributes are also available:
    deadlocks due to any of the other OS pipe buffers filling up and blocking the
    child process.
 
+.. attribute:: Popen.args
+
+   The *args* argument as it was passed to :class:`Popen` -- a
+   sequence of program arguments or else a single string.
+
+   .. versionadded:: 3.3
 
 .. attribute:: Popen.stdin
 
@@ -1072,8 +1078,10 @@ handling consistency are valid for these functions.
       >>> subprocess.getstatusoutput('/bin/junk')
       (256, 'sh: /bin/junk: not found')
 
-   .. versionchanged:: 3.3
-      Availability: Unix & Windows
+   Availability: Unix & Windows
+
+   .. versionchanged:: 3.3.4
+      Windows support added
 
 
 .. function:: getoutput(cmd)
@@ -1086,8 +1094,10 @@ handling consistency are valid for these functions.
       >>> subprocess.getoutput('ls /bin/ls')
       '/bin/ls'
 
-   .. versionchanged:: 3.3
-      Availability: Unix & Windows
+   Availability: Unix & Windows
+
+   .. versionchanged:: 3.3.4
+      Windows support added
 
 
 Notes

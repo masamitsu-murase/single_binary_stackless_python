@@ -975,6 +975,10 @@ scan_once_unicode(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ssize_
     kind = PyUnicode_KIND(pystr);
     length = PyUnicode_GET_LENGTH(pystr);
 
+    if (idx < 0) {
+        PyErr_SetString(PyExc_ValueError, "idx cannot be negative");
+        return NULL;
+    }
     if (idx >= length) {
         PyErr_SetNone(PyExc_StopIteration);
         return NULL;
