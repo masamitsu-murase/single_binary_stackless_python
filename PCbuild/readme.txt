@@ -171,13 +171,13 @@ _lzma
     Homepage:
         http://tukaani.org/xz/
 _ssl
-    Python wrapper for version 1.0.1h of the OpenSSL secure sockets
+    Python wrapper for version 1.0.1l of the OpenSSL secure sockets
     library, which is built by ssl.vcxproj
     Homepage:
         http://www.openssl.org/
 
     Building OpenSSL requires nasm.exe (the Netwide Assembler), version
-    2.10 or newer from
+    2.11.06 or newer from
         http://www.nasm.us/
     to be somewhere on your PATH.  More recent versions of OpenSSL may
     need a later version of NASM. If OpenSSL's self tests don't pass,
