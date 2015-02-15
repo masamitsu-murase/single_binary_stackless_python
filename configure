@@ -3149,6 +3149,16 @@ else
 
 fi
 
+
+# Check whether --enable-stacklessfewerregisters was given.
+if test "${enable_stacklessfewerregisters+set}" = set; then :
+  enableval=$enable_stacklessfewerregisters; STACKLESS_FRHACK=1
+else
+   STACKLESS_FRHACK=0
+fi
+
+
+
 # Check whether --enable-framework was given.
 if test "${enable_framework+set}" = set; then :
   enableval=$enable_framework;
@@ -3347,6 +3357,17 @@ if test "$cross_compiling" = yes; then
 	esac
 	_PYTHON_HOST_PLATFORM="$MACHDEP${_host_cpu:+-$_host_cpu}"
 fi
+
+# Stackless flags for compiling the hard switching code
+case $MACHDEP in
+	darwin)
+		SLPFLAGS="-fomit-frame-pointer -O2"
+		;;
+	*)
+		SLPFLAGS="-fno-omit-frame-pointer -O2"
+		;;
+esac
+
 
 # Some systems cannot stand _XOPEN_SOURCE being defined at all; they
 # disable features if it is defined, without any means to access these
@@ -6474,6 +6495,7 @@ $as_echo "$ac_cv_declaration_after_statement_warning" >&6; }
                 ;;
     esac
 
+    BASECFLAGS="${BASECFLAGS} -DSTACKLESS_FRHACK=${STACKLESS_FRHACK}"
     case $ac_sys_system in
 	SCO_SV*)
 	    BASECFLAGS="$BASECFLAGS -m486 -DSCO5"
@@ -15397,6 +15419,13 @@ $as_echo "#define HAVE_IPA_PURE_CONST_BUG 1" >>confdefs.h
         ;;
     esac
 fi
+
+SLPFLAGS="-fno-omit-frame-pointer -O2"
+case $MACHDEP in
+darwin) SLPFLAGS="-fomit-frame-pointer -O2";;
+'') SLPFLAGS="-fno-omit-frame-pointer -O2";;
+esac
+
 
 # ensurepip option
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ensurepip" >&5
