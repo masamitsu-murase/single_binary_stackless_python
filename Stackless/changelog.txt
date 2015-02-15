@@ -5,10 +5,10 @@ This file documents changes to the Stackless extension of C-Python.
 For other changes see Misc/NEWS.
 
 
-What's New in Stackless 3.X.X?
+What's New in Stackless 3.4.2?
 ==============================
 
-*Release date: XXXX-XX-XX*
+*Release date: 2015-02-15*
 
 - https://bitbucket.org/stackless-dev/stackless/issue/60
   Fix a crash
