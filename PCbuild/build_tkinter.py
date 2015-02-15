@@ -11,9 +11,10 @@ import sys
 here = os.path.abspath(os.path.dirname(__file__))
 par = os.path.pardir
 
-TCL = "tcl8.6.1"
-TK = "tk8.6.1"
-TIX = "tix-8.4.3.3"
+tclver = ('8','6','1', '0')
+TCL = "tcl-" + '.'.join(tclver)
+TK = "tk-8.6.1.0"
+TIX = "tix-8.4.3.4"
 
 ROOT = os.path.abspath(os.path.join(here, par, par))
 NMAKE = ('nmake /nologo /f %s %s %s')
@@ -45,8 +46,9 @@ def build(platform, clean):
         nmake("makefile.vc", "install", INSTALLDIR=dest, MACHINE=machine)
 
     # TK
+    tkdir = os.path.join(ROOT, TK)
     if 1:
-        os.chdir(os.path.join(ROOT, TK, "win"))
+        os.chdir(os.path.join(tkdir, "win"))
         if clean:
             nmake("makefile.vc", "clean", DEBUG=0, TCLDIR=tcldir)
         nmake("makefile.vc", DEBUG=0, MACHINE=machine, TCLDIR=tcldir)
@@ -57,9 +59,9 @@ def build(platform, clean):
         # python9.mak is available at http://svn.python.org
         os.chdir(os.path.join(ROOT, TIX, "win"))
         if clean:
-            nmake("python.mak", "clean")
-        nmake("python.mak", MACHINE=machine, INSTALL_DIR=dest)
-        nmake("python.mak", "install", MACHINE=machine, INSTALL_DIR=dest)
+            nmake("python.mak", "clean", DEBUG=0)
+        nmake("python.mak", DEBUG=0, MACHINE=machine, TCL_DIR=tcldir, TK_DIR=tkdir, INSTALL_DIR=dest, TCL_MAJOR=tclver[0], TCL_MINOR=tclver[1], TCL_PATCH=tclver[2])
+        nmake("python.mak", "install", DEBUG=0, MACHINE=machine, INSTALL_DIR=dest, TCL_MAJOR=tclver[0], TCL_MINOR=tclver[1], TCL_PATCH=tclver[2])
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1] not in ("Win32", "AMD64"):
