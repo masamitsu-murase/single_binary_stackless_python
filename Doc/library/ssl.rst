@@ -755,32 +755,72 @@ Constants
 SSL Sockets
 -----------
 
-SSL sockets provide the following methods of :ref:`socket-objects`:
+.. class:: SSLSocket(socket.socket)
 
-- :meth:`~socket.socket.accept()`
-- :meth:`~socket.socket.bind()`
-- :meth:`~socket.socket.close()`
-- :meth:`~socket.socket.connect()`
-- :meth:`~socket.socket.detach()`
-- :meth:`~socket.socket.fileno()`
-- :meth:`~socket.socket.getpeername()`, :meth:`~socket.socket.getsockname()`
-- :meth:`~socket.socket.getsockopt()`, :meth:`~socket.socket.setsockopt()`
-- :meth:`~socket.socket.gettimeout()`, :meth:`~socket.socket.settimeout()`,
-  :meth:`~socket.socket.setblocking()`
-- :meth:`~socket.socket.listen()`
-- :meth:`~socket.socket.makefile()`
-- :meth:`~socket.socket.recv()`, :meth:`~socket.socket.recv_into()`
-  (but passing a non-zero ``flags`` argument is not allowed)
-- :meth:`~socket.socket.send()`, :meth:`~socket.socket.sendall()` (with
-  the same limitation)
-- :meth:`~socket.socket.shutdown()`
+   SSL sockets provide the following methods of :ref:`socket-objects`:
 
-However, since the SSL (and TLS) protocol has its own framing atop
-of TCP, the SSL sockets abstraction can, in certain respects, diverge from
-the specification of normal, OS-level sockets.  See especially the
-:ref:`notes on non-blocking sockets <ssl-nonblocking>`.
+   - :meth:`~socket.socket.accept()`
+   - :meth:`~socket.socket.bind()`
+   - :meth:`~socket.socket.close()`
+   - :meth:`~socket.socket.connect()`
+   - :meth:`~socket.socket.detach()`
+   - :meth:`~socket.socket.fileno()`
+   - :meth:`~socket.socket.getpeername()`, :meth:`~socket.socket.getsockname()`
+   - :meth:`~socket.socket.getsockopt()`, :meth:`~socket.socket.setsockopt()`
+   - :meth:`~socket.socket.gettimeout()`, :meth:`~socket.socket.settimeout()`,
+     :meth:`~socket.socket.setblocking()`
+   - :meth:`~socket.socket.listen()`
+   - :meth:`~socket.socket.makefile()`
+   - :meth:`~socket.socket.recv()`, :meth:`~socket.socket.recv_into()`
+     (but passing a non-zero ``flags`` argument is not allowed)
+   - :meth:`~socket.socket.send()`, :meth:`~socket.socket.sendall()` (with
+     the same limitation)
+   - :meth:`~socket.socket.shutdown()`
+
+   However, since the SSL (and TLS) protocol has its own framing atop
+   of TCP, the SSL sockets abstraction can, in certain respects, diverge from
+   the specification of normal, OS-level sockets.  See especially the
+   :ref:`notes on non-blocking sockets <ssl-nonblocking>`.
+
+   Usually, :class:`SSLSocket` are not created directly, but using the
+   :func:`wrap_socket` function or the :meth:`SSLContext.wrap_socket` method.
 
 SSL sockets also have the following additional methods and attributes:
+
+.. method:: SSLSocket.read(len=0, buffer=None)
+
+   Read up to *len* bytes of data from the SSL socket and return the result as
+   a ``bytes`` instance. If *buffer* is specified, then read into the buffer
+   instead, and return the number of bytes read.
+
+   Raise :exc:`SSLWantReadError` or :exc:`SSLWantWriteError` if the socket is
+   :ref:`non-blocking <ssl-nonblocking>` and the read would block.
+
+   As at any time a re-negotiation is possible, a call to :meth:`read` can also
+   cause write operations.
+
+.. method:: SSLSocket.write(buf)
+
+   Write *buf* to the SSL socket and return the number of bytes written. The
+   *buf* argument must be an object supporting the buffer interface.
+
+   Raise :exc:`SSLWantReadError` or :exc:`SSLWantWriteError` if the socket is
+   :ref:`non-blocking <ssl-nonblocking>` and the write would block.
+
+   As at any time a re-negotiation is possible, a call to :meth:`write` can
+   also cause read operations.
+
+.. note::
+
+   The :meth:`~SSLSocket.read` and :meth:`~SSLSocket.write` methods are the
+   low-level methods that read and write unencrypted, application-level data
+   and and decrypt/encrypt it to encrypted, wire-level data. These methods
+   require an active SSL connection, i.e. the handshake was completed and
+   :meth:`SSLSocket.unwrap` was not called.
+
+   Normally you should use the socket API methods like
+   :meth:`~socket.socket.recv` and :meth:`~socket.socket.send` instead of these
+   methods.
 
 .. method:: SSLSocket.do_handshake()
 
@@ -904,12 +944,31 @@ SSL sockets also have the following additional methods and attributes:
    returned socket should always be used for further communication with the
    other side of the connection, rather than the original socket.
 
+.. method:: SSLSocket.pending()
+
+   Returns the number of already decrypted bytes available for read, pending on
+   the connection.
+
 .. attribute:: SSLSocket.context
 
    The :class:`SSLContext` object this SSL socket is tied to.  If the SSL
    socket was created using the top-level :func:`wrap_socket` function
    (rather than :meth:`SSLContext.wrap_socket`), this is a custom context
    object created for this SSL socket.
+
+   .. versionadded:: 3.2
+
+.. attribute:: SSLSocket.server_side
+
+   A boolean which is ``True`` for server-side sockets and ``False`` for
+   client-side sockets.
+
+   .. versionadded:: 3.2
+
+.. attribute:: SSLSocket.server_hostname
+
+   Hostname of the server: :class:`str` type, or ``None`` for server-side
+   socket or if the hostname was not specified in the constructor.
 
    .. versionadded:: 3.2
 
@@ -1005,7 +1064,7 @@ to speed up repeated connections from the same clients.
    :data:`CERT_NONE`.  At least one of *cafile* or *capath* must be specified.
 
    This method can also load certification revocation lists (CRLs) in PEM or
-   or DER format. In order to make use of CRLs, :attr:`SSLContext.verify_flags`
+   DER format. In order to make use of CRLs, :attr:`SSLContext.verify_flags`
    must be configured properly.
 
    The *cafile* string, if present, is the path to a file of concatenated
@@ -1632,6 +1691,14 @@ thus several things you need to be aware of:
         except ssl.SSLWantWriteError:
             select.select([], [sock], [])
 
+.. seealso::
+
+   The :mod:`asyncio` module supports non-blocking SSL sockets and provides a
+   higher level API. It polls for events using the :mod:`selectors` module and
+   handles :exc:`SSLWantWriteError`, :exc:`SSLWantReadError` and
+   :exc:`BlockingIOError` exceptions. It runs the SSL handshake asynchronously
+   as well.
+
 
 .. _ssl-security:
 
@@ -1671,7 +1738,7 @@ Manual settings
 Verifying certificates
 ''''''''''''''''''''''
 
-When calling the the :class:`SSLContext` constructor directly,
+When calling the :class:`SSLContext` constructor directly,
 :const:`CERT_NONE` is the default.  Since it does not authenticate the other
 peer, it can be insecure, especially in client mode where most of time you
 would like to ensure the authenticity of the server you're talking to.

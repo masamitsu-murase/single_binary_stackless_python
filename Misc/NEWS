@@ -2,10 +2,122 @@
 Python News
 +++++++++++
 
+
+What's New in Python 3.4.3rc1?
+==============================
+
+Release date: TBA
+
+Core and Builtins
+-----------------
+
+- Issue #22604: Fix assertion error in debug mode when dividing a complex
+  number by (nan+0j).
+
+- Issue #22470: Fixed integer overflow issues in "backslashreplace",
+  "xmlcharrefreplace", and "surrogatepass" error handlers.
+
+- Issue #22520: Fix overflow checking when generating the repr of a unicode
+  object.
+
+- Issue #22519: Fix overflow checking in PyBytes_Repr.
+
+- Issue #22518: Fix integer overflow issues in latin-1 encoding.
+
+Library
+-------
+
+- Issue #11694: Raise ConversionError in xdrlib as documented.  Patch
+  by Filip Gruszczyński and Claudiu Popa.
+
+- Issue #22462: Fix pyexpat's creation of a dummy frame to make it
+  appear in exception tracebacks.
+
+- Issue #21173: Fix len() on a WeakKeyDictionary when .clear() was called
+  with an iterator alive.
+
+- Issue #11866: Eliminated race condition in the computation of names
+  for new threads.
+
+- Issue #21905: Avoid RuntimeError in pickle.whichmodule() when sys.modules
+  is mutated while iterating.  Patch by Olivier Grisel.
+
+- Issue #22219: The zipfile module CLI now adds entries for directories
+  (including empty directories) in ZIP file.
+
+- Issue #22449: In the ssl.SSLContext.load_default_certs, consult the
+  enviromental variables SSL_CERT_DIR and SSL_CERT_FILE on Windows.
+
+- Issue #20076: Added non derived UTF-8 aliases to locale aliases table.
+
+- Issue #20079: Added locales supported in glibc 2.18 to locale alias table.
+
+- Issue #22396: On 32-bit AIX platform, don't expose os.posix_fadvise() nor
+  os.posix_fallocate() because their prototypes in system headers are wrong.
+
+- Issue #22517: When a io.BufferedRWPair object is deallocated, clear its
+  weakrefs.
+
+- Issue #22448: Improve canceled timer handles cleanup to prevent
+  unbound memory usage. Patch by Joshua Moore-Oliva.
+
+Tests
+-----
+
+- Issue #21456: Skip two tests in test_urllib2net.py if _ssl module not
+  present. Patch by Remi Pointel.
+
+Build
+-----
+
+- Issue #16537: Check whether self.extensions is empty in setup.py. Patch by
+  Jonathan Hosmer.
+
+- Issue #18096: Fix library order returned by python-config.
+
+- Issue #17219: Add library build dir for Python extension cross-builds.
+
+
 What's New in Python 3.4.2?
 ===========================
 
 Release date: 2014-10-06
+
+Core and Builtins
+-----------------
+
+Library
+-------
+
+- Issue #10510: distutils register and upload methods now use HTML standards
+  compliant CRLF line endings.
+
+- Issue #9850: Fixed macpath.join() for empty first component.  Patch by
+  Oleg Oshmyan.
+
+- Issue #22427: TemporaryDirectory no longer attempts to clean up twice when
+  used in the with statement in generator.
+
+- Issue #20912: Now directories added to ZIP file have correct Unix and MS-DOS
+  directory attributes.
+
+- Issue #21866: ZipFile.close() no longer writes ZIP64 central directory
+  records if allowZip64 is false.
+
+- Issue #22415: Fixed debugging output of the GROUPREF_EXISTS opcode in the re
+  module.  Removed trailing spaces in debugging output.
+
+- Issue #22423: Unhandled exception in thread no longer causes unhandled
+  AttributeError when sys.stderr is None.
+
+- Issue #21332: Ensure that ``bufsize=1`` in subprocess.Popen() selects
+  line buffering, rather than block buffering.  Patch by Akira Li.
+
+
+What's New in Python 3.4.2rc1?
+==============================
+
+Release date: 2014-09-22
 
 Core and Builtins
 -----------------
@@ -83,7 +195,7 @@ Library
   selection or control(command) '-' or '+' or control-mousewheel.
   Original patch by Lita Cho.
 
-_ Issue #21597: The separator between the turtledemo text pane and the drawing
+- Issue #21597: The separator between the turtledemo text pane and the drawing
   canvas can now be grabbed and dragged with a mouse.  The code text pane can
   be widened to easily view or copy the full width of the text.  The canvas
   can be widened on small screens.  Original patches by Jan Kanis and Lita Cho.

@@ -766,8 +766,8 @@ class ReTests(unittest.TestCase):
             self.assertTrue(re.match((r"[\x%02xz]" % i).encode(), bytes([i])))
         self.assertTrue(re.match(br"[\u]", b'u'))
         self.assertTrue(re.match(br"[\U]", b'U'))
-        self.assertRaises(re.error, re.match, br"[\911]", "")
-        self.assertRaises(re.error, re.match, br"[\x1z]", "")
+        self.assertRaises(re.error, re.match, br"[\911]", b"")
+        self.assertRaises(re.error, re.match, br"[\x1z]", b"")
 
     def test_bug_113254(self):
         self.assertEqual(re.match(r'(a)|(b)', 'b').start(1), -1)
@@ -1203,16 +1203,33 @@ class ReTests(unittest.TestCase):
                 self.assertEqual(m.group(2), "y")
 
     def test_debug_flag(self):
+        pat = r'(\.)(?:[ch]|py)(?(1)$|: )'
         with captured_stdout() as out:
-            re.compile('foo', re.DEBUG)
-        self.assertEqual(out.getvalue().splitlines(),
-                         ['literal 102 ', 'literal 111 ', 'literal 111 '])
+            re.compile(pat, re.DEBUG)
+        dump = '''\
+subpattern 1
+  literal 46
+subpattern None
+  branch
+    in
+      literal 99
+      literal 104
+  or
+    literal 112
+    literal 121
+subpattern None
+  groupref_exists 1
+    at at_end
+  else
+    literal 58
+    literal 32
+'''
+        self.assertEqual(out.getvalue(), dump)
         # Debug output is output again even a second time (bypassing
         # the cache -- issue #20426).
         with captured_stdout() as out:
-            re.compile('foo', re.DEBUG)
-        self.assertEqual(out.getvalue().splitlines(),
-                         ['literal 102 ', 'literal 111 ', 'literal 111 '])
+            re.compile(pat, re.DEBUG)
+        self.assertEqual(out.getvalue(), dump)
 
     def test_keyword_parameters(self):
         # Issue #20283: Accepting the string keyword parameter.

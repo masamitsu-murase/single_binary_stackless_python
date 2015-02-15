@@ -462,7 +462,9 @@ class AbstractTestZip64InSmallFiles:
 
     def setUp(self):
         self._limit = zipfile.ZIP64_LIMIT
-        zipfile.ZIP64_LIMIT = 5
+        self._filecount_limit = zipfile.ZIP_FILECOUNT_LIMIT
+        zipfile.ZIP64_LIMIT = 1000
+        zipfile.ZIP_FILECOUNT_LIMIT = 9
 
         # Make a source file with some lines
         with open(TESTFN, "wb") as fp:
@@ -529,8 +531,67 @@ class AbstractTestZip64InSmallFiles:
         for f in get_files(self):
             self.zip_test(f, self.compression)
 
+    def test_too_many_files(self):
+        # This test checks that more than 64k files can be added to an archive,
+        # and that the resulting archive can be read properly by ZipFile
+        zipf = zipfile.ZipFile(TESTFN, "w", self.compression,
+                               allowZip64=True)
+        zipf.debug = 100
+        numfiles = 15
+        for i in range(numfiles):
+            zipf.writestr("foo%08d" % i, "%d" % (i**3 % 57))
+        self.assertEqual(len(zipf.namelist()), numfiles)
+        zipf.close()
+
+        zipf2 = zipfile.ZipFile(TESTFN, "r", self.compression)
+        self.assertEqual(len(zipf2.namelist()), numfiles)
+        for i in range(numfiles):
+            content = zipf2.read("foo%08d" % i).decode('ascii')
+            self.assertEqual(content, "%d" % (i**3 % 57))
+        zipf2.close()
+
+    def test_too_many_files_append(self):
+        zipf = zipfile.ZipFile(TESTFN, "w", self.compression,
+                               allowZip64=False)
+        zipf.debug = 100
+        numfiles = 9
+        for i in range(numfiles):
+            zipf.writestr("foo%08d" % i, "%d" % (i**3 % 57))
+        self.assertEqual(len(zipf.namelist()), numfiles)
+        with self.assertRaises(zipfile.LargeZipFile):
+            zipf.writestr("foo%08d" % numfiles, b'')
+        self.assertEqual(len(zipf.namelist()), numfiles)
+        zipf.close()
+
+        zipf = zipfile.ZipFile(TESTFN, "a", self.compression,
+                               allowZip64=False)
+        zipf.debug = 100
+        self.assertEqual(len(zipf.namelist()), numfiles)
+        with self.assertRaises(zipfile.LargeZipFile):
+            zipf.writestr("foo%08d" % numfiles, b'')
+        self.assertEqual(len(zipf.namelist()), numfiles)
+        zipf.close()
+
+        zipf = zipfile.ZipFile(TESTFN, "a", self.compression,
+                               allowZip64=True)
+        zipf.debug = 100
+        self.assertEqual(len(zipf.namelist()), numfiles)
+        numfiles2 = 15
+        for i in range(numfiles, numfiles2):
+            zipf.writestr("foo%08d" % i, "%d" % (i**3 % 57))
+        self.assertEqual(len(zipf.namelist()), numfiles2)
+        zipf.close()
+
+        zipf2 = zipfile.ZipFile(TESTFN, "r", self.compression)
+        self.assertEqual(len(zipf2.namelist()), numfiles2)
+        for i in range(numfiles2):
+            content = zipf2.read("foo%08d" % i).decode('ascii')
+            self.assertEqual(content, "%d" % (i**3 % 57))
+        zipf2.close()
+
     def tearDown(self):
         zipfile.ZIP64_LIMIT = self._limit
+        zipfile.ZIP_FILECOUNT_LIMIT = self._filecount_limit
         unlink(TESTFN)
         unlink(TESTFN2)
 
@@ -1635,11 +1696,48 @@ class TestWithDirectory(unittest.TestCase):
         os.mkdir(os.path.join(TESTFN2, "a"))
         self.test_extract_dir()
 
-    def test_store_dir(self):
+    def test_write_dir(self):
+        dirpath = os.path.join(TESTFN2, "x")
+        os.mkdir(dirpath)
+        mode = os.stat(dirpath).st_mode & 0xFFFF
+        with zipfile.ZipFile(TESTFN, "w") as zipf:
+            zipf.write(dirpath)
+            zinfo = zipf.filelist[0]
+            self.assertTrue(zinfo.filename.endswith("/x/"))
+            self.assertEqual(zinfo.external_attr, (mode << 16) | 0x10)
+            zipf.write(dirpath, "y")
+            zinfo = zipf.filelist[1]
+            self.assertTrue(zinfo.filename, "y/")
+            self.assertEqual(zinfo.external_attr, (mode << 16) | 0x10)
+        with zipfile.ZipFile(TESTFN, "r") as zipf:
+            zinfo = zipf.filelist[0]
+            self.assertTrue(zinfo.filename.endswith("/x/"))
+            self.assertEqual(zinfo.external_attr, (mode << 16) | 0x10)
+            zinfo = zipf.filelist[1]
+            self.assertTrue(zinfo.filename, "y/")
+            self.assertEqual(zinfo.external_attr, (mode << 16) | 0x10)
+            target = os.path.join(TESTFN2, "target")
+            os.mkdir(target)
+            zipf.extractall(target)
+            self.assertTrue(os.path.isdir(os.path.join(target, "y")))
+            self.assertEqual(len(os.listdir(target)), 2)
+
+    def test_writestr_dir(self):
         os.mkdir(os.path.join(TESTFN2, "x"))
-        zipf = zipfile.ZipFile(TESTFN, "w")
-        zipf.write(os.path.join(TESTFN2, "x"), "x")
-        self.assertTrue(zipf.filelist[0].filename.endswith("x/"))
+        with zipfile.ZipFile(TESTFN, "w") as zipf:
+            zipf.writestr("x/", b'')
+            zinfo = zipf.filelist[0]
+            self.assertEqual(zinfo.filename, "x/")
+            self.assertEqual(zinfo.external_attr, (0o40775 << 16) | 0x10)
+        with zipfile.ZipFile(TESTFN, "r") as zipf:
+            zinfo = zipf.filelist[0]
+            self.assertTrue(zinfo.filename.endswith("x/"))
+            self.assertEqual(zinfo.external_attr, (0o40775 << 16) | 0x10)
+            target = os.path.join(TESTFN2, "target")
+            os.mkdir(target)
+            zipf.extractall(target)
+            self.assertTrue(os.path.isdir(os.path.join(target, "x")))
+            self.assertEqual(os.listdir(target), ["x"])
 
     def tearDown(self):
         rmtree(TESTFN2)
