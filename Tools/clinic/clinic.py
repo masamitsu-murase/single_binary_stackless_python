@@ -1905,6 +1905,7 @@ class Function:
                  full_name=None,
                  return_converter, return_annotation=_empty,
                  docstring=None, kind=CALLABLE, coexist=False,
+                 stackless=False,
                  docstring_only=False):
         self.parameters = parameters or collections.OrderedDict()
         self.return_annotation = return_annotation
@@ -1918,6 +1919,7 @@ class Function:
         self.docstring = docstring or ''
         self.kind = kind
         self.coexist = coexist
+        self.stackless = stackless
         self.self_converter = None
         # docstring_only means "don't generate a machine-readable
         # signature, just a normal docstring".  it's True for
@@ -1951,6 +1953,8 @@ class Function:
             assert self.kind == CALLABLE, "unknown kind: " + repr(self.kind)
         if self.coexist:
             flags.append('METH_COEXIST')
+        if self.stackless:
+            flags.append('METH_STACKLESS')
         return '|'.join(flags)
 
     def __repr__(self):
@@ -1963,6 +1967,7 @@ class Function:
             'full_name': self.full_name,
             'return_converter': self.return_converter, 'return_annotation': self.return_annotation,
             'docstring': self.docstring, 'kind': self.kind, 'coexist': self.coexist,
+            'stackless': self.stackless,
             'docstring_only': self.docstring_only,
             }
         kwargs.update(overrides)
@@ -3041,6 +3046,7 @@ class DSLParser:
         self.indent = IndentStack()
         self.kind = CALLABLE
         self.coexist = False
+        self.stackless = False
         self.parameter_continuation = ''
         self.preserve_output = False
 
@@ -3165,6 +3171,11 @@ class DSLParser:
             fail("Called @coexist twice!")
         self.coexist = True
 
+    def at_stackless(self):
+        if self.stackless:
+            fail("Called @stackless twice!")
+        self.stackless = True
+
     def parse(self, block):
         self.reset()
         self.block = block
@@ -3279,8 +3290,9 @@ class DSLParser:
                 function_name = fields.pop()
                 module, cls = self.clinic._module_and_class(fields)
 
-                if not (existing_function.kind == self.kind and existing_function.coexist == self.coexist):
-                    fail("'kind' of function and cloned function don't match!  (@classmethod/@staticmethod/@coexist)")
+                if not (existing_function.kind == self.kind and existing_function.coexist == self.coexist
+                        and existing_function.stackless == self.stackless):
+                    fail("'kind' of function and cloned function don't match!  (@classmethod/@staticmethod/@coexist/@stackless)")
                 self.function = existing_function.copy(name=function_name, full_name=full_name, module=module, cls=cls, c_basename=c_basename, docstring='')
 
                 self.block.signatures.append(self.function)
@@ -3344,7 +3356,7 @@ class DSLParser:
         if not module:
             fail("Undefined module used in declaration of " + repr(full_name.strip()) + ".")
         self.function = Function(name=function_name, full_name=full_name, module=module, cls=cls, c_basename=c_basename,
-                                 return_converter=return_converter, kind=self.kind, coexist=self.coexist)
+                                 return_converter=return_converter, kind=self.kind, coexist=self.coexist, stackless=self.stackless)
         self.block.signatures.append(self.function)
 
         # insert a self converter automatically
