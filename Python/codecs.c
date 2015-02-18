@@ -185,6 +185,32 @@ PyObject *_PyCodec_Lookup(const char *encoding)
     return NULL;
 }
 
+int _PyCodec_Forget(const char *encoding)
+{
+    PyInterpreterState *interp;
+    PyObject *v;
+    int result;
+
+    interp = PyThreadState_GET()->interp;
+    if (interp->codec_search_path == NULL) {
+        return -1;
+    }
+
+    /* Convert the encoding to a normalized Python string: all
+       characters are converted to lower case, spaces and hyphens are
+       replaced with underscores. */
+    v = normalizestring(encoding);
+    if (v == NULL) {
+        return -1;
+    }
+
+    /* Drop the named codec from the internal cache */
+    result = PyDict_DelItem(interp->codec_search_cache, v);
+    Py_DECREF(v);
+
+    return result;
+}
+
 /* Codec registry encoding check API. */
 
 int PyCodec_KnownEncoding(const char *encoding)
@@ -747,7 +773,7 @@ PyObject *PyCodec_XMLCharRefReplaceErrors(PyObject *exc)
         Py_ssize_t end;
         PyObject *res;
         unsigned char *outp;
-        int ressize;
+        Py_ssize_t ressize;
         Py_UCS4 ch;
         if (PyUnicodeEncodeError_GetStart(exc, &start))
             return NULL;
@@ -755,6 +781,8 @@ PyObject *PyCodec_XMLCharRefReplaceErrors(PyObject *exc)
             return NULL;
         if (!(object = PyUnicodeEncodeError_GetObject(exc)))
             return NULL;
+        if (end - start > PY_SSIZE_T_MAX / (2+7+1))
+            end = start + PY_SSIZE_T_MAX / (2+7+1);
         for (i = start, ressize = 0; i < end; ++i) {
             /* object is guaranteed to be "ready" */
             ch = PyUnicode_READ_CHAR(object, i);
@@ -843,7 +871,7 @@ PyObject *PyCodec_BackslashReplaceErrors(PyObject *exc)
         Py_ssize_t end;
         PyObject *res;
         unsigned char *outp;
-        int ressize;
+        Py_ssize_t ressize;
         Py_UCS4 c;
         if (PyUnicodeEncodeError_GetStart(exc, &start))
             return NULL;
@@ -851,6 +879,8 @@ PyObject *PyCodec_BackslashReplaceErrors(PyObject *exc)
             return NULL;
         if (!(object = PyUnicodeEncodeError_GetObject(exc)))
             return NULL;
+        if (end - start > PY_SSIZE_T_MAX / (1+1+8))
+            end = start + PY_SSIZE_T_MAX / (1+1+8);
         for (i = start, ressize = 0; i < end; ++i) {
             /* object is guaranteed to be "ready" */
             c = PyUnicode_READ_CHAR(object, i);
@@ -864,8 +894,10 @@ PyObject *PyCodec_BackslashReplaceErrors(PyObject *exc)
                 ressize += 1+1+2;
         }
         res = PyUnicode_New(ressize, 127);
-        if (res==NULL)
+        if (res == NULL) {
+            Py_DECREF(object);
             return NULL;
+        }
         for (i = start, outp = PyUnicode_1BYTE_DATA(res);
             i < end; ++i) {
             c = PyUnicode_READ_CHAR(object, i);
@@ -1008,6 +1040,8 @@ PyCodec_SurrogatePassErrors(PyObject *exc)
             return NULL;
         }
 
+        if (end - start > PY_SSIZE_T_MAX / bytelength)
+            end = start + PY_SSIZE_T_MAX / bytelength;
         res = PyBytes_FromStringAndSize(NULL, bytelength*(end-start));
         if (!res) {
             Py_DECREF(object);

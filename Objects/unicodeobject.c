@@ -727,7 +727,7 @@ resize_compact(PyObject *unicode, Py_ssize_t length)
     _Py_DEC_REFTOTAL;
     _Py_ForgetReference(unicode);
 
-    new_unicode = (PyObject *)PyObject_REALLOC((char *)unicode, new_size);
+    new_unicode = (PyObject *)PyObject_REALLOC(unicode, new_size);
     if (new_unicode == NULL) {
         _Py_NewReference(unicode);
         PyErr_NoMemory();
@@ -816,7 +816,7 @@ resize_inplace(PyObject *unicode, Py_ssize_t length)
     assert(_PyUnicode_WSTR(unicode) != NULL);
 
     /* check for integer overflow */
-    if (length > PY_SSIZE_T_MAX / sizeof(wchar_t) - 1) {
+    if (length > PY_SSIZE_T_MAX / (Py_ssize_t)sizeof(wchar_t) - 1) {
         PyErr_NoMemory();
         return -1;
     }
@@ -888,7 +888,7 @@ _PyUnicode_New(Py_ssize_t length)
     }
 
     /* Ensure we won't overflow the size. */
-    if (length > ((PY_SSIZE_T_MAX / sizeof(Py_UNICODE)) - 1)) {
+    if (length > ((PY_SSIZE_T_MAX / (Py_ssize_t)sizeof(Py_UNICODE)) - 1)) {
         return (PyUnicodeObject *)PyErr_NoMemory();
     }
     if (length < 0) {
@@ -2239,7 +2239,7 @@ as_ucs4(PyObject *string, Py_UCS4 *target, Py_ssize_t targetsize,
     if (copy_null)
         targetlen++;
     if (!target) {
-        if (PY_SSIZE_T_MAX / sizeof(Py_UCS4) < targetlen) {
+        if (PY_SSIZE_T_MAX / (Py_ssize_t)sizeof(Py_UCS4) < targetlen) {
             PyErr_NoMemory();
             return NULL;
         }
@@ -2852,7 +2852,7 @@ PyUnicode_AsWideCharString(PyObject *unicode,
     buflen = unicode_aswidechar(unicode, NULL, 0);
     if (buflen == -1)
         return NULL;
-    if (PY_SSIZE_T_MAX / sizeof(wchar_t) < buflen) {
+    if (PY_SSIZE_T_MAX / (Py_ssize_t)sizeof(wchar_t) < buflen) {
         PyErr_NoMemory();
         return NULL;
     }
@@ -3247,7 +3247,7 @@ PyUnicode_EncodeLocale(PyObject *unicode, const char *errors)
     wlen2 = wcslen(wstr);
     if (wlen2 != wlen) {
         PyMem_Free(wstr);
-        PyErr_SetString(PyExc_TypeError, "embedded null character");
+        PyErr_SetString(PyExc_ValueError, "embedded null character");
         return NULL;
     }
 
@@ -3483,7 +3483,7 @@ mbstowcs_errorpos(const char *str, size_t len)
     memset(&mbs, 0, sizeof mbs);
     while (len)
     {
-        converted = mbrtowc(&ch, (char*)str, len, &mbs);
+        converted = mbrtowc(&ch, str, len, &mbs);
         if (converted == 0)
             /* Reached end of string */
             break;
@@ -3519,8 +3519,8 @@ PyUnicode_DecodeLocaleAndSize(const char *str, Py_ssize_t len,
     if (locale_error_handler(errors, &surrogateescape) < 0)
         return NULL;
 
-    if (str[len] != '\0' || len != strlen(str)) {
-        PyErr_SetString(PyExc_TypeError, "embedded null character");
+    if (str[len] != '\0' || (size_t)len != strlen(str))  {
+        PyErr_SetString(PyExc_ValueError, "embedded null byte");
         return NULL;
     }
 
@@ -3696,8 +3696,8 @@ PyUnicode_FSConverter(PyObject* arg, void* addr)
     }
     size = PyBytes_GET_SIZE(output);
     data = PyBytes_AS_STRING(output);
-    if (size != strlen(data)) {
-        PyErr_SetString(PyExc_TypeError, "embedded NUL character");
+    if ((size_t)size != strlen(data)) {
+        PyErr_SetString(PyExc_ValueError, "embedded null byte");
         Py_DECREF(output);
         return 0;
     }
@@ -3741,7 +3741,7 @@ PyUnicode_FSDecoder(PyObject* arg, void* addr)
     }
     if (findchar(PyUnicode_DATA(output), PyUnicode_KIND(output),
                  PyUnicode_GET_LENGTH(output), 0, 1) >= 0) {
-        PyErr_SetString(PyExc_TypeError, "embedded NUL character");
+        PyErr_SetString(PyExc_ValueError, "embedded null character");
         Py_DECREF(output);
         return 0;
     }
@@ -4093,22 +4093,31 @@ unicode_decode_call_errorhandler_wchar(
        have+the replacement+the rest of the string (starting
        at the new input position), so we won't have to check space
        when there are no errors in the rest of the string) */
-    requiredsize = *outpos + repwlen + insize-newpos;
+    requiredsize = *outpos;
+    if (requiredsize > PY_SSIZE_T_MAX - repwlen)
+        goto overflow;
+    requiredsize += repwlen;
+    if (requiredsize > PY_SSIZE_T_MAX - (insize - newpos))
+        goto overflow;
+    requiredsize += insize - newpos;
     if (requiredsize > outsize) {
-        if (requiredsize < 2*outsize)
+        if (outsize <= PY_SSIZE_T_MAX/2 && requiredsize < 2*outsize)
             requiredsize = 2*outsize;
         if (unicode_resize(output, requiredsize) < 0)
             goto onError;
     }
     wcsncpy(_PyUnicode_WSTR(*output) + *outpos, repwstr, repwlen);
     *outpos += repwlen;
-
     *endinpos = newpos;
     *inptr = *input + newpos;
 
     /* we made it! */
     Py_XDECREF(restuple);
     return 0;
+
+  overflow:
+    PyErr_SetString(PyExc_OverflowError,
+                    "decoded result is too long for a Python string");
 
   onError:
     Py_XDECREF(restuple);
@@ -6502,7 +6511,7 @@ unicode_encode_ucs1(PyObject *unicode,
             Py_ssize_t collstart = pos;
             Py_ssize_t collend = pos;
             /* find all unecodable characters */
-            while ((collend < size) && (PyUnicode_READ(kind, data, collend)>=limit))
+            while ((collend < size) && (PyUnicode_READ(kind, data, collend) >= limit))
                 ++collend;
             /* cache callback name lookup (if not done yet, i.e. it's the first error) */
             if (known_errorHandler==-1) {
@@ -6522,36 +6531,43 @@ unicode_encode_ucs1(PyObject *unicode,
                 raise_encode_exception(&exc, encoding, unicode, collstart, collend, reason);
                 goto onError;
             case 2: /* replace */
-                while (collstart++<collend)
+                while (collstart++ < collend)
                     *str++ = '?'; /* fall through */
             case 3: /* ignore */
                 pos = collend;
                 break;
             case 4: /* xmlcharrefreplace */
                 respos = str - PyBytes_AS_STRING(res);
+                requiredsize = respos;
                 /* determine replacement size */
-                for (i = collstart, repsize = 0; i < collend; ++i) {
+                for (i = collstart; i < collend; ++i) {
                     Py_UCS4 ch = PyUnicode_READ(kind, data, i);
+                    Py_ssize_t incr;
                     if (ch < 10)
-                        repsize += 2+1+1;
+                        incr = 2+1+1;
                     else if (ch < 100)
-                        repsize += 2+2+1;
+                        incr = 2+2+1;
                     else if (ch < 1000)
-                        repsize += 2+3+1;
+                        incr = 2+3+1;
                     else if (ch < 10000)
-                        repsize += 2+4+1;
+                        incr = 2+4+1;
                     else if (ch < 100000)
-                        repsize += 2+5+1;
+                        incr = 2+5+1;
                     else if (ch < 1000000)
-                        repsize += 2+6+1;
+                        incr = 2+6+1;
                     else {
                         assert(ch <= MAX_UNICODE);
-                        repsize += 2+7+1;
+                        incr = 2+7+1;
                     }
+                    if (requiredsize > PY_SSIZE_T_MAX - incr)
+                        goto overflow;
+                    requiredsize += incr;
                 }
-                requiredsize = respos+repsize+(size-collend);
+                if (requiredsize > PY_SSIZE_T_MAX - (size - collend))
+                    goto overflow;
+                requiredsize += size - collend;
                 if (requiredsize > ressize) {
-                    if (requiredsize<2*ressize)
+                    if (ressize <= PY_SSIZE_T_MAX/2 && requiredsize < 2*ressize)
                         requiredsize = 2*ressize;
                     if (_PyBytes_Resize(&res, requiredsize))
                         goto onError;
@@ -6577,6 +6593,10 @@ unicode_encode_ucs1(PyObject *unicode,
                     if (repsize > 1) {
                         /* Make room for all additional bytes. */
                         respos = str - PyBytes_AS_STRING(res);
+                        if (ressize > PY_SSIZE_T_MAX - repsize - 1) {
+                            Py_DECREF(repunicode);
+                            goto overflow;
+                        }
                         if (_PyBytes_Resize(&res, ressize+repsize-1)) {
                             Py_DECREF(repunicode);
                             goto onError;
@@ -6595,9 +6615,15 @@ unicode_encode_ucs1(PyObject *unicode,
                    we won't have to check space for encodable characters) */
                 respos = str - PyBytes_AS_STRING(res);
                 repsize = PyUnicode_GET_LENGTH(repunicode);
-                requiredsize = respos+repsize+(size-collend);
+                requiredsize = respos;
+                if (requiredsize > PY_SSIZE_T_MAX - repsize)
+                    goto overflow;
+                requiredsize += repsize;
+                if (requiredsize > PY_SSIZE_T_MAX - (size - collend))
+                    goto overflow;
+                requiredsize += size - collend;
                 if (requiredsize > ressize) {
-                    if (requiredsize<2*ressize)
+                    if (ressize <= PY_SSIZE_T_MAX/2 && requiredsize < 2*ressize)
                         requiredsize = 2*ressize;
                     if (_PyBytes_Resize(&res, requiredsize)) {
                         Py_DECREF(repunicode);
@@ -6634,6 +6660,10 @@ unicode_encode_ucs1(PyObject *unicode,
     Py_XDECREF(errorHandler);
     Py_XDECREF(exc);
     return res;
+
+  overflow:
+    PyErr_SetString(PyExc_OverflowError,
+                    "encoded result is too long for a Python string");
 
   onError:
     Py_XDECREF(res);
@@ -8874,7 +8904,7 @@ PyUnicode_TransformDecimalToASCII(Py_UNICODE *s,
 
     maxchar = 127;
     for (i = 0; i < length; i++) {
-        Py_UNICODE ch = s[i];
+        Py_UCS4 ch = s[i];
         if (ch > 127) {
             int decimal = Py_UNICODE_TODECIMAL(ch);
             if (decimal >= 0)
@@ -8891,7 +8921,7 @@ PyUnicode_TransformDecimalToASCII(Py_UNICODE *s,
     data = PyUnicode_DATA(decimal);
     /* Iterate over code points */
     for (i = 0; i < length; i++) {
-        Py_UNICODE ch = s[i];
+        Py_UCS4 ch = s[i];
         if (ch > 127) {
             int decimal = Py_UNICODE_TODECIMAL(ch);
             if (decimal >= 0)
@@ -10833,7 +10863,7 @@ PyUnicode_CompareWithASCIIString(PyObject* uni, const char* str)
         void *data = PyUnicode_DATA(uni);
         /* Compare Unicode string and source character set string */
         for (i = 0; (chr = PyUnicode_READ(kind, data, i)) && str[i]; i++)
-            if (chr != str[i])
+            if (chr != (unsigned char)str[i])
                 return (chr < (unsigned char)(str[i])) ? -1 : 1;
         /* This check keeps Python strings that end in '\0' from comparing equal
          to C strings identical up to that point. */
@@ -12335,28 +12365,34 @@ unicode_repr(PyObject *unicode)
     ikind = PyUnicode_KIND(unicode);
     for (i = 0; i < isize; i++) {
         Py_UCS4 ch = PyUnicode_READ(ikind, idata, i);
+        Py_ssize_t incr = 1;
         switch (ch) {
-        case '\'': squote++; osize++; break;
-        case '"':  dquote++; osize++; break;
+        case '\'': squote++; break;
+        case '"':  dquote++; break;
         case '\\': case '\t': case '\r': case '\n':
-            osize += 2; break;
+            incr = 2;
+            break;
         default:
             /* Fast-path ASCII */
             if (ch < ' ' || ch == 0x7f)
-                osize += 4; /* \xHH */
+                incr = 4; /* \xHH */
             else if (ch < 0x7f)
-                osize++;
-            else if (Py_UNICODE_ISPRINTABLE(ch)) {
-                osize++;
+                ;
+            else if (Py_UNICODE_ISPRINTABLE(ch))
                 max = ch > max ? ch : max;
-            }
             else if (ch < 0x100)
-                osize += 4; /* \xHH */
+                incr = 4; /* \xHH */
             else if (ch < 0x10000)
-                osize += 6; /* \uHHHH */
+                incr = 6; /* \uHHHH */
             else
-                osize += 10; /* \uHHHHHHHH */
+                incr = 10; /* \uHHHHHHHH */
         }
+        if (osize > PY_SSIZE_T_MAX - incr) {
+            PyErr_SetString(PyExc_OverflowError,
+                            "string is too long to generate repr");
+            return NULL;
+        }
+        osize += incr;
     }
 
     quote = '\'';
@@ -15394,7 +15430,7 @@ PyUnicode_AsUnicodeCopy(PyObject *unicode)
     if (u == NULL)
         return NULL;
     /* Ensure we won't overflow the size. */
-    if (len > ((PY_SSIZE_T_MAX / sizeof(Py_UNICODE)) - 1)) {
+    if (len > ((PY_SSIZE_T_MAX / (Py_ssize_t)sizeof(Py_UNICODE)) - 1)) {
         PyErr_NoMemory();
         return NULL;
     }

@@ -400,7 +400,8 @@ The second argument is the *source* of enumeration member names.  It can be a
 whitespace-separated string of names, a sequence of names, a sequence of
 2-tuples with key/value pairs, or a mapping (e.g. dictionary) of names to
 values.  The last two options enable assigning arbitrary values to
-enumerations; the others auto-assign increasing integers starting with 1.  A
+enumerations; the others auto-assign increasing integers starting with 1 (use
+the `start` parameter to specify a different starting value).  A
 new class derived from :class:`Enum` is returned.  In other words, the above
 assignment to :class:`Animal` is equivalent to::
 
@@ -438,12 +439,12 @@ SomeData in the global scope::
 
 The complete signature is::
 
-    Enum(value='NewEnumName', names=<...>, *, module='...', qualname='...', type=<mixed-in class>)
+    Enum(value='NewEnumName', names=<...>, *, module='...', qualname='...', type=<mixed-in class>, start=1)
 
 :value: What the new Enum class will record as its name.
 
 :names: The Enum members.  This can be a whitespace or comma separated string
-  (values will start at 1)::
+  (values will start at 1 unless otherwise specified)::
 
     'red green blue' | 'red,green,blue' | 'red, green, blue'
 
@@ -460,6 +461,11 @@ The complete signature is::
 :qualname: where in module new Enum class can be found.
 
 :type: type to mix in to new Enum class.
+
+:start: number to start counting at if only names are passed in
+
+.. versionchanged:: 3.5
+   The *start* parameter was added.
 
 
 Derived Enumerations
@@ -586,8 +592,7 @@ Avoids having to specify the value for each enumeration member::
 
     The :meth:`__new__` method, if defined, is used during creation of the Enum
     members; it is then replaced by Enum's :meth:`__new__` which is used after
-    class creation for lookup of existing members.  Due to the way Enums are
-    supposed to behave, there is no way to customize Enum's :meth:`__new__`.
+    class creation for lookup of existing members.
 
 
 OrderedEnum
@@ -743,7 +748,11 @@ but not of the class::
     >>> dir(Planet.EARTH)
     ['__class__', '__doc__', '__module__', 'name', 'surface_gravity', 'value']
 
-A :meth:`__new__` method will only be used for the creation of the
-:class:`Enum` members -- after that it is replaced.  This means if you wish to
-change how :class:`Enum` members are looked up you either have to write a
-helper function or a :func:`classmethod`.
+The :meth:`__new__` method will only be used for the creation of the
+:class:`Enum` members -- after that it is replaced.  Any custom :meth:`__new__`
+method must create the object and set the :attr:`_value_` attribute
+appropriately.
+
+If you wish to change how :class:`Enum` members are looked up you should either
+write a helper function or a :func:`classmethod` for the :class:`Enum`
+subclass.

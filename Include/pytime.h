@@ -37,7 +37,7 @@ PyAPI_FUNC(void) _PyTime_gettimeofday(_PyTime_timeval *tp);
 
 /* Similar to _PyTime_gettimeofday() but retrieve also information on the
  * clock used to get the current time. */
-PyAPI_FUNC(void) _PyTime_gettimeofday_info(
+PyAPI_FUNC(int) _PyTime_gettimeofday_info(
     _PyTime_timeval *tp,
     _Py_clock_info_t *info);
 
@@ -51,8 +51,6 @@ do { \
 #define _PyTime_INTERVAL(tv_start, tv_end) \
     ((tv_end.tv_sec - tv_start.tv_sec) + \
      (tv_end.tv_usec - tv_start.tv_usec) * 0.000001)
-
-#ifndef Py_LIMITED_API
 
 typedef enum {
     /* Round towards zero. */
@@ -92,10 +90,28 @@ PyAPI_FUNC(int) _PyTime_ObjectToTimespec(
     time_t *sec,
     long *nsec,
     _PyTime_round_t);
-#endif
 
-/* Dummy to force linking. */
-PyAPI_FUNC(void) _PyTime_Init(void);
+/* Get the time of a monotonic clock, i.e. a clock that cannot go backwards.
+   The clock is not affected by system clock updates. The reference point of
+   the returned value is undefined, so that only the difference between the
+   results of consecutive calls is valid.
+
+   The function never fails. _PyTime_Init() ensures that a monotonic clock
+   is available and works. */
+PyAPI_FUNC(void) _PyTime_monotonic(
+    _PyTime_timeval *tp);
+
+/* Similar to _PyTime_monotonic(), fill also info (if set) with information of
+   the function used to get the time.
+
+   Return 0 on success, raise an exception and return -1 on error. */
+PyAPI_FUNC(int) _PyTime_monotonic_info(
+    _PyTime_timeval *tp,
+    _Py_clock_info_t *info);
+
+/* Initialize time.
+   Return 0 on success, raise an exception and return -1 on error. */
+PyAPI_FUNC(int) _PyTime_Init(void);
 
 #ifdef __cplusplus
 }

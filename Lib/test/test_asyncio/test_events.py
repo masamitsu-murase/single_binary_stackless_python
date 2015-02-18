@@ -27,6 +27,7 @@ from test import support  # find_unused_port, IPV6_ENABLED, TEST_HOME_DIR
 
 
 import asyncio
+from asyncio import proactor_events
 from asyncio import selector_events
 from asyncio import test_utils
 
@@ -383,22 +384,23 @@ class EventLoopTestsMixin:
         self.assertEqual(read, data)
 
     def _basetest_sock_client_ops(self, httpd, sock):
-        # in debug mode, socket operations must fail
-        # if the socket is not in blocking mode
-        self.loop.set_debug(True)
-        sock.setblocking(True)
-        with self.assertRaises(ValueError):
-            self.loop.run_until_complete(
-                self.loop.sock_connect(sock, httpd.address))
-        with self.assertRaises(ValueError):
-            self.loop.run_until_complete(
-                self.loop.sock_sendall(sock, b'GET / HTTP/1.0\r\n\r\n'))
-        with self.assertRaises(ValueError):
-            self.loop.run_until_complete(
-                self.loop.sock_recv(sock, 1024))
-        with self.assertRaises(ValueError):
-            self.loop.run_until_complete(
-                self.loop.sock_accept(sock))
+        if not isinstance(self.loop, proactor_events.BaseProactorEventLoop):
+            # in debug mode, socket operations must fail
+            # if the socket is not in blocking mode
+            self.loop.set_debug(True)
+            sock.setblocking(True)
+            with self.assertRaises(ValueError):
+                self.loop.run_until_complete(
+                    self.loop.sock_connect(sock, httpd.address))
+            with self.assertRaises(ValueError):
+                self.loop.run_until_complete(
+                    self.loop.sock_sendall(sock, b'GET / HTTP/1.0\r\n\r\n'))
+            with self.assertRaises(ValueError):
+                self.loop.run_until_complete(
+                    self.loop.sock_recv(sock, 1024))
+            with self.assertRaises(ValueError):
+                self.loop.run_until_complete(
+                    self.loop.sock_accept(sock))
 
         # test in non-blocking mode
         sock.setblocking(False)
@@ -446,7 +448,7 @@ class EventLoopTestsMixin:
         listener = socket.socket()
         listener.setblocking(False)
         listener.bind(('127.0.0.1', 0))
-        listener.listen()
+        listener.listen(1)
         client = socket.socket()
         client.connect(listener.getsockname())
 
@@ -1229,6 +1231,7 @@ class EventLoopTestsMixin:
                          "Don't support pipes for Windows")
     def test_write_pipe_disconnect_on_close(self):
         rsock, wsock = test_utils.socketpair()
+        rsock.setblocking(False)
         pipeobj = io.open(wsock.detach(), 'wb', 1024)
 
         proto = MyWritePipeProto(loop=self.loop)
@@ -1366,6 +1369,7 @@ class EventLoopTestsMixin:
             for sock_type in (socket.SOCK_STREAM, socket.SOCK_DGRAM):
                 sock = socket.socket(family, sock_type)
                 with sock:
+                    sock.setblocking(False)
                     connect = self.loop.sock_connect(sock, address)
                     with self.assertRaises(ValueError) as cm:
                         self.loop.run_until_complete(connect)
@@ -1886,9 +1890,17 @@ class HandleTests(test_utils.TestCase):
 
         # cancelled handle
         h.cancel()
-        self.assertEqual(repr(h),
-                        '<Handle cancelled created at %s:%s>'
-                        % (create_filename, create_lineno))
+        self.assertEqual(
+            repr(h),
+            '<Handle cancelled noop(1, 2) at %s:%s created at %s:%s>'
+            % (filename, lineno, create_filename, create_lineno))
+
+        # double cancellation won't overwrite _repr
+        h.cancel()
+        self.assertEqual(
+            repr(h),
+            '<Handle cancelled noop(1, 2) at %s:%s created at %s:%s>'
+            % (filename, lineno, create_filename, create_lineno))
 
     def test_handle_source_traceback(self):
         loop = asyncio.get_event_loop_policy().new_event_loop()
@@ -1983,8 +1995,9 @@ class TimerTests(unittest.TestCase):
         # cancelled handle
         h.cancel()
         self.assertEqual(repr(h),
-                        '<TimerHandle cancelled when=123 created at %s:%s>'
-                        % (create_filename, create_lineno))
+                        '<TimerHandle cancelled when=123 noop() '
+                        'at %s:%s created at %s:%s>'
+                        % (filename, lineno, create_filename, create_lineno))
 
 
     def test_timer_comparison(self):

@@ -167,7 +167,7 @@ Functions and classes provided:
    applications. It also has no effect on the output of subprocesses.
    However, it is still a useful approach for many utility scripts.
 
-   This context manager is :ref:`reusable but not reentrant <reusable-cms>`.
+   This context manager is :ref:`reentrant <reentrant-cms>`.
 
    .. versionadded:: 3.4
 
@@ -568,10 +568,10 @@ single definition::
             self.name = name
 
         def __enter__(self):
-            logging.info('Entering: {}'.format(name))
+            logging.info('Entering: {}'.format(self.name))
 
         def __exit__(self, exc_type, exc, exc_tb):
-            logging.info('Exiting: {}'.format(name))
+            logging.info('Exiting: {}'.format(self.name))
 
 Instances of this class can be used as both a context manager::
 

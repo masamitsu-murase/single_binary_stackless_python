@@ -1730,7 +1730,7 @@ _PyIO_find_line_ending(
     else {
         /* Non-universal mode. */
         Py_ssize_t readnl_len = PyUnicode_GET_LENGTH(readnl);
-        char *nl = PyUnicode_DATA(readnl);
+        Py_UCS1 *nl = PyUnicode_1BYTE_DATA(readnl);
         /* Assume that readnl is an ASCII character. */
         assert(PyUnicode_KIND(readnl) == PyUnicode_1BYTE_KIND);
         if (readnl_len == 1) {
@@ -2614,20 +2614,8 @@ textiowrapper_close(textio *self, PyObject *args)
 
         res = _PyObject_CallMethodId(self->buffer, &PyId_close, NULL);
         if (exc != NULL) {
-            if (res != NULL) {
-                Py_CLEAR(res);
-                PyErr_Restore(exc, val, tb);
-            }
-            else {
-                PyObject *exc2, *val2, *tb2;
-                PyErr_Fetch(&exc2, &val2, &tb2);
-                PyErr_NormalizeException(&exc, &val, &tb);
-                Py_DECREF(exc);
-                Py_XDECREF(tb);
-                PyErr_NormalizeException(&exc2, &val2, &tb2);
-                PyException_SetContext(val2, val);
-                PyErr_Restore(exc2, val2, tb2);
-            }
+            _PyErr_ChainExceptions(exc, val, tb);
+            Py_CLEAR(res);
         }
         return res;
     }

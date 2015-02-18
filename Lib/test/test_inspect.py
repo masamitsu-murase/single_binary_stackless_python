@@ -1,3 +1,4 @@
+import builtins
 import collections
 import datetime
 import functools
@@ -23,7 +24,7 @@ except ImportError:
     ThreadPoolExecutor = None
 
 from test.support import run_unittest, TESTFN, DirsOnSysPath, cpython_only
-from test.support import MISSING_C_DOCSTRINGS
+from test.support import MISSING_C_DOCSTRINGS, cpython_only
 from test.script_helper import assert_python_ok, assert_python_failure
 from test import inspect_fodder as mod
 from test import inspect_fodder2 as mod2
@@ -181,6 +182,14 @@ class TestInterpreterStack(IsTestBase):
              (modfile, 43, 'argue', ['            spam(a, b, c)\n'], 0))
         self.assertEqual(revise(*mod.st[3][1:]),
              (modfile, 39, 'abuse', ['        self.argue(a, b, c)\n'], 0))
+        # Test named tuple fields
+        record = mod.st[0]
+        self.assertIs(record.frame, mod.fr)
+        self.assertEqual(record.lineno, 16)
+        self.assertEqual(record.filename, mod.__file__)
+        self.assertEqual(record.function, 'eggs')
+        self.assertIn('inspect.stack()', record.code_context[0])
+        self.assertEqual(record.index, 0)
 
     def test_trace(self):
         self.assertEqual(len(git.tr), 3)
@@ -368,6 +377,9 @@ class TestDecorators(GetSourceBase):
     def test_replacing_decorator(self):
         self.assertSourceEqual(mod2.gone, 9, 10)
 
+    def test_getsource_unwrap(self):
+        self.assertSourceEqual(mod2.real, 122, 124)
+
 class TestOneliners(GetSourceBase):
     fodderModule = mod2
     def test_oneline_lambda(self):
@@ -434,10 +446,11 @@ class TestBuggyCases(GetSourceBase):
     def test_method_in_dynamic_class(self):
         self.assertSourceEqual(mod2.method_in_dynamic_class, 95, 97)
 
-    @unittest.skipIf(
-        not hasattr(unicodedata, '__file__') or
-            unicodedata.__file__[-4:] in (".pyc", ".pyo"),
-        "unicodedata is not an external binary module")
+    # This should not skip for CPython, but might on a repackaged python where
+    # unicodedata is not an external module, or on pypy.
+    @unittest.skipIf(not hasattr(unicodedata, '__file__') or
+                                 unicodedata.__file__.endswith('.py'),
+                     "unicodedata is not an external binary module")
     def test_findsource_binary(self):
         self.assertRaises(OSError, inspect.getsource, unicodedata)
         self.assertRaises(OSError, inspect.findsource, unicodedata)
@@ -1623,6 +1636,57 @@ class MyParameter(inspect.Parameter):
     # used in test_signature_object_pickle
     pass
 
+    @cpython_only
+    @unittest.skipIf(MISSING_C_DOCSTRINGS,
+                     "Signature information for builtins requires docstrings")
+    def test_builtins_have_signatures(self):
+        # This checks all builtin callables in CPython have signatures
+        # A few have signatures Signature can't yet handle, so we skip those
+        # since they will have to wait until PEP 457 adds the required
+        # introspection support to the inspect module
+        # Some others also haven't been converted yet for various other
+        # reasons, so we also skip those for the time being, but design
+        # the test to fail in order to indicate when it needs to be
+        # updated.
+        no_signature = set()
+        # These need PEP 457 groups
+        needs_groups = ["range", "slice", "dir", "getattr",
+                        "next", "iter", "vars"]
+        no_signature |= needs_groups
+        # These need PEP 457 groups or a signature change to accept None
+        needs_semantic_update = ["round"]
+        no_signature |= needs_semantic_update
+        # These need *args support in Argument Clinic
+        needs_varargs = ["min", "max", "print", "__build_class__"]
+        no_signature |= needs_varargs
+        # These simply weren't covered in the initial AC conversion
+        # for builtin callables
+        not_converted_yet = ["open", "__import__"]
+        no_signature |= not_converted_yet
+        # These builtin types are expected to provide introspection info
+        types_with_signatures = set()
+        # Check the signatures we expect to be there
+        ns = vars(builtins)
+        for name, obj in sorted(ns.items()):
+            if not callable(obj):
+                continue
+            # The builtin types haven't been converted to AC yet
+            if isinstance(obj, type) and (name not in types_with_signatures):
+                # Note that this also skips all the exception types
+                no_signature.append(name)
+            if (name in no_signature):
+                # Not yet converted
+                continue
+            with self.subTest(builtin=name):
+                self.assertIsNotNone(inspect.signature(obj))
+        # Check callables that haven't been converted don't claim a signature
+        # This ensures this test will start failing as more signatures are
+        # added, so the affected items can be moved into the scope of the
+        # regression test above
+        for name in no_signature:
+            with self.subTest(builtin=name):
+                self.assertIsNone(ns[name].__text_signature__)
+
 
 class TestSignatureObject(unittest.TestCase):
     @staticmethod
@@ -2475,43 +2539,67 @@ class TestSignatureObject(unittest.TestCase):
 
         def bar(a, *, b:int) -> float: pass
         self.assertEqual(inspect.signature(foo), inspect.signature(bar))
+        self.assertEqual(
+            hash(inspect.signature(foo)), hash(inspect.signature(bar)))
 
         def bar(a, *, b:int) -> int: pass
         self.assertNotEqual(inspect.signature(foo), inspect.signature(bar))
+        self.assertNotEqual(
+            hash(inspect.signature(foo)), hash(inspect.signature(bar)))
 
         def bar(a, *, b:int): pass
         self.assertNotEqual(inspect.signature(foo), inspect.signature(bar))
+        self.assertNotEqual(
+            hash(inspect.signature(foo)), hash(inspect.signature(bar)))
 
         def bar(a, *, b:int=42) -> float: pass
         self.assertNotEqual(inspect.signature(foo), inspect.signature(bar))
+        self.assertNotEqual(
+            hash(inspect.signature(foo)), hash(inspect.signature(bar)))
 
         def bar(a, *, c) -> float: pass
         self.assertNotEqual(inspect.signature(foo), inspect.signature(bar))
+        self.assertNotEqual(
+            hash(inspect.signature(foo)), hash(inspect.signature(bar)))
 
         def bar(a, b:int) -> float: pass
         self.assertNotEqual(inspect.signature(foo), inspect.signature(bar))
+        self.assertNotEqual(
+            hash(inspect.signature(foo)), hash(inspect.signature(bar)))
         def spam(b:int, a) -> float: pass
         self.assertNotEqual(inspect.signature(spam), inspect.signature(bar))
+        self.assertNotEqual(
+            hash(inspect.signature(spam)), hash(inspect.signature(bar)))
 
         def foo(*, a, b, c): pass
         def bar(*, c, b, a): pass
         self.assertEqual(inspect.signature(foo), inspect.signature(bar))
+        self.assertEqual(
+            hash(inspect.signature(foo)), hash(inspect.signature(bar)))
 
         def foo(*, a=1, b, c): pass
         def bar(*, c, b, a=1): pass
         self.assertEqual(inspect.signature(foo), inspect.signature(bar))
+        self.assertEqual(
+            hash(inspect.signature(foo)), hash(inspect.signature(bar)))
 
         def foo(pos, *, a=1, b, c): pass
         def bar(pos, *, c, b, a=1): pass
         self.assertEqual(inspect.signature(foo), inspect.signature(bar))
+        self.assertEqual(
+            hash(inspect.signature(foo)), hash(inspect.signature(bar)))
 
         def foo(pos, *, a, b, c): pass
         def bar(pos, *, c, b, a=1): pass
         self.assertNotEqual(inspect.signature(foo), inspect.signature(bar))
+        self.assertNotEqual(
+            hash(inspect.signature(foo)), hash(inspect.signature(bar)))
 
         def foo(pos, *args, a=42, b, c, **kwargs:int): pass
         def bar(pos, *args, c, b, a=42, **kwargs:int): pass
         self.assertEqual(inspect.signature(foo), inspect.signature(bar))
+        self.assertEqual(
+            hash(inspect.signature(foo)), hash(inspect.signature(bar)))
 
     def test_signature_hashable(self):
         S = inspect.Signature

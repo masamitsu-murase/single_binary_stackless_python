@@ -8,6 +8,7 @@ __all__ = ['BaseSelectorEventLoop']
 
 import collections
 import errno
+import functools
 import socket
 try:
     import ssl
@@ -345,26 +346,43 @@ class BaseSelectorEventLoop(base_events.BaseEventLoop):
         except ValueError as err:
             fut.set_exception(err)
         else:
-            self._sock_connect(fut, False, sock, address)
+            self._sock_connect(fut, sock, address)
         return fut
 
-    def _sock_connect(self, fut, registered, sock, address):
+    def _sock_connect(self, fut, sock, address):
         fd = sock.fileno()
-        if registered:
-            self.remove_writer(fd)
+        try:
+            while True:
+                try:
+                    sock.connect(address)
+                except InterruptedError:
+                    continue
+                else:
+                    break
+        except BlockingIOError:
+            fut.add_done_callback(functools.partial(self._sock_connect_done,
+                                                    sock))
+            self.add_writer(fd, self._sock_connect_cb, fut, sock, address)
+        except Exception as exc:
+            fut.set_exception(exc)
+        else:
+            fut.set_result(None)
+
+    def _sock_connect_done(self, sock, fut):
+        self.remove_writer(sock.fileno())
+
+    def _sock_connect_cb(self, fut, sock, address):
         if fut.cancelled():
             return
+
         try:
-            if not registered:
-                # First time around.
-                sock.connect(address)
-            else:
-                err = sock.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
-                if err != 0:
-                    # Jump to the except clause below.
-                    raise OSError(err, 'Connect call failed %s' % (address,))
+            err = sock.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
+            if err != 0:
+                # Jump to any except clause below.
+                raise OSError(err, 'Connect call failed %s' % (address,))
         except (BlockingIOError, InterruptedError):
-            self.add_writer(fd, self._sock_connect, fut, True, sock, address)
+            # socket is still registered, the callback will be retried later
+            pass
         except Exception as exc:
             fut.set_exception(exc)
         else:
@@ -450,22 +468,24 @@ class _SelectorTransport(transports._FlowControlMixin,
 
     def __repr__(self):
         info = [self.__class__.__name__, 'fd=%s' % self._sock_fd]
-        polling = _test_selector_event(self._loop._selector,
-                                       self._sock_fd, selectors.EVENT_READ)
-        if polling:
-            info.append('read=polling')
-        else:
-            info.append('read=idle')
+        # test if the transport was closed
+        if self._loop is not None:
+            polling = _test_selector_event(self._loop._selector,
+                                           self._sock_fd, selectors.EVENT_READ)
+            if polling:
+                info.append('read=polling')
+            else:
+                info.append('read=idle')
 
-        polling = _test_selector_event(self._loop._selector,
-                                       self._sock_fd, selectors.EVENT_WRITE)
-        if polling:
-            state = 'polling'
-        else:
-            state = 'idle'
+            polling = _test_selector_event(self._loop._selector,
+                                           self._sock_fd, selectors.EVENT_WRITE)
+            if polling:
+                state = 'polling'
+            else:
+                state = 'idle'
 
-        bufsize = self.get_write_buffer_size()
-        info.append('write=<%s, bufsize=%s>' % (state, bufsize))
+            bufsize = self.get_write_buffer_size()
+            info.append('write=<%s, bufsize=%s>' % (state, bufsize))
         return '<%s>' % ' '.join(info)
 
     def abort(self):
@@ -689,7 +709,6 @@ class _SelectorSslTransport(_SelectorTransport):
 
         self._server_hostname = server_hostname
         self._waiter = waiter
-        self._rawsock = rawsock
         self._sslcontext = sslcontext
         self._paused = False
 

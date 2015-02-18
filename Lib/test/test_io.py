@@ -363,8 +363,8 @@ class IOTest(unittest.TestCase):
 
     def test_open_handles_NUL_chars(self):
         fn_with_NUL = 'foo\0bar'
-        self.assertRaises(TypeError, self.open, fn_with_NUL, 'w')
-        self.assertRaises(TypeError, self.open, bytes(fn_with_NUL, 'ascii'), 'w')
+        self.assertRaises(ValueError, self.open, fn_with_NUL, 'w')
+        self.assertRaises(ValueError, self.open, bytes(fn_with_NUL, 'ascii'), 'w')
 
     def test_raw_file_io(self):
         with self.open(support.TESTFN, "wb", buffering=0) as f:
@@ -1627,6 +1627,12 @@ class BufferedRWPairTest(unittest.TestCase):
 
         pair = self.tp(SelectableIsAtty(True), SelectableIsAtty(True))
         self.assertTrue(pair.isatty())
+
+    def test_weakref_clearing(self):
+        brw = self.tp(self.MockRawIO(), self.MockRawIO())
+        ref = weakref.ref(brw)
+        brw = None
+        ref = None # Shouldn't segfault.
 
 class CBufferedRWPairTest(BufferedRWPairTest):
     tp = io.BufferedRWPair
@@ -3383,6 +3389,8 @@ class SignalsTest(unittest.TestCase):
     def test_interrupted_write_buffered(self):
         self.check_interrupted_write(b"xy", b"xy", mode="wb")
 
+    # Issue #22331: The test hangs on FreeBSD 7.2
+    @support.requires_freebsd_version(8)
     def test_interrupted_write_text(self):
         self.check_interrupted_write("xy", b"xy", mode="w", encoding="ascii")
 

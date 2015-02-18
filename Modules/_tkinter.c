@@ -605,7 +605,7 @@ Tkapp_New(const char *screenName, const char *className,
         Tcl_SetVar(v->interp, "tcl_interactive", "0", TCL_GLOBAL_ONLY);
 
     /* This is used to get the application class for Tk 4.1 and up */
-    argv0 = (char*)ckalloc(strlen(className) + 1);
+    argv0 = (char*)PyMem_Malloc(strlen(className) + 1);
     if (!argv0) {
         PyErr_NoMemory();
         Py_DECREF(v);
@@ -616,7 +616,7 @@ Tkapp_New(const char *screenName, const char *className,
     if (Py_ISUPPER(Py_CHARMASK(argv0[0])))
         argv0[0] = Py_TOLOWER(Py_CHARMASK(argv0[0]));
     Tcl_SetVar(v->interp, "argv0", argv0, TCL_GLOBAL_ONLY);
-    ckfree(argv0);
+    PyMem_Free(argv0);
 
     if (! wantTk) {
         Tcl_SetVar(v->interp,
@@ -639,7 +639,7 @@ Tkapp_New(const char *screenName, const char *className,
         if (use)
             len += strlen(use) + sizeof "-use ";
 
-        args = (char*)ckalloc(len);
+        args = (char*)PyMem_Malloc(len);
         if (!args) {
             PyErr_NoMemory();
             Py_DECREF(v);
@@ -657,7 +657,7 @@ Tkapp_New(const char *screenName, const char *className,
         }
 
         Tcl_SetVar(v->interp, "argv", args, TCL_GLOBAL_ONLY);
-        ckfree(args);
+        PyMem_Free(args);
     }
 
     if (Tcl_AppInit(v->interp) != TCL_OK) {
@@ -906,19 +906,23 @@ AsObj(PyObject *value)
         Py_ssize_t size, i;
 
         size = PySequence_Fast_GET_SIZE(value);
+        if (size == 0)
+            return Tcl_NewListObj(0, NULL);
         if (!CHECK_SIZE(size, sizeof(Tcl_Obj *))) {
             PyErr_SetString(PyExc_OverflowError,
                             PyTuple_Check(value) ? "tuple is too long" :
                                                    "list is too long");
             return NULL;
         }
-        argv = (Tcl_Obj **) ckalloc(((size_t)size) * sizeof(Tcl_Obj *));
-        if(!argv)
-          return 0;
+        argv = (Tcl_Obj **) PyMem_Malloc(((size_t)size) * sizeof(Tcl_Obj *));
+        if (!argv) {
+          PyErr_NoMemory();
+          return NULL;
+        }
         for (i = 0; i < size; i++)
           argv[i] = AsObj(PySequence_Fast_GET_ITEM(value,i));
         result = Tcl_NewListObj(size, argv);
-        ckfree(FREECAST argv);
+        PyMem_Free(argv);
         return result;
     }
     else if (PyUnicode_Check(value)) {
@@ -934,6 +938,8 @@ AsObj(PyObject *value)
 
         inbuf = PyUnicode_DATA(value);
         size = PyUnicode_GET_LENGTH(value);
+        if (size == 0)
+            return Tcl_NewUnicodeObj((const void *)"", 0);
         if (!CHECK_SIZE(size, sizeof(Tcl_UniChar))) {
             PyErr_SetString(PyExc_OverflowError, "string is too long");
             return NULL;
@@ -942,7 +948,7 @@ AsObj(PyObject *value)
         if (kind == sizeof(Tcl_UniChar))
             return Tcl_NewUnicodeObj(inbuf, size);
         allocsize = ((size_t)size) * sizeof(Tcl_UniChar);
-        outbuf = (Tcl_UniChar*)ckalloc(allocsize);
+        outbuf = (Tcl_UniChar*)PyMem_Malloc(allocsize);
         /* Else overflow occurred, and we take the next exit */
         if (!outbuf) {
             PyErr_NoMemory();
@@ -959,14 +965,14 @@ AsObj(PyObject *value)
                              "character U+%x is above the range "
                              "(U+0000-U+FFFF) allowed by Tcl",
                              ch);
-                ckfree(FREECAST outbuf);
+                PyMem_Free(outbuf);
                 return NULL;
             }
 #endif
             outbuf[i] = ch;
         }
         result = Tcl_NewUnicodeObj(outbuf, size);
-        ckfree(FREECAST outbuf);
+        PyMem_Free(outbuf);
         return result;
     }
     else if(PyTclObject_Check(value)) {
@@ -1078,7 +1084,7 @@ Tkapp_CallDeallocArgs(Tcl_Obj** objv, Tcl_Obj** objStore, int objc)
     for (i = 0; i < objc; i++)
         Tcl_DecrRefCount(objv[i]);
     if (objv != objStore)
-        ckfree(FREECAST objv);
+        PyMem_Free(objv);
 }
 
 /* Convert Python objects to Tcl objects. This must happen in the
@@ -1109,7 +1115,7 @@ Tkapp_CallArgs(PyObject *args, Tcl_Obj** objStore, int *pobjc)
                                                       "list is too long");
                 return NULL;
             }
-            objv = (Tcl_Obj **)ckalloc(((size_t)objc) * sizeof(Tcl_Obj *));
+            objv = (Tcl_Obj **)PyMem_Malloc(((size_t)objc) * sizeof(Tcl_Obj *));
             if (objv == NULL) {
                 PyErr_NoMemory();
                 objc = 0;
@@ -1245,7 +1251,11 @@ Tkapp_Call(PyObject *selfptr, PyObject *args)
         PyObject *exc_type, *exc_value, *exc_tb;
         if (!WaitForMainloop(self))
             return NULL;
-        ev = (Tkapp_CallEvent*)ckalloc(sizeof(Tkapp_CallEvent));
+        ev = (Tkapp_CallEvent*)attemptckalloc(sizeof(Tkapp_CallEvent));
+        if (ev == NULL) {
+            PyErr_NoMemory();
+            return NULL;
+        }
         ev->ev.proc = (Tcl_EventProc*)Tkapp_CallProc;
         ev->self = self;
         ev->args = args;
@@ -1414,8 +1424,8 @@ varname_converter(PyObject *in, void *_out)
             return 0;
         }
         s = PyBytes_AsString(in);
-        if (strlen(s) != PyBytes_Size(in)) {
-            PyErr_SetString(PyExc_ValueError, "null byte in bytes object");
+        if (strlen(s) != (size_t)PyBytes_Size(in)) {
+            PyErr_SetString(PyExc_ValueError, "embedded null byte");
             return 0;
         }
         *out = s;
@@ -1431,8 +1441,8 @@ varname_converter(PyObject *in, void *_out)
             PyErr_SetString(PyExc_OverflowError, "string is too long");
             return 0;
         }
-        if (strlen(s) != size) {
-            PyErr_SetString(PyExc_ValueError, "null character in string");
+        if (strlen(s) != (size_t)size) {
+            PyErr_SetString(PyExc_ValueError, "embedded null character");
             return 0;
         }
         *out = s;
@@ -1496,8 +1506,11 @@ var_invoke(EventFunc func, PyObject *selfptr, PyObject *args, int flags)
         if (!WaitForMainloop(self))
             return NULL;
 
-        ev = (VarEvent*)ckalloc(sizeof(VarEvent));
-
+        ev = (VarEvent*)attemptckalloc(sizeof(VarEvent));
+        if (ev == NULL) {
+            PyErr_NoMemory();
+            return NULL;
+        }
         ev->self = selfptr;
         ev->args = args;
         ev->flags = flags;
@@ -2096,7 +2109,12 @@ Tkapp_CreateCommand(PyObject *selfptr, PyObject *args)
 #ifdef WITH_THREAD
     if (self->threaded && self->thread_id != Tcl_GetCurrentThread()) {
         Tcl_Condition cond = NULL;
-        CommandEvent *ev = (CommandEvent*)ckalloc(sizeof(CommandEvent));
+        CommandEvent *ev = (CommandEvent*)attemptckalloc(sizeof(CommandEvent));
+        if (ev == NULL) {
+            PyErr_NoMemory();
+            PyMem_DEL(data);
+            return NULL;
+        }
         ev->ev.proc = (Tcl_EventProc*)Tkapp_CommandProc;
         ev->interp = self->interp;
         ev->create = 1;
@@ -2142,7 +2160,11 @@ Tkapp_DeleteCommand(PyObject *selfptr, PyObject *args)
     if (self->threaded && self->thread_id != Tcl_GetCurrentThread()) {
         Tcl_Condition cond = NULL;
         CommandEvent *ev;
-        ev = (CommandEvent*)ckalloc(sizeof(CommandEvent));
+        ev = (CommandEvent*)attemptckalloc(sizeof(CommandEvent));
+        if (ev == NULL) {
+            PyErr_NoMemory();
+            return NULL;
+        }
         ev->ev.proc = (Tcl_EventProc*)Tkapp_CommandProc;
         ev->interp = self->interp;
         ev->create = 0;

@@ -365,10 +365,7 @@ import signal
 import builtins
 import warnings
 import errno
-try:
-    from time import monotonic as _time
-except ImportError:
-    from time import time as _time
+from time import monotonic as _time
 
 # Exception classes used by this module.
 class SubprocessError(Exception): pass
@@ -844,7 +841,8 @@ class Popen(object):
         if p2cwrite != -1:
             self.stdin = io.open(p2cwrite, 'wb', bufsize)
             if universal_newlines:
-                self.stdin = io.TextIOWrapper(self.stdin, write_through=True)
+                self.stdin = io.TextIOWrapper(self.stdin, write_through=True,
+                                              line_buffering=(bufsize == 1))
         if c2pread != -1:
             self.stdout = io.open(c2pread, 'rb', bufsize)
             if universal_newlines:

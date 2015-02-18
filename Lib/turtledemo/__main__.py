@@ -14,17 +14,21 @@
   (1) How to use the demo viewer.
 
   Select a demoscript from the example menu.
-  The (syntax coloured) source code appears in the left
+  The (syntax colored) source code appears in the left
   source code window. IT CANNOT BE EDITED, but ONLY VIEWED!
 
-  - Press START button to start the demo.
-  - Stop execution by pressing the STOP button.
-  - Clear screen by pressing the CLEAR button.
-  - Restart by pressing the START button again.
+  The demo viewer windows can be resized. The divider between text
+  and canvas can be moved by grabbing it with the mouse. The text font
+  size can be changed from the menu and with Control/Command '-'/'+'.
+  It can also be changed on most systems with Control-mousewheel
+  when the mouse is over the text.
 
-  SPECIAL demos are those which run EVENTDRIVEN.
-  (For example clock.py - or oldTurtleDemo.py which
-  in the end expects a mouse click.):
+  Press START button to start the demo.
+  Stop execution by pressing the STOP button.
+  Clear screen by pressing the CLEAR button.
+  Restart by pressing the START button again.
+
+  SPECIAL demos, such as clock.py are those which run EVENTDRIVEN.
 
       Press START button to start the demo.
 
@@ -87,14 +91,14 @@ import os
 from tkinter import *
 from idlelib.Percolator import Percolator
 from idlelib.ColorDelegator import ColorDelegator
-from idlelib.textView import view_text # TextViewer
-from importlib import reload
+from idlelib.textView import view_text
 from turtledemo import __doc__ as about_turtledemo
 
 import turtle
 import time
 
 demo_dir = os.path.dirname(os.path.abspath(__file__))
+darwin = sys.platform == 'darwin'
 
 STARTUP = 1
 READY = 2
@@ -104,7 +108,11 @@ EVENTDRIVEN = 5
 
 menufont = ("Arial", 12, NORMAL)
 btnfont = ("Arial", 12, 'bold')
-txtfont = ('Lucida Console', 8, 'normal')
+txtfont = ['Lucida Console', 10, 'normal']
+
+MINIMUM_FONT_SIZE = 6
+MAXIMUM_FONT_SIZE = 100
+font_sizes = [8, 9, 10, 11, 12, 14, 18, 20, 22, 24, 30]
 
 def getExampleEntries():
     return [entry[:-3] for entry in os.listdir(demo_dir) if
@@ -123,7 +131,7 @@ class DemoWindow(object):
         root.title('Python turtle-graphics examples')
         root.wm_protocol("WM_DELETE_WINDOW", self._destroy)
 
-        if sys.platform == 'darwin':
+        if darwin:
             import subprocess
             # Make sure we are the currently activated OS X application
             # so that our menu bar appears.
@@ -136,8 +144,7 @@ class DemoWindow(object):
                         '-e', 'end tell',
                     ],
                     stderr=subprocess.DEVNULL,
-                    stdout=subprocess.DEVNULL,
-                )
+                    stdout=subprocess.DEVNULL,)
 
         root.grid_rowconfigure(0, weight=1)
         root.grid_columnconfigure(0, weight=1)
@@ -147,9 +154,11 @@ class DemoWindow(object):
 
         self.mBar = Menu(root, relief=RAISED, borderwidth=2)
         self.mBar.add_cascade(menu=self.makeLoadDemoMenu(self.mBar),
-                              label='Examples', underline=0, font=menufont)
+                              label='Examples', underline=0)
+        self.mBar.add_cascade(menu=self.makeFontMenu(self.mBar),
+                              label='Fontsize', underline=0)
         self.mBar.add_cascade(menu=self.makeHelpMenu(self.mBar),
-                              label='Help', underline=0, font=menufont)
+                              label='Help', underline=0)
         root['menu'] = self.mBar
 
         pane = PanedWindow(orient=HORIZONTAL, sashwidth=5,
@@ -180,7 +189,7 @@ class DemoWindow(object):
         self.exitflag = False
         if filename:
             self.loadfile(filename)
-        self.configGUI(NORMAL, DISABLED, DISABLED, DISABLED,
+        self.configGUI(DISABLED, DISABLED, DISABLED,
                        "Choose example from menu", "black")
         self.state = STARTUP
 
@@ -202,10 +211,19 @@ class DemoWindow(object):
         self.hbar = hbar = Scrollbar(text_frame, name='hbar', orient=HORIZONTAL)
         hbar['command'] = text.xview
         hbar.pack(side=BOTTOM, fill=X)
-
-        text['font'] = txtfont
         text['yscrollcommand'] = vbar.set
         text['xscrollcommand'] = hbar.set
+
+        text['font'] = tuple(txtfont)
+        shortcut = 'Command' if darwin else 'Control'
+        text.bind_all('<%s-minus>' % shortcut, self.decrease_size)
+        text.bind_all('<%s-underscore>' % shortcut, self.decrease_size)
+        text.bind_all('<%s-equal>' % shortcut, self.increase_size)
+        text.bind_all('<%s-plus>' % shortcut, self.increase_size)
+        text.bind('<Control-MouseWheel>', self.update_mousewheel)
+        text.bind('<Control-Button-4>', self.increase_size)
+        text.bind('<Control-Button-5>', self.decrease_size)
+
         text.pack(side=LEFT, fill=BOTH, expand=1)
         return text_frame
 
@@ -225,9 +243,28 @@ class DemoWindow(object):
         turtle.RawTurtle.screens = [_s_]
         return canvas
 
-    def configGUI(self, menu, start, stop, clear, txt="", color="blue"):
-        self.mBar.entryconfigure(0, state=menu)
+    def set_txtsize(self, size):
+        txtfont[1] = size
+        self.text['font'] = tuple(txtfont)
+        self.output_lbl['text'] = 'Font size %d' % size
 
+    def decrease_size(self, dummy=None):
+        self.set_txtsize(max(txtfont[1] - 1, MINIMUM_FONT_SIZE))
+        return 'break'
+
+    def increase_size(self, dummy=None):
+        self.set_txtsize(min(txtfont[1] + 1, MAXIMUM_FONT_SIZE))
+        return 'break'
+
+    def update_mousewheel(self, event):
+        # For wheel up, event.delte = 120 on Windows, -1 on darwin.
+        # X-11 sends Control-Button-4 event instead.
+        if (event.delta < 0) == (not darwin):
+            return self.decrease_size()
+        else:
+            return self.increase_size()
+
+    def configGUI(self, start, stop, clear, txt="", color="blue"):
         self.start_btn.config(state=start,
                               bg="#d00" if start == NORMAL else "#fca")
         self.stop_btn.config(state=stop,
@@ -240,13 +277,25 @@ class DemoWindow(object):
         menu = Menu(master)
 
         for entry in getExampleEntries():
-            def loadexample(x):
-                def emit():
-                    self.loadfile(x)
-                return emit
+            def load(entry=entry):
+                self.loadfile(entry)
             menu.add_command(label=entry, underline=0,
-                             font=menufont, command=loadexample(entry))
+                             font=menufont, command=load)
+        return menu
 
+    def makeFontMenu(self, master):
+        menu = Menu(master)
+        menu.add_command(label="Decrease (C-'-')", command=self.decrease_size,
+                         font=menufont)
+        menu.add_command(label="Increase (C-'+')", command=self.increase_size,
+                         font=menufont)
+        menu.add_separator()
+
+        for size in font_sizes:
+            def resize(size=size):
+                self.set_txtsize(size)
+            menu.add_command(label=str(size), underline=0,
+                             font=menufont, command=resize)
         return menu
 
     def makeHelpMenu(self, master):
@@ -256,16 +305,16 @@ class DemoWindow(object):
             def show(help_label=help_label, help_file=help_file):
                 view_text(self.root, help_label, help_file)
             menu.add_command(label=help_label, font=menufont, command=show)
-
         return menu
 
     def refreshCanvas(self):
-        if not self.dirty: return
-        self.screen.clear()
-        self.dirty=False
+        if self.dirty:
+            self.screen.clear()
+            self.dirty=False
 
     def loadfile(self, filename):
-        self.refreshCanvas()
+        self.clearCanvas()
+        turtle.TurtleScreen._RUNNING = False
         modname = 'turtledemo.' + filename
         __import__(modname)
         self.module = sys.modules[modname]
@@ -274,8 +323,7 @@ class DemoWindow(object):
         self.text.delete("1.0", "end")
         self.text.insert("1.0", chars)
         self.root.title(filename + " - a Python turtle graphics example")
-        reload(self.module)
-        self.configGUI(NORMAL, NORMAL, DISABLED, DISABLED,
+        self.configGUI(NORMAL, DISABLED, DISABLED,
                        "Press start button", "red")
         self.state = READY
 
@@ -283,7 +331,7 @@ class DemoWindow(object):
         self.refreshCanvas()
         self.dirty = True
         turtle.TurtleScreen._RUNNING = True
-        self.configGUI(DISABLED, DISABLED, NORMAL, DISABLED,
+        self.configGUI(DISABLED, NORMAL, DISABLED,
                        "demo running...", "black")
         self.screen.clear()
         self.screen.mode("standard")
@@ -299,28 +347,26 @@ class DemoWindow(object):
             self.state = DONE
             result = "stopped!"
         if self.state == DONE:
-            self.configGUI(NORMAL, NORMAL, DISABLED, NORMAL,
+            self.configGUI(NORMAL, DISABLED, NORMAL,
                            result)
         elif self.state == EVENTDRIVEN:
             self.exitflag = True
-            self.configGUI(DISABLED, DISABLED, NORMAL, DISABLED,
+            self.configGUI(DISABLED, NORMAL, DISABLED,
                            "use mouse/keys or STOP", "red")
 
     def clearCanvas(self):
         self.refreshCanvas()
         self.screen._delete("all")
         self.scanvas.config(cursor="")
-        self.configGUI(NORMAL, NORMAL, DISABLED, DISABLED)
+        self.configGUI(NORMAL, DISABLED, DISABLED)
 
     def stopIt(self):
         if self.exitflag:
             self.clearCanvas()
             self.exitflag = False
-            self.configGUI(NORMAL, NORMAL, DISABLED, DISABLED,
+            self.configGUI(NORMAL, DISABLED, DISABLED,
                            "STOPPED!", "red")
-            turtle.TurtleScreen._RUNNING = False
-        else:
-            turtle.TurtleScreen._RUNNING = False
+        turtle.TurtleScreen._RUNNING = False
 
     def _destroy(self):
         self.root.destroy()

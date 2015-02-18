@@ -261,8 +261,7 @@ PyObject_AsCharBuffer(PyObject *obj,
     pb = obj->ob_type->tp_as_buffer;
     if (pb == NULL || pb->bf_getbuffer == NULL) {
         PyErr_SetString(PyExc_TypeError,
-                        "expected bytes, bytearray "
-                        "or buffer compatible object");
+                        "expected a bytes-like object");
         return -1;
     }
     if ((*pb->bf_getbuffer)(obj, &view, PyBUF_SIMPLE)) return -1;
@@ -307,7 +306,7 @@ int PyObject_AsReadBuffer(PyObject *obj,
     if (pb == NULL ||
         pb->bf_getbuffer == NULL) {
         PyErr_SetString(PyExc_TypeError,
-                        "expected an object with a buffer interface");
+                        "expected a bytes-like object");
         return -1;
     }
 
@@ -337,7 +336,7 @@ int PyObject_AsWriteBuffer(PyObject *obj,
         pb->bf_getbuffer == NULL ||
         ((*pb->bf_getbuffer)(obj, &view, PyBUF_WRITABLE) != 0)) {
         PyErr_SetString(PyExc_TypeError,
-                        "expected an object with a writable buffer interface");
+                        "expected a writable bytes-like object");
         return -1;
     }
 
@@ -356,7 +355,7 @@ PyObject_GetBuffer(PyObject *obj, Py_buffer *view, int flags)
 {
     if (!PyObject_CheckBuffer(obj)) {
         PyErr_Format(PyExc_TypeError,
-                     "'%.100s' does not support the buffer interface",
+                     "a bytes-like object is required, not '%.100s'",
                      Py_TYPE(obj)->tp_name);
         return -1;
     }
@@ -531,8 +530,8 @@ int PyObject_CopyData(PyObject *dest, PyObject *src)
     if (!PyObject_CheckBuffer(dest) ||
         !PyObject_CheckBuffer(src)) {
         PyErr_SetString(PyExc_TypeError,
-                        "both destination and source must have the "\
-                        "buffer interface");
+                        "both destination and source must be "\
+                        "bytes-like objects");
         return -1;
     }
 
@@ -2076,6 +2075,11 @@ PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw)
     STACKLESS_GETARG();
     ternaryfunc call;
 
+    /* PyObject_Call() must not be called with an exception set,
+       because it may clear it (directly or indirectly) and so the
+       caller looses its exception */
+    assert(!PyErr_Occurred());
+
     if ((call = func->ob_type->tp_call) != NULL) {
         PyObject *result;
 #ifdef STACKLESS
@@ -2560,6 +2564,11 @@ PyObject_IsInstance(PyObject *inst, PyObject *cls)
     if (Py_TYPE(inst) == (PyTypeObject *)cls)
         return 1;
 
+    /* We know what type's __instancecheck__ does. */
+    if (PyType_CheckExact(cls)) {
+        return recursive_isinstance(inst, cls);
+    }
+
     if (PyTuple_Check(cls)) {
         Py_ssize_t i;
         Py_ssize_t n;
@@ -2598,6 +2607,7 @@ PyObject_IsInstance(PyObject *inst, PyObject *cls)
     }
     else if (PyErr_Occurred())
         return -1;
+    /* Probably never reached anymore. */
     return recursive_isinstance(inst, cls);
 }
 
@@ -2624,6 +2634,14 @@ PyObject_IsSubclass(PyObject *derived, PyObject *cls)
 {
     _Py_IDENTIFIER(__subclasscheck__);
     PyObject *checker;
+
+    /* We know what type's __subclasscheck__ does. */
+    if (PyType_CheckExact(cls)) {
+        /* Quick test for an exact match */
+        if (derived == cls)
+            return 1;
+        return recursive_issubclass(derived, cls);
+    }
 
     if (PyTuple_Check(cls)) {
         Py_ssize_t i;
@@ -2663,6 +2681,7 @@ PyObject_IsSubclass(PyObject *derived, PyObject *cls)
     }
     else if (PyErr_Occurred())
         return -1;
+    /* Probably never reached anymore. */
     return recursive_issubclass(derived, cls);
 }
 

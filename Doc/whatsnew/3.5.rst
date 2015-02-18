@@ -56,7 +56,7 @@ For full details, see the :source:`Misc/NEWS` file.
 
 .. seealso::
 
-    .. :pep:`4XX` - Python 3.5 Release Schedule
+    :pep:`478` - Python 3.5 Release Schedule
 
 
 Summary -- Release highlights
@@ -134,12 +134,41 @@ New Modules
 Improved Modules
 ================
 
+code
+----
+
+* The :func:`code.InteractiveInterpreter.showtraceback` method now prints
+  the full chained traceback, just like the interactive interpreter
+  (contributed by Claudiu.Popa in :issue:`17442`).
+
+compileall
+----------
+
+* :func:`compileall.compile_dir` and :mod:`compileall`'s command-line interface
+  can now do parallel bytecode compilation.
+  (Contributed by Claudiu Popa in :issue:`16104`).
+
 doctest
 -------
 
 * :func:`doctest.DocTestSuite` returns an empty :class:`unittest.TestSuite` if
   *module* contains no docstrings instead of raising :exc:`ValueError`
   (contributed by Glenn Jones in :issue:`15916`).
+
+glob
+----
+
+* :func:`~glob.iglob` and :func:`~glob.glob` now support recursive search in
+  subdirectories using the "``**``" pattern.
+  (Contributed by Serhiy Storchaka in :issue:`13968`.)
+
+imaplib
+-------
+
+* :class:`IMAP4` now supports the context management protocol.  When used in a
+  :keyword:`with` statement, the IMAP4 ``LOGOUT`` command will be called
+  automatically at the end of the block.  (Contributed by Tarek Ziadé and
+  Serhiy Storchaka in :issue:`4972`).
 
 imghdr
 ------
@@ -188,6 +217,15 @@ os
 * :class:`os.stat_result` now has a :attr:`~os.stat_result.st_file_attributes`
   attribute on Windows (contributed by Ben Hoyt in :issue:`21719`).
 
+re
+--
+
+* Number of capturing groups in regular expression is no longer limited by 100.
+  (Contributed by Serhiy Storchaka in :issue:`22437`.)
+
+* Now unmatched groups are replaced with empty strings in :func:`re.sub`
+  and :func:`re.subn`.  (Contributed by Serhiy Storchaka in :issue:`1519638`.)
+
 shutil
 ------
 
@@ -229,6 +267,13 @@ smtplib
   implement custom authentication mechanisms (contributed by Milan Oberkirch in
   :issue:`15014`).
 
+sndhdr
+------
+
+* :func:`~sndhdr.what` and :func:`~sndhdr.whathdr` now return
+  :func:`~collections.namedtuple` \s (contributed by Claudiu Popa in
+  :issue:`18615`).
+
 socket
 ------
 
@@ -237,6 +282,12 @@ socket
   uploads being from 2x to 3x faster than when using plain
   :meth:`socket.socket.send`.
   (contributed by Giampaolo Rodola' in :issue:`17552`)
+
+time
+----
+
+* The :func:`time.monotonic` function is now always available.  (Contributed by
+  Victor Stinner in :issue:`22043`.)
 
 wsgiref
 -------
@@ -315,6 +366,14 @@ Deprecated features
 * None yet.
 
 
+Removed
+=======
+
+* The ``__version__`` attribute has been dropped from the email package.  The
+  email code hasn't been shipped separately from the stdlib for a long time,
+  and the ``__version__`` string was not updated in the last few releases.
+
+
 Porting to Python 3.5
 =====================
 
@@ -344,6 +403,12 @@ Changes in the Python API
   removed (contributed by Ezio Melotti in :issue:`15114`).
   The *convert_charrefs* argument of :class:`~html.parser.HTMLParser` is
   now ``True`` by default (contributed by Berker Peksag in :issue:`21047`).
+
+* Although it is not formally part of the API, it is worth noting for porting
+  purposes (ie: fixing tests) that error messages that were previously of the
+  form "'sometype' does not support the buffer protocol" are now of the form "a
+  bytes-like object is required, not 'sometype'" (contributed by Ezio Melotti
+  in :issue:`16518`).
 
 Changes in the C API
 --------------------

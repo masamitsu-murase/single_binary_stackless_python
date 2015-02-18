@@ -142,6 +142,39 @@ PyTraceBack_Here(PyFrameObject *frame)
     return 0;
 }
 
+/* Insert a frame into the traceback for (funcname, filename, lineno). */
+void _PyTraceback_Add(char *funcname, char *filename, int lineno)
+{
+    PyObject *globals = NULL;
+    PyCodeObject *code = NULL;
+    PyFrameObject *frame = NULL;
+    PyObject *exception, *value, *tb;
+
+    /* Save and clear the current exception. Python functions must not be
+       called with an exception set. Calling Python functions happens when
+       the codec of the filesystem encoding is implemented in pure Python. */
+    PyErr_Fetch(&exception, &value, &tb);
+
+    globals = PyDict_New();
+    if (!globals)
+        goto done;
+    code = PyCode_NewEmpty(filename, funcname, lineno);
+    if (!code)
+        goto done;
+    frame = PyFrame_New(PyThreadState_Get(), code, globals, NULL);
+    if (!frame)
+        goto done;
+    frame->f_lineno = lineno;
+
+    PyErr_Restore(exception, value, tb);
+    PyTraceBack_Here(frame);
+
+done:
+    Py_XDECREF(globals);
+    Py_XDECREF(code);
+    Py_XDECREF(frame);
+}
+
 static PyObject *
 _Py_FindSourceFile(PyObject *filename, char* namebuf, size_t namelen, PyObject *io)
 {
@@ -198,7 +231,7 @@ _Py_FindSourceFile(PyObject *filename, char* namebuf, size_t namelen, PyObject *
         }
         strcpy(namebuf, PyBytes_AS_STRING(path));
         Py_DECREF(path);
-        if (strlen(namebuf) != len)
+        if (strlen(namebuf) != (size_t)len)
             continue; /* v contains '\0' */
         if (len > 0 && namebuf[len-1] != SEP)
             namebuf[len++] = SEP;
@@ -541,15 +574,16 @@ dump_ascii(int fd, PyObject *text)
             ch = PyUnicode_READ(kind, data, i);
         else
             ch = wstr[i];
-        if (ch < 128) {
+        if (' ' <= ch && ch <= 126) {
+            /* printable ASCII character */
             char c = (char)ch;
             write(fd, &c, 1);
         }
-        else if (ch < 0xff) {
+        else if (ch <= 0xff) {
             PUTS(fd, "\\x");
             dump_hexadecimal(fd, ch, 2);
         }
-        else if (ch < 0xffff) {
+        else if (ch <= 0xffff) {
             PUTS(fd, "\\u");
             dump_hexadecimal(fd, ch, 4);
         }
@@ -644,7 +678,7 @@ write_thread_id(int fd, PyThreadState *tstate, int is_current)
         PUTS(fd, "Current thread 0x");
     else
         PUTS(fd, "Thread 0x");
-    dump_hexadecimal(fd, (unsigned long)tstate->thread_id, sizeof(long)*2);
+    dump_hexadecimal(fd, (unsigned long)tstate->thread_id, sizeof(unsigned long)*2);
     PUTS(fd, " (most recent call first):\n");
 }
 

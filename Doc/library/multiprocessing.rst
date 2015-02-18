@@ -842,7 +842,7 @@ Miscellaneous
 
    Return list of all live children of the current process.
 
-   Calling this has the side affect of "joining" any processes which have
+   Calling this has the side effect of "joining" any processes which have
    already finished.
 
 .. function:: cpu_count()
@@ -1046,7 +1046,7 @@ Connection objects are usually created using :func:`Pipe` -- see also
       using :meth:`Connection.send` and :meth:`Connection.recv`.
 
    .. versionadded:: 3.3
-      Connection objects now support the context manager protocol -- see
+      Connection objects now support the context management protocol -- see
       :ref:`typecontextmanager`.  :meth:`~contextmanager.__enter__` returns the
       connection object, and :meth:`~contextmanager.__exit__` calls :meth:`close`.
 
@@ -1506,7 +1506,7 @@ their parent process exits.  The manager classes are defined in the
       The address used by the manager.
 
    .. versionchanged:: 3.3
-      Manager objects support the context manager protocol -- see
+      Manager objects support the context management protocol -- see
       :ref:`typecontextmanager`.  :meth:`~contextmanager.__enter__` starts the
       server process (if it has not already started) and then returns the
       manager object.  :meth:`~contextmanager.__exit__` calls :meth:`shutdown`.
@@ -1998,7 +1998,7 @@ with the :class:`Pool` class.
       :meth:`terminate` before using :meth:`join`.
 
    .. versionadded:: 3.3
-      Pool objects now support the context manager protocol -- see
+      Pool objects now support the context management protocol -- see
       :ref:`typecontextmanager`.  :meth:`~contextmanager.__enter__` returns the
       pool object, and :meth:`~contextmanager.__exit__` calls :meth:`terminate`.
 
@@ -2171,7 +2171,7 @@ multiple connections at the same time.
       unavailable then it is ``None``.
 
    .. versionadded:: 3.3
-      Listener objects now support the context manager protocol -- see
+      Listener objects now support the context management protocol -- see
       :ref:`typecontextmanager`.  :meth:`~contextmanager.__enter__` returns the
       listener object, and :meth:`~contextmanager.__exit__` calls :meth:`close`.
 
@@ -2467,7 +2467,7 @@ Joining processes that use queues
     items which have been put on the queue will eventually be removed before the
     process is joined.  Otherwise you cannot be sure that processes which have
     put items on the queue will terminate.  Remember also that non-daemonic
-    processes will be automatically be joined.
+    processes will be joined automatically.
 
     An example which will deadlock is the following::
 
@@ -2483,7 +2483,7 @@ Joining processes that use queues
             p.join()                    # this deadlocks
             obj = queue.get()
 
-    A fix here would be to swap the last two lines round (or simply remove the
+    A fix here would be to swap the last two lines (or simply remove the
     ``p.join()`` line).
 
 Explicitly pass resources to child processes

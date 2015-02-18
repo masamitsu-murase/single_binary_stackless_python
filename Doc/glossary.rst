@@ -355,8 +355,8 @@ Glossary
       All of Python's immutable built-in objects are hashable, while no mutable
       containers (such as lists or dictionaries) are.  Objects which are
       instances of user-defined classes are hashable by default; they all
-      compare unequal (except with themselves), and their hash value is their
-      :func:`id`.
+      compare unequal (except with themselves), and their hash value is derived
+      from their :func:`id`.
 
    IDLE
       An Integrated Development Environment for Python.  IDLE is a basic editor
@@ -849,7 +849,7 @@ Glossary
       recognized as ending a line: the Unix end-of-line convention ``'\n'``,
       the Windows convention ``'\r\n'``, and the old Macintosh convention
       ``'\r'``.  See :pep:`278` and :pep:`3116`, as well as
-      :func:`str.splitlines` for an additional use.
+      :func:`bytes.splitlines` for an additional use.
 
    view
       The objects returned from :meth:`dict.keys`, :meth:`dict.values`, and
@@ -857,6 +857,14 @@ Glossary
       that will see changes in the underlying dictionary.  To force the
       dictionary view to become a full list use ``list(dictview)``.  See
       :ref:`dict-views`.
+
+   virtual environment
+      A cooperatively isolated runtime environment that allows Python users
+      and applications to install and upgrade Python distribution packages
+      without interfering with the behaviour of other Python applications
+      running on the same system.
+
+      See also :ref:`scripts-pyvenv`
 
    virtual machine
       A computer defined entirely in software.  Python's virtual machine

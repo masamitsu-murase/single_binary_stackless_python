@@ -118,7 +118,9 @@ is the module's name in the Python package namespace.
    .. versionchanged:: 3.2
       The *lvl* parameter now accepts a string representation of the
       level such as 'INFO' as an alternative to the integer constants
-      such as :const:`INFO`.
+      such as :const:`INFO`. Note, however, that levels are internally stored
+      as integers, and methods such as e.g. :meth:`getEffectiveLevel` and
+      :meth:`isEnabledFor` will return/expect to be passed integers.
 
 
 .. method:: Logger.isEnabledFor(lvl)
@@ -134,7 +136,9 @@ is the module's name in the Python package namespace.
    Indicates the effective level for this logger. If a value other than
    :const:`NOTSET` has been set using :meth:`setLevel`, it is returned. Otherwise,
    the hierarchy is traversed towards the root until a value other than
-   :const:`NOTSET` is found, and that value is returned.
+   :const:`NOTSET` is found, and that value is returned. The value returned is
+   an integer, typically one of :const:`logging.DEBUG`, :const:`logging.INFO`
+   etc.
 
 
 .. method:: Logger.getChild(suffix)
@@ -155,11 +159,13 @@ is the module's name in the Python package namespace.
    *msg* using the string formatting operator. (Note that this means that you can
    use keywords in the format string, together with a single dictionary argument.)
 
-   There are three keyword arguments in *kwargs* which are inspected: *exc_info*
-   which, if it does not evaluate as false, causes exception information to be
+   There are three keyword arguments in *kwargs* which are inspected:
+   *exc_info*, *stack_info*, and *extra*.
+
+   If *exc_info* does not evaluate as false, it causes exception information to be
    added to the logging message. If an exception tuple (in the format returned by
-   :func:`sys.exc_info`) is provided, it is used; otherwise, :func:`sys.exc_info`
-   is called to get the exception information.
+   :func:`sys.exc_info`) or an exception instance is provided, it is used;
+   otherwise, :func:`sys.exc_info` is called to get the exception information.
 
    The second optional keyword argument is *stack_info*, which defaults to
    ``False``. If true, stack information is added to the logging
@@ -215,6 +221,9 @@ is the module's name in the Python package namespace.
 
    .. versionadded:: 3.2
       The *stack_info* parameter was added.
+
+   .. versionchanged:: 3.5
+      The *exc_info* parameter can now accept exception instances.
 
 
 .. method:: Logger.info(msg, *args, **kwargs)
@@ -1049,11 +1058,16 @@ functions.
    of the defined levels is passed in, the corresponding string representation is
    returned. Otherwise, the string 'Level %s' % lvl is returned.
 
+   .. note:: Levels are internally integers (as they need to be compared in the
+      logging logic). This function is used to convert between an integer level
+      and the level name displayed in the formatted log output by means of the
+      ``%(levelname)s`` format specifier (see :ref:`logrecord-attributes`).
+
    .. versionchanged:: 3.4
       In Python versions earlier than 3.4, this function could also be passed a
       text level, and would return the corresponding numeric value of the level.
-      This undocumented behaviour was a mistake, and has been removed in Python
-      3.4.
+      This undocumented behaviour was considered a mistake, and was removed in
+      Python 3.4, but reinstated in 3.4.2 due to retain backward compatibility.
 
 .. function:: makeLogRecord(attrdict)
 

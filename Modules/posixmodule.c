@@ -902,8 +902,8 @@ path_converter(PyObject *o, void *p) {
 #endif
 
     narrow = PyBytes_AS_STRING(bytes);
-    if (length != strlen(narrow)) {
-        FORMAT_EXCEPTION(PyExc_ValueError, "embedded NUL character in %s");
+    if ((size_t)length != strlen(narrow)) {
+        FORMAT_EXCEPTION(PyExc_ValueError, "embedded null character in %s");
         Py_DECREF(bytes);
         return 0;
     }
@@ -6023,55 +6023,55 @@ typedef struct {
 } utime_t;
 
 /*
- * these macros assume that "utime" is a pointer to a utime_t
+ * these macros assume that "ut" is a pointer to a utime_t
  * they also intentionally leak the declaration of a pointer named "time"
  */
 #define UTIME_TO_TIMESPEC \
     struct timespec ts[2]; \
     struct timespec *time; \
-    if (utime->now) \
+    if (ut->now) \
         time = NULL; \
     else { \
-        ts[0].tv_sec = utime->atime_s; \
-        ts[0].tv_nsec = utime->atime_ns; \
-        ts[1].tv_sec = utime->mtime_s; \
-        ts[1].tv_nsec = utime->mtime_ns; \
+        ts[0].tv_sec = ut->atime_s; \
+        ts[0].tv_nsec = ut->atime_ns; \
+        ts[1].tv_sec = ut->mtime_s; \
+        ts[1].tv_nsec = ut->mtime_ns; \
         time = ts; \
     } \
 
 #define UTIME_TO_TIMEVAL \
     struct timeval tv[2]; \
     struct timeval *time; \
-    if (utime->now) \
+    if (ut->now) \
         time = NULL; \
     else { \
-        tv[0].tv_sec = utime->atime_s; \
-        tv[0].tv_usec = utime->atime_ns / 1000; \
-        tv[1].tv_sec = utime->mtime_s; \
-        tv[1].tv_usec = utime->mtime_ns / 1000; \
+        tv[0].tv_sec = ut->atime_s; \
+        tv[0].tv_usec = ut->atime_ns / 1000; \
+        tv[1].tv_sec = ut->mtime_s; \
+        tv[1].tv_usec = ut->mtime_ns / 1000; \
         time = tv; \
     } \
 
 #define UTIME_TO_UTIMBUF \
-    struct utimbuf u[2]; \
+    struct utimbuf u; \
     struct utimbuf *time; \
-    if (utime->now) \
+    if (ut->now) \
         time = NULL; \
     else { \
-        u.actime = utime->atime_s; \
-        u.modtime = utime->mtime_s; \
-        time = u; \
+        u.actime = ut->atime_s; \
+        u.modtime = ut->mtime_s; \
+        time = &u; \
     }
 
 #define UTIME_TO_TIME_T \
     time_t timet[2]; \
-    struct timet time; \
-    if (utime->now) \
+    time_t *time; \
+    if (ut->now) \
         time = NULL; \
     else { \
-        timet[0] = utime->atime_s; \
-        timet[1] = utime->mtime_s; \
-        time = &timet; \
+        timet[0] = ut->atime_s; \
+        timet[1] = ut->mtime_s; \
+        time = timet; \
     } \
 
 
@@ -6080,7 +6080,7 @@ typedef struct {
 #if UTIME_HAVE_DIR_FD
 
 static int
-utime_dir_fd(utime_t *utime, int dir_fd, char *path, int follow_symlinks)
+utime_dir_fd(utime_t *ut, int dir_fd, char *path, int follow_symlinks)
 {
 #ifdef HAVE_UTIMENSAT
     int flags = follow_symlinks ? 0 : AT_SYMLINK_NOFOLLOW;
@@ -6108,7 +6108,7 @@ utime_dir_fd(utime_t *utime, int dir_fd, char *path, int follow_symlinks)
 #if UTIME_HAVE_FD
 
 static int
-utime_fd(utime_t *utime, int fd)
+utime_fd(utime_t *ut, int fd)
 {
 #ifdef HAVE_FUTIMENS
     UTIME_TO_TIMESPEC;
@@ -6131,7 +6131,7 @@ utime_fd(utime_t *utime, int fd)
 #if UTIME_HAVE_NOFOLLOW_SYMLINKS
 
 static int
-utime_nofollow_symlinks(utime_t *utime, char *path)
+utime_nofollow_symlinks(utime_t *ut, char *path)
 {
 #ifdef HAVE_UTIMENSAT
     UTIME_TO_TIMESPEC;
@@ -6147,7 +6147,7 @@ utime_nofollow_symlinks(utime_t *utime, char *path)
 #ifndef MS_WINDOWS
 
 static int
-utime_default(utime_t *utime, char *path)
+utime_default(utime_t *ut, char *path)
 {
 #ifdef HAVE_UTIMENSAT
     UTIME_TO_TIMESPEC;
@@ -12708,7 +12708,16 @@ os_truncate_impl(PyModuleDef *module, path_t *path, Py_off_t length)
 #endif /* HAVE_TRUNCATE */
 
 
-#ifdef HAVE_POSIX_FALLOCATE
+/* Issue #22396: On 32-bit AIX platform, the prototypes of os.posix_fadvise()
+   and os.posix_fallocate() in system headers are wrong if _LARGE_FILES is
+   defined, which is the case in Python on AIX. AIX bug report:
+   http://www-01.ibm.com/support/docview.wss?uid=isg1IV56170 */
+#if defined(_AIX) && defined(_LARGE_FILES) && !defined(__64BIT__)
+#  define POSIX_FADVISE_AIX_BUG
+#endif
+
+
+#if defined(HAVE_POSIX_FALLOCATE) && !defined(POSIX_FADVISE_AIX_BUG)
 /*[clinic input]
 os.posix_fallocate
 
@@ -12771,10 +12780,10 @@ os_posix_fallocate_impl(PyModuleDef *module, int fd, Py_off_t offset, Py_off_t l
     }
     Py_RETURN_NONE;
 }
-#endif /* HAVE_POSIX_FALLOCATE */
+#endif /* HAVE_POSIX_FALLOCATE) && !POSIX_FADVISE_AIX_BUG */
 
 
-#ifdef HAVE_POSIX_FADVISE
+#if defined(HAVE_POSIX_FADVISE) && !defined(POSIX_FADVISE_AIX_BUG)
 /*[clinic input]
 os.posix_fadvise
 
@@ -12849,7 +12858,7 @@ os_posix_fadvise_impl(PyModuleDef *module, int fd, Py_off_t offset, Py_off_t len
     }
     Py_RETURN_NONE;
 }
-#endif /* HAVE_POSIX_FADVISE */
+#endif /* HAVE_POSIX_FADVISE && !POSIX_FADVISE_AIX_BUG */
 
 #ifdef HAVE_PUTENV
 
@@ -17470,7 +17479,7 @@ all_ins(PyObject *m)
 }
 
 
-#if (defined(_MSC_VER) || defined(__WATCOMC__) || defined(__BORLANDC__)) && !defined(__QNX__)
+#ifdef MS_WINDOWS
 #define INITFUNC PyInit_nt
 #define MODNAME "nt"
 

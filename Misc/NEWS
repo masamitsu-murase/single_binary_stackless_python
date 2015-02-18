@@ -10,6 +10,65 @@ Release date: TBA
 Core and Builtins
 -----------------
 
+- Issue #22604: Fix assertion error in debug mode when dividing a complex
+  number by (nan+0j).
+
+- Issue #20152: Convert the array module to Argument Clinic.
+
+- Issue #21052: Do not raise ImportWarning when sys.path_hooks or sys.meta_path
+  are set to None.
+
+- Issue #16518: Use 'bytes-like object required' in error messages that
+  previously used the far more cryptic "'x' does not support the buffer
+  protocol.
+
+- Issue #22470: Fixed integer overflow issues in "backslashreplace",
+  "xmlcharrefreplace", and "surrogatepass" error handlers.
+
+- Issue #22540: speed up `PyObject_IsInstance` and `PyObject_IsSubclass` in the
+  common case that the second argument has metaclass `type`.
+
+- Issue #18711: Add a new `PyErr_FormatV` function, similar to `PyErr_Format`
+  but accepting a `va_list` argument.
+
+- Issue #22520: Fix overflow checking when generating the repr of a unicode
+  object.
+
+- Issue #22519: Fix overflow checking in PyBytes_Repr.
+
+- Issue #22518: Fix integer overflow issues in latin-1 encoding.
+
+- Issue #16324: _charset parameter of MIMEText now also accepts
+  email.charset.Charset instances. Initial patch by Claude Paroz.
+
+- Issue #1764286: Fix inspect.getsource() to support decorated functions.
+  Patch by Claudiu Popa.
+
+- Issue #18554: os.__all__ includes posix functions.
+
+- Issue #21391: Use os.path.abspath in the shutil module.
+
+- Issue #11471: avoid generating a JUMP_FORWARD instruction at the end of
+  an if-block if there is no else-clause.  Original patch by Eugene Toder.
+
+- Issue #22215: Now ValueError is raised instead of TypeError when str or bytes
+  argument contains not permitted null character or byte.
+
+- Issue #22258: Fix the internal function set_inheritable() on Illumos.
+
+  This platform exposes the function ``ioctl(FIOCLEX)``, but calling it fails
+  with errno is ENOTTY: "Inappropriate ioctl for device". set_inheritable()
+  now falls back to the slower ``fcntl()`` (``F_GETFD`` and then ``F_SETFD``).
+
+- Issue #21389: Displaying the __qualname__ of the underlying function in the
+  repr of a bound method.
+
+- Issue #22206: Using pthread, PyThread_create_key() now sets errno to ENOMEM
+  and returns -1 (error) on integer overflow.
+
+- Issue #20184: Argument Clinic based signature introspection added for
+  30 of the builtin functions.
+
 - Issue #22116: C functions and methods (of the 'builtin_function_or_method'
   type) can now be weakref'ed.  Patch by Wei Wu.
 
@@ -115,7 +174,245 @@ Core and Builtins
 Library
 -------
 
+- Issue #11694: Raise ConversionError in xdrlib as documented.  Patch
+  by Filip Gruszczyński and Claudiu Popa.
+
+- Issue #19380: Optimized parsing of regular expressions.
+
+- Issue #1519638: Now unmatched groups are replaced with empty strings in re.sub()
+  and re.subn().
+
+- Issue #18615: sndhdr.what/whathdr now return a namedtuple.
+
+- Issue #22462: Fix pyexpat's creation of a dummy frame to make it
+  appear in exception tracebacks.
+
+- Issue #21965: Add support for in-memory SSL to the ssl module.  Patch
+  by Geert Jansen.
+
+- Issue #21173: Fix len() on a WeakKeyDictionary when .clear() was called
+  with an iterator alive.
+
+- Issue #11866: Eliminated race condition in the computation of names
+  for new threads.
+
+- Issue #21905: Avoid RuntimeError in pickle.whichmodule() when sys.modules
+  is mutated while iterating.  Patch by Olivier Grisel.
+
+- Issue #11271: concurrent.futures.Executor.map() now takes a *chunksize*
+  argument to allow batching of tasks in child processes and improve
+  performance of ProcessPoolExecutor.  Patch by Dan O'Reilly.
+
+- Issue #21883: os.path.join() and os.path.relpath() now raise a TypeError with
+  more helpful error message for unsupported or mismatched types of arguments.
+
+- Issue #22219: The zipfile module CLI now adds entries for directories
+  (including empty directories) in ZIP file.
+
+- Issue #22449: In the ssl.SSLContext.load_default_certs, consult the
+  enviromental variables SSL_CERT_DIR and SSL_CERT_FILE on Windows.
+
+- Issue #22508: The email.__version__ variable has been removed; the email
+  code is no longer shipped separately from the stdlib, and __version__
+  hasn't been updated in several releases.
+
+- Issue #20076: Added non derived UTF-8 aliases to locale aliases table.
+
+- Issue #20079: Added locales supported in glibc 2.18 to locale alias table.
+
+- Issue #20218: Added convenience methods read_text/write_text and read_bytes/
+  write_bytes to pathlib.Path objects.
+
+- Issue #22437: Number of capturing groups in regular expression is no longer
+  limited by 100.
+
+- Issue #17442: InteractiveInterpreter now displays the full chained traceback
+  in its showtraceback method, to match the built in interactive interpreter.
+
+- Issue #10510: distutils register and upload methods now use HTML standards
+  compliant CRLF line endings.
+
+- Issue #9850: Fixed macpath.join() for empty first component.  Patch by
+  Oleg Oshmyan.
+
+- Issue #5309: distutils' build and build_ext commands now accept a ``-j``
+  option to enable parallel building of extension modules.
+
+- Issue #22448: Improve canceled timer handles cleanup to prevent
+  unbound memory usage. Patch by Joshua Moore-Oliva.
+
+- Issue #22427: TemporaryDirectory no longer attempts to clean up twice when
+  used in the with statement in generator.
+
+- Issue #22362: Forbidden ambiguous octal escapes out of range 0-0o377 in
+  regular expressions.
+
+- Issue #20912: Now directories added to ZIP file have correct Unix and MS-DOS
+  directory attributes.
+
+- Issue #21866: ZipFile.close() no longer writes ZIP64 central directory
+  records if allowZip64 is false.
+
+- Issue #22278: Fix urljoin problem with relative urls, a regression observed
+  after changes to issue22118 were submitted.
+
+- Issue #22415: Fixed debugging output of the GROUPREF_EXISTS opcode in the re
+  module.  Removed trailing spaces in debugging output.
+
+- Issue #22423: Unhandled exception in thread no longer causes unhandled
+  AttributeError when sys.stderr is None.
+
+- Issue #21332: Ensure that ``bufsize=1`` in subprocess.Popen() selects
+  line buffering, rather than block buffering.  Patch by Akira Li.
+
+- Issue #21091: Fix API bug: email.message.EmailMessage.is_attachment is now
+  a method.
+
+- Issue #21079: Fix email.message.EmailMessage.is_attachment to return the
+  correct result when the header has parameters as well as a value.
+
+- Issue #22247: Add NNTPError to nntplib.__all__.
+
+- Issue #22366: urllib.request.urlopen will accept a context object
+  (SSLContext) as an argument which will then used be for HTTPS connection.
+  Patch by Alex Gaynor.
+
+- Issue #4180: The warnings registries are now reset when the filters
+  are modified.
+
+- Issue #22419: Limit the length of incoming HTTP request in wsgiref server to
+  65536 bytes and send a 414 error code for higher lengths. Patch contributed
+  by Devin Cook.
+
+- Lax cookie parsing in http.cookies could be a security issue when combined
+  with non-standard cookie handling in some Web browsers.  Reported by
+  Sergey Bobrov.
+
+- Issue #20537: logging methods now accept an exception instance as well as a
+  Boolean value or exception tuple. Thanks to Yury Selivanov for the patch.
+
+- Issue #22384: An exception in Tkinter callback no longer crashes the program
+  when it is run with pythonw.exe.
+
+- Issue #22168: Prevent turtle AttributeError with non-default Canvas on OS X.
+
+- Issue #21147: sqlite3 now raises an exception if the request contains a null
+  character instead of truncate it.  Based on patch by Victor Stinner.
+
+- Issue #13968: The glob module now supports recursive search in
+  subdirectories using the "**" pattern.
+
+- Issue #21951: Fixed a crash in Tkinter on AIX when called Tcl command with
+  empty string or tuple argument.
+
+- Issue #21951: Tkinter now most likely raises MemoryError instead of crash
+  if the memory allocation fails.
+
+- Issue #22338: Fix a crash in the json module on memory allocation failure.
+
+- Issue #12410: imaplib.IMAP4 now supports the context management protocol.
+  Original patch by Tarek Ziadé.
+
+- Issue #21270: We now override tuple methods in mock.call objects so that
+  they can be used as normal call attributes.
+
+- Issue #16662: load_tests() is now unconditionally run when it is present in
+  a package's __init__.py.  TestLoader.loadTestsFromModule() still accepts
+  use_load_tests, but it is deprecated and ignored.  A new keyword-only
+  attribute `pattern` is added and documented.  Patch given by Robert Collins,
+  tweaked by Barry Warsaw.
+
+- Issue #22226: First letter no longer is stripped from the "status" key in
+  the result of Treeview.heading().
+
+- Issue #19524: Fixed resource leak in the HTTP connection when an invalid
+  response is received.  Patch by Martin Panter.
+
+- Issue #20421: Add a .version() method to SSL sockets exposing the actual
+  protocol version in use.
+
+- Issue #19546: configparser exceptions no longer expose implementation details.
+  Chained KeyErrors are removed, which leads to cleaner tracebacks.  Patch by
+  Claudiu Popa.
+
+- Issue #22051: turtledemo no longer reloads examples to re-run them.
+  Initialization of variables and gui setup should be done in main(),
+  which is called each time a demo is run, but not on import.
+
+- Issue #21933: Turtledemo users can change the code font size with a menu
+  selection or control(command) '-' or '+' or control-mousewheel.
+  Original patch by Lita Cho.
+
+- Issue #21597: The separator between the turtledemo text pane and the drawing
+  canvas can now be grabbed and dragged with a mouse.  The code text pane can
+  be widened to easily view or copy the full width of the text.  The canvas
+  can be widened on small screens.  Original patches by Jan Kanis and Lita Cho.
+
+- Issue #18132: Turtledemo buttons no longer disappear when the window is
+  shrunk.  Original patches by Jan Kanis and Lita Cho.
+
+- Issue #22043: time.monotonic() is now always available.
+  ``threading.Lock.acquire()``, ``threading.RLock.acquire()`` and socket
+  operations now use a monotonic clock, instead of the system clock, when a
+  timeout is used.
+
+- Issue #21527: Add a default number of workers to ThreadPoolExecutor equal
+  to 5 times the number of CPUs.  Patch by Claudiu Popa.
+
+- Issue #22216: smtplib now resets its state more completely after a quit.  The
+  most obvious consequence of the previous behavior was a STARTTLS failure
+  during a connect/starttls/quit/connect/starttls sequence.
+
+- Issue #22098: ctypes' BigEndianStructure and LittleEndianStructure now
+  define an empty __slots__ so that subclasses don't always get an instance
+  dict.  Patch by Claudiu Popa.
+
+- Issue #22185: Fix an occasional RuntimeError in threading.Condition.wait()
+  caused by mutation of the waiters queue without holding the lock.  Patch
+  by Doug Zongker.
+
+- Issue #22287: On UNIX, _PyTime_gettimeofday() now uses
+  clock_gettime(CLOCK_REALTIME) if available. As a side effect, Python now
+  depends on the librt library on Solaris and on Linux (only with glibc older
+  than 2.17).
+
+- Issue #22182: Use e.args to unpack exceptions correctly in
+  distutils.file_util.move_file. Patch by Claudiu Popa.
+
+- The webbrowser module now uses subprocess's start_new_session=True rather
+  than a potentially risky preexec_fn=os.setsid call.
+
+- Issue #22042: signal.set_wakeup_fd(fd) now raises an exception if the file
+  descriptor is in blocking mode.
+
+- Issue #16808: inspect.stack() now returns a named tuple instead of a tuple.
+  Patch by Daniel Shahaf.
+
+- Issue #22236: Fixed Tkinter images copying operations in NoDefaultRoot mode.
+
+- Issue #2527: Add a *globals* argument to timeit functions, in order to
+  override the globals namespace in which the timed code is executed.
+  Patch by Ben Roberts.
+
+- Issue #22118: Switch urllib.parse to use RFC 3986 semantics for the
+  resolution of relative URLs, rather than RFCs 1808 and 2396.
+  Patch by Demian Brecht.
+
+- Issue #21549: Added the "members" parameter to TarFile.list().
+
+- Issue #19628: Allow compileall recursion depth to be specified with a -r
+  option.
+
+- Issue #15696: Add a __sizeof__ implementation for mmap objects on Windows.
+
+- Issue #22068: Avoided reference loops with Variables and Fonts in Tkinter.
+
+- Issue #22165: SimpleHTTPRequestHandler now supports undecodable file names.
+
 - Issue #15381: Optimized line reading in io.BytesIO.
+
+- Issue #8797: Raise HTTPError on failed Basic Authentication immediately.
+  Initial patch by Sam Bull.
 
 - Issue #20729: Restored the use of lazy iterkeys()/itervalues()/iteritems()
   in the mailbox module.
@@ -386,6 +683,13 @@ Library
 - Issue #21455: Add a default backlog to socket.listen().
 
 - Issue #21525: Most Tkinter methods which accepted tuples now accept lists too.
+
+- Issue #22166:  with the assistance of a new internal _codecs._forget_codec
+  helping function, test_codecs now clears the encoding caches to avoid the
+  appearance of a reference leak
+
+- Issue #22236: Tkinter tests now don't reuse default root window.  New root
+  window is created for every test class.
 
 - Issue #10744: Fix PEP 3118 format strings on ctypes objects with a nontrivial
   shape.
@@ -681,6 +985,7 @@ Library
   keyword-only.
 
 - Issue #20334: inspect.Signature and inspect.Parameter are now hashable.
+  Thanks to Antony Lee for bug reports and suggestions.
 
 - Issue #15916: doctest.DocTestSuite returns an empty unittest.TestSuite instead
   of raising ValueError if it finds no tests
@@ -708,7 +1013,13 @@ Library
 IDLE
 ----
 
-- Issue #17172: Add the ability to run turtledemo from Idle.
+- Issue #17390: Adjust Editor window title; remove 'Python',
+  move version to end.
+
+- Issue #14105: Idle debugger breakpoints no longer disappear
+  when inseting or deleting lines.
+
+- Issue #17172: Turtledemo can now be run from Idle.
   Currently, the entry is on the Help menu, but it may move to Run.
   Patch by Ramchandra Apt and Lita Cho.
 
@@ -750,8 +1061,20 @@ IDLE
 - Issue #17654: Ensure IDLE menus are customized properly on OS X for
   non-framework builds and for all variants of Tk.
 
+Tests
+-----
+
+- Issue #21456: Skip two tests in test_urllib2net.py if _ssl module not
+  present. Patch by Remi Pointel.
+
 Build
 -----
+
+- Issue #16537: Check whether self.extensions is empty in setup.py. Patch by
+  Jonathan Hosmer.
+
+- Issue #22359: Remove incorrect uses of recursive make.  Patch by Jonas
+  Wagner.
 
 - Issue #21958: Define HAVE_ROUND when building with Visual Studio 2013 and
   above.  Patch by Zachary Turner.
@@ -797,6 +1120,13 @@ Build
 - Issue #17095: Fix Modules/Setup *shared* support.
 
 - Issue #21811: Anticipated fixes to support OS X versions > 10.9.
+
+- Issue #21166: Prevent possible segfaults and other random failures of
+  python --generate-posix-vars in pybuilddir.txt build target.
+
+- Issue #18096: Fix library order returned by python-config.
+
+- Issue #17219: Add library build dir for Python extension cross-builds.
 
 C API
 -----
@@ -929,6 +1259,14 @@ Tests
 
 Tools/Demos
 -----------
+
+- Issue #20076: The makelocalealias.py script no longer ignores UTF-8 mapping.
+
+- Issue #20079: The makelocalealias.py script now can parse the SUPPORTED file
+  from glibc sources and supports command line options for source paths.
+
+- Issue #22201: Command-line interface of the zipfile module now correctly
+  extracts ZIP files with directory entries.  Patch by Ryan Wilson.
 
 - Issue #22120: For functions using an unsigned integer return converter,
   Argument Clinic now generates a cast to that type for the comparison
@@ -2155,7 +2493,7 @@ Library
 - Issue #19448: Add private API to SSL module to lookup ASN.1 objects by OID,
   NID, short name and long name.
 
-- Issue #19282: dbm.open now supports the context manager protocol. (Inital
+- Issue #19282: dbm.open now supports the context management protocol. (Inital
   patch by Claudiu Popa)
 
 - Issue #8311: Added support for writing any bytes-like objects in the aifc,
@@ -2864,7 +3202,7 @@ Library
 - Issue #18830: inspect.getclasstree() no longer produces duplicate entries even
   when input list contains duplicates.
 
-- Issue #18878: sunau.open now supports the context manager protocol.  Based on
+- Issue #18878: sunau.open now supports the context management protocol.  Based on
   patches by Claudiu Popa and R. David Murray.
 
 - Issue #18909: Fix _tkinter.tkapp.interpaddr() on Windows 64-bit, don't cast
@@ -3504,7 +3842,7 @@ Library
   initialization, so as to reclaim allocated resources (Python callbacks)
   at shutdown.  Original patch by Robin Schreiber.
 
-- Issue #17616: wave.open now supports the context manager protocol.
+- Issue #17616: wave.open now supports the context management protocol.
 
 - Issue #18599: Fix name attribute of _sha1.sha1() object. It now returns
   'SHA1' instead of 'SHA'.

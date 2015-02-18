@@ -25,6 +25,11 @@ cflags = sysconfig.get_config_var('CFLAGS')
 py_cflags_nodist = sysconfig.get_config_var('PY_CFLAGS_NODIST')
 sysconfig.get_config_vars()['CFLAGS'] = cflags + ' ' + py_cflags_nodist
 
+class Dummy:
+    """Hack for parallel build"""
+    ProcessPoolExecutor = None
+sys.modules['concurrent.futures.process'] = Dummy
+
 def get_platform():
     # cross build
     if "_PYTHON_HOST_PLATFORM" in os.environ:
@@ -174,6 +179,8 @@ class PyBuildExt(build_ext):
         build_ext.__init__(self, dist)
         self.failed = []
         self.failed_on_import = []
+        if '-j' in os.environ.get('MAKEFLAGS', ''):
+            self.parallel = True
 
     def build_extensions(self):
 
@@ -253,7 +260,10 @@ class PyBuildExt(build_ext):
 
         build_ext.build_extensions(self)
 
-        longest = max([len(e.name) for e in self.extensions])
+        for ext in self.extensions:
+            self.check_extension_import(ext)
+
+        longest = max([len(e.name) for e in self.extensions], default=0)
         if self.failed or self.failed_on_import:
             all_failed = self.failed + self.failed_on_import
             longest = max(longest, max([len(name) for name in all_failed]))
@@ -305,6 +315,15 @@ class PyBuildExt(build_ext):
                           (ext.name, sys.exc_info()[1]))
             self.failed.append(ext.name)
             return
+
+    def check_extension_import(self, ext):
+        # Don't try to import an extension that has failed to compile
+        if ext.name in self.failed:
+            self.announce(
+                'WARNING: skipping import check for failed build "%s"' %
+                ext.name, level=1)
+            return
+
         # Workaround for Mac OS X: The Carbon-based modules cannot be
         # reliably imported into a command-line Python
         if 'Carbon' in ext.extra_link_args:
@@ -360,17 +379,6 @@ class PyBuildExt(build_ext):
                 os.remove(newname)
             os.rename(ext_filename, newname)
 
-            # XXX -- This relies on a Vile HACK in
-            # distutils.command.build_ext.build_extension().  The
-            # _built_objects attribute is stored there strictly for
-            # use here.
-            # If there is a failure, _built_objects may not be there,
-            # so catch the AttributeError and move on.
-            try:
-                for filename in self._built_objects:
-                    os.remove(filename)
-            except AttributeError:
-                self.announce('unable to remove files (ignored)')
         except:
             exc_type, why, tb = sys.exc_info()
             self.announce('*** WARNING: importing extension "%s" '

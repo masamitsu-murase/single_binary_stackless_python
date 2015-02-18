@@ -39,8 +39,8 @@
 #include "memory.h"
 
 
-#if MPD_MAJOR_VERSION != 2
-  #error "libmpdec major version 2 required"
+#if !defined(MPD_VERSION_HEX) || MPD_VERSION_HEX < 0x02040100
+  #error "libmpdec version >= 2.4.1 required"
 #endif
 
 
@@ -5640,7 +5640,7 @@ PyInit__decimal(void)
             goto error; /* GCOV_NOT_REACHED */
         }
 
-        ASSIGN_PTR(cm->ex, PyErr_NewException((char *)cm->fqname, base, NULL));
+        ASSIGN_PTR(cm->ex, PyErr_NewException(cm->fqname, base, NULL));
         Py_DECREF(base);
 
         /* add to module */
@@ -5672,7 +5672,7 @@ PyInit__decimal(void)
             goto error; /* GCOV_NOT_REACHED */
         }
 
-        ASSIGN_PTR(cm->ex, PyErr_NewException((char *)cm->fqname, base, NULL));
+        ASSIGN_PTR(cm->ex, PyErr_NewException(cm->fqname, base, NULL));
         Py_DECREF(base);
 
         Py_INCREF(cm->ex);

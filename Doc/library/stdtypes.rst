@@ -354,7 +354,7 @@ Notes:
    The numeric literals accepted include the digits ``0`` to ``9`` or any
    Unicode equivalent (code points with the ``Nd`` property).
 
-   See http://www.unicode.org/Public/6.0.0/ucd/extracted/DerivedNumericType.txt
+   See http://www.unicode.org/Public/7.0.0/ucd/extracted/DerivedNumericType.txt
    for a complete list of code points with the ``Nd`` property.
 
 
@@ -1830,7 +1830,7 @@ expression support in the :mod:`re` module).
       >>> '1,2,3'.split(',')
       ['1', '2', '3']
       >>> '1,2,3'.split(',', maxsplit=1)
-      ['1', '2 3']
+      ['1', '2,3']
       >>> '1,2,,3,'.split(',')
       ['1', '2', '', '3', '']
 
@@ -1864,7 +1864,7 @@ expression support in the :mod:`re` module).
    For example::
 
       >>> 'ab c\n\nde fg\rkl\r\n'.splitlines()
-      ['ab c', '', 'de fg', 'kl']``
+      ['ab c', '', 'de fg', 'kl']
       >>> 'ab c\n\nde fg\rkl\r\n'.splitlines(keepends=True)
       ['ab c\n', '\n', 'de fg\r', 'kl\r\n']
 
@@ -2695,7 +2695,7 @@ produce new objects.
       >>> b'1,2,3'.split(b',')
       [b'1', b'2', b'3']
       >>> b'1,2,3'.split(b',', maxsplit=1)
-      [b'1', b'2 3']
+      [b'1', b'2,3']
       >>> b'1,2,,3,'.split(b',')
       [b'1', b'2', b'', b'3', b'']
 
@@ -2932,7 +2932,7 @@ place, and instead produce new objects.
    For example::
 
       >>> b'ab c\n\nde fg\rkl\r\n'.splitlines()
-      [b'ab c', b'', b'de fg', b'kl']``
+      [b'ab c', b'', b'de fg', b'kl']
       >>> b'ab c\n\nde fg\rkl\r\n'.splitlines(keepends=True)
       [b'ab c\n', b'\n', b'de fg\r', b'kl\r\n']
 

@@ -14,6 +14,7 @@ import re
 import base64
 import shutil
 import urllib.parse
+import html
 import http.client
 import tempfile
 from io import BytesIO
@@ -266,6 +267,32 @@ class SimpleHTTPServerTestCase(BaseTestCase):
         self.assertIsNotNone(response.reason)
         if data:
             self.assertEqual(data, body)
+        return body
+
+    @unittest.skipUnless(support.TESTFN_UNDECODABLE,
+                         'need support.TESTFN_UNDECODABLE')
+    def test_undecodable_filename(self):
+        enc = sys.getfilesystemencoding()
+        filename = os.fsdecode(support.TESTFN_UNDECODABLE) + '.txt'
+        with open(os.path.join(self.tempdir, filename), 'wb') as f:
+            f.write(support.TESTFN_UNDECODABLE)
+        response = self.request(self.tempdir_name + '/')
+        if sys.platform == 'darwin':
+            # On Mac OS the HFS+ filesystem replaces bytes that aren't valid
+            # UTF-8 into a percent-encoded value.
+            for name in os.listdir(self.tempdir):
+                if name != 'test': # Ignore a filename created in setUp().
+                    filename = name
+                    break
+        body = self.check_status_and_reason(response, 200)
+        quotedname = urllib.parse.quote(filename, errors='surrogatepass')
+        self.assertIn(('href="%s"' % quotedname)
+                      .encode(enc, 'surrogateescape'), body)
+        self.assertIn(('>%s<' % html.escape(filename))
+                      .encode(enc, 'surrogateescape'), body)
+        response = self.request(self.tempdir_name + '/' + quotedname)
+        self.check_status_and_reason(response, 200,
+                                     data=support.TESTFN_UNDECODABLE)
 
     def test_get(self):
         #constructs the path relative to the root directory of the HTTPServer

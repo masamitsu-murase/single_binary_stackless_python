@@ -11,6 +11,7 @@ test.support.import_module('threading')
 
 from test.script_helper import assert_python_ok
 
+import os
 import sys
 import threading
 import time
@@ -444,6 +445,11 @@ class ThreadPoolExecutorTest(ThreadPoolMixin, ExecutorTest, unittest.TestCase):
         self.executor.shutdown(wait=True)
         self.assertCountEqual(finished, range(10))
 
+    def test_default_workers(self):
+        executor = self.executor_type()
+        self.assertEqual(executor._max_workers,
+                         (os.cpu_count() or 1) * 5)
+
 
 class ProcessPoolExecutorTest(ProcessPoolMixin, ExecutorTest, unittest.TestCase):
     def test_killed_child(self):
@@ -457,6 +463,22 @@ class ProcessPoolExecutorTest(ProcessPoolMixin, ExecutorTest, unittest.TestCase)
             self.assertRaises(BrokenProcessPool, fut.result)
         # Submitting other jobs fails as well.
         self.assertRaises(BrokenProcessPool, self.executor.submit, pow, 2, 8)
+
+    def test_map_chunksize(self):
+        def bad_map():
+            list(self.executor.map(pow, range(40), range(40), chunksize=-1))
+
+        ref = list(map(pow, range(40), range(40)))
+        self.assertEqual(
+            list(self.executor.map(pow, range(40), range(40), chunksize=6)),
+            ref)
+        self.assertEqual(
+            list(self.executor.map(pow, range(40), range(40), chunksize=50)),
+            ref)
+        self.assertEqual(
+            list(self.executor.map(pow, range(40), range(40), chunksize=40)),
+            ref)
+        self.assertRaises(ValueError, bad_map)
 
 
 class FutureTests(unittest.TestCase):

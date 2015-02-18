@@ -19,7 +19,8 @@ higher-level functions in :ref:`shutil <archiving-operations>`.
 
 Some facts and figures:
 
-* reads and writes :mod:`gzip`, :mod:`bz2` and :mod:`lzma` compressed archives.
+* reads and writes :mod:`gzip`, :mod:`bz2` and :mod:`lzma` compressed archives
+  if the respective modules are available.
 
 * read/write support for the POSIX.1-1988 (ustar) format.
 
@@ -176,6 +177,13 @@ The :mod:`tarfile` module defines the following exceptions:
    Is raised by :meth:`TarInfo.frombuf` if the buffer it gets is invalid.
 
 
+The following constants are available at the module level:
+
+.. data:: ENCODING
+
+   The default character encoding: ``'utf-8'`` on Windows, the value returned by
+   :func:`sys.getfilesystemencoding` otherwise.
+
 
 Each of the following constants defines a tar archive format that the
 :mod:`tarfile` module is able to create. See section :ref:`tar-formats` for
@@ -202,19 +210,14 @@ details.
    The default format for creating archives. This is currently :const:`GNU_FORMAT`.
 
 
-The following variables are available on module level:
-
-
-.. data:: ENCODING
-
-   The default character encoding: ``'utf-8'`` on Windows,
-   :func:`sys.getfilesystemencoding` otherwise.
-
-
 .. seealso::
 
    Module :mod:`zipfile`
       Documentation of the :mod:`zipfile` standard module.
+
+   :ref:`archiving-operations`
+      Documentation of the higher-level archiving facilities provided by the
+      standard :mod:`shutil` module.
 
    `GNU tar manual, Basic Tar Format <http://www.gnu.org/software/tar/manual/html_node/Standard.html>`_
       Documentation for tar archive files, including GNU tar extensions.
@@ -238,7 +241,7 @@ be finalized; only the internally used file object will be closed. See the
 :ref:`tar-examples` section for a use case.
 
 .. versionadded:: 3.2
-   Added support for the context manager protocol.
+   Added support for the context management protocol.
 
 .. class:: TarFile(name=None, mode='r', fileobj=None, format=DEFAULT_FORMAT, tarinfo=TarInfo, dereference=False, ignore_zeros=False, encoding=ENCODING, errors='surrogateescape', pax_headers=None, debug=0, errorlevel=0)
 
@@ -325,11 +328,15 @@ be finalized; only the internally used file object will be closed. See the
    returned by :meth:`getmembers`.
 
 
-.. method:: TarFile.list(verbose=True)
+.. method:: TarFile.list(verbose=True, *, members=None)
 
    Print a table of contents to ``sys.stdout``. If *verbose* is :const:`False`,
    only the names of the members are printed. If it is :const:`True`, output
-   similar to that of :program:`ls -l` is produced.
+   similar to that of :program:`ls -l` is produced. If optional *members* is
+   given, it must be a subset of the list returned by :meth:`getmembers`.
+
+   .. versionchanged:: 3.5
+      Added the *members* parameter.
 
 
 .. method:: TarFile.next()

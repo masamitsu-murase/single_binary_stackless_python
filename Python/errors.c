@@ -384,6 +384,30 @@ PyErr_SetExcInfo(PyObject *p_type, PyObject *p_value, PyObject *p_traceback)
     Py_XDECREF(oldtraceback);
 }
 
+/* Like PyErr_Restore(), but if an exception is already set,
+   set the context associated with it.
+ */
+void
+_PyErr_ChainExceptions(PyObject *exc, PyObject *val, PyObject *tb)
+{
+    if (exc == NULL)
+        return;
+
+    if (PyErr_Occurred()) {
+        PyObject *exc2, *val2, *tb2;
+        PyErr_Fetch(&exc2, &val2, &tb2);
+        PyErr_NormalizeException(&exc, &val, &tb);
+        Py_DECREF(exc);
+        Py_XDECREF(tb);
+        PyErr_NormalizeException(&exc2, &val2, &tb2);
+        PyException_SetContext(val2, val);
+        PyErr_Restore(exc2, val2, tb2);
+    }
+    else {
+        PyErr_Restore(exc, val, tb);
+    }
+}
+
 /* Convenience functions to set a type error exception and return 0 */
 
 int
@@ -749,18 +773,10 @@ PyErr_BadInternalCall(void)
 #define PyErr_BadInternalCall() _PyErr_BadInternalCall(__FILE__, __LINE__)
 
 
-
 PyObject *
-PyErr_Format(PyObject *exception, const char *format, ...)
+PyErr_FormatV(PyObject *exception, const char *format, va_list vargs)
 {
-    va_list vargs;
     PyObject* string;
-
-#ifdef HAVE_STDARG_PROTOTYPES
-    va_start(vargs, format);
-#else
-    va_start(vargs);
-#endif
 
 #ifdef Py_DEBUG
     /* in debug mode, PyEval_EvalFrameEx() fails with an assertion error
@@ -771,10 +787,23 @@ PyErr_Format(PyObject *exception, const char *format, ...)
     string = PyUnicode_FromFormatV(format, vargs);
     PyErr_SetObject(exception, string);
     Py_XDECREF(string);
-    va_end(vargs);
     return NULL;
 }
 
+
+PyObject *
+PyErr_Format(PyObject *exception, const char *format, ...)
+{
+    va_list vargs;
+#ifdef HAVE_STDARG_PROTOTYPES
+    va_start(vargs, format);
+#else
+    va_start(vargs);
+#endif
+    PyErr_FormatV(exception, format, vargs);
+    va_end(vargs);
+    return NULL;
+}
 
 
 PyObject *

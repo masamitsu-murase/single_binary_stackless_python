@@ -124,10 +124,13 @@ import sre_compile
 import sre_parse
 
 # public symbols
-__all__ = [ "match", "fullmatch", "search", "sub", "subn", "split", "findall",
-    "compile", "purge", "template", "escape", "A", "I", "L", "M", "S", "X",
-    "U", "ASCII", "IGNORECASE", "LOCALE", "MULTILINE", "DOTALL", "VERBOSE",
-    "UNICODE", "error" ]
+__all__ = [
+    "match", "fullmatch", "search", "sub", "subn", "split",
+    "findall", "finditer", "compile", "purge", "template", "escape",
+    "error", "A", "I", "L", "M", "S", "X", "U",
+    "ASCII", "IGNORECASE", "LOCALE", "MULTILINE", "DOTALL", "VERBOSE",
+    "UNICODE",
+]
 
 __version__ = "2.2.1"
 
@@ -205,14 +208,12 @@ def findall(pattern, string, flags=0):
     Empty matches are included in the result."""
     return _compile(pattern, flags).findall(string)
 
-if sys.hexversion >= 0x02020000:
-    __all__.append("finditer")
-    def finditer(pattern, string, flags=0):
-        """Return an iterator over all non-overlapping matches in the
-        string.  For each match, the iterator returns a match object.
+def finditer(pattern, string, flags=0):
+    """Return an iterator over all non-overlapping matches in the
+    string.  For each match, the iterator returns a match object.
 
-        Empty matches are included in the result."""
-        return _compile(pattern, flags).finditer(string)
+    Empty matches are included in the result."""
+    return _compile(pattern, flags).finditer(string)
 
 def compile(pattern, flags=0):
     "Compile a regular expression pattern, returning a pattern object."
@@ -272,12 +273,10 @@ _pattern_type = type(sre_compile.compile("", 0))
 _MAXCACHE = 512
 def _compile(pattern, flags):
     # internal: compile pattern
-    bypass_cache = flags & DEBUG
-    if not bypass_cache:
-        try:
-            return _cache[type(pattern), pattern, flags]
-        except KeyError:
-            pass
+    try:
+        return _cache[type(pattern), pattern, flags]
+    except KeyError:
+        pass
     if isinstance(pattern, _pattern_type):
         if flags:
             raise ValueError(
@@ -286,7 +285,7 @@ def _compile(pattern, flags):
     if not sre_compile.isstring(pattern):
         raise TypeError("first argument must be string or compiled pattern")
     p = sre_compile.compile(pattern, flags)
-    if not bypass_cache:
+    if not (flags & DEBUG):
         if len(_cache) >= _MAXCACHE:
             _cache.clear()
         _cache[type(pattern), pattern, flags] = p

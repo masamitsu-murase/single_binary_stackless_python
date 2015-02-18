@@ -1,5 +1,6 @@
 """Tests for tasks.py."""
 
+import os
 import re
 import sys
 import types
@@ -551,6 +552,21 @@ class TaskTests(test_utils.TestCase):
         self.assertAlmostEqual(0.01, loop.time())
         self.assertTrue(fut.done())
         self.assertTrue(fut.cancelled())
+
+    def test_wait_for_race_condition(self):
+
+        def gen():
+            yield 0.1
+            yield 0.1
+            yield 0.1
+
+        loop = self.new_test_loop(gen)
+
+        fut = asyncio.Future(loop=loop)
+        task = asyncio.wait_for(fut, timeout=0.2, loop=loop)
+        loop.call_later(0.1, fut.set_result, "ok")
+        res = loop.run_until_complete(task)
+        self.assertEqual(res, "ok")
 
     def test_wait(self):
 
@@ -1753,25 +1769,31 @@ class GatherTestsBase:
         self.assertEqual(fut.result(), [3, 1, exc, exc2])
 
     def test_env_var_debug(self):
+        aio_path = os.path.dirname(os.path.dirname(asyncio.__file__))
+
         code = '\n'.join((
             'import asyncio.coroutines',
             'print(asyncio.coroutines._DEBUG)'))
 
         # Test with -E to not fail if the unit test was run with
         # PYTHONASYNCIODEBUG set to a non-empty string
-        sts, stdout, stderr = assert_python_ok('-E', '-c', code)
+        sts, stdout, stderr = assert_python_ok('-E', '-c', code,
+                                               PYTHONPATH=aio_path)
         self.assertEqual(stdout.rstrip(), b'False')
 
         sts, stdout, stderr = assert_python_ok('-c', code,
-                                               PYTHONASYNCIODEBUG='')
+                                               PYTHONASYNCIODEBUG='',
+                                               PYTHONPATH=aio_path)
         self.assertEqual(stdout.rstrip(), b'False')
 
         sts, stdout, stderr = assert_python_ok('-c', code,
-                                               PYTHONASYNCIODEBUG='1')
+                                               PYTHONASYNCIODEBUG='1',
+                                               PYTHONPATH=aio_path)
         self.assertEqual(stdout.rstrip(), b'True')
 
         sts, stdout, stderr = assert_python_ok('-E', '-c', code,
-                                               PYTHONASYNCIODEBUG='1')
+                                               PYTHONASYNCIODEBUG='1',
+                                               PYTHONPATH=aio_path)
         self.assertEqual(stdout.rstrip(), b'False')
 
 

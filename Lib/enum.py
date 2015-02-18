@@ -159,7 +159,7 @@ class EnumMeta(type):
             # If another member with the same value was already defined, the
             # new member becomes an alias to the existing one.
             for name, canonical_member in enum_class._member_map_.items():
-                if canonical_member.value == enum_member._value_:
+                if canonical_member._value_ == enum_member._value_:
                     enum_member = canonical_member
                     break
             else:
@@ -193,7 +193,7 @@ class EnumMeta(type):
             enum_class.__new__ = Enum.__new__
         return enum_class
 
-    def __call__(cls, value, names=None, *, module=None, qualname=None, type=None):
+    def __call__(cls, value, names=None, *, module=None, qualname=None, type=None, start=1):
         """Either returns an existing member, or creates a new enum class.
 
         This method is used both when an enum class is given a value to match
@@ -205,7 +205,7 @@ class EnumMeta(type):
         `value` will be the name of the new class.
 
         `names` should be either a string of white-space/comma delimited names
-        (values will start at 1), or an iterator/mapping of name, value pairs.
+        (values will start at `start`), or an iterator/mapping of name, value pairs.
 
         `module` should be set to the module this class is being created in;
         if it is not set, an attempt to find that module will be made, but if
@@ -221,10 +221,10 @@ class EnumMeta(type):
         if names is None:  # simple value lookup
             return cls.__new__(cls, value)
         # otherwise, functional API: we're creating a new Enum type
-        return cls._create_(value, names, module=module, qualname=qualname, type=type)
+        return cls._create_(value, names, module=module, qualname=qualname, type=type, start=start)
 
     def __contains__(cls, member):
-        return isinstance(member, cls) and member.name in cls._member_map_
+        return isinstance(member, cls) and member._name_ in cls._member_map_
 
     def __delattr__(cls, attr):
         # nicer error message when someone tries to delete an attribute
@@ -292,16 +292,16 @@ class EnumMeta(type):
             raise AttributeError('Cannot reassign members.')
         super().__setattr__(name, value)
 
-    def _create_(cls, class_name, names=None, *, module=None, qualname=None, type=None):
+    def _create_(cls, class_name, names=None, *, module=None, qualname=None, type=None, start=1):
         """Convenience method to create a new Enum class.
 
         `names` can be:
 
         * A string containing member names, separated either with spaces or
-          commas.  Values are auto-numbered from 1.
-        * An iterable of member names.  Values are auto-numbered from 1.
+          commas.  Values are incremented by 1 from `start`.
+        * An iterable of member names.  Values are incremented by 1 from `start`.
         * An iterable of (member name, value) pairs.
-        * A mapping of member name -> value.
+        * A mapping of member name -> value pairs.
 
         """
         metacls = cls.__class__
@@ -312,7 +312,7 @@ class EnumMeta(type):
         if isinstance(names, str):
             names = names.replace(',', ' ').split()
         if isinstance(names, (tuple, list)) and isinstance(names[0], str):
-            names = [(e, i) for (i, e) in enumerate(names, 1)]
+            names = [(e, i) for (i, e) in enumerate(names, start)]
 
         # Here, names is either an iterable of (name, value) or a mapping.
         for item in names:
@@ -452,9 +452,9 @@ class Enum(metaclass=EnumMeta):
         except TypeError:
             # not there, now do long search -- O(n) behavior
             for member in cls._member_map_.values():
-                if member.value == value:
+                if member._value_ == value:
                     return member
-        raise ValueError("%s is not a valid %s" % (value, cls.__name__))
+        raise ValueError("%r is not a valid %s" % (value, cls.__name__))
 
     def __repr__(self):
         return "<%s.%s: %r>" % (
@@ -480,7 +480,7 @@ class Enum(metaclass=EnumMeta):
         # mix-in branch
         else:
             cls = self._member_type_
-            val = self.value
+            val = self._value_
         return cls.__format__(val, format_spec)
 
     def __hash__(self):

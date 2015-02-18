@@ -919,7 +919,7 @@ static PyObject *GetResult(PyObject *restype, void *result, PyObject *checker)
 
     v = PyObject_CallFunctionObjArgs(checker, retval, NULL);
     if (v == NULL)
-        _ctypes_add_traceback("GetResult", "_ctypes/callproc.c", __LINE__-2);
+        _PyTraceback_Add("GetResult", "_ctypes/callproc.c", __LINE__-2);
     Py_DECREF(retval);
     return v;
 }
@@ -1606,7 +1606,7 @@ resize(PyObject *self, PyObject *args)
                      "Memory cannot be resized because this object doesn't own it");
         return NULL;
     }
-    if (size <= sizeof(obj->b_value)) {
+    if ((size_t)size <= sizeof(obj->b_value)) {
         /* internal default buffer is large enough */
         obj->b_size = size;
         goto done;

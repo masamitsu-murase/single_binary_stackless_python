@@ -129,9 +129,9 @@ which format specific object types.
 
    Formatting methods for specific types are implemented as methods with a name
    based on the type name.  In the method name, **TYPE** is replaced by
-   ``string.join(string.split(type(obj).__name__, '_'))``. Dispatch to these
-   methods is handled by :meth:`repr1`. Type-specific methods which need to
-   recursively format a value should call ``self.repr1(subobj, level - 1)``.
+   ``'_'.join(type(obj).__name__.split())``. Dispatch to these methods is
+   handled by :meth:`repr1`. Type-specific methods which need to recursively
+   format a value should call ``self.repr1(subobj, level - 1)``.
 
 
 .. _subclassing-reprs:
@@ -148,11 +148,11 @@ for file objects could be added::
    import sys
 
    class MyRepr(reprlib.Repr):
-       def repr_file(self, obj, level):
-           if obj.name in ['<stdin>', '<stdout>', '<stderr>']:
+
+       def repr_TextIOWrapper(self, obj, level):
+           if obj.name in {'<stdin>', '<stdout>', '<stderr>'}:
                return obj.name
-           else:
-               return repr(obj)
+           return repr(obj)
 
    aRepr = MyRepr()
    print(aRepr.repr(sys.stdin))         # prints '<stdin>'

@@ -7,7 +7,7 @@ from test import support
 _tkinter = support.import_module('_tkinter')
 
 # Make sure tkinter._fix runs to set up the environment
-support.import_fresh_module('tkinter')
+tkinter = support.import_fresh_module('tkinter')
 
 from tkinter import Tcl
 from _tkinter import TclError
@@ -418,7 +418,6 @@ class TclTest(unittest.TestCase):
         self.assertEqual(passValue(['a', ['b', 'c']]),
                          ('a', ('b', 'c')) if self.wantobjects else 'a {b c}')
 
-    @unittest.skipIf(sys.platform.startswith("aix"), 'Issue #21951: crashes on AIX')
     def test_user_command(self):
         result = None
         def testfunc(arg):
@@ -427,28 +426,33 @@ class TclTest(unittest.TestCase):
             return arg
         self.interp.createcommand('testfunc', testfunc)
         self.addCleanup(self.interp.tk.deletecommand, 'testfunc')
-        def check(value, expected, eq=self.assertEqual):
+        def check(value, expected=None, *, eq=self.assertEqual):
+            if expected is None:
+                expected = value
+            nonlocal result
+            result = None
             r = self.interp.call('testfunc', value)
             self.assertIsInstance(result, str)
             eq(result, expected)
             self.assertIsInstance(r, str)
             eq(r, expected)
         def float_eq(actual, expected):
-            expected = float(expected)
             self.assertAlmostEqual(float(actual), expected,
                                    delta=abs(expected) * 1e-10)
 
         check(True, '1')
         check(False, '0')
-        check('string', 'string')
-        check('string\xbd', 'string\xbd')
-        check('string\u20ac', 'string\u20ac')
+        check('string')
+        check('string\xbd')
+        check('string\u20ac')
+        check('')
         check(b'string', 'string')
         check(b'string\xe2\x82\xac', 'string\xe2\x82\xac')
         check(b'string\xbd', 'string\xbd')
-        check('str\x00ing', 'str\x00ing')
-        check('str\x00ing\xbd', 'str\x00ing\xbd')
-        check('str\x00ing\u20ac', 'str\x00ing\u20ac')
+        check(b'', '')
+        check('str\x00ing')
+        check('str\x00ing\xbd')
+        check('str\x00ing\u20ac')
         check(b'str\x00ing', 'str\x00ing')
         check(b'str\xc0\x80ing', 'str\xc0\x80ing')
         check(b'str\xc0\x80ing\xe2\x82\xac', 'str\xc0\x80ing\xe2\x82\xac')
@@ -458,9 +462,9 @@ class TclTest(unittest.TestCase):
             check(f, repr(f))
         for f in (1/3.0, sys.float_info.min, sys.float_info.max,
                   -sys.float_info.min, -sys.float_info.max):
-            check(f, f, eq=float_eq)
-        check(float('inf'), 'Inf', eq=float_eq)
-        check(-float('inf'), '-Inf', eq=float_eq)
+            check(f, eq=float_eq)
+        check(float('inf'), eq=float_eq)
+        check(-float('inf'), eq=float_eq)
         # XXX NaN representation can be not parsable by float()
         check((), '')
         check((1, (2,), (3, 4), '5 6', ()), '1 2 {3 4} {5 6} {}')
@@ -496,8 +500,9 @@ class TclTest(unittest.TestCase):
                 (1, '2', (3.4,)) if self.wantobjects else
                 ('1', '2', '3.4')),
         ]
+        tk_patchlevel = get_tk_patchlevel()
         if tcl_version >= (8, 5):
-            if not self.wantobjects or get_tk_patchlevel() < (8, 5, 5):
+            if not self.wantobjects or tk_patchlevel < (8, 5, 5):
                 # Before 8.5.5 dicts were converted to lists through string
                 expected = ('12', '\u20ac', '\xe2\x82\xac', '3.4')
             else:
@@ -506,8 +511,11 @@ class TclTest(unittest.TestCase):
                 (call('dict', 'create', 12, '\u20ac', b'\xe2\x82\xac', (3.4,)),
                     expected),
             ]
+        dbg_info = ('want objects? %s, Tcl version: %s, Tk patchlevel: %s'
+                    % (self.wantobjects, tcl_version, tk_patchlevel))
         for arg, res in testcases:
-            self.assertEqual(splitlist(arg), res, msg=arg)
+            self.assertEqual(splitlist(arg), res,
+                             'arg=%a, %s' % (arg, dbg_info))
         self.assertRaises(TclError, splitlist, '{')
 
     def test_split(self):
@@ -558,6 +566,41 @@ class TclTest(unittest.TestCase):
             ]
         for arg, res in testcases:
             self.assertEqual(split(arg), res, msg=arg)
+
+    def test_splitdict(self):
+        splitdict = tkinter._splitdict
+        tcl = self.interp.tk
+
+        arg = '-a {1 2 3} -something foo status {}'
+        self.assertEqual(splitdict(tcl, arg, False),
+            {'-a': '1 2 3', '-something': 'foo', 'status': ''})
+        self.assertEqual(splitdict(tcl, arg),
+            {'a': '1 2 3', 'something': 'foo', 'status': ''})
+
+        arg = ('-a', (1, 2, 3), '-something', 'foo', 'status', '{}')
+        self.assertEqual(splitdict(tcl, arg, False),
+            {'-a': (1, 2, 3), '-something': 'foo', 'status': '{}'})
+        self.assertEqual(splitdict(tcl, arg),
+            {'a': (1, 2, 3), 'something': 'foo', 'status': '{}'})
+
+        self.assertRaises(RuntimeError, splitdict, tcl, '-a b -c ')
+        self.assertRaises(RuntimeError, splitdict, tcl, ('-a', 'b', '-c'))
+
+        arg = tcl.call('list',
+                        '-a', (1, 2, 3), '-something', 'foo', 'status', ())
+        self.assertEqual(splitdict(tcl, arg),
+            {'a': (1, 2, 3) if self.wantobjects else '1 2 3',
+             'something': 'foo', 'status': ''})
+
+        if tcl_version >= (8, 5):
+            arg = tcl.call('dict', 'create',
+                           '-a', (1, 2, 3), '-something', 'foo', 'status', ())
+            if not self.wantobjects or get_tk_patchlevel() < (8, 5, 5):
+                # Before 8.5.5 dicts were converted to lists through string
+                expected = {'a': '1 2 3', 'something': 'foo', 'status': ''}
+            else:
+                expected = {'a': (1, 2, 3), 'something': 'foo', 'status': ''}
+            self.assertEqual(splitdict(tcl, arg), expected)
 
 
 class BigmemTclTest(unittest.TestCase):

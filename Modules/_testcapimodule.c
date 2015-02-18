@@ -1719,7 +1719,7 @@ test_long_numbits(PyObject *self)
              {-0xffffL, 16, -1},
              {0xfffffffL, 28, 1},
              {-0xfffffffL, 28, -1}};
-    int i;
+    size_t i;
 
     for (i = 0; i < Py_ARRAY_LENGTH(testcases); ++i) {
         size_t nbits;
@@ -2715,7 +2715,7 @@ static PyObject *
 test_incref_decref_API(PyObject *ob)
 {
     PyObject *obj = PyLong_FromLong(0);
-    Py_IncRef(ob);
+    Py_IncRef(obj);
     Py_DecRef(obj);
     Py_DecRef(obj);
     Py_RETURN_NONE;

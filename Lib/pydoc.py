@@ -1636,7 +1636,7 @@ class Helper:
     # in pydoc_data/topics.py.
     #
     # CAUTION: if you change one of these dictionaries, be sure to adapt the
-    #          list of needed labels in Doc/tools/sphinxext/pyspecific.py and
+    #          list of needed labels in Doc/tools/pyspecific.py and
     #          regenerate the pydoc_data/topics.py file by running
     #              make pydoc-topics
     #          in Doc/ and copying the output file into the Lib/ directory.
@@ -2176,8 +2176,8 @@ def _start_server(urlhandler, port):
     class DocServer(http.server.HTTPServer):
 
         def __init__(self, port, callback):
-            self.host = (sys.platform == 'mac') and '127.0.0.1' or 'localhost'
-            self.address = ('', port)
+            self.host = 'localhost'
+            self.address = (self.host, port)
             self.callback = callback
             self.base.__init__(self, self.address, self.handler)
             self.quit = False

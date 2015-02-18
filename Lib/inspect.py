@@ -817,6 +817,7 @@ def getsourcelines(object):
     corresponding to the object and the line number indicates where in the
     original source file the first line of code was found.  An OSError is
     raised if the source code cannot be retrieved."""
+    object = unwrap(object)
     lines, lnum = findsource(object)
 
     if ismodule(object): return lines, 0
@@ -1312,6 +1313,8 @@ def getlineno(frame):
     # FrameType.f_lineno is now a descriptor that grovels co_lnotab
     return frame.f_lineno
 
+FrameInfo = namedtuple('FrameInfo', ('frame',) + Traceback._fields)
+
 def getouterframes(frame, context=1):
     """Get a list of records for a frame and all higher (calling) frames.
 
@@ -1319,7 +1322,8 @@ def getouterframes(frame, context=1):
     name, a list of lines of context, and index within the context."""
     framelist = []
     while frame:
-        framelist.append((frame,) + getframeinfo(frame, context))
+        frameinfo = (frame,) + getframeinfo(frame, context)
+        framelist.append(FrameInfo(*frameinfo))
         frame = frame.f_back
     return framelist
 
@@ -1330,7 +1334,8 @@ def getinnerframes(tb, context=1):
     name, a list of lines of context, and index within the context."""
     framelist = []
     while tb:
-        framelist.append((tb.tb_frame,) + getframeinfo(tb, context))
+        frameinfo = (tb.tb_frame,) + getframeinfo(tb, context)
+        framelist.append(FrameInfo(*frameinfo))
         tb = tb.tb_next
     return framelist
 
@@ -2235,14 +2240,7 @@ class Parameter:
                                            id(self), self)
 
     def __hash__(self):
-        hash_tuple = (self.name, int(self.kind))
-
-        if self._annotation is not _empty:
-            hash_tuple += (self._annotation,)
-        if self._default is not _empty:
-            hash_tuple += (self._default,)
-
-        return hash(hash_tuple)
+        return hash((self.name, self.kind, self.annotation, self.default))
 
     def __eq__(self, other):
         return (issubclass(other.__class__, Parameter) and
@@ -2537,41 +2535,23 @@ class Signature:
         return type(self)(parameters,
                           return_annotation=return_annotation)
 
+    def _hash_basis(self):
+        params = tuple(param for param in self.parameters.values()
+                             if param.kind != _KEYWORD_ONLY)
+
+        kwo_params = {param.name: param for param in self.parameters.values()
+                                        if param.kind == _KEYWORD_ONLY}
+
+        return params, kwo_params, self.return_annotation
+
     def __hash__(self):
-        hash_tuple = tuple(self.parameters.values())
-        if self._return_annotation is not _empty:
-            hash_tuple += (self._return_annotation,)
-        return hash(hash_tuple)
+        params, kwo_params, return_annotation = self._hash_basis()
+        kwo_params = frozenset(kwo_params.values())
+        return hash((params, kwo_params, return_annotation))
 
     def __eq__(self, other):
-        if (not issubclass(type(other), Signature) or
-                    self.return_annotation != other.return_annotation or
-                    len(self.parameters) != len(other.parameters)):
-            return False
-
-        other_positions = {param: idx
-                           for idx, param in enumerate(other.parameters.keys())}
-
-        for idx, (param_name, param) in enumerate(self.parameters.items()):
-            if param.kind == _KEYWORD_ONLY:
-                try:
-                    other_param = other.parameters[param_name]
-                except KeyError:
-                    return False
-                else:
-                    if param != other_param:
-                        return False
-            else:
-                try:
-                    other_idx = other_positions[param_name]
-                except KeyError:
-                    return False
-                else:
-                    if (idx != other_idx or
-                                    param != other.parameters[param_name]):
-                        return False
-
-        return True
+        return (isinstance(other, Signature) and
+                self._hash_basis() == other._hash_basis())
 
     def __ne__(self, other):
         return not self.__eq__(other)

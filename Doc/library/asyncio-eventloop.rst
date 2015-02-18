@@ -221,6 +221,8 @@ Creating connections
      to bind the socket to locally.  The *local_host* and *local_port*
      are looked up using getaddrinfo(), similarly to *host* and *port*.
 
+   On Windows with :class:`ProactorEventLoop`, SSL/TLS is not supported.
+
    .. seealso::
 
       The :func:`open_connection` function can be used to get a pair of
@@ -239,6 +241,8 @@ Creating connections
 
    See the :meth:`BaseEventLoop.create_connection` method for parameters.
 
+   On Windows with :class:`ProactorEventLoop`, this method is not supported.
+
 
 .. method:: BaseEventLoop.create_unix_connection(protocol_factory, path, \*, ssl=None, sock=None, server_hostname=None)
 
@@ -251,6 +255,8 @@ Creating connections
    establish the connection in the background.  When successful, the
    coroutine returns a ``(transport, protocol)`` pair.
 
+   On Windows with :class:`ProactorEventLoop`, SSL/TLS is not supported.
+
    See the :meth:`BaseEventLoop.create_connection` method for parameters.
 
    Availability: UNIX.
@@ -261,19 +267,19 @@ Creating listening connections
 
 .. method:: BaseEventLoop.create_server(protocol_factory, host=None, port=None, \*, family=socket.AF_UNSPEC, flags=socket.AI_PASSIVE, sock=None, backlog=100, ssl=None, reuse_address=None)
 
-   Create a TCP server bound to host and port. Return a :class:`Server` object,
+   Create a TCP server bound to *host* and *port*. Return a :class:`Server` object,
    its :attr:`~Server.sockets` attribute contains created sockets. Use the
    :meth:`Server.close` method to stop the server: close listening sockets.
 
    This method is a :ref:`coroutine <coroutine>`.
 
-   If *host* is an empty string or None all interfaces are assumed
+   If *host* is an empty string or ``None``, all interfaces are assumed
    and a list of multiple sockets will be returned (most likely
    one for IPv4 and another one for IPv6).
 
-   *family* can be set to either :data:`~socket.AF_INET` or
+   *family* can be set to either :data:`socket.AF_INET` or
    :data:`~socket.AF_INET6` to force the socket to use IPv4 or IPv6. If not set
-   it will be determined from host (defaults to :data:`~socket.AF_UNSPEC`).
+   it will be determined from host (defaults to :data:`socket.AF_UNSPEC`).
 
    *flags* is a bitmask for :meth:`getaddrinfo`.
 
@@ -283,13 +289,15 @@ Creating listening connections
    *backlog* is the maximum number of queued connections passed to
    :meth:`~socket.socket.listen` (defaults to 100).
 
-   ssl can be set to an :class:`~ssl.SSLContext` to enable SSL over the
+   *ssl* can be set to an :class:`~ssl.SSLContext` to enable SSL over the
    accepted connections.
 
    *reuse_address* tells the kernel to reuse a local socket in
    TIME_WAIT state, without waiting for its natural timeout to
    expire. If not specified will automatically be set to True on
    UNIX.
+
+   On Windows with :class:`ProactorEventLoop`, SSL/TLS is not supported.
 
    .. seealso::
 
@@ -307,6 +315,11 @@ Creating listening connections
 
 Watch file descriptors
 ----------------------
+
+On Windows with :class:`SelectorEventLoop`, only socket handles are supported
+(ex: pipe file descriptors are not supported).
+
+On Windows with :class:`ProactorEventLoop`, these methods are not supported.
 
 .. method:: BaseEventLoop.add_reader(fd, callback, \*args)
 
@@ -326,6 +339,10 @@ Watch file descriptors
 
    Stop watching the file descriptor for write availability.
 
+The :ref:`watch a file descriptor for read events <asyncio-watch-read-event>`
+example uses the low-level :meth:`BaseEventLoop.add_reader` method to register
+the file descriptor of a socket.
+
 
 Low-level socket operations
 ---------------------------
@@ -336,7 +353,8 @@ Low-level socket operations
    representing the data received.  The maximum amount of data to be received
    at once is specified by *nbytes*.
 
-   The socket *sock* must be non-blocking.
+   With :class:`SelectorEventLoop` event loop, the socket *sock* must be
+   non-blocking.
 
    This method is a :ref:`coroutine <coroutine>`.
 
@@ -352,7 +370,8 @@ Low-level socket operations
    an exception is raised, and there is no way to determine how much data, if
    any, was successfully processed by the receiving end of the connection.
 
-   The socket *sock* must be non-blocking.
+   With :class:`SelectorEventLoop` event loop, the socket *sock* must be
+   non-blocking.
 
    This method is a :ref:`coroutine <coroutine>`.
 
@@ -370,7 +389,8 @@ Low-level socket operations
    :py:data:`~socket.AF_INET` and :py:data:`~socket.AF_INET6` address families.
    Use :meth:`getaddrinfo` to resolve the hostname asynchronously.
 
-   The socket *sock* must be non-blocking.
+   With :class:`SelectorEventLoop` event loop, the socket *sock* must be
+   non-blocking.
 
    This method is a :ref:`coroutine <coroutine>`.
 
@@ -416,14 +436,20 @@ Resolve host name
 Connect pipes
 -------------
 
+On Windows with :class:`SelectorEventLoop`, these methods are not supported.
+Use :class:`ProactorEventLoop` to support pipes on Windows.
+
 .. method:: BaseEventLoop.connect_read_pipe(protocol_factory, pipe)
 
-   Register read pipe in eventloop. Set the *pipe* to non-blocking mode.
+   Register read pipe in eventloop.
 
    *protocol_factory* should instantiate object with :class:`Protocol`
    interface.  *pipe* is a :term:`file-like object <file object>`.
    Return pair ``(transport, protocol)``, where *transport* supports the
    :class:`ReadTransport` interface.
+
+   With :class:`SelectorEventLoop` event loop, the *pipe* is set to
+   non-blocking mode.
 
    This method is a :ref:`coroutine <coroutine>`.
 
@@ -432,9 +458,12 @@ Connect pipes
    Register write pipe in eventloop.
 
    *protocol_factory* should instantiate object with :class:`BaseProtocol`
-   interface.  Pipe is file-like object already switched to nonblocking.
+   interface. *pipe* is file-like object.
    Return pair (transport, protocol), where transport support
    :class:`WriteTransport` interface.
+
+   With :class:`SelectorEventLoop` event loop, the *pipe* is set to
+   non-blocking mode.
 
    This method is a :ref:`coroutine <coroutine>`.
 
@@ -608,13 +637,16 @@ Handle
       Cancel the call.
 
 
+Event loop examples
+===================
 
 .. _asyncio-hello-world-callback:
 
-Example: Hello World (callback)
--------------------------------
+Hello World with a callback
+---------------------------
 
-Print ``Hello World`` every two seconds, using a callback::
+Print ``"Hello World"`` every two seconds using a callback scheduled by the
+:meth:`BaseEventLoop.call_soon` method::
 
     import asyncio
 
@@ -631,13 +663,66 @@ Print ``Hello World`` every two seconds, using a callback::
 
 .. seealso::
 
-   :ref:`Hello World example using a coroutine <asyncio-hello-world-coroutine>`.
+   The :ref:`Hello World coroutine <asyncio-hello-world-coroutine>` example
+   uses a :ref:`coroutine <coroutine>`.
 
 
-Example: Set signal handlers for SIGINT and SIGTERM
----------------------------------------------------
+.. _asyncio-watch-read-event:
 
-Register handlers for signals :py:data:`SIGINT` and :py:data:`SIGTERM`::
+Watch a file descriptor for read events
+---------------------------------------
+
+Wait until a file descriptor received some data using the
+:meth:`BaseEventLoop.add_reader` method and then close the event loop::
+
+    import asyncio
+    try:
+        from socket import socketpair
+    except ImportError:
+        from asyncio.windows_utils import socketpair
+
+    # Create a pair of connected file descriptors
+    rsock, wsock = socketpair()
+    loop = asyncio.get_event_loop()
+
+    def reader():
+        data = rsock.recv(100)
+        print("Received:", data.decode())
+        # We are done: unregister the register
+        loop.remove_reader(rsock)
+        # Stop the event loop
+        loop.stop()
+
+    # Wait for read event
+    loop.add_reader(rsock, reader)
+
+    # Simulate the reception of data from the network
+    loop.call_soon(wsock.send, 'abc'.encode())
+
+    # Run the event loop
+    loop.run_forever()
+
+    # We are done, close sockets and the event loop
+    rsock.close()
+    wsock.close()
+    loop.close()
+
+.. seealso::
+
+   The :ref:`register an open socket to wait for data using a protocol
+   <asyncio-register-socket>` example uses a low-level protocol created by the
+   :meth:`BaseEventLoop.create_connection` method.
+
+   The :ref:`register an open socket to wait for data using streams
+   <asyncio-register-socket-streams>` example uses high-level streams
+   created by the :func:`open_connection` function in a coroutine.
+
+
+Set signal handlers for SIGINT and SIGTERM
+------------------------------------------
+
+Register handlers for signals :py:data:`SIGINT` and :py:data:`SIGTERM` using
+the :meth:`BaseEventLoop.add_signal_handler` method::
 
     import asyncio
     import functools
@@ -659,4 +744,3 @@ Register handlers for signals :py:data:`SIGINT` and :py:data:`SIGTERM`::
         loop.run_forever()
     finally:
         loop.close()
-

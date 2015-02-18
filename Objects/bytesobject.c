@@ -29,7 +29,7 @@ _getbuffer(PyObject *obj, Py_buffer *view)
     if (bufferprocs == NULL || bufferprocs->bf_getbuffer == NULL)
     {
         PyErr_Format(PyExc_TypeError,
-                     "Type %.100s doesn't support the buffer API",
+                     "a bytes-like object is required, not '%.100s'",
                      Py_TYPE(obj)->tp_name);
         return -1;
     }
@@ -81,6 +81,7 @@ _PyBytes_FromSize(Py_ssize_t size, int use_calloc)
 {
     PyBytesObject *op;
     assert(size >= 0);
+
     if (size == 0 && (op = nullstring) != NULL) {
 #ifdef COUNT_ALLOCS
         null_strings++;
@@ -89,7 +90,7 @@ _PyBytes_FromSize(Py_ssize_t size, int use_calloc)
         return (PyObject *)op;
     }
 
-    if (size > PY_SSIZE_T_MAX - PyBytesObject_SIZE) {
+    if ((size_t)size > (size_t)PY_SSIZE_T_MAX - PyBytesObject_SIZE) {
         PyErr_SetString(PyExc_OverflowError,
                         "byte string is too large");
         return NULL;
@@ -592,8 +593,8 @@ PyBytes_AsStringAndSize(PyObject *obj,
     if (len != NULL)
         *len = PyBytes_GET_SIZE(obj);
     else if (strlen(*s) != (size_t)PyBytes_GET_SIZE(obj)) {
-        PyErr_SetString(PyExc_TypeError,
-                        "expected bytes with no null");
+        PyErr_SetString(PyExc_ValueError,
+                        "embedded null byte");
         return -1;
     }
     return 0;
@@ -619,7 +620,7 @@ PyBytes_Repr(PyObject *obj, int smartquotes)
 {
     PyBytesObject* op = (PyBytesObject*) obj;
     Py_ssize_t i, length = Py_SIZE(op);
-    size_t newsize, squotes, dquotes;
+    Py_ssize_t newsize, squotes, dquotes;
     PyObject *v;
     unsigned char quote, *s, *p;
 
@@ -628,28 +629,27 @@ PyBytes_Repr(PyObject *obj, int smartquotes)
     newsize = 3; /* b'' */
     s = (unsigned char*)op->ob_sval;
     for (i = 0; i < length; i++) {
+        Py_ssize_t incr = 1;
         switch(s[i]) {
-        case '\'': squotes++; newsize++; break;
-        case '"':  dquotes++; newsize++; break;
+        case '\'': squotes++; break;
+        case '"':  dquotes++; break;
         case '\\': case '\t': case '\n': case '\r':
-            newsize += 2; break; /* \C */
+            incr = 2; break; /* \C */
         default:
             if (s[i] < ' ' || s[i] >= 0x7f)
-                newsize += 4; /* \xHH */
-            else
-                newsize++;
+                incr = 4; /* \xHH */
         }
+        if (newsize > PY_SSIZE_T_MAX - incr)
+            goto overflow;
+        newsize += incr;
     }
     quote = '\'';
     if (smartquotes && squotes && !dquotes)
         quote = '"';
-    if (squotes && quote == '\'')
+    if (squotes && quote == '\'') {
+        if (newsize > PY_SSIZE_T_MAX - squotes)
+            goto overflow;
         newsize += squotes;
-
-    if (newsize > (PY_SSIZE_T_MAX - sizeof(PyUnicodeObject) - 1)) {
-        PyErr_SetString(PyExc_OverflowError,
-            "bytes object is too large to make repr");
-        return NULL;
     }
 
     v = PyUnicode_New(newsize, 127);
@@ -681,6 +681,11 @@ PyBytes_Repr(PyObject *obj, int smartquotes)
     *p++ = quote;
     assert(_PyUnicode_CheckConsistency(v, 1));
     return v;
+
+  overflow:
+    PyErr_SetString(PyExc_OverflowError,
+                    "bytes object is too large to make repr");
+    return NULL;
 }
 
 static PyObject *
@@ -1755,7 +1760,7 @@ bytes_count(PyBytesObject *self, PyObject *args)
 bytes.translate
 
     self: self(type="PyBytesObject *")
-    table: object   
+    table: object
         Translation table, which must be a bytes object of length 256.
     [
     deletechars: object
@@ -3174,10 +3179,12 @@ PyBytes_FromObject(PyObject *x)
        returning a shared empty bytes string. This required because we
        want to call _PyBytes_Resize() the returned object, which we can
        only do on bytes objects with refcount == 1. */
-    size += 1;
+    if (size == 0)
+        size = 1;
     new = PyBytes_FromStringAndSize(NULL, size);
     if (new == NULL)
         return NULL;
+    assert(Py_REFCNT(new) == 1);
 
     /* Get the iterator */
     it = PyObject_GetIter(x);
@@ -3326,7 +3333,7 @@ PyBytes_Concat(PyObject **pv, PyObject *w)
         /* Only one reference, so we can resize in place */
         Py_ssize_t oldsize;
         Py_buffer wb;
-        
+
         wb.len = -1;
         if (_getbuffer(w, &wb) < 0) {
             PyErr_Format(PyExc_TypeError, "can't concat %.100s to %.100s",
@@ -3400,7 +3407,7 @@ _PyBytes_Resize(PyObject **pv, Py_ssize_t newsize)
     _Py_DEC_REFTOTAL;
     _Py_ForgetReference(v);
     *pv = (PyObject *)
-        PyObject_REALLOC((char *)v, PyBytesObject_SIZE + newsize);
+        PyObject_REALLOC(v, PyBytesObject_SIZE + newsize);
     if (*pv == NULL) {
         PyObject_Del(v);
         PyErr_NoMemory();

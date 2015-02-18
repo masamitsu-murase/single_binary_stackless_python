@@ -460,7 +460,8 @@ _Py_InitializeEx_Private(int install_sigs, int install_importlib)
     if (_PyFaulthandler_Init())
         Py_FatalError("Py_Initialize: can't initialize faulthandler");
 
-    _PyTime_Init();
+    if (_PyTime_Init() < 0)
+        Py_FatalError("Py_Initialize: can't initialize time");
 
     if (initfsencoding(interp) < 0)
         Py_FatalError("Py_Initialize: unable to load the file system codec");
@@ -1751,7 +1752,7 @@ print_error_text(PyObject *f, int offset, PyObject *text_obj)
         return;
 
     if (offset >= 0) {
-        if (offset > 0 && offset == strlen(text) && text[offset - 1] == '\n')
+        if (offset > 0 && (size_t)offset == strlen(text) && text[offset - 1] == '\n')
             offset--;
         for (;;) {
             nl = strchr(text, '\n');

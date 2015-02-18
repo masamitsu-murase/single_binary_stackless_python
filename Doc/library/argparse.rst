@@ -1237,8 +1237,8 @@ which processes arguments from the command-line. Any object which follows
 this API may be passed as the ``action`` parameter to
 :meth:`add_argument`.
 
-.. class:: Action(option_strings, dest, nargs=None, const=None, default=None,
-                  type=None, choices=None, required=False, help=None,
+.. class:: Action(option_strings, dest, nargs=None, const=None, default=None, \
+                  type=None, choices=None, required=False, help=None, \
                   metavar=None)
 
 Action objects are used by an ArgumentParser to represent the information
@@ -1948,6 +1948,16 @@ transparently, particularly with the changes required to support the new
 ``nargs=`` specifiers and better usage messages.  When most everything in
 :mod:`optparse` had either been copy-pasted over or monkey-patched, it no
 longer seemed practical to try to maintain the backwards compatibility.
+
+The :mod:`argparse` module improves on the standard library :mod:`optparse`
+module in a number of ways including:
+
+* Handling positional arguments.
+* Supporting sub-commands.
+* Allowing alternative option prefixes like ``+`` and ``/``.
+* Handling zero-or-more and one-or-more style arguments.
+* Producing more informative usage messages.
+* Providing a much simpler interface for custom ``type`` and ``action``.
 
 A partial upgrade path from :mod:`optparse` to :mod:`argparse`:
 

@@ -2312,7 +2312,7 @@ _PyLong_FromBytes(const char *s, Py_ssize_t len, int base)
     PyObject *result, *strobj;
     char *end = NULL;
 
-    result = PyLong_FromString((char*)s, &end, base);
+    result = PyLong_FromString(s, &end, base);
     if (end == NULL || (result != NULL && end == s + len))
         return result;
     Py_XDECREF(result);
@@ -4873,9 +4873,7 @@ PyDoc_STRVAR(long_from_bytes_doc,
 \n\
 Return the integer represented by the given array of bytes.\n\
 \n\
-The bytes argument must either support the buffer protocol or be an\n\
-iterable object producing bytes.  Bytes and bytearray are examples of\n\
-built-in objects that support the buffer protocol.\n\
+The bytes argument must be a bytes-like object (e.g. bytes or bytearray).\n\
 \n\
 The byteorder argument determines the byte order used to represent the\n\
 integer.  If byteorder is 'big', the most significant byte is at the\n\
@@ -5094,13 +5092,13 @@ _PyLong_Init(void)
              * to the original refcnt + 1 */
             Py_REFCNT(op) = refcnt + 1;
             assert(Py_SIZE(op) == size);
-            assert(v->ob_digit[0] == abs(ival));
+            assert(v->ob_digit[0] == (digit)abs(ival));
         }
         else {
             (void)PyObject_INIT(v, &PyLong_Type);
         }
         Py_SIZE(v) = size;
-        v->ob_digit[0] = abs(ival);
+        v->ob_digit[0] = (digit)abs(ival);
     }
 #endif
     /* initialize int_info */

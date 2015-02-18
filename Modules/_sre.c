@@ -97,48 +97,20 @@ static char copyright[] =
 /* -------------------------------------------------------------------- */
 /* search engine state */
 
-/* default character predicates (run sre_chars.py to regenerate tables) */
-
-#define SRE_DIGIT_MASK 1
-#define SRE_SPACE_MASK 2
-#define SRE_LINEBREAK_MASK 4
-#define SRE_ALNUM_MASK 8
-#define SRE_WORD_MASK 16
-
-/* FIXME: this assumes ASCII.  create tables in init_sre() instead */
-
-static char sre_char_info[128] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 6, 2,
-2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0,
-0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 25, 25, 25, 25, 25, 25, 25, 25,
-25, 25, 0, 0, 0, 0, 0, 0, 0, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24,
-24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 0, 0,
-0, 0, 16, 0, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24,
-24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 0, 0, 0, 0, 0 };
-
-static char sre_char_lower[128] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
-27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
-44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60,
-61, 62, 63, 64, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107,
-108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121,
-122, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105,
-106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119,
-120, 121, 122, 123, 124, 125, 126, 127 };
-
 #define SRE_IS_DIGIT(ch)\
-    ((ch) < 128 ? (sre_char_info[(ch)] & SRE_DIGIT_MASK) : 0)
+    ((ch) < 128 && Py_ISDIGIT(ch))
 #define SRE_IS_SPACE(ch)\
-    ((ch) < 128 ? (sre_char_info[(ch)] & SRE_SPACE_MASK) : 0)
+    ((ch) < 128 && Py_ISSPACE(ch))
 #define SRE_IS_LINEBREAK(ch)\
-    ((ch) < 128 ? (sre_char_info[(ch)] & SRE_LINEBREAK_MASK) : 0)
+    ((ch) == '\n')
 #define SRE_IS_ALNUM(ch)\
-    ((ch) < 128 ? (sre_char_info[(ch)] & SRE_ALNUM_MASK) : 0)
+    ((ch) < 128 && Py_ISALNUM(ch))
 #define SRE_IS_WORD(ch)\
-    ((ch) < 128 ? (sre_char_info[(ch)] & SRE_WORD_MASK) : 0)
+    ((ch) < 128 && (Py_ISALNUM(ch) || (ch) == '_'))
 
 static unsigned int sre_lower(unsigned int ch)
 {
-    return ((ch) < 128 ? (unsigned int)sre_char_lower[ch] : ch);
+    return ((ch) < 128 ? Py_TOLOWER(ch) : ch);
 }
 
 /* locale-specific character predicates */
@@ -357,6 +329,11 @@ state_init(SRE_STATE* state, PatternObject* pattern, PyObject* string,
 
     memset(state, 0, sizeof(SRE_STATE));
 
+    state->mark = PyMem_New(void *, pattern->groups * 2);
+    if (!state->mark) {
+        PyErr_NoMemory();
+        goto err;
+    }
     state->lastmark = -1;
     state->lastindex = -1;
 
@@ -409,6 +386,8 @@ state_init(SRE_STATE* state, PatternObject* pattern, PyObject* string,
 
     return string;
   err:
+    PyMem_Del(state->mark);
+    state->mark = NULL;
     if (state->buffer.buf)
         PyBuffer_Release(&state->buffer);
     return NULL;
@@ -421,6 +400,8 @@ state_fini(SRE_STATE* state)
         PyBuffer_Release(&state->buffer);
     Py_XDECREF(state->string);
     data_stack_dealloc(state);
+    PyMem_Del(state->mark);
+    state->mark = NULL;
 }
 
 /* calculate offset from start of string */
@@ -560,6 +541,7 @@ pattern_match(PatternObject *self, PyObject *args, PyObject *kwargs)
     PyObject *pattern = NULL;
     SRE_STATE state;
     Py_ssize_t status;
+    PyObject *match;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs,
         "|Onn$O:match", _keywords,
@@ -579,12 +561,14 @@ pattern_match(PatternObject *self, PyObject *args, PyObject *kwargs)
     status = sre_match(&state, PatternObject_GetCode(self), 0);
 
     TRACE(("|%p|%p|END\n", PatternObject_GetCode(self), state.ptr));
-    if (PyErr_Occurred())
+    if (PyErr_Occurred()) {
+        state_fini(&state);
         return NULL;
+    }
 
+    match = pattern_new_match(self, &state, status);
     state_fini(&state);
-
-    return (PyObject *)pattern_new_match(self, &state, status);
+    return match;
 }
 
 static PyObject*
@@ -592,6 +576,7 @@ pattern_fullmatch(PatternObject* self, PyObject* args, PyObject* kw)
 {
     SRE_STATE state;
     Py_ssize_t status;
+    PyObject *match;
 
     PyObject *string = NULL, *string2 = NULL;
     Py_ssize_t start = 0;
@@ -616,12 +601,14 @@ pattern_fullmatch(PatternObject* self, PyObject* args, PyObject* kw)
     status = sre_match(&state, PatternObject_GetCode(self), 1);
 
     TRACE(("|%p|%p|END\n", PatternObject_GetCode(self), state.ptr));
-    if (PyErr_Occurred())
+    if (PyErr_Occurred()) {
+        state_fini(&state);
         return NULL;
+    }
 
+    match = pattern_new_match(self, &state, status);
     state_fini(&state);
-
-    return pattern_new_match(self, &state, status);
+    return match;
 }
 
 static PyObject*
@@ -629,6 +616,7 @@ pattern_search(PatternObject* self, PyObject* args, PyObject* kw)
 {
     SRE_STATE state;
     Py_ssize_t status;
+    PyObject *match;
 
     PyObject *string = NULL, *string2 = NULL;
     Py_ssize_t start = 0;
@@ -652,12 +640,14 @@ pattern_search(PatternObject* self, PyObject* args, PyObject* kw)
 
     TRACE(("|%p|%p|END\n", PatternObject_GetCode(self), state.ptr));
 
-    state_fini(&state);
-
-    if (PyErr_Occurred())
+    if (PyErr_Occurred()) {
+        state_fini(&state);
         return NULL;
+    }
 
-    return pattern_new_match(self, &state, status);
+    match = pattern_new_match(self, &state, status);
+    state_fini(&state);
+    return match;
 }
 
 static PyObject*
@@ -1236,7 +1226,7 @@ pattern_repr(PatternObject *obj)
     };
     PyObject *result = NULL;
     PyObject *flag_items;
-    int i;
+    size_t i;
     int flags = obj->flags;
 
     /* Omit re.UNICODE for valid string patterns. */
@@ -1417,7 +1407,7 @@ _compile(PyObject* self_, PyObject* args)
     PyObject* groupindex = NULL;
     PyObject* indexgroup = NULL;
 
-    if (!PyArg_ParseTuple(args, "OiO!|nOO", &pattern, &flags,
+    if (!PyArg_ParseTuple(args, "OiO!nOO", &pattern, &flags,
                           &PyList_Type, &code, &groups,
                           &groupindex, &indexgroup))
         return NULL;
@@ -1933,10 +1923,9 @@ _validate_inner(SRE_CODE *code, SRE_CODE *end, Py_ssize_t groups)
 static int
 _validate_outer(SRE_CODE *code, SRE_CODE *end, Py_ssize_t groups)
 {
-    if (groups < 0 || groups > 100 || code >= end || end[-1] != SRE_OP_SUCCESS)
+    if (groups < 0 || (size_t)groups > SRE_MAXGROUPS ||
+        code >= end || end[-1] != SRE_OP_SUCCESS)
         FAIL;
-    if (groups == 0)  /* fix for simplejson */
-        groups = 100; /* 100 groups should always be safe */
     return _validate_inner(code, end-1, groups);
 }
 
@@ -2744,6 +2733,12 @@ PyMODINIT_FUNC PyInit__sre(void)
     x = PyLong_FromUnsignedLong(SRE_MAXREPEAT);
     if (x) {
         PyDict_SetItemString(d, "MAXREPEAT", x);
+        Py_DECREF(x);
+    }
+
+    x = PyLong_FromUnsignedLong(SRE_MAXGROUPS);
+    if (x) {
+        PyDict_SetItemString(d, "MAXGROUPS", x);
         Py_DECREF(x);
     }
 

@@ -307,6 +307,10 @@ class BuiltinLevelsTest(BaseTest):
             ('INF.BADPARENT', 'INFO', '4'),
         ])
 
+    def test_regression_22386(self):
+        """See issue #22386 for more information."""
+        self.assertEqual(logging.getLevelName('INFO'), logging.INFO)
+        self.assertEqual(logging.getLevelName(logging.INFO), 'INFO')
 
 class BasicFilterTest(BaseTest):
 
@@ -3705,6 +3709,19 @@ class LoggerAdapterTest(unittest.TestCase):
         self.assertEqual(record.levelno, logging.ERROR)
         self.assertEqual(record.msg, msg)
         self.assertEqual(record.args, (self.recording,))
+        self.assertEqual(record.exc_info,
+                         (exc.__class__, exc, exc.__traceback__))
+
+    def test_exception_excinfo(self):
+        try:
+            1 / 0
+        except ZeroDivisionError as e:
+            exc = e
+
+        self.adapter.exception('exc_info test', exc_info=exc)
+
+        self.assertEqual(len(self.recording.records), 1)
+        record = self.recording.records[0]
         self.assertEqual(record.exc_info,
                          (exc.__class__, exc, exc.__traceback__))
 
