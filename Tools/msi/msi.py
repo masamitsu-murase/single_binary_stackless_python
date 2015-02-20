@@ -184,6 +184,7 @@ try:
     have_stackless = True
 except ImportError:
     have_stackless = False
+    print("WARNING: can't import stackless, building a regular C-Python MSI-installer")
 
 # Determine the target architecture
 if os.system("nmake /nologo /c /f msisupport.mak") != 0:
