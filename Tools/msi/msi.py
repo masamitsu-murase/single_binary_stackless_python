@@ -184,6 +184,7 @@ try:
     have_stackless = True
 except ImportError:
     have_stackless = False
+    print "WARNING: can't import stackless, building a regular C-Python MSI-installer"
 
 dll_path = os.path.join(srcdir, PCBUILD, dll_file)
 msilib.set_arch_from_file(dll_path)
