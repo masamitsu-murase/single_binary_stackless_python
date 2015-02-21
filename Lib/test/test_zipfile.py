@@ -1,3 +1,4 @@
+import contextlib
 import io
 import os
 import sys
@@ -24,6 +25,9 @@ SMALL_TEST_DATA = [('_ziptest1', '1q2w3e4r5t'),
                    ('ziptest2dir/_ziptest2', 'qawsedrftg'),
                    ('ziptest2dir/ziptest3dir/_ziptest3', 'azsxdcfvgb'),
                    ('ziptest2dir/ziptest3dir/ziptest4dir/_ziptest3', '6y7u8i9o0p')]
+
+def getrandbytes(size):
+    return getrandbits(8 * size).to_bytes(size, 'little')
 
 def get_files(test):
     yield TESTFN2
@@ -289,7 +293,7 @@ class AbstractTestsWithSourceFile:
         # than requested.
         for test_size in (1, 4095, 4096, 4097, 16384):
             file_size = test_size + 1
-            junk = getrandbits(8 * file_size).to_bytes(file_size, 'little')
+            junk = getrandbytes(file_size)
             with zipfile.ZipFile(io.BytesIO(), "w", self.compression) as zipf:
                 zipf.writestr('foo', junk)
                 with zipf.open('foo', 'r') as fp:
@@ -325,6 +329,37 @@ class AbstractTestsWithSourceFile:
                 with self.assertRaises(EOFError):
                     while zipopen.read1(100):
                         pass
+
+    def test_repr(self):
+        fname = 'file.name'
+        for f in get_files(self):
+            with zipfile.ZipFile(f, 'w', self.compression) as zipfp:
+                zipfp.write(TESTFN, fname)
+                r = repr(zipfp)
+                self.assertIn("mode='w'", r)
+
+            with zipfile.ZipFile(f, 'r') as zipfp:
+                r = repr(zipfp)
+                if isinstance(f, str):
+                    self.assertIn('filename=%r' % f, r)
+                else:
+                    self.assertIn('file=%r' % f, r)
+                self.assertIn("mode='r'", r)
+                r = repr(zipfp.getinfo(fname))
+                self.assertIn('filename=%r' % fname, r)
+                self.assertIn('filemode=', r)
+                self.assertIn('file_size=', r)
+                if self.compression != zipfile.ZIP_STORED:
+                    self.assertIn('compress_type=', r)
+                    self.assertIn('compress_size=', r)
+                with zipfp.open(fname) as zipopen:
+                    r = repr(zipopen)
+                    self.assertIn('name=%r' % fname, r)
+                    self.assertIn("mode='r'", r)
+                    if self.compression != zipfile.ZIP_STORED:
+                        self.assertIn('compress_type=', r)
+                self.assertIn('[closed]', repr(zipopen))
+            self.assertIn('[closed]', repr(zipfp))
 
     def tearDown(self):
         unlink(TESTFN)
@@ -644,7 +679,12 @@ class PyZipFileTests(unittest.TestCase):
         if name + 'o' not in namelist:
             self.assertIn(name + 'c', namelist)
 
+    def requiresWriteAccess(self, path):
+        if not os.access(path, os.W_OK, effective_ids=True):
+            self.skipTest('requires write access to the installed location')
+
     def test_write_pyfile(self):
+        self.requiresWriteAccess(os.path.dirname(__file__))
         with TemporaryFile() as t, zipfile.PyZipFile(t, "w") as zipfp:
             fn = __file__
             if fn.endswith('.pyc') or fn.endswith('.pyo'):
@@ -676,6 +716,7 @@ class PyZipFileTests(unittest.TestCase):
     def test_write_python_package(self):
         import email
         packagedir = os.path.dirname(email.__file__)
+        self.requiresWriteAccess(packagedir)
 
         with TemporaryFile() as t, zipfile.PyZipFile(t, "w") as zipfp:
             zipfp.writepy(packagedir)
@@ -689,6 +730,7 @@ class PyZipFileTests(unittest.TestCase):
     def test_write_filtered_python_package(self):
         import test
         packagedir = os.path.dirname(test.__file__)
+        self.requiresWriteAccess(packagedir)
 
         with TemporaryFile() as t, zipfile.PyZipFile(t, "w") as zipfp:
 
@@ -717,6 +759,7 @@ class PyZipFileTests(unittest.TestCase):
     def test_write_with_optimization(self):
         import email
         packagedir = os.path.dirname(email.__file__)
+        self.requiresWriteAccess(packagedir)
         # use .pyc if running test in optimization mode,
         # use .pyo if running test in debug mode
         optlevel = 1 if __debug__ else 0
@@ -1633,48 +1676,141 @@ class LzmaTestsWithRandomBinaryFiles(AbstractTestsWithRandomBinaryFiles,
     compression = zipfile.ZIP_LZMA
 
 
+# Privide the tell() method but not seek()
+class Tellable:
+    def __init__(self, fp):
+        self.fp = fp
+        self.offset = 0
+
+    def write(self, data):
+        self.offset += self.fp.write(data)
+
+    def tell(self):
+        return self.offset
+
+    def flush(self):
+        pass
+
+class UnseekableTests(unittest.TestCase):
+    def test_writestr_tellable(self):
+        f = io.BytesIO()
+        with zipfile.ZipFile(Tellable(f), 'w', zipfile.ZIP_STORED) as zipfp:
+            zipfp.writestr('ones', b'111')
+            zipfp.writestr('twos', b'222')
+        with zipfile.ZipFile(f, mode='r') as zipf:
+            with zipf.open('ones') as zopen:
+                self.assertEqual(zopen.read(), b'111')
+            with zipf.open('twos') as zopen:
+                self.assertEqual(zopen.read(), b'222')
+
+
 @requires_zlib
 class TestsWithMultipleOpens(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
+        cls.data1 = b'111' + getrandbytes(10000)
+        cls.data2 = b'222' + getrandbytes(10000)
+
+    def make_test_archive(self, f):
         # Create the ZIP archive
-        with zipfile.ZipFile(TESTFN2, "w", zipfile.ZIP_DEFLATED) as zipfp:
-            zipfp.writestr('ones', '1'*FIXEDTEST_SIZE)
-            zipfp.writestr('twos', '2'*FIXEDTEST_SIZE)
+        with zipfile.ZipFile(f, "w", zipfile.ZIP_DEFLATED) as zipfp:
+            zipfp.writestr('ones', self.data1)
+            zipfp.writestr('twos', self.data2)
 
     def test_same_file(self):
         # Verify that (when the ZipFile is in control of creating file objects)
         # multiple open() calls can be made without interfering with each other.
-        with zipfile.ZipFile(TESTFN2, mode="r") as zipf:
-            with zipf.open('ones') as zopen1, zipf.open('ones') as zopen2:
-                data1 = zopen1.read(500)
-                data2 = zopen2.read(500)
-                data1 += zopen1.read(500)
-                data2 += zopen2.read(500)
-            self.assertEqual(data1, data2)
+        for f in get_files(self):
+            self.make_test_archive(f)
+            with zipfile.ZipFile(f, mode="r") as zipf:
+                with zipf.open('ones') as zopen1, zipf.open('ones') as zopen2:
+                    data1 = zopen1.read(500)
+                    data2 = zopen2.read(500)
+                    data1 += zopen1.read()
+                    data2 += zopen2.read()
+                self.assertEqual(data1, data2)
+                self.assertEqual(data1, self.data1)
 
     def test_different_file(self):
         # Verify that (when the ZipFile is in control of creating file objects)
         # multiple open() calls can be made without interfering with each other.
-        with zipfile.ZipFile(TESTFN2, mode="r") as zipf:
-            with zipf.open('ones') as zopen1, zipf.open('twos') as zopen2:
-                data1 = zopen1.read(500)
-                data2 = zopen2.read(500)
-                data1 += zopen1.read(500)
-                data2 += zopen2.read(500)
-            self.assertEqual(data1, b'1'*FIXEDTEST_SIZE)
-            self.assertEqual(data2, b'2'*FIXEDTEST_SIZE)
+        for f in get_files(self):
+            self.make_test_archive(f)
+            with zipfile.ZipFile(f, mode="r") as zipf:
+                with zipf.open('ones') as zopen1, zipf.open('twos') as zopen2:
+                    data1 = zopen1.read(500)
+                    data2 = zopen2.read(500)
+                    data1 += zopen1.read()
+                    data2 += zopen2.read()
+                self.assertEqual(data1, self.data1)
+                self.assertEqual(data2, self.data2)
 
     def test_interleaved(self):
         # Verify that (when the ZipFile is in control of creating file objects)
         # multiple open() calls can be made without interfering with each other.
-        with zipfile.ZipFile(TESTFN2, mode="r") as zipf:
-            with zipf.open('ones') as zopen1, zipf.open('twos') as zopen2:
+        for f in get_files(self):
+            self.make_test_archive(f)
+            with zipfile.ZipFile(f, mode="r") as zipf:
+                with zipf.open('ones') as zopen1, zipf.open('twos') as zopen2:
+                    data1 = zopen1.read(500)
+                    data2 = zopen2.read(500)
+                    data1 += zopen1.read()
+                    data2 += zopen2.read()
+                self.assertEqual(data1, self.data1)
+                self.assertEqual(data2, self.data2)
+
+    def test_read_after_close(self):
+        for f in get_files(self):
+            self.make_test_archive(f)
+            with contextlib.ExitStack() as stack:
+                with zipfile.ZipFile(f, 'r') as zipf:
+                    zopen1 = stack.enter_context(zipf.open('ones'))
+                    zopen2 = stack.enter_context(zipf.open('twos'))
                 data1 = zopen1.read(500)
                 data2 = zopen2.read(500)
-                data1 += zopen1.read(500)
-                data2 += zopen2.read(500)
-            self.assertEqual(data1, b'1'*FIXEDTEST_SIZE)
-            self.assertEqual(data2, b'2'*FIXEDTEST_SIZE)
+                data1 += zopen1.read()
+                data2 += zopen2.read()
+            self.assertEqual(data1, self.data1)
+            self.assertEqual(data2, self.data2)
+
+    def test_read_after_write(self):
+        for f in get_files(self):
+            with zipfile.ZipFile(f, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                zipf.writestr('ones', self.data1)
+                zipf.writestr('twos', self.data2)
+                with zipf.open('ones') as zopen1:
+                    data1 = zopen1.read(500)
+            self.assertEqual(data1, self.data1[:500])
+            with zipfile.ZipFile(f, 'r') as zipf:
+                data1 = zipf.read('ones')
+                data2 = zipf.read('twos')
+            self.assertEqual(data1, self.data1)
+            self.assertEqual(data2, self.data2)
+
+    def test_write_after_read(self):
+        for f in get_files(self):
+            with zipfile.ZipFile(f, "w", zipfile.ZIP_DEFLATED) as zipf:
+                zipf.writestr('ones', self.data1)
+                with zipf.open('ones') as zopen1:
+                    zopen1.read(500)
+                    zipf.writestr('twos', self.data2)
+            with zipfile.ZipFile(f, 'r') as zipf:
+                data1 = zipf.read('ones')
+                data2 = zipf.read('twos')
+            self.assertEqual(data1, self.data1)
+            self.assertEqual(data2, self.data2)
+
+    def test_many_opens(self):
+        # Verify that read() and open() promptly close the file descriptor,
+        # and don't rely on the garbage collector to free resources.
+        self.make_test_archive(TESTFN2)
+        with zipfile.ZipFile(TESTFN2, mode="r") as zipf:
+            for x in range(100):
+                zipf.read('ones')
+                with zipf.open('ones') as zopen1:
+                    pass
+        with open(os.devnull) as f:
+            self.assertLess(f.fileno(), 100)
 
     def tearDown(self):
         unlink(TESTFN2)

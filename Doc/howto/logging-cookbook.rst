@@ -325,6 +325,15 @@ which, when run, will produce::
 
     MainThread: Look out!
 
+.. versionchanged:: 3.5
+   Prior to Python 3.5, the :class:`QueueListener` always passed every message
+   received from the queue to every handler it was initialized with. (This was
+   because it was assumed that level filtering was all done on the other side,
+   where the queue is filled.) From 3.5 onwards, this behaviour can be changed
+   by passing a keyword argument ``respect_handler_level=True`` to the
+   listener's constructor. When this is done, the listener compares the level
+   of each message with the handler's level, and only passes a message to a
+   handler if it's appropriate to do so.
 
 .. _network-logging:
 
@@ -649,7 +658,7 @@ file from your processes. The existing :class:`FileHandler` and subclasses do
 not make use of :mod:`multiprocessing` at present, though they may do so in the
 future. Note that at present, the :mod:`multiprocessing` module does not provide
 working lock functionality on all platforms (see
-http://bugs.python.org/issue3770).
+https://bugs.python.org/issue3770).
 
 .. currentmodule:: logging.handlers
 
@@ -1680,7 +1689,7 @@ as in the following complete example::
 
     def main():
         logging.basicConfig(level=logging.INFO, format='%(message)s')
-        logging.info(_('message 1', set_value=set([1, 2, 3]), snowman='\u2603'))
+        logging.info(_('message 1', set_value={1, 2, 3}, snowman='\u2603'))
 
     if __name__ == '__main__':
         main()
@@ -2032,4 +2041,113 @@ A couple of extra points to note:
   handlers and formatters. See :ref:`logging-config-dict-userdef` for more
   information on how logging supports using user-defined objects in its
   configuration, and see the other cookbook recipe :ref:`custom-handlers` above.
+
+
+.. _custom-format-exception:
+
+Customized exception formatting
+-------------------------------
+
+There might be times when you want to do customized exception formatting - for
+argument's sake, let's say you want exactly one line per logged event, even
+when exception information is present. You can do this with a custom formatter
+class, as shown in the following example::
+
+    import logging
+
+    class OneLineExceptionFormatter(logging.Formatter):
+        def formatException(self, exc_info):
+            """
+            Format an exception so that it prints on a single line.
+            """
+            result = super(OneLineExceptionFormatter, self).formatException(exc_info)
+            return repr(result) # or format into one line however you want to
+
+        def format(self, record):
+            s = super(OneLineExceptionFormatter, self).format(record)
+            if record.exc_text:
+                s = s.replace('\n', '') + '|'
+            return s
+
+    def configure_logging():
+        fh = logging.FileHandler('output.txt', 'w')
+        f = OneLineExceptionFormatter('%(asctime)s|%(levelname)s|%(message)s|',
+                                      '%d/%m/%Y %H:%M:%S')
+        fh.setFormatter(f)
+        root = logging.getLogger()
+        root.setLevel(logging.DEBUG)
+        root.addHandler(fh)
+
+    def main():
+        configure_logging()
+        logging.info('Sample message')
+        try:
+            x = 1 / 0
+        except ZeroDivisionError as e:
+            logging.exception('ZeroDivisionError: %s', e)
+
+    if __name__ == '__main__':
+        main()
+
+When run, this produces a file with exactly two lines::
+
+    28/01/2015 07:21:23|INFO|Sample message|
+    28/01/2015 07:21:23|ERROR|ZeroDivisionError: integer division or modulo by zero|'Traceback (most recent call last):\n  File "logtest7.py", line 30, in main\n    x = 1 / 0\nZeroDivisionError: integer division or modulo by zero'|
+
+While the above treatment is simplistic, it points the way to how exception
+information can be formatted to your liking. The :mod:`traceback` module may be
+helpful for more specialized needs.
+
+.. _spoken-messages:
+
+Speaking logging messages
+-------------------------
+
+There might be situations when it is desirable to have logging messages rendered
+in an audible rather than a visible format. This is easy to do if you have text-
+to-speech (TTS) functionality available in your system, even if it doesn't have
+a Python binding. Most TTS systems have a command line program you can run, and
+this can be invoked from a handler using :mod:`subprocess`. It's assumed here
+that TTS command line programs won't expect to interact with users or take a
+long time to complete, and that the frequency of logged messages will be not so
+high as to swamp the user with messages, and that it's acceptable to have the
+messages spoken one at a time rather than concurrently, The example implementation
+below waits for one message to be spoken before the next is processed, and this
+might cause other handlers to be kept waiting. Here is a short example showing
+the approach, which assumes that the ``espeak`` TTS package is available::
+
+    import logging
+    import subprocess
+    import sys
+
+    class TTSHandler(logging.Handler):
+        def emit(self, record):
+            msg = self.format(record)
+            # Speak slowly in a female English voice
+            cmd = ['espeak', '-s150', '-ven+f3', msg]
+            p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                                 stderr=subprocess.STDOUT)
+            # wait for the program to finish
+            p.communicate()
+
+    def configure_logging():
+        h = TTSHandler()
+        root = logging.getLogger()
+        root.addHandler(h)
+        # the default formatter just returns the message
+        root.setLevel(logging.DEBUG)
+
+    def main():
+        logging.info('Hello')
+        logging.debug('Goodbye')
+
+    if __name__ == '__main__':
+        configure_logging()
+        sys.exit(main())
+
+When run, this script should say "Hello" and then "Goodbye" in a female voice.
+
+The above approach can, of course, be adapted to other TTS systems and even
+other systems altogether which can process messages via external programs run
+from a command line.
 

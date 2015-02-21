@@ -38,13 +38,6 @@ module-level functions and methods on
 that don't require you to compile a regex object first, but miss some
 fine-tuning parameters.
 
-.. seealso::
-
-   Mastering Regular Expressions
-      Book on regular expressions by Jeffrey Friedl, published by O'Reilly.  The
-      second edition of the book no longer covers Python at all, but the first
-      edition covered writing good regular expression patterns in great detail.
-
 
 .. _re-syntax:
 
@@ -443,6 +436,14 @@ three digits in length.
    The ``'\u'`` and ``'\U'`` escape sequences have been added.
 
 
+.. seealso::
+
+   Mastering Regular Expressions
+      Book on regular expressions by Jeffrey Friedl, published by O'Reilly.  The
+      second edition of the book no longer covers Python at all, but the first
+      edition covered writing good regular expression patterns in great detail.
+
+
 
 .. _contents-of-module-re:
 
@@ -520,7 +521,11 @@ form.
    current locale. The use of this flag is discouraged as the locale mechanism
    is very unreliable, and it only handles one "culture" at a time anyway;
    you should use Unicode matching instead, which is the default in Python 3
-   for Unicode (str) patterns.
+   for Unicode (str) patterns. This flag makes sense only with bytes patterns.
+
+   .. deprecated-removed:: 3.5 3.6
+      Deprecated the use of  :const:`re.LOCALE` with string patterns or
+      :const:`re.ASCII`.
 
 
 .. data:: M
@@ -621,17 +626,37 @@ form.
    That way, separator components are always found at the same relative
    indices within the result list.
 
-   Note that *split* will never split a string on an empty pattern match.
-   For example:
+   .. note::
 
-      >>> re.split('x*', 'foo')
-      ['foo']
-      >>> re.split("(?m)^$", "foo\n\nbar\n")
-      ['foo\n\nbar\n']
+      :func:`split` doesn't currently split a string on an empty pattern match.
+      For example:
+
+         >>> re.split('x*', 'axbc')
+         ['a', 'bc']
+
+      Even though ``'x*'`` also matches 0 'x' before 'a', between 'b' and 'c',
+      and after 'c', currently these matches are ignored.  The correct behavior
+      (i.e. splitting on empty matches too and returning ``['', 'a', 'b', 'c',
+      '']``) will be implemented in future versions of Python, but since this
+      is a backward incompatible change, a :exc:`FutureWarning` will be raised
+      in the meanwhile.
+
+      Patterns that can only match empty strings currently never split the
+      string.  Since this doesn't match the expected behavior, a
+      :exc:`ValueError` will be raised starting from Python 3.5::
+
+         >>> re.split("^$", "foo\n\nbar\n", flags=re.M)
+         Traceback (most recent call last):
+           File "<stdin>", line 1, in <module>
+           ...
+         ValueError: split() requires a non-empty pattern match.
 
    .. versionchanged:: 3.1
       Added the optional flags argument.
 
+   .. versionchanged:: 3.5
+      Splitting on a pattern that could match an empty string now raises
+      a warning.  Patterns that can only match empty strings are now rejected.
 
 .. function:: findall(pattern, string, flags=0)
 
@@ -732,13 +757,36 @@ form.
    Clear the regular expression cache.
 
 
-.. exception:: error
+.. exception:: error(msg, pattern=None, pos=None)
 
    Exception raised when a string passed to one of the functions here is not a
    valid regular expression (for example, it might contain unmatched parentheses)
    or when some other error occurs during compilation or matching.  It is never an
-   error if a string contains no match for a pattern.
+   error if a string contains no match for a pattern.  The error instance has
+   the following additional attributes:
 
+   .. attribute:: msg
+
+      The unformatted error message.
+
+   .. attribute:: pattern
+
+      The regular expression pattern.
+
+   .. attribute:: pos
+
+      The index of *pattern* where compilation failed.
+
+   .. attribute:: lineno
+
+      The line corresponding to *pos*.
+
+   .. attribute:: colno
+
+      The column corresponding to *pos*.
+
+   .. versionchanged:: 3.5
+      Added additional attributes.
 
 .. _re-objects:
 

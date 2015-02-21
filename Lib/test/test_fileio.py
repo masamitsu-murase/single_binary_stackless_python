@@ -112,13 +112,25 @@ class AutoFileTests(unittest.TestCase):
         self.assertRaises(TypeError, self.f.write, "Hello!")
 
     def testRepr(self):
-        self.assertEqual(repr(self.f), "<_io.FileIO name=%r mode=%r>"
-                                        % (self.f.name, self.f.mode))
+        self.assertEqual(
+            repr(self.f), "<_io.FileIO name=%r mode=%r closefd=True>"
+                          % (self.f.name, self.f.mode))
         del self.f.name
-        self.assertEqual(repr(self.f), "<_io.FileIO fd=%r mode=%r>"
-                                        % (self.f.fileno(), self.f.mode))
+        self.assertEqual(
+            repr(self.f), "<_io.FileIO fd=%r mode=%r closefd=True>"
+                          % (self.f.fileno(), self.f.mode))
         self.f.close()
         self.assertEqual(repr(self.f), "<_io.FileIO [closed]>")
+
+    def testReprNoCloseFD(self):
+        fd = os.open(TESTFN, os.O_RDONLY)
+        try:
+            with _FileIO(fd, 'r', closefd=False) as f:
+                self.assertEqual(repr(f),
+                                 "<_io.FileIO name=%r mode=%r closefd=False>"
+                                 % (f.name, f.mode))
+        finally:
+            os.close(fd)
 
     def testErrors(self):
         f = self.f

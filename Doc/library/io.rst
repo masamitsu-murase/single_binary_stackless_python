@@ -519,9 +519,12 @@ Raw File I/O
    The *name* can be one of two things:
 
    * a character string or :class:`bytes` object representing the path to the
-     file which will be opened;
+     file which will be opened. In this case closefd must be True (the default)
+     otherwise an error will be raised.
    * an integer representing the number of an existing OS-level file descriptor
-     to which the resulting :class:`FileIO` object will give access.
+     to which the resulting :class:`FileIO` object will give access. When the
+     FileIO object is closed this fd will be closed as well, unless *closefd*
+     is set to ``False``.
 
    The *mode* can be ``'r'``, ``'w'``, ``'x'`` or ``'a'`` for reading
    (default), writing, exclusive creation or appending. The file will be
@@ -575,7 +578,8 @@ than raw I/O does.
 .. class:: BytesIO([initial_bytes])
 
    A stream implementation using an in-memory bytes buffer.  It inherits
-   :class:`BufferedIOBase`.
+   :class:`BufferedIOBase`.  The buffer is discarded when the
+   :meth:`~IOBase.close` method is called.
 
    The argument *initial_bytes* contains optional initial :class:`bytes` data.
 
@@ -596,13 +600,14 @@ than raw I/O does.
 
       .. note::
          As long as the view exists, the :class:`BytesIO` object cannot be
-         resized.
+         resized or closed.
 
       .. versionadded:: 3.2
 
    .. method:: getvalue()
 
       Return :class:`bytes` containing the entire contents of the buffer.
+
 
    .. method:: read1()
 
@@ -822,11 +827,13 @@ Text I/O
    exception if there is an encoding error (the default of ``None`` has the same
    effect), or pass ``'ignore'`` to ignore errors.  (Note that ignoring encoding
    errors can lead to data loss.)  ``'replace'`` causes a replacement marker
-   (such as ``'?'``) to be inserted where there is malformed data.  When
-   writing, ``'xmlcharrefreplace'`` (replace with the appropriate XML character
-   reference) or ``'backslashreplace'`` (replace with backslashed escape
-   sequences) can be used.  Any other error handling name that has been
-   registered with :func:`codecs.register_error` is also valid.
+   (such as ``'?'``) to be inserted where there is malformed data.
+   ``'backslashreplace'`` causes malformed data to be replaced by a
+   backslashed escape sequence.  When writing, ``'xmlcharrefreplace'``
+   (replace with the appropriate XML character reference)  or ``'namereplace'``
+   (replace with ``\N{...}`` escape sequences) can be used.  Any other error
+   handling name that has been registered with
+   :func:`codecs.register_error` is also valid.
 
    .. index::
       single: universal newlines; io.TextIOWrapper class
@@ -875,7 +882,8 @@ Text I/O
 
 .. class:: StringIO(initial_value='', newline='\\n')
 
-   An in-memory stream for text I/O.
+   An in-memory stream for text I/O.  The text buffer is discarded when the
+   :meth:`~IOBase.close` method is called.
 
    The initial value of the buffer (an empty string by default) can be set by
    providing *initial_value*.  The *newline* argument works like that of
@@ -887,9 +895,7 @@ Text I/O
 
    .. method:: getvalue()
 
-      Return a ``str`` containing the entire contents of the buffer at any
-      time before the :class:`StringIO` object's :meth:`close` method is
-      called.
+      Return a ``str`` containing the entire contents of the buffer.
 
    Example usage::
 

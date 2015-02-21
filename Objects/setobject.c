@@ -4,7 +4,7 @@
    Written and maintained by Raymond D. Hettinger <python@rcn.com>
    Derived from Lib/sets.py and Objects/dictobject.c.
 
-   Copyright (c) 2003-2014 Python Software Foundation.
+   Copyright (c) 2003-2015 Python Software Foundation.
    All rights reserved.
 
    The basic lookup function used by all operations.
@@ -23,7 +23,7 @@
 
    All arithmetic on hash should ignore overflow.
 
-   Unlike the dictionary implementation, the lookkey functions can return
+   Unlike the dictionary implementation, the lookkey function can return
    NULL if the rich comparison returns an error.
 */
 
@@ -56,19 +56,25 @@ set_lookkey(PySetObject *so, PyObject *key, Py_hash_t hash)
     setentry *entry;
     size_t perturb = hash;
     size_t mask = so->mask;
-    size_t i = (size_t)hash; /* Unsigned for defined overflow behavior. */
+    size_t i = (size_t)hash & mask; /* Unsigned for defined overflow behavior */
     size_t j;
     int cmp;
 
-    entry = &table[i & mask];
+    entry = &table[i];
     if (entry->key == NULL)
         return entry;
 
     while (1) {
-        if (entry->key == key)
-            return entry;
-        if (entry->hash == hash && entry->key != dummy) {         /* dummy match unlikely */
+        if (entry->hash == hash) {
             PyObject *startkey = entry->key;
+            /* startkey cannot be a dummy because the dummy hash field is -1 */
+            assert(startkey != dummy);
+            if (startkey == key)
+                return entry;
+            if (PyUnicode_CheckExact(startkey)
+                && PyUnicode_CheckExact(key)
+                && unicode_eq(startkey, key))
+                return entry;
             Py_INCREF(startkey);
             cmp = PyObject_RichCompareBool(startkey, key, Py_EQ);
             Py_DECREF(startkey);
@@ -78,98 +84,45 @@ set_lookkey(PySetObject *so, PyObject *key, Py_hash_t hash)
                 return set_lookkey(so, key, hash);
             if (cmp > 0)                                          /* likely */
                 return entry;
+            mask = so->mask;                 /* help avoid a register spill */
         }
-        if (entry->key == dummy && freeslot == NULL)
+        if (entry->hash == -1 && freeslot == NULL)
             freeslot = entry;
 
-        for (j = 1 ; j <= LINEAR_PROBES ; j++) {
-            entry = &table[(i + j) & mask];
-            if (entry->key == NULL)
-                goto found_null;
-            if (entry->key == key)
-                return entry;
-            if (entry->hash == hash && entry->key != dummy) {
-                PyObject *startkey = entry->key;
-                Py_INCREF(startkey);
-                cmp = PyObject_RichCompareBool(startkey, key, Py_EQ);
-                Py_DECREF(startkey);
-                if (cmp < 0)
-                    return NULL;
-                if (table != so->table || entry->key != startkey)
-                    return set_lookkey(so, key, hash);
-                if (cmp > 0)
-                    return entry;
+        if (i + LINEAR_PROBES <= mask) {
+            for (j = 0 ; j < LINEAR_PROBES ; j++) {
+                entry++;
+                if (entry->key == NULL)
+                    goto found_null;
+                if (entry->hash == hash) {
+                    PyObject *startkey = entry->key;
+                    assert(startkey != dummy);
+                    if (startkey == key)
+                        return entry;
+                    if (PyUnicode_CheckExact(startkey)
+                        && PyUnicode_CheckExact(key)
+                        && unicode_eq(startkey, key))
+                        return entry;
+                    Py_INCREF(startkey);
+                    cmp = PyObject_RichCompareBool(startkey, key, Py_EQ);
+                    Py_DECREF(startkey);
+                    if (cmp < 0)
+                        return NULL;
+                    if (table != so->table || entry->key != startkey)
+                        return set_lookkey(so, key, hash);
+                    if (cmp > 0)
+                        return entry;
+                    mask = so->mask;
+                }
+                if (entry->hash == -1 && freeslot == NULL)
+                    freeslot = entry;
             }
-            if (entry->key == dummy && freeslot == NULL)
-                freeslot = entry;
         }
 
         perturb >>= PERTURB_SHIFT;
-        i = i * 5 + 1 + perturb;
+        i = (i * 5 + 1 + perturb) & mask;
 
-        entry = &table[i & mask];
-        if (entry->key == NULL)
-            goto found_null;
-    }
-  found_null:
-    return freeslot == NULL ? entry : freeslot;
-}
-
-/*
- * Hacked up version of set_lookkey which can assume keys are always unicode;
- * This means we can always use unicode_eq directly and not have to check to
- * see if the comparison altered the table.
- */
-static setentry *
-set_lookkey_unicode(PySetObject *so, PyObject *key, Py_hash_t hash)
-{
-    setentry *table = so->table;
-    setentry *freeslot = NULL;
-    setentry *entry;
-    size_t perturb = hash;
-    size_t mask = so->mask;
-    size_t i = (size_t)hash;
-    size_t j;
-
-    /* Make sure this function doesn't have to handle non-unicode keys,
-       including subclasses of str; e.g., one reason to subclass
-       strings is to override __eq__, and for speed we don't cater to
-       that here. */
-    if (!PyUnicode_CheckExact(key)) {                             /* unlikely */
-        so->lookup = set_lookkey;
-        return set_lookkey(so, key, hash);
-    }
-
-    entry = &table[i & mask];
-    if (entry->key == NULL)
-        return entry;
-
-    while (1) {
-        if (entry->key == key
-            || (entry->hash == hash
-                && entry->key != dummy                            /* unlikely */
-                && unicode_eq(entry->key, key)))                  /* likely */
-            return entry;
-        if (entry->key == dummy && freeslot == NULL)
-            freeslot = entry;
-
-        for (j = 1 ; j <= LINEAR_PROBES ; j++) {
-            entry = &table[(i + j) & mask];
-            if (entry->key == NULL)
-                goto found_null;
-            if (entry->key == key
-                || (entry->hash == hash
-                    && entry->key != dummy
-                    && unicode_eq(entry->key, key)))
-                return entry;
-            if (entry->key == dummy && freeslot == NULL)
-                freeslot = entry;
-        }
-
-        perturb >>= PERTURB_SHIFT;
-        i = i * 5 + 1 + perturb;
-
-        entry = &table[i & mask];
+        entry = &table[i];
         if (entry->key == NULL)
             goto found_null;
     }
@@ -192,20 +145,22 @@ set_insert_clean(PySetObject *so, PyObject *key, Py_hash_t hash)
     setentry *entry;
     size_t perturb = hash;
     size_t mask = (size_t)so->mask;
-    size_t i = (size_t)hash;
+    size_t i = (size_t)hash & mask;
     size_t j;
 
     while (1) {
-        entry = &table[i & mask];
+        entry = &table[i];
         if (entry->key == NULL)
             goto found_null;
-        for (j = 1 ; j <= LINEAR_PROBES ; j++) {
-            entry = &table[(i + j) & mask];
-            if (entry->key == NULL)
-                goto found_null;
+        if (i + LINEAR_PROBES <= mask) {
+            for (j = 0; j < LINEAR_PROBES; j++) {
+                entry++;
+                if (entry->key == NULL)
+                    goto found_null;
+            }
         }
         perturb >>= PERTURB_SHIFT;
-        i = i * 5 + 1 + perturb;
+        i = (i * 5 + 1 + perturb) & mask;
     }
   found_null:
     entry->key = key;
@@ -228,15 +183,14 @@ set_insert_key(PySetObject *so, PyObject *key, Py_hash_t hash)
 {
     setentry *entry;
 
-    assert(so->lookup != NULL);
-    entry = so->lookup(so, key, hash);
+    entry = set_lookkey(so, key, hash);
     if (entry == NULL)
         return -1;
     if (entry->key == NULL) {
         /* UNUSED */
-        so->fill++;
         entry->key = key;
         entry->hash = hash;
+        so->fill++;
         so->used++;
     } else if (entry->key == dummy) {
         /* DUMMY */
@@ -260,7 +214,8 @@ set_table_resize(PySetObject *so, Py_ssize_t minused)
 {
     Py_ssize_t newsize;
     setentry *oldtable, *newtable, *entry;
-    Py_ssize_t i;
+    Py_ssize_t oldfill = so->fill;
+    Py_ssize_t oldused = so->used;
     int is_oldtable_malloced;
     setentry small_copy[PySet_MINSIZE];
 
@@ -311,19 +266,27 @@ set_table_resize(PySetObject *so, Py_ssize_t minused)
 
     /* Make the set empty, using the new table. */
     assert(newtable != oldtable);
-    so->table = newtable;
-    so->mask = newsize - 1;
     memset(newtable, 0, sizeof(setentry) * newsize);
-    i = so->used;
-    so->used = 0;
     so->fill = 0;
+    so->used = 0;
+    so->mask = newsize - 1;
+    so->table = newtable;
 
     /* Copy the data over; this is refcount-neutral for active entries;
        dummy entries aren't copied over, of course */
-    for (entry = oldtable; i > 0; entry++) {
-        if (entry->key != NULL && entry->key != dummy) {
-            --i;
-            set_insert_clean(so, entry->key, entry->hash);
+    if (oldfill == oldused) {
+        for (entry = oldtable; oldused > 0; entry++) {
+            if (entry->key != NULL) {
+                oldused--;
+                set_insert_clean(so, entry->key, entry->hash);
+            }
+        }
+    } else {
+        for (entry = oldtable; oldused > 0; entry++) {
+            if (entry->key != NULL && entry->key != dummy) {
+                oldused--;
+                set_insert_clean(so, entry->key, entry->hash);
+            }
         }
     }
 
@@ -356,8 +319,8 @@ set_add_entry(PySetObject *so, setentry *entry)
 static int
 set_add_key(PySetObject *so, PyObject *key)
 {
+    setentry entry;
     Py_hash_t hash;
-    Py_ssize_t n_used;
 
     if (!PyUnicode_CheckExact(key) ||
         (hash = ((PyASCIIObject *) key)->hash) == -1) {
@@ -365,16 +328,9 @@ set_add_key(PySetObject *so, PyObject *key)
         if (hash == -1)
             return -1;
     }
-    assert(so->fill <= so->mask);  /* at least one empty slot */
-    n_used = so->used;
-    Py_INCREF(key);
-    if (set_insert_key(so, key, hash) == -1) {
-        Py_DECREF(key);
-        return -1;
-    }
-    if (!(so->used > n_used && so->fill*3 >= (so->mask+1)*2))
-        return 0;
-    return set_table_resize(so, so->used>50000 ? so->used*2 : so->used*4);
+    entry.key = key;
+    entry.hash = hash;
+    return set_add_entry(so, &entry);
 }
 
 #define DISCARD_NOTFOUND 0
@@ -382,16 +338,18 @@ set_add_key(PySetObject *so, PyObject *key)
 
 static int
 set_discard_entry(PySetObject *so, setentry *oldentry)
-{       setentry *entry;
+{
+    setentry *entry;
     PyObject *old_key;
 
-    entry = (so->lookup)(so, oldentry->key, oldentry->hash);
+    entry = set_lookkey(so, oldentry->key, oldentry->hash);
     if (entry == NULL)
         return -1;
     if (entry->key == NULL  ||  entry->key == dummy)
         return DISCARD_NOTFOUND;
     old_key = entry->key;
     entry->key = dummy;
+    entry->hash = -1;
     so->used--;
     Py_DECREF(old_key);
     return DISCARD_FOUND;
@@ -400,9 +358,8 @@ set_discard_entry(PySetObject *so, setentry *oldentry)
 static int
 set_discard_key(PySetObject *so, PyObject *key)
 {
+    setentry entry;
     Py_hash_t hash;
-    setentry *entry;
-    PyObject *old_key;
 
     assert (PyAnySet_Check(so));
 
@@ -412,16 +369,9 @@ set_discard_key(PySetObject *so, PyObject *key)
         if (hash == -1)
             return -1;
     }
-    entry = (so->lookup)(so, key, hash);
-    if (entry == NULL)
-        return -1;
-    if (entry->key == NULL  ||  entry->key == dummy)
-        return DISCARD_NOTFOUND;
-    old_key = entry->key;
-    entry->key = dummy;
-    so->used--;
-    Py_DECREF(old_key);
-    return DISCARD_FOUND;
+    entry.key = key;
+    entry.hash = hash;
+    return set_discard_entry(so, &entry);
 }
 
 static void
@@ -438,20 +388,15 @@ set_empty_to_minsize(PySetObject *so)
 static int
 set_clear_internal(PySetObject *so)
 {
-    setentry *entry, *table;
-    int table_is_malloced;
-    Py_ssize_t fill;
+    setentry *entry;
+    setentry *table = so->table;
+    Py_ssize_t fill = so->fill;
+    Py_ssize_t used = so->used;
+    int table_is_malloced = table != so->smalltable;
     setentry small_copy[PySet_MINSIZE];
 
-#ifdef Py_DEBUG
-    Py_ssize_t i = 0;
-    Py_ssize_t n = so->mask + 1;
-#endif
-
     assert (PyAnySet_Check(so));
-    table = so->table;
     assert(table != NULL);
-    table_is_malloced = table != so->smalltable;
 
     /* This is delicate.  During the process of clearing the set,
      * decrefs can cause the set to mutate.  To avoid fatal confusion
@@ -459,7 +404,6 @@ set_clear_internal(PySetObject *so)
      * clearing the slots, and never refer to anything via so->ref while
      * clearing.
      */
-    fill = so->fill;
     if (table_is_malloced)
         set_empty_to_minsize(so);
 
@@ -478,20 +422,11 @@ set_clear_internal(PySetObject *so)
      * assert that the refcount on table is 1 now, i.e. that this function
      * has unique access to it, so decref side-effects can't alter it.
      */
-    for (entry = table; fill > 0; ++entry) {
-#ifdef Py_DEBUG
-        assert(i < n);
-        ++i;
-#endif
-        if (entry->key) {
-            --fill;
-            if (entry->key != dummy)
-                Py_DECREF(entry->key);
+    for (entry = table; used > 0; entry++) {
+        if (entry->key && entry->key != dummy) {
+            used--;
+            Py_DECREF(entry->key);
         }
-#ifdef Py_DEBUG
-        else
-            assert(entry->key == NULL);
-#endif
     }
 
     if (table_is_malloced)
@@ -538,16 +473,16 @@ static void
 set_dealloc(PySetObject *so)
 {
     setentry *entry;
-    Py_ssize_t fill = so->fill;
+    Py_ssize_t used = so->used;
+
     PyObject_GC_UnTrack(so);
     Py_TRASHCAN_SAFE_BEGIN(so)
     if (so->weakreflist != NULL)
         PyObject_ClearWeakRefs((PyObject *) so);
 
-    for (entry = so->table; fill > 0; entry++) {
-        if (entry->key) {
-            --fill;
-            if (entry->key != dummy)
+    for (entry = so->table; used > 0; entry++) {
+        if (entry->key && entry->key != dummy) {
+                used--;
                 Py_DECREF(entry->key);
         }
     }
@@ -649,10 +584,23 @@ set_merge(PySetObject *so, PyObject *otherset)
 }
 
 static int
+set_contains_entry(PySetObject *so, setentry *entry)
+{
+    PyObject *key;
+    setentry *lu_entry;
+
+    lu_entry = set_lookkey(so, entry->key, entry->hash);
+    if (lu_entry == NULL)
+        return -1;
+    key = lu_entry->key;
+    return key != NULL && key != dummy;
+}
+
+static int
 set_contains_key(PySetObject *so, PyObject *key)
 {
+    setentry entry;
     Py_hash_t hash;
-    setentry *entry;
 
     if (!PyUnicode_CheckExact(key) ||
         (hash = ((PyASCIIObject *) key)->hash) == -1) {
@@ -660,30 +608,16 @@ set_contains_key(PySetObject *so, PyObject *key)
         if (hash == -1)
             return -1;
     }
-    entry = (so->lookup)(so, key, hash);
-    if (entry == NULL)
-        return -1;
-    key = entry->key;
-    return key != NULL && key != dummy;
-}
-
-static int
-set_contains_entry(PySetObject *so, setentry *entry)
-{
-    PyObject *key;
-    setentry *lu_entry;
-
-    lu_entry = (so->lookup)(so, entry->key, entry->hash);
-    if (lu_entry == NULL)
-        return -1;
-    key = lu_entry->key;
-    return key != NULL && key != dummy;
+    entry.key = key;
+    entry.hash = hash;
+    return set_contains_entry(so, &entry);
 }
 
 static PyObject *
 set_pop(PySetObject *so)
 {
-    Py_ssize_t i = 0;
+    /* Make sure the search finger is in bounds */
+    Py_ssize_t i = so->finger & so->mask;
     setentry *entry;
     PyObject *key;
 
@@ -693,32 +627,16 @@ set_pop(PySetObject *so)
         return NULL;
     }
 
-    /* Set entry to "the first" unused or dummy set entry.  We abuse
-     * the hash field of slot 0 to hold a search finger:
-     * If slot 0 has a value, use slot 0.
-     * Else slot 0 is being used to hold a search finger,
-     * and we use its hash value as the first index to look.
-     */
-    entry = &so->table[0];
-    if (entry->key == NULL || entry->key == dummy) {
-        i = entry->hash;
-        /* The hash field may be a real hash value, or it may be a
-         * legit search finger, or it may be a once-legit search
-         * finger that's out of bounds now because it wrapped around
-         * or the table shrunk -- simply make sure it's in bounds now.
-         */
-        if (i > so->mask || i < 1)
-            i = 1;              /* skip slot 0 */
-        while ((entry = &so->table[i])->key == NULL || entry->key==dummy) {
-            i++;
-            if (i > so->mask)
-                i = 1;
-        }
+    while ((entry = &so->table[i])->key == NULL || entry->key==dummy) {
+        i++;
+        if (i > so->mask)
+            i = 0;
     }
     key = entry->key;
     entry->key = dummy;
+    entry->hash = -1;
     so->used--;
-    so->table[0].hash = i + 1;  /* next place to start */
+    so->finger = i + 1;         /* next place to start */
     return key;
 }
 
@@ -761,7 +679,7 @@ frozenset_hash(PyObject *self)
     hash *= (Py_uhash_t)PySet_GET_SIZE(self) + 1;
     while (set_next(so, &pos, &entry)) {
         /* Work to increase the bit dispersion for closely spaced hash
-           values.  The is important because some use cases have many
+           values.  This is important because some use cases have many
            combinations of a small number of elements with nearby
            hashes so that many distinct combinations collapse to only
            a handful of distinct hash values. */
@@ -1035,8 +953,8 @@ make_new_set(PyTypeObject *type, PyObject *iterable)
     so->used = 0;
     so->mask = PySet_MINSIZE - 1;
     so->table = so->smalltable;
-    so->lookup = set_lookkey_unicode;
     so->hash = -1;
+    so->finger = 0;
     so->weakreflist = NULL;
 
     if (iterable != NULL) {
@@ -1124,10 +1042,8 @@ set_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
      t=set(a); a.clear(); a.update(b); b.clear(); b.update(t); del t
 
    The function always succeeds and it leaves both objects in a stable state.
-   Useful for creating temporary frozensets from sets for membership testing
-   in __contains__(), discard(), and remove().  Also useful for operations
-   that update in-place (by allowing an intermediate result to be swapped
-   into one of the original inputs).
+   Useful for operations that update in-place (by allowing an intermediate
+   result to be swapped into one of the original inputs).
 */
 
 static void
@@ -1135,7 +1051,6 @@ set_swap_bodies(PySetObject *a, PySetObject *b)
 {
     Py_ssize_t t;
     setentry *u;
-    setentry *(*f)(PySetObject *so, PyObject *key, Py_ssize_t hash);
     setentry tab[PySet_MINSIZE];
     Py_hash_t h;
 
@@ -1150,8 +1065,6 @@ set_swap_bodies(PySetObject *a, PySetObject *b)
     if (b->table == b->smalltable)
         a->table = a->smalltable;
     b->table = u;
-
-    f = a->lookup;   a->lookup = b->lookup;      b->lookup = f;
 
     if (a->table == a->smalltable || b->table == b->smalltable) {
         memcpy(tab, a->smalltable, sizeof(tab));

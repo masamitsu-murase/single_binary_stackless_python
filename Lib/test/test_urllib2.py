@@ -44,7 +44,7 @@ class TrivialTests(unittest.TestCase):
         self.assertRaises(ValueError, urllib.request.urlopen, 'bogus url')
 
         # XXX Name hacking to get this to work on Windows.
-        fname = os.path.abspath(urllib.request.__file__).replace('\\', '/')
+        fname = os.path.abspath(urllib.request.__file__).replace(os.sep, '/')
 
         if os.name == 'nt':
             file_url = "file:///%s" % fname
@@ -1422,6 +1422,21 @@ class HandlerTests(unittest.TestCase):
             handler.do_open(conn, req)
         self.assertTrue(conn.fakesock.closed, "Connection not closed")
 
+    def test_auth_prior_handler(self):
+        pwd_manager = MockPasswordManager()
+        pwd_manager.add_password(None, 'https://example.com',
+                                 'somebody', 'verysecret')
+        auth_prior_handler = urllib.request.HTTPBasicPriorAuthHandler(
+            pwd_manager)
+        http_hand = MockHTTPSHandler()
+
+        opener = OpenerDirector()
+        opener.add_handler(http_hand)
+        opener.add_handler(auth_prior_handler)
+
+        req = Request("https://example.com")
+        opener.open(req)
+        self.assertNotIn('Authorization', http_hand.httpconn.req_headers)
 
 class MiscTests(unittest.TestCase):
 

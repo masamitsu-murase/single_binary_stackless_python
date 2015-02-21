@@ -144,6 +144,7 @@ __all__ = [
     'HAVE_THREADS'
 ]
 
+__xname__ = __name__    # sys.modules lookup (--without-threads)
 __name__ = 'decimal'    # For pickling
 __version__ = '1.70'    # Highest version of the spec this complies with
                         # See http://speleotrove.com/decimal/
@@ -441,7 +442,7 @@ except ImportError:
     # Python was compiled without threads; create a mock object instead
     class MockThreading(object):
         def local(self, sys=sys):
-            return sys.modules[__name__]
+            return sys.modules[__xname__]
     threading = MockThreading()
     del MockThreading
 
@@ -921,15 +922,6 @@ class Decimal(object):
         if self._check_nans(other, context):
             return False
         return self._cmp(other) == 0
-
-    def __ne__(self, other, context=None):
-        self, other = _convert_for_comparison(self, other, equality_op=True)
-        if other is NotImplemented:
-            return other
-        if self._check_nans(other, context):
-            return True
-        return self._cmp(other) != 0
-
 
     def __lt__(self, other, context=None):
         self, other = _convert_for_comparison(self, other)

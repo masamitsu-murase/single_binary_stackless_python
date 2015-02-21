@@ -51,11 +51,11 @@ test runner
       Kent Beck's original paper on testing frameworks using the pattern shared
       by :mod:`unittest`.
 
-   `Nose <http://code.google.com/p/python-nose/>`_ and `py.test <http://pytest.org>`_
+   `Nose <https://nose.readthedocs.org/en/latest/>`_ and `py.test <http://pytest.org>`_
       Third-party unittest frameworks with a lighter-weight syntax for writing
       tests.  For example, ``assert func(10) == 42``.
 
-   `The Python Testing Tools Taxonomy <http://wiki.python.org/moin/PythonTestingToolsTaxonomy>`_
+   `The Python Testing Tools Taxonomy <https://wiki.python.org/moin/PythonTestingToolsTaxonomy>`_
       An extensive list of Python testing tools including functional testing
       frameworks and mock object libraries.
 
@@ -67,7 +67,7 @@ test runner
    a GUI tool for test discovery and execution.  This is intended largely for ease of use
    for those new to unit testing.  For production environments it is
    recommended that tests be driven by a continuous integration system such as
-   `Buildbot <http://buildbot.net/trac>`_, `Jenkins <http://jenkins-ci.org>`_
+   `Buildbot <http://buildbot.net/>`_, `Jenkins <http://jenkins-ci.org/>`_
    or  `Hudson <http://hudson-ci.org/>`_.
 
 
@@ -1552,6 +1552,20 @@ Loading and running tests
    :data:`unittest.defaultTestLoader`.  Using a subclass or instance, however,
    allows customization of some configurable properties.
 
+   :class:`TestLoader` objects have the following attributes:
+
+
+   .. attribute:: errors
+
+      A list of the non-fatal errors encountered while loading tests. Not reset
+      by the loader at any point. Fatal errors are signalled by the relevant
+      a method raising an exception to the caller. Non-fatal errors are also
+      indicated by a synthetic test that will raise the original error when
+      run.
+
+      .. versionadded:: 3.5
+
+
    :class:`TestLoader` objects have the following methods:
 
 
@@ -1615,6 +1629,12 @@ Loading and running tests
 
       The method optionally resolves *name* relative to the given *module*.
 
+   .. versionchanged:: 3.5
+      If an :exc:`ImportError` or :exc:`AttributeError` occurs while traversing
+      *name* then a synthetic test that raises that error when run will be
+      returned. These errors are included in the errors accumulated by
+      self.errors.
+
 
    .. method:: loadTestsFromNames(names, module=None)
 
@@ -1648,7 +1668,11 @@ Loading and running tests
 
       If a package (a directory containing a file named :file:`__init__.py`) is
       found, the package will be checked for a ``load_tests`` function. If this
-      exists then it will be called with *loader*, *tests*, *pattern*.
+      exists then it will be called
+      ``package.load_tests(loader, tests, pattern)``. Test discovery takes care
+      to ensure that a package is only checked for tests once during an
+      invocation, even if the load_tests function itself calls
+      ``loader.discover``.
 
       If ``load_tests`` exists then discovery does *not* recurse into the
       package, ``load_tests`` is responsible for loading all tests in the

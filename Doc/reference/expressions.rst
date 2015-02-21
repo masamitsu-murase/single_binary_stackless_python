@@ -330,8 +330,9 @@ The execution starts when one of the generator's methods is called.  At that
 time, the execution proceeds to the first yield expression, where it is
 suspended again, returning the value of :token:`expression_list` to the generator's
 caller.  By suspended, we mean that all local state is retained, including the
-current bindings of local variables, the instruction pointer, and the internal
-evaluation stack.  When the execution is resumed by calling one of the
+current bindings of local variables, the instruction pointer, the internal
+evaluation stack, and the state of any exception handling.  When the execution
+is resumed by calling one of the
 generator's methods, the function can proceed exactly as if the yield expression
 were just another external call.  The value of the yield expression after
 resuming depends on the method which resumed the execution.  If
@@ -348,8 +349,8 @@ suspended.  The only difference is that a generator function cannot control
 where the execution should continue after it yields; the control is always
 transferred to the generator's caller.
 
-Yield expressions are allowed in the :keyword:`try` clause of a :keyword:`try`
-...  :keyword:`finally` construct.  If the generator is not resumed before it is
+Yield expressions are allowed anywhere in a :keyword:`try` construct.  If the
+generator is not resumed before it is
 finalized (by reaching a zero reference count or by being garbage collected),
 the generator-iterator's :meth:`~generator.close` method will be called,
 allowing any pending :keyword:`finally` clauses to execute.
@@ -619,8 +620,8 @@ slice list contains no proper slice).
    single: stop (slice object attribute)
    single: step (slice object attribute)
 
-The semantics for a slicing are as follows.  The primary must evaluate to a
-mapping object, and it is indexed (using the same :meth:`__getitem__` method as
+The semantics for a slicing are as follows.  The primary is indexed (using the
+same :meth:`__getitem__` method as
 normal subscription) with a key that is constructed from the slice list, as
 follows.  If the slice list contains at least one comma, the key is a tuple
 containing the conversion of the slice items; otherwise, the conversion of the

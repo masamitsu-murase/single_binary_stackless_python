@@ -285,17 +285,18 @@ class BaseTest:
 
     def test_iterator_pickle(self):
         data = array.array(self.typecode, self.example)
-        orgit = iter(data)
-        d = pickle.dumps(orgit)
-        it = pickle.loads(d)
-        self.assertEqual(type(orgit), type(it))
-        self.assertEqual(list(it), list(data))
-
-        if len(data):
+        for proto in range(pickle.HIGHEST_PROTOCOL + 1):
+            orgit = iter(data)
+            d = pickle.dumps(orgit, proto)
             it = pickle.loads(d)
-            next(it)
-            d = pickle.dumps(it)
-            self.assertEqual(list(it), list(data)[1:])
+            self.assertEqual(type(orgit), type(it))
+            self.assertEqual(list(it), list(data))
+
+            if len(data):
+                it = pickle.loads(d)
+                next(it)
+                d = pickle.dumps(it, proto)
+                self.assertEqual(list(it), list(data)[1:])
 
     def test_insert(self):
         a = array.array(self.typecode, self.example)
@@ -1040,6 +1041,11 @@ class BaseTest:
             a = array.array(self.typecode, "foo")
             a = array.array(self.typecode, array.array('u', 'foo'))
 
+    @support.cpython_only
+    def test_obsolete_write_lock(self):
+        from _testcapi import getbuffer_with_null_view
+        a = array.array('B', b"")
+        self.assertRaises(BufferError, getbuffer_with_null_view, a)
 
 class StringTest(BaseTest):
 

@@ -7,8 +7,11 @@
 import unittest
 import re
 import contextlib
+import functools
 import operator
+import pickle
 import ipaddress
+
 
 class BaseTestCase(unittest.TestCase):
     # One big change in ipaddress over the original ipaddr module is
@@ -52,16 +55,17 @@ class BaseTestCase(unittest.TestCase):
     def assertAddressError(self, details, *args):
         """Ensure a clean AddressValueError"""
         return self.assertCleanError(ipaddress.AddressValueError,
-                                       details, *args)
+                                     details, *args)
 
     def assertNetmaskError(self, details, *args):
         """Ensure a clean NetmaskValueError"""
         return self.assertCleanError(ipaddress.NetmaskValueError,
-                                details, *args)
+                                     details, *args)
 
     def assertInstancesEqual(self, lhs, rhs):
         """Check constructor arguments produce equivalent instances"""
         self.assertEqual(self.factory(lhs), self.factory(rhs))
+
 
 class CommonTestMixin:
 
@@ -79,6 +83,13 @@ class CommonTestMixin:
         self.assertRaises(TypeError, operator.index, self.factory(1))
         self.assertRaises(TypeError, hex, self.factory(1))
         self.assertRaises(TypeError, bytes, self.factory(1))
+
+    def pickle_test(self, addr):
+        for proto in range(pickle.HIGHEST_PROTOCOL + 1):
+            with self.subTest(proto=proto):
+                x = self.factory(addr)
+                y = pickle.loads(pickle.dumps(x, proto))
+                self.assertEqual(y, x)
 
 
 class CommonTestMixin_v4(CommonTestMixin):
@@ -114,6 +125,7 @@ class CommonTestMixin_v4(CommonTestMixin):
 
         assertBadLength(3)
         assertBadLength(5)
+
 
 class CommonTestMixin_v6(CommonTestMixin):
 
@@ -195,7 +207,7 @@ class AddressTestCase_v4(BaseTestCase, CommonTestMixin_v4):
     def test_empty_octet(self):
         def assertBadOctet(addr):
             with self.assertAddressError("Empty octet not permitted in %r",
-                                          addr):
+                                         addr):
                 ipaddress.IPv4Address(addr)
 
         assertBadOctet("42..42.42")
@@ -243,6 +255,9 @@ class AddressTestCase_v4(BaseTestCase, CommonTestMixin_v4):
 
         assertBadOctet("257.0.0.0", 257)
         assertBadOctet("192.168.0.999", 999)
+
+    def test_pickle(self):
+        self.pickle_test('192.0.2.1')
 
 
 class AddressTestCase_v6(BaseTestCase, CommonTestMixin_v6):
@@ -376,6 +391,9 @@ class AddressTestCase_v6(BaseTestCase, CommonTestMixin_v6):
         assertBadPart("02001:db8::", "02001")
         assertBadPart('2001:888888::1', "888888")
 
+    def test_pickle(self):
+        self.pickle_test('2001:db8::')
+
 
 class NetmaskTestMixin_v4(CommonTestMixin_v4):
     """Input validation on interfaces and networks is very similar"""
@@ -439,9 +457,15 @@ class NetmaskTestMixin_v4(CommonTestMixin_v4):
         assertBadNetmask("1.1.1.1", "pudding")
         assertBadNetmask("1.1.1.1", "::")
 
+    def test_pickle(self):
+        self.pickle_test('192.0.2.0/27')
+        self.pickle_test('192.0.2.0/31')  # IPV4LENGTH - 1
+        self.pickle_test('192.0.2.0')     # IPV4LENGTH
+
 
 class InterfaceTestCase_v4(BaseTestCase, NetmaskTestMixin_v4):
     factory = ipaddress.IPv4Interface
+
 
 class NetworkTestCase_v4(BaseTestCase, NetmaskTestMixin_v4):
     factory = ipaddress.IPv4Network
@@ -496,8 +520,15 @@ class NetmaskTestMixin_v6(CommonTestMixin_v6):
         assertBadNetmask("::1", "pudding")
         assertBadNetmask("::", "::")
 
+    def test_pickle(self):
+        self.pickle_test('2001:db8::1000/124')
+        self.pickle_test('2001:db8::1000/127')  # IPV6LENGTH - 1
+        self.pickle_test('2001:db8::1000')      # IPV6LENGTH
+
+
 class InterfaceTestCase_v6(BaseTestCase, NetmaskTestMixin_v6):
     factory = ipaddress.IPv6Interface
+
 
 class NetworkTestCase_v6(BaseTestCase, NetmaskTestMixin_v6):
     factory = ipaddress.IPv6Network
@@ -521,6 +552,20 @@ class FactoryFunctionErrors(BaseTestCase):
     def test_ip_network(self):
         self.assertFactoryError(ipaddress.ip_network, "network")
 
+
+@functools.total_ordering
+class LargestObject:
+    def __eq__(self, other):
+        return isinstance(other, LargestObject)
+    def __lt__(self, other):
+        return False
+
+@functools.total_ordering
+class SmallestObject:
+    def __eq__(self, other):
+        return isinstance(other, SmallestObject)
+    def __gt__(self, other):
+        return False
 
 class ComparisonTests(unittest.TestCase):
 
@@ -575,6 +620,28 @@ class ComparisonTests(unittest.TestCase):
                 self.assertRaises(TypeError, lambda: lhs <= rhs)
                 self.assertRaises(TypeError, lambda: lhs >= rhs)
 
+    def test_foreign_type_ordering(self):
+        other = object()
+        smallest = SmallestObject()
+        largest = LargestObject()
+        for obj in self.objects:
+            with self.assertRaises(TypeError):
+                obj < other
+            with self.assertRaises(TypeError):
+                obj > other
+            with self.assertRaises(TypeError):
+                obj <= other
+            with self.assertRaises(TypeError):
+                obj >= other
+            self.assertTrue(obj < largest)
+            self.assertFalse(obj > largest)
+            self.assertTrue(obj <= largest)
+            self.assertFalse(obj >= largest)
+            self.assertFalse(obj < smallest)
+            self.assertTrue(obj > smallest)
+            self.assertFalse(obj <= smallest)
+            self.assertTrue(obj >= smallest)
+
     def test_mixed_type_key(self):
         # with get_mixed_type_key, you can sort addresses and network.
         v4_ordered = [self.v4addr, self.v4net, self.v4intf]
@@ -595,7 +662,7 @@ class ComparisonTests(unittest.TestCase):
         v4addr = ipaddress.ip_address('1.1.1.1')
         v4net = ipaddress.ip_network('1.1.1.1')
         v6addr = ipaddress.ip_address('::1')
-        v6net = ipaddress.ip_address('::1')
+        v6net = ipaddress.ip_network('::1')
 
         self.assertRaises(TypeError, v4addr.__lt__, v6addr)
         self.assertRaises(TypeError, v4addr.__gt__, v6addr)
@@ -606,7 +673,6 @@ class ComparisonTests(unittest.TestCase):
         self.assertRaises(TypeError, v6addr.__gt__, v4addr)
         self.assertRaises(TypeError, v6net.__lt__, v4net)
         self.assertRaises(TypeError, v6net.__gt__, v4net)
-
 
 
 class IpaddrUnitTest(unittest.TestCase):
@@ -761,19 +827,17 @@ class IpaddrUnitTest(unittest.TestCase):
                           2 ** ipaddress.IPV6LENGTH)
 
     def testInternals(self):
-        first, last = ipaddress._find_address_range([
-            ipaddress.IPv4Address('10.10.10.10'),
-            ipaddress.IPv4Address('10.10.10.12')])
-        self.assertEqual(first, last)
+        ip1 = ipaddress.IPv4Address('10.10.10.10')
+        ip2 = ipaddress.IPv4Address('10.10.10.11')
+        ip3 = ipaddress.IPv4Address('10.10.10.12')
+        self.assertEqual(list(ipaddress._find_address_range([ip1])),
+                         [(ip1, ip1)])
+        self.assertEqual(list(ipaddress._find_address_range([ip1, ip3])),
+                         [(ip1, ip1), (ip3, ip3)])
+        self.assertEqual(list(ipaddress._find_address_range([ip1, ip2, ip3])),
+                         [(ip1, ip3)])
         self.assertEqual(128, ipaddress._count_righthand_zero_bits(0, 128))
         self.assertEqual("IPv4Network('1.2.3.0/24')", repr(self.ipv4_network))
-
-    def testMissingAddressVersion(self):
-        class Broken(ipaddress._BaseAddress):
-            pass
-        broken = Broken('127.0.0.1')
-        with self.assertRaisesRegex(NotImplementedError, "Broken.*version"):
-            broken.version
 
     def testMissingNetworkVersion(self):
         class Broken(ipaddress._BaseNetwork):
@@ -1356,10 +1420,10 @@ class IpaddrUnitTest(unittest.TestCase):
         unsorted = [ip4, ip1, ip3, ip2]
         unsorted.sort()
         self.assertEqual(sorted, unsorted)
-        self.assertRaises(TypeError, ip1.__lt__,
-                          ipaddress.ip_address('10.10.10.0'))
-        self.assertRaises(TypeError, ip2.__lt__,
-                          ipaddress.ip_address('10.10.10.0'))
+        self.assertIs(ip1.__lt__(ipaddress.ip_address('10.10.10.0')),
+                      NotImplemented)
+        self.assertIs(ip2.__lt__(ipaddress.ip_address('10.10.10.0')),
+                      NotImplemented)
 
         # <=, >=
         self.assertTrue(ipaddress.ip_network('1.1.1.1') <=

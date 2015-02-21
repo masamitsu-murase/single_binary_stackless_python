@@ -182,8 +182,9 @@ class TestPartialC(TestPartial, unittest.TestCase):
     def test_pickle(self):
         f = self.partial(signature, 'asdf', bar=True)
         f.add_something_to__dict__ = True
-        f_copy = pickle.loads(pickle.dumps(f))
-        self.assertEqual(signature(f), signature(f_copy))
+        for proto in range(pickle.HIGHEST_PROTOCOL + 1):
+            f_copy = pickle.loads(pickle.dumps(f, proto))
+            self.assertEqual(signature(f), signature(f_copy))
 
     # Issue 6083: Reference counting bug
     def test_setstate_refcount(self):
@@ -878,6 +879,24 @@ class TestTotalOrdering(unittest.TestCase):
             self.assertEqual(a, b)
             with self.assertRaises(TypeError):
                 a <= b
+
+    def test_pickle(self):
+        for proto in range(4, pickle.HIGHEST_PROTOCOL + 1):
+            for name in '__lt__', '__gt__', '__le__', '__ge__':
+                with self.subTest(method=name, proto=proto):
+                    method = getattr(Orderable_LT, name)
+                    method_copy = pickle.loads(pickle.dumps(method, proto))
+                    self.assertIs(method_copy, method)
+
+@functools.total_ordering
+class Orderable_LT:
+    def __init__(self, value):
+        self.value = value
+    def __lt__(self, other):
+        return self.value < other.value
+    def __eq__(self, other):
+        return self.value == other.value
+
 
 class TestLRU(unittest.TestCase):
 

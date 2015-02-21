@@ -539,6 +539,7 @@ class SysModuleTest(unittest.TestCase):
         test.support.get_attribute(sys, "getwindowsversion")
         self.assert_raise_on_new_sys_type(sys.getwindowsversion())
 
+    @test.support.cpython_only
     def test_clear_type_cache(self):
         sys._clear_type_cache()
 
@@ -744,6 +745,27 @@ class SysModuleTest(unittest.TestCase):
         c = sys.getallocatedblocks()
         self.assertIn(c, range(b - 50, b + 50))
 
+    def test_is_finalizing(self):
+        self.assertIs(sys.is_finalizing(), False)
+        # Don't use the atexit module because _Py_Finalizing is only set
+        # after calling atexit callbacks
+        code = """if 1:
+            import sys
+
+            class AtExit:
+                is_finalizing = sys.is_finalizing
+                print = print
+
+                def __del__(self):
+                    self.print(self.is_finalizing(), flush=True)
+
+            # Keep a reference in the __main__ module namespace, so the
+            # AtExit destructor will be called at Python exit
+            ref = AtExit()
+        """
+        rc, stdout, stderr = assert_python_ok('-c', code)
+        self.assertEqual(stdout.rstrip(), b'True')
+
 
 @test.support.cpython_only
 class SizeofTest(unittest.TestCase):
@@ -769,6 +791,37 @@ class SizeofTest(unittest.TestCase):
         self.assertEqual(sys.getsizeof(True), vsize('') + self.longdigit)
         # but lists are
         self.assertEqual(sys.getsizeof([]), vsize('Pn') + gc_header_size)
+
+    def test_errors(self):
+        class BadSizeof:
+            def __sizeof__(self):
+                raise ValueError
+        self.assertRaises(ValueError, sys.getsizeof, BadSizeof())
+
+        class InvalidSizeof:
+            def __sizeof__(self):
+                return None
+        self.assertRaises(TypeError, sys.getsizeof, InvalidSizeof())
+        sentinel = ["sentinel"]
+        self.assertIs(sys.getsizeof(InvalidSizeof(), sentinel), sentinel)
+
+        class FloatSizeof:
+            def __sizeof__(self):
+                return 4.5
+        self.assertRaises(TypeError, sys.getsizeof, FloatSizeof())
+        self.assertIs(sys.getsizeof(FloatSizeof(), sentinel), sentinel)
+
+        class OverflowSizeof(int):
+            def __sizeof__(self):
+                return int(self)
+        self.assertEqual(sys.getsizeof(OverflowSizeof(sys.maxsize)),
+                         sys.maxsize + self.gc_headsize)
+        with self.assertRaises(OverflowError):
+            sys.getsizeof(OverflowSizeof(sys.maxsize + 1))
+        with self.assertRaises(ValueError):
+            sys.getsizeof(OverflowSizeof(-1))
+        with self.assertRaises((ValueError, OverflowError)):
+            sys.getsizeof(OverflowSizeof(-sys.maxsize - 1))
 
     def test_default(self):
         size = test.support.calcvobjsize
@@ -923,7 +976,7 @@ class SizeofTest(unittest.TestCase):
         check(int(PyLong_BASE**2-1), vsize('') + 2*self.longdigit)
         check(int(PyLong_BASE**2), vsize('') + 3*self.longdigit)
         # memoryview
-        check(memoryview(b''), size('Pnin 2P2n2i5P 3cPn'))
+        check(memoryview(b''), size('Pnin 2P2n2i5P Pn'))
         # module
         check(unittest, size('PnPPP'))
         # None
@@ -952,7 +1005,7 @@ class SizeofTest(unittest.TestCase):
         # frozenset
         PySet_MINSIZE = 8
         samples = [[], range(10), range(50)]
-        s = size('3n2P' + PySet_MINSIZE*'nP' + 'nP')
+        s = size('3nP' + PySet_MINSIZE*'nP' + '2nP')
         for sample in samples:
             minused = len(sample)
             if minused == 0: tmp = 1

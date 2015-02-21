@@ -1,4 +1,4 @@
-# Copyright 2001-2014 by Vinay Sajip. All Rights Reserved.
+# Copyright 2001-2015 by Vinay Sajip. All Rights Reserved.
 #
 # Permission to use, copy, modify, and distribute this software and its
 # documentation for any purpose and without fee is hereby granted,
@@ -18,7 +18,7 @@
 Logging package for Python. Based on PEP 282 and comments thereto in
 comp.lang.python.
 
-Copyright (C) 2001-2014 Vinay Sajip. All Rights Reserved.
+Copyright (C) 2001-2015 Vinay Sajip. All Rights Reserved.
 
 To use, simply 'import logging' and log away!
 """
@@ -315,6 +315,8 @@ class LogRecord(object):
     def __str__(self):
         return '<LogRecord: %s, %s, %s, %s, "%s">'%(self.name, self.levelno,
             self.pathname, self.lineno, self.msg)
+
+    __repr__ = __str__
 
     def getMessage(self):
         """
@@ -1086,7 +1088,6 @@ class PlaceHolder(object):
 #
 #   Determine which class to use when instantiating loggers.
 #
-_loggerClass = None
 
 def setLoggerClass(klass):
     """
@@ -1105,7 +1106,6 @@ def getLoggerClass():
     """
     Return the class to be used when instantiating a logger.
     """
-
     return _loggerClass
 
 class Manager(object):
@@ -1723,7 +1723,7 @@ def basicConfig(**kwargs):
     _acquireLock()
     try:
         if len(root.handlers) == 0:
-            handlers = kwargs.get("handlers")
+            handlers = kwargs.pop("handlers", None)
             if handlers is None:
                 if "stream" in kwargs and "filename" in kwargs:
                     raise ValueError("'stream' and 'filename' should not be "
@@ -1733,28 +1733,31 @@ def basicConfig(**kwargs):
                     raise ValueError("'stream' or 'filename' should not be "
                                      "specified together with 'handlers'")
             if handlers is None:
-                filename = kwargs.get("filename")
+                filename = kwargs.pop("filename", None)
                 if filename:
-                    mode = kwargs.get("filemode", 'a')
+                    mode = kwargs.pop("filemode", 'a')
                     h = FileHandler(filename, mode)
                 else:
-                    stream = kwargs.get("stream")
+                    stream = kwargs.pop("stream", None)
                     h = StreamHandler(stream)
                 handlers = [h]
-            dfs = kwargs.get("datefmt", None)
-            style = kwargs.get("style", '%')
+            dfs = kwargs.pop("datefmt", None)
+            style = kwargs.pop("style", '%')
             if style not in _STYLES:
                 raise ValueError('Style must be one of: %s' % ','.join(
                                  _STYLES.keys()))
-            fs = kwargs.get("format", _STYLES[style][1])
+            fs = kwargs.pop("format", _STYLES[style][1])
             fmt = Formatter(fs, dfs, style)
             for h in handlers:
                 if h.formatter is None:
                     h.setFormatter(fmt)
                 root.addHandler(h)
-            level = kwargs.get("level")
+            level = kwargs.pop("level", None)
             if level is not None:
                 root.setLevel(level)
+            if kwargs:
+                keys = ', '.join(kwargs.keys())
+                raise ValueError('Unrecognised argument(s): %s' % keys)
     finally:
         _releaseLock()
 

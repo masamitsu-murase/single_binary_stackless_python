@@ -145,9 +145,11 @@ WIN32 is still required for the locale module.
 #if defined(_M_IA64)
 #define COMPILER _Py_PASTE_VERSION("64 bit (Itanium)")
 #define MS_WINI64
+#define PYD_PLATFORM_TAG "win_ia64"
 #elif defined(_M_X64) || defined(_M_AMD64)
 #define COMPILER _Py_PASTE_VERSION("64 bit (AMD64)")
 #define MS_WINX64
+#define PYD_PLATFORM_TAG "win_amd64"
 #else
 #define COMPILER _Py_PASTE_VERSION("64 bit (Unknown)")
 #endif
@@ -193,8 +195,10 @@ typedef _W64 int ssize_t;
 #if defined(MS_WIN32) && !defined(MS_WIN64)
 #if defined(_M_IX86)
 #define COMPILER _Py_PASTE_VERSION("32 bit (Intel)")
+#define PYD_PLATFORM_TAG "win32"
 #elif defined(_M_ARM)
 #define COMPILER _Py_PASTE_VERSION("32 bit (ARM)")
+#define PYD_PLATFORM_TAG "win_arm"
 #else
 #define COMPILER _Py_PASTE_VERSION("32 bit (Unknown)")
 #endif
@@ -213,6 +217,13 @@ typedef int pid_t;
 #define hypot _hypot
 #endif
 
+/* VS 2015 defines these names with a leading underscore */
+#if _MSC_VER >= 1900
+#define timezone _timezone
+#define daylight _daylight
+#define tzname _tzname
+#endif
+
 /* Side by Side assemblies supported in VS 2005 and VS 2008 but not 2010*/
 #if _MSC_VER >= 1400 && _MSC_VER < 1600
 #define HAVE_SXS 1
@@ -225,35 +236,6 @@ typedef int pid_t;
 #endif
 
 #endif /* _MSC_VER */
-
-/* ------------------------------------------------------------------------*/
-/* The Borland compiler defines __BORLANDC__ */
-/* XXX These defines are likely incomplete, but should be easy to fix. */
-#ifdef __BORLANDC__
-#define COMPILER "[Borland]"
-
-#ifdef _WIN32
-/* tested with BCC 5.5 (__BORLANDC__ >= 0x0550)
- */
-
-typedef int pid_t;
-/* BCC55 seems to understand __declspec(dllimport), it is used in its
-   own header files (winnt.h, ...) - so we can do nothing and get the default*/
-
-#undef HAVE_SYS_UTIME_H
-#define HAVE_UTIME_H
-#define HAVE_DIRENT_H
-
-/* rename a few functions for the Borland compiler */
-#include <io.h>
-#define _chsize chsize
-#define _setmode setmode
-
-#else /* !_WIN32 */
-#error "Only Win32 and later are supported"
-#endif /* !_WIN32 */
-
-#endif /* BORLANDC */
 
 /* ------------------------------------------------------------------------*/
 /* egcs/gnu-win32 defines __GNUC__ and _WIN32 */

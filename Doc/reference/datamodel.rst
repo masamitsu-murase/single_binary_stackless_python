@@ -154,10 +154,15 @@ NotImplemented
 
    This type has a single value.  There is a single object with this value. This
    object is accessed through the built-in name ``NotImplemented``. Numeric methods
-   and rich comparison methods may return this value if they do not implement the
+   and rich comparison methods should return this value if they do not implement the
    operation for the operands provided.  (The interpreter will then try the
    reflected operation, or some other fallback, depending on the operator.)  Its
    truth value is true.
+
+   See
+   :ref:`implementing-the-arithmetic-operations`
+   for more details.
+
 
 Ellipsis
    .. index:: object: Ellipsis
@@ -454,7 +459,8 @@ Callable types
       +=========================+===============================+===========+
       | :attr:`__doc__`         | The function's documentation  | Writable  |
       |                         | string, or ``None`` if        |           |
-      |                         | unavailable                   |           |
+      |                         | unavailable; not inherited by |           |
+      |                         | subclasses                    |           |
       +-------------------------+-------------------------------+-----------+
       | :attr:`__name__`        | The function's name           | Writable  |
       +-------------------------+-------------------------------+-----------+
@@ -708,7 +714,7 @@ Custom classes
    where there are multiple inheritance paths leading back to a common ancestor.
    Additional details on the C3 MRO used by Python can be found in the
    documentation accompanying the 2.3 release at
-   http://www.python.org/download/releases/2.3/mro/.
+   https://www.python.org/download/releases/2.3/mro/.
 
    .. XXX: Could we add that MRO doc as an appendix to the language ref?
 
@@ -1094,13 +1100,17 @@ Basic customization
 
    .. index:: pair: class; constructor
 
-   Called when the instance is created.  The arguments are those passed to the
-   class constructor expression.  If a base class has an :meth:`__init__` method,
-   the derived class's :meth:`__init__` method, if any, must explicitly call it to
-   ensure proper initialization of the base class part of the instance; for
-   example: ``BaseClass.__init__(self, [args...])``.  As a special constraint on
-   constructors, no value may be returned; doing so will cause a :exc:`TypeError`
-   to be raised at runtime.
+   Called after the instance has been created (by :meth:`__new__`), but before
+   it is returned to the caller.  The arguments are those passed to the
+   class constructor expression.  If a base class has an :meth:`__init__`
+   method, the derived class's :meth:`__init__` method, if any, must explicitly
+   call it to ensure proper initialization of the base class part of the
+   instance; for example: ``BaseClass.__init__(self, [args...])``.
+
+   Because :meth:`__new__` and :meth:`__init__` work together in constructing
+   objects (:meth:`__new__` to create it, and :meth:`__init__` to customise it),
+   no non-``None`` value may be returned by :meth:`__init__`; doing so will
+   cause a :exc:`TypeError` to be raised at runtime.
 
 
 .. method:: object.__del__(self)
@@ -1132,8 +1142,10 @@ Basic customization
       reference to the object on the stack frame that raised an unhandled
       exception in interactive mode (the traceback stored in
       ``sys.last_traceback`` keeps the stack frame alive).  The first situation
-      can only be remedied by explicitly breaking the cycles; the latter two
-      situations can be resolved by storing ``None`` in ``sys.last_traceback``.
+      can only be remedied by explicitly breaking the cycles; the second can be
+      resolved by freeing the reference to the traceback object when it is no
+      longer useful, and the third can be resolved by storing ``None`` in
+      ``sys.last_traceback``.
       Circular references which are garbage are detected and cleaned up when
       the cyclic garbage collector is enabled (it's on by default). Refer to the
       documentation for the :mod:`gc` module for more information about this
@@ -1555,9 +1567,9 @@ saved because *__dict__* is not created for each instance.
 .. data:: object.__slots__
 
    This class variable can be assigned a string, iterable, or sequence of
-   strings with variable names used by instances.  If defined in a
-   class, *__slots__* reserves space for the declared variables and prevents the
-   automatic creation of *__dict__* and *__weakref__* for each instance.
+   strings with variable names used by instances.  *__slots__* reserves space
+   for the declared variables and prevents the automatic creation of *__dict__*
+   and *__weakref__* for each instance.
 
 
 Notes on using *__slots__*
@@ -1896,6 +1908,12 @@ through the container; for mappings, :meth:`__iter__` should be the same as
       indexes to allow proper detection of the end of the sequence.
 
 
+.. method:: object.__missing__(self, key)
+
+   Called by :class:`dict`\ .\ :meth:`__getitem__` to implement ``self[key]`` for dict subclasses
+   when key is not in the dictionary.
+
+
 .. method:: object.__setitem__(self, key, value)
 
    Called to implement assignment to ``self[key]``.  Same note as for
@@ -1918,8 +1936,7 @@ through the container; for mappings, :meth:`__iter__` should be the same as
 
    This method is called when an iterator is required for a container. This method
    should return a new iterator object that can iterate over all the objects in the
-   container.  For mappings, it should iterate over the keys of the container, and
-   should also be made available as the method :meth:`keys`.
+   container.  For mappings, it should iterate over the keys of the container.
 
    Iterator objects also need to implement this method; they are required to return
    themselves.  For more information on iterator objects, see :ref:`typeiter`.

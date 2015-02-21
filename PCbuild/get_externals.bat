@@ -2,7 +2,8 @@
 setlocal
 rem Simple script to fetch source for external libraries
 
-pushd "%~dp0..\.."
+if not exist "%~dp0..\externals" mkdir "%~dp0..\externals"
+pushd "%~dp0..\externals"
 
 if "%SVNROOT%"=="" set SVNROOT=http://svn.python.org/projects/external/
 
@@ -20,6 +21,7 @@ echo.Cleaning up external libraries.
 for /D %%d in (
                bzip2-*
                db-*
+               nasm-*
                openssl-*
                tcl-*
                tcltk*
@@ -51,9 +53,10 @@ echo.Fetching external libraries...
 
 for %%e in (
             bzip2-1.0.6
-            openssl-1.0.1i
-            tcl-8.6.1.0
-            tk-8.6.1.0
+            nasm-2.11.06
+            openssl-1.0.1l
+            tcl-core-8.6.3.1
+            tk-8.6.3.1
             tix-8.4.3.4
             sqlite-3.8.3.1
             xz-5.0.5
@@ -87,9 +90,9 @@ echo.
 echo.**WARNING**: the cleaning options unconditionally remove any directory
 echo.that is a child of
 echo.   %CD%
-echo.and matches wildcard patterns beginning with bzip2-, db-, openssl-, tcl-,
-echo.tcltk, tk-, tix-, sqlite-, or xz-, and as such has the potential to be
-echo.very destructive if you are not aware of what it is doing.  Use with
+echo.and matches wildcard patterns beginning with bzip2-, db-, nasm-, openssl-,
+echo.tcl-, tcltk, tk-, tix-, sqlite-, or xz-, and as such has the potential
+echo.to be very destructive if you are not aware of what it is doing.  Use with
 echo.caution!
 popd
 exit /b -1

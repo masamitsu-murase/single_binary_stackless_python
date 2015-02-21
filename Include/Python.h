@@ -115,6 +115,7 @@
 #include "pyarena.h"
 #include "modsupport.h"
 #include "pythonrun.h"
+#include "pylifecycle.h"
 #include "ceval.h"
 #include "sysmodule.h"
 #include "intrcheck.h"

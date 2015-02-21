@@ -667,7 +667,7 @@ always available.
    an underscore, and are not described here.  Regardless of its contents,
    :data:`sys.implementation` will not change during a run of the interpreter,
    nor between implementation versions.  (It may change between Python
-   language versions, however.)  See `PEP 421` for more information.
+   language versions, however.)  See :pep:`421` for more information.
 
    .. versionadded:: 3.3
 
@@ -716,6 +716,14 @@ always available.
 
    Interned strings are not immortal; you must keep a reference to the return
    value of :func:`intern` around to benefit from it.
+
+
+.. function:: is_finalizing()
+
+   Return :const:`True` if the Python interpreter is
+   :term:`shutting down <interpreter shutdown>`, :const:`False` otherwise.
+
+   .. versionadded:: 3.5
 
 
 .. data:: last_type

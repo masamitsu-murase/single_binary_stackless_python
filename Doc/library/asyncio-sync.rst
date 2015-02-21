@@ -4,6 +4,29 @@
 Synchronization primitives
 ==========================
 
+Locks:
+
+* :class:`Lock`
+* :class:`Event`
+* :class:`Condition`
+* :class:`Semaphore`
+* :class:`BoundedSemaphore`
+
+Queues:
+
+* :class:`Queue`
+* :class:`PriorityQueue`
+* :class:`LifoQueue`
+* :class:`JoinableQueue`
+
+asyncio locks and queues API were designed to be close to classes of the
+:mod:`threading` module (:class:`~threading.Lock`, :class:`~threading.Event`,
+:class:`~threading.Condition`, :class:`~threading.Semaphore`,
+:class:`~threading.BoundedSemaphore`) and the :mod:`queue` module
+(:class:`~queue.Queue`, :class:`~queue.PriorityQueue`,
+:class:`~queue.LifoQueue`), but they have no *timeout* parameter. The
+:func:`asyncio.wait_for` function can be used to cancel a task after a timeout.
+
 Locks
 -----
 
@@ -66,7 +89,7 @@ Lock
 
       Return ``True`` if the lock is acquired.
 
-   .. method:: acquire()
+   .. coroutinemethod:: acquire()
 
       Acquire a lock.
 
@@ -116,7 +139,7 @@ Event
       true are awakened. Coroutine that call :meth:`wait` once the flag is true
       will not block at all.
 
-   .. method:: wait()
+   .. coroutinemethod:: wait()
 
       Block until the internal flag is true.
 
@@ -143,7 +166,7 @@ Condition
    object, and it is used as the underlying lock.  Otherwise,
    a new :class:`Lock` object is created and used as the underlying lock.
 
-   .. method:: acquire()
+   .. coroutinemethod:: acquire()
 
       Acquire the underlying lock.
 
@@ -190,7 +213,7 @@ Condition
 
       There is no return value.
 
-   .. method:: wait()
+   .. coroutinemethod:: wait()
 
       Wait until notified.
 
@@ -204,7 +227,7 @@ Condition
 
       This method is a :ref:`coroutine <coroutine>`.
 
-   .. method:: wait_for(predicate)
+   .. coroutinemethod:: wait_for(predicate)
 
       Wait until a predicate becomes true.
 
@@ -235,7 +258,7 @@ Semaphore
    defaults to ``1``. If the value given is less than ``0``, :exc:`ValueError`
    is raised.
 
-   .. method:: acquire()
+   .. coroutinemethod:: acquire()
 
       Acquire a semaphore.
 
@@ -250,7 +273,7 @@ Semaphore
 
       Returns ``True`` if semaphore can not be acquired immediately.
 
-   .. method:: release()
+   .. coroutinemethod:: release()
 
       Release a semaphore, incrementing the internal counter by one. When it
       was zero on entry and another coroutine is waiting for it to become
@@ -293,20 +316,23 @@ Queue
 
    .. method:: full()
 
-      Return ``True`` if there are maxsize items in the queue.
+      Return ``True`` if there are :attr:`maxsize` items in the queue.
 
       .. note::
 
          If the Queue was initialized with ``maxsize=0`` (the default), then
          :meth:`full()` is never ``True``.
 
-   .. method:: get()
+   .. coroutinemethod:: get()
 
-      Remove and return an item from the queue.
-
-      If you yield from :meth:`get()`, wait until a item is available.
+      Remove and return an item from the queue. If queue is empty, wait until
+      an item is available.
 
       This method is a :ref:`coroutine <coroutine>`.
+
+      .. seealso::
+
+         The :meth:`empty` method.
 
    .. method:: get_nowait()
 
@@ -315,14 +341,16 @@ Queue
       Return an item if one is immediately available, else raise
       :exc:`QueueEmpty`.
 
-   .. method:: put(item)
+   .. coroutinemethod:: put(item)
 
-      Put an item into the queue.
-
-      If you yield from ``put()``, wait until a free slot is available before
-      adding item.
+      Put an item into the queue. If the queue is full, wait until a free slot
+      is available before adding item.
 
       This method is a :ref:`coroutine <coroutine>`.
+
+      .. seealso::
+
+         The :meth:`full` method.
 
    .. method:: put_nowait(item)
 
@@ -367,7 +395,7 @@ JoinableQueue
    A subclass of :class:`Queue` with :meth:`task_done` and :meth:`join`
    methods.
 
-   .. method:: join()
+   .. coroutinemethod:: join()
 
       Block until all items in the queue have been gotten and processed.
 
@@ -400,13 +428,11 @@ Exceptions
 
 .. exception:: QueueEmpty
 
-   Exception raised when non-blocking :meth:`~Queue.get` (or
-   :meth:`~Queue.get_nowait`) is called
-   on a :class:`Queue` object which is empty.
+   Exception raised when the :meth:`~Queue.get_nowait` method is called on a
+   :class:`Queue` object which is empty.
 
 
 .. exception:: QueueFull
 
-   Exception raised when non-blocking :meth:`~Queue.put` (or
-   :meth:`~Queue.put_nowait`) is called
-   on a :class:`Queue` object which is full.
+   Exception raised when the :meth:`~Queue.put_nowait` method is called on a
+   :class:`Queue` object which is full.

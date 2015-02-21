@@ -1015,7 +1015,7 @@ class CLanguage(Language):
         # when we're METH_O, but have a custom return converter,
         # we use "impl_parameters" for the parsing function
         # because that works better.  but that means we must
-        # supress actually declaring the impl's parameters
+        # suppress actually declaring the impl's parameters
         # as variables in the parsing function.  but since it's
         # METH_O, we have exactly one anyway, so we know exactly
         # where it is.
@@ -2431,11 +2431,13 @@ class int_converter(CConverter):
     format_unit = 'i'
     c_ignored_default = "0"
 
-    def converter_init(self, *, types='int'):
+    def converter_init(self, *, types='int', type=None):
         if types == 'str':
             self.format_unit = 'C'
         elif types != 'int':
             fail("int_converter: illegal 'types' argument")
+        if type != None:
+            self.type = type
 
 class unsigned_int_converter(CConverter):
     type = 'unsigned int'
@@ -2538,9 +2540,9 @@ class str_converter(CConverter):
         length=False, nullable=False, zeroes=False):
 
         types = set(types.strip().split())
-        bytes_type = set(("bytes",))
-        str_type = set(("str",))
-        all_3_type = set(("bytearray",)) | bytes_type | str_type
+        bytes_type = {"bytes"}
+        str_type = {"str"}
+        all_3_type = {"bytearray"} | bytes_type | str_type
         is_bytes = types == bytes_type
         is_str = types == str_type
         is_all_3 = types == all_3_type
@@ -2636,12 +2638,12 @@ class Py_buffer_converter(CConverter):
             fail("The only legal default value for Py_buffer is None.")
         self.c_default = self.c_ignored_default
         types = set(types.strip().split())
-        bytes_type = set(('bytes',))
-        bytearray_type = set(('bytearray',))
-        buffer_type = set(('buffer',))
-        rwbuffer_type = set(('rwbuffer',))
-        robuffer_type = set(('robuffer',))
-        str_type = set(('str',))
+        bytes_type = {'bytes'}
+        bytearray_type = {'bytearray'}
+        buffer_type = {'buffer'}
+        rwbuffer_type = {'rwbuffer'}
+        robuffer_type = {'robuffer'}
+        str_type = {'str'}
         bytes_bytearray_buffer_type = bytes_type | bytearray_type | buffer_type
 
         format_unit = None
@@ -3744,7 +3746,7 @@ class DSLParser:
             if self.keyword_only:
                 fail("Function " + self.function.name + " mixes keyword-only and positional-only parameters, which is unsupported.")
             self.parameter_state = self.ps_seen_slash
-            # fixup preceeding parameters
+            # fixup preceding parameters
             for p in self.function.parameters.values():
                 if (p.kind != inspect.Parameter.POSITIONAL_OR_KEYWORD and not isinstance(p.converter, self_converter)):
                     fail("Function " + self.function.name + " mixes keyword-only and positional-only parameters, which is unsupported.")
@@ -3940,7 +3942,7 @@ class DSLParser:
                 # for __init__.  (it can't be, __init__ doesn't
                 # have a docstring.)  if this is an __init__
                 # (or __new__), then this signature is for
-                # calling the class to contruct a new instance.
+                # calling the class to construct a new instance.
                 p_add('$')
 
             name = p.converter.signature_name or p.name

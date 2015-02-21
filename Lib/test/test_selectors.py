@@ -4,6 +4,7 @@ import random
 import selectors
 import signal
 import socket
+import sys
 from test import support
 from time import sleep
 import unittest
@@ -177,14 +178,17 @@ class BaseSelectorTestCase(unittest.TestCase):
         s = self.SELECTOR()
         self.addCleanup(s.close)
 
+        mapping = s.get_map()
         rd, wr = self.make_socketpair()
 
         s.register(rd, selectors.EVENT_READ)
         s.register(wr, selectors.EVENT_WRITE)
 
         s.close()
-        self.assertRaises(KeyError, s.get_key, rd)
-        self.assertRaises(KeyError, s.get_key, wr)
+        self.assertRaises(RuntimeError, s.get_key, rd)
+        self.assertRaises(RuntimeError, s.get_key, wr)
+        self.assertRaises(KeyError, mapping.__getitem__, rd)
+        self.assertRaises(KeyError, mapping.__getitem__, wr)
 
     def test_get_key(self):
         s = self.SELECTOR()
@@ -251,8 +255,8 @@ class BaseSelectorTestCase(unittest.TestCase):
             sel.register(rd, selectors.EVENT_READ)
             sel.register(wr, selectors.EVENT_WRITE)
 
-        self.assertRaises(KeyError, s.get_key, rd)
-        self.assertRaises(KeyError, s.get_key, wr)
+        self.assertRaises(RuntimeError, s.get_key, rd)
+        self.assertRaises(RuntimeError, s.get_key, wr)
 
     def test_fileno(self):
         s = self.SELECTOR()
@@ -316,6 +320,15 @@ class BaseSelectorTestCase(unittest.TestCase):
 
         self.assertEqual(bufs, [MSG] * NUM_SOCKETS)
 
+    @unittest.skipIf(sys.platform == 'win32',
+                     'select.select() cannot be used with empty fd sets')
+    def test_empty_select(self):
+        # Issue #23009: Make sure EpollSelector.select() works when no FD is
+        # registered.
+        s = self.SELECTOR()
+        self.addCleanup(s.close)
+        self.assertEqual(s.select(timeout=0), [])
+
     def test_timeout(self):
         s = self.SELECTOR()
         self.addCleanup(s.close)
@@ -339,7 +352,8 @@ class BaseSelectorTestCase(unittest.TestCase):
         self.assertFalse(s.select(1))
         t1 = time()
         dt = t1 - t0
-        self.assertTrue(0.8 <= dt <= 1.6, dt)
+        # Tolerate 2.0 seconds for very slow buildbots
+        self.assertTrue(0.8 <= dt <= 2.0, dt)
 
     @unittest.skipUnless(hasattr(signal, "alarm"),
                          "signal.alarm() required for this test")

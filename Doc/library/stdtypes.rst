@@ -269,8 +269,8 @@ the same rule. [2]_ The constructors :func:`int`, :func:`float`, and
 :func:`complex` can be used to produce numbers of a specific type.
 
 All numeric types (except complex) support the following operations, sorted by
-ascending priority (operations in the same box have the same priority; all
-numeric operations have a higher priority than comparison operations):
+ascending priority (all numeric operations have a higher priority than
+comparison operations):
 
 +---------------------+---------------------------------+---------+--------------------+
 | Operation           | Result                          | Notes   | Full documentation |
@@ -404,8 +404,7 @@ The priorities of the binary bitwise operations are all lower than the numeric
 operations and higher than the comparisons; the unary operation ``~`` has the
 same priority as the other unary numeric operations (``+`` and ``-``).
 
-This table lists the bitwise operations sorted in ascending priority
-(operations in the same box have the same priority):
+This table lists the bitwise operations sorted in ascending priority:
 
 +------------+--------------------------------+----------+
 | Operation  | Result                         | Notes    |
@@ -444,7 +443,7 @@ Additional Methods on Integer Types
 -----------------------------------
 
 The int type implements the :class:`numbers.Integral` :term:`abstract base
-class`. In addition, it provides one more method:
+class`. In addition, it provides a few more methods:
 
 .. method:: int.bit_length()
 
@@ -820,10 +819,10 @@ both mutable and immutable. The :class:`collections.abc.Sequence` ABC is
 provided to make it easier to correctly implement these operations on
 custom sequence types.
 
-This table lists the sequence operations sorted in ascending priority
-(operations in the same box have the same priority).  In the table, *s* and *t*
-are sequences of the same type, *n*, *i*, *j* and *k* are integers and *x* is
-an arbitrary object that meets any type and value restrictions imposed by *s*.
+This table lists the sequence operations sorted in ascending priority.  In the
+table, *s* and *t* are sequences of the same type, *n*, *i*, *j* and *k* are
+integers and *x* is an arbitrary object that meets any type and value
+restrictions imposed by *s*.
 
 The ``in`` and ``not in`` operations have the same priorities as the
 comparison operations. The ``+`` (concatenation) and ``*`` (repetition)
@@ -1513,7 +1512,7 @@ expression support in the :mod:`re` module).
    a :exc:`UnicodeError`. Other possible
    values are ``'ignore'``, ``'replace'``, ``'xmlcharrefreplace'``,
    ``'backslashreplace'`` and any other name registered via
-   :func:`codecs.register_error`, see section :ref:`codec-base-classes`. For a
+   :func:`codecs.register_error`, see section :ref:`error-handlers`. For a
    list of possible encodings, see section :ref:`standard-encodings`.
 
    .. versionchanged:: 3.1
@@ -2385,7 +2384,7 @@ arbitrary binary data.
    error handling scheme.  The default for *errors* is ``'strict'``, meaning
    that encoding errors raise a :exc:`UnicodeError`.  Other possible values are
    ``'ignore'``, ``'replace'`` and any other name registered via
-   :func:`codecs.register_error`, see section :ref:`codec-base-classes`. For a
+   :func:`codecs.register_error`, see section :ref:`error-handlers`. For a
    list of possible encodings, see section :ref:`standard-encodings`.
 
    .. note::
@@ -3057,6 +3056,197 @@ place, and instead produce new objects.
       The bytearray version of this method does *not* operate in place - it
       always produces a new object, even if no changes were made.
 
+
+.. _bytes-formatting:
+
+``printf``-style Bytes Formatting
+----------------------------------
+
+.. index::
+   single: formatting, bytes (%)
+   single: formatting, bytearray (%)
+   single: interpolation, bytes (%)
+   single: interpolation, bytearray (%)
+   single: bytes; formatting
+   single: bytearray; formatting
+   single: bytes; interpolation
+   single: bytearray; interpolation
+   single: printf-style formatting
+   single: sprintf-style formatting
+   single: % formatting
+   single: % interpolation
+
+.. note::
+
+   The formatting operations described here exhibit a variety of quirks that
+   lead to a number of common errors (such as failing to display tuples and
+   dictionaries correctly).  If the value being printed may be a tuple or
+   dictionary, wrap it in a tuple.
+
+Bytes objects (``bytes``/``bytearray``) have one unique built-in operation:
+the ``%`` operator (modulo).
+This is also known as the bytes *formatting* or *interpolation* operator.
+Given ``format % values`` (where *format* is a bytes object), ``%`` conversion
+specifications in *format* are replaced with zero or more elements of *values*.
+The effect is similar to using the :c:func:`sprintf` in the C language.
+
+If *format* requires a single argument, *values* may be a single non-tuple
+object. [5]_  Otherwise, *values* must be a tuple with exactly the number of
+items specified by the format bytes object, or a single mapping object (for
+example, a dictionary).
+
+A conversion specifier contains two or more characters and has the following
+components, which must occur in this order:
+
+#. The ``'%'`` character, which marks the start of the specifier.
+
+#. Mapping key (optional), consisting of a parenthesised sequence of characters
+   (for example, ``(somename)``).
+
+#. Conversion flags (optional), which affect the result of some conversion
+   types.
+
+#. Minimum field width (optional).  If specified as an ``'*'`` (asterisk), the
+   actual width is read from the next element of the tuple in *values*, and the
+   object to convert comes after the minimum field width and optional precision.
+
+#. Precision (optional), given as a ``'.'`` (dot) followed by the precision.  If
+   specified as ``'*'`` (an asterisk), the actual precision is read from the next
+   element of the tuple in *values*, and the value to convert comes after the
+   precision.
+
+#. Length modifier (optional).
+
+#. Conversion type.
+
+When the right argument is a dictionary (or other mapping type), then the
+formats in the bytes object *must* include a parenthesised mapping key into that
+dictionary inserted immediately after the ``'%'`` character. The mapping key
+selects the value to be formatted from the mapping.  For example:
+
+   >>> print(b'%(language)s has %(number)03d quote types.' %
+   ...       {b'language': b"Python", b"number": 2})
+   b'Python has 002 quote types.'
+
+In this case no ``*`` specifiers may occur in a format (since they require a
+sequential parameter list).
+
+The conversion flag characters are:
+
++---------+---------------------------------------------------------------------+
+| Flag    | Meaning                                                             |
++=========+=====================================================================+
+| ``'#'`` | The value conversion will use the "alternate form" (where defined   |
+|         | below).                                                             |
++---------+---------------------------------------------------------------------+
+| ``'0'`` | The conversion will be zero padded for numeric values.              |
++---------+---------------------------------------------------------------------+
+| ``'-'`` | The converted value is left adjusted (overrides the ``'0'``         |
+|         | conversion if both are given).                                      |
++---------+---------------------------------------------------------------------+
+| ``' '`` | (a space) A blank should be left before a positive number (or empty |
+|         | string) produced by a signed conversion.                            |
++---------+---------------------------------------------------------------------+
+| ``'+'`` | A sign character (``'+'`` or ``'-'``) will precede the conversion   |
+|         | (overrides a "space" flag).                                         |
++---------+---------------------------------------------------------------------+
+
+A length modifier (``h``, ``l``, or ``L``) may be present, but is ignored as it
+is not necessary for Python -- so e.g. ``%ld`` is identical to ``%d``.
+
+The conversion types are:
+
++------------+-----------------------------------------------------+-------+
+| Conversion | Meaning                                             | Notes |
++============+=====================================================+=======+
+| ``'d'``    | Signed integer decimal.                             |       |
++------------+-----------------------------------------------------+-------+
+| ``'i'``    | Signed integer decimal.                             |       |
++------------+-----------------------------------------------------+-------+
+| ``'o'``    | Signed octal value.                                 | \(1)  |
++------------+-----------------------------------------------------+-------+
+| ``'u'``    | Obsolete type -- it is identical to ``'d'``.        | \(7)  |
++------------+-----------------------------------------------------+-------+
+| ``'x'``    | Signed hexadecimal (lowercase).                     | \(2)  |
++------------+-----------------------------------------------------+-------+
+| ``'X'``    | Signed hexadecimal (uppercase).                     | \(2)  |
++------------+-----------------------------------------------------+-------+
+| ``'e'``    | Floating point exponential format (lowercase).      | \(3)  |
++------------+-----------------------------------------------------+-------+
+| ``'E'``    | Floating point exponential format (uppercase).      | \(3)  |
++------------+-----------------------------------------------------+-------+
+| ``'f'``    | Floating point decimal format.                      | \(3)  |
++------------+-----------------------------------------------------+-------+
+| ``'F'``    | Floating point decimal format.                      | \(3)  |
++------------+-----------------------------------------------------+-------+
+| ``'g'``    | Floating point format. Uses lowercase exponential   | \(4)  |
+|            | format if exponent is less than -4 or not less than |       |
+|            | precision, decimal format otherwise.                |       |
++------------+-----------------------------------------------------+-------+
+| ``'G'``    | Floating point format. Uses uppercase exponential   | \(4)  |
+|            | format if exponent is less than -4 or not less than |       |
+|            | precision, decimal format otherwise.                |       |
++------------+-----------------------------------------------------+-------+
+| ``'c'``    | Single byte (accepts integer or single              |       |
+|            | byte objects).                                      |       |
++------------+-----------------------------------------------------+-------+
+| ``'b'``    | Bytes (any object that follows the                  | \(5)  |
+|            | :ref:`buffer protocol <bufferobjects>` or has       |       |
+|            | :meth:`__bytes__`).                                 |       |
++------------+-----------------------------------------------------+-------+
+| ``'s'``    | ``'s'`` is an alias for ``'b'`` and should only     | \(6)  |
+|            | be used for Python2/3 code bases.                   |       |
++------------+-----------------------------------------------------+-------+
+| ``'a'``    | Bytes (converts any Python object using             | \(5)  |
+|            | ``repr(obj).encode('ascii','backslashreplace)``).   |       |
++------------+-----------------------------------------------------+-------+
+| ``'%'``    | No argument is converted, results in a ``'%'``      |       |
+|            | character in the result.                            |       |
++------------+-----------------------------------------------------+-------+
+
+Notes:
+
+(1)
+   The alternate form causes a leading zero (``'0'``) to be inserted between
+   left-hand padding and the formatting of the number if the leading character
+   of the result is not already a zero.
+
+(2)
+   The alternate form causes a leading ``'0x'`` or ``'0X'`` (depending on whether
+   the ``'x'`` or ``'X'`` format was used) to be inserted between left-hand padding
+   and the formatting of the number if the leading character of the result is not
+   already a zero.
+
+(3)
+   The alternate form causes the result to always contain a decimal point, even if
+   no digits follow it.
+
+   The precision determines the number of digits after the decimal point and
+   defaults to 6.
+
+(4)
+   The alternate form causes the result to always contain a decimal point, and
+   trailing zeroes are not removed as they would otherwise be.
+
+   The precision determines the number of significant digits before and after the
+   decimal point and defaults to 6.
+
+(5)
+   If precision is ``N``, the output is truncated to ``N`` characters.
+
+(6)
+   ``b'%s'`` is deprecated, but will not be removed during the 3.x series.
+
+(7)
+   See :pep:`237`.
+
+.. note::
+
+   The bytearray version of this method does *not* operate in place - it
+   always produces a new object, even if no changes were made.
+
+.. seealso:: :pep:`461`.
+.. versionadded:: 3.5
 
 .. _typememoryview:
 
@@ -3762,11 +3952,13 @@ pairs within braces, for example: ``{'jack': 4098, 'sjoerd': 4127}`` or ``{4098:
       Return the item of *d* with key *key*.  Raises a :exc:`KeyError` if *key* is
       not in the map.
 
-      If a subclass of dict defines a method :meth:`__missing__`, if the key *key*
+      .. index:: __missing__()
+
+      If a subclass of dict defines a method :meth:`__missing__` and *key*
       is not present, the ``d[key]`` operation calls that method with the key *key*
       as argument.  The ``d[key]`` operation then returns or raises whatever is
-      returned or raised by the ``__missing__(key)`` call if the key is not
-      present. No other operations or methods invoke :meth:`__missing__`. If
+      returned or raised by the ``__missing__(key)`` call.
+      No other operations or methods invoke :meth:`__missing__`. If
       :meth:`__missing__` is not defined, :exc:`KeyError` is raised.
       :meth:`__missing__` must be a method; it cannot be an instance variable::
 
@@ -3780,8 +3972,9 @@ pairs within braces, for example: ``{'jack': 4098, 'sjoerd': 4127}`` or ``{4098:
           >>> c['red']
           1
 
-      See :class:`collections.Counter` for a complete implementation including
-      other methods helpful for accumulating and managing tallies.
+      The example above shows part of the implementation of
+      :class:`collections.Counter`.  A different ``__missing__`` method is used
+      by :class:`collections.defaultdict`.
 
    .. describe:: d[key] = value
 
@@ -4006,8 +4199,8 @@ before the statement body is executed and exited when the statement ends:
    The exception passed in should never be reraised explicitly - instead, this
    method should return a false value to indicate that the method completed
    successfully and does not want to suppress the raised exception. This allows
-   context management code (such as ``contextlib.nested``) to easily detect whether
-   or not an :meth:`__exit__` method has actually failed.
+   context management code to easily detect whether or not an :meth:`__exit__`
+   method has actually failed.
 
 Python defines several context managers to support easy thread synchronisation,
 prompt closure of files or other objects, and simpler manipulation of the active

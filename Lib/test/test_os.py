@@ -4,6 +4,7 @@
 
 import os
 import errno
+import getpass
 import unittest
 import warnings
 import sys
@@ -27,6 +28,7 @@ import codecs
 import decimal
 import fractions
 import pickle
+import sysconfig
 try:
     import threading
 except ImportError:
@@ -44,11 +46,29 @@ try:
 except ImportError:
     _winapi = None
 try:
+    import grp
+    groups = [g.gr_gid for g in grp.getgrall() if getpass.getuser() in g.gr_mem]
+    if hasattr(os, 'getgid'):
+        process_gid = os.getgid()
+        if process_gid not in groups:
+            groups.append(process_gid)
+except ImportError:
+    groups = []
+try:
+    import pwd
+    all_users = [u.pw_uid for u in pwd.getpwall()]
+except ImportError:
+    all_users = []
+try:
     from _testcapi import INT_MAX, PY_SSIZE_T_MAX
 except ImportError:
     INT_MAX = PY_SSIZE_T_MAX = sys.maxsize
 
 from test.script_helper import assert_python_ok
+
+root_in_posix = False
+if hasattr(os, 'geteuid'):
+    root_in_posix = (os.geteuid() == 0)
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", DeprecationWarning)
@@ -293,10 +313,13 @@ class StatAttributeTests(unittest.TestCase):
 
     def test_stat_result_pickle(self):
         result = os.stat(self.fname)
-        p = pickle.dumps(result)
-        self.assertIn(b'\x03cos\nstat_result\n', p)
-        unpickled = pickle.loads(p)
-        self.assertEqual(result, unpickled)
+        for proto in range(pickle.HIGHEST_PROTOCOL + 1):
+            p = pickle.dumps(result, proto)
+            self.assertIn(b'stat_result', p)
+            if proto < 4:
+                self.assertIn(b'cos\nstat_result\n', p)
+            unpickled = pickle.loads(p)
+            self.assertEqual(result, unpickled)
 
     @unittest.skipUnless(hasattr(os, 'statvfs'), 'test needs os.statvfs()')
     def test_statvfs_attributes(self):
@@ -352,10 +375,13 @@ class StatAttributeTests(unittest.TestCase):
             if e.errno == errno.ENOSYS:
                 self.skipTest('os.statvfs() failed with ENOSYS')
 
-        p = pickle.dumps(result)
-        self.assertIn(b'\x03cos\nstatvfs_result\n', p)
-        unpickled = pickle.loads(p)
-        self.assertEqual(result, unpickled)
+        for proto in range(pickle.HIGHEST_PROTOCOL + 1):
+            p = pickle.dumps(result, proto)
+            self.assertIn(b'statvfs_result', p)
+            if proto < 4:
+                self.assertIn(b'cos\nstatvfs_result\n', p)
+            unpickled = pickle.loads(p)
+            self.assertEqual(result, unpickled)
 
     def test_utime_dir(self):
         delta = 1000000
@@ -955,17 +981,6 @@ class MakedirTests(unittest.TestCase):
         os.makedirs(path, mode=mode, exist_ok=True)
         os.umask(old_mask)
 
-    @unittest.skipUnless(hasattr(os, 'chown'), 'test needs os.chown')
-    def test_chown_uid_gid_arguments_must_be_index(self):
-        stat = os.stat(support.TESTFN)
-        uid = stat.st_uid
-        gid = stat.st_gid
-        for value in (-1.0, -1j, decimal.Decimal(-1), fractions.Fraction(-2, 2)):
-            self.assertRaises(TypeError, os.chown, support.TESTFN, value, gid)
-            self.assertRaises(TypeError, os.chown, support.TESTFN, uid, value)
-        self.assertIsNone(os.chown(support.TESTFN, uid, gid))
-        self.assertIsNone(os.chown(support.TESTFN, -1, -1))
-
     def test_exist_ok_s_isgid_directory(self):
         path = os.path.join(support.TESTFN, 'dir1')
         S_ISGID = stat.S_ISGID
@@ -1014,6 +1029,58 @@ class MakedirTests(unittest.TestCase):
             path = os.path.dirname(path)
 
         os.removedirs(path)
+
+
+@unittest.skipUnless(hasattr(os, 'chown'), "Test needs chown")
+class ChownFileTests(unittest.TestCase):
+
+    def setUpClass():
+        os.mkdir(support.TESTFN)
+
+    def test_chown_uid_gid_arguments_must_be_index(self):
+        stat = os.stat(support.TESTFN)
+        uid = stat.st_uid
+        gid = stat.st_gid
+        for value in (-1.0, -1j, decimal.Decimal(-1), fractions.Fraction(-2, 2)):
+            self.assertRaises(TypeError, os.chown, support.TESTFN, value, gid)
+            self.assertRaises(TypeError, os.chown, support.TESTFN, uid, value)
+        self.assertIsNone(os.chown(support.TESTFN, uid, gid))
+        self.assertIsNone(os.chown(support.TESTFN, -1, -1))
+
+    @unittest.skipUnless(len(groups) > 1, "test needs more than one group")
+    def test_chown(self):
+        gid_1, gid_2 = groups[:2]
+        uid = os.stat(support.TESTFN).st_uid
+        os.chown(support.TESTFN, uid, gid_1)
+        gid = os.stat(support.TESTFN).st_gid
+        self.assertEqual(gid, gid_1)
+        os.chown(support.TESTFN, uid, gid_2)
+        gid = os.stat(support.TESTFN).st_gid
+        self.assertEqual(gid, gid_2)
+
+    @unittest.skipUnless(root_in_posix and len(all_users) > 1,
+                         "test needs root privilege and more than one user")
+    def test_chown_with_root(self):
+        uid_1, uid_2 = all_users[:2]
+        gid = os.stat(support.TESTFN).st_gid
+        os.chown(support.TESTFN, uid_1, gid)
+        uid = os.stat(support.TESTFN).st_uid
+        self.assertEqual(uid, uid_1)
+        os.chown(support.TESTFN, uid_2, gid)
+        uid = os.stat(support.TESTFN).st_uid
+        self.assertEqual(uid, uid_2)
+
+    @unittest.skipUnless(not root_in_posix and len(all_users) > 1,
+                         "test needs non-root account and more than one user")
+    def test_chown_without_permission(self):
+        uid_1, uid_2 = all_users[:2]
+        gid = os.stat(support.TESTFN).st_gid
+        with self.assertRaisesRegex(PermissionError, "Operation not permitted"):
+            os.chown(support.TESTFN, uid_1, gid)
+            os.chown(support.TESTFN, uid_2, gid)
+
+    def tearDownClass():
+        os.rmdir(support.TESTFN)
 
 
 class RemoveDirsTests(unittest.TestCase):
@@ -1097,6 +1164,12 @@ class URandomTests(unittest.TestCase):
         data2 = self.get_urandom_subprocess(16)
         self.assertNotEqual(data1, data2)
 
+
+HAVE_GETENTROPY = (sysconfig.get_config_var('HAVE_GETENTROPY') == 1)
+
+@unittest.skipIf(HAVE_GETENTROPY,
+                 "getentropy() does not use a file descriptor")
+class URandomFDTests(unittest.TestCase):
     @unittest.skipUnless(resource, "test requires the resource module")
     def test_urandom_failure(self):
         # Check urandom() failing when it is not able to open /dev/random.
@@ -2070,11 +2143,13 @@ class TestSendfile(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.key = support.threading_setup()
         with open(support.TESTFN, "wb") as f:
             f.write(cls.DATA)
 
     @classmethod
     def tearDownClass(cls):
+        support.threading_cleanup(*cls.key)
         support.unlink(support.TESTFN)
 
     def setUp(self):
@@ -2623,44 +2698,5 @@ class ExportsTests(unittest.TestCase):
         self.assertIn('walk', os.__all__)
 
 
-@support.reap_threads
-def test_main():
-    support.run_unittest(
-        FileTests,
-        StatAttributeTests,
-        EnvironTests,
-        WalkTests,
-        FwalkTests,
-        MakedirTests,
-        DevNullTests,
-        URandomTests,
-        ExecTests,
-        Win32ErrorTests,
-        TestInvalidFD,
-        PosixUidGidTests,
-        Pep383Tests,
-        Win32KillTests,
-        Win32ListdirTests,
-        Win32SymlinkTests,
-        NonLocalSymlinkTests,
-        FSEncodingTests,
-        DeviceEncodingTests,
-        PidTests,
-        LoginTests,
-        LinkTests,
-        TestSendfile,
-        ProgramPriorityTests,
-        ExtendedAttributeTests,
-        Win32DeprecatedBytesAPI,
-        TermsizeTests,
-        OSErrorTests,
-        RemoveDirsTests,
-        CPUCountTests,
-        FDInheritanceTests,
-        Win32JunctionTests,
-        BlockingTests,
-        ExportsTests,
-    )
-
 if __name__ == "__main__":
-    test_main()
+    unittest.main()

@@ -106,7 +106,12 @@ from _ssl import CERT_NONE, CERT_OPTIONAL, CERT_REQUIRED
 from _ssl import (VERIFY_DEFAULT, VERIFY_CRL_CHECK_LEAF, VERIFY_CRL_CHECK_CHAIN,
     VERIFY_X509_STRICT)
 from _ssl import txt2obj as _txt2obj, nid2obj as _nid2obj
-from _ssl import RAND_status, RAND_egd, RAND_add, RAND_bytes, RAND_pseudo_bytes
+from _ssl import RAND_status, RAND_add, RAND_bytes, RAND_pseudo_bytes
+try:
+    from _ssl import RAND_egd
+except ImportError:
+    # LibreSSL does not provide RAND_egd
+    pass
 
 def _import_symbols(prefix):
     for n in dir(_ssl):
@@ -117,7 +122,7 @@ _import_symbols('OP_')
 _import_symbols('ALERT_DESCRIPTION_')
 _import_symbols('SSL_ERROR_')
 
-from _ssl import HAS_SNI, HAS_ECDH, HAS_NPN
+from _ssl import HAS_SNI, HAS_ECDH, HAS_NPN, HAS_ALPN
 
 from _ssl import _OPENSSL_API_VERSION
 
@@ -202,7 +207,7 @@ def _dnsname_match(dn, hostname, max_wildcards=1):
     wildcards = leftmost.count('*')
     if wildcards > max_wildcards:
         # Issue #17980: avoid denials of service by refusing more
-        # than one wildcard per fragment.  A survery of established
+        # than one wildcard per fragment.  A survey of established
         # policy among SSL implementations showed it to be a
         # reasonable choice.
         raise CertificateError(
@@ -369,6 +374,17 @@ class SSLContext(_SSLContext):
 
         self._set_npn_protocols(protos)
 
+    def set_alpn_protocols(self, alpn_protocols):
+        protos = bytearray()
+        for protocol in alpn_protocols:
+            b = bytes(protocol, 'ascii')
+            if len(b) == 0 or len(b) > 255:
+                raise SSLError('ALPN protocols must be 1 to 255 in length')
+            protos.append(len(b))
+            protos.extend(b)
+
+        self._set_alpn_protocols(protos)
+
     def _load_windows_store_certs(self, storename, purpose):
         certs = bytearray()
         for cert, encoding, trust in enum_certificates(storename):
@@ -436,8 +452,7 @@ def create_default_context(purpose=Purpose.SERVER_AUTH, *, cafile=None,
         context.load_default_certs(purpose)
     return context
 
-
-def _create_stdlib_context(protocol=PROTOCOL_SSLv23, *, cert_reqs=None,
+def _create_unverified_context(protocol=PROTOCOL_SSLv23, *, cert_reqs=None,
                            check_hostname=False, purpose=Purpose.SERVER_AUTH,
                            certfile=None, keyfile=None,
                            cafile=None, capath=None, cadata=None):
@@ -454,6 +469,9 @@ def _create_stdlib_context(protocol=PROTOCOL_SSLv23, *, cert_reqs=None,
     context = SSLContext(protocol)
     # SSLv2 considered harmful.
     context.options |= OP_NO_SSLv2
+    # SSLv3 has problematic security and is only required for really old
+    # clients such as IE6 on Windows XP
+    context.options |= OP_NO_SSLv3
 
     if cert_reqs is not None:
         context.verify_mode = cert_reqs
@@ -474,6 +492,13 @@ def _create_stdlib_context(protocol=PROTOCOL_SSLv23, *, cert_reqs=None,
         context.load_default_certs(purpose)
 
     return context
+
+# Used by http.client if no context is explicitly passed.
+_create_default_https_context = create_default_context
+
+
+# Backwards compatibility alias, even though it's not a public name.
+_create_stdlib_context = _create_unverified_context
 
 
 class SSLObject:
@@ -553,10 +578,23 @@ class SSLObject:
         if _ssl.HAS_NPN:
             return self._sslobj.selected_npn_protocol()
 
+    def selected_alpn_protocol(self):
+        """Return the currently selected ALPN protocol as a string, or ``None``
+        if a next protocol was not negotiated or if ALPN is not supported by one
+        of the peers."""
+        if _ssl.HAS_ALPN:
+            return self._sslobj.selected_alpn_protocol()
+
     def cipher(self):
         """Return the currently selected cipher as a 3-tuple ``(name,
         ssl_version, secret_bits)``."""
         return self._sslobj.cipher()
+
+    def shared_ciphers(self):
+        """Return a list of ciphers shared by the client during the handshake or
+        None if this is not a valid server connection.
+        """
+        return self._sslobj.shared_ciphers()
 
     def compression(self):
         """Return the current compression algorithm in use, or ``None`` if
@@ -646,12 +684,7 @@ class SSLSocket(socket):
             raise ValueError("server_hostname can only be specified "
                              "in client mode")
         if self._context.check_hostname and not server_hostname:
-            if HAS_SNI:
-                raise ValueError("check_hostname requires server_hostname")
-            else:
-                raise ValueError("check_hostname requires server_hostname, "
-                                 "but it's not supported by your OpenSSL "
-                                 "library")
+            raise ValueError("check_hostname requires server_hostname")
         self.server_side = server_side
         self.server_hostname = server_hostname
         self.do_handshake_on_connect = do_handshake_on_connect
@@ -768,12 +801,25 @@ class SSLSocket(socket):
         else:
             return self._sslobj.selected_npn_protocol()
 
+    def selected_alpn_protocol(self):
+        self._checkClosed()
+        if not self._sslobj or not _ssl.HAS_ALPN:
+            return None
+        else:
+            return self._sslobj.selected_alpn_protocol()
+
     def cipher(self):
         self._checkClosed()
         if not self._sslobj:
             return None
         else:
             return self._sslobj.cipher()
+
+    def shared_ciphers(self):
+        self._checkClosed()
+        if not self._sslobj:
+            return None
+        return self._sslobj.shared_ciphers()
 
     def compression(self):
         self._checkClosed()

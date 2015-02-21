@@ -397,6 +397,34 @@ class Test_TestCase(unittest.TestCase, TestEquality, TestHashing):
         Foo(events).run(result)
         self.assertEqual(events, expected)
 
+    def test_subtests_failfast(self):
+        # Ensure proper test flow with subtests and failfast (issue #22894)
+        events = []
+
+        class Foo(unittest.TestCase):
+            def test_a(self):
+                with self.subTest():
+                    events.append('a1')
+                events.append('a2')
+
+            def test_b(self):
+                with self.subTest():
+                    events.append('b1')
+                with self.subTest():
+                    self.fail('failure')
+                events.append('b2')
+
+            def test_c(self):
+                events.append('c')
+
+        result = unittest.TestResult()
+        result.failfast = True
+        suite = unittest.makeSuite(Foo)
+        suite.run(result)
+
+        expected = ['a1', 'a2', 'b1']
+        self.assertEqual(events, expected)
+
     # "This class attribute gives the exception raised by the test() method.
     # If a test framework needs to use a specialized exception, possibly to
     # carry additional information, it must subclass this exception in
@@ -1075,10 +1103,7 @@ test case
         except self.failureException as e:
             # need to remove the first line of the error message
             error = str(e).split('\n', 1)[1]
-
-            # no fair testing ourself with ourself, and assertEqual is used for strings
-            # so can't use assertEqual either. Just use assertTrue.
-            self.assertTrue(sample_text_error == error)
+            self.assertEqual(sample_text_error, error)
 
     def testAssertEqualSingleLine(self):
         sample_text = "laden swallows fly slowly"
@@ -1092,8 +1117,9 @@ test case
         try:
             self.assertEqual(sample_text, revised_sample_text)
         except self.failureException as e:
+            # need to remove the first line of the error message
             error = str(e).split('\n', 1)[1]
-            self.assertTrue(sample_text_error == error)
+            self.assertEqual(sample_text_error, error)
 
     def testAssertIsNone(self):
         self.assertIsNone(None)
@@ -1349,7 +1375,7 @@ test case
         self.checkAssertLogsPerLevel('ERROR')
 
     def checkAssertLogsPerLogger(self, logger):
-        # Check per-logger fitering
+        # Check per-logger filtering
         with self.assertNoStderr():
             with self.assertLogs(level='DEBUG') as outer_cm:
                 with self.assertLogs(logger, level='DEBUG') as cm:

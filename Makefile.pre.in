@@ -407,6 +407,7 @@ PYTHON_OBJS=	\
 		Python/pyctype.o \
 		Python/pyfpe.o \
 		Python/pyhash.o \
+		Python/pylifecycle.o \
 		Python/pymath.o \
 		Python/pystate.o \
 		Python/pythonrun.o \
@@ -505,14 +506,14 @@ profile-opt:
 	$(MAKE) build_all_use_profile
 
 build_all_generate_profile:
-	$(MAKE) all CFLAGS="$(CFLAGS) -fprofile-generate" LIBS="$(LIBS) -lgcov"
+	$(MAKE) all CFLAGS_NODIST="$(CFLAGS) -fprofile-generate" LDFLAGS="-fprofile-generate" LIBS="$(LIBS) -lgcov"
 
 run_profile_task:
 	: # FIXME: can't run for a cross build
 	$(RUNSHARED) ./$(BUILDPYTHON) $(PROFILE_TASK)
 
 build_all_use_profile:
-	$(MAKE) all CFLAGS="$(CFLAGS) -fprofile-use -fprofile-correction"
+	$(MAKE) all CFLAGS_NODIST="$(CFLAGS) -fprofile-use -fprofile-correction"
 
 # Compile and run with gcov
 .PHONY=coverage coverage-lcov coverage-report
@@ -930,6 +931,7 @@ PYTHON_HEADERS= \
 		$(srcdir)/Include/pyerrors.h \
 		$(srcdir)/Include/pyfpe.h \
 		$(srcdir)/Include/pyhash.h \
+		$(srcdir)/Include/pylifecycle.h \
 		$(srcdir)/Include/pymath.h \
 		$(srcdir)/Include/pygetopt.h \
 		$(srcdir)/Include/pymacro.h \
@@ -1182,9 +1184,14 @@ LIBSUBDIRS=	tkinter tkinter/test tkinter/test/test_tkinter \
 		test/audiodata \
 		test/capath test/data \
 		test/cjkencodings test/decimaltestdata test/xmltestdata \
+		test/eintrdata \
 		test/imghdrdata \
 		test/subprocessdata test/sndhdrdata test/support \
 		test/tracedmodules test/encoded_modules \
+		test/test_import \
+		test/test_import/data \
+		test/test_import/data/circular_imports \
+		test/test_import/data/circular_imports/subpkg \
 		test/test_importlib/namespace_pkgs \
 		test/test_importlib/namespace_pkgs/both_portions \
 		test/test_importlib/namespace_pkgs/both_portions/foo \

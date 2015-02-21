@@ -220,7 +220,7 @@ class _ConnectionBase:
 
     def recv_bytes_into(self, buf, offset=0):
         """
-        Receive bytes data into a writeable buffer-like object.
+        Receive bytes data into a writeable bytes-like object.
         Return the number of bytes read.
         """
         self._check_closed()
@@ -365,10 +365,7 @@ class Connection(_ConnectionBase):
     def _send(self, buf, write=_write):
         remaining = len(buf)
         while True:
-            try:
-                n = write(self._handle, buf)
-            except InterruptedError:
-                continue
+            n = write(self._handle, buf)
             remaining -= n
             if remaining == 0:
                 break
@@ -379,10 +376,7 @@ class Connection(_ConnectionBase):
         handle = self._handle
         remaining = size
         while remaining > 0:
-            try:
-                chunk = read(handle, remaining)
-            except InterruptedError:
-                continue
+            chunk = read(handle, remaining)
             n = len(chunk)
             if n == 0:
                 if remaining == size:
@@ -595,13 +589,7 @@ class SocketListener(object):
             self._unlink = None
 
     def accept(self):
-        while True:
-            try:
-                s, self._last_accepted = self._socket.accept()
-            except InterruptedError:
-                pass
-            else:
-                break
+        s, self._last_accepted = self._socket.accept()
         s.setblocking(True)
         return Connection(s.detach())
 

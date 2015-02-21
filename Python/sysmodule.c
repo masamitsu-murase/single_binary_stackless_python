@@ -890,7 +890,7 @@ _PySys_GetSizeOf(PyObject *o)
 {
     PyObject *res = NULL;
     PyObject *method;
-    size_t size;
+    Py_ssize_t size;
 
     /* Make sure the type is initialized. float gets initialized late */
     if (PyType_Ready(Py_TYPE(o)) < 0)
@@ -911,15 +911,20 @@ _PySys_GetSizeOf(PyObject *o)
     if (res == NULL)
         return (size_t)-1;
 
-    size = PyLong_AsSize_t(res);
+    size = PyLong_AsSsize_t(res);
     Py_DECREF(res);
-    if (size == (size_t)-1 && PyErr_Occurred())
+    if (size == -1 && PyErr_Occurred())
         return (size_t)-1;
+
+    if (size < 0) {
+        PyErr_SetString(PyExc_ValueError, "__sizeof__() should return >= 0");
+        return (size_t)-1;
+    }
 
     /* add gc_head size */
     if (PyObject_IS_GC(o))
-        size += sizeof(PyGC_Head);
-    return size;
+        return ((size_t)size) + sizeof(PyGC_Head);
+    return (size_t)size;
 }
 
 static PyObject *
@@ -1142,6 +1147,16 @@ PyDoc_STRVAR(sys_clear_type_cache__doc__,
 "_clear_type_cache() -> None\n\
 Clear the internal type lookup cache.");
 
+static PyObject *
+sys_is_finalizing(PyObject* self, PyObject* args)
+{
+    return PyBool_FromLong(_Py_Finalizing != NULL);
+}
+
+PyDoc_STRVAR(is_finalizing_doc,
+"is_finalizing()\n\
+Return True if Python is exiting.");
+
 
 static PyMethodDef sys_methods[] = {
     /* Might as well keep this in alphabetic order */
@@ -1188,6 +1203,7 @@ static PyMethodDef sys_methods[] = {
      getwindowsversion_doc},
 #endif /* MS_WINDOWS */
     {"intern",          sys_intern,     METH_VARARGS, intern_doc},
+    {"is_finalizing",   sys_is_finalizing, METH_NOARGS, is_finalizing_doc},
 #ifdef USE_MALLOPT
     {"mdebug",          sys_mdebug, METH_VARARGS},
 #endif
@@ -1389,7 +1405,7 @@ hexversion -- version information encoded as a single integer\n\
 implementation -- Python implementation information.\n\
 int_info -- a struct sequence with information about the int implementation.\n\
 maxsize -- the largest supported length of containers.\n\
-maxunicode -- the value of the largest Unicode codepoint\n\
+maxunicode -- the value of the largest Unicode code point\n\
 platform -- platform identifier\n\
 prefix -- prefix used to find the Python library\n\
 thread_info -- a struct sequence with information about the thread implementation.\n\
@@ -1702,7 +1718,7 @@ _PySys_Init(void)
     }
 #endif
 
-    /* stdin/stdout/stderr are now set by pythonrun.c */
+    /* stdin/stdout/stderr are set in pylifecycle.c */
 
     SET_SYS_FROM_STRING_BORROW("__displayhook__",
                                PyDict_GetItemString(sysdict, "displayhook"));

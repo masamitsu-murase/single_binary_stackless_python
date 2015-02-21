@@ -605,7 +605,7 @@ PyAPI_FUNC(PyObject*) PyUnicode_New(
     );
 #endif
 
-/* Initializes the canonical string representation from a the deprecated
+/* Initializes the canonical string representation from the deprecated
    wstr/Py_UNICODE representation. This function is used to convert Unicode
    objects which were created using the old API to the new flexible format
    introduced with PEP 393.
@@ -849,7 +849,7 @@ PyAPI_FUNC(int) PyUnicode_Resize(
 
    Coercion is done in the following way:
 
-   1. bytes, bytearray and other char buffer compatible objects are decoded
+   1. bytes, bytearray and other bytes-like objects are decoded
       under the assumptions that they contain data using the UTF-8
       encoding. Decoding is done in "strict" mode.
 
@@ -1052,7 +1052,7 @@ PyAPI_FUNC(Py_ssize_t) PyUnicode_AsWideChar(
    always ends with a nul character. If size is not NULL, write the number of
    wide characters (excluding the null character) into *size.
 
-   Returns a buffer allocated by PyMem_Alloc() (use PyMem_Free() to free it)
+   Returns a buffer allocated by PyMem_Malloc() (use PyMem_Free() to free it)
    on success. On error, returns NULL, *size is undefined and raises a
    MemoryError. */
 
@@ -2244,6 +2244,8 @@ PyAPI_FUNC(Py_UNICODE*) Py_UNICODE_strrchr(
     const Py_UNICODE *s,
     Py_UNICODE c
     );
+
+PyAPI_FUNC(PyObject*) _PyUnicode_FormatLong(PyObject *, int, int, int);
 
 /* Create a copy of a unicode string ending with a nul character. Return NULL
    and raise a MemoryError exception on memory allocation failure, otherwise

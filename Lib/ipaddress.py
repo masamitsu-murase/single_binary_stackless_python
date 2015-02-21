@@ -164,22 +164,23 @@ def _split_optional_netmask(address):
 
 
 def _find_address_range(addresses):
-    """Find a sequence of IPv#Address.
+    """Find a sequence of sorted deduplicated IPv#Address.
 
     Args:
         addresses: a list of IPv#Address objects.
 
-    Returns:
+    Yields:
         A tuple containing the first and last IP addresses in the sequence.
 
     """
-    first = last = addresses[0]
-    for ip in addresses[1:]:
-        if ip._ip == last._ip + 1:
-            last = ip
-        else:
-            break
-    return (first, last)
+    it = iter(addresses)
+    first = last = next(it)
+    for ip in it:
+        if ip._ip != last._ip + 1:
+            yield first, last
+            first = ip
+        last = ip
+    yield first, last
 
 
 def _count_righthand_zero_bits(number, bits):
@@ -320,7 +321,6 @@ def collapse_addresses(addresses):
         TypeError: If passed a list of mixed version objects.
 
     """
-    i = 0
     addrs = []
     ips = []
     nets = []
@@ -349,10 +349,10 @@ def collapse_addresses(addresses):
     # sort and dedup
     ips = sorted(set(ips))
 
-    while i < len(ips):
-        (first, last) = _find_address_range(ips[i:])
-        i = ips.index(last) + 1
-        addrs.extend(summarize_address_range(first, last))
+    # find consecutive address ranges in the sorted sequence and summarize them
+    if ips:
+        for first, last in _find_address_range(ips):
+            addrs.extend(summarize_address_range(first, last))
 
     return _collapse_addresses_internal(addrs + nets)
 
@@ -382,40 +382,7 @@ def get_mixed_type_key(obj):
     return NotImplemented
 
 
-class _TotalOrderingMixin:
-    # Helper that derives the other comparison operations from
-    # __lt__ and __eq__
-    # We avoid functools.total_ordering because it doesn't handle
-    # NotImplemented correctly yet (http://bugs.python.org/issue10042)
-    def __eq__(self, other):
-        raise NotImplementedError
-    def __ne__(self, other):
-        equal = self.__eq__(other)
-        if equal is NotImplemented:
-            return NotImplemented
-        return not equal
-    def __lt__(self, other):
-        raise NotImplementedError
-    def __le__(self, other):
-        less = self.__lt__(other)
-        if less is NotImplemented or not less:
-            return self.__eq__(other)
-        return less
-    def __gt__(self, other):
-        less = self.__lt__(other)
-        if less is NotImplemented:
-            return NotImplemented
-        equal = self.__eq__(other)
-        if equal is NotImplemented:
-            return NotImplemented
-        return not (less or equal)
-    def __ge__(self, other):
-        less = self.__lt__(other)
-        if less is NotImplemented:
-            return NotImplemented
-        return not less
-
-class _IPAddressBase(_TotalOrderingMixin):
+class _IPAddressBase:
 
     """The mother class."""
 
@@ -479,7 +446,7 @@ class _IPAddressBase(_TotalOrderingMixin):
         """Return prefix length from the bitwise netmask.
 
         Args:
-            ip_int: An integer, the netmask in axpanded bitwise format
+            ip_int: An integer, the netmask in expanded bitwise format
 
         Returns:
             An integer, the prefix length.
@@ -563,7 +530,11 @@ class _IPAddressBase(_TotalOrderingMixin):
         except ValueError:
             cls._report_invalid_netmask(ip_str)
 
+    def __reduce__(self):
+        return self.__class__, (str(self),)
 
+
+@functools.total_ordering
 class _BaseAddress(_IPAddressBase):
 
     """A generic IP object.
@@ -571,11 +542,6 @@ class _BaseAddress(_IPAddressBase):
     This IP class contains the version independent methods which are
     used by single IP addresses.
     """
-
-    def __init__(self, address):
-        if (not isinstance(address, bytes)
-            and '/' in str(address)):
-            raise AddressValueError("Unexpected '/' in %r" % address)
 
     def __int__(self):
         return self._ip
@@ -588,11 +554,10 @@ class _BaseAddress(_IPAddressBase):
             return NotImplemented
 
     def __lt__(self, other):
+        if not isinstance(other, _BaseAddress):
+            return NotImplemented
         if self._version != other._version:
             raise TypeError('%s and %s are not of the same version' % (
-                             self, other))
-        if not isinstance(other, _BaseAddress):
-            raise TypeError('%s and %s are not of the same type' % (
                              self, other))
         if self._ip != other._ip:
             return self._ip < other._ip
@@ -622,7 +587,11 @@ class _BaseAddress(_IPAddressBase):
     def _get_address_key(self):
         return (self._version, self)
 
+    def __reduce__(self):
+        return self.__class__, (self._ip,)
 
+
+@functools.total_ordering
 class _BaseNetwork(_IPAddressBase):
 
     """A generic IP network object.
@@ -672,11 +641,10 @@ class _BaseNetwork(_IPAddressBase):
             return self._address_class(broadcast + n)
 
     def __lt__(self, other):
+        if not isinstance(other, _BaseNetwork):
+            return NotImplemented
         if self._version != other._version:
             raise TypeError('%s and %s are not of the same version' % (
-                             self, other))
-        if not isinstance(other, _BaseNetwork):
-            raise TypeError('%s and %s are not of the same type' % (
                              self, other))
         if self.network_address != other.network_address:
             return self.network_address < other.network_address
@@ -808,7 +776,7 @@ class _BaseNetwork(_IPAddressBase):
                 other.broadcast_address <= self.broadcast_address):
             raise ValueError('%s not contained in %s' % (other, self))
         if other == self:
-            raise StopIteration
+            return
 
         # Make sure we're comparing the network of other.
         other = other.__class__('%s/%s' % (other.network_address,
@@ -1088,7 +1056,7 @@ class _BaseV4:
     _DECIMAL_DIGITS = frozenset('0123456789')
 
     # the valid octets for host and netmasks. only useful for IPv4.
-    _valid_mask_octets = frozenset((255, 254, 252, 248, 240, 224, 192, 128, 0))
+    _valid_mask_octets = frozenset({255, 254, 252, 248, 240, 224, 192, 128, 0})
 
     _max_prefixlen = IPV4LENGTH
     # There are only a handful of valid v4 netmasks, so we cache them all
@@ -1291,7 +1259,6 @@ class IPv4Address(_BaseV4, _BaseAddress):
             AddressValueError: If ipaddress isn't a valid IPv4 address.
 
         """
-        _BaseAddress.__init__(self, address)
         _BaseV4.__init__(self, address)
 
         # Efficient constructor from integer.
@@ -1309,6 +1276,8 @@ class IPv4Address(_BaseV4, _BaseAddress):
         # Assume input argument to be string or any object representation
         # which converts into a formatted IP string.
         addr_str = str(address)
+        if '/' in addr_str:
+            raise AddressValueError("Unexpected '/' in %r" % address)
         self._ip = self._ip_int_from_string(addr_str)
 
     @property
@@ -1441,6 +1410,8 @@ class IPv4Interface(IPv4Address):
 
     def __hash__(self):
         return self._ip ^ self._prefixlen ^ int(self.network.network_address)
+
+    __reduce__ = _IPAddressBase.__reduce__
 
     @property
     def ip(self):
@@ -1916,7 +1887,6 @@ class IPv6Address(_BaseV6, _BaseAddress):
             AddressValueError: If address isn't a valid IPv6 address.
 
         """
-        _BaseAddress.__init__(self, address)
         _BaseV6.__init__(self, address)
 
         # Efficient constructor from integer.
@@ -1934,6 +1904,8 @@ class IPv6Address(_BaseV6, _BaseAddress):
         # Assume input argument to be string or any object representation
         # which converts into a formatted IP string.
         addr_str = str(address)
+        if '/' in addr_str:
+            raise AddressValueError("Unexpected '/' in %r" % address)
         self._ip = self._ip_int_from_string(addr_str)
 
     @property
@@ -2129,6 +2101,8 @@ class IPv6Interface(IPv6Address):
 
     def __hash__(self):
         return self._ip ^ self._prefixlen ^ int(self.network.network_address)
+
+    __reduce__ = _IPAddressBase.__reduce__
 
     @property
     def ip(self):

@@ -69,9 +69,6 @@ class NS(object):
     def __eq__(self, other):
         return vars(self) == vars(other)
 
-    def __ne__(self, other):
-        return not (self == other)
-
 
 class ArgumentParserError(Exception):
 
@@ -635,7 +632,7 @@ class TestOptionalsChoices(ParserTestCase):
 
 
 class TestOptionalsRequired(ParserTestCase):
-    """Tests the an optional action that is required"""
+    """Tests an optional action that is required"""
 
     argument_signatures = [
         Sig('-x', type=int, required=True),
@@ -755,6 +752,39 @@ class TestOptionalsActionCount(ParserTestCase):
         ('-x', NS(x=1)),
     ]
 
+
+class TestOptionalsAllowLongAbbreviation(ParserTestCase):
+    """Allow long options to be abbreviated unambiguously"""
+
+    argument_signatures = [
+        Sig('--foo'),
+        Sig('--foobaz'),
+        Sig('--fooble', action='store_true'),
+    ]
+    failures = ['--foob 5', '--foob']
+    successes = [
+        ('', NS(foo=None, foobaz=None, fooble=False)),
+        ('--foo 7', NS(foo='7', foobaz=None, fooble=False)),
+        ('--fooba a', NS(foo=None, foobaz='a', fooble=False)),
+        ('--foobl --foo g', NS(foo='g', foobaz=None, fooble=True)),
+    ]
+
+
+class TestOptionalsDisallowLongAbbreviation(ParserTestCase):
+    """Do not allow abbreviations of long options at all"""
+
+    parser_signature = Sig(allow_abbrev=False)
+    argument_signatures = [
+        Sig('--foo'),
+        Sig('--foodle', action='store_true'),
+        Sig('--foonly'),
+    ]
+    failures = ['-foon 3', '--foon 3', '--food', '--food --foo 2']
+    successes = [
+        ('', NS(foo=None, foodle=False, foonly=None)),
+        ('--foo 3', NS(foo='3', foodle=False, foonly=None)),
+        ('--foonly 7 --foodle --foo 2', NS(foo='2', foodle=True, foonly='7')),
+    ]
 
 # ================
 # Positional tests
@@ -2780,6 +2810,13 @@ class TestSetDefaults(TestCase):
         parent.set_defaults(x='foo')
         parser = ErrorRaisingArgumentParser(parents=[parent])
         self.assertEqual(NS(x='foo'), parser.parse_args([]))
+
+    def test_set_defaults_on_parent_and_subparser(self):
+        parser = argparse.ArgumentParser()
+        xparser = parser.add_subparsers().add_parser('X')
+        parser.set_defaults(foo=1)
+        xparser.set_defaults(foo=2)
+        self.assertEqual(NS(foo=2), parser.parse_args(['X']))
 
     def test_set_defaults_same_as_add_argument(self):
         parser = ErrorRaisingArgumentParser()

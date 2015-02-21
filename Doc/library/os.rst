@@ -1056,10 +1056,10 @@ or `the MSDN <http://msdn.microsoft.com/en-us/library/z0kc8e3z.aspx>`_ on Window
    .. versionadded:: 3.3
 
 
-.. function:: pwrite(fd, string, offset)
+.. function:: pwrite(fd, str, offset)
 
-   Write *string* to a file descriptor, *fd*, from *offset*, leaving the file
-   offset unchanged.
+   Write *bytestring* to a file descriptor, *fd*, from *offset*,
+   leaving the file offset unchanged.
 
    Availability: Unix.
 
@@ -3023,6 +3023,10 @@ written in Python, such as a mail server's external command delivery program.
    is not a slash (``'/'``); the underlying Win32 :c:func:`ShellExecute` function
    doesn't work if it is.  Use the :func:`os.path.normpath` function to ensure that
    the path is properly encoded for Win32.
+
+   To reduce interpreter startup overhead, the Win32 :c:func:`ShellExecute`
+   function is not resolved until this function is first called.  If the function
+   cannot be resolved, :exc:`NotImplementedError` will be raised.
 
    Availability: Windows.
 

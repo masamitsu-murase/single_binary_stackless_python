@@ -27,23 +27,12 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include "pythread.h"
-
-#if defined(__BORLANDC__)
-/* These overrides not needed for Win32 */
-#define timezone _timezone
-#define tzname _tzname
-#define daylight _daylight
-#endif /* __BORLANDC__ */
 #endif /* MS_WINDOWS */
 #endif /* !__WATCOMC__ || __QNX__ */
 
 /* Forward declarations */
 static int floatsleep(double);
 static PyObject* floattime(_Py_clock_info_t *info);
-
-#ifdef MS_WINDOWS
-static OSVERSIONINFOEX winver;
-#endif
 
 static PyObject *
 time_time(PyObject *self, PyObject *unused)
@@ -88,7 +77,7 @@ floatclock(_Py_clock_info_t *info)
 }
 #endif /* HAVE_CLOCK */
 
-#if defined(MS_WINDOWS) && !defined(__BORLANDC__)
+#ifdef MS_WINDOWS
 #define WIN32_PERF_COUNTER
 /* Win32 has better clock replacement; we have our own version, due to Mark
    Hammond and Tim Peters */
@@ -120,7 +109,7 @@ win_perf_counter(_Py_clock_info_t *info)
     }
     return PyFloat_FromDouble(diff / (double)cpu_frequency);
 }
-#endif
+#endif   /* MS_WINDOWS */
 
 #if defined(WIN32_PERF_COUNTER) || defined(HAVE_CLOCK)
 #define PYCLOCK
@@ -1366,15 +1355,6 @@ PyInit_time(void)
         if (PyStructSequence_InitType2(&StructTimeType,
                                        &struct_time_type_desc) < 0)
             return NULL;
-
-#ifdef MS_WINDOWS
-        winver.dwOSVersionInfoSize = sizeof(winver);
-        if (!GetVersionEx((OSVERSIONINFO*)&winver)) {
-            Py_DECREF(m);
-            PyErr_SetFromWindowsErr(0);
-            return NULL;
-        }
-#endif
     }
     Py_INCREF(&StructTimeType);
 #ifdef HAVE_STRUCT_TM_TM_ZONE

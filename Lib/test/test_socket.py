@@ -651,6 +651,13 @@ def requireSocket(*args):
 
 class GeneralModuleTests(unittest.TestCase):
 
+    def test_SocketType_is_socketobject(self):
+        import _socket
+        self.assertTrue(socket.SocketType is _socket.socket)
+        s = socket.socket()
+        self.assertIsInstance(s, socket.SocketType)
+        s.close()
+
     def test_repr(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         with s:
@@ -1226,7 +1233,7 @@ class GeneralModuleTests(unittest.TestCase):
             self.assertEqual(family, socket.AF_INET)
             self.assertEqual(str(family), 'AddressFamily.AF_INET')
             self.assertEqual(type, socket.SOCK_STREAM)
-            self.assertEqual(str(type), 'SocketType.SOCK_STREAM')
+            self.assertEqual(str(type), 'SocketKind.SOCK_STREAM')
         infos = socket.getaddrinfo(HOST, None, 0, socket.SOCK_STREAM)
         for _, socktype, _, _, _ in infos:
             self.assertEqual(socktype, socket.SOCK_STREAM)
@@ -1286,9 +1293,10 @@ class GeneralModuleTests(unittest.TestCase):
             if e.errno == socket.EAI_NODATA:
                 self.skipTest('internet access required for this test')
         # these should all be successful
-        socket.gethostbyname('испытание.python.org')
-        socket.gethostbyname_ex('испытание.python.org')
-        socket.getaddrinfo('испытание.python.org',0,socket.AF_UNSPEC,socket.SOCK_STREAM)
+        domain = 'испытание.pythontest.net'
+        socket.gethostbyname(domain)
+        socket.gethostbyname_ex(domain)
+        socket.getaddrinfo(domain,0,socket.AF_UNSPEC,socket.SOCK_STREAM)
         # this may not work if the forward lookup choses the IPv6 address, as that doesn't
         # have a reverse entry yet
         # socket.gethostbyaddr('испытание.python.org')
@@ -1401,7 +1409,7 @@ class GeneralModuleTests(unittest.TestCase):
         # reprs.
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             self.assertEqual(str(s.family), 'AddressFamily.AF_INET')
-            self.assertEqual(str(s.type), 'SocketType.SOCK_STREAM')
+            self.assertEqual(str(s.type), 'SocketKind.SOCK_STREAM')
 
     @unittest.skipIf(os.name == 'nt', 'Will not work on Windows')
     def test_uknown_socket_family_repr(self):
@@ -2213,7 +2221,7 @@ class SendmsgStreamTests(SendmsgTests):
     # Linux supports MSG_DONTWAIT when sending, but in general, it
     # only works when receiving.  Could add other platforms if they
     # support it too.
-    @skipWithClientIf(sys.platform not in {"linux2"},
+    @skipWithClientIf(sys.platform not in {"linux"},
                       "MSG_DONTWAIT not known to work on this platform when "
                       "sending")
     def testSendmsgDontWait(self):
@@ -3582,7 +3590,7 @@ class InterruptedTimeoutBase(unittest.TestCase):
     def setUp(self):
         super().setUp()
         orig_alrm_handler = signal.signal(signal.SIGALRM,
-                                          lambda signum, frame: None)
+                                          lambda signum, frame: 1 / 0)
         self.addCleanup(signal.signal, signal.SIGALRM, orig_alrm_handler)
         self.addCleanup(self.setAlarm, 0)
 
@@ -3619,13 +3627,11 @@ class InterruptedRecvTimeoutTest(InterruptedTimeoutBase, UDPTestBase):
         self.serv.settimeout(self.timeout)
 
     def checkInterruptedRecv(self, func, *args, **kwargs):
-        # Check that func(*args, **kwargs) raises OSError with an
+        # Check that func(*args, **kwargs) raises
         # errno of EINTR when interrupted by a signal.
         self.setAlarm(self.alarm_time)
-        with self.assertRaises(OSError) as cm:
+        with self.assertRaises(ZeroDivisionError) as cm:
             func(*args, **kwargs)
-        self.assertNotIsInstance(cm.exception, socket.timeout)
-        self.assertEqual(cm.exception.errno, errno.EINTR)
 
     def testInterruptedRecvTimeout(self):
         self.checkInterruptedRecv(self.serv.recv, 1024)
@@ -3681,12 +3687,10 @@ class InterruptedSendTimeoutTest(InterruptedTimeoutBase,
         # Check that func(*args, **kwargs), run in a loop, raises
         # OSError with an errno of EINTR when interrupted by a
         # signal.
-        with self.assertRaises(OSError) as cm:
+        with self.assertRaises(ZeroDivisionError) as cm:
             while True:
                 self.setAlarm(self.alarm_time)
                 func(*args, **kwargs)
-        self.assertNotIsInstance(cm.exception, socket.timeout)
-        self.assertEqual(cm.exception.errno, errno.EINTR)
 
     # Issue #12958: The following tests have problems on OS X prior to 10.7
     @support.requires_mac_ver(10, 7)
@@ -3728,8 +3732,6 @@ class TCPCloserTest(ThreadedTCPSocketTest):
         self.cli.connect((HOST, self.port))
         time.sleep(1.0)
 
-@unittest.skipUnless(hasattr(socket, 'socketpair'),
-                     'test needs socket.socketpair()')
 @unittest.skipUnless(thread, 'Threading required for this test.')
 class BasicSocketPairTest(SocketPairTest):
 
@@ -4054,117 +4056,6 @@ class FileObjectClassTestCase(SocketConnectedTest):
 
     def _testRealClose(self):
         pass
-
-
-class FileObjectInterruptedTestCase(unittest.TestCase):
-    """Test that the file object correctly handles EINTR internally."""
-
-    class MockSocket(object):
-        def __init__(self, recv_funcs=()):
-            # A generator that returns callables that we'll call for each
-            # call to recv().
-            self._recv_step = iter(recv_funcs)
-
-        def recv_into(self, buffer):
-            data = next(self._recv_step)()
-            assert len(buffer) >= len(data)
-            buffer[:len(data)] = data
-            return len(data)
-
-        def _decref_socketios(self):
-            pass
-
-        def _textiowrap_for_test(self, buffering=-1):
-            raw = socket.SocketIO(self, "r")
-            if buffering < 0:
-                buffering = io.DEFAULT_BUFFER_SIZE
-            if buffering == 0:
-                return raw
-            buffer = io.BufferedReader(raw, buffering)
-            text = io.TextIOWrapper(buffer, None, None)
-            text.mode = "rb"
-            return text
-
-    @staticmethod
-    def _raise_eintr():
-        raise OSError(errno.EINTR, "interrupted")
-
-    def _textiowrap_mock_socket(self, mock, buffering=-1):
-        raw = socket.SocketIO(mock, "r")
-        if buffering < 0:
-            buffering = io.DEFAULT_BUFFER_SIZE
-        if buffering == 0:
-            return raw
-        buffer = io.BufferedReader(raw, buffering)
-        text = io.TextIOWrapper(buffer, None, None)
-        text.mode = "rb"
-        return text
-
-    def _test_readline(self, size=-1, buffering=-1):
-        mock_sock = self.MockSocket(recv_funcs=[
-                lambda : b"This is the first line\nAnd the sec",
-                self._raise_eintr,
-                lambda : b"ond line is here\n",
-                lambda : b"",
-                lambda : b"",  # XXX(gps): io library does an extra EOF read
-            ])
-        fo = mock_sock._textiowrap_for_test(buffering=buffering)
-        self.assertEqual(fo.readline(size), "This is the first line\n")
-        self.assertEqual(fo.readline(size), "And the second line is here\n")
-
-    def _test_read(self, size=-1, buffering=-1):
-        mock_sock = self.MockSocket(recv_funcs=[
-                lambda : b"This is the first line\nAnd the sec",
-                self._raise_eintr,
-                lambda : b"ond line is here\n",
-                lambda : b"",
-                lambda : b"",  # XXX(gps): io library does an extra EOF read
-            ])
-        expecting = (b"This is the first line\n"
-                     b"And the second line is here\n")
-        fo = mock_sock._textiowrap_for_test(buffering=buffering)
-        if buffering == 0:
-            data = b''
-        else:
-            data = ''
-            expecting = expecting.decode('utf-8')
-        while len(data) != len(expecting):
-            part = fo.read(size)
-            if not part:
-                break
-            data += part
-        self.assertEqual(data, expecting)
-
-    def test_default(self):
-        self._test_readline()
-        self._test_readline(size=100)
-        self._test_read()
-        self._test_read(size=100)
-
-    def test_with_1k_buffer(self):
-        self._test_readline(buffering=1024)
-        self._test_readline(size=100, buffering=1024)
-        self._test_read(buffering=1024)
-        self._test_read(size=100, buffering=1024)
-
-    def _test_readline_no_buffer(self, size=-1):
-        mock_sock = self.MockSocket(recv_funcs=[
-                lambda : b"a",
-                lambda : b"\n",
-                lambda : b"B",
-                self._raise_eintr,
-                lambda : b"b",
-                lambda : b"",
-            ])
-        fo = mock_sock._textiowrap_for_test(buffering=0)
-        self.assertEqual(fo.readline(size), b"a\n")
-        self.assertEqual(fo.readline(size), b"Bb")
-
-    def test_no_buffer(self):
-        self._test_readline_no_buffer()
-        self._test_readline_no_buffer(size=4)
-        self._test_read(buffering=0)
-        self._test_read(size=100, buffering=0)
 
 
 class UnbufferedFileObjectClassTestCase(FileObjectClassTestCase):
@@ -5382,7 +5273,6 @@ def test_main():
     tests.extend([
         NonBlockingTCPTests,
         FileObjectClassTestCase,
-        FileObjectInterruptedTestCase,
         UnbufferedFileObjectClassTestCase,
         LineBufferedFileObjectClassTestCase,
         SmallBufferedFileObjectClassTestCase,

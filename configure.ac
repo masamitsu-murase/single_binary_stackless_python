@@ -1145,7 +1145,11 @@ then
 	    if test "$Py_DEBUG" = 'true' ; then
 		# Optimization messes up debuggers, so turn it off for
 		# debug builds.
-		OPT="-g -O0 -Wall $STRICT_PROTO"
+                if "$CC" -v --help 2>/dev/null |grep -- -Og > /dev/null; then
+                    OPT="-g -Og -Wall $STRICT_PROTO"
+                else
+                    OPT="-g -O0 -Wall $STRICT_PROTO"
+                fi
 	    else
 		OPT="-g $WRAP -O3 -Wall $STRICT_PROTO"
 	    fi
@@ -2311,6 +2315,9 @@ AC_MSG_RESULT($SHLIBS)
 AC_CHECK_LIB(sendfile, sendfile)
 AC_CHECK_LIB(dl, dlopen)	# Dynamic linking for SunOS/Solaris and SYSV
 AC_CHECK_LIB(dld, shl_load)	# Dynamic linking for HP-UX
+AC_CHECK_LIB(crypto, RAND_egd,
+             AC_DEFINE(HAVE_RAND_EGD, 1,
+             [Define if the libcrypto has RAND_egd]))
 
 # only check for sem_init if thread support is requested
 if test "$with_threads" = "yes" -o -z "$with_threads"; then
@@ -2419,7 +2426,7 @@ LIBS="$withval $LIBS"
 ],
 [AC_MSG_RESULT(no)])
 
-AC_PATH_TOOL([PKG_CONFIG], [pkg-config])
+PKG_PROG_PKG_CONFIG
 
 # Check for use of the system expat library
 AC_MSG_CHECKING(for --with-system-expat)
@@ -3019,7 +3026,7 @@ fi
 AC_CHECK_FUNCS(alarm accept4 setitimer getitimer bind_textdomain_codeset chown \
  clock confstr ctermid dup3 execv faccessat fchmod fchmodat fchown fchownat \
  fexecve fdopendir fork fpathconf fstatat ftime ftruncate futimesat \
- futimens futimes gai_strerror \
+ futimens futimes gai_strerror getentropy \
  getgrouplist getgroups getlogin getloadavg getpeername getpgid getpid \
  getpriority getresuid getresgid getpwent getspnam getspent getsid getwd \
  if_nameindex \
@@ -4326,6 +4333,10 @@ then
   [Define if you can turn off readline's signal handling.]), )
 fi
 
+AC_CHECK_LIB(readline, append_history,
+	AC_DEFINE(HAVE_RL_APPEND_HISTORY, 1,
+        [Define if readline supports append_history]), ,$READLINE_LIBS)
+
 # End of readline checks: restore LIBS
 LIBS=$LIBS_no_readline
 
@@ -4901,6 +4912,47 @@ darwin) SLPFLAGS="-fomit-frame-pointer -O2";;
 '') SLPFLAGS="-fno-omit-frame-pointer -O2";;
 esac
 
+
+# Check for stdatomic.h
+AC_MSG_CHECKING(for stdatomic.h)
+AC_LINK_IFELSE(
+[
+  AC_LANG_SOURCE([[
+    #include <stdatomic.h>
+    atomic_int value = ATOMIC_VAR_INIT(1);
+    _Atomic void *py_atomic_address = (void*) &value;
+    int main() {
+      int loaded_value = atomic_load(&value);
+      return 0;
+    }
+  ]])
+],[have_stdatomic_h=yes],[have_stdatomic_h=no])
+
+AC_MSG_RESULT($have_stdatomic_h)
+
+if test "$have_stdatomic_h" = yes; then
+    AC_DEFINE(HAVE_STD_ATOMIC, 1,
+              [Has stdatomic.h, atomic_int and _Atomic void* types work])
+fi
+
+# Check for GCC >= 4.7 __atomic builtins
+AC_MSG_CHECKING(for GCC >= 4.7 __atomic builtins)
+AC_LINK_IFELSE(
+[
+  AC_LANG_SOURCE([[
+    volatile int val = 1;
+    int main() {
+      __atomic_load_n(&val, __ATOMIC_SEQ_CST);
+      return 0;
+    }
+  ]])
+],[have_builtin_atomic=yes],[have_builtin_atomic=no])
+
+AC_MSG_RESULT($have_builtin_atomic)
+
+if test "$have_builtin_atomic" = yes; then
+    AC_DEFINE(HAVE_BUILTIN_ATOMIC, 1, [Has builtin atomics])
+fi
 
 # ensurepip option
 AC_MSG_CHECKING(for ensurepip)

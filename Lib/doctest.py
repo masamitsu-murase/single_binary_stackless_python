@@ -481,9 +481,6 @@ class Example:
                self.options == other.options and \
                self.exc_msg == other.exc_msg
 
-    def __ne__(self, other):
-        return not self == other
-
     def __hash__(self):
         return hash((self.source, self.want, self.lineno, self.indent,
                      self.exc_msg))
@@ -547,9 +544,6 @@ class DocTest:
                self.name == other.name and \
                self.filename == other.filename and \
                self.lineno == other.lineno
-
-    def __ne__(self, other):
-        return not self == other
 
     def __hash__(self):
         return hash((self.docstring, self.name, self.filename, self.lineno))
@@ -985,7 +979,8 @@ class DocTestFinder:
             for valname, val in obj.__dict__.items():
                 valname = '%s.%s' % (name, valname)
                 # Recurse to functions & classes.
-                if ((inspect.isroutine(val) or inspect.isclass(val)) and
+                if ((inspect.isroutine(inspect.unwrap(val))
+                     or inspect.isclass(val)) and
                     self._from_module(module, val)):
                     self._find(tests, val, valname, module, source_lines,
                                globs, seen)
@@ -2289,9 +2284,6 @@ class DocTestCase(unittest.TestCase):
                self._dt_setUp == other._dt_setUp and \
                self._dt_tearDown == other._dt_tearDown and \
                self._dt_checker == other._dt_checker
-
-    def __ne__(self, other):
-        return not self == other
 
     def __hash__(self):
         return hash((self._dt_optionflags, self._dt_setUp, self._dt_tearDown,

@@ -8,11 +8,19 @@ set this=%~n0
 if "%SPHINXBUILD%" EQU "" set SPHINXBUILD=sphinx-build
 if "%PYTHON%" EQU "" set PYTHON=py
 
-if DEFINED ProgramFiles(x86) set _PRGMFLS=%ProgramFiles(x86)%
-if NOT DEFINED ProgramFiles(x86) set _PRGMFLS=%ProgramFiles%
-if "%HTMLHELP%" EQU "" set HTMLHELP=%_PRGMFLS%\HTML Help Workshop\hhc.exe
+if "%1" NEQ "htmlhelp" goto :skiphhcsearch
+if exist "%HTMLHELP%" goto :skiphhcsearch
 
-if "%DISTVERSION%" EQU "" for /f "usebackq" %%v in (`%PYTHON% tools/patchlevel.py`) do set DISTVERSION=%%v
+rem Search for HHC in likely places
+set HTMLHELP=
+where hhc /q && set HTMLHELP=hhc && goto :skiphhcsearch
+where /R ..\externals hhc > "%TEMP%\hhc.loc" 2> nul && set /P HTMLHELP= < "%TEMP%\hhc.loc" & del "%TEMP%\hhc.loc"
+if not exist "%HTMLHELP%" where /R "%ProgramFiles(x86)%" hhc > "%TEMP%\hhc.loc" 2> nul && set /P HTMLHELP= < "%TEMP%\hhc.loc" & del "%TEMP%\hhc.loc"
+if not exist "%HTMLHELP%" where /R "%ProgramFiles%" hhc > "%TEMP%\hhc.loc" 2> nul && set /P HTMLHELP= < "%TEMP%\hhc.loc" & del "%TEMP%\hhc.loc"
+if not exist "%HTMLHELP%" echo Cannot find HHC on PATH or in externals & exit /B 1
+:skiphhcsearch
+
+if "%DISTVERSION%" EQU "" for /f "usebackq" %%v in (`%PYTHON% tools/extensions/patchlevel.py`) do set DISTVERSION=%%v
 
 if "%BUILDDIR%" EQU "" set BUILDDIR=build
 
@@ -36,7 +44,8 @@ if errorlevel 9009 (
     echo.
     echo.If you don't have Sphinx installed, grab it from
     echo.http://sphinx-doc.org/
-    goto end
+    popd
+    exit /B 1
 )
 
 rem Targets that do require sphinx-build and have their own label

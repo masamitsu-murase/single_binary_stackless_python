@@ -464,9 +464,13 @@ class Enum(metaclass=EnumMeta):
         return "%s.%s" % (self.__class__.__name__, self._name_)
 
     def __dir__(self):
-        added_behavior = [m for m in self.__class__.__dict__ if m[0] != '_']
-        return (['__class__', '__doc__', '__module__', 'name', 'value'] +
-                added_behavior)
+        added_behavior = [
+                m
+                for cls in self.__class__.mro()
+                for m in cls.__dict__
+                if m[0] != '_'
+                ]
+        return (['__class__', '__doc__', '__module__'] + added_behavior)
 
     def __format__(self, format_spec):
         # mixed-in Enums should use the mixed-in type's __format__, otherwise

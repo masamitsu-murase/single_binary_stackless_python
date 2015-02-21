@@ -68,6 +68,7 @@ Req-sent-unread-response       _CS_REQ_SENT       <response_class>
 
 import email.parser
 import email.message
+import http
 import io
 import os
 import socket
@@ -91,122 +92,13 @@ _CS_IDLE = 'Idle'
 _CS_REQ_STARTED = 'Request-started'
 _CS_REQ_SENT = 'Request-sent'
 
-# status codes
-# informational
-CONTINUE = 100
-SWITCHING_PROTOCOLS = 101
-PROCESSING = 102
 
-# successful
-OK = 200
-CREATED = 201
-ACCEPTED = 202
-NON_AUTHORITATIVE_INFORMATION = 203
-NO_CONTENT = 204
-RESET_CONTENT = 205
-PARTIAL_CONTENT = 206
-MULTI_STATUS = 207
-IM_USED = 226
+# hack to maintain backwards compatibility
+globals().update(http.HTTPStatus.__members__)
 
-# redirection
-MULTIPLE_CHOICES = 300
-MOVED_PERMANENTLY = 301
-FOUND = 302
-SEE_OTHER = 303
-NOT_MODIFIED = 304
-USE_PROXY = 305
-TEMPORARY_REDIRECT = 307
-
-# client error
-BAD_REQUEST = 400
-UNAUTHORIZED = 401
-PAYMENT_REQUIRED = 402
-FORBIDDEN = 403
-NOT_FOUND = 404
-METHOD_NOT_ALLOWED = 405
-NOT_ACCEPTABLE = 406
-PROXY_AUTHENTICATION_REQUIRED = 407
-REQUEST_TIMEOUT = 408
-CONFLICT = 409
-GONE = 410
-LENGTH_REQUIRED = 411
-PRECONDITION_FAILED = 412
-REQUEST_ENTITY_TOO_LARGE = 413
-REQUEST_URI_TOO_LONG = 414
-UNSUPPORTED_MEDIA_TYPE = 415
-REQUESTED_RANGE_NOT_SATISFIABLE = 416
-EXPECTATION_FAILED = 417
-UNPROCESSABLE_ENTITY = 422
-LOCKED = 423
-FAILED_DEPENDENCY = 424
-UPGRADE_REQUIRED = 426
-PRECONDITION_REQUIRED = 428
-TOO_MANY_REQUESTS = 429
-REQUEST_HEADER_FIELDS_TOO_LARGE = 431
-
-# server error
-INTERNAL_SERVER_ERROR = 500
-NOT_IMPLEMENTED = 501
-BAD_GATEWAY = 502
-SERVICE_UNAVAILABLE = 503
-GATEWAY_TIMEOUT = 504
-HTTP_VERSION_NOT_SUPPORTED = 505
-INSUFFICIENT_STORAGE = 507
-NOT_EXTENDED = 510
-NETWORK_AUTHENTICATION_REQUIRED = 511
-
+# another hack to maintain backwards compatibility
 # Mapping status codes to official W3C names
-responses = {
-    100: 'Continue',
-    101: 'Switching Protocols',
-
-    200: 'OK',
-    201: 'Created',
-    202: 'Accepted',
-    203: 'Non-Authoritative Information',
-    204: 'No Content',
-    205: 'Reset Content',
-    206: 'Partial Content',
-
-    300: 'Multiple Choices',
-    301: 'Moved Permanently',
-    302: 'Found',
-    303: 'See Other',
-    304: 'Not Modified',
-    305: 'Use Proxy',
-    306: '(Unused)',
-    307: 'Temporary Redirect',
-
-    400: 'Bad Request',
-    401: 'Unauthorized',
-    402: 'Payment Required',
-    403: 'Forbidden',
-    404: 'Not Found',
-    405: 'Method Not Allowed',
-    406: 'Not Acceptable',
-    407: 'Proxy Authentication Required',
-    408: 'Request Timeout',
-    409: 'Conflict',
-    410: 'Gone',
-    411: 'Length Required',
-    412: 'Precondition Failed',
-    413: 'Request Entity Too Large',
-    414: 'Request-URI Too Long',
-    415: 'Unsupported Media Type',
-    416: 'Requested Range Not Satisfiable',
-    417: 'Expectation Failed',
-    428: 'Precondition Required',
-    429: 'Too Many Requests',
-    431: 'Request Header Fields Too Large',
-
-    500: 'Internal Server Error',
-    501: 'Not Implemented',
-    502: 'Bad Gateway',
-    503: 'Service Unavailable',
-    504: 'Gateway Timeout',
-    505: 'HTTP Version Not Supported',
-    511: 'Network Authentication Required',
-}
+responses = {v: v.phrase for v in http.HTTPStatus.__members__.values()}
 
 # maximal amount of data to read at one time in _safe_read
 MAXAMOUNT = 1048576
@@ -789,14 +681,6 @@ class HTTPConnection:
     default_port = HTTP_PORT
     auto_open = 1
     debuglevel = 0
-    # TCP Maximum Segment Size (MSS) is determined by the TCP stack on
-    # a per-connection basis.  There is no simple and efficient
-    # platform independent mechanism for determining the MSS, so
-    # instead a reasonable estimate is chosen.  The getsockopt()
-    # interface using the TCP_MAXSEG parameter may be a suitable
-    # approach on some operating systems. A value of 16KiB is chosen
-    # as a reasonable estimate of the maximum MSS.
-    mss = 16384
 
     def __init__(self, host, port=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT,
                  source_address=None):
@@ -835,8 +719,7 @@ class HTTPConnection:
         if self.sock:
             raise RuntimeError("Can't set up tunnel for established connection")
 
-        self._tunnel_host = host
-        self._tunnel_port = port
+        self._tunnel_host, self._tunnel_port = self._get_hostport(host, port)
         if headers:
             self._tunnel_headers = headers
         else:
@@ -866,9 +749,8 @@ class HTTPConnection:
         self.debuglevel = level
 
     def _tunnel(self):
-        (host, port) = self._get_hostport(self._tunnel_host,
-                                          self._tunnel_port)
-        connect_str = "CONNECT %s:%d HTTP/1.0\r\n" % (host, port)
+        connect_str = "CONNECT %s:%d HTTP/1.0\r\n" % (self._tunnel_host,
+            self._tunnel_port)
         connect_bytes = connect_str.encode("ascii")
         self.send(connect_bytes)
         for header, value in self._tunnel_headers.items():
@@ -880,7 +762,7 @@ class HTTPConnection:
         response = self.response_class(self.sock, method=self._method)
         (version, code, message) = response._read_status()
 
-        if code != 200:
+        if code != http.HTTPStatus.OK:
             self.close()
             raise OSError("Tunnel connection failed: %d %s" % (code,
                                                                message.strip()))
@@ -894,10 +776,14 @@ class HTTPConnection:
             if line in (b'\r\n', b'\n', b''):
                 break
 
+            if self.debuglevel > 0:
+                print('header:', line.decode())
+
     def connect(self):
         """Connect to the host and port specified in __init__."""
-        self.sock = self._create_connection((self.host,self.port),
-                                            self.timeout, self.source_address)
+        self.sock = self._create_connection(
+            (self.host,self.port), self.timeout, self.source_address)
+        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 
         if self._tunnel_host:
             self._tunnel()
@@ -976,19 +862,9 @@ class HTTPConnection:
         self._buffer.extend((b"", b""))
         msg = b"\r\n".join(self._buffer)
         del self._buffer[:]
-        # If msg and message_body are sent in a single send() call,
-        # it will avoid performance problems caused by the interaction
-        # between delayed ack and the Nagle algorithm. However,
-        # there is no performance gain if the message is larger
-        # than MSS (and there is a memory penalty for the message
-        # copy).
-        if isinstance(message_body, bytes) and len(message_body) < self.mss:
-            msg += message_body
-            message_body = None
+
         self.send(msg)
         if message_body is not None:
-            # message_body was not a string (i.e. it is a file), and
-            # we must run the risk of Nagle.
             self.send(message_body)
 
     def putrequest(self, method, url, skip_host=0, skip_accept_encoding=0):
@@ -1233,18 +1109,22 @@ class HTTPConnection:
         else:
             response = self.response_class(self.sock, method=self._method)
 
-        response.begin()
-        assert response.will_close != _UNKNOWN
-        self.__state = _CS_IDLE
+        try:
+            response.begin()
+            assert response.will_close != _UNKNOWN
+            self.__state = _CS_IDLE
 
-        if response.will_close:
-            # this effectively passes the connection to the response
-            self.close()
-        else:
-            # remember this, so we can tell when it is complete
-            self.__response = response
+            if response.will_close:
+                # this effectively passes the connection to the response
+                self.close()
+            else:
+                # remember this, so we can tell when it is complete
+                self.__response = response
 
-        return response
+            return response
+        except:
+            response.close()
+            raise
 
 try:
     import ssl
@@ -1267,11 +1147,11 @@ else:
             self.key_file = key_file
             self.cert_file = cert_file
             if context is None:
-                context = ssl._create_stdlib_context()
+                context = ssl._create_default_https_context()
             will_verify = context.verify_mode != ssl.CERT_NONE
             if check_hostname is None:
-                check_hostname = will_verify
-            elif check_hostname and not will_verify:
+                check_hostname = context.check_hostname
+            if check_hostname and not will_verify:
                 raise ValueError("check_hostname needs a SSL context with "
                                  "either CERT_OPTIONAL or CERT_REQUIRED")
             if key_file or cert_file:
@@ -1288,10 +1168,9 @@ else:
                 server_hostname = self._tunnel_host
             else:
                 server_hostname = self.host
-            sni_hostname = server_hostname if ssl.HAS_SNI else None
 
             self.sock = self._context.wrap_socket(self.sock,
-                                                  server_hostname=sni_hostname)
+                                                  server_hostname=server_hostname)
             if not self._context.check_hostname and self._check_hostname:
                 try:
                     ssl.match_hostname(self.sock.getpeercert(), server_hostname)

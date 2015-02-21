@@ -349,6 +349,8 @@ class ReadTest(MixInCheckStateHandling):
         self.assertRaises(UnicodeEncodeError, "\ud800".encode, self.encoding)
         self.assertEqual("[\uDC80]".encode(self.encoding, "backslashreplace"),
                          "[\\udc80]".encode(self.encoding))
+        self.assertEqual("[\uDC80]".encode(self.encoding, "namereplace"),
+                         "[\\udc80]".encode(self.encoding))
         self.assertEqual("[\uDC80]".encode(self.encoding, "xmlcharrefreplace"),
                          "[&#56448;]".encode(self.encoding))
         self.assertEqual("[\uDC80]".encode(self.encoding, "ignore"),
@@ -376,6 +378,10 @@ class ReadTest(MixInCheckStateHandling):
                              before + after)
             self.assertEqual(test_sequence.decode(self.encoding, "replace"),
                              before + self.ill_formed_sequence_replace + after)
+            backslashreplace = ''.join('\\x%02x' % b
+                                       for b in self.ill_formed_sequence)
+            self.assertEqual(test_sequence.decode(self.encoding, "backslashreplace"),
+                             before + backslashreplace + after)
 
 class UTF32Test(ReadTest, unittest.TestCase):
     encoding = "utf-32"
@@ -808,6 +814,7 @@ class CP65001Test(ReadTest, unittest.TestCase):
                 ('\udc80', 'ignore', b''),
                 ('\udc80', 'replace', b'?'),
                 ('\udc80', 'backslashreplace', b'\\udc80'),
+                ('\udc80', 'namereplace', b'\\udc80'),
                 ('\udc80', 'surrogatepass', b'\xed\xb2\x80'),
             ))
         else:
@@ -868,6 +875,8 @@ class CP65001Test(ReadTest, unittest.TestCase):
         self.assertRaises(UnicodeEncodeError, "\ud800".encode, "cp65001")
         self.assertRaises(UnicodeDecodeError, b"\xed\xa0\x80".decode, "cp65001")
         self.assertEqual("[\uDC80]".encode("cp65001", "backslashreplace"),
+                         b'[\\udc80]')
+        self.assertEqual("[\uDC80]".encode("cp65001", "namereplace"),
                          b'[\\udc80]')
         self.assertEqual("[\uDC80]".encode("cp65001", "xmlcharrefreplace"),
                          b'[&#56448;]')
@@ -1135,6 +1144,8 @@ class RecodingTest(unittest.TestCase):
         # Python used to crash on this at exit because of a refcount
         # bug in _codecsmodule.c
 
+        self.assertTrue(f.closed)
+
 # From RFC 3492
 punycode_testcases = [
     # A Arabic (Egyptian):
@@ -1293,14 +1304,19 @@ class UnicodeInternalTest(unittest.TestCase):
                                   "unicode_internal")
         if sys.byteorder == "little":
             invalid = b"\x00\x00\x11\x00"
+            invalid_backslashreplace = r"\x00\x00\x11\x00"
         else:
             invalid = b"\x00\x11\x00\x00"
+            invalid_backslashreplace = r"\x00\x11\x00\x00"
         with support.check_warnings():
             self.assertRaises(UnicodeDecodeError,
                               invalid.decode, "unicode_internal")
         with support.check_warnings():
             self.assertEqual(invalid.decode("unicode_internal", "replace"),
                              '\ufffd')
+        with support.check_warnings():
+            self.assertEqual(invalid.decode("unicode_internal", "backslashreplace"),
+                             invalid_backslashreplace)
 
     @unittest.skipUnless(SIZEOF_WCHAR_T == 4, 'specific to 32-bit wchar_t')
     def test_decode_error_attributes(self):
@@ -1587,6 +1603,16 @@ class IDNACodecTest(unittest.TestCase):
         self.assertEqual(encoder.encode("ample.org."), b"xn--xample-9ta.org.")
         self.assertEqual(encoder.encode("", True), b"")
 
+    def test_errors(self):
+        """Only supports "strict" error handler"""
+        "python.org".encode("idna", "strict")
+        b"python.org".decode("idna", "strict")
+        for errors in ("ignore", "replace", "backslashreplace",
+                "surrogateescape"):
+            self.assertRaises(Exception, "python.org".encode, "idna", errors)
+            self.assertRaises(Exception,
+                b"python.org".decode, "idna", errors)
+
 class CodecsModuleTest(unittest.TestCase):
 
     def test_decode(self):
@@ -1653,6 +1679,47 @@ class CodecsModuleTest(unittest.TestCase):
             self.skipTest('test needs Turkish locale')
         c = codecs.lookup('ASCII')
         self.assertEqual(c.name, 'ascii')
+
+    def test_all(self):
+        api = (
+            "encode", "decode",
+            "register", "CodecInfo", "Codec", "IncrementalEncoder",
+            "IncrementalDecoder", "StreamReader", "StreamWriter", "lookup",
+            "getencoder", "getdecoder", "getincrementalencoder",
+            "getincrementaldecoder", "getreader", "getwriter",
+            "register_error", "lookup_error",
+            "strict_errors", "replace_errors", "ignore_errors",
+            "xmlcharrefreplace_errors", "backslashreplace_errors",
+            "namereplace_errors",
+            "open", "EncodedFile",
+            "iterencode", "iterdecode",
+            "BOM", "BOM_BE", "BOM_LE",
+            "BOM_UTF8", "BOM_UTF16", "BOM_UTF16_BE", "BOM_UTF16_LE",
+            "BOM_UTF32", "BOM_UTF32_BE", "BOM_UTF32_LE",
+            "BOM32_BE", "BOM32_LE", "BOM64_BE", "BOM64_LE",  # Undocumented
+            "StreamReaderWriter", "StreamRecoder",
+        )
+        self.assertCountEqual(api, codecs.__all__)
+        for api in codecs.__all__:
+            getattr(codecs, api)
+
+    def test_open(self):
+        self.addCleanup(support.unlink, support.TESTFN)
+        for mode in ('w', 'r', 'r+', 'w+', 'a', 'a+'):
+            with self.subTest(mode), \
+                    codecs.open(support.TESTFN, mode, 'ascii') as file:
+                self.assertIsInstance(file, codecs.StreamReaderWriter)
+
+    def test_undefined(self):
+        self.assertRaises(UnicodeError, codecs.encode, 'abc', 'undefined')
+        self.assertRaises(UnicodeError, codecs.decode, b'abc', 'undefined')
+        self.assertRaises(UnicodeError, codecs.encode, '', 'undefined')
+        self.assertRaises(UnicodeError, codecs.decode, b'', 'undefined')
+        for errors in ('strict', 'ignore', 'replace', 'backslashreplace'):
+            self.assertRaises(UnicodeError,
+                codecs.encode, 'abc', 'undefined', errors)
+            self.assertRaises(UnicodeError,
+                codecs.decode, b'abc', 'undefined', errors)
 
 class StreamReaderTest(unittest.TestCase):
 
@@ -1787,12 +1854,9 @@ if hasattr(codecs, "mbcs_encode"):
 #    "undefined"
 
 # The following encodings don't work in stateful mode
-broken_unicode_with_streams = [
+broken_unicode_with_stateful = [
     "punycode",
     "unicode_internal"
-]
-broken_incremental_coders = broken_unicode_with_streams + [
-    "idna",
 ]
 
 class BasicUnicodeTest(unittest.TestCase, MixInCheckStateHandling):
@@ -1813,7 +1877,7 @@ class BasicUnicodeTest(unittest.TestCase, MixInCheckStateHandling):
                 (chars, size) = codecs.getdecoder(encoding)(b)
                 self.assertEqual(chars, s, "encoding=%r" % encoding)
 
-            if encoding not in broken_unicode_with_streams:
+            if encoding not in broken_unicode_with_stateful:
                 # check stream reader/writer
                 q = Queue(b"")
                 writer = codecs.getwriter(encoding)(q)
@@ -1831,7 +1895,7 @@ class BasicUnicodeTest(unittest.TestCase, MixInCheckStateHandling):
                     decodedresult += reader.read()
                 self.assertEqual(decodedresult, s, "encoding=%r" % encoding)
 
-            if encoding not in broken_incremental_coders:
+            if encoding not in broken_unicode_with_stateful:
                 # check incremental decoder/encoder and iterencode()/iterdecode()
                 try:
                     encoder = codecs.getincrementalencoder(encoding)()
@@ -1880,7 +1944,7 @@ class BasicUnicodeTest(unittest.TestCase, MixInCheckStateHandling):
         from _testcapi import codec_incrementalencoder, codec_incrementaldecoder
         s = "abc123"  # all codecs should be able to encode these
         for encoding in all_unicode_encodings:
-            if encoding not in broken_incremental_coders:
+            if encoding not in broken_unicode_with_stateful:
                 # check incremental decoder/encoder (fetched via the C API)
                 try:
                     cencoder = codec_incrementalencoder(encoding)
@@ -1920,7 +1984,7 @@ class BasicUnicodeTest(unittest.TestCase, MixInCheckStateHandling):
         for encoding in all_unicode_encodings:
             if encoding == "idna": # FIXME: See SF bug #1163178
                 continue
-            if encoding in broken_unicode_with_streams:
+            if encoding in broken_unicode_with_stateful:
                 continue
             reader = codecs.getreader(encoding)(io.BytesIO(s.encode(encoding)))
             for t in range(5):
@@ -1953,7 +2017,7 @@ class BasicUnicodeTest(unittest.TestCase, MixInCheckStateHandling):
         # Check that getstate() and setstate() handle the state properly
         u = "abc123"
         for encoding in all_unicode_encodings:
-            if encoding not in broken_incremental_coders:
+            if encoding not in broken_unicode_with_stateful:
                 self.check_state_handling_decode(encoding, u, u.encode(encoding))
                 self.check_state_handling_encode(encoding, u, u.encode(encoding))
 
@@ -1985,6 +2049,16 @@ class CharmapTest(unittest.TestCase):
         self.assertEqual(
             codecs.charmap_decode(b"\x00\x01\x02", "replace", "ab\ufffe"),
             ("ab\ufffd", 3)
+        )
+
+        self.assertEqual(
+            codecs.charmap_decode(b"\x00\x01\x02", "backslashreplace", "ab"),
+            ("ab\\x02", 3)
+        )
+
+        self.assertEqual(
+            codecs.charmap_decode(b"\x00\x01\x02", "backslashreplace", "ab\ufffe"),
+            ("ab\\x02", 3)
         )
 
         self.assertEqual(
@@ -2064,6 +2138,25 @@ class CharmapTest(unittest.TestCase):
         )
 
         self.assertEqual(
+            codecs.charmap_decode(b"\x00\x01\x02", "backslashreplace",
+                                  {0: 'a', 1: 'b'}),
+            ("ab\\x02", 3)
+        )
+
+        self.assertEqual(
+            codecs.charmap_decode(b"\x00\x01\x02", "backslashreplace",
+                                  {0: 'a', 1: 'b', 2: None}),
+            ("ab\\x02", 3)
+        )
+
+        # Issue #14850
+        self.assertEqual(
+            codecs.charmap_decode(b"\x00\x01\x02", "backslashreplace",
+                                  {0: 'a', 1: 'b', 2: '\ufffe'}),
+            ("ab\\x02", 3)
+        )
+
+        self.assertEqual(
             codecs.charmap_decode(b"\x00\x01\x02", "ignore",
                                   {0: 'a', 1: 'b'}),
             ("ab", 3)
@@ -2140,6 +2233,18 @@ class CharmapTest(unittest.TestCase):
         )
 
         self.assertEqual(
+            codecs.charmap_decode(b"\x00\x01\x02", "backslashreplace",
+                                  {0: a, 1: b}),
+            ("ab\\x02", 3)
+        )
+
+        self.assertEqual(
+            codecs.charmap_decode(b"\x00\x01\x02", "backslashreplace",
+                                  {0: a, 1: b, 2: 0xFFFE}),
+            ("ab\\x02", 3)
+        )
+
+        self.assertEqual(
             codecs.charmap_decode(b"\x00\x01\x02", "ignore",
                                   {0: a, 1: b}),
             ("ab", 3)
@@ -2157,6 +2262,7 @@ class WithStmtTest(unittest.TestCase):
         f = io.BytesIO(b"\xc3\xbc")
         with codecs.EncodedFile(f, "latin-1", "utf-8") as ef:
             self.assertEqual(ef.read(), b"\xfc")
+        self.assertTrue(f.closed)
 
     def test_streamreaderwriter(self):
         f = io.BytesIO(b"\xc3\xbc")
@@ -2197,9 +2303,13 @@ class TypesTest(unittest.TestCase):
 
         self.assertRaises(UnicodeDecodeError, codecs.unicode_escape_decode, br"\U00110000")
         self.assertEqual(codecs.unicode_escape_decode(r"\U00110000", "replace"), ("\ufffd", 10))
+        self.assertEqual(codecs.unicode_escape_decode(r"\U00110000", "backslashreplace"),
+                         (r"\x5c\x55\x30\x30\x31\x31\x30\x30\x30\x30", 10))
 
         self.assertRaises(UnicodeDecodeError, codecs.raw_unicode_escape_decode, br"\U00110000")
         self.assertEqual(codecs.raw_unicode_escape_decode(r"\U00110000", "replace"), ("\ufffd", 10))
+        self.assertEqual(codecs.raw_unicode_escape_decode(r"\U00110000", "backslashreplace"),
+                         (r"\x5c\x55\x30\x30\x31\x31\x30\x30\x30\x30", 10))
 
 
 class UnicodeEscapeTest(unittest.TestCase):
@@ -2571,6 +2681,10 @@ class TransformCodecTest(unittest.TestCase):
                     info = codecs.lookup(alias)
                     self.assertEqual(info.name, expected_name)
 
+    def test_uu_invalid(self):
+        # Missing "begin" line
+        self.assertRaises(ValueError, codecs.decode, b"", "uu-codec")
+
 
 # The codec system tries to wrap exceptions in order to ensure the error
 # mentions the operation being performed and the codec involved. We
@@ -2820,6 +2934,8 @@ class CodePageTest(unittest.TestCase):
             ('[\xff]', 'replace', b'[y]'),
             ('[\u20ac]', 'replace', b'[?]'),
             ('[\xff]', 'backslashreplace', b'[\\xff]'),
+            ('[\xff]', 'namereplace',
+             b'[\\N{LATIN SMALL LETTER Y WITH DIAERESIS}]'),
             ('[\xff]', 'xmlcharrefreplace', b'[&#255;]'),
             ('\udcff', 'strict', None),
             ('[\udcff]', 'surrogateescape', b'[\xff]'),
@@ -2832,11 +2948,13 @@ class CodePageTest(unittest.TestCase):
             (b'[\xff]', 'strict', None),
             (b'[\xff]', 'ignore', '[]'),
             (b'[\xff]', 'replace', '[\ufffd]'),
+            (b'[\xff]', 'backslashreplace', '[\\xff]'),
             (b'[\xff]', 'surrogateescape', '[\udcff]'),
             (b'[\xff]', 'surrogatepass', None),
             (b'\x81\x00abc', 'strict', None),
             (b'\x81\x00abc', 'ignore', '\x00abc'),
             (b'\x81\x00abc', 'replace', '\ufffd\x00abc'),
+            (b'\x81\x00abc', 'backslashreplace', '\\x81\x00abc'),
         ))
 
     def test_cp1252(self):

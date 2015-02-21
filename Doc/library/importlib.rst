@@ -29,7 +29,7 @@ generically as an :term:`importer`) to participate in the import process.
     :ref:`import`
         The language reference for the :keyword:`import` statement.
 
-    `Packages specification <http://www.python.org/doc/essays/packages.html>`__
+    `Packages specification <http://legacy.python.org/doc/essays/packages.html>`__
         Original specification of packages. Some semantics have changed since
         the writing of this document (e.g. redirecting based on ``None``
         in :data:`sys.modules`).
@@ -347,12 +347,15 @@ ABC hierarchy::
 
     .. method:: create_module(spec)
 
-       An optional method that returns the module object to use when
-       importing a module.  create_module() may also return ``None``,
-       indicating that the default module creation should take place
-       instead.
+       A method that returns the module object to use when
+       importing a module.  This method may return ``None``,
+       indicating that default module creation semantics should take place.
 
        .. versionadded:: 3.4
+
+       .. versionchanged:: 3.5
+          Starting in Python 3.6, this method will not be optional when
+          :meth:`exec_module` is defined.
 
     .. method:: exec_module(module)
 
@@ -417,7 +420,7 @@ ABC hierarchy::
 
         .. deprecated:: 3.4
            The recommended API for loading a module is :meth:`exec_module`
-           (and optionally :meth:`create_module`).  Loaders should implement
+           (and :meth:`create_module`).  Loaders should implement
            it instead of load_module().  The import machinery takes care of
            all the other responsibilities of load_module() when exec_module()
            is implemented.
@@ -794,6 +797,11 @@ find and load modules.
 
       .. versionadded:: 3.4
 
+      .. versionchanged:: 3.5
+         If the current working directory -- represented by an empty string --
+         is no longer valid then ``None`` is returned but no value is cached
+         in :data:`sys.path_importer_cache`.
+
    .. classmethod:: find_module(fullname, path=None)
 
       A legacy wrapper around :meth:`find_spec`.
@@ -1131,9 +1139,9 @@ an :term:`importer`.
 
 .. function:: module_from_spec(spec)
 
-   Create a new module based on **spec**.
+   Create a new module based on **spec** and ``spec.loader.create_module()``.
 
-   If the module object is from ``spec.loader.create_module()``, then any
+   If ``spec.loader.create_module()`` does not return ``None``, then any
    pre-existing attributes will not be reset. Also, no :exc:`AttributeError`
    will be raised if triggered while accessing **spec** or setting an attribute
    on the module.
@@ -1229,9 +1237,10 @@ an :term:`importer`.
    module has an attribute accessed.
 
    This class **only** works with loaders that define
-   :meth:`importlib.abc.Loader.exec_module` as control over what module type
-   is used for the module is required. For the same reasons, the loader
-   **cannot** define :meth:`importlib.abc.Loader.create_module`. Finally,
+   :meth:`~importlib.abc.Loader.exec_module` as control over what module type
+   is used for the module is required. For those same reasons, the loader's
+   :meth:`~importlib.abc.Loader.create_module` method will be ignored (i.e., the
+   loader's method should only return ``None``). Finally,
    modules which substitute the object placed into :attr:`sys.modules` will
    not work as there is no way to properly replace the module references
    throughout the interpreter safely; :exc:`ValueError` is raised if such a

@@ -723,9 +723,11 @@ class _TestQueue(BaseTestCase):
     def test_timeout(self):
         q = multiprocessing.Queue()
         start = time.time()
-        self.assertRaises(pyqueue.Empty, q.get, True, 0.2)
+        self.assertRaises(pyqueue.Empty, q.get, True, 0.200)
         delta = time.time() - start
-        self.assertGreaterEqual(delta, 0.18)
+        # Tolerate a delta of 30 ms because of the bad clock resolution on
+        # Windows (usually 15.6 ms)
+        self.assertGreaterEqual(delta, 0.170)
 
 #
 #
@@ -2030,6 +2032,12 @@ SERIALIZER = 'xmlrpclib'
 class _TestRemoteManager(BaseTestCase):
 
     ALLOWED_TYPES = ('manager',)
+    values = ['hello world', None, True, 2.25,
+              'hall\xe5 v\xe4rlden',
+              '\u043f\u0440\u0438\u0432\u0456\u0442 \u0441\u0432\u0456\u0442',
+              b'hall\xe5 v\xe4rlden',
+             ]
+    result = values[:]
 
     @classmethod
     def _putter(cls, address, authkey):
@@ -2038,7 +2046,8 @@ class _TestRemoteManager(BaseTestCase):
             )
         manager.connect()
         queue = manager.get_queue()
-        queue.put(('hello world', None, True, 2.25))
+        # Note that xmlrpclib will deserialize object as a list not a tuple
+        queue.put(tuple(cls.values))
 
     def test_remote(self):
         authkey = os.urandom(32)
@@ -2058,8 +2067,7 @@ class _TestRemoteManager(BaseTestCase):
         manager2.connect()
         queue = manager2.get_queue()
 
-        # Note that xmlrpclib will deserialize object as a list not a tuple
-        self.assertEqual(queue.get(), ['hello world', None, True, 2.25])
+        self.assertEqual(queue.get(), self.result)
 
         # Because we are using xmlrpclib for serialization instead of
         # pickle this will cause a serialization error.
@@ -3415,12 +3423,12 @@ class TestNoForkBomb(unittest.TestCase):
         name = os.path.join(os.path.dirname(__file__), 'mp_fork_bomb.py')
         if sm != 'fork':
             rc, out, err = test.script_helper.assert_python_failure(name, sm)
-            self.assertEqual('', out.decode('ascii'))
-            self.assertIn('RuntimeError', err.decode('ascii'))
+            self.assertEqual(out, b'')
+            self.assertIn(b'RuntimeError', err)
         else:
             rc, out, err = test.script_helper.assert_python_ok(name, sm)
-            self.assertEqual('123', out.decode('ascii').rstrip())
-            self.assertEqual('', err.decode('ascii'))
+            self.assertEqual(out.rstrip(), b'123')
+            self.assertEqual(err, b'')
 
 #
 # Issue #17555: ForkAwareThreadLock

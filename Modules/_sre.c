@@ -113,6 +113,11 @@ static unsigned int sre_lower(unsigned int ch)
     return ((ch) < 128 ? Py_TOLOWER(ch) : ch);
 }
 
+static unsigned int sre_upper(unsigned int ch)
+{
+    return ((ch) < 128 ? Py_TOUPPER(ch) : ch);
+}
+
 /* locale-specific character predicates */
 /* !(c & ~N) == (c < N+1) for any unsigned c, this avoids
  * warnings when c's type supports only numbers < N+1 */
@@ -122,6 +127,11 @@ static unsigned int sre_lower(unsigned int ch)
 static unsigned int sre_lower_locale(unsigned int ch)
 {
     return ((ch) < 256 ? (unsigned int)tolower((ch)) : ch);
+}
+
+static unsigned int sre_upper_locale(unsigned int ch)
+{
+    return ((ch) < 256 ? (unsigned int)toupper((ch)) : ch);
 }
 
 /* unicode-specific character predicates */
@@ -135,6 +145,11 @@ static unsigned int sre_lower_locale(unsigned int ch)
 static unsigned int sre_lower_unicode(unsigned int ch)
 {
     return (unsigned int) Py_UNICODE_TOLOWER(ch);
+}
+
+static unsigned int sre_upper_unicode(unsigned int ch)
+{
+    return (unsigned int) Py_UNICODE_TOUPPER(ch);
 }
 
 LOCAL(int)
@@ -377,12 +392,18 @@ state_init(SRE_STATE* state, PatternObject* pattern, PyObject* string,
     state->pos = start;
     state->endpos = end;
 
-    if (pattern->flags & SRE_FLAG_LOCALE)
+    if (pattern->flags & SRE_FLAG_LOCALE) {
         state->lower = sre_lower_locale;
-    else if (pattern->flags & SRE_FLAG_UNICODE)
+        state->upper = sre_upper_locale;
+    }
+    else if (pattern->flags & SRE_FLAG_UNICODE) {
         state->lower = sre_lower_unicode;
-    else
+        state->upper = sre_upper_unicode;
+    }
+    else {
         state->lower = sre_lower;
+        state->upper = sre_upper;
+    }
 
     return string;
   err:
@@ -841,6 +862,19 @@ pattern_split(PatternObject* self, PyObject* args, PyObject* kw)
     string = fix_string_param(string, string2, "source");
     if (!string)
         return NULL;
+
+    assert(self->codesize != 0);
+    if (self->code[0] != SRE_OP_INFO || self->code[3] == 0) {
+        if (self->code[0] == SRE_OP_INFO && self->code[4] == 0) {
+            PyErr_SetString(PyExc_ValueError,
+                            "split() requires a non-empty pattern match.");
+            return NULL;
+        }
+        if (PyErr_WarnEx(PyExc_FutureWarning,
+                         "split() requires a non-empty pattern match.",
+                         1) < 0)
+            return NULL;
+    }
 
     string = state_init(&state, self, string, 0, PY_SSIZE_T_MAX);
     if (!string)
@@ -1567,6 +1601,7 @@ _validate_charset(SRE_CODE *code, SRE_CODE *end)
             break;
 
         case SRE_OP_RANGE:
+        case SRE_OP_RANGE_IGNORE:
             GET_ARG;
             GET_ARG;
             break;

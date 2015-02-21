@@ -478,7 +478,7 @@ def parse_ns_headers(ns_headers):
             if "=" not in param:
                 k, v = param, None
             else:
-                k, v = re.split(r"\s*=\s*", param, 1)
+                k, v = re.split(r"\s*=\s*", param, maxsplit=1)
                 k = k.lstrip()
             if ii != 0:
                 lc = k.lower()
@@ -1792,7 +1792,7 @@ class FileCookieJar(CookieJar):
 
 
 def lwp_cookie_str(cookie):
-    """Return string representation of Cookie in an the LWP cookie file format.
+    """Return string representation of Cookie in the LWP cookie file format.
 
     Actually, the format is extended a bit -- see module docstring.
 

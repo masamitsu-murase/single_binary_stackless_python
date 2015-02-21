@@ -138,10 +138,10 @@ except ImportError:
     import dummy_threading as threading
 from time import monotonic as time
 
-__all__ = ["TCPServer","UDPServer","ForkingUDPServer","ForkingTCPServer",
-           "ThreadingUDPServer","ThreadingTCPServer","BaseRequestHandler",
-           "StreamRequestHandler","DatagramRequestHandler",
-           "ThreadingMixIn", "ForkingMixIn"]
+__all__ = ["BaseServer", "TCPServer", "UDPServer", "ForkingUDPServer",
+           "ForkingTCPServer", "ThreadingUDPServer", "ThreadingTCPServer",
+           "BaseRequestHandler", "StreamRequestHandler",
+           "DatagramRequestHandler", "ThreadingMixIn", "ForkingMixIn"]
 if hasattr(socket, "AF_UNIX"):
     __all__.extend(["UnixStreamServer","UnixDatagramServer",
                     "ThreadingUnixStreamServer",
@@ -288,7 +288,7 @@ class BaseServer:
             deadline = time() + timeout
 
         # Wait until a request arrives or the timeout expires - the loop is
-        # necessary to accomodate early wakeups due to EINTR.
+        # necessary to accommodate early wakeups due to EINTR.
         with _ServerSelector() as selector:
             selector.register(self, selectors.EVENT_READ)
 
@@ -439,8 +439,12 @@ class TCPServer(BaseServer):
         self.socket = socket.socket(self.address_family,
                                     self.socket_type)
         if bind_and_activate:
-            self.server_bind()
-            self.server_activate()
+            try:
+                self.server_bind()
+                self.server_activate()
+            except:
+                self.server_close()
+                raise
 
     def server_bind(self):
         """Called by constructor to bind the socket.
@@ -549,8 +553,6 @@ class ForkingMixIn:
             try:
                 pid, _ = os.waitpid(-1, 0)
                 self.active_children.discard(pid)
-            except InterruptedError:
-                pass
             except ChildProcessError:
                 # we don't have any children, we're done
                 self.active_children.clear()

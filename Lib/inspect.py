@@ -50,7 +50,7 @@ from collections import namedtuple, OrderedDict
 
 # Create constants for the compiler flags in Include/code.h
 # We try to get them from dis to avoid duplication, but fall
-# back to hardcoding so the dependency is optional
+# back to hard-coding so the dependency is optional
 try:
     from dis import COMPILER_FLAG_NAMES as _flag_names
 except ImportError:
@@ -653,11 +653,17 @@ def findsource(object):
     in the file and the line number indexes a line in that list.  An OSError
     is raised if the source code cannot be retrieved."""
 
-    file = getfile(object)
-    sourcefile = getsourcefile(object)
-    if not sourcefile and file[:1] + file[-1:] != '<>':
-        raise OSError('source code not available')
-    file = sourcefile if sourcefile else file
+    file = getsourcefile(object)
+    if file:
+        # Invalidate cache if needed.
+        linecache.checkcache(file)
+    else:
+        file = getfile(object)
+        # Allow filenames in form of "<something>" to pass through.
+        # `doctest` monkeypatches `linecache` module to enable
+        # inspection, so let `linecache.getlines` to be called.
+        if not (file.startswith('<') and file.endswith('>')):
+            raise OSError('source code not available')
 
     module = getmodule(object, file)
     if module:
@@ -2249,9 +2255,6 @@ class Parameter:
                 self._default == other._default and
                 self._annotation == other._annotation)
 
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
 
 class BoundArguments:
     """Result of `Signature.bind` call.  Holds the mapping of arguments
@@ -2335,9 +2338,6 @@ class BoundArguments:
         return (issubclass(other.__class__, BoundArguments) and
                 self.signature == other.signature and
                 self.arguments == other.arguments)
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
 
 
 class Signature:
@@ -2552,9 +2552,6 @@ class Signature:
     def __eq__(self, other):
         return (isinstance(other, Signature) and
                 self._hash_basis() == other._hash_basis())
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
 
     def _bind(self, args, kwargs, *, partial=False):
         """Private method. Don't use directly."""

@@ -35,10 +35,12 @@ SocketType -- type object for socket objects
 error -- exception raised for I/O errors
 has_ipv6 -- boolean value indicating if IPv6 is supported
 
-Integer constants:
+IntEnum constants:
 
 AF_INET, AF_UNIX -- socket domains (first argument to socket() call)
 SOCK_STREAM, SOCK_DGRAM, SOCK_RAW -- socket types (second argument)
+
+Integer constants:
 
 Many other constants may be defined; these may be used in calls to
 the setsockopt() and getsockopt() methods.
@@ -58,7 +60,8 @@ EBADF = getattr(errno, 'EBADF', 9)
 EAGAIN = getattr(errno, 'EAGAIN', 11)
 EWOULDBLOCK = getattr(errno, 'EWOULDBLOCK', 11)
 
-__all__ = ["getfqdn", "create_connection"]
+__all__ = ["fromfd", "getfqdn", "create_connection",
+        "AddressFamily", "SocketKind"]
 __all__.extend(os._get_exports_list(_socket))
 
 # Set up the socket.AF_* socket.SOCK_* constants as members of IntEnums for
@@ -71,10 +74,15 @@ AddressFamily = IntEnum('AddressFamily',
                          if name.isupper() and name.startswith('AF_')})
 globals().update(AddressFamily.__members__)
 
-SocketType = IntEnum('SocketType',
+SocketKind = IntEnum('SocketKind',
                      {name: value for name, value in globals().items()
                       if name.isupper() and name.startswith('SOCK_')})
-globals().update(SocketType.__members__)
+globals().update(SocketKind.__members__)
+
+
+_LOCALHOST    = '127.0.0.1'
+_LOCALHOST_V6 = '::1'
+
 
 def _intenum_converter(value, enum_klass):
     """Convert a numeric family value to an IntEnum member.
@@ -201,9 +209,8 @@ class socket(_socket.socket):
         except the only mode characters supported are 'r', 'w' and 'b'.
         The semantics are similar too.  (XXX refactor to share code?)
         """
-        for c in mode:
-            if c not in {"r", "w", "b"}:
-                raise ValueError("invalid mode %r (only r, w, b allowed)")
+        if not set(mode) <= {"r", "w", "b"}:
+            raise ValueError("invalid mode %r (only r, w, b allowed)" % (mode,))
         writing = "w" in mode
         reading = "r" in mode or not writing
         assert reading or writing
@@ -415,7 +422,7 @@ class socket(_socket.socket):
     def type(self):
         """Read-only access to the socket type.
         """
-        return _intenum_converter(super().type, SocketType)
+        return _intenum_converter(super().type, SocketKind)
 
     if os.name == 'nt':
         def get_inheritable(self):
@@ -443,10 +450,11 @@ if hasattr(_socket.socket, "share"):
     def fromshare(info):
         """ fromshare(info) -> socket object
 
-        Create a socket object from a the bytes object returned by
+        Create a socket object from the bytes object returned by
         socket.share(pid).
         """
         return socket(0, 0, 0, info)
+    __all__.append("fromshare")
 
 if hasattr(_socket, "socketpair"):
 
@@ -468,6 +476,52 @@ if hasattr(_socket, "socketpair"):
         b = socket(family, type, proto, b.detach())
         return a, b
 
+else:
+
+    # Origin: https://gist.github.com/4325783, by Geert Jansen.  Public domain.
+    def socketpair(family=AF_INET, type=SOCK_STREAM, proto=0):
+        if family == AF_INET:
+            host = _LOCALHOST
+        elif family == AF_INET6:
+            host = _LOCALHOST_V6
+        else:
+            raise ValueError("Only AF_INET and AF_INET6 socket address families "
+                             "are supported")
+        if type != SOCK_STREAM:
+            raise ValueError("Only SOCK_STREAM socket type is supported")
+        if proto != 0:
+            raise ValueError("Only protocol zero is supported")
+
+        # We create a connected TCP socket. Note the trick with
+        # setblocking(False) that prevents us from having to create a thread.
+        lsock = socket(family, type, proto)
+        try:
+            lsock.bind((host, 0))
+            lsock.listen()
+            # On IPv6, ignore flow_info and scope_id
+            addr, port = lsock.getsockname()[:2]
+            csock = socket(family, type, proto)
+            try:
+                csock.setblocking(False)
+                try:
+                    csock.connect((addr, port))
+                except (BlockingIOError, InterruptedError):
+                    pass
+                csock.setblocking(True)
+                ssock, _ = lsock.accept()
+            except:
+                csock.close()
+                raise
+        finally:
+            lsock.close()
+        return (ssock, csock)
+
+socketpair.__doc__ = """socketpair([family[, type[, proto]]]) -> (socket object, socket object)
+Create a pair of socket objects from the sockets returned by the platform
+socketpair() function.
+The arguments are the same as for socket() except the default family is AF_UNIX
+if defined on the platform; otherwise, the default is AF_INET.
+"""
 
 _blocking_errnos = { EAGAIN, EWOULDBLOCK }
 
@@ -518,8 +572,6 @@ class SocketIO(io.RawIOBase):
             except timeout:
                 self._timeout_occurred = True
                 raise
-            except InterruptedError:
-                continue
             except error as e:
                 if e.args[0] in _blocking_errnos:
                     return None
@@ -676,6 +728,6 @@ def getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
     for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
         af, socktype, proto, canonname, sa = res
         addrlist.append((_intenum_converter(af, AddressFamily),
-                         _intenum_converter(socktype, SocketType),
+                         _intenum_converter(socktype, SocketKind),
                          proto, canonname, sa))
     return addrlist

@@ -156,7 +156,7 @@ are always available.  They are listed here in alphabetical order.
 
 .. function:: chr(i)
 
-   Return the string representing a character whose Unicode codepoint is the
+   Return the string representing a character whose Unicode code point is the
    integer *i*.  For example, ``chr(97)`` returns the string ``'a'``, while
    ``chr(931)`` returns the string ``'Σ'``. This is the inverse of :func:`ord`.
 
@@ -211,7 +211,7 @@ are always available.  They are listed here in alphabetical order.
    The optional arguments *flags* and *dont_inherit* control which future
    statements (see :pep:`236`) affect the compilation of *source*.  If neither
    is present (or both are zero) the code is compiled with those future
-   statements that are in effect in the code that is calling compile.  If the
+   statements that are in effect in the code that is calling :func:`compile`.  If the
    *flags* argument is given and *dont_inherit* is not (or is zero) then the
    future statements specified by the *flags* argument are used in addition to
    those that would be used anyway. If *dont_inherit* is a non-zero integer then
@@ -231,6 +231,9 @@ are always available.  They are listed here in alphabetical order.
 
    This function raises :exc:`SyntaxError` if the compiled source is invalid,
    and :exc:`TypeError` if the source contains null bytes.
+
+   If you want to parse Python code into its AST representation, see
+   :func:`ast.parse`.
 
    .. note::
 
@@ -540,7 +543,7 @@ are always available.  They are listed here in alphabetical order.
    effect as calling :func:`str(value) <str>`.
 
    A call to ``format(value, format_spec)`` is translated to
-   ``type(value).__format__(format_spec)`` which bypasses the instance
+   ``type(value).__format__(value, format_spec)`` which bypasses the instance
    dictionary when searching for the value's :meth:`__format__` method.  A
    :exc:`TypeError` exception is raised if the method search reaches
    :mod:`object` and the *format_spec* is non-empty, or if either the
@@ -937,15 +940,17 @@ are always available.  They are listed here in alphabetical order.
    *encoding* is the name of the encoding used to decode or encode the file.
    This should only be used in text mode.  The default encoding is platform
    dependent (whatever :func:`locale.getpreferredencoding` returns), but any
-   encoding supported by Python can be used.  See the :mod:`codecs` module for
+   :term:`text encoding` supported by Python
+   can be used.  See the :mod:`codecs` module for
    the list of supported encodings.
 
    *errors* is an optional string that specifies how encoding and decoding
    errors are to be handled--this cannot be used in binary mode.
-   A variety of standard error handlers are available, though any
+   A variety of standard error handlers are available
+   (listed under :ref:`error-handlers`), though any
    error handling name that has been registered with
    :func:`codecs.register_error` is also valid.  The standard names
-   are:
+   include:
 
    * ``'strict'`` to raise a :exc:`ValueError` exception if there is
      an encoding error.  The default value of ``None`` has the same
@@ -968,9 +973,11 @@ are always available.  They are listed here in alphabetical order.
      Characters not supported by the encoding are replaced with the
      appropriate XML character reference ``&#nnn;``.
 
-   * ``'backslashreplace'`` (also only supported when writing)
-     replaces unsupported characters with Python's backslashed escape
-     sequences.
+   * ``'backslashreplace'`` replaces malformed data by Python's backslashed
+     escape sequences.
+
+   * ``'namereplace'`` (also only supported when writing)
+     replaces unsupported characters with ``\N{...}`` escape sequences.
 
    .. index::
       single: universal newlines; open() built-in function
@@ -995,8 +1002,8 @@ are always available.  They are listed here in alphabetical order.
 
    If *closefd* is ``False`` and a file descriptor rather than a filename was
    given, the underlying file descriptor will be kept open when the file is
-   closed.  If a filename is given *closefd* has no effect and must be ``True``
-   (the default).
+   closed.  If a filename is given *closefd* must be ``True`` (the default)
+   otherwise an error will be raised.
 
    A custom opener can be used by passing a callable as *opener*. The underlying
    file descriptor for the file object is then obtained by calling *opener* with
@@ -1055,6 +1062,7 @@ are always available.  They are listed here in alphabetical order.
       The file is now non-inheritable.
 
    .. deprecated-removed:: 3.4 4.0
+
       The ``'U'`` mode.
 
 
@@ -1285,8 +1293,13 @@ are always available.  They are listed here in alphabetical order.
    Use :func:`functools.cmp_to_key` to convert an old-style *cmp* function to a
    *key* function.
 
+   The built-in :func:`sorted` function is guaranteed to be stable. A sort is
+   stable if it guarantees not to change the relative order of elements that
+   compare equal --- this is helpful for sorting in multiple passes (for
+   example, sort by department, then by salary grade).
+
    For sorting examples and a brief sorting tutorial, see `Sorting HowTo
-   <http://wiki.python.org/moin/HowTo/Sorting/>`_\.
+   <https://wiki.python.org/moin/HowTo/Sorting/>`_\.
 
 .. function:: staticmethod(function)
 

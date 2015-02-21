@@ -48,8 +48,8 @@ The :mod:`urllib.request` module defines the following functions:
    only works for HTTP, HTTPS and FTP connections.
 
    If *context* is specified, it must be a :class:`ssl.SSLContext` instance
-   describing the various SSL options. See
-   :class:`~http.client.HTTPSConnection` for more details.
+   describing the various SSL options. See :class:`~http.client.HTTPSConnection`
+   for more details.
 
    The optional *cafile* and *capath* parameters specify a set of trusted
    CA certificates for HTTPS requests.  *cafile* should point to a single
@@ -57,15 +57,7 @@ The :mod:`urllib.request` module defines the following functions:
    point to a directory of hashed certificate files.  More information can
    be found in :meth:`ssl.SSLContext.load_verify_locations`.
 
-   The *cadefault* parameter specifies whether to fall back to loading a
-   default certificate store defined by the underlying OpenSSL library if the
-   *cafile* and *capath* parameters are omitted.  This will only work on
-   some non-Windows platforms.
-
-   .. warning::
-      If neither *cafile* nor *capath* is specified, and *cadefault* is ``False``,
-      an HTTPS request will not do any verification of the server's
-      certificate.
+   The *cadefault* parameter is ignored.
 
    For http and https urls, this function returns a
    :class:`http.client.HTTPResponse` object which has the following
@@ -115,8 +107,9 @@ The :mod:`urllib.request` module defines the following functions:
    .. versionchanged:: 3.3
       *cadefault* was added.
 
-   .. versionchanged:: 3.5
+   .. versionchanged:: 3.4.3
       *context* was added.
+
 
 .. function:: install_opener(opener)
 
@@ -307,6 +300,17 @@ The following classes are provided:
    be supported. HTTPBasicAuthHandler will raise a :exc:`ValueError` when
    presented with a wrong Authentication scheme.
 
+
+.. class:: HTTPBasicPriorAuthHandler(password_mgr=None)
+
+   A variant of :class:`HTTPBasicAuthHandler` which automatically sends
+   authorization credentials with the first request, rather than waiting to
+   first receive a HTTP 401 "Unauthorised" error response. This allows
+   authentication to sites that don't provide a 401 response when receiving
+   a request without an Authorization header. Aside from this difference,
+   this behaves exactly as :class:`HTTPBasicAuthHandler`.
+
+   .. versionadded:: 3.5
 
 .. class:: ProxyBasicAuthHandler(password_mgr=None)
 

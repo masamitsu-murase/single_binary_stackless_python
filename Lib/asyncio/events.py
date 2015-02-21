@@ -178,10 +178,6 @@ class TimerHandle(Handle):
                     self._cancelled == other._cancelled)
         return NotImplemented
 
-    def __ne__(self, other):
-        equal = self.__eq__(other)
-        return NotImplemented if equal is NotImplemented else not equal
-
     def cancel(self):
         if not self._cancelled:
             self._loop._timer_handle_cancelled(self)
@@ -517,9 +513,9 @@ class BaseDefaultEventLoopPolicy(AbstractEventLoopPolicy):
             not self._local._set_called and
             isinstance(threading.current_thread(), threading._MainThread)):
             self.set_event_loop(self.new_event_loop())
-        assert self._local._loop is not None, \
-               ('There is no current event loop in thread %r.' %
-                threading.current_thread().name)
+        if self._local._loop is None:
+            raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
         return self._local._loop
 
     def set_event_loop(self, loop):

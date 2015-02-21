@@ -76,7 +76,7 @@ Glossary
 
    BDFL
       Benevolent Dictator For Life, a.k.a. `Guido van Rossum
-      <http://www.python.org/~guido/>`_, Python's creator.
+      <https://www.python.org/~guido/>`_, Python's creator.
 
    binary file
       A :term:`file object` able to read and write
@@ -141,7 +141,7 @@ Glossary
 
    CPython
       The canonical implementation of the Python programming language, as
-      distributed on `python.org <http://python.org>`_.  The term "CPython"
+      distributed on `python.org <https://www.python.org>`_.  The term "CPython"
       is used when necessary to distinguish this implementation from others
       such as Jython or IronPython.
 
@@ -292,7 +292,7 @@ Glossary
    generator
       A function which returns an iterator.  It looks like a normal function
       except that it contains :keyword:`yield` statements for producing a series
-      a values usable in a for-loop or that can be retrieved one at a time with
+      of values usable in a for-loop or that can be retrieved one at a time with
       the :func:`next` function. Each :keyword:`yield` temporarily suspends
       processing, remembering the location execution state (including local
       variables and pending try-statements).  When the generator resumes, it
@@ -401,6 +401,19 @@ Glossary
       Interpreted languages typically have a shorter development/debug cycle
       than compiled ones, though their programs generally also run more
       slowly.  See also :term:`interactive`.
+
+   interpreter shutdown
+      When asked to shut down, the Python interpreter enters a special phase
+      where it gradually releases all allocated resources, such as modules
+      and various critical internal structures.  It also makes several calls
+      to the :term:`garbage collector <garbage collection>`. This can trigger
+      the execution of code in user-defined destructors or weakref callbacks.
+      Code executed during the shutdown phase can encounter various
+      exceptions as the resources it relies on may not function anymore
+      (common examples are library modules or the warnings machinery).
+
+      The main reason for interpreter shutdown is that the ``__main__`` module
+      or the script being run has finished executing.
 
    iterable
       An object capable of returning its members one at a time. Examples of
@@ -531,7 +544,7 @@ Glossary
    method resolution order
       Method Resolution Order is the order in which base classes are searched
       for a member during lookup. See `The Python 2.3 Method Resolution Order
-      <http://www.python.org/download/releases/2.3/mro/>`_.
+      <https://www.python.org/download/releases/2.3/mro/>`_.
 
    module
       An object that serves as an organizational unit of Python code.  Modules
@@ -821,10 +834,13 @@ Glossary
       :meth:`~collections.somenamedtuple._asdict`. Examples of struct sequences
       include :data:`sys.float_info` and the return value of :func:`os.stat`.
 
+   text encoding
+      A codec which encodes Unicode strings to bytes.
+
    text file
       A :term:`file object` able to read and write :class:`str` objects.
       Often, a text file actually accesses a byte-oriented datastream
-      and handles the text encoding automatically.
+      and handles the :term:`text encoding` automatically.
 
       .. seealso::
          A :term:`binary file` reads and write :class:`bytes` objects.

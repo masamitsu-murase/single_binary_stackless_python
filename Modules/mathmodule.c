@@ -223,6 +223,35 @@ lanczos_sum(double x)
     return num/den;
 }
 
+/* Constant for +infinity, generated in the same way as float('inf'). */
+
+static double
+m_inf(void)
+{
+#ifndef PY_NO_SHORT_FLOAT_REPR
+    return _Py_dg_infinity(0);
+#else
+    return Py_HUGE_VAL;
+#endif
+}
+
+/* Constant nan value, generated in the same way as float('nan'). */
+/* We don't currently assume that Py_NAN is defined everywhere. */
+
+#if !defined(PY_NO_SHORT_FLOAT_REPR) || defined(Py_NAN)
+
+static double
+m_nan(void)
+{
+#ifndef PY_NO_SHORT_FLOAT_REPR
+    return _Py_dg_stdnan(0);
+#else
+    return Py_NAN;
+#endif
+}
+
+#endif
+
 static double
 m_tgamma(double x)
 {
@@ -873,18 +902,18 @@ math_2(PyObject *args, double (*func) (double, double), char *funcname)
 FUNC1(acos, acos, 0,
       "acos(x)\n\nReturn the arc cosine (measured in radians) of x.")
 FUNC1(acosh, m_acosh, 0,
-      "acosh(x)\n\nReturn the hyperbolic arc cosine (measured in radians) of x.")
+      "acosh(x)\n\nReturn the inverse hyperbolic cosine of x.")
 FUNC1(asin, asin, 0,
       "asin(x)\n\nReturn the arc sine (measured in radians) of x.")
 FUNC1(asinh, m_asinh, 0,
-      "asinh(x)\n\nReturn the hyperbolic arc sine (measured in radians) of x.")
+      "asinh(x)\n\nReturn the inverse hyperbolic sine of x.")
 FUNC1(atan, atan, 0,
       "atan(x)\n\nReturn the arc tangent (measured in radians) of x.")
 FUNC2(atan2, m_atan2,
       "atan2(y, x)\n\nReturn the arc tangent (measured in radians) of y/x.\n"
       "Unlike atan(y/x), the signs of both x and y are considered.")
 FUNC1(atanh, m_atanh, 0,
-      "atanh(x)\n\nReturn the hyperbolic arc tangent (measured in radians) of x.")
+      "atanh(x)\n\nReturn the inverse hyperbolic tangent of x.")
 
 static PyObject * math_ceil(PyObject *self, PyObject *number) {
     _Py_IDENTIFIER(__ceil__);
@@ -2009,7 +2038,11 @@ PyInit_math(void)
 
     PyModule_AddObject(m, "pi", PyFloat_FromDouble(Py_MATH_PI));
     PyModule_AddObject(m, "e", PyFloat_FromDouble(Py_MATH_E));
+    PyModule_AddObject(m, "inf", PyFloat_FromDouble(m_inf()));
+#if !defined(PY_NO_SHORT_FLOAT_REPR) || defined(Py_NAN)
+    PyModule_AddObject(m, "nan", PyFloat_FromDouble(m_nan()));
+#endif
 
-    finally:
+  finally:
     return m;
 }

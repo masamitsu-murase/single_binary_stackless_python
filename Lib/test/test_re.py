@@ -1,6 +1,7 @@
 from test.support import verbose, run_unittest, gc_collect, bigmemtest, _2G, \
         cpython_only, captured_stdout
 import io
+import locale
 import re
 from re import Scanner
 import sre_compile
@@ -83,7 +84,7 @@ class ReTests(unittest.TestCase):
         self.assertEqual(re.sub("(?i)b+", "x", "bbbb BBBB"), 'x x')
         self.assertEqual(re.sub(r'\d+', self.bump_num, '08.2 -2 23x99y'),
                          '9.3 -3 24x100y')
-        self.assertEqual(re.sub(r'\d+', self.bump_num, '08.2 -2 23x99y', 3),
+        self.assertEqual(re.sub(r'\d+', self.bump_num, '08.2 -2 23x99y', count=3),
                          '9.3 -3 23x99y')
 
         self.assertEqual(re.sub('.', lambda m: r"\n", 'x'), '\\n')
@@ -179,7 +180,7 @@ class ReTests(unittest.TestCase):
 
     def test_qualified_re_sub(self):
         self.assertEqual(re.sub('a', 'b', 'aaaaa'), 'bbbbb')
-        self.assertEqual(re.sub('a', 'b', 'aaaaa', 1), 'baaaa')
+        self.assertEqual(re.sub('a', 'b', 'aaaaa', count=1), 'baaaa')
 
     def test_bug_114660(self):
         self.assertEqual(re.sub(r'(\S)\s+(\S)', r'\1 \2', 'hello  there'),
@@ -244,34 +245,34 @@ class ReTests(unittest.TestCase):
         self.assertEqual(re.subn("b+", "x", "bbbb BBBB"), ('x BBBB', 1))
         self.assertEqual(re.subn("b+", "x", "xyz"), ('xyz', 0))
         self.assertEqual(re.subn("b*", "x", "xyz"), ('xxxyxzx', 4))
-        self.assertEqual(re.subn("b*", "x", "xyz", 2), ('xxxyz', 2))
+        self.assertEqual(re.subn("b*", "x", "xyz", count=2), ('xxxyz', 2))
 
     def test_re_split(self):
         for string in ":a:b::c", S(":a:b::c"):
             self.assertTypedEqual(re.split(":", string),
                                   ['', 'a', 'b', '', 'c'])
-            self.assertTypedEqual(re.split(":*", string),
+            self.assertTypedEqual(re.split(":+", string),
                                   ['', 'a', 'b', 'c'])
-            self.assertTypedEqual(re.split("(:*)", string),
+            self.assertTypedEqual(re.split("(:+)", string),
                                   ['', ':', 'a', ':', 'b', '::', 'c'])
         for string in (b":a:b::c", B(b":a:b::c"), bytearray(b":a:b::c"),
                        memoryview(b":a:b::c")):
             self.assertTypedEqual(re.split(b":", string),
                                   [b'', b'a', b'b', b'', b'c'])
-            self.assertTypedEqual(re.split(b":*", string),
+            self.assertTypedEqual(re.split(b":+", string),
                                   [b'', b'a', b'b', b'c'])
-            self.assertTypedEqual(re.split(b"(:*)", string),
+            self.assertTypedEqual(re.split(b"(:+)", string),
                                   [b'', b':', b'a', b':', b'b', b'::', b'c'])
         for a, b, c in ("\xe0\xdf\xe7", "\u0430\u0431\u0432",
                         "\U0001d49c\U0001d49e\U0001d4b5"):
             string = ":%s:%s::%s" % (a, b, c)
             self.assertEqual(re.split(":", string), ['', a, b, '', c])
-            self.assertEqual(re.split(":*", string), ['', a, b, c])
-            self.assertEqual(re.split("(:*)", string),
+            self.assertEqual(re.split(":+", string), ['', a, b, c])
+            self.assertEqual(re.split("(:+)", string),
                              ['', ':', a, ':', b, '::', c])
 
-        self.assertEqual(re.split("(?::*)", ":a:b::c"), ['', 'a', 'b', 'c'])
-        self.assertEqual(re.split("(:)*", ":a:b::c"),
+        self.assertEqual(re.split("(?::+)", ":a:b::c"), ['', 'a', 'b', 'c'])
+        self.assertEqual(re.split("(:)+", ":a:b::c"),
                          ['', ':', 'a', ':', 'b', ':', 'c'])
         self.assertEqual(re.split("([b:]+)", ":a:b::c"),
                          ['', ':', 'a', ':b::', 'c'])
@@ -281,13 +282,34 @@ class ReTests(unittest.TestCase):
         self.assertEqual(re.split("(?:b)|(?::+)", ":a:b::c"),
                          ['', 'a', '', '', 'c'])
 
+        for sep, expected in [
+            (':*', ['', 'a', 'b', 'c']),
+            ('(?::*)', ['', 'a', 'b', 'c']),
+            ('(:*)', ['', ':', 'a', ':', 'b', '::', 'c']),
+            ('(:)*', ['', ':', 'a', ':', 'b', ':', 'c']),
+        ]:
+            with self.subTest(sep=sep), self.assertWarns(FutureWarning):
+                self.assertTypedEqual(re.split(sep, ':a:b::c'), expected)
+
+        for sep, expected in [
+            ('', [':a:b::c']),
+            (r'\b', [':a:b::c']),
+            (r'(?=:)', [':a:b::c']),
+            (r'(?<=:)', [':a:b::c']),
+        ]:
+            with self.subTest(sep=sep), self.assertRaises(ValueError):
+                self.assertTypedEqual(re.split(sep, ':a:b::c'), expected)
+
     def test_qualified_re_split(self):
-        self.assertEqual(re.split(":", ":a:b::c", 2), ['', 'a', 'b::c'])
-        self.assertEqual(re.split(':', 'a:b:c:d', 2), ['a', 'b', 'c:d'])
-        self.assertEqual(re.split("(:)", ":a:b::c", 2),
+        self.assertEqual(re.split(":", ":a:b::c", maxsplit=2), ['', 'a', 'b::c'])
+        self.assertEqual(re.split(':', 'a:b:c:d', maxsplit=2), ['a', 'b', 'c:d'])
+        self.assertEqual(re.split("(:)", ":a:b::c", maxsplit=2),
                          ['', ':', 'a', ':', 'b::c'])
-        self.assertEqual(re.split("(:*)", ":a:b::c", 2),
+        self.assertEqual(re.split("(:+)", ":a:b::c", maxsplit=2),
                          ['', ':', 'a', ':', 'b::c'])
+        with self.assertWarns(FutureWarning):
+            self.assertEqual(re.split("(:*)", ":a:b::c", maxsplit=2),
+                             ['', ':', 'a', ':', 'b::c'])
 
     def test_re_findall(self):
         self.assertEqual(re.findall(":+", "abc"), [])
@@ -501,10 +523,6 @@ class ReTests(unittest.TestCase):
                                    "abcd abc bcd bx", re.ASCII).group(1), "bx")
         self.assertEqual(re.search(r"\B(b.)\B",
                                    "abc bcd bc abxd", re.ASCII).group(1), "bx")
-        self.assertEqual(re.search(r"\b(b.)\b",
-                                   "abcd abc bcd bx", re.LOCALE).group(1), "bx")
-        self.assertEqual(re.search(r"\B(b.)\B",
-                                   "abc bcd bc abxd", re.LOCALE).group(1), "bx")
         self.assertEqual(re.search(r"^abc$", "\nabc\n", re.M).group(0), "abc")
         self.assertEqual(re.search(r"^\Aabc\Z$", "abc", re.M).group(0), "abc")
         self.assertIsNone(re.search(r"^\Aabc\Z$", "\nabc\n", re.M))
@@ -525,10 +543,22 @@ class ReTests(unittest.TestCase):
                                    b"1aa! a").group(0), b"1aa! a")
         self.assertEqual(re.search(r"\d\D\w\W\s\S",
                                    "1aa! a", re.ASCII).group(0), "1aa! a")
-        self.assertEqual(re.search(r"\d\D\w\W\s\S",
-                                   "1aa! a", re.LOCALE).group(0), "1aa! a")
         self.assertEqual(re.search(br"\d\D\w\W\s\S",
                                    b"1aa! a", re.LOCALE).group(0), b"1aa! a")
+
+    def test_other_escapes(self):
+        self.assertRaises(re.error, re.compile, "\\")
+        self.assertEqual(re.match(r"\(", '(').group(), '(')
+        self.assertIsNone(re.match(r"\(", ')'))
+        self.assertEqual(re.match(r"\\", '\\').group(), '\\')
+        self.assertEqual(re.match(r"\y", 'y').group(), 'y')
+        self.assertIsNone(re.match(r"\y", 'z'))
+        self.assertEqual(re.match(r"[\]]", ']').group(), ']')
+        self.assertIsNone(re.match(r"[\]]", '['))
+        self.assertEqual(re.match(r"[a\-c]", '-').group(), '-')
+        self.assertIsNone(re.match(r"[a\-c]", 'b'))
+        self.assertEqual(re.match(r"[\^a]+", 'a^').group(), 'a^')
+        self.assertIsNone(re.match(r"[\^a]+", 'b'))
 
     def test_string_boundaries(self):
         # See http://bugs.python.org/issue10713
@@ -600,6 +630,76 @@ class ReTests(unittest.TestCase):
         self.assertEqual(re.match(r"((a)\s(abc|a))", "a a", re.I).group(1), "a a")
         self.assertEqual(re.match(r"((a)\s(abc|a)*)", "a aa", re.I).group(1), "a aa")
 
+        assert '\u212a'.lower() == 'k' # 'K'
+        self.assertTrue(re.match(r'K', '\u212a', re.I))
+        self.assertTrue(re.match(r'k', '\u212a', re.I))
+        self.assertTrue(re.match(r'\u212a', 'K', re.I))
+        self.assertTrue(re.match(r'\u212a', 'k', re.I))
+        assert '\u017f'.upper() == 'S' # 'ſ'
+        self.assertTrue(re.match(r'S', '\u017f', re.I))
+        self.assertTrue(re.match(r's', '\u017f', re.I))
+        self.assertTrue(re.match(r'\u017f', 'S', re.I))
+        self.assertTrue(re.match(r'\u017f', 's', re.I))
+        assert '\ufb05'.upper() == '\ufb06'.upper() == 'ST' # 'ﬅ', 'ﬆ'
+        self.assertTrue(re.match(r'\ufb05', '\ufb06', re.I))
+        self.assertTrue(re.match(r'\ufb06', '\ufb05', re.I))
+
+    def test_ignore_case_set(self):
+        self.assertTrue(re.match(r'[19A]', 'A', re.I))
+        self.assertTrue(re.match(r'[19a]', 'a', re.I))
+        self.assertTrue(re.match(r'[19a]', 'A', re.I))
+        self.assertTrue(re.match(r'[19A]', 'a', re.I))
+        self.assertTrue(re.match(br'[19A]', b'A', re.I))
+        self.assertTrue(re.match(br'[19a]', b'a', re.I))
+        self.assertTrue(re.match(br'[19a]', b'A', re.I))
+        self.assertTrue(re.match(br'[19A]', b'a', re.I))
+        assert '\u212a'.lower() == 'k' # 'K'
+        self.assertTrue(re.match(r'[19K]', '\u212a', re.I))
+        self.assertTrue(re.match(r'[19k]', '\u212a', re.I))
+        self.assertTrue(re.match(r'[19\u212a]', 'K', re.I))
+        self.assertTrue(re.match(r'[19\u212a]', 'k', re.I))
+        assert '\u017f'.upper() == 'S' # 'ſ'
+        self.assertTrue(re.match(r'[19S]', '\u017f', re.I))
+        self.assertTrue(re.match(r'[19s]', '\u017f', re.I))
+        self.assertTrue(re.match(r'[19\u017f]', 'S', re.I))
+        self.assertTrue(re.match(r'[19\u017f]', 's', re.I))
+        assert '\ufb05'.upper() == '\ufb06'.upper() == 'ST' # 'ﬅ', 'ﬆ'
+        self.assertTrue(re.match(r'[19\ufb05]', '\ufb06', re.I))
+        self.assertTrue(re.match(r'[19\ufb06]', '\ufb05', re.I))
+
+    def test_ignore_case_range(self):
+        # Issues #3511, #17381.
+        self.assertTrue(re.match(r'[9-a]', '_', re.I))
+        self.assertIsNone(re.match(r'[9-A]', '_', re.I))
+        self.assertTrue(re.match(br'[9-a]', b'_', re.I))
+        self.assertIsNone(re.match(br'[9-A]', b'_', re.I))
+        self.assertTrue(re.match(r'[\xc0-\xde]', '\xd7', re.I))
+        self.assertIsNone(re.match(r'[\xc0-\xde]', '\xf7', re.I))
+        self.assertTrue(re.match(r'[\xe0-\xfe]', '\xf7', re.I))
+        self.assertIsNone(re.match(r'[\xe0-\xfe]', '\xd7', re.I))
+        self.assertTrue(re.match(r'[\u0430-\u045f]', '\u0450', re.I))
+        self.assertTrue(re.match(r'[\u0430-\u045f]', '\u0400', re.I))
+        self.assertTrue(re.match(r'[\u0400-\u042f]', '\u0450', re.I))
+        self.assertTrue(re.match(r'[\u0400-\u042f]', '\u0400', re.I))
+        self.assertTrue(re.match(r'[\U00010428-\U0001044f]', '\U00010428', re.I))
+        self.assertTrue(re.match(r'[\U00010428-\U0001044f]', '\U00010400', re.I))
+        self.assertTrue(re.match(r'[\U00010400-\U00010427]', '\U00010428', re.I))
+        self.assertTrue(re.match(r'[\U00010400-\U00010427]', '\U00010400', re.I))
+
+        assert '\u212a'.lower() == 'k' # 'K'
+        self.assertTrue(re.match(r'[J-M]', '\u212a', re.I))
+        self.assertTrue(re.match(r'[j-m]', '\u212a', re.I))
+        self.assertTrue(re.match(r'[\u2129-\u212b]', 'K', re.I))
+        self.assertTrue(re.match(r'[\u2129-\u212b]', 'k', re.I))
+        assert '\u017f'.upper() == 'S' # 'ſ'
+        self.assertTrue(re.match(r'[R-T]', '\u017f', re.I))
+        self.assertTrue(re.match(r'[r-t]', '\u017f', re.I))
+        self.assertTrue(re.match(r'[\u017e-\u0180]', 'S', re.I))
+        self.assertTrue(re.match(r'[\u017e-\u0180]', 's', re.I))
+        assert '\ufb05'.upper() == '\ufb06'.upper() == 'ST' # 'ﬅ', 'ﬆ'
+        self.assertTrue(re.match(r'[\ufb04-\ufb05]', '\ufb06', re.I))
+        self.assertTrue(re.match(r'[\ufb06-\ufb07]', '\ufb05', re.I))
+
     def test_category(self):
         self.assertEqual(re.match(r"(\s)", " ").group(1), " ")
 
@@ -608,9 +708,12 @@ class ReTests(unittest.TestCase):
         self.assertEqual(_sre.getlower(ord('A'), 0), ord('a'))
         self.assertEqual(_sre.getlower(ord('A'), re.LOCALE), ord('a'))
         self.assertEqual(_sre.getlower(ord('A'), re.UNICODE), ord('a'))
+        self.assertEqual(_sre.getlower(ord('A'), re.ASCII), ord('a'))
 
         self.assertEqual(re.match("abc", "ABC", re.I).group(0), "ABC")
         self.assertEqual(re.match(b"abc", b"ABC", re.I).group(0), b"ABC")
+        self.assertEqual(re.match("abc", "ABC", re.I|re.A).group(0), "ABC")
+        self.assertEqual(re.match(b"abc", b"ABC", re.I|re.L).group(0), b"ABC")
 
     def test_not_literal(self):
         self.assertEqual(re.search("\s([^a])", " b").group(1), "b")
@@ -695,8 +798,10 @@ class ReTests(unittest.TestCase):
         self.assertEqual(re.X, re.VERBOSE)
 
     def test_flags(self):
-        for flag in [re.I, re.M, re.X, re.S, re.L]:
+        for flag in [re.I, re.M, re.X, re.S, re.A, re.U]:
             self.assertTrue(re.compile('^pattern$', flag))
+        for flag in [re.I, re.M, re.X, re.S, re.A, re.L]:
+            self.assertTrue(re.compile(b'^pattern$', flag))
 
     def test_sre_character_literals(self):
         for i in [0, 8, 16, 32, 64, 127, 128, 255, 256, 0xFFFF, 0x10000, 0x10FFFF]:
@@ -980,8 +1085,8 @@ class ReTests(unittest.TestCase):
 
     def test_inline_flags(self):
         # Bug #1700
-        upper_char = chr(0x1ea0) # Latin Capital Letter A with Dot Bellow
-        lower_char = chr(0x1ea1) # Latin Small Letter A with Dot Bellow
+        upper_char = '\u1ea0' # Latin Capital Letter A with Dot Below
+        lower_char = '\u1ea1' # Latin Small Letter A with Dot Below
 
         p = re.compile(upper_char, re.I | re.U)
         q = p.match(lower_char)
@@ -1060,6 +1165,52 @@ class ReTests(unittest.TestCase):
         self.assertRaises(ValueError, re.compile, '(?u)\w', re.ASCII)
         self.assertRaises(ValueError, re.compile, '(?a)\w', re.UNICODE)
         self.assertRaises(ValueError, re.compile, '(?au)\w')
+
+    def test_locale_flag(self):
+        import locale
+        _, enc = locale.getlocale(locale.LC_CTYPE)
+        # Search non-ASCII letter
+        for i in range(128, 256):
+            try:
+                c = bytes([i]).decode(enc)
+                sletter = c.lower()
+                if sletter == c: continue
+                bletter = sletter.encode(enc)
+                if len(bletter) != 1: continue
+                if bletter.decode(enc) != sletter: continue
+                bpat = re.escape(bytes([i]))
+                break
+            except (UnicodeError, TypeError):
+                pass
+        else:
+            bletter = None
+            bpat = b'A'
+        # Bytes patterns
+        pat = re.compile(bpat, re.LOCALE | re.IGNORECASE)
+        if bletter:
+            self.assertTrue(pat.match(bletter))
+        pat = re.compile(b'(?L)' + bpat, re.IGNORECASE)
+        if bletter:
+            self.assertTrue(pat.match(bletter))
+        pat = re.compile(bpat, re.IGNORECASE)
+        if bletter:
+            self.assertIsNone(pat.match(bletter))
+        pat = re.compile(b'\w', re.LOCALE)
+        if bletter:
+            self.assertTrue(pat.match(bletter))
+        pat = re.compile(b'(?L)\w')
+        if bletter:
+            self.assertTrue(pat.match(bletter))
+        pat = re.compile(b'\w')
+        if bletter:
+            self.assertIsNone(pat.match(bletter))
+        # Incompatibilities
+        self.assertWarns(DeprecationWarning, re.compile, '', re.LOCALE)
+        self.assertWarns(DeprecationWarning, re.compile, '(?L)')
+        self.assertWarns(DeprecationWarning, re.compile, b'', re.LOCALE | re.ASCII)
+        self.assertWarns(DeprecationWarning, re.compile, b'(?L)', re.ASCII)
+        self.assertWarns(DeprecationWarning, re.compile, b'(?a)', re.LOCALE)
+        self.assertWarns(DeprecationWarning, re.compile, b'(?aL)')
 
     def test_bug_6509(self):
         # Replacement strings of both types must parse properly.
@@ -1229,22 +1380,22 @@ class ReTests(unittest.TestCase):
         with captured_stdout() as out:
             re.compile(pat, re.DEBUG)
         dump = '''\
-subpattern 1
-  literal 46
-subpattern None
-  branch
-    in
-      literal 99
-      literal 104
-  or
-    literal 112
-    literal 121
-subpattern None
-  groupref_exists 1
-    at at_end
-  else
-    literal 58
-    literal 32
+SUBPATTERN 1
+  LITERAL 46
+SUBPATTERN None
+  BRANCH
+    IN
+      LITERAL 99
+      LITERAL 104
+  OR
+    LITERAL 112
+    LITERAL 121
+SUBPATTERN None
+  GROUPREF_EXISTS 1
+    AT AT_END
+  ELSE
+    LITERAL 58
+    LITERAL 32
 '''
         self.assertEqual(out.getvalue(), dump)
         # Debug output is output again even a second time (bypassing
@@ -1275,6 +1426,78 @@ subpattern None
         # Issue #20998: Fullmatch of repeated single character pattern
         # with ignore case.
         self.assertEqual(re.fullmatch('[a-c]+', 'ABC', re.I).span(), (0, 3))
+
+    def test_locale_caching(self):
+        # Issue #22410
+        oldlocale = locale.setlocale(locale.LC_CTYPE)
+        self.addCleanup(locale.setlocale, locale.LC_CTYPE, oldlocale)
+        for loc in 'en_US.iso88591', 'en_US.utf8':
+            try:
+                locale.setlocale(locale.LC_CTYPE, loc)
+            except locale.Error:
+                # Unsupported locale on this system
+                self.skipTest('test needs %s locale' % loc)
+
+        re.purge()
+        self.check_en_US_iso88591()
+        self.check_en_US_utf8()
+        re.purge()
+        self.check_en_US_utf8()
+        self.check_en_US_iso88591()
+
+    def check_en_US_iso88591(self):
+        locale.setlocale(locale.LC_CTYPE, 'en_US.iso88591')
+        self.assertTrue(re.match(b'\xc5\xe5', b'\xc5\xe5', re.L|re.I))
+        self.assertTrue(re.match(b'\xc5', b'\xe5', re.L|re.I))
+        self.assertTrue(re.match(b'\xe5', b'\xc5', re.L|re.I))
+        self.assertTrue(re.match(b'(?Li)\xc5\xe5', b'\xc5\xe5'))
+        self.assertTrue(re.match(b'(?Li)\xc5', b'\xe5'))
+        self.assertTrue(re.match(b'(?Li)\xe5', b'\xc5'))
+
+    def check_en_US_utf8(self):
+        locale.setlocale(locale.LC_CTYPE, 'en_US.utf8')
+        self.assertTrue(re.match(b'\xc5\xe5', b'\xc5\xe5', re.L|re.I))
+        self.assertIsNone(re.match(b'\xc5', b'\xe5', re.L|re.I))
+        self.assertIsNone(re.match(b'\xe5', b'\xc5', re.L|re.I))
+        self.assertTrue(re.match(b'(?Li)\xc5\xe5', b'\xc5\xe5'))
+        self.assertIsNone(re.match(b'(?Li)\xc5', b'\xe5'))
+        self.assertIsNone(re.match(b'(?Li)\xe5', b'\xc5'))
+
+    def test_error(self):
+        with self.assertRaises(re.error) as cm:
+            re.compile('(\u20ac))')
+        err = cm.exception
+        self.assertIsInstance(err.pattern, str)
+        self.assertEqual(err.pattern, '(\u20ac))')
+        self.assertEqual(err.pos, 3)
+        self.assertEqual(err.lineno, 1)
+        self.assertEqual(err.colno, 4)
+        self.assertIn(err.msg, str(err))
+        self.assertIn(' at position 3', str(err))
+        self.assertNotIn(' at position 3', err.msg)
+        # Bytes pattern
+        with self.assertRaises(re.error) as cm:
+            re.compile(b'(\xa4))')
+        err = cm.exception
+        self.assertIsInstance(err.pattern, bytes)
+        self.assertEqual(err.pattern, b'(\xa4))')
+        self.assertEqual(err.pos, 3)
+        # Multiline pattern
+        with self.assertRaises(re.error) as cm:
+            re.compile("""
+                (
+                    abc
+                )
+                )
+                (
+                """, re.VERBOSE)
+        err = cm.exception
+        self.assertEqual(err.pos, 77)
+        self.assertEqual(err.lineno, 5)
+        self.assertEqual(err.colno, 17)
+        self.assertIn(err.msg, str(err))
+        self.assertIn(' at position 77', str(err))
+        self.assertIn('(line 5, column 17)', str(err))
 
 
 class PatternReprTests(unittest.TestCase):
@@ -1320,6 +1543,10 @@ class PatternReprTests(unittest.TestCase):
         self.check_flags(b'bytes pattern', re.A,
                          "re.compile(b'bytes pattern', re.ASCII)")
 
+    def test_locale(self):
+        self.check_flags(b'bytes pattern', re.L,
+                         "re.compile(b'bytes pattern', re.LOCALE)")
+
     def test_quotes(self):
         self.check('random "double quoted" pattern',
             '''re.compile('random "double quoted" pattern')''')
@@ -1354,55 +1581,55 @@ class ImplementationTest(unittest.TestCase):
         self.assertEqual(f("abcabdac"), [0, 0, 0, 1, 2, 0, 1, 0])
 
 
-def run_re_tests():
-    from test.re_tests import tests, SUCCEED, FAIL, SYNTAX_ERROR
-    if verbose:
-        print('Running re_tests test suite')
-    else:
-        # To save time, only run the first and last 10 tests
-        #tests = tests[:10] + tests[-10:]
-        pass
+class ExternalTests(unittest.TestCase):
 
-    for t in tests:
-        sys.stdout.flush()
-        pattern = s = outcome = repl = expected = None
-        if len(t) == 5:
-            pattern, s, outcome, repl, expected = t
-        elif len(t) == 3:
-            pattern, s, outcome = t
-        else:
-            raise ValueError('Test tuples should have 3 or 5 fields', t)
+    def test_re_benchmarks(self):
+        're_tests benchmarks'
+        from test.re_tests import benchmarks
+        for pattern, s in benchmarks:
+            with self.subTest(pattern=pattern, string=s):
+                p = re.compile(pattern)
+                self.assertTrue(p.search(s))
+                self.assertTrue(p.match(s))
+                self.assertTrue(p.fullmatch(s))
+                s2 = ' '*10000 + s + ' '*10000
+                self.assertTrue(p.search(s2))
+                self.assertTrue(p.match(s2, 10000))
+                self.assertTrue(p.match(s2, 10000, 10000 + len(s)))
+                self.assertTrue(p.fullmatch(s2, 10000, 10000 + len(s)))
 
-        try:
-            obj = re.compile(pattern)
-        except re.error:
-            if outcome == SYNTAX_ERROR: pass  # Expected a syntax error
+    def test_re_tests(self):
+        're_tests test suite'
+        from test.re_tests import tests, SUCCEED, FAIL, SYNTAX_ERROR
+        for t in tests:
+            pattern = s = outcome = repl = expected = None
+            if len(t) == 5:
+                pattern, s, outcome, repl, expected = t
+            elif len(t) == 3:
+                pattern, s, outcome = t
             else:
-                print('=== Syntax error:', t)
-        except KeyboardInterrupt: raise KeyboardInterrupt
-        except:
-            print('*** Unexpected error ***', t)
-            if verbose:
-                traceback.print_exc(file=sys.stdout)
-        else:
-            try:
+                raise ValueError('Test tuples should have 3 or 5 fields', t)
+
+            with self.subTest(pattern=pattern, string=s):
+                if outcome == SYNTAX_ERROR:  # Expected a syntax error
+                    with self.assertRaises(re.error):
+                        re.compile(pattern)
+                    continue
+
+                obj = re.compile(pattern)
                 result = obj.search(s)
-            except re.error as msg:
-                print('=== Unexpected exception', t, repr(msg))
-            if outcome == SYNTAX_ERROR:
-                # This should have been a syntax error; forget it.
-                pass
-            elif outcome == FAIL:
-                if result is None: pass   # No match, as expected
-                else: print('=== Succeeded incorrectly', t)
-            elif outcome == SUCCEED:
-                if result is not None:
+                if outcome == FAIL:
+                    self.assertIsNone(result, 'Succeeded incorrectly')
+                    continue
+
+                with self.subTest():
+                    self.assertTrue(result, 'Failed incorrectly')
                     # Matched, as expected, so now we compute the
                     # result string and compare it to our expected result.
                     start, end = result.span(0)
-                    vardict={'found': result.group(0),
-                             'groups': result.group(),
-                             'flags': result.re.flags}
+                    vardict = {'found': result.group(0),
+                               'groups': result.group(),
+                               'flags': result.re.flags}
                     for i in range(1, 100):
                         try:
                             gi = result.group(i)
@@ -1420,12 +1647,8 @@ def run_re_tests():
                         except IndexError:
                             gi = "Error"
                         vardict[i] = gi
-                    repl = eval(repl, vardict)
-                    if repl != expected:
-                        print('=== grouping error', t, end=' ')
-                        print(repr(repl) + ' should be ' + repr(expected))
-                else:
-                    print('=== Failed incorrectly', t)
+                    self.assertEqual(eval(repl, vardict), expected,
+                                     'grouping error')
 
                 # Try the match with both pattern and string converted to
                 # bytes, and check that it still succeeds.
@@ -1436,55 +1659,40 @@ def run_re_tests():
                     # skip non-ascii tests
                     pass
                 else:
-                    try:
-                        bpat = re.compile(bpat)
-                    except Exception:
-                        print('=== Fails on bytes pattern compile', t)
-                        if verbose:
-                            traceback.print_exc(file=sys.stdout)
-                    else:
-                        bytes_result = bpat.search(bs)
-                        if bytes_result is None:
-                            print('=== Fails on bytes pattern match', t)
+                    with self.subTest('bytes pattern match'):
+                        obj = re.compile(bpat)
+                        self.assertTrue(obj.search(bs))
+
+                    # Try the match with LOCALE enabled, and check that it
+                    # still succeeds.
+                    with self.subTest('locale-sensitive match'):
+                        obj = re.compile(bpat, re.LOCALE)
+                        result = obj.search(bs)
+                        if result is None:
+                            print('=== Fails on locale-sensitive match', t)
 
                 # Try the match with the search area limited to the extent
                 # of the match and see if it still succeeds.  \B will
                 # break (because it won't match at the end or start of a
                 # string), so we'll ignore patterns that feature it.
-
-                if pattern[:2] != '\\B' and pattern[-2:] != '\\B' \
-                               and result is not None:
-                    obj = re.compile(pattern)
-                    result = obj.search(s, result.start(0), result.end(0) + 1)
-                    if result is None:
-                        print('=== Failed on range-limited match', t)
+                if (pattern[:2] != r'\B' and pattern[-2:] != r'\B'
+                            and result is not None):
+                    with self.subTest('range-limited match'):
+                        obj = re.compile(pattern)
+                        self.assertTrue(obj.search(s, start, end + 1))
 
                 # Try the match with IGNORECASE enabled, and check that it
                 # still succeeds.
-                obj = re.compile(pattern, re.IGNORECASE)
-                result = obj.search(s)
-                if result is None:
-                    print('=== Fails on case-insensitive match', t)
-
-                # Try the match with LOCALE enabled, and check that it
-                # still succeeds.
-                if '(?u)' not in pattern:
-                    obj = re.compile(pattern, re.LOCALE)
-                    result = obj.search(s)
-                    if result is None:
-                        print('=== Fails on locale-sensitive match', t)
+                with self.subTest('case-insensitive match'):
+                    obj = re.compile(pattern, re.IGNORECASE)
+                    self.assertTrue(obj.search(s))
 
                 # Try the match with UNICODE locale enabled, and check
                 # that it still succeeds.
-                obj = re.compile(pattern, re.UNICODE)
-                result = obj.search(s)
-                if result is None:
-                    print('=== Fails on unicode-sensitive match', t)
+                with self.subTest('unicode-sensitive match'):
+                    obj = re.compile(pattern, re.UNICODE)
+                    self.assertTrue(obj.search(s))
 
-
-def test_main():
-    run_unittest(__name__)
-    run_re_tests()
 
 if __name__ == "__main__":
-    test_main()
+    unittest.main()

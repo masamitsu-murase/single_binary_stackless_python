@@ -257,7 +257,7 @@ class OpenWrapper:
     Trick so that open won't become a bound method when stored
     as a class variable (as dbm.dumb does).
 
-    See initstdio() in Python/pythonrun.c.
+    See initstdio() in Python/pylifecycle.c.
     """
     __doc__ = DocDescriptor()
 
@@ -812,7 +812,7 @@ class _BufferedIOMixin(BufferedIOBase):
         clsname = self.__class__.__qualname__
         try:
             name = self.name
-        except AttributeError:
+        except Exception:
             return "<{}.{}>".format(modname, clsname)
         else:
             return "<{}.{} name={!r}>".format(modname, clsname, name)
@@ -852,7 +852,13 @@ class BytesIO(BufferedIOBase):
     def getbuffer(self):
         """Return a readable and writable view of the buffer.
         """
+        if self.closed:
+            raise ValueError("getbuffer on closed file")
         return memoryview(self._buffer)
+
+    def close(self):
+        self._buffer.clear()
+        super().close()
 
     def read(self, size=None):
         if self.closed:
@@ -1006,10 +1012,7 @@ class BufferedReader(_BufferedIOMixin):
             current_size = 0
             while True:
                 # Read until EOF or until read() would block.
-                try:
-                    chunk = self.raw.read()
-                except InterruptedError:
-                    continue
+                chunk = self.raw.read()
                 if chunk in empty_values:
                     nodata_val = chunk
                     break
@@ -1028,10 +1031,7 @@ class BufferedReader(_BufferedIOMixin):
         chunks = [buf[pos:]]
         wanted = max(self.buffer_size, n)
         while avail < n:
-            try:
-                chunk = self.raw.read(wanted)
-            except InterruptedError:
-                continue
+            chunk = self.raw.read(wanted)
             if chunk in empty_values:
                 nodata_val = chunk
                 break
@@ -1060,12 +1060,7 @@ class BufferedReader(_BufferedIOMixin):
         have = len(self._read_buf) - self._read_pos
         if have < want or have <= 0:
             to_read = self.buffer_size - have
-            while True:
-                try:
-                    current = self.raw.read(to_read)
-                except InterruptedError:
-                    continue
-                break
+            current = self.raw.read(to_read)
             if current:
                 self._read_buf = self._read_buf[self._read_pos:] + current
                 self._read_pos = 0
@@ -1214,8 +1209,6 @@ class BufferedWriter(_BufferedIOMixin):
         while self._write_buf:
             try:
                 n = self.raw.write(self._write_buf)
-            except InterruptedError:
-                continue
             except BlockingIOError:
                 raise RuntimeError("self.raw should implement RawIOBase: it "
                                    "should not raise BlockingIOError")
@@ -1640,13 +1633,13 @@ class TextIOWrapper(TextIOBase):
                                  self.__class__.__qualname__)
         try:
             name = self.name
-        except AttributeError:
+        except Exception:
             pass
         else:
             result += " name={0!r}".format(name)
         try:
             mode = self.mode
-        except AttributeError:
+        except Exception:
             pass
         else:
             result += " mode={0!r}".format(mode)

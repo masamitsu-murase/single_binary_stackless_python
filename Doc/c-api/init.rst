@@ -251,6 +251,9 @@ Process-wide parameters
    Use :c:func:`Py_DecodeLocale` to decode a bytes string to get a
    :c:type:`wchar_*` string.
 
+   The path argument is copied internally, so the caller may free it after the
+   call completes.
+
 
 .. c:function:: const char* Py_GetVersion()
 
@@ -1194,7 +1197,7 @@ These functions are only intended to be used by advanced debugging tools.
 
 .. c:function:: PyThreadState * PyInterpreterState_ThreadHead(PyInterpreterState *interp)
 
-   Return the a pointer to the first :c:type:`PyThreadState` object in the list of
+   Return the pointer to the first :c:type:`PyThreadState` object in the list of
    threads associated with the interpreter *interp*.
 
 

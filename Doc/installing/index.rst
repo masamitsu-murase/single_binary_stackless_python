@@ -48,7 +48,7 @@ Key terms
   repository of open source licensed packages made available for use by
   other Python users
 * the `Python Packaging Authority
-  <http://packaging.python.org/en/latest/future.html>`__ are the group of
+  <https://packaging.python.org/en/latest/future.html>`__ are the group of
   developers and documentation authors responsible for the maintenance and
   evolution of the standard packaging tools and the associated metadata and
   file format standards. They maintain a variety of tools, documentation
@@ -96,7 +96,7 @@ explicitly::
     python -m pip install --upgrade SomePackage
 
 More information and resources regarding ``pip`` and its capabilities can be
-found in the `Python Packaging User Guide <http://packaging.python.org>`__.
+found in the `Python Packaging User Guide <https://packaging.python.org>`__.
 
 ``pyvenv`` has its own documentation at :ref:`scripts-pyvenv`. Installing
 into an active virtual environment uses the commands shown above.
@@ -104,7 +104,7 @@ into an active virtual environment uses the commands shown above.
 .. seealso::
 
     `Python Packaging User Guide: Installing Python Distribution Packages
-    <https://packaging.python.org/en/latest/installing.html#installing-python-distributions>`__
+    <https://packaging.python.org/en/latest/installing.html#installing-python-distribution-packages>`__
 
 
 How do I ...?
@@ -122,7 +122,7 @@ User Guide.
 .. seealso::
 
    `Python Packaging User Guide: Setup for Installing Distribution Packages
-   <https://packaging.python.org/en/latest/installing.html#setup-for-installing-distributions>`__
+   <https://packaging.python.org/en/latest/installing.html#setup-for-installing-distribution-packages>`__
 
 
 .. installing-per-user-installation:
@@ -141,13 +141,13 @@ A number of scientific Python packages have complex binary dependencies, and
 aren't currently easy to install using ``pip`` directly. At this point in
 time, it will often be easier for users to install these packages by
 `other means
-<http://packaging.python.org/en/latest/platforms.html#installing-scientific-packages>`__
+<https://packaging.python.org/en/latest/science.html>`__
 rather than attempting to install them with ``pip``.
 
 .. seealso::
 
    `Python Packaging User Guide: Installing Scientific Packages
-   <http://packaging.python.org/en/latest/platforms.html#installing-scientific-packages>`__
+   <https://packaging.python.org/en/latest/science.html>`__
 
 
 ... work with multiple versions of Python installed in parallel?
@@ -177,7 +177,7 @@ switch::
    Once the Development & Deployment part of PPUG is fleshed out, some of
    those sections should be linked from new questions here (most notably,
    we should have a question about avoiding depending on PyPI that links to
-   http://packaging.python.org/en/latest/deployment.html#pypi-mirrors-and-caches)
+   https://packaging.python.org/en/latest/deployment.html#pypi-mirrors-and-caches)
 
 
 Common installation issues
@@ -210,11 +210,11 @@ as users are more regularly able to install pre-built extensions rather
 than needing to build them themselves.
 
 Some of the solutions for installing `scientific software
-<http://packaging.python.org/en/latest/platforms.html#installing-scientific-packages>`__
+<https://packaging.python.org/en/latest/science.html>`__
 that is not yet available as pre-built ``wheel`` files may also help with
 obtaining other binary extensions without needing to build them locally.
 
 .. seealso::
 
    `Python Packaging User Guide: Binary Extensions
-   <http://packaging.python.org/en/latest/extensions.html>`__
+   <https://packaging.python.org/en/latest/extensions.html>`__

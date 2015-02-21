@@ -251,27 +251,7 @@ PyObject_AsCharBuffer(PyObject *obj,
                       const char **buffer,
                       Py_ssize_t *buffer_len)
 {
-    PyBufferProcs *pb;
-    Py_buffer view;
-
-    if (obj == NULL || buffer == NULL || buffer_len == NULL) {
-        null_error();
-        return -1;
-    }
-    pb = obj->ob_type->tp_as_buffer;
-    if (pb == NULL || pb->bf_getbuffer == NULL) {
-        PyErr_SetString(PyExc_TypeError,
-                        "expected a bytes-like object");
-        return -1;
-    }
-    if ((*pb->bf_getbuffer)(obj, &view, PyBUF_SIMPLE)) return -1;
-
-    *buffer = view.buf;
-    *buffer_len = view.len;
-    if (pb->bf_releasebuffer != NULL)
-        (*pb->bf_releasebuffer)(obj, &view);
-    Py_XDECREF(view.obj);
-    return 0;
+    return PyObject_AsReadBuffer(obj, (const void **)buffer, buffer_len);
 }
 
 int
@@ -295,28 +275,18 @@ int PyObject_AsReadBuffer(PyObject *obj,
                           const void **buffer,
                           Py_ssize_t *buffer_len)
 {
-    PyBufferProcs *pb;
     Py_buffer view;
 
     if (obj == NULL || buffer == NULL || buffer_len == NULL) {
         null_error();
         return -1;
     }
-    pb = obj->ob_type->tp_as_buffer;
-    if (pb == NULL ||
-        pb->bf_getbuffer == NULL) {
-        PyErr_SetString(PyExc_TypeError,
-                        "expected a bytes-like object");
+    if (PyObject_GetBuffer(obj, &view, PyBUF_SIMPLE) != 0)
         return -1;
-    }
-
-    if ((*pb->bf_getbuffer)(obj, &view, PyBUF_SIMPLE)) return -1;
 
     *buffer = view.buf;
     *buffer_len = view.len;
-    if (pb->bf_releasebuffer != NULL)
-        (*pb->bf_releasebuffer)(obj, &view);
-    Py_XDECREF(view.obj);
+    PyBuffer_Release(&view);
     return 0;
 }
 
@@ -342,9 +312,7 @@ int PyObject_AsWriteBuffer(PyObject *obj,
 
     *buffer = view.buf;
     *buffer_len = view.len;
-    if (pb->bf_releasebuffer != NULL)
-        (*pb->bf_releasebuffer)(obj, &view);
-    Py_XDECREF(view.obj);
+    PyBuffer_Release(&view);
     return 0;
 }
 
@@ -353,13 +321,15 @@ int PyObject_AsWriteBuffer(PyObject *obj,
 int
 PyObject_GetBuffer(PyObject *obj, Py_buffer *view, int flags)
 {
-    if (!PyObject_CheckBuffer(obj)) {
+    PyBufferProcs *pb = obj->ob_type->tp_as_buffer;
+
+    if (pb == NULL || pb->bf_getbuffer == NULL) {
         PyErr_Format(PyExc_TypeError,
                      "a bytes-like object is required, not '%.100s'",
                      Py_TYPE(obj)->tp_name);
         return -1;
     }
-    return (*(obj->ob_type->tp_as_buffer->bf_getbuffer))(obj, view, flags);
+    return (*pb->bf_getbuffer)(obj, view, flags);
 }
 
 static int
@@ -368,16 +338,35 @@ _IsFortranContiguous(const Py_buffer *view)
     Py_ssize_t sd, dim;
     int i;
 
-    if (view->ndim == 0) return 1;
-    if (view->strides == NULL) return (view->ndim == 1);
+    /* 1) len = product(shape) * itemsize
+       2) itemsize > 0
+       3) len = 0 <==> exists i: shape[i] = 0 */
+    if (view->len == 0) return 1;
+    if (view->strides == NULL) {  /* C-contiguous by definition */
+        /* Trivially F-contiguous */
+        if (view->ndim <= 1) return 1;
+
+        /* ndim > 1 implies shape != NULL */
+        assert(view->shape != NULL);
+
+        /* Effectively 1-d */
+        sd = 0;
+        for (i=0; i<view->ndim; i++) {
+            if (view->shape[i] > 1) sd += 1;
+        }
+        return sd <= 1;
+    }
+
+    /* strides != NULL implies both of these */
+    assert(view->ndim > 0);
+    assert(view->shape != NULL);
 
     sd = view->itemsize;
-    if (view->ndim == 1) return (view->shape[0] == 1 ||
-                               sd == view->strides[0]);
     for (i=0; i<view->ndim; i++) {
         dim = view->shape[i];
-        if (dim == 0) return 1;
-        if (view->strides[i] != sd) return 0;
+        if (dim > 1 && view->strides[i] != sd) {
+            return 0;
+        }
         sd *= dim;
     }
     return 1;
@@ -389,16 +378,22 @@ _IsCContiguous(const Py_buffer *view)
     Py_ssize_t sd, dim;
     int i;
 
-    if (view->ndim == 0) return 1;
-    if (view->strides == NULL) return 1;
+    /* 1) len = product(shape) * itemsize
+       2) itemsize > 0
+       3) len = 0 <==> exists i: shape[i] = 0 */
+    if (view->len == 0) return 1;
+    if (view->strides == NULL) return 1; /* C-contiguous by definition */
+
+    /* strides != NULL implies both of these */
+    assert(view->ndim > 0);
+    assert(view->shape != NULL);
 
     sd = view->itemsize;
-    if (view->ndim == 1) return (view->shape[0] == 1 ||
-                               sd == view->strides[0]);
     for (i=view->ndim-1; i>=0; i--) {
         dim = view->shape[i];
-        if (dim == 0) return 1;
-        if (view->strides[i] != sd) return 0;
+        if (dim > 1 && view->strides[i] != sd) {
+            return 0;
+        }
         sd *= dim;
     }
     return 1;
@@ -488,7 +483,7 @@ PyBuffer_FromContiguous(Py_buffer *view, void *buf, Py_ssize_t len, char fort)
 
     /* Otherwise a more elaborate scheme is needed */
 
-    /* XXX(nnorwitz): need to check for overflow! */
+    /* view->ndim <= 64 */
     indices = (Py_ssize_t *)PyMem_Malloc(sizeof(Py_ssize_t)*(view->ndim));
     if (indices == NULL) {
         PyErr_NoMemory();
@@ -510,10 +505,10 @@ PyBuffer_FromContiguous(Py_buffer *view, void *buf, Py_ssize_t len, char fort)
      */
     elements = len / view->itemsize;
     while (elements--) {
-        addone(view->ndim, indices, view->shape);
         ptr = PyBuffer_GetPointer(view, indices);
         memcpy(ptr, src, view->itemsize);
         src += view->itemsize;
+        addone(view->ndim, indices, view->shape);
     }
 
     PyMem_Free(indices);
@@ -618,7 +613,12 @@ int
 PyBuffer_FillInfo(Py_buffer *view, PyObject *obj, void *buf, Py_ssize_t len,
                   int readonly, int flags)
 {
-    if (view == NULL) return 0; /* XXX why not -1? */
+    if (view == NULL) {
+        PyErr_SetString(PyExc_BufferError,
+            "PyBuffer_FillInfo: view==NULL argument is obsolete");
+        return -1;
+    }
+
     if (((flags & PyBUF_WRITABLE) == PyBUF_WRITABLE) &&
         (readonly == 1)) {
         PyErr_SetString(PyExc_BufferError,
@@ -652,10 +652,14 @@ void
 PyBuffer_Release(Py_buffer *view)
 {
     PyObject *obj = view->obj;
-    if (obj && Py_TYPE(obj)->tp_as_buffer && Py_TYPE(obj)->tp_as_buffer->bf_releasebuffer)
-        Py_TYPE(obj)->tp_as_buffer->bf_releasebuffer(obj, view);
-    Py_XDECREF(obj);
+    PyBufferProcs *pb;
+    if (obj == NULL)
+        return;
+    pb = Py_TYPE(obj)->tp_as_buffer;
+    if (pb && pb->bf_releasebuffer)
+        pb->bf_releasebuffer(obj, view);
     view->obj = NULL;
+    Py_DECREF(obj);
 }
 
 PyObject *
@@ -687,8 +691,9 @@ PyObject_Format(PyObject *obj, PyObject *format_spec)
     Py_DECREF(meth);
 
     if (result && !PyUnicode_Check(result)) {
-        PyErr_SetString(PyExc_TypeError,
-                        "__format__ method did not return string");
+        PyErr_Format(PyExc_TypeError,
+             "__format__ must return a str, not %.200s",
+             Py_TYPE(result)->tp_name);
         Py_DECREF(result);
         result = NULL;
         goto done;
@@ -1263,8 +1268,7 @@ PyNumber_Long(PyObject *o)
 {
     PyNumberMethods *m;
     PyObject *trunc_func;
-    const char *buffer;
-    Py_ssize_t buffer_len;
+    Py_buffer view;
     _Py_IDENTIFIER(__trunc__);
 
     if (o == NULL)
@@ -1302,21 +1306,22 @@ PyNumber_Long(PyObject *o)
     if (PyErr_Occurred())
         return NULL;
 
-    if (PyBytes_Check(o))
+    if (PyUnicode_Check(o))
+        /* The below check is done in PyLong_FromUnicode(). */
+        return PyLong_FromUnicodeObject(o, 10);
+
+    if (PyObject_GetBuffer(o, &view, PyBUF_SIMPLE) == 0) {
         /* need to do extra error checking that PyLong_FromString()
          * doesn't do.  In particular int('9\x005') must raise an
          * exception, not truncate at the null.
          */
-        return _PyLong_FromBytes(PyBytes_AS_STRING(o),
-                                 PyBytes_GET_SIZE(o), 10);
-    if (PyUnicode_Check(o))
-        /* The above check is done in PyLong_FromUnicode(). */
-        return PyLong_FromUnicodeObject(o, 10);
-    if (!PyObject_AsCharBuffer(o, &buffer, &buffer_len))
-        return _PyLong_FromBytes(buffer, buffer_len, 10);
+        PyObject *result = _PyLong_FromBytes(view.buf, view.len, 10);
+        PyBuffer_Release(&view);
+        return result;
+    }
 
-    return type_error("int() argument must be a string or a "
-                      "number, not '%.200s'", o);
+    return type_error("int() argument must be a string, a bytes-like object "
+                      "or a number, not '%.200s'", o);
 }
 
 PyObject *

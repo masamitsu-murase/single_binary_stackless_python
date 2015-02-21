@@ -339,6 +339,7 @@ of what happens during the loading portion of import::
 
     module = None
     if spec.loader is not None and hasattr(spec.loader, 'create_module'):
+        # It is assumed 'exec_module' will also be defined on the loader.
         module = spec.loader.create_module(spec)
     if module is None:
         module = ModuleType(spec.name)
@@ -427,7 +428,7 @@ Module loaders may opt in to creating the module object during loading
 by implementing a :meth:`~importlib.abc.Loader.create_module` method.
 It takes one argument, the module spec, and returns the new module object
 to use during loading.  ``create_module()`` does not need to set any attributes
-on the module object.  If the loader does not define ``create_module()``, the
+on the module object.  If the method returns ``None``, the
 import machinery will create the new module itself.
 
 .. versionadded:: 3.4
@@ -459,7 +460,13 @@ import machinery will create the new module itself.
 
     * If loading fails, the loader must remove any modules it has inserted
       into :data:`sys.modules`, but it must remove **only** the failing
-      module, and only if the loader itself has loaded it explicitly.
+      module(s), and only if the loader itself has loaded the module(s)
+      explicitly.
+
+.. versionchanged:: 3.5
+   A :exc:`DeprecationWarning` is raised when ``exec_module()`` is defined but
+   ``create_module()`` is not. Starting in Python 3.6 it will be an error to not
+   define ``create_module()`` on a loader attached to a ModuleSpec.
 
 Module spec
 -----------
@@ -753,6 +760,15 @@ hook` callables on :data:`sys.path_hooks`, then the following protocol is used
 to ask the finder for a module spec, which is then used when loading the
 module.
 
+The current working directory -- denoted by an empty string -- is handled
+slightly differently from other entries on :data:`sys.path`. First, if the
+current working directory is found to not exist, no value is stored in
+:data:`sys.path_importer_cache`. Second, the value for the current working
+directory is looked up fresh for each module lookup. Third, the path used for
+:data:`sys.path_importer_cache` and returned by
+:meth:`importlib.machinery.PathFinder.find_spec` will be the actual current
+working directory and not the empty string.
+
 Path entry finder protocol
 --------------------------
 
@@ -901,7 +917,7 @@ References
 
 The import machinery has evolved considerably since Python's early days.  The
 original `specification for packages
-<http://www.python.org/doc/essays/packages.html>`_ is still available to read,
+<http://legacy.python.org/doc/essays/packages.html>`_ is still available to read,
 although some details have changed since the writing of that document.
 
 The original specification for :data:`sys.meta_path` was :pep:`302`, with
