@@ -301,7 +301,7 @@ _ctypes_alloc_format_string_with_shape(int ndim, const Py_ssize_t *shape,
     char *new_prefix;
     char *result;
     char buf[32];
-    int prefix_len;
+    Py_ssize_t prefix_len;
     int k;
 
     prefix_len = 32 * ndim + 3;
@@ -4305,8 +4305,11 @@ Array_subscript(PyObject *myself, PyObject *item)
                                               slicelen);
             }
 
-            dest = (wchar_t *)PyMem_Malloc(
-                                    slicelen * sizeof(wchar_t));
+            dest = PyMem_New(wchar_t, slicelen);
+            if (dest == NULL) {
+                PyErr_NoMemory();
+                return NULL;
+            }
 
             for (cur = start, i = 0; i < slicelen;
                  cur += step, i++) {
@@ -4986,7 +4989,7 @@ Pointer_subscript(PyObject *myself, PyObject *item)
                 return PyUnicode_FromWideChar(ptr + start,
                                               len);
             }
-            dest = (wchar_t *)PyMem_Malloc(len * sizeof(wchar_t));
+            dest = PyMem_New(wchar_t, len);
             if (dest == NULL)
                 return PyErr_NoMemory();
             for (cur = start, i = 0; i < len; cur += step, i++) {

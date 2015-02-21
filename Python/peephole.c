@@ -18,7 +18,11 @@
     || op==JUMP_IF_FALSE_OR_POP || op==JUMP_IF_TRUE_OR_POP)
 #define JUMPS_ON_TRUE(op) (op==POP_JUMP_IF_TRUE || op==JUMP_IF_TRUE_OR_POP)
 #define GETJUMPTGT(arr, i) (GETARG(arr,i) + (ABSOLUTE_JUMP(arr[i]) ? 0 : i+3))
-#define SETARG(arr, i, val) arr[i+2] = val>>8; arr[i+1] = val & 255
+#define SETARG(arr, i, val) do {                            \
+    assert(0 <= val && val <= 0xffff);                      \
+    arr[i+2] = (unsigned char)(((unsigned int)val)>>8);     \
+    arr[i+1] = (unsigned char)(((unsigned int)val) & 255);  \
+} while(0)
 #define CODESIZE(op)  (HAS_ARG(op) ? 3 : 1)
 #define ISBASICBLOCK(blocks, start, bytes) \
     (blocks[start]==blocks[start+bytes-1])
@@ -290,7 +294,7 @@ fold_unaryops_on_constants(unsigned char *codestr, PyObject *consts, PyObject *v
 static unsigned int *
 markblocks(unsigned char *code, Py_ssize_t len)
 {
-    unsigned int *blocks = (unsigned int *)PyMem_Malloc(len*sizeof(int));
+    unsigned int *blocks = PyMem_New(unsigned int, len);
     int i,j, opcode, blockcnt = 0;
 
     if (blocks == NULL) {
@@ -355,7 +359,8 @@ PyCode_Optimize(PyObject *code, PyObject* consts, PyObject *names,
     unsigned char *codestr = NULL;
     unsigned char *lineno;
     int *addrmap = NULL;
-    int new_line, cum_orig_line, last_line, tabsiz;
+    int new_line, cum_orig_line, last_line;
+    Py_ssize_t tabsiz;
     PyObject **const_stack = NULL;
     Py_ssize_t *load_const_stack = NULL;
     Py_ssize_t const_stack_top = -1;
@@ -398,7 +403,7 @@ PyCode_Optimize(PyObject *code, PyObject* consts, PyObject *names,
         goto exitUnchanged;
 
     /* Mapping to new jump targets after NOPs are removed */
-    addrmap = (int *)PyMem_Malloc(codelen * sizeof(int));
+    addrmap = PyMem_New(int, codelen);
     if (addrmap == NULL) {
         PyErr_NoMemory();
         goto exitError;
@@ -660,7 +665,8 @@ PyCode_Optimize(PyObject *code, PyObject* consts, PyObject *names,
 
     /* Fixup linenotab */
     for (i=0, nops=0 ; i<codelen ; i += CODESIZE(codestr[i])) {
-        addrmap[i] = i - nops;
+        assert(i - nops <= INT_MAX);
+        addrmap[i] = (int)(i - nops);
         if (codestr[i] == NOP)
             nops++;
     }
