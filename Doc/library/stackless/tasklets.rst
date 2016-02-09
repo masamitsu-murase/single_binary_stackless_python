@@ -63,7 +63,7 @@ Example - how many tasklets are scheduled::
 The ``tasklet`` class
 ---------------------
 
-.. class:: tasklet(callable=None, args=None, kwargs=None)
+.. class:: tasklet(func=None, args=None, kwargs=None)
 
    This class exposes the form of lightweight thread (the tasklet) provided by
    |SLP|.  Wrapping a callable object and arguments to pass into
