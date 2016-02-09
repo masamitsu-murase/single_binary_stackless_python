@@ -8,7 +8,11 @@ For other changes see Misc/NEWS.
 What's New in Stackless 3.X.X?
 ==============================
 
-*Release date: XXXX-XX-XX*
+*Release date: 20XX-XX-XX*
+
+- https://bitbucket.org/stackless-dev/stackless/issue/77
+  Fix a NULL pointer exception, if a call to stackless.tasklet() fails
+  (i.e. called with invalid arguments).
 
 
 What's New in Stackless 3.3.6?
@@ -28,8 +32,8 @@ What's New in Stackless 3.3.6?
   Fix a regression in Lib/pickle.py. Pickling functions
   didn't work any longer.
 
-- Fix for test_watchdog_on_tasklet_hard due to re !!!. The caching behaviour 
-  of re.py was changed in debug mode, which influenced the number of opcodes 
+- Fix for test_watchdog_on_tasklet_hard due to re !!!. The caching behaviour
+  of re.py was changed in debug mode, which influenced the number of opcodes
   spent in our test.
 
 - Fix compiler warnings found on MAC.
@@ -93,7 +97,7 @@ What's New in Stackless 3.3.5?
   relative to the tasklet's thread, not the calling thread.
 
 - http://www.stackless.com/ticket/24: Enable unbinding of tasklets.
-  The method tasklet.bind(None) now unbinds a tasklet. 
+  The method tasklet.bind(None) now unbinds a tasklet.
 
 - Add the stackless.atomic() context manager to enter an atomic state.
 
@@ -126,28 +130,28 @@ What's New in Stackless 3.3.5?
   the source is paused.
 
 - https://bitbucket.org/stackless-dev/stackless/issue/38
-  Bug fix: An exception in the schedule callback caused an 
+  Bug fix: An exception in the schedule callback caused an
   assertion failure in taskletobject.c, line 51
 
 - https://bitbucket.org/stackless-dev/stackless/issue/40
-  Bug fix: If a thread state had an exception and tracing was enabled, 
+  Bug fix: If a thread state had an exception and tracing was enabled,
   the exception was not preserved on a soft switch.
 
 - https://bitbucket.org/stackless-dev/stackless/issue/41
   Bug fix: Traced tasklet is unpicklable
 
 - https://bitbucket.org/stackless-dev/stackless/issue/42
-  Bug fix: During the execution of the schedule callback the internal state 
-  of the interpreter was sometimes inconsistent. This caused tasklet related 
+  Bug fix: During the execution of the schedule callback the internal state
+  of the interpreter was sometimes inconsistent. This caused tasklet related
   query methods and computed attributes to return incorrect results.
 
 - https://bitbucket.org/stackless-dev/stackless/issue/43
-  Enhancement: new attributes tasklet.trace_function and 
+  Enhancement: new attributes tasklet.trace_function and
   tasklet.profile_function
 
 - https://bitbucket.org/stackless-dev/stackless/issue/44
   Bug fix: some computed tasklet attributes (i.e. tasklet.alive)
-  returned incorrect values when they were accessed from an thread the 
+  returned incorrect values when they were accessed from an thread the
   tasklet didn't belong to.
 
 - https://bitbucket.org/stackless-dev/stackless/issue/45
@@ -170,6 +174,18 @@ What's New in Stackless 3.3.5?
 - http://www.stackless.com/ticket/23: Fix compile error with STACKLESS_OFF
   defined
 
+<<<<<<< local
+=======
+
+What's New in Stackless 2.7.4rc2?
+=================================
+
+*Release date: 2013-05-01*
+
+(A selection of user visible changes from mercurial commit log messages. Use
+ "hg log -b 2.7-slp -r v2.7.4rc2-slp:v2.7.2-slp  -v -M" to get the complete log.)
+
+>>>>>>> other
 - http://www.stackless.com/ticket/21: Fix crash on exit.
 
 - http://www.stackless.com/ticket/22: soft switching for context managers.
@@ -178,12 +194,12 @@ What's New in Stackless 3.3.5?
 
 - http://www.stackless.com/ticket/18: unexpected increase of nesting level in
   __call__.
- 
+
 - http://www.stackless.com/ticket/20: fix infinite recursion in __call__
 
 - http://www.stackless.com/ticket/17: Fix a few clang warnings.
 
-- http://www.stackless.com/ticket/14: Prevent overly optimization with 
+- http://www.stackless.com/ticket/14: Prevent overly optimization with
   gcc 4.7.x.
 
 - Add the feature of a tasklet error handler, global to the module.
@@ -207,13 +223,13 @@ What's New in Stackless 3.3.5?
 
 - Apply Anselm Kruis' patch to get amd64 linux building again without the 'bp'
   register problem.
-           
-- When a tasklet is killed, remove it from being "active" in the cstate.  
+
+- When a tasklet is killed, remove it from being "active" in the cstate.
   Otherwise, kill_task_with_cstatcks will spin endlessly trying to kill it.
   We have to fix kill_tasks_with_cstacks more properly later.
 
 - Integrate changes to tasklet GC as run by CCP for over a year.  Tasklets are
-  now properly garbage collected unless they have a C stack.  
+  now properly garbage collected unless they have a C stack.
 
 - Add a new api, PyStackless_GetCurrentId(), and stackless.getcurrentid(), to
   help with bookkeeping that has to do with callstacks.
@@ -231,7 +247,7 @@ What's New in Stackless 3.3.5?
   file comments.
 
 - Committing Jeff Senn's non-Windows compilation changes as mailed to the
-  Stackless mailing list 
+  Stackless mailing list
   (http://www.stackless.com/pipermail/stackless/2010-July/004766.html).
 
 - the _lsprof.c module is now stackless aware.  This allows the same
@@ -241,12 +257,12 @@ What's New in Stackless 3.3.5?
   for all tasklets globally.
 
 
-Here is a break. Nobody wrote a change log. If you are interested 
+Here is a break. Nobody wrote a change log. If you are interested
 in software archaeology look at http://svn.python.org/view/stackless.
 
 
 The very beginning of Stackless
-=============================== 
+===============================
 
 20020524	ct	There appears to be a problem with stack switching
 			and tkinter. When I disable it, things work. This is
@@ -272,7 +288,11 @@ The very beginning of Stackless
 			Especially, the frame dispatcher idea will be revived.
 			It turns out to make sense:
 			Try to let the innermost interpreter resolve some recusrions.
+<<<<<<< local
 			Find an equivalent of olde Py_UnwindToken. Probably the 
+=======
+			Find an equivalent of old Py_UnwindToken. Probably the
+>>>>>>> other
 			protocol of the new generators can be extended.
 			Now I *do* think to modify frames. They get an additional
 			field for their C stack part.

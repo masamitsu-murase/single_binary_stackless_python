@@ -382,8 +382,10 @@ static int
 tasklet_init(PyObject *self, PyObject *args, PyObject *kwds)
 {
     PyObject *result = tasklet_bind(self, args, kwds);
+    if (NULL == result)
+        return -1;
     Py_DECREF(result);
-    return result != NULL ? 0 : -1;
+    return 0;
 }
 
 
