@@ -10,6 +10,13 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issue/79
+  Add __all__ to module stackless. Add entries to the module's __dict__
+  for the computed properties (i.e. current, main, ...). This helps IDEs
+  (PyDev) to recognise the expression "stackless.current" as a defined name.
+  Fixed tasklet.raise_exception and channel.send_exception to raise a correct
+  TypeError, if called without arguments.
+
 - https://bitbucket.org/stackless-dev/stackless/issue/77
   Fix a NULL pointer exception, if a call to stackless.tasklet() fails
   (i.e. called with invalid arguments).

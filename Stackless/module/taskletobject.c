@@ -1191,7 +1191,7 @@ tasklet_raise_exception(PyObject *myself, PyObject *args)
     PyObject *klass = PySequence_GetItem(args, 0);
 
     if (klass == NULL)
-        VALUE_ERROR("tasklet.raise_exception(e, v...)", NULL);
+        TYPE_ERROR("raise_exception() takes at least 1 argument", NULL);
     args = PySequence_GetSlice(args, 1, PySequence_Size(args));
     if (!args) goto err_exit;
     STACKLESS_PROMOTE_ALL();

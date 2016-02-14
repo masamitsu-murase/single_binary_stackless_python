@@ -651,7 +651,7 @@ channel_send_exception(PyObject *myself, PyObject *args)
     PyObject *klass = PySequence_GetItem(args, 0);
 
     if (klass == NULL)
-        VALUE_ERROR("channel.send_exception(e, v...)", NULL);
+        TYPE_ERROR("send_exception() takes at least 1 argument", NULL);
     args = PySequence_GetSlice(args, 1, PySequence_Size(args));
     if (!args) {
         goto err_exit;
@@ -780,7 +780,7 @@ PyChannel_Receive(PyChannelObject *self)
 {
     PyObject *ret = impl_channel_receive(self);
     STACKLESS_ASSERT();
-    assert(!STACKLESS_UNWINDING(self));
+    assert(!STACKLESS_UNWINDING(ret));
     return ret;
 }
 
