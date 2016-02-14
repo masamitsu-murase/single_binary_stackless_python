@@ -1,5 +1,6 @@
 import unittest
 from stackless import *
+from stackless import test_cframe, test_cframe_nr, test_outside, test_cstate
 
 from support import StacklessTestCase
 
