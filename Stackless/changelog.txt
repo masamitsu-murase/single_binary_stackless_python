@@ -10,6 +10,11 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issue/80
+  Fix an assertion failure during shutdown. The assertion was added by
+  the first attempt to fix issue #60. Thanks to Masamitsu Murase
+  for reporting the bug and for providing the fix.
+
 - https://bitbucket.org/stackless-dev/stackless/issue/79
   Add __all__ to module stackless. Add entries to the module's __dict__
   for the computed properties (i.e. current, main, ...). This helps IDEs

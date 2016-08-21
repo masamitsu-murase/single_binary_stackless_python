@@ -4,6 +4,7 @@ import gc
 import sys
 import types
 
+from stackless import _test_nostacklesscall as apply
 from support import StacklessTestCase, captured_stderr
 
 
@@ -230,6 +231,29 @@ class TestCrashUponFrameUnpickling(StacklessTestCase):
         f_locals = frame.f_locals
 
         self.assertIsInstance(f_locals, dict)
+
+
+class TestShutdown(StacklessTestCase):
+    def test_cstack_new(self):
+        # test for issue #80 https://bitbucket.org/stackless-dev/stackless/issues/80/
+        import subprocess
+        rc = subprocess.call([sys.executable, "-S", "-E", "-c", """if 1:
+            import stackless, sys
+            from stackless import _test_nostacklesscall as apply
+
+            def func():
+                global channel
+                assert stackless.current.nesting_level == 0
+                assert apply(lambda : stackless.current.nesting_level) == 1, "apply does not recurse"
+                apply(channel.receive)  # crash at nesting level 1
+
+            channel = stackless.channel()
+            task = stackless.tasklet().bind(func, ())  # simplest tasklet
+            task.run()
+            sys.exit(42)
+            """])
+        self.assertEqual(rc, 42)
+
 
 if __name__ == '__main__':
     import sys
