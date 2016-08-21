@@ -92,11 +92,16 @@ slp_cstack_new(PyCStackObject **cst, intptr_t *stackref, PyTaskletObject *task)
     intptr_t *stackbase;
     ptrdiff_t size;
 
+    ts = NULL;
     if (task && task->cstate) {
+        /* usually a tasklet with a cstate has a valid
+           tstate, but during shutdown (function slp_kill_tasks_with_stacks)
+           the tstate may be NULL. The exact conditions are complicated. */
         ts = task->cstate->tstate;
-        assert(ts);
-    } else
+    }
+    if (ts == NULL) {
         ts = PyThreadState_GET();
+    }
 
     stackbase = ts->st.cstack_base;
     size = stackbase - stackref;
