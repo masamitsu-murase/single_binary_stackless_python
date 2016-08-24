@@ -15,16 +15,17 @@ random.shuffle(numbers)
 print numbers
 # [16, 13, 12, 5, 6, 4, 7, 1, 9, 17, 15, 14, 10, 8, 0, 3, 11, 18, 2, 19]
 
+
 def counter(n, ch):
-	for i in xrange(n):
-		schedule()
-	ch.send(n)
-	
-ch=stackless.channel()
+    for i in xrange(n):
+        schedule()
+    ch.send(n)
+
+ch = stackless.channel()
 for each in numbers:
-	stackless.tasklet(counter)(each, ch)
+    stackless.tasklet(counter)(each, ch)
 
 stackless.run()
 # now we should have a sorted chain of results in ch
 while ch.queue:
-	print ch.receive()
+    print ch.receive()

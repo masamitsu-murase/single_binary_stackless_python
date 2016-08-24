@@ -1,6 +1,5 @@
 import unittest
 import weakref
-import gc
 
 from stackless import *
 
@@ -9,6 +8,7 @@ from support import StacklessTestCase
 
 class Counter(object):
     ctr = 0
+
     def __call__(self, *args):
         self.ctr += 1
         return self.ctr
@@ -16,10 +16,12 @@ class Counter(object):
     def get(self):
         return self.ctr
 
+
 class TestWeakReferences(StacklessTestCase):
+
     def testSimpleTaskletWeakRef(self):
         counter = Counter()
-        t = tasklet(lambda:None)()
+        t = tasklet(lambda: None)()
         t_ref = weakref.ref(t, counter)
         self.assertEqual(t_ref(), t)
         del t

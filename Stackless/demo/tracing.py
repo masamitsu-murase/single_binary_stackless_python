@@ -3,6 +3,7 @@ from __future__ import print_function
 from stackless import *
 import traceback
 
+
 def _tasklet__repr__(self):
     try:
         return "<tasklet %s>" % ("main" if self.is_main else self.name,)
@@ -23,6 +24,7 @@ class NamedTasklet(tasklet):
 
 
 class Mutex(object):
+
     def __init__(self, capacity=1):
         self.queue = channel()
         self.capacity = capacity
@@ -72,7 +74,7 @@ def trace_function(frame, event, arg):
     if frame.f_code.co_name in ('schedule_cb', 'channel_cb'):
         return None
     print("         trace_function: %s %s in %s, line %s" %
-        (stackless.current, event, frame.f_code.co_name, frame.f_lineno))
+          (stackless.current, event, frame.f_code.co_name, frame.f_lineno))
     if event in ('call', 'line', 'exception'):
         return trace_function
     return None
@@ -83,7 +85,7 @@ def channel_cb(channel, tasklet, sending, willblock):
     try:
         tasklet.trace_function = None
         print("Channel CB, tasklet %r, %s%s" %
-        (tasklet, ("recv", "send")[sending], ("", " will block")[willblock]))
+              (tasklet, ("recv", "send")[sending], ("", " will block")[willblock]))
     finally:
         tasklet.trace_function = tf
 
@@ -109,12 +111,12 @@ def schedule_cb(prev, next):
             print("%sjumping from %s to %s" % (current_info, prev, next))
 
         # Inform about the installed trace functions
-        
-        # 
+
+        #
         prev_tf = current_tf if prev.frame is current_frame else prev.trace_function
         next_tf = current_tf if next.frame is current_frame else next.trace_function
         print("    Current trace functions: prev: %r, next: %r" %
-            (prev_tf, next_tf))
+              (prev_tf, next_tf))
 
         # Eventually set a trace function
         if next is not None:
@@ -126,7 +128,7 @@ def schedule_cb(prev, next):
             # Set the "global" trace function for the tasklet
             next.trace_function = tf
             # Set the "local" trace function for each frame
-            # This is required, if the tasklet is already running 
+            # This is required, if the tasklet is already running
             frame = next.frame
             if frame is current_frame:
                 frame = frame.f_back

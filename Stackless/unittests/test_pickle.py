@@ -10,52 +10,64 @@ from stackless import schedule, tasklet, stackless
 from support import StacklessTestCase
 
 
-#because test runner instances in the testsuite contain copies of the old stdin/stdout thingies,
-#we need to make it appear that pickling them is ok, otherwise we will fail when pickling
-#closures that refer to test runner instances
+# because test runner instances in the testsuite contain copies of the old stdin/stdout thingies,
+# we need to make it appear that pickling them is ok, otherwise we will fail when pickling
+# closures that refer to test runner instances
 import copyreg
-import sys
+
+
 def reduce(obj):
-    return object, () #just create an empty object instance
+    return object, ()  # just create an empty object instance
 copyreg.pickle(type(sys.stdout), reduce, object)
 
 VERBOSE = False
 glist = []
 
+
 def nothing():
     pass
+
 
 def accumulate(ident, func, *args):
     rval = (ident, func(*args))
     glist.append(rval)
 
+
 def get_result():
     return glist.pop()
+
 
 def is_empty():
     return len(glist) == 0
 
+
 def reset():
     glist[:] = []
+
 
 def rectest(nrec, lev=0, lst=None):
     if lst is None:
         lst = []
     lst.append(lev)
     if lev < nrec:
-        rectest(nrec, lev+1, lst)
+        rectest(nrec, lev + 1, lst)
     else:
         schedule()
     return lst
 
+
 class TaskletChannel:
+
     def __init__(self):
         self.channel = stackless.channel()
+
     def run(self):
         self.channel.receive()
 
+
 class CustomTasklet(tasklet):
-    __slots__ = [ "name" ]
+    __slots__ = ["name"]
+
 
 def listtest(n, when):
     for i in range(n):
@@ -63,11 +75,13 @@ def listtest(n, when):
             schedule()
     return i
 
+
 def xrangetest(n, when):
     for i in range(n):
         if i == when:
             schedule()
     return i
+
 
 def enumeratetest(n, when):
     for i, ig in enumerate([None] * n):
@@ -75,23 +89,27 @@ def enumeratetest(n, when):
             schedule()
     return i
 
+
 def dicttestiterkeys(n, when):
-    for i in dict([ (i, i) for i in range(n) ]).keys():
+    for i in dict([(i, i) for i in range(n)]).keys():
         if i == when:
             schedule()
     return n
+
 
 def dicttestitervalues(n, when):
-    for i in dict([ (i, i) for i in range(n) ]).values():
+    for i in dict([(i, i) for i in range(n)]).values():
         if i == when:
             schedule()
     return n
 
+
 def dicttestiteritems(n, when):
-    for (i, j) in dict([ (i, i) for i in range(n) ]).items():
+    for (i, j) in dict([(i, i) for i in range(n)]).items():
         if i == when:
             schedule()
     return n
+
 
 def settest(n, when):
     for i in set(range(n)):
@@ -99,11 +117,13 @@ def settest(n, when):
             schedule()
     return i
 
+
 def tupletest(n, when):
     for i in tuple(range(n)):
         if i == when:
             schedule()
     return i
+
 
 def genschedinnertest(n, when):
     for i in range(n):
@@ -111,20 +131,24 @@ def genschedinnertest(n, when):
             schedule()
         yield i
 
+
 def genschedoutertest(n, when):
     for x in genschedinnertest(n, when):
         pass
     return x
 
+
 def geninnertest(n):
     for x in range(n):
         yield x
+
 
 def genoutertest(n, when):
     for i in geninnertest(n):
         if i == when:
             schedule()
     return i
+
 
 def cellpickling():
     """defect:  Initializing a function object with a partially constructed
@@ -140,6 +164,7 @@ def cellpickling():
 
 
 class CtxManager(object):
+
     def __init__(self, n, when, expect_type, suppress_exc):
         self.n = n
         assert when in ('enter', 'body', 'exit')
@@ -162,6 +187,7 @@ class CtxManager(object):
         if self.when == 'exit':
             lst = rectest(self.n)
         return self.suppress_exc
+
 
 def ctxpickling(testCase, n, when, expect_type, suppress_exc):
     ctxmgr = CtxManager(n, when, expect_type, suppress_exc)
@@ -197,6 +223,7 @@ def ctxpickling(testCase, n, when, expect_type, suppress_exc):
     testCase.assertEqual(ctxmgr, c, "__enter__ returned wrong value")
     return "OK"
 
+
 def is_soft():
     softswitch = stackless.enable_softswitch(0)
     stackless.enable_softswitch(softswitch)
@@ -204,6 +231,7 @@ def is_soft():
 
 
 class PyPickleMixin(object):
+
     def dumps(self, obj, protocol=None, *, fix_imports=True):
         f = io.BytesIO()
         pickle._Pickler(f, protocol, fix_imports=fix_imports).dump(obj)
@@ -216,13 +244,16 @@ class PyPickleMixin(object):
 
 
 class CPickleMixin(object):
+
     def dumps(self, obj, protocol=None, *, fix_imports=True):
         return pickle.dumps(obj, protocol=protocol, fix_imports=fix_imports)
+
     def loads(self, s, *, fix_imports=True, encoding="ASCII", errors="strict"):
         return pickle.loads(s, fix_imports=fix_imports, encoding=encoding, errors=errors)
 
 
 class AbstractTestPickledTasklets(StacklessTestCase):
+
     def setUp(self):
         super(AbstractTestPickledTasklets, self).setUp()
         self.verbose = VERBOSE
@@ -248,7 +279,8 @@ class AbstractTestPickledTasklets(StacklessTestCase):
         # clear out old errors
         reset()
 
-        if self.verbose: print("starting tasklet")
+        if self.verbose:
+            print("starting tasklet")
         t.run()
 
         self.assertEqual(is_empty(), True)
@@ -256,17 +288,20 @@ class AbstractTestPickledTasklets(StacklessTestCase):
         # do we want to do this??
         #t.tempval = None
 
-        if self.verbose: print("pickling")
+        if self.verbose:
+            print("pickling")
         pi = self.dumps(t)
 
         # if self.verbose: print repr(pi)
         # why do we want to remove it?
         # t.remove()
 
-        if self.verbose: print("unpickling")
+        if self.verbose:
+            print("unpickling")
         ip = self.loads(pi)
 
-        if self.verbose: print("starting unpickled tasklet")
+        if self.verbose:
+            print("starting unpickled tasklet")
         if is_soft():
             ip.run()
         else:
@@ -297,6 +332,7 @@ class AbstractTestPickledTasklets(StacklessTestCase):
 
 
 class PickledTaskletTestCases(object):
+
     def testClassPersistence(self):
         t1 = CustomTasklet(nothing)()
         s = self.dumps(t1)
@@ -318,7 +354,7 @@ class PickledTaskletTestCases(object):
     def testRecursive(self):
         self.run_pickled(rectest, 13)
 
-    ## Pickling of all three dictionary iterator types.
+    # Pickling of all three dictionary iterator types.
 
     # Test picking of the dictionary keys iterator.
     def testDictIterkeys(self):
@@ -347,8 +383,7 @@ class PickledTaskletTestCases(object):
         self.run_pickled(genschedoutertest, 20, 13)
 
     def testRecursiveLambda(self):
-        recurse = lambda self, next: \
-            next-1 and self(self, next-1) or (schedule(), 42)[1]
+        recurse = lambda self, next: next - 1 and self(self, next - 1) or (schedule(), 42)[1]  # @IgnorePep8
         self.loads(self.dumps(recurse))
         self.run_pickled(recurse, recurse, 13)
 
@@ -356,9 +391,10 @@ class PickledTaskletTestCases(object):
         # Avoid self references in this function, to prevent crappy unit testing framework
         # magic from getting pickled and refusing to unpickle.
         def rectest(verbose, nrec, lev=0):
-            if verbose: print(str(nrec), lev)
+            if verbose:
+                print(str(nrec), lev)
             if lev < nrec:
-                rectest(verbose, nrec, lev+1)
+                rectest(verbose, nrec, lev + 1)
             else:
                 schedule()
         self.run_pickled(rectest, self.verbose, 13)
@@ -368,36 +404,52 @@ class PickledTaskletTestCases(object):
 
     def testCtx_enter_0(self):
         self.run_pickled(ctxpickling, self, 0, 'enter', None, False)
+
     def testCtx_enter_1(self):
         self.run_pickled(ctxpickling, self, 1, 'enter', None, False)
+
     def testCtx_enter_2(self):
         self.run_pickled(ctxpickling, self, 2, 'enter', RuntimeError, False)
+
     def testCtx_enter_3(self):
         self.run_pickled(ctxpickling, self, 1, 'enter', RuntimeError, True)
+
     def testCtx_body_0(self):
         self.run_pickled(ctxpickling, self, 0, 'body', None, False)
+
     def testCtx_body_1(self):
         self.run_pickled(ctxpickling, self, 1, 'body', None, False)
+
     def testCtx_body_2(self):
         self.run_pickled(ctxpickling, self, 2, 'body', RuntimeError, False)
+
     def testCtx_body_3(self):
         self.run_pickled(ctxpickling, self, 1, 'body', RuntimeError, True)
+
     def testCtx_body_4(self):
         self.run_pickled(ctxpickling, self, 2, 'body', RuntimeError, True)
+
     def testCtx_body_5(self):
         self.run_pickled(ctxpickling, self, 1, 'body', RuntimeError, False)
+
     def testCtx_body_6(self):
         self.run_pickled(ctxpickling, self, 0, 'body', RuntimeError, True)
+
     def testCtx_body_7(self):
         self.run_pickled(ctxpickling, self, 0, 'body', RuntimeError, False)
+
     def testCtx_exit_0(self):
         self.run_pickled(ctxpickling, self, 0, 'exit', None, False)
+
     def testCtx_exit_1(self):
         self.run_pickled(ctxpickling, self, 1, 'exit', None, False)
+
     def testCtx_exit_2(self):
         self.run_pickled(ctxpickling, self, 2, 'exit', RuntimeError, False)
+
     def testCtx_exit_3(self):
         self.run_pickled(ctxpickling, self, 0, 'exit', RuntimeError, True)
+
     def testCtx_exit_4(self):
         self.run_pickled(ctxpickling, self, 1, 'exit', RuntimeError, True)
 
@@ -434,7 +486,7 @@ class PickledTaskletTestCases(object):
         # ValueError: frame exec function at 1e00bf40 is not registered!
 
         def sender(chan):
-            l = [ 1, 2, 3, 4 ]
+            l = [1, 2, 3, 4]
             chan.send_sequence(l)
 
         def receiver(chan):
@@ -460,17 +512,21 @@ class PickledTaskletTestCases(object):
 
     def testFunctionModulePreservation(self):
         # The 'module' name on the function was not being preserved.
-        f1 = lambda: None
+        f1 = lambda: None  # @IgnorePep8
         f2 = self.loads(self.dumps(f1))
         self.assertEqual(f1.__module__, f2.__module__)
+
 
 class TestPickledTaskletsPy(AbstractTestPickledTasklets, PickledTaskletTestCases, PyPickleMixin):
     pass
 
+
 class TestPickledTaskletsC(AbstractTestPickledTasklets, PickledTaskletTestCases, CPickleMixin):
     pass
 
+
 class TestFramePickling(StacklessTestCase):
+
     def testLocalplus(self):
         result = []
 
@@ -510,27 +566,30 @@ class TestFramePickling(StacklessTestCase):
 
 
 class DictViewPicklingTestCases(object):
+
     def testDictKeyViewPickling(self):
         # stackless python prior to 2.7.3 used to register its own __reduce__
-        d = { 1: 2 }
+        d = {1: 2}
         view1 = d.keys()
         view2 = self.loads(self.dumps(view1))
         self.assertEqual(list(view1), list(view2))
 
     def testDictItemViewPickling(self):
-        d = { 1: 2 }
+        d = {1: 2}
         view1 = d.items()
         view2 = self.loads(self.dumps(view1))
         self.assertEqual(list(view1), list(view2))
 
     def testDictValueViewPickling(self):
-        d = { 1: 2 }
+        d = {1: 2}
         view1 = d.values()
         view2 = self.loads(self.dumps(view1))
         self.assertEqual(list(view1), list(view2))
 
+
 class TestDictViewPicklingPy(AbstractTestPickledTasklets, DictViewPicklingTestCases, PyPickleMixin):
     pass
+
 
 class TestDictViewPicklingC(AbstractTestPickledTasklets, DictViewPicklingTestCases, CPickleMixin):
     pass

@@ -1,11 +1,8 @@
 # import common
 
-import pickle
 import unittest
 import stackless
 import sys
-import traceback
-import contextlib
 import time
 
 from support import StacklessTestCase, AsTaskletTestCase
@@ -19,15 +16,18 @@ try:
 except:
     withThreads = False
 
+
 class SkipMixin(object):
+
     def skipUnlessSoftswitching(self):
         if not stackless.enable_softswitch(None):
             self.skipTest("test requires softswitching")
 
+
 def GetRemoteTasklets(callables):
     """Get a non-scheduled tasklet on a remote thread"""
-    import threading
     c = stackless.channel()
+
     def tfunc():
         # thread func.  Create a tasklet, remove it, and send it to the master.
         # then wait for the tasklet to finish.
@@ -51,15 +51,17 @@ def GetRemoteTasklets(callables):
         stackless.__reduce__()
         for callable in callables:
             c2.receive()
-        stackless.run() #drain the scheduler
+        stackless.run()  # drain the scheduler
 
     thread = threading.Thread(target=tfunc)
     thread.start()
     d = c.receive(), thread
     return d
 
+
 class LingeringThread(threading.Thread):
     """ A thread that lingers on after executing its main function"""
+
     def __init__(self, *args, **kwargs):
         self.real_target = kwargs["target"]
         kwargs["target"] = self.thread_func
@@ -85,25 +87,32 @@ class LingeringThread(threading.Thread):
     def __exit__(self, ex, val, tb):
         self.join()
 
+
 class SchedulingThread(LingeringThread):
     """ A thread that runs a scheduling loop after executing its main function"""
+
     def linger(self):
         while not self.shutdown.is_set():
             stackless.run()
             time.sleep(0.001)
+
 
 def GetRemoteTasklet(callable, args):
     """Get a non-scheduled tasklet on a remote thread"""
     tasklets, thread = GetRemoteTasklets([lambda:callable(*args)])
     return tasklets[0], thread
 
+
 @unittest.skipUnless(withThreads, "requires thread support")
 class TestRemoteSchedule(AsTaskletTestCase):
+
     def setUp(self):
         super(TestRemoteSchedule, self).setUp()
         self.events = []
+
     def testFoo(self):
-        def foo(): pass
+        def foo():
+            pass
         t, thread = GetRemoteTasklet(foo, ())
         try:
             t.run()
@@ -130,12 +139,13 @@ class TestRemoteSchedule(AsTaskletTestCase):
             thread.join(2)
         self.assertEqual(self.events, list(range(len(self.events))))
 
-
     def testRunOrder(self):
         def a():
             self.events.append(0)
+
         def b():
             self.events.append(1)
+
         def c():
             self.events.append(2)
 
@@ -144,20 +154,24 @@ class TestRemoteSchedule(AsTaskletTestCase):
             with stackless.atomic():
                 t2.insert()
                 t3.insert()
-                t1.run() #t1 should run first
+                t1.run()  # t1 should run first
         finally:
             thread.join(2)
         self.assertEqual(self.events, list(range(3)))
 
+
 @unittest.skipUnless(withThreads, "requires thread support")
 class TestRebindCrash(SkipMixin, StacklessTestCase):
     """A crash from Anselm Kruis, occurring when transferring tasklet to a thread"""
+
     def create_remote_tasklet(self, nontrivial=False, job=None):
         result = []
         e1 = threading.Event()
         e2 = threading.Event()
+
         def remove():
             stackless.schedule_remove(retval=None)
+
         def taskletfunc():
             result.append(stackless.getcurrent())
             if nontrivial:
@@ -166,6 +180,7 @@ class TestRebindCrash(SkipMixin, StacklessTestCase):
                 remove()
             if job:
                 job()
+
         def threadfunc():
             t = stackless.tasklet(taskletfunc)()
             t.run()
@@ -173,7 +188,7 @@ class TestRebindCrash(SkipMixin, StacklessTestCase):
             while not e2.is_set():
                 stackless.run()
                 time.sleep(0.001)
-            e2.wait() #wait until we can die
+            e2.wait()  # wait until we can die
         t = threading.Thread(target=threadfunc)
         t.start()
         e1.wait()
@@ -225,10 +240,10 @@ class TestRebindCrash(SkipMixin, StacklessTestCase):
         finally:
             end()
 
-
     def test_no_rebind(self):
         result = []
         e = threading.Event()
+
         def job():
             result.append(thread.get_ident())
             e.set()
@@ -243,6 +258,7 @@ class TestRebindCrash(SkipMixin, StacklessTestCase):
     def test_rebind(self):
         self.skipUnlessSoftswitching()
         result = []
+
         def job():
             result.append(thread.get_ident())
         end, task = self.create_remote_tasklet(job=job)
@@ -260,8 +276,10 @@ class TestRebindCrash(SkipMixin, StacklessTestCase):
         finally:
             end()
 
+
 class RemoteTaskletTests(SkipMixin, StacklessTestCase):
     ThreadClass = LingeringThread
+
     def setUp(self):
         super(RemoteTaskletTests, self).setUp()
         self.taskletExecuted = False
@@ -279,7 +297,7 @@ class RemoteTaskletTests(SkipMixin, StacklessTestCase):
         if not action:
             action = self.tasklet_action
         theThread = self.ThreadClass(target=self.create_tasklet,
-        args=(action,))
+                                     args=(action,))
         theThread.start()
         self.event.wait()
         self.event.clear()
@@ -288,6 +306,7 @@ class RemoteTaskletTests(SkipMixin, StacklessTestCase):
 
 
 class TestRemove(RemoteTaskletTests):
+
     def test_remove_balance(self):
         """ Test that remove from the runqueue of a remote thread does not affect the
         bookkeeping of the current thread.
@@ -323,6 +342,7 @@ class TestRemove(RemoteTaskletTests):
 
 
 class DeadThreadTest(RemoteTaskletTests):
+
     def test_tasklet_from_dead_thread(self):
         theThread, t = self.create_thread_task()
         self.assertTrue(t.alive)
@@ -482,8 +502,10 @@ class BindThreadTest(RemoteTaskletTests):
         self.assertTrue(self.taskletExecuted)
         self.assertFalse(t.alive)
 
+
 class SchedulingBindThreadTests(RemoteTaskletTests):
     ThreadClass = SchedulingThread
+
     def tasklet_action(self):
         self.channel.receive()
         self.taskletExecuted = True
@@ -522,9 +544,11 @@ class SchedulingBindThreadTests(RemoteTaskletTests):
 
 class SwitchTest(RemoteTaskletTests):
     ThreadClass = SchedulingThread
+
     def tasklet_action(self):
-        stackless.schedule_remove() # pause it
+        stackless.schedule_remove()  # pause it
         self.taskletExecuted = True
+
     def test_switch(self):
         """Test that inter-thread switching fails"""
         theThread, t = self.create_thread_task()
@@ -535,6 +559,7 @@ class SwitchTest(RemoteTaskletTests):
 
 class SetupFromDifferentThreadTest(RemoteTaskletTests):
     # Test case for issue #60 https://bitbucket.org/stackless-dev/stackless/issue/60
+
     def create_tasklet(self, action, *args, **kw):
         self.tasklet = stackless.tasklet(action)
         self.event.set()
@@ -546,7 +571,6 @@ class SetupFromDifferentThreadTest(RemoteTaskletTests):
 
 
 if __name__ == '__main__':
-    import sys
     if not sys.argv[1:]:
         sys.argv.append('-v')
 

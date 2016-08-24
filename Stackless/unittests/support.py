@@ -6,10 +6,10 @@ except:
     withThreads = False
 import unittest
 import re
-import types
 import contextlib
 import sys
 from io import StringIO
+
 
 @contextlib.contextmanager
 def captured_stderr():
@@ -21,8 +21,10 @@ def captured_stderr():
     finally:
         sys.stderr = old
 
+
 class RegexMixIn(object):
     """for pre-2.7 support """
+
     def assertRaisesRegexp(self, klass, rex, func, *args):
         try:
             func(*args)
@@ -32,7 +34,9 @@ class RegexMixIn(object):
         else:
             self.assertTrue(False, "exception not raised")
 
+
 class StacklessTestCase(unittest.TestCase, RegexMixIn):
+
     def setUp(self):
         self.assertEqual(stackless.getruncount(), 1, "Leakage from other tests, with %d tasklets still in the scheduler" % (stackless.getruncount() - 1))
         if withThreads:
@@ -58,17 +62,20 @@ class StacklessTestCase(unittest.TestCase, RegexMixIn):
                 self.assertEqual(threading.activeCount(), 1, "Leakage from other threads, with %d threads running (1 expected)" % (threading.activeCount()))
 
     SAFE_TESTCASE_ATTRIBUTES = unittest.TestCase(methodName='run').__dict__.keys()
+
     def _addSkip(self, result, reason):
         # Remove non standard attributes. They could render the test case object unpickleable.
         # This is a hack, but it works fairly well.
         for k in list(self.__dict__.keys()):
             if k not in self.SAFE_TESTCASE_ATTRIBUTES and \
-            not isinstance(self.__dict__[k], (type(None), str, int, float)):
+                    not isinstance(self.__dict__[k], (type(None), str, int, float)):
                 del self.__dict__[k]
         super(StacklessTestCase, self)._addSkip(result, reason)
 
+
 class AsTaskletTestCase(StacklessTestCase):
     """A test case class, that runs tests as tasklets"""
+
     def setUp(self):
         self._ran_AsTaskletTestCase_setUp = True
         if stackless.enable_softswitch(None):
@@ -81,8 +88,9 @@ class AsTaskletTestCase(StacklessTestCase):
 
     def run(self, result=None):
         c = stackless.channel()
-        c.preference = 1 #sender priority
+        c.preference = 1  # sender priority
         self._ran_AsTaskletTestCase_setUp = False
+
         def helper():
             try:
                 c.send(super(AsTaskletTestCase, self).run(result))

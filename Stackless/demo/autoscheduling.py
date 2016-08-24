@@ -1,8 +1,11 @@
-import sys, stackless
+import sys
+import stackless
+
 
 def schedule_cb(task):
     if task:
         task.insert()
+
 
 def autoschedule(bytecodes=None):
     if bytecodes is None:
@@ -22,15 +25,12 @@ if __name__ == "__main__":
 
     def print_name(name, count):
         print name, count
-        
+
     # Helpers
     def runtask(name):
         for ii in xrange(1000):
             if ii % 50:
                 run_atomic(print_name, name, ii)
-                
 
     tasklets = [stackless.tasklet(runtask)(name) for name in ["one", "two", "three"]]
     autoschedule()
-    
-    

@@ -1,4 +1,6 @@
-import pickle, sys, random
+import pickle
+import sys
+import random
 import unittest
 import stackless
 
@@ -12,30 +14,28 @@ def is_soft():
     stackless.enable_softswitch(softswitch)
     return softswitch
 
+
 class SimpleScheduler(object):
     """ Not really scheduler as such but used here to implement
     autoscheduling hack and store a schedule count. """
 
-    def __init__(self, bytecodes = 25, softSchedule = False):
+    def __init__(self, bytecodes=25, softSchedule=False):
         self.bytecodes = bytecodes
         self.schedule_count = 0
         self.softSchedule = softSchedule
 
-
     def get_schedule_count(self):
         return self.schedule_count
-
 
     def schedule_cb(self, task):
         self.schedule_count += 1
         if task:
             task.insert()
 
-
     def autoschedule(self):
         while stackless.runcount > 1:
             try:
-                returned = stackless.run(self.bytecodes, soft = self.softSchedule)
+                returned = stackless.run(self.bytecodes, soft=self.softSchedule)
 
             except Exception as e:
 
@@ -48,13 +48,13 @@ class SimpleScheduler(object):
             else:
                 self.schedule_cb(returned)
 
+
 def runtask6(name):
     me = stackless.getcurrent()
     cur_depth = me.recursion_depth
 
     for ii in range(1000):
         assert cur_depth == me.recursion_depth
-
 
 
 def runtask_print(name):
@@ -69,7 +69,7 @@ def runtask(name):
     x = 0
     for ii in range(1000):
         if ii % 50 == 0:
-            sys._getframe() # a dummy
+            sys._getframe()  # a dummy
 
         x += 1
 
@@ -80,11 +80,12 @@ def runtask2(name):
     x = 0
     for ii in range(1000):
         if ii % 50 == 0:
-            stackless.schedule() # same time, but should give up timeslice
+            stackless.schedule()  # same time, but should give up timeslice
 
         x += 1
 
     return name
+
 
 def runtask3(name):
     exec("""
@@ -113,8 +114,10 @@ def runtask5(name):
 
 def runtask_atomic_helper(count):
     hold = stackless.current.set_atomic(1)
-    for ii in range(count): pass
+    for ii in range(count):
+        pass
     stackless.current.set_atomic(hold)
+
 
 def runtask_atomic(name):
     for ii in range(10):
@@ -148,6 +151,7 @@ def servertask(name, chan):
 
 class TestWatchdog(StacklessTestCase):
     softSchedule = False
+
     def setUp(self):
         super(TestWatchdog, self).setUp()
         self.verbose = __name__ == "__main__"
@@ -161,7 +165,7 @@ class TestWatchdog(StacklessTestCase):
         for name in ["t1", "t2", "t3"]:
             tasklets.append(stackless.tasklet(fn)(name))
         # allow scheduling with hard switching
-        list(map(lambda t:t.set_ignore_nesting(1), tasklets))
+        list(map(lambda t: t.set_ignore_nesting(1), tasklets))
 
         scheduler.autoschedule()
         for ii in tasklets:
@@ -169,29 +173,24 @@ class TestWatchdog(StacklessTestCase):
 
         return scheduler.get_schedule_count()
 
-
     def test_simple(self):
         self.run_tasklets(runtask)
-
 
     def xtest_recursion_count(self):
         self.run_tasklets(runtask6)
 
-
     def test_nested(self):
         self.run_tasklets(runtask5)
 
-
     def test_nested2(self):
         self.run_tasklets(runtask5, 0)
-
 
     def test_tasklet_with_schedule(self):
         # make sure that we get enough tick counting
         try:
             hold = sys.getcheckinterval()
         except AttributeError:
-            hold = 10 # default before 2.3
+            hold = 10  # default before 2.3
         sys.setcheckinterval(10)
 
         n1 = self.run_tasklets(runtask)
@@ -200,12 +199,11 @@ class TestWatchdog(StacklessTestCase):
         sys.setcheckinterval(hold)
         if self.verbose:
             print()
-            print(20*"*", "runtask:", n1, "runtask2:", n2)
+            print(20 * "*", "runtask:", n1, "runtask2:", n2)
         if not self.softSchedule:
             self.assertGreater(n1, n2)
         else:
             self.assertLess(n1, n2)
-
 
     def test_exec_tasklet(self):
         self.run_tasklets(runtask3)
@@ -218,20 +216,19 @@ class TestWatchdog(StacklessTestCase):
         scheduler = SimpleScheduler(100, self.softSchedule)
 
         tasklets = [stackless.tasklet(runtask4)(name, chan)
-                     for name in ["client1", "client2", "client3"]]
+                    for name in ["client1", "client2", "client3"]]
 
         scheduler.autoschedule()
         self.assertEqual(server.count, 60)
 
         # Kill server
-        self.assertRaises(StopIteration, lambda:chan.send_exception(StopIteration))
-
+        self.assertRaises(StopIteration, lambda: chan.send_exception(StopIteration))
 
     def test_atomic(self):
         self.run_tasklets(runtask_atomic)
 
     def test_exception(self):
-        self.assertRaises(UserWarning, lambda:self.run_tasklets(runtask_bad))
+        self.assertRaises(UserWarning, lambda: self.run_tasklets(runtask_bad))
 
     def get_pickled_tasklet(self):
         orig = stackless.tasklet(runtask_print)("pickleme")
@@ -256,7 +253,7 @@ class TestWatchdog(StacklessTestCase):
             t.run()
         else:
             self.assertRaises(RuntimeError, t.run)
-            return # enough crap
+            return  # enough crap
 
         # Run on watchdog
         t = pickle.loads(self.get_pickled_tasklet())
@@ -265,11 +262,12 @@ class TestWatchdog(StacklessTestCase):
             returned = stackless.run(100)
 
     def test_run_return(self):
-        #if the main tasklet had previously gone into C stack recusion-based switch, stackless.run() would give
-        #strange results
-        #this would happen after, e.g. tasklet pickling and unpickling
-        #note, the bug was hard to repro, most of the time, it didn't occur.
+        # if the main tasklet had previously gone into C stack recusion-based switch, stackless.run() would give
+        # strange results
+        # this would happen after, e.g. tasklet pickling and unpickling
+        # note, the bug was hard to repro, most of the time, it didn't occur.
         t = pickle.loads(self.get_pickled_tasklet())
+
         def func():
             pass
         t = stackless.tasklet(func)
@@ -284,49 +282,50 @@ class TestWatchdog(StacklessTestCase):
         stackless.tasklet(f)()
         stackless.run()
 
+
 class TestWatchdogSoft(TestWatchdog):
     softSchedule = True
 
-
     def __init__(self, *args):
         self.chans = [stackless.channel() for i in range(3)]
-        #for c in self.chans:
+        # for c in self.chans:
         #    c.preference = 0
         TestWatchdog.__init__(self, *args)
 
     def ChannelTasklet(self, i):
-        a = i;
-        b = (i+1)%3
-        recv = False #to bootstrap the cycle
+        a = i
+        b = (i + 1) % 3
+        recv = False  # to bootstrap the cycle
         while True:
-            #print a
+            # print a
             if i != 0 or recv:
                 d = self.chans[a].receive()
             recv = True
             j = 0
             for i in range(random.randint(100, 1000)):
-                j = i+i
+                j = i + i
 
             self.chans[b].send(j)
 
-
-    #test the soft interrupt on a chain of tasklets running
+    # test the soft interrupt on a chain of tasklets running
     def test_channelchain(self):
         c = [stackless.tasklet(self.ChannelTasklet) for i in range(3)]
-        #print sys.getcheckinterval()
+        # print sys.getcheckinterval()
         for i, t in enumerate(reversed(c)):
             t(i)
         try:
             for i in range(10):
                 stackless.run(50000, soft=True, totaltimeout=True, ignore_nesting=True)
-                #print "**", stackless.runcount
+                # print "**", stackless.runcount
                 self.assertTrue(stackless.runcount == 3 or stackless.runcount == 4)
         finally:
             for t in c:
                 t.kill()
 
+
 class TestDeadlock(StacklessTestCase):
     """Test various deadlock scenarios"""
+
     def testReceiveOnMain(self):
         """Thest that we get a deadock exception if main tries to block"""
         self.c = stackless.channel()
@@ -335,13 +334,13 @@ class TestDeadlock(StacklessTestCase):
     def test_main_receiving_endttasklet(self):
         """Test that the main tasklet is interrupted when a tasklet ends"""
         c = stackless.channel()
-        t = stackless.tasklet(lambda:None)()
+        t = stackless.tasklet(lambda: None)()
         self.assertRaisesRegexp(RuntimeError, "receiving", c.receive)
 
     def test_main_sending_enddtasklet(self):
         """Test that the main tasklet is interrupted when a tasklet ends"""
         c = stackless.channel()
-        t = stackless.tasklet(lambda:None)()
+        t = stackless.tasklet(lambda: None)()
         self.assertRaisesRegexp(RuntimeError, "sending", c.send, None)
 
     def test_main_gets_exception(self):
@@ -354,6 +353,7 @@ class TestDeadlock(StacklessTestCase):
     def test_tasklet_deadlock(self):
         """Test that a tasklet gets the "Deadlock" exception"""
         mc = stackless.channel()
+
         def task():
             c = stackless.channel()
             self.assertRaisesRegexp(RuntimeError, "Deadlock", c.receive)
@@ -364,6 +364,7 @@ class TestDeadlock(StacklessTestCase):
     def test_tasklet_and_main_receive(self):
         """Test that the tasklet's deadlock exception gets transferred to a blocked main"""
         mc = stackless.channel()
+
         def task():
             stackless.channel().receive()
         t = stackless.tasklet(task)()
@@ -373,6 +374,7 @@ class TestDeadlock(StacklessTestCase):
     def test_error_propagation_when_not_deadlock(self):
         def task1():
             stackless.schedule()
+
         def task2():
             raise ZeroDivisionError("bar")
 
@@ -383,6 +385,7 @@ class TestDeadlock(StacklessTestCase):
 
 class TestNewWatchdog(StacklessTestCase):
     """Tests for running stackless.run on non-main tasklet, and having nested run invocations"""
+
     def worker_func(self):
         stackless.schedule()
         self.done += 1
@@ -404,13 +407,14 @@ class TestNewWatchdog(StacklessTestCase):
             stackless.schedule()
         # the runner is still paused, because the main tasklet wasn't blocked
         self.assertEqual(self.done, 1)
-        #make runner exit
+        # make runner exit
         t.run()
         self.assertTrue(self.done, 2)
 
     def test_run_from_worker_main_blocked(self):
         """main is blocked while a tasklet calls stackless.run()"""
         c = stackless.channel()
+
         def runner_func():
             stackless.run()
             self.done += 1
@@ -420,6 +424,7 @@ class TestNewWatchdog(StacklessTestCase):
         # main blocks
         c.receive()
         self.assertEqual(self.done, 2)
+
     def test_run_from_worker_main_running(self):
         """Main calls run() to start inner tasklet that also calls run()"""
         def runner_func():
@@ -442,11 +447,11 @@ class TestNewWatchdog(StacklessTestCase):
         stackless.run()
         self.assertEqual(self.done, 2)
 
-
     def test_inner_run_gets_error(self):
         """Test that an unhandled error is passed to the inner watchdog"""
         def errfunc():
             raise RuntimeError("foo")
+
         def runner_func():
             stackless.tasklet(errfunc)()
             self.assertRaisesRegexp(RuntimeError, "foo", stackless.run)
@@ -460,16 +465,17 @@ class TestNewWatchdog(StacklessTestCase):
         def wakeupfunc():
             stackless.main.run()
             self.done += 1
+
         def runner_func():
             stackless.tasklet(wakeupfunc)()
             stackless.run()
             self.done += 1
         stackless.tasklet(runner_func)()
         stackless.run()
-        self.assertEqual(self.done, 1) # only worker func has run now
+        self.assertEqual(self.done, 1)  # only worker func has run now
         # empty all tasklets
         stackless.run()
-        self.assertEqual(self.done, 3) # all tasklets have completed.
+        self.assertEqual(self.done, 3)  # all tasklets have completed.
 
     def test_main_exiting(self):
         """Verify behavior when main continues running and a taskler runs a watchdog """
@@ -482,16 +488,16 @@ class TestNewWatchdog(StacklessTestCase):
         # let the scheduler run
         while not self.done:
             stackless.schedule()
-        self.assertEqual(self.done, 1) # only worker has finished.
+        self.assertEqual(self.done, 1)  # only worker has finished.
 
-        #now, run stackless.run here
+        # now, run stackless.run here
         stackless.run()
         # but nothing happened, because the other watchdog is not runnable
-        self.assertEqual(self.done, 1) # only worker has finished.
+        self.assertEqual(self.done, 1)  # only worker has finished.
         stackless.run()
-        self.assertEqual(self.done, 1) # the other tasklet is blocked.
+        self.assertEqual(self.done, 1)  # the other tasklet is blocked.
         stackless.schedule()
-        self.assertEqual(self.done, 1) # The other dude won't exit its run until we are no longer runnable.
+        self.assertEqual(self.done, 1)  # The other dude won't exit its run until we are no longer runnable.
         self.assertTrue(t.alive)
         t.kill()
         self.assertFalse(t.alive)
@@ -500,7 +506,7 @@ class TestNewWatchdog(StacklessTestCase):
         def runner_func():
             stackless.run(2, soft=soft, totaltimeout=True, ignore_nesting=True)
             if stackless.getruncount():
-                self.done += 1 # we were interrupted
+                self.done += 1  # we were interrupted
             t1.kill()
             t2.kill()
 
@@ -527,17 +533,18 @@ class TestNewWatchdog(StacklessTestCase):
 
     def _test_watchdog_priority(self, soft):
         self.awoken = 0
+
         def runner_func(recursive, start):
-            if  recursive:
-                stackless.tasklet(runner_func)(recursive-1, start)
+            if recursive:
+                stackless.tasklet(runner_func)(recursive - 1, start)
             with stackless.atomic():
                 stackless.run(2, soft=soft, totaltimeout=True, ignore_nesting=True)
                 a = self.awoken
                 self.awoken += 1
             if recursive == start:
                 # we are the first watchdog
-                self.assertEqual(a, 0) #the first to wake up
-                self.done += 1 # we were interrupted
+                self.assertEqual(a, 0)  # the first to wake up
+                self.done += 1  # we were interrupted
             t1.kill()
             t2.kill()
 
@@ -561,19 +568,19 @@ class TestNewWatchdog(StacklessTestCase):
         """Verify that outermost "real" watchdog gets awoken (hard)"""
         self._test_watchdog_priority(False)
 
+
 def load_tests(loader, tests, pattern):
     """custom loader to run just a subset"""
     suite = unittest.TestSuite()
-    test_cases = [TestNewWatchdog]#, TestDeadlock]
+    test_cases = [TestNewWatchdog]  # , TestDeadlock]
     for test_class in test_cases:
         tests = loader.loadTestsFromTestCase(test_class)
         suite.addTests(tests)
     return suite
-del load_tests #disabled
+del load_tests  # disabled
 
 
 if __name__ == '__main__':
-    import sys
     if not sys.argv[1:]:
         sys.argv.append('-v')
 

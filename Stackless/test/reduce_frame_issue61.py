@@ -9,7 +9,6 @@ https://bitbucket.org/stackless-dev/stackless/issue/61
 
 from __future__ import absolute_import, print_function, unicode_literals, division
 
-import pickle
 import stackless
 from collections import namedtuple
 
@@ -17,12 +16,14 @@ FrameState = namedtuple("FrameState", ('f_code', 'valid', 'exec_name', 'f_global
                                        'f_locals', 'f_trace', 'exc_as_tuple', 'f_lasti', 'f_lineno',
                                        'blockstack_as_tuple', 'localsplus_as_tuple'))
 
+
 def reduce_current():
     result = []
 
     def reduce_current2():
         """This function has exactly one local variable (func), one cellvar (result2) and one freevar (result)"""
         result2 = result
+
         def func(current):
             result2.append(stackless._wrap.frame.__reduce__(current.frame))
         stackless.tasklet().bind(func, (stackless.current,)).run()
