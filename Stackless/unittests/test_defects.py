@@ -235,7 +235,7 @@ class TestShutdown(StacklessTestCase):
     def test_cstack_new(self):
         # test for issue #80 https://bitbucket.org/stackless-dev/stackless/issues/80/
         import subprocess
-        rc = subprocess.call([sys.executable, "-E", "-c", """if 1:
+        rc = subprocess.call([sys.executable, "-S", "-E", "-c", """if 1:
             import stackless, sys
 
             def func():
