@@ -1,10 +1,13 @@
 import stackless
 
+
 class MyChannel:
+
     def __init__(self):
         self.queue = []
         self.balance = 0
         self.temp = None
+
     def send(self, data):
         if self.balance < 0:
             receiver = self.queue.pop(0)
@@ -17,6 +20,7 @@ class MyChannel:
             self.queue.append((sender, data))
             self.balance += 1
             jump_off(sender)
+
     def receive(self):
         if self.balance > 0:
             sender, retval = self.queue.pop(0)
@@ -30,15 +34,18 @@ class MyChannel:
             jump_off(receiver)
             return self.temp
 
+
 def jump_off(task):
     stackless.tasklet().capture()
     task.remove()
     stackless.schedule()
 
+
 def f1(ch):
     for i in range(5):
         ch.send(i)
     print "done sending"
+
 
 def f2(ch):
     while 1:
@@ -48,6 +55,7 @@ def f2(ch):
             return
         print "received", data
 
+
 def test():
     ch = MyChannel()
     t2 = stackless.tasklet(f2)(ch)
@@ -55,6 +63,5 @@ def test():
     stackless.run()
     return ch
 
-if __name__=="__main__":
+if __name__ == "__main__":
     test()
-    

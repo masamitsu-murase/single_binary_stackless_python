@@ -3,44 +3,58 @@
 from __future__ import division, absolute_import, print_function, unicode_literals
 
 import sys
+import time
 
 PY3 = sys.version_info[0] >= 3
 
 # speed test
-import time, sys
 if PY3:
     import _thread as thread
     xrange = range
 else:
     import thread
 
-class StacklessError(Exception): pass
+
+class StacklessError(Exception):
+    pass
 
 try:
     from stackless import *
+    from stackless import test_cframe, test_cframe_nr, test_outside
     IS_SLP = True
 except ImportError:
     IS_SLP = False
     print("This is not Stackless Python. Most tests will not work.")
+
     def schedule(*args):
         raise StacklessError
     test_outside = test_cframe = test_cframe_nr = schedule
-    def enable_softswitch(n): pass
+
+    def enable_softswitch(n):
+        pass
+
     class stackless:
-        debug = 0 # assume to be tested with normal C-Python(r)
+        debug = 0  # assume to be tested with normal C-Python(r)
         uncollectables = []
     tasklist = []
+
     class tasklet(object):
+
         def __init__(self, func):
             self.func = func
             tasklist.append(self)
+
         def __call__(self, *args):
             self.args = args
+
         def run(self):
             self.func(*self.args)
+
     class channel:
+
         def __init__(self):
             raise StacklessError
+
     def run():
         global tasklist
         try:
@@ -54,22 +68,41 @@ print(sys.version)
 args_given = None
 try:
     args_given = int(sys.argv[1])
-except: 
-    if not PY3: # PY3 does it alone
+except:
+    if not PY3:  # PY3 does it alone
         sys.exc_clear()
+
 
 def f(n, sched):
     for i in xrange(0, n, 20):
-        sched(); sched(); sched(); sched(); sched()
-        sched(); sched(); sched(); sched(); sched()
-        sched(); sched(); sched(); sched(); sched()
-        sched(); sched(); sched(); sched(); sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+
 
 def cleanup():
     # kill uncollectables from hard switching and threads
     for task in stackless.uncollectables:
         if task.blocked:
             task.kill()
+
 
 def tester(func, niter, args, msg, ntasks=10, run=run):
     print("%8d %s" % (niter, msg, ), end=' ')
@@ -85,25 +118,46 @@ def tester(func, niter, args, msg, ntasks=10, run=run):
         if diff == 0:
             print('no timing possible')
         else:
-            print("took %9.5f seconds, rate = %10d/s" % (diff, niter/diff))
+            print("took %9.5f seconds, rate = %10d/s" % (diff, niter / diff))
     except StacklessError:
         print("could not run, this is not Stackless")
     return diff
 
 # generator test
+
+
 def gf(n):
     for i in xrange(0, n, 20):
-        yield i; yield i; yield i; yield i; yield i
-        yield i; yield i; yield i; yield i; yield i
-        yield i; yield i; yield i; yield i; yield i
-        yield i; yield i; yield i; yield i; yield i
+        yield i
+        yield i
+        yield i
+        yield i
+        yield i
+        yield i
+        yield i
+        yield i
+        yield i
+        yield i
+        yield i
+        yield i
+        yield i
+        yield i
+        yield i
+        yield i
+        yield i
+        yield i
+        yield i
+        yield i
+
 
 def gentest(n):
-    for i in gf(n):pass
+    for i in gf(n):
+        pass
+
 
 def channel_sender(chan, nest=0, bulk=0):
     if nest:
-        return channel_sender(chan, nest-1)
+        return channel_sender(chan, nest - 1)
     if bulk:
         data = range(20)
         send_seq = chan.send_sequence
@@ -113,26 +167,60 @@ def channel_sender(chan, nest=0, bulk=0):
             send_exc(StopIteration)
     send = chan.send
     while 1:
-        send(42); send(42); send(42); send(42); send(42);
-        send(42); send(42); send(42); send(42); send(42);
-        send(42); send(42); send(42); send(42); send(42);
-        send(42); send(42); send(42); send(42); send(42);
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
 
 # alternate, for real application cases
 
+
 def channel_sender(chan, nest=0, bulk=0):
     if nest:
-        return channel_sender(chan, nest-1)
+        return channel_sender(chan, nest - 1)
     if bulk:
         data = range(20)
         send_seq = chan.send_sequence
         send_exc = chan.send_exception
+
         def yielder():
             while 1:
-                yield 1; yield 1; yield 1; yield 1; yield 1;             
-                yield 1; yield 1; yield 1; yield 1; yield 1;             
-                yield 1; yield 1; yield 1; yield 1; yield 1;             
-                yield 1; yield 1; yield 1; yield 1; yield 1;
+                yield 1
+                yield 1
+                yield 1
+                yield 1
+                yield 1
+                yield 1
+                yield 1
+                yield 1
+                yield 1
+                yield 1
+                yield 1
+                yield 1
+                yield 1
+                yield 1
+                yield 1
+                yield 1
+                yield 1
+                yield 1
+                yield 1
+                yield 1
                 send_exc(StopIteration)
 #        while 1:
 #            send_seq(yielder())
@@ -140,16 +228,33 @@ def channel_sender(chan, nest=0, bulk=0):
         send_seq(yielder())
     send = chan.send
     while 1:
-        send(42); send(42); send(42); send(42); send(42);
-        send(42); send(42); send(42); send(42); send(42);
-        send(42); send(42); send(42); send(42); send(42);
-        send(42); send(42); send(42); send(42); send(42);
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
+        send(42)
 
-def chantest(n, nest=0, use_thread=False, bulk = False):
+
+def chantest(n, nest=0, use_thread=False, bulk=False):
     if nest:
-        return chantest(n, nest-1, use_thread)
+        return chantest(n, nest - 1, use_thread)
     chan = channel()
-    chan.preference = 0 # fastest
+    chan.preference = 0  # fastest
     if use_thread:
         thread.start_new_thread(channel_sender, (chan,))
         # wait for thread
@@ -159,11 +264,13 @@ def chantest(n, nest=0, use_thread=False, bulk = False):
         tasklet(channel_sender)(chan, nest, bulk)
     if bulk:
         for i in xrange(0, n, 20):
-            #list(chan)
-            for i in chan: pass
+            # list(chan)
+            for i in chan:
+                pass
         return
-        
+
     recv = chan.receive
+
     def xrecv():
         if chan.balance:
             print("receiving from", id(chan.queue), "siblings=", getruncount())
@@ -173,21 +280,37 @@ def chantest(n, nest=0, use_thread=False, bulk = False):
             getcurrent().next.run()
             schedule()
     for i in xrange(0, n, 20):
-        recv(); recv(); recv(); recv(); recv()
-        recv(); recv(); recv(); recv(); recv()
-        recv(); recv(); recv(); recv(); recv()
-        recv(); recv(); recv(); recv(); recv()
+        recv()
+        recv()
+        recv()
+        recv()
+        recv()
+        recv()
+        recv()
+        recv()
+        recv()
+        recv()
+        recv()
+        recv()
+        recv()
+        recv()
+        recv()
+        recv()
+        recv()
+        recv()
+        recv()
+        recv()
 
 if 0:
     def cb(*args):
         print(args)
     set_channel_callback(cb)
-    
+
 niter = 10000000
 
 if stackless.debug:
     niter = 20000
-    
+
 if args_given:
     niter = args_given
 
@@ -200,37 +323,38 @@ if IS_SLP:
         except:
             print("*** GHOST ALERT ***")
             raise
-    
+
 enable_softswitch(0)
 res = []
-res.append(tester(f, niter, (schedule,),        "frame switches     "))
+res.append(tester(f, niter, (schedule,), "frame switches     "))
 enable_softswitch(1)
-res.append(tester(f, niter, (schedule,),        "frame softswitches "))
-res.append(tester(f, niter, (sys._getframe,),   "cfunction calls    "))
-res.append(tester(test_cframe_nr, niter, (),    "cframe softswitches"))
+res.append(tester(f, niter, (schedule,), "frame softswitches "))
+res.append(tester(f, niter, (sys._getframe,), "cfunction calls    "))
+res.append(tester(test_cframe_nr, niter, (), "cframe softswitches"))
 enable_softswitch(0)
-res.append(tester(chantest, niter, (),          "channel hard top   "))
-res.append(tester(chantest, niter, (3,),        "channel hard nest 3"))
+res.append(tester(chantest, niter, (), "channel hard top   "))
+res.append(tester(chantest, niter, (3,), "channel hard nest 3"))
 enable_softswitch(1)
-res.append(tester(chantest, niter, (),          "channel soft       "))
-res.append(tester(chantest, niter, (0, 0, 1),   "channel iterator   "))
-res.append(tester(chantest, niter//10, (0, 1),  "channel real thread"))
-res.append(tester(f, niter, (lambda:0,),        "function calls     "))
-res.append(tester(gentest, niter, (),           "generator calls    "))
-res.append(tester(test_cframe, niter//10, (),   "cframe from outside", 1, test_outside))
-res.append(tester(test_cframe, niter, (),       "cframe switches    "))
-res.append(tester(test_cframe, niter, (100,),   "cframe 100 words   "))
+res.append(tester(chantest, niter, (), "channel soft       "))
+res.append(tester(chantest, niter, (0, 0, 1), "channel iterator   "))
+res.append(tester(chantest, niter // 10, (0, 1), "channel real thread"))
+res.append(tester(f, niter, (lambda: 0,), "function calls     "))
+res.append(tester(gentest, niter, (), "generator calls    "))
+res.append(tester(test_cframe, niter // 10, (), "cframe from outside", 1, test_outside))
+res.append(tester(test_cframe, niter, (), "cframe switches    "))
+res.append(tester(test_cframe, niter, (100,), "cframe 100 words   "))
 
 if IS_SLP:
     if len(res) >= 2:
         print("The penalty per stack word is about %0.3f percent of raw switching." % (
-            (res[-1]-res[-2]) / res[-2]))
+            (res[-1] - res[-2]) / res[-2]))
 
     import struct
     adrsize = len(struct.pack("P", 0))
+
     def stacksize(tasklet):
         stack = bytes(tasklet.cstate)
-        return len(stack)/adrsize
+        return len(stack) / adrsize
 
     tmp = enable_softswitch(0)
     t = tasklet(f)(1, schedule)
@@ -273,4 +397,5 @@ Stack size of initial stub   = 13
 Stack size of frame tasklet  = 51
 Stack size of cframe tasklet = 24
 """
-import gc;gc.collect()
+import gc
+gc.collect()

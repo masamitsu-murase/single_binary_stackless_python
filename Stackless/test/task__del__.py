@@ -10,9 +10,12 @@ However, without taking care, this will crash.
 
 from stackless import *
 
+
 class a:
+
     def __del__(self):
         pass
+
 
 def bummer():
     x = a()

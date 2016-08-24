@@ -6,14 +6,20 @@ Should be run in the folder Stackless/unittests.
 """
 
 
-import os, sys, glob, unittest, stackless
+import os
+import sys
+import glob
+import unittest
+import stackless
+
 
 def getsoft():
     hold = stackless.enable_softswitch(False)
     stackless.enable_softswitch(hold)
     return hold
 
-def makeSuite(target, path = None):
+
+def makeSuite(target, path=None):
     "Build a test suite of all available test files."
 
     suite = unittest.TestSuite()
@@ -27,7 +33,7 @@ def makeSuite(target, path = None):
         modname = os.path.splitext(os.path.basename(filename))[0]
         module = __import__(modname)
         tests = unittest.TestLoader().loadTestsFromModule(module)
-        use_it = target == 0 or idx+1 == target
+        use_it = target == 0 or idx + 1 == target
         if use_it:
             suite.addTest(tests)
             if target > 0:
@@ -46,7 +52,7 @@ def main():
         del sys.argv[1]
     except (IndexError, ValueError):
         try:
-            target = TARGET
+            target = TARGET  # @UndefinedVariable
         except NameError:
             target = 0
 
@@ -56,7 +62,7 @@ def main():
             # from functions like sys.getframe, which are overridden at import
             # time.
             try:
-                import psyco
+                import psyco  # @UnresolvedImport
                 if not psyco._psyco.stackless_compatible:
                     raise AttributeError
                 psyco.full()
@@ -75,6 +81,6 @@ def main():
                 unittest.TextTestRunner(verbosity=2).run(testSuite)
         finally:
             stackless.enable_softswitch(hold)
-        
+
 if __name__ == '__main__':
     main()

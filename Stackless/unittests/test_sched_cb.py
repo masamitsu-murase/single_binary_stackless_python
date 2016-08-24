@@ -19,6 +19,7 @@ class SchedulingMonitor:
 
 class SchedulingCallbackTestCase(StacklessTestCase):
     "A collection of scheduling callback tests."
+
     def setUp(self):
         super(SchedulingCallbackTestCase, self).setUp()
         self.addCleanup(stackless.set_schedule_callback, None)
@@ -33,7 +34,7 @@ class SchedulingCallbackTestCase(StacklessTestCase):
         stackless.tasklet(stackless.test_cframe)(3)
         # precondition
         self.assertEqual(mon1.count, 0,
-            "No callbacks before running")
+                         "No callbacks before running")
         # running
         stackless.run()
         # postcondition
@@ -100,8 +101,8 @@ class SchedulingCallbackTestCase(StacklessTestCase):
 
         tasklet_a = stackless.tasklet(task_a)()
         tasklet_main = stackless.current
-        #print "Tasklet a: %r" % (tasklet_a,)
-        #print "Tasklet main: %r" % (tasklet_main,)
+        # print "Tasklet a: %r" % (tasklet_a,)
+        # print "Tasklet main: %r" % (tasklet_main,)
 
         switches = []
 
@@ -119,8 +120,8 @@ class SchedulingCallbackTestCase(StacklessTestCase):
             else:
                 # Can't deduce the current tasklet from the stack
                 name = None
-                #print "Unexpected stack: current %r, prev %r, next %r" % (current, prev, next)
-                #traceback.print_stack(file=sys.stdout)
+                # print "Unexpected stack: current %r, prev %r, next %r" % (current, prev, next)
+                # traceback.print_stack(file=sys.stdout)
 
             if current is tasklet_main:
                 current_name = 'call_run'

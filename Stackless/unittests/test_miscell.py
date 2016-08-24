@@ -5,23 +5,25 @@ import unittest
 import stackless
 import sys
 import traceback
-import contextlib
 import weakref
 import types
 import contextlib
 
 from support import StacklessTestCase, AsTaskletTestCase
 
+
 def in_psyco():
     try:
-        return __in_psyco__
+        return __in_psyco__  # @UndefinedVariable
     except NameError:
         return False
+
 
 def is_soft():
     softswitch = stackless.enable_softswitch(0)
     stackless.enable_softswitch(softswitch)
     return softswitch and not in_psyco()
+
 
 def runtask():
     x = 0
@@ -30,6 +32,7 @@ def runtask():
     for ii in xrange(1000):
         x += 1
 
+
 @contextlib.contextmanager
 def switch_trapped():
     stackless.switch_trap(1)
@@ -37,6 +40,7 @@ def switch_trapped():
         yield
     finally:
         stackless.switch_trap(-1)
+
 
 class TestWatchdog(StacklessTestCase):
 
@@ -68,7 +72,6 @@ class TestWatchdog(StacklessTestCase):
         self.assertFalse(t.alive)
         self.assertFalse(t.scheduled)
         self.assertEqual(t.recursion_depth, 0)
-
 
     def test_aliveness1(self):
         """ Test flags after being run. """
@@ -130,72 +133,83 @@ class TestWatchdog(StacklessTestCase):
         self.assertFalse(t.scheduled)
         self.assertEqual(t.recursion_depth, 0)
 
+
 class TestTaskletSwitching(StacklessTestCase):
     """Test the tasklet's own scheduling methods"""
+
     def test_raise_exception(self):
         c = stackless.channel()
+
         def foo():
             self.assertRaises(IndexError, c.receive)
         s = stackless.tasklet(foo)()
-        s.run() #necessary, since raise_exception won't automatically run it
+        s.run()  # necessary, since raise_exception won't automatically run it
         s.raise_exception(IndexError)
 
     def test_run(self):
         c = stackless.channel()
         flag = [False]
+
         def foo():
             flag[0] = True
         s = stackless.tasklet(foo)()
         s.run()
         self.assertEqual(flag[0], True)
 
+
 class TestTaskletThrowBase(object):
+
     def test_throw_noargs(self):
         c = stackless.channel()
+
         def foo():
             self.assertRaises(IndexError, c.receive)
         s = stackless.tasklet(foo)()
-        s.run() #It needs to have started to run
+        s.run()  # It needs to have started to run
         self.throw(s, IndexError)
         self.aftercheck(s)
 
     def test_throw_args(self):
         c = stackless.channel()
+
         def foo():
             try:
                 c.receive()
             except Exception, e:
-                self.assertTrue(isinstance(e, IndexError));
-                self.assertEqual(e.args, (1,2,3))
+                self.assertTrue(isinstance(e, IndexError))
+                self.assertEqual(e.args, (1, 2, 3))
         s = stackless.tasklet(foo)()
-        s.run() #It needs to have started to run
-        self.throw(s, IndexError, (1,2,3))
+        s.run()  # It needs to have started to run
+        self.throw(s, IndexError, (1, 2, 3))
         self.aftercheck(s)
 
     def test_throw_inst(self):
         c = stackless.channel()
+
         def foo():
             try:
                 c.receive()
             except Exception, e:
-                self.assertTrue(isinstance(e, IndexError));
-                self.assertEqual(e.args, (1,2,3))
+                self.assertTrue(isinstance(e, IndexError))
+                self.assertEqual(e.args, (1, 2, 3))
         s = stackless.tasklet(foo)()
-        s.run() #It needs to have started to run
-        self.throw(s, IndexError(1,2,3))
+        s.run()  # It needs to have started to run
+        self.throw(s, IndexError(1, 2, 3))
         self.aftercheck(s)
 
     def test_throw_exc_info(self):
         c = stackless.channel()
+
         def foo():
             try:
                 c.receive()
             except Exception, e:
-                self.assertTrue(isinstance(e, ZeroDivisionError));
+                self.assertTrue(isinstance(e, ZeroDivisionError))
         s = stackless.tasklet(foo)()
-        s.run() #It needs to have started to run
+        s.run()  # It needs to have started to run
+
         def errfunc():
-            1/0
+            1 / 0
         try:
             errfunc()
         except Exception:
@@ -204,16 +218,18 @@ class TestTaskletThrowBase(object):
 
     def test_throw_traceback(self):
         c = stackless.channel()
+
         def foo():
             try:
                 c.receive()
-            except Exception, e:
+            except Exception:
                 s = "".join(traceback.format_tb(sys.exc_info()[2]))
                 self.assertTrue("errfunc" in s)
         s = stackless.tasklet(foo)()
-        s.run() #It needs to have started to run
+        s.run()  # It needs to have started to run
+
         def errfunc():
-            1/0
+            1 / 0
         try:
             errfunc()
         except Exception:
@@ -222,6 +238,7 @@ class TestTaskletThrowBase(object):
 
     def test_new(self):
         c = stackless.channel()
+
         def foo():
             try:
                 c.receive()
@@ -233,6 +250,7 @@ class TestTaskletThrowBase(object):
         self.assertTrue(s.alive)
         # Test that the current "unhandled exception behaviour"
         # is invoked for the not-yet-running tasklet.
+
         def doit():
             self.throw(s, IndexError)
         if not self.pending:
@@ -254,6 +272,7 @@ class TestTaskletThrowBase(object):
 
     def test_dead(self):
         c = stackless.channel()
+
         def foo():
             c.receive()
         s = stackless.tasklet(foo)()
@@ -261,12 +280,14 @@ class TestTaskletThrowBase(object):
         c.send(None)
         stackless.run()
         self.assertFalse(s.alive)
+
         def doit():
             self.throw(s, IndexError)
         self.assertRaises(RuntimeError, doit)
 
     def test_kill_dead(self):
         c = stackless.channel()
+
         def foo():
             c.receive()
         s = stackless.tasklet(foo)()
@@ -274,6 +295,7 @@ class TestTaskletThrowBase(object):
         c.send(None)
         stackless.run()
         self.assertFalse(s.alive)
+
         def doit():
             self.throw(s, TaskletExit)
         # nothing should happen here.
@@ -281,15 +303,19 @@ class TestTaskletThrowBase(object):
 
     def test_throw_invalid(self):
         s = stackless.getcurrent()
+
         def t():
             self.throw(s)
         self.assertRaises(TypeError, t)
-        def t():
-            self.throw(s, IndexError(1), (1,2,3))
+
+        def t():  # @DuplicatedSignature
+            self.throw(s, IndexError(1), (1, 2, 3))
         self.assertRaises(TypeError, t)
+
 
 class TestTaskletThrowImmediate(StacklessTestCase, TestTaskletThrowBase):
     pending = False
+
     @classmethod
     def throw(cls, s, *args):
         s.throw(*args, pending=cls.pending)
@@ -298,15 +324,19 @@ class TestTaskletThrowImmediate(StacklessTestCase, TestTaskletThrowBase):
         # the tasklet ran immediately
         self.assertFalse(s.alive)
 
+
 class TestTaskletThrowNonImmediate(TestTaskletThrowImmediate):
     pending = True
+
     def aftercheck(self, s):
         # After the throw, the tasklet still hasn't run
         self.assertTrue(s.alive)
         s.run()
         self.assertFalse(s.alive)
 
+
 class TestSwitchTrap(StacklessTestCase):
+
     def assertRaisesRegex(self, klass, rex, func, *args):
         try:
             func(*args)
@@ -317,40 +347,42 @@ class TestSwitchTrap(StacklessTestCase):
             self.assertTrue(False)
 
     class SwitchTrap(object):
+
         def __enter__(self):
             stackless.switch_trap(1)
+
         def __exit__(self, exc, val, tb):
             stackless.switch_trap(-1)
     switch_trap = SwitchTrap()
 
     def test_schedule(self):
-        s = stackless.tasklet(lambda:None)()
+        s = stackless.tasklet(lambda: None)()
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", stackless.schedule)
         stackless.run()
 
     def test_schedule_remove(self):
         main = []
-        s = stackless.tasklet(lambda:main[0].insert())()
+        s = stackless.tasklet(lambda: main[0].insert())()
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", stackless.schedule_remove)
         main.append(stackless.getcurrent())
         stackless.schedule_remove()
 
     def test_run(self):
-        s = stackless.tasklet(lambda:None)()
+        s = stackless.tasklet(lambda: None)()
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", stackless.run)
         stackless.run()
 
     def test_run_specific(self):
-        s = stackless.tasklet(lambda:None)()
+        s = stackless.tasklet(lambda: None)()
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", s.run)
         s.run()
 
     def test_run_paused(self):
-        s = stackless.tasklet(lambda:None)
+        s = stackless.tasklet(lambda: None)
         s.bind(args=())
         self.assertTrue(s.paused)
         with self.switch_trap:
@@ -367,6 +399,7 @@ class TestSwitchTrap(StacklessTestCase):
 
     def test_send_throw(self):
         c = stackless.channel()
+
         def f():
             self.assertRaises(NotImplementedError, c.receive)
         s = stackless.tasklet(f)()
@@ -390,26 +423,29 @@ class TestSwitchTrap(StacklessTestCase):
 
     def test_raise_exception(self):
         c = stackless.channel()
+
         def foo():
             self.assertRaises(IndexError, c.receive)
         s = stackless.tasklet(foo)()
-        s.run() #necessary, since raise_exception won't automatically run it
+        s.run()  # necessary, since raise_exception won't automatically run it
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", s.raise_exception, RuntimeError)
         s.raise_exception(IndexError)
 
     def test_kill(self):
         c = stackless.channel()
+
         def foo():
             self.assertRaises(TaskletExit, c.receive)
         s = stackless.tasklet(foo)()
-        s.run() #necessary, since raise_exception won't automatically run it
+        s.run()  # necessary, since raise_exception won't automatically run it
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", s.kill)
         s.kill()
 
-    def test_run(self):
+    def test_run2(self):
         c = stackless.channel()
+
         def foo():
             pass
         s = stackless.tasklet(foo)()
@@ -417,9 +453,12 @@ class TestSwitchTrap(StacklessTestCase):
             self.assertRaisesRegex(RuntimeError, "switch_trap", s.run)
         s.run()
 
+
 class TestKill(StacklessTestCase):
+
     def test_kill_pending_true(self):
         killed = [False]
+
         def foo():
             try:
                 stackless.schedule()
@@ -436,6 +475,7 @@ class TestKill(StacklessTestCase):
 
     def test_kill_pending_False(self):
         killed = [False]
+
         def foo():
             try:
                 stackless.schedule()
@@ -448,7 +488,9 @@ class TestKill(StacklessTestCase):
         t.kill(pending=False)
         self.assertTrue(killed[0])
 
+
 class TestErrorHandler(StacklessTestCase):
+
     def setUp(self):
         self.handled = self.ran = 0
         self.handled_tasklet = None
@@ -558,18 +600,21 @@ _create_contextlib_test_classes()
 
 
 class TestContextManager(StacklessTestCase):
+
     def nestingLevel(self):
         self.assertFalse(stackless.getcurrent().nesting_level)
 
         class C(object):
-            def __enter__(self_):
+
+            def __enter__(self_):  # @NoSelf
                 self.assertFalse(stackless.getcurrent().nesting_level)
                 return self_
-            def __exit__(self_, exc_type, exc_val, exc_tb):
+
+            def __exit__(self_, exc_type, exc_val, exc_tb):  # @NoSelf
                 self.assertFalse(stackless.getcurrent().nesting_level)
                 return False
         with C() as c:
-            self.assertTrue(isinstance(c,C))
+            self.assertTrue(isinstance(c, C))
 
     def test_nestingLevel(self):
         if not stackless.enable_softswitch(None):
@@ -583,6 +628,7 @@ class TestAtomic(StacklessTestCase):
     """Test the getting and setting of the tasklet's 'atomic' flag, and the
        context manager to set it to True
     """
+
     def testAtomic(self):
         old = stackless.getcurrent().atomic
         try:
@@ -626,6 +672,7 @@ class TestAtomic(StacklessTestCase):
 
 
 class TestSchedule(AsTaskletTestCase):
+
     def setUp(self):
         super(TestSchedule, self).setUp()
         self.events = []
@@ -786,7 +833,7 @@ class TestBind(StacklessTestCase):
 
     def test_bind_kwargs(self):
         t = stackless.tasklet(self.task)
-        kwargs = {"hello" : "world"}
+        kwargs = {"hello": "world"}
         t.bind(self.argstest, None, kwargs)
         t.run()
         self.assertArgs((), kwargs)
@@ -798,7 +845,7 @@ class TestBind(StacklessTestCase):
 
     def test_bind_args_kwargs(self):
         args = ("foo", "bar")
-        kwargs = {"hello" : "world"}
+        kwargs = {"hello": "world"}
 
         t = stackless.tasklet(self.task)
         t.bind(self.argstest, args, kwargs)
@@ -812,7 +859,7 @@ class TestBind(StacklessTestCase):
 
     def test_bind_args_kwargs_nofunc(self):
         args = ("foo", "bar")
-        kwargs = {"hello" : "world"}
+        kwargs = {"hello": "world"}
 
         t = stackless.tasklet(self.argstest)
         t.bind(None, args, kwargs)
@@ -826,17 +873,19 @@ class TestBind(StacklessTestCase):
 
     def test_bind_args_not_runnable(self):
         args = ("foo", "bar")
-        kwargs = {"hello" : "world"}
+        kwargs = {"hello": "world"}
 
         t = stackless.tasklet(self.task)
         t.bind(self.argstest, args, kwargs)
         self.assertFalse(t.scheduled)
         t.run()
 
+
 class TestSwitch(StacklessTestCase):
     """Test the new tasklet.switch() method, which allows
     explicit switching
     """
+
     def setUp(self):
         self.source = stackless.getcurrent()
         self.finished = False
@@ -888,7 +937,7 @@ class TestSwitch(StacklessTestCase):
     def test_switch_self_trapped(self):
         t = stackless.getcurrent()
         with switch_trapped():
-            t.switch() # ok, switching to ourselves!
+            t.switch()  # ok, switching to ourselves!
 
     def test_switch_blocked_trapped(self):
         t = stackless.tasklet(self.blocked_target)()
@@ -910,6 +959,7 @@ class TestSwitch(StacklessTestCase):
         t.switch()
         self.assertTrue(self.finished)
 
+
 class TestModule(unittest.TestCase):
 
     def test_get_debug(self):
@@ -924,7 +974,6 @@ class TestModule(unittest.TestCase):
     def test_uncollectables(self):
         self.assertEqual(type(stackless.uncollectables), list)
 
-
     def test_get_threads(self):
         self.assertEqual(type(stackless.getthreads()), list)
 
@@ -935,7 +984,6 @@ class TestModule(unittest.TestCase):
 #///////////////////////////////////////////////////////////////////////////////
 
 if __name__ == '__main__':
-    import sys
     if not sys.argv[1:]:
         sys.argv.append('-v')
 

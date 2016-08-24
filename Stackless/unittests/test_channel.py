@@ -10,6 +10,7 @@ import traceback
 import contextlib
 from support import StacklessTestCase
 
+
 @contextlib.contextmanager
 def block_trap(trap=True):
     """
@@ -24,7 +25,9 @@ def block_trap(trap=True):
     finally:
         c.block_trap = old
 
+
 class TestChannels(StacklessTestCase):
+
     def testBlockingSend(self):
         ''' Test that when a tasklet sends to a channel without waiting receivers, the tasklet is blocked. '''
 
@@ -155,7 +158,7 @@ class TestChannels(StacklessTestCase):
 
         # Function to send the exception
         def f(testChannel):
-            testChannel.send_exception(ValueError, 1,2,3)
+            testChannel.send_exception(ValueError, 1, 2, 3)
 
         # Get the tasklet blocked on the channel.
         channel = stackless.channel()
@@ -173,7 +176,7 @@ class TestChannels(StacklessTestCase):
 
         # subfunction in tasklet
         def bar():
-            raise ValueError, (1,2,3)
+            raise ValueError(1, 2, 3)
 
         # Function to send the exception
         def f(testChannel):
@@ -204,6 +207,7 @@ class TestChannels(StacklessTestCase):
         '''Test that block trapping works when receiving'''
         channel = stackless.channel()
         count = [0]
+
         def f():
             with block_trap():
                 self.assertRaises(RuntimeError, channel.send, None)
@@ -219,6 +223,7 @@ class TestChannels(StacklessTestCase):
         '''Test that block trapping works when receiving'''
         channel = stackless.channel()
         count = [0]
+
         def f():
             with block_trap():
                 self.assertRaises(RuntimeError, channel.receive)
@@ -232,6 +237,7 @@ class TestChannels(StacklessTestCase):
 
 class TestClose(StacklessTestCase):
     """Test using close semantics with channels"""
+
     def setUp(self):
         super(TestClose, self).setUp()
         self.c = stackless.channel()
@@ -246,10 +252,11 @@ class TestClose(StacklessTestCase):
                 self.c.send(None)
 
         data = []
+
         def receiver():
             for i in self.c:
                 data.append(i)
-            #remove the extra "pump" nones at the end....
+            # remove the extra "pump" nones at the end....
             while data[-1] is None:
                 data.pop(-1)
             data.append(10)
@@ -271,15 +278,18 @@ class TestClose(StacklessTestCase):
     def testIterator(self):
         self.c.close()
         i = iter(self.c)
+
         def n():
             return next(i)
         self.assertRaises(StopIteration, n)
 
 
 class Subclassing(StacklessTestCase):
+
     def test_init(self):
         """Test that we can subclass channel without overriding __new__"""
         class myclass(stackless.channel):
+
             def __init__(self, name):
                 super(myclass, self).__init__()
                 self.name = name
@@ -288,9 +298,7 @@ class Subclassing(StacklessTestCase):
         self.assertEqual(c.name, name)
 
 
-
 if __name__ == '__main__':
-    import sys
     if not sys.argv[1:]:
         sys.argv.append('-v')
     unittest.main()

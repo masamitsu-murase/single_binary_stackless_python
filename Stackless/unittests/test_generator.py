@@ -4,14 +4,17 @@ import gc
 from support import StacklessTestCase
 
 
-def f(): yield 1
+def f():
+    yield 1
+
 
 class TestGarbageCollection(StacklessTestCase):
+
     def testSimpleLeakage(self):
         leakage = []
 
         gc.collect(2)
-        before  = set(id(o) for o in gc.get_objects())
+        before = set(id(o) for o in gc.get_objects())
 
         for i in f():
             pass
@@ -24,7 +27,7 @@ class TestGarbageCollection(StacklessTestCase):
                 leakage.append(x)
 
         try:
-            __in_psyco__
+            __in_psyco__  # @UndefinedVariable
             relevant = False
         except NameError:
             relevant = True
