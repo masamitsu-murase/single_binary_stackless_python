@@ -335,6 +335,8 @@ Attributes
 Exceptions
 ----------
 
+.. py:currentmodule:: exceptions
+
 .. exception:: TaskletExit
 
    This exception is used to silently kill a tasklet.  It should not be
@@ -362,7 +364,10 @@ Exceptions
    not be caught and discarded inherit from :exc:`BaseException`, rather than
    :exc:`Exception`.
 
-   This class is derived from :exc:`SystemExit`. 
+   This class is derived from :exc:`SystemExit`. It is defind in the modules
+   :mod:`exceptions` and :mod:`__builtin__`.
+
+.. py:currentmodule:: stackless
 
 -------
 Classes
