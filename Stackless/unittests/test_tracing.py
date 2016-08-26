@@ -15,6 +15,7 @@ class TestTracingFlag(StacklessTestCase):
     # Because every trace function has C-state, this test can't test
     # the preservation of the tracing flag in the soft-switching code.
     def setUp(self):
+        super(TestTracingFlag, self).setUp()
         if sys.gettrace():
             self.skipTest("Trace function already active")
         self.tracecount = 0
@@ -70,6 +71,7 @@ class TestTracingFlag(StacklessTestCase):
 # Test tasklet.trace_function and tasklet.profile_function
 class TestTracingProperties(StacklessTestCase):
     def setUp(self):
+        super(TestTracingProperties, self).setUp()
         if sys.gettrace() or sys.getprofile():
             self.skipTest("Trace or profile function already active")
         self.tracecount = 0
@@ -384,6 +386,7 @@ class mutex:
 class TestTracing(StacklessTestCase):
 
     def setUp(self):
+        super(TestTracing, self).setUp()
         if sys.gettrace() or sys.getprofile():
             self.skipTest("Trace or profile function already active")
         self.addCleanup(sys.settrace, None)

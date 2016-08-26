@@ -4,7 +4,7 @@ import gc
 import sys
 import types
 
-from support import StacklessTestCase
+from support import StacklessTestCase, require_one_thread
 
 
 """
@@ -90,6 +90,7 @@ class Schedule(StacklessTestCase):
         stackless.tasklet(func)(self)
         stackless.run()
 
+    @require_one_thread
     def testScheduleRemove2(self):
         # schedule remove doesn't work if it is the only tasklet with main blocked
         # main tasklet is blocked, this should raise an error
