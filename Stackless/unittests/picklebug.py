@@ -7,13 +7,14 @@ problems in the future. This file only works in a debug build.
 import sys
 import gc
 import pickle as pickle
+import os
 from stackless import *
 
 try:
     genschedoutertest  # @UndefinedVariable
 except NameError:
     try:
-        exec(open("test_pickle.py").read())
+        exec(open(os.path.join(os.path.dirname(__file__), "test_pickle.py")).read())
     except SystemExit:
         pass
 

@@ -1,5 +1,6 @@
 import unittest
 import gc
+import stackless
 
 from support import StacklessTestCase
 
@@ -13,14 +14,15 @@ class TestGarbageCollection(StacklessTestCase):
     def testSimpleLeakage(self):
         leakage = []
 
-        gc.collect(2)
-        before = set(id(o) for o in gc.get_objects())
+        with stackless.atomic():
+            gc.collect(2)
+            before = frozenset(id(o) for o in gc.get_objects())
 
-        for i in f():
-            pass
+            for i in f():
+                pass
 
-        gc.collect(2)
-        after = gc.get_objects()
+            gc.collect(2)
+            after = gc.get_objects()
 
         for x in after:
             if x is not before and id(x) not in before:

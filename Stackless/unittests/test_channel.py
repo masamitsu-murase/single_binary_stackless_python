@@ -8,7 +8,7 @@ except ImportError:
 import sys
 import traceback
 import contextlib
-from support import StacklessTestCase
+from support import StacklessTestCase, require_one_thread
 
 
 @contextlib.contextmanager
@@ -118,6 +118,7 @@ class TestChannels(StacklessTestCase):
 
         self.assertEqual(value, originalValue, "We received a value, but it was not the one we sent.  Completely unexpected.")
 
+    @require_one_thread
     def testMainTaskletBlockingWithoutASender(self):
         ''' Test that the last runnable tasklet cannot be blocked on a channel. '''
         c = stackless.channel()
