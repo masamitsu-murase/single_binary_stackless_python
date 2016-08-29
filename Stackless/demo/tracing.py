@@ -4,24 +4,17 @@ from stackless import *
 import traceback
 
 
-def _tasklet__repr__(self):
-    try:
-        return "<tasklet %s>" % ("main" if self.is_main else self.name,)
-    except AttributeError:
-        return super(tasklet, self).__repr__()
-tasklet.__repr__ = _tasklet__repr__
-
-
 class NamedTasklet(tasklet):
     __slots__ = ["name"]
 
-    def __new__(self, func, name=None):
-        t = tasklet.__new__(self, func)
+    def __init__(self, func, name=None):
+        tasklet.__init__(self, func)
         if name is None:
             name = "at %08x" % (id(t))
-        t.name = name
-        return t
+        self.name = name
 
+    def __repr__(self):
+        return "<tasklet %s%s%s>" % (self.name, " MAIN" if self.is_main else "", " CURRENT" if self.is_current else "")
 
 class Mutex(object):
 
