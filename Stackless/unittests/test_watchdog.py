@@ -656,11 +656,9 @@ class TestNewWatchdog(StacklessTestCase):
         self.assertLessEqual([None], self.watchdog_list)
         stackless.run()
 
-    @unittest.skip("issue #85, avoid crash")
     def test_schedule_deeper_soft(self):
         self._test_schedule_deeper(True)
 
-    @unittest.skip("issue #85, avoid crash")
     def test_schedule_deeper_hard(self):
         self._test_schedule_deeper(False)
 

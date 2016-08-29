@@ -542,13 +542,17 @@ PyStackless_RunWatchdogEx(long timeout, int flags)
          */
         for(;;) {
             PyTaskletObject *popped = pop_watchdog(ts);
-            if (popped != old_current)
-                /* popped a deeper tasklet. */
+            if (!PyTasklet_Scheduled(popped))
+                /* popped a deeper tasklet, that hasn't been scheduled meanwhile */
                 slp_current_insert(popped); /* steals reference */
             else {
-                Py_DECREF(popped); /* we are already in st->ts.current */
-                break;
+                /* Usually only the current tasklet.
+                 * But also a deeper tasklet, that got scheduled (e.g. by taskler.insert())
+                 */
+                Py_DECREF(popped);
             }
+            if (popped == old_current)
+                break;
         }
         if (interrupt) {
             ts->st.interrupt = old_interrupt;
