@@ -15,6 +15,40 @@ def is_soft():
     return softswitch
 
 
+def get_current_watchdog_list():
+    import gc
+    result = []
+
+    def _tasklet(tlet):
+        if tlet is not None:
+            assert tlet.paused
+            gc.collect()
+            referrers = gc.get_referrers(tlet)
+            for obj in referrers:
+                if isinstance(obj, list):
+                    result.append(obj)
+            assert len(result) == 1, "list references %d" % len(l)
+        else:
+            stackless.tasklet(_tasklet)(stackless.current)
+            stackless.run()
+    scheduled = []
+    t = stackless.current.next
+    while t not in (None, stackless.current):
+        scheduled.append(t)
+        t = t.next
+    for t in scheduled:
+        t.remove()
+    stackless.tasklet(_tasklet)(None)
+    try:
+        stackless.run()
+    finally:
+        for t in scheduled:
+            t.insert()
+        if scheduled:
+            assert stackless.current.next == scheduled[0]
+    return result[0]
+
+
 class SimpleScheduler(object):
     """ Not really scheduler as such but used here to implement
     autoscheduling hack and store a schedule count. """
@@ -394,6 +428,16 @@ class TestNewWatchdog(StacklessTestCase):
         super(TestNewWatchdog, self).setUp()
         self.done = 0
         self.worker = stackless.tasklet(self.worker_func)()
+        self.watchdog_list = get_current_watchdog_list()
+        self.assertListEqual(self.watchdog_list, [None], "Watchdog list is not empty before test: %r" % (self.watchdog_list,))
+
+    def tearDown(self):
+        try:
+            self.assertListEqual(self.watchdog_list, [None], "Watchdog list is not empty after test: %r" % (self.watchdog_list,))
+        except AssertionError:
+            self.watchdog_list[0] = None
+            self.watchdog_list[1:] = []
+        super(TestNewWatchdog, self).tearDown()
 
     def test_run_from_worker(self):
         """Test that run() works from a different tasklet"""
@@ -538,7 +582,7 @@ class TestNewWatchdog(StacklessTestCase):
             if recursive:
                 stackless.tasklet(runner_func)(recursive - 1, start)
             with stackless.atomic():
-                stackless.run(2, soft=soft, totaltimeout=True, ignore_nesting=True)
+                stackless.run(10000, soft=soft, totaltimeout=True, ignore_nesting=True)
                 a = self.awoken
                 self.awoken += 1
             if recursive == start:
@@ -568,16 +612,48 @@ class TestNewWatchdog(StacklessTestCase):
         """Verify that outermost "real" watchdog gets awoken (hard)"""
         self._test_watchdog_priority(False)
 
+    def _test_schedule_deeper(self, soft):
+        # get rid of self.worker
+        stackless.run()
+        self.assertFalse(self.worker.alive)
+        self.assertEqual(self.done, 1)
+        self.assertListEqual([None], self.watchdog_list)
 
-def load_tests(loader, tests, pattern):
-    """custom loader to run just a subset"""
-    suite = unittest.TestSuite()
-    test_cases = [TestNewWatchdog]  # , TestDeadlock]
-    for test_class in test_cases:
-        tests = loader.loadTestsFromTestCase(test_class)
-        suite.addTests(tests)
-    return suite
-del load_tests  # disabled
+        tasklets = [None, None, None]  # watchdog1, watchdog2, worker
+
+        def worker():
+            self.assertListEqual([tasklets[0], stackless.main, tasklets[0], tasklets[1]], self.watchdog_list)
+            self.assertFalse(tasklets[1].scheduled)
+            tasklets[1].insert()
+            self.done += 1
+            for i in range(100):
+                for j in range(100):
+                    dummy = i * j
+            if soft:
+                stackless.schedule()
+            self.done += 1
+
+        def watchdog2():
+            tasklets[2] = stackless.tasklet(worker)()
+            stackless.run()
+
+        def watchdog1():
+            tasklets[1] = stackless.tasklet(watchdog2)()
+            victim = stackless.run(1000, soft=soft, ignore_nesting=True, totaltimeout=True)
+            self.assertEqual(self.done, 2, "worker interrupted too early or to late, adapt timeout: %d" % self.done)
+            if not soft:
+                self.assertEqual(tasklets[2], victim)
+
+        tasklets[0] = stackless.tasklet(watchdog1)()
+        stackless.run()
+        self.assertLessEqual([None], self.watchdog_list)
+        stackless.run()
+
+    def test_schedule_deeper_soft(self):
+        self._test_schedule_deeper(True)
+
+    def test_schedule_deeper_hard(self):
+        self._test_schedule_deeper(False)
 
 
 if __name__ == '__main__':
