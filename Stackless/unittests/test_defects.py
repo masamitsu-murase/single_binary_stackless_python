@@ -282,7 +282,6 @@ class TestStacklessProtokoll(StacklessTestCase):
         # func(None) causes the crash
         self.assertRaises(TypeError, func, None)
 
-    @unittest.skip("causes an assertion violation, issue #84")
     def test_invalid_args_tasklet_kill(self):
         func = stackless.tasklet().kill
         # func(False, None) causes the crash
