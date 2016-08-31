@@ -199,6 +199,13 @@ Callback related functions:
    The *prev* callback argument is the tasklet that was just running.
    
    The *next* callback argument is the tasklet that is going to run now.
+   
+   .. note::
+   
+      During the execution of the scheduler callback the return value
+      of :func:`getcurrent` and the value of :attr:`current` are 
+      implementation defined. You are not allowed to execute any methods, that
+      change the state of stackless for the current thread.
 
 .. function:: get_schedule_callback()
 

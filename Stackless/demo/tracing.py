@@ -1,25 +1,27 @@
-from __future__ import print_function
+from __future__ import absolute_import, print_function
 
-from stackless import *
+import sys
+import stackless
 import traceback
 
 
-class NamedTasklet(tasklet):
-    __slots__ = ["name"]
+class NamedTasklet(stackless.tasklet):
+    __slots__ = ("name",)
 
     def __init__(self, func, name=None):
-        tasklet.__init__(self, func)
+        stackless.tasklet.__init__(self, func)
         if name is None:
-            name = "at %08x" % (id(t))
+            name = "at %08x" % (id(self))
         self.name = name
 
     def __repr__(self):
-        return "<tasklet %s%s%s>" % (self.name, " MAIN" if self.is_main else "", " CURRENT" if self.is_current else "")
+        return "<tasklet %s>" % (self.name)
+
 
 class Mutex(object):
 
     def __init__(self, capacity=1):
-        self.queue = channel()
+        self.queue = stackless.channel()
         self.capacity = capacity
 
     def isLocked(self):
@@ -54,11 +56,11 @@ m = Mutex()
 
 
 def task():
-    name = getcurrent().name
+    name = stackless.getcurrent().name
     print(name, "acquiring")
     m.lock()
     print(name, "switching")
-    schedule()
+    stackless.schedule()
     print(name, "releasing")
     m.unlock()
 
@@ -84,6 +86,9 @@ def channel_cb(channel, tasklet, sending, willblock):
 
 
 def schedule_cb(prev, next):
+    # During a tasklet switch (during the execution of this function) the
+    # the result of stackless.getcurrent() is implementation defined.
+    # Therefore this function avoids any assumptions about the current tasklet.
     current_tf = sys.gettrace()
     try:
         sys.settrace(None)  # don't trace this callback
@@ -104,12 +109,9 @@ def schedule_cb(prev, next):
             print("%sjumping from %s to %s" % (current_info, prev, next))
 
         # Inform about the installed trace functions
-
-        #
         prev_tf = current_tf if prev.frame is current_frame else prev.trace_function
         next_tf = current_tf if next.frame is current_frame else next.trace_function
-        print("    Current trace functions: prev: %r, next: %r" %
-              (prev_tf, next_tf))
+        print("    Current trace functions: prev: %r, next: %r" % (prev_tf, next_tf))
 
         # Eventually set a trace function
         if next is not None:
@@ -134,18 +136,17 @@ def schedule_cb(prev, next):
         sys.settrace(current_tf)
 
 if __name__ == "__main__":
-    import sys
     if len(sys.argv) > 1 and sys.argv[1] == 'hard':
         stackless.enable_softswitch(False)
 
-    set_channel_callback(channel_cb)
-    set_schedule_callback(schedule_cb)
+    stackless.set_channel_callback(channel_cb)
+    stackless.set_schedule_callback(schedule_cb)
 
     NamedTasklet(task, "tick")()
     NamedTasklet(task, "trick")()
     NamedTasklet(task, "track")()
 
-    run()
+    stackless.run()
 
-    set_channel_callback(None)
-    set_schedule_callback(None)
+    stackless.set_channel_callback(None)
+    stackless.set_schedule_callback(None)
