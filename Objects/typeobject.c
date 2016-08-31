@@ -4812,12 +4812,15 @@ RICHCMP_WRAPPER(ge, Py_GE)
 static PyObject *
 wrap_next(PyObject *self, PyObject *args, void *wrapped)
 {
+    STACKLESS_GETARG();
     unaryfunc func = (unaryfunc)wrapped;
     PyObject *res;
 
     if (!check_num_args(args, 0))
         return NULL;
+    STACKLESS_PROMOTE_ALL();
     res = (*func)(self);
+    STACKLESS_ASSERT();
     if (res == NULL && !PyErr_Occurred())
         PyErr_SetNone(PyExc_StopIteration);
     return res;
