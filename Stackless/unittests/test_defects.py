@@ -276,8 +276,8 @@ class TestStacklessProtokoll(StacklessTestCase):
 
     See https://bitbucket.org/stackless-dev/stackless/issues/84
     """
-    @unittest.skip("causes an assertion violation, issue #84")
     def test_invalid_args_channel_next(self):
+        """test of typeobject.c wrap_next(...)"""
         func = stackless.channel().next
         # func(None) causes the crash
         self.assertRaises(TypeError, func, None)
