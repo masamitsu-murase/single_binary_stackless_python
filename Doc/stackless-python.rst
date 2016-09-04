@@ -32,6 +32,7 @@ through the :mod:`stackless` module.
    :maxdepth: 3
 
    library/stackless/stackless.rst
+   c-api/stackless.rst
 
 .. I'd really like the "What you need to know", "External resources" and
 .. "History" sections to appear in the table of contents.. but this does
@@ -58,7 +59,7 @@ and writing, socket operations, interprocess communication and more), although
 asynchronous versions of IO functionality.
 
 Some third-party modules are available that replace standard library
-functionality with Stackless-compatible versions.  The advantage of this 
+functionality with Stackless-compatible versions.  The advantage of this
 approach is that other modules which use that standard functionality,
 also work with Stackless when the replacement is installed.  The
 `Stackless socket
@@ -94,11 +95,12 @@ documentation <library/stackless/debugging>`.
 External resources
 ==================
 
-There are a range of resources available outside of this document:
+There are a range of resources available outside of this document. However most of them are
+nowadays quite dated:
 
  * The Stackless `mailing list <http://www.stackless.com/mailman/listinfo/stackless>`_.
- * The Stackless `examples project <http://code.google.com/p/stacklessexamples>`_.
- * Grant Olson's tutorial: `Introduction to Concurrent Programming with Stackless Python <http://www.grant-olson.net/python/intro-to-stackless-python>`_.
+ * The Stackless `examples project <https://bitbucket.org/stackless-dev/stacklessexamples>`_.
+ * Grant Olson's tutorial: `Introduction to Concurrent Programming with Stackless Python <http://www.grant-olson.net/projects/introduction-to-stackless-python.html>`_.
 
 History
 =======
@@ -154,14 +156,15 @@ Richard Tew to PyCon where `they sprinted
 <http://zope.stackless.com/Members/rmtew/News%20Archive/pycon2006/news_item_view>`_
 with the aid of Christian Tismer.  The result was an up to date release of |SLP|.
 From this point in time, maintaining and releasing |SLP|
-has been undertaken by Richard and Kristján.
+has been undertaken by Richard and Kristján. A few years later Anselm Kruis
+joined the team.
 
 .. [#PSFTRADEMARK]
-   "Python" and the Python logos are trademarks or registered trademarks of the 
+   "Python" and the Python logos are trademarks or registered trademarks of the
    *Python Software Foundation*, used by |SLP| with permission from the Foundation.
    See http://www.python.org/psf/trademarks/ for details.
 
 .. [#CPY]
-   With the term "|CPY|" we refer to the reference implementation of the |PPL| 
+   With the term "|CPY|" we refer to the reference implementation of the |PPL|
    that is released by the *Python Software Foundation* on http://www.python.org.
 

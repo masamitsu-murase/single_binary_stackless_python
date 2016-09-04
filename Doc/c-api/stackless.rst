@@ -1,9 +1,9 @@
 .. highlightlang:: c
 
-.. comment: affected files: data\refcounts.dat
-.. comment: affected files: c-api\stackless.rst
-.. comment: to do: link c-api\stackless.rst in somewhere
-.. comment: to do: generate new docs
+|SLP| C-API
+===========
+
+|SLP| provides the following C functions.
 
 Tasklets
 --------
@@ -18,7 +18,7 @@ Tasklets
    exception is set, which is in contrast elsewhere in the function.
 
 .. c:function:: int PyTasklet_Setup(PyTaskletObject *task, PyObject *args, PyObject *kwds)
-  
+
   Binds a tasklet function to parameters, making it ready to run and inserts in
   into the runnables queue.  Returns ``0`` if successful or ``-1`` in the case of failure.
 
@@ -66,10 +66,10 @@ Tasklets
   if the call hard switched and ``-1`` in the case of failure.
 
   .. note:: Raising :exc:`TaskletExit` on a tasklet can be done to silently kill
-     it, see :c:func:`PyTasklet_Kill`.  
+     it, see :c:func:`PyTasklet_Kill`.
 
 .. c:function:: int PyTasklet_Kill(PyTaskletObject *self)
-     
+
   Raises :exc:`TaskletExit` on tasklet *self*.  This should result in *task* being
   silently killed. Returns ``1`` if the call soft switched, ``0`` if the call hard
   switched and ``-1`` in the case of failure.
@@ -79,7 +79,7 @@ Tasklets
   Returns ``1`` if *task* is atomic, otherwise ``0``.
 
 .. c:function:: int PyTasklet_SetAtomic(PyTaskletObject *task, int flag)
-  
+
   Returns ``1`` if *task* is currently atomic, otherwise ``0``.  Sets the
   atomic attribute to the logical value of *flag*.
 
@@ -129,7 +129,7 @@ Tasklets
 
   Returns ``1`` if *task* is alive (has an associated frame), otherwise
   ``0`` if it is dead.
-  
+
 .. c:function:: int PyTasklet_Paused(PyTaskletObject *task)
 
   Returns ``1`` if *task* is paused, otherwise ``0``.  A tasklet is paused if it is
@@ -274,28 +274,28 @@ stackless module
   Wraps :c:func:`PyStackless_RunWatchdog`, but allows its behaviour to be
   customised by the value of *flags* which may contain any of the following
   bits:
-  
+
   ``Py_WATCHDOG_THREADBLOCK``
      Allows a thread to block if it runs out of tasklets.  Ideally
      it will be awakened by other threads using channels which its
      blocked tasklets are waiting on.
-  
+
   ``Py_WATCHDOG_SOFT``
      Instead of interrupting a tasklet, we wait until the
      next tasklet scheduling moment to return.  Always returns
      *Py_None*, as everything is in order.
-  
+
   ``Py_WATCHDOG_IGNORE_NESTING``
      Allows interrupts at all levels, effectively acting as
      though the *ignore_nesting* attribute were set on all
      tasklets.
-  
+
   ``Py_WATCHDOG_TIMEOUT``
      Interprets *timeout* as a fixed run time, rather than a
      per-tasklet run limit.  The function will then attempt to
      interrupt execution once this many total opcodes have
      been executed since the call was made.
-     
+
 debugging and monitoring functions
 ----------------------------------
 
