@@ -961,7 +961,7 @@ class TestSwitch(StacklessTestCase):
         self.assertTrue(self.finished)
 
 
-class TestModule(unittest.TestCase):
+class TestModule(StacklessTestCase):
 
     def test_get_debug(self):
         self.assertIn(stackless.getdebug(), [True, False])

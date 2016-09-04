@@ -168,7 +168,7 @@ class StacklessTestCase(unittest.TestCase, StacklessTestCaseMixin):
             m = getattr(cls, n)
             if inspect.ismethod(m):
                 m = m.im_func
-            if hasattr(m, "enable_softswitch"):
+            if hasattr(m, "enable_softswitch") and not getattr(m, "_H_created", False):
                 continue
 
             def wrapper_hardswitch(self, method=m):
@@ -178,9 +178,15 @@ class StacklessTestCase(unittest.TestCase, StacklessTestCaseMixin):
             wrapper_hardswitch.enable_softswitch = False
             wrapper_hardswitch.__name__ = n + "_H"
             if m.__doc__:
-                wrapper_hardswitch.__doc__ = "(hard) " + m.__doc__
+                doc = m.__doc__
+                if doc.startswith("(soft) "):
+                    doc = doc[7:]
+                wrapper_hardswitch.__doc__ = "(hard) " + doc
             setattr(cls, wrapper_hardswitch.__name__, wrapper_hardswitch)
 
+            if hasattr(m, "_H_created"):
+                continue
+            m._H_created = True
             m.enable_softswitch = True
             if m.__doc__:
                 m.__doc__ = "(soft) " + m.__doc__

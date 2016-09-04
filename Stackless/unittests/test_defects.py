@@ -146,7 +146,7 @@ class Channel(StacklessTestCase):
             stackless.enable_softswitch(old)
 
 
-class TestInfiniteRecursion(unittest.TestCase):
+class TestInfiniteRecursion(StacklessTestCase):
     # test for http://www.stackless.com/ticket/20
 
     def testDirectRecursion(self):

@@ -596,6 +596,4 @@ if __name__ == '__main__':
         sys.argv.append('-v')
 
     stackless.enable_softswitch(True)
-    unittest.main(exit=False)
-    stackless.enable_softswitch(False)
     unittest.main()
