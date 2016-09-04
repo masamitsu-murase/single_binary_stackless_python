@@ -1,3 +1,51 @@
+About Stackless Python
+======================
+
+You can find information about Stackless Python in the following
+places:
+
+1. The Manual
+
+Stackless extends the Python documentation. The entry point
+is the file Doc/stackless-python.rst. Or read the documentation online
+at http://stackless.readthedocs.io/en/latest/stackless-python.html
+
+2. The Stackless Web Site http://www.stackless.com
+
+The FAQ (https://bitbucket.org/stackless-dev/stackless/wiki/FAQ) has
+a list of further readings.
+
+3. The Mailing List
+
+If you still have questions, don't hesitate to post to the
+Stackless mailing list: http://www.stackless.com/mailman/listinfo/stackless
+
+4. The Source
+
+It is the ultimate truth. Read it at https://bitbucket.org/stackless-dev/stackless
+
+Building Stackless
+------------------
+
+Just follow the build instructions for regular Python. If you define
+the C-preprocessor symbol STACKLESS_OFF, you get a Python interpreter
+without Stackless. It should behave exactly like the corresponding
+version of regular Python. Any difference constitutes a bug.
+
+
+Contributing
+------------
+
+Contributions are always welcome. Please open an issue or create
+a pull request at https://bitbucket.org/stackless-dev/stackless.
+
+
+##################################################################
+#                                                                #
+#   WARNING: the following text is of historical interest only   #
+#                                                                #
+##################################################################
+
 A small update as of 2006-03-01
 
 Meanwhile a long time has passed since the initial Stackless
@@ -54,9 +102,9 @@ support for real OS threads as a tasklet. Phew.
       (this part is slightly obscure due to my nature,
 	   but he is still eager to learn)
 
-  - the users requests should be followed first. 
-    Especially, coroutines and microthreads are of larger interest. 
-	Generators are less interesting, since Python 2.2 includes a 
+  - the users requests should be followed first.
+    Especially, coroutines and microthreads are of larger interest.
+	Generators are less interesting, since Python 2.2 includes a
 	marveless, stack based implementation which is hard to improve.
 	The abilities of continuations have been experienced by only
 	a very small group of insiders, and they agreed that these
@@ -82,7 +130,7 @@ support for real OS threads as a tasklet. Phew.
   off in the way I intended. Especially, Stackless Python was never
   understood good enough to be incorporated into the Standard Python
   distribution. Instead of a warm welcome and instructions how to
-  make the sources suitable for inclusion, I got rejections and dissings, 
+  make the sources suitable for inclusion, I got rejections and dissings,
   especially from Guido. At that time I was really disappointed, and
   it took some time to understand that his reaction was absolutely
   correct. The code was simply too tricky and complicated, and the
@@ -96,7 +144,7 @@ support for real OS threads as a tasklet. Phew.
   which have an absolute need for its feature meanwhile, and my work
   also continuously gets some sponsorship from game developers.
   In April, I was also hired by IronPort to work on Stackless, which is great.
- 
+
 *****************************************************************************
 
   The New Concept!
@@ -121,7 +169,7 @@ support for real OS threads as a tasklet. Phew.
   I cannot support all of it. Of course there are helpers. but what is
   the general strategy?
 
-  
+
   The answer is:
   ==============
 
@@ -157,7 +205,7 @@ support for real OS threads as a tasklet. Phew.
   data that makes up a frame's C impact, put it into a structure
   and stick it into a memory area in the frame. After this, the C
   stack is cleared from the frame specific stuff.
-  The frame contains a procedure which is able to restore this frame 
+  The frame contains a procedure which is able to restore this frame
   state on demand.
 
   The interested reader will have noticed, that this concept covers
