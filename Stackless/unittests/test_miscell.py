@@ -80,7 +80,6 @@ class TestWatchdog(StacklessTestCase):
 
     def test_aliveness2(self):
         """ Same as 1, but with a pickled unrun tasklet. """
-        import pickle
         t = stackless.tasklet(runtask)()
         t_new = pickle.loads(pickle.dumps((t)))
         t.remove()
@@ -492,6 +491,7 @@ class TestKill(StacklessTestCase):
 class TestErrorHandler(StacklessTestCase):
 
     def setUp(self):
+        super(TestErrorHandler, self).setUp()
         self.handled = self.ran = 0
         self.handled_tasklet = None
 
@@ -887,6 +887,7 @@ class TestSwitch(StacklessTestCase):
     """
 
     def setUp(self):
+        super(TestSwitch, self).setUp()
         self.source = stackless.getcurrent()
         self.finished = False
         self.c = stackless.channel()
@@ -960,7 +961,7 @@ class TestSwitch(StacklessTestCase):
         self.assertTrue(self.finished)
 
 
-class TestModule(unittest.TestCase):
+class TestModule(StacklessTestCase):
 
     def test_get_debug(self):
         self.assertIn(stackless.getdebug(), [True, False])

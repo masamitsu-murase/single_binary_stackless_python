@@ -23,6 +23,7 @@ This is a test for issue http://www.stackless.com/ticket/18
 
 import unittest
 import stackless
+from support import StacklessTestCase
 
 
 def _TestCallNestingLevel_callee(self, testcase, expected_nesting_level):
@@ -30,7 +31,7 @@ def _TestCallNestingLevel_callee(self, testcase, expected_nesting_level):
     testcase.assertEqual(tasklet.nesting_level, expected_nesting_level)
 
 
-class TestCallNestingLevel(unittest.TestCase):
+class TestCallNestingLevel(StacklessTestCase):
 
     class SyntheticCallable(object):
         pass
@@ -88,7 +89,7 @@ class TestCallNestingLevel(unittest.TestCase):
         stackless.run()
 
 
-class TestStacklessCallFlag(unittest.TestCase):
+class TestStacklessCallFlag(StacklessTestCase):
     """Test if the TPFLAGS_HAVE_STACKLESS_CALL has the expected value"""
     TPFLAGS_HAVE_STACKLESS_CALL = 1 << 15
 
@@ -169,7 +170,7 @@ class TestStacklessCallFlag(unittest.TestCase):
         self.assertNotStacklessCall(self.SubClassCallable)
 
 
-class TestNonStacklessCall(unittest.TestCase):
+class TestNonStacklessCall(StacklessTestCase):
     """Test calls of a type, that does not support the stackless call protocol"""
     TPFLAGS_HAVE_STACKLESS_CALL = 1 << 15
 
@@ -184,6 +185,7 @@ class TestNonStacklessCall(unittest.TestCase):
         return arg
 
     def setUp(self):
+        super(TestNonStacklessCall, self).setUp()
         self.post_callback_called = False
         self.callback_called = False
 

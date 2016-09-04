@@ -4,7 +4,7 @@ import gc
 import sys
 import types
 
-from support import StacklessTestCase
+from support import StacklessTestCase, require_one_thread
 
 
 """
@@ -90,6 +90,7 @@ class Schedule(StacklessTestCase):
         stackless.tasklet(func)(self)
         stackless.run()
 
+    @require_one_thread
     def testScheduleRemove2(self):
         # schedule remove doesn't work if it is the only tasklet with main blocked
         # main tasklet is blocked, this should raise an error
@@ -145,7 +146,7 @@ class Channel(StacklessTestCase):
             stackless.enable_softswitch(old)
 
 
-class TestInfiniteRecursion(unittest.TestCase):
+class TestInfiniteRecursion(StacklessTestCase):
     # test for http://www.stackless.com/ticket/20
 
     def testDirectRecursion(self):

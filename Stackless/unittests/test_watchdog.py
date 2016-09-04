@@ -4,7 +4,7 @@ import unittest
 import stackless
 import random
 
-from support import StacklessTestCase
+from support import StacklessTestCase, require_one_thread
 
 
 # Helpers
@@ -367,6 +367,7 @@ class TestWatchdogSoft(TestWatchdog):
 class TestDeadlock(StacklessTestCase):
     """Test various deadlock scenarios"""
 
+    @require_one_thread
     def testReceiveOnMain(self):
         """Thest that we get a deadock exception if main tries to block"""
         self.c = stackless.channel()
@@ -391,6 +392,7 @@ class TestDeadlock(StacklessTestCase):
         stackless.tasklet(task)()
         self.assertRaisesRegexp(ZeroDivisionError, "mumbai", stackless.channel().receive)
 
+    @require_one_thread
     def test_tasklet_deadlock(self):
         """Test that a tasklet gets the "Deadlock" exception"""
         mc = stackless.channel()
@@ -402,6 +404,7 @@ class TestDeadlock(StacklessTestCase):
         t = stackless.tasklet(task)()
         mc.receive()
 
+    @require_one_thread
     def test_tasklet_and_main_receive(self):
         """Test that the tasklet's deadlock exception gets transferred to a blocked main"""
         mc = stackless.channel()
@@ -668,6 +671,4 @@ if __name__ == '__main__':
         sys.argv.append('-v')
 
     stackless.enable_softswitch(True)
-    unittest.main(exit=False)
-    stackless.enable_softswitch(False)
     unittest.main()
