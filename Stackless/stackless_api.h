@@ -293,7 +293,8 @@ PyAPI_FUNC(int) PyStackless_GetRunCount(void);
 PyAPI_FUNC(PyObject *) PyStackless_GetCurrent(void);
 
 /*
- * get a unique integer ID for the current stackless.
+ * get a unique integer ID for the current tasklet.
+ *
  * Threadsafe.
  * This is useful for for example benchmarking code that
  * needs to get some sort of a stack identifier and must
