@@ -1,9 +1,9 @@
 .. highlightlang:: c
 
-.. comment: affected files: data\refcounts.dat
-.. comment: affected files: c-api\stackless.rst
-.. comment: to do: link c-api\stackless.rst in somewhere
-.. comment: to do: generate new docs
+|SLP| C-API
+===========
+
+|SLP| provides the following C functions.
 
 Tasklets
 --------
@@ -18,7 +18,7 @@ Tasklets
    exception is set, which is in contrast elsewhere in the function.
 
 .. c:function:: int PyTasklet_Setup(PyTaskletObject *task, PyObject *args, PyObject *kwds)
-  
+
   Binds a tasklet function to parameters, making it ready to run and inserts in
   into the runnables queue.  Returns ``0`` if successful or ``-1`` in the case of failure.
 
@@ -30,6 +30,19 @@ Tasklets
 .. c:function:: int PyTasklet_Run_nr(PyTaskletObject *task)
 
   Forces *task* to run immediately, soft switching if possible.  Returns ``1`` if
+  the call soft switched, ``0`` if the call hard switched and -1 in the case of
+  failure.
+
+.. c:function:: int PyTasklet_Switch(PyTaskletObject *task)
+
+  Forces *task* to run immediately. The previous tasklet is paused.
+  Returns ``0`` if successful, and ``-1`` in the
+  case of failure.
+
+.. c:function:: int PyTasklet_Switch_nr(PyTaskletObject *task)
+
+  Forces *task* to run immediately, soft switching if possible.
+  The previous tasklet is paused. Returns ``1`` if
   the call soft switched, ``0`` if the call hard switched and -1 in the case of
   failure.
 
@@ -45,20 +58,6 @@ Tasklets
   Insert *task* into the runnables queue, if it isn't already there.   If it is
   blocked or dead, the function returns ``-1`` and a :exc:`RuntimeError` is raised.
 
-.. c:function:: PyObject *PyTasklet_Become(PyTaskletObject *self, PyObject *retval)
-
-  Use of this API function is undocumented and unrecommended.
-
-  .. deprecated:: 2.5
-     Proved problematic in production use and are pending removal.
-
-.. c:function:: PyObject* PyTasklet_Capture(PyTaskletObject *self, PyObject *retval)
-
-  Use of this API function is undocumented and unrecommended.
-
-  .. deprecated:: 2.5
-     Proved problematic in production use and are pending removal.
-
 .. c:function:: int PyTasklet_RaiseException(PyTaskletObject *self, PyObject *klass, PyObject *args)
 
   Raises an instance of the *klass* exception on the *self* tasklet.  *klass* must
@@ -66,12 +65,20 @@ Tasklets
   if the call hard switched and ``-1`` in the case of failure.
 
   .. note:: Raising :exc:`TaskletExit` on a tasklet can be done to silently kill
-     it, see :c:func:`PyTasklet_Kill`.  
+     it, see :c:func:`PyTasklet_Kill`.
+
+.. c:function:: int PyTasklet_Throw(PyTaskletObject *self, int pending, PyObject *exc, PyObject *val, PyObject *tb)
+
+  Raises (*exc*, *val*, *tb*) on the *self* tasklet. This is the C equivalent to
+  method :py:meth:`tasklet.throw`. Returns ``1`` if the call soft switched, ``0``
+  if the call hard switched and ``-1`` in the case of failure.
 
 .. c:function:: int PyTasklet_Kill(PyTaskletObject *self)
-     
+
   Raises :exc:`TaskletExit` on tasklet *self*.  This should result in *task* being
-  silently killed. Returns ``1`` if the call soft switched, ``0`` if the call hard
+  silently killed. (This exception is ignored by tasklet_end and
+  does not invoke main as exception handler.)
+  Returns ``1`` if the call soft switched, ``0`` if the call hard
   switched and ``-1`` in the case of failure.
 
 .. c:function:: int PyTasklet_GetAtomic(PyTaskletObject *task)
@@ -79,7 +86,7 @@ Tasklets
   Returns ``1`` if *task* is atomic, otherwise ``0``.
 
 .. c:function:: int PyTasklet_SetAtomic(PyTaskletObject *task, int flag)
-  
+
   Returns ``1`` if *task* is currently atomic, otherwise ``0``.  Sets the
   atomic attribute to the logical value of *flag*.
 
@@ -129,7 +136,7 @@ Tasklets
 
   Returns ``1`` if *task* is alive (has an associated frame), otherwise
   ``0`` if it is dead.
-  
+
 .. c:function:: int PyTasklet_Paused(PyTaskletObject *task)
 
   Returns ``1`` if *task* is paused, otherwise ``0``.  A tasklet is paused if it is
@@ -151,7 +158,7 @@ Tasklets
 Channels
 --------
 
- .. c:function:: PyChannelObject* PyChannel_New(PyTypeObject *type)
+.. c:function:: PyChannelObject* PyChannel_New(PyTypeObject *type)
 
   Return a new channel object, or *NULL* in the case of failure.  *type* must be
   derived from :c:type:`PyChannel_Type` or be *NULL*, otherwise a :exc:`TypeError`
@@ -183,6 +190,11 @@ Channels
 
   Returns ``0`` if successful or ``-1`` in the case of failure.  An instance of the
   exception type *klass* is raised on the first tasklet blocked on channel *self*.
+
+.. c:function:: int PyChannel_SendThrow(PyChannelObject *self, PyObject *exc, PyObject *val, PyObject *tb)
+
+  Returns ``0`` if successful or ``-1`` in the case of failure.
+  (*exc*, *val*, *tb*) is raised on the first tasklet blocked on channel *self*.
 
 .. c:function:: PyObject *PyChannel_GetQueue(PyChannelObject *self)
 
@@ -255,6 +267,23 @@ stackless module
 
   Get the currently running tasklet, that is, "yourself".
 
+.. c:function:: long PyStackless_GetCurrentId()
+
+  Get a unique integer ID for the current tasklet
+
+  Threadsafe.
+
+  This is useful for benchmarking code that
+  needs to get some sort of a stack identifier and must
+  not worry about the GIL being present and so on.
+
+  .. note::
+
+     1. the "main" tasklet on each thread will have the same id,
+        even if a proper tasklet has not been initialized.
+
+     2. IDs may get recycled for new tasklets.
+
 .. c:function:: PyObject *PyStackless_RunWatchdog(long timeout)
 
   Runs the scheduler until there are no tasklets remaining within it, or until
@@ -274,28 +303,28 @@ stackless module
   Wraps :c:func:`PyStackless_RunWatchdog`, but allows its behaviour to be
   customised by the value of *flags* which may contain any of the following
   bits:
-  
+
   ``Py_WATCHDOG_THREADBLOCK``
      Allows a thread to block if it runs out of tasklets.  Ideally
      it will be awakened by other threads using channels which its
      blocked tasklets are waiting on.
-  
+
   ``Py_WATCHDOG_SOFT``
      Instead of interrupting a tasklet, we wait until the
      next tasklet scheduling moment to return.  Always returns
      *Py_None*, as everything is in order.
-  
+
   ``Py_WATCHDOG_IGNORE_NESTING``
      Allows interrupts at all levels, effectively acting as
      though the *ignore_nesting* attribute were set on all
      tasklets.
-  
+
   ``Py_WATCHDOG_TIMEOUT``
      Interprets *timeout* as a fixed run time, rather than a
      per-tasklet run limit.  The function will then attempt to
      interrupt execution once this many total opcodes have
      been executed since the call was made.
-     
+
 debugging and monitoring functions
 ----------------------------------
 
