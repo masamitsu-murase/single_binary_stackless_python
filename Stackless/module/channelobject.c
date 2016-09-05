@@ -877,7 +877,7 @@ over the channel. Combined with a generator, this is\n\
 a very efficient way to build fast pipes.");
 
 /*
- * this is the traight-forward and simple implementation,
+ * this is the straight-forward and simple implementation,
  * but here we have almost no speedup, since all switches
  * are hard.
  */
