@@ -33,6 +33,19 @@ Tasklets
   the call soft switched, ``0`` if the call hard switched and -1 in the case of
   failure.
 
+.. c:function:: int PyTasklet_Switch(PyTaskletObject *task)
+
+  Forces *task* to run immediately. The previous tasklet is paused.
+  Returns ``0`` if successful, and ``-1`` in the
+  case of failure.
+
+.. c:function:: int PyTasklet_Switch_nr(PyTaskletObject *task)
+
+  Forces *task* to run immediately, soft switching if possible.
+  The previous tasklet is paused. Returns ``1`` if
+  the call soft switched, ``0`` if the call hard switched and -1 in the case of
+  failure.
+
 .. c:function:: int PyTasklet_Remove(PyTaskletObject *task)
 
   Removes *task* from the runnables queue.  Be careful! If this tasklet has a C
@@ -45,20 +58,6 @@ Tasklets
   Insert *task* into the runnables queue, if it isn't already there.   If it is
   blocked or dead, the function returns ``-1`` and a :exc:`RuntimeError` is raised.
 
-.. c:function:: PyObject *PyTasklet_Become(PyTaskletObject *self, PyObject *retval)
-
-  Use of this API function is undocumented and unrecommended.
-
-  .. deprecated:: 2.5
-     Proved problematic in production use and are pending removal.
-
-.. c:function:: PyObject* PyTasklet_Capture(PyTaskletObject *self, PyObject *retval)
-
-  Use of this API function is undocumented and unrecommended.
-
-  .. deprecated:: 2.5
-     Proved problematic in production use and are pending removal.
-
 .. c:function:: int PyTasklet_RaiseException(PyTaskletObject *self, PyObject *klass, PyObject *args)
 
   Raises an instance of the *klass* exception on the *self* tasklet.  *klass* must
@@ -68,10 +67,18 @@ Tasklets
   .. note:: Raising :exc:`TaskletExit` on a tasklet can be done to silently kill
      it, see :c:func:`PyTasklet_Kill`.
 
+.. c:function:: int PyTasklet_Throw(PyTaskletObject *self, int pending, PyObject *exc, PyObject *val, PyObject *tb)
+
+  Raises (*exc*, *val*, *tb*) on the *self* tasklet. This is the C equivalent to
+  method :py:meth:`tasklet.throw`. Returns ``1`` if the call soft switched, ``0``
+  if the call hard switched and ``-1`` in the case of failure.
+
 .. c:function:: int PyTasklet_Kill(PyTaskletObject *self)
 
   Raises :exc:`TaskletExit` on tasklet *self*.  This should result in *task* being
-  silently killed. Returns ``1`` if the call soft switched, ``0`` if the call hard
+  silently killed. (This exception is ignored by tasklet_end and 
+  does not invoke main as exception handler.)
+  Returns ``1`` if the call soft switched, ``0`` if the call hard
   switched and ``-1`` in the case of failure.
 
 .. c:function:: int PyTasklet_GetAtomic(PyTaskletObject *task)
@@ -151,7 +158,7 @@ Tasklets
 Channels
 --------
 
- .. c:function:: PyChannelObject* PyChannel_New(PyTypeObject *type)
+.. c:function:: PyChannelObject* PyChannel_New(PyTypeObject *type)
 
   Return a new channel object, or *NULL* in the case of failure.  *type* must be
   derived from :c:type:`PyChannel_Type` or be *NULL*, otherwise a :exc:`TypeError`
@@ -183,6 +190,11 @@ Channels
 
   Returns ``0`` if successful or ``-1`` in the case of failure.  An instance of the
   exception type *klass* is raised on the first tasklet blocked on channel *self*.
+
+.. c:function:: int PyChannel_SendThrow(PyChannelObject *self, PyObject *exc, PyObject *val, PyObject *tb)
+
+  Returns ``0`` if successful or ``-1`` in the case of failure.  
+  (*exc*, *val*, *tb*) is raised on the first tasklet blocked on channel *self*.
 
 .. c:function:: PyObject *PyChannel_GetQueue(PyChannelObject *self)
 
@@ -255,6 +267,23 @@ stackless module
 
   Get the currently running tasklet, that is, "yourself".
 
+.. c:function:: long PyStackless_GetCurrentId()
+
+  Get a unique integer ID for the current tasklet
+  
+  Threadsafe.
+  
+  This is useful for benchmarking code that
+  needs to get some sort of a stack identifier and must
+  not worry about the GIL being present and so on.
+ 
+  .. note::
+  
+     1. the "main" tasklet on each thread will have the same id, 
+        even if a proper tasklet has not been initialized.
+        
+     2. IDs may get recycled for new tasklets.
+ 
 .. c:function:: PyObject *PyStackless_RunWatchdog(long timeout)
 
   Runs the scheduler until there are no tasklets remaining within it, or until
