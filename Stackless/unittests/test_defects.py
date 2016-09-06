@@ -271,7 +271,6 @@ class TestShutdown(StacklessTestCase):
             """])
         self.assertEqual(rc, 42)
 
-    @unittest.skip("triggers an assertion failure")
     def test_interthread_kill(self):
         # test for issue #87 https://bitbucket.org/stackless-dev/stackless/issues/87/
         import subprocess
