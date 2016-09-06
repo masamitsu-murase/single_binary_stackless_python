@@ -3,6 +3,7 @@ import stackless
 import gc
 import sys
 import types
+import threading
 
 from support import StacklessTestCase, require_one_thread
 
@@ -77,6 +78,29 @@ class TestTaskletDel(StacklessTestCase):
             pass
         hex(id(self.TaskletWithDelAndCollect(TaskletFunc)(self)))
         stackless.run()  # crash here
+
+    @unittest.skip("triggers an assertion failure")
+    def test_tasklet_dealloc_in_thread_shutdown(self):
+        # Test for https://bitbucket.org/stackless-dev/stackless/issues/89
+        def other_thread_main():
+            # print("other thread started")
+            self.assertIs(stackless.main, stackless.current)
+            tasklet2 = stackless.tasklet(apply)(stackless.main.run, ())
+            # print("OT Main:", stackless.main)
+            # print("OT tasklet2:", tasklet2)
+            tasklet2.run()
+            self.assertTrue(tasklet2.scheduled)
+            self.other_thread_started = True
+            # the crash from issue #89 happened during the shutdown of other thread
+
+        self.other_thread_started = False
+        self.assertIs(stackless.main, stackless.current)
+        # print("Main Thread:", stackless.main)
+        t = threading.Thread(target=other_thread_main, name="other thread")
+        t.start()
+        t.join()
+        self.assertTrue(self.other_thread_started)
+        # print("OK")
 
 
 class Schedule(StacklessTestCase):
