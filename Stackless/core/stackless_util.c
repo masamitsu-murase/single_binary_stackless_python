@@ -129,6 +129,10 @@ slp_resurrect_and_kill(PyObject *self, void(*killer)(PyObject *))
 
     PyObject *error_type, *error_value, *error_traceback;
 
+    /* this is different from typeobject.c's slot_tp_del: our callers already 
+       called PyObject_GC_UnTrack(self) */
+    assert(PyType_IS_GC(Py_TYPE(self)) && _Py_AS_GC(self)->gc.gc_refs == _PyGC_REFS_UNTRACKED);
+
     /* Temporarily resurrect the object. */
     assert(self->ob_refcnt == 0);
     self->ob_refcnt = 1;
@@ -156,8 +160,6 @@ slp_resurrect_and_kill(PyObject *self, void(*killer)(PyObject *))
         _Py_NewReference(self);
         self->ob_refcnt = refcnt;
     }
-    assert(!PyType_IS_GC(Py_TYPE(self)) ||
-           _Py_AS_GC(self)->gc.gc_refs != _PyGC_REFS_UNTRACKED);
     /* If Py_REF_DEBUG, _Py_NewReference bumped _Py_RefTotal, so
      * we need to undo that. */
     _Py_DEC_REFTOTAL;
