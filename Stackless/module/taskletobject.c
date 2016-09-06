@@ -747,7 +747,7 @@ impl_tasklet_run_remove(PyTaskletObject *task, int remove)
     STACKLESS_GETARG();
     PyThreadState *ts = PyThreadState_GET();
     PyObject *ret;
-    int inserted, fail, removed=0;
+    int inserted, fail, switched, removed=0;
     PyTaskletObject *prev = ts->st.current;
     
     assert(PyTasklet_Check(task));
@@ -814,9 +814,10 @@ impl_tasklet_run_remove(PyTaskletObject *task, int remove)
     if (fail)
         return NULL;
     /* this is redundant in the interthread case, since insert already did the work */
-    fail = slp_schedule_task(&ret, prev, task, stackless, 0);
+    fail = slp_schedule_task(&ret, prev, task, stackless, &switched);
     if (fail) {
         if (removed) {
+            assert(ts->st.del_post_switch == (PyObject *)prev);
             ts->st.del_post_switch = NULL;
             slp_current_unremove(prev);
         }
@@ -825,6 +826,8 @@ impl_tasklet_run_remove(PyTaskletObject *task, int remove)
             slp_current_uninsert(task);
             Py_DECREF(task);
         }
+    } else if (!switched) {
+        Py_CLEAR(ts->st.del_post_switch);
     }
     return ret;
 }
