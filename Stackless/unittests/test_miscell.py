@@ -155,7 +155,6 @@ class TestTaskletSwitching(StacklessTestCase):
         s.run()
         self.assertEqual(flag[0], True)
 
-    @unittest.skip("triggers an assertion violation")
     def test_switch_to_current(self):
         # See https://bitbucket.org/stackless-dev/stackless/issues/88
         current = stackless.current
