@@ -283,12 +283,12 @@ Attributes
 .. attribute:: current
 
    The currently executing tasklet of this thread.
-   Equivalent function: :func: `getcurrent()`.
+   Equivalent function: :func:`getcurrent`.
 
 .. attribute:: main
 
    The main tasklet of this thread.
-   Equivalent function: :func: `getmain()`.
+   Equivalent function: :func:`getmain`.
 
 .. attribute:: runcount
 
@@ -304,7 +304,7 @@ Attributes
        The minimum value of :attr:`runcount` will be ``1``, as the calling
        tasklet will be included.
 
-   Equivalent function: :func: `getruncount()`.
+   Equivalent function: :func:`getruncount`.
 
    
 .. attribute:: threads
@@ -316,7 +316,6 @@ Attributes
        >>> stackless.threads
        [5148]
 
-   Equivalent function: :func: `getruncount()`.
 
 .. attribute:: pickle_with_tracing_state
 
