@@ -8,6 +8,7 @@ import traceback
 import weakref
 import types
 import contextlib
+import thread
 
 from support import StacklessTestCase, AsTaskletTestCase
 
@@ -885,6 +886,43 @@ class TestBind(StacklessTestCase):
         t.bind(self.argstest, args, kwargs)
         self.assertFalse(t.scheduled)
         t.run()
+
+    def test_unbind_main(self):
+        self.skipUnlessSoftswitching()
+
+        def other():
+            main = stackless.main
+            self.assertRaisesRegex(RuntimeError, "can't unbind the main tasklet", main.bind, None)
+        stackless.tasklet(other)().switch()
+
+    def test_rebind_main(self):
+        # rebind the main tasklet of a thread. This is highly discouraged,
+        # because it will deadlock, if the thread is a threading.Thread.
+        self.skipUnlessSoftswitching()
+
+        ready = thread.allocate_lock()
+        ready.acquire()
+
+        self.target_called = False
+        self.main_returned = False
+
+        def target():
+            self.target_called = True
+            ready.release()
+
+        def other_thread_main():
+            self.assertTrue(stackless.current.is_main)
+            try:
+                stackless.tasklet(stackless.main.bind)(target, ()).switch()
+            finally:
+                self.main_returned = True
+                ready.release()
+
+        thread.start_new_thread(other_thread_main, ())
+        ready.acquire()
+
+        self.assertTrue(self.target_called)
+        self.assertFalse(self.main_returned)
 
 
 class TestSwitch(StacklessTestCase):
