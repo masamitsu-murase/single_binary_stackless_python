@@ -251,6 +251,9 @@ PyTasklet_BindEx(PyTaskletObject *task, PyObject *func, PyObject *args, PyObject
     if (tasklet_has_c_stack(task)) {
         RUNTIME_ERROR("tasklet has C state on its stack", -1);
     }
+    if (ts && task == ts->st.main && args == NULL && kwargs == NULL) {
+        RUNTIME_ERROR("can't unbind the main tasklet", -1);
+    }
 
     tasklet_clear_frames(task);
     assert(task->f.frame == NULL);

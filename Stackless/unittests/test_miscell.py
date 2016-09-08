@@ -8,6 +8,7 @@ import traceback
 import contextlib
 import weakref
 import types
+import _thread as thread
 
 from support import StacklessTestCase, AsTaskletTestCase
 try:
@@ -875,6 +876,58 @@ class TestBind(StacklessTestCase):
         t.bind(self.argstest, args, kwargs)
         self.assertFalse(t.scheduled)
         t.run()
+
+    def test_unbind_main(self):
+        self.skipUnlessSoftswitching()
+
+        done = []
+
+        def other():
+            main = stackless.main
+            self.assertRaisesRegex(RuntimeError, "can't unbind the main tasklet", main.bind, None)
+
+        # the initial nesting level depends on the test runner.
+        # We need a main tasklet with nesting_level == 0. Therefore we
+        # use a thread
+        def other_thread():
+            self.assertEqual(stackless.current.nesting_level, 0)
+            self.assertIs(stackless.current, stackless.main)
+            stackless.tasklet(other)().switch()
+            done.append(True)
+
+        t = threading.Thread(target=other_thread, name="other thread")
+        t.start()
+        t.join()
+        self.assertTrue(done[0])
+
+    def test_rebind_main(self):
+        # rebind the main tasklet of a thread. This is highly discouraged,
+        # because it will deadlock, if the thread is a threading.Thread.
+        self.skipUnlessSoftswitching()
+
+        ready = thread.allocate_lock()
+        ready.acquire()
+
+        self.target_called = False
+        self.main_returned = False
+
+        def target():
+            self.target_called = True
+            ready.release()
+
+        def other_thread_main():
+            self.assertTrue(stackless.current.is_main)
+            try:
+                stackless.tasklet(stackless.main.bind)(target, ()).switch()
+            finally:
+                self.main_returned = True
+                ready.release()
+
+        thread.start_new_thread(other_thread_main, ())
+        ready.acquire()
+
+        self.assertTrue(self.target_called)
+        self.assertFalse(self.main_returned)
 
 
 class TestSwitch(StacklessTestCase):
