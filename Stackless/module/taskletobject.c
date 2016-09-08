@@ -577,7 +577,7 @@ tasklet_bind_thread(PyObject *self, PyObject *args)
         }
     }
     if (cts == NULL || cts->st.initial_stub == NULL) {
-        PyErr_SetString(PyExc_ValueError, "bad hread");
+        PyErr_SetString(PyExc_ValueError, "bad thread");
         return NULL;
     }
     old = (PyObject*)task->cstate;
