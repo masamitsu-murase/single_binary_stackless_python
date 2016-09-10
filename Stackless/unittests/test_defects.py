@@ -1,3 +1,4 @@
+from __future__ import print_function, absolute_import, division
 import unittest
 import stackless
 import gc
@@ -334,6 +335,52 @@ class TestShutdown(StacklessTestCase):
             sys.exit(42)
             """])
         self.assertEqual(rc, 42)
+
+    @unittest.skip("test triggers an assertion violation, issue #89")
+    def test_tasklet_end_with_wrong_recursion_level(self):
+        # test for issue #91 https://bitbucket.org/stackless-dev/stackless/issues/91/
+        """A test for issue #91, wrong recursion level after tasklet re-binding
+
+        Assertion failed: ts->recursion_depth == 0 || (ts->st.main == NULL && prev == next), file ..\Stackless\module\scheduling.c, line 1291
+        The assertion fails with ts->recursion_depth > 0
+
+        It is in function
+        static int schedule_task_destruct(PyObject **retval, PyTaskletObject *prev, PyTaskletObject *next):
+
+        assert(ts->recursion_depth == 0 || (ts->st.main == NULL && prev == next));
+
+        During thread shutdown in slp_kill_tasks_with_stacks() kills tasklet tlet after the main
+        tasklet of other thread ended. To do so, it creates a new temporary main tasklet. The
+        assertion failure happens during the end of the killed tasklet.
+        """
+        if True:
+            def print(*args):
+                pass
+
+        def tlet_inner():
+            assert stackless.current.recursion_depth == 2
+            stackless.main.switch()
+
+        def tlet_outer():
+            tlet_inner()
+
+        def other_thread_main():
+            self.tlet = stackless.tasklet(tlet_outer)()
+            self.assertEqual(self.tlet.recursion_depth, 0)
+            print("Other thread main", stackless.main)
+            print("Other thread paused", self.tlet)
+            self.tlet.run()
+            self.assertEqual(self.tlet.recursion_depth, 2)
+            self.tlet.bind(lambda: None, ())
+            self.assertEqual(self.tlet.recursion_depth, 0)
+            # before issue #91 got fixed, the assertion violatition occurred here
+
+        print("Main thread", stackless.current)
+        t = threading.Thread(target=other_thread_main, name="other thread")
+        t.start()
+        print("OK")
+        t.join()
+        print("Done")
 
 
 class TestStacklessProtokoll(StacklessTestCase):

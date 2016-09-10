@@ -256,6 +256,9 @@ PyTasklet_BindEx(PyTaskletObject *task, PyObject *func, PyObject *args, PyObject
     }
 
     tasklet_clear_frames(task);
+    task->recursion_depth = 0;
+    assert(task->flags.autoschedule == 0);  /* probably unused */
+    assert(task->flags.blocked == 0);
     assert(task->f.frame == NULL);
 
     /* cstate is set by bind_tasklet_to_frame() later on */
@@ -995,6 +998,12 @@ impl_tasklet_setup(PyTaskletObject *task, PyObject *args, PyObject *kwds, int in
 
     assert(PyTasklet_Check(task));
     if (ts->st.main == NULL) return PyTasklet_Setup_M(task, args, kwds);
+
+    assert(task->recursion_depth == 0);
+    assert(task->flags.is_zombie == 0);
+    assert(task->flags.autoschedule == 0);  /* probably unused */
+    assert(task->flags.blocked == 0);
+    assert(task->f.frame == NULL);
 
     func = task->tempval;
     if (func == NULL || func == Py_None)

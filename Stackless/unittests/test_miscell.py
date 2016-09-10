@@ -902,7 +902,7 @@ class TestBind(StacklessTestCase):
 
     def test_rebind_main(self):
         # rebind the main tasklet of a thread. This is highly discouraged,
-        # because it will deadlock, if the thread is a threading.Thread.
+        # because it will deadlock, if the thread is a non daemon threading.Thread.
         self.skipUnlessSoftswitching()
 
         ready = thread.allocate_lock()
@@ -928,6 +928,29 @@ class TestBind(StacklessTestCase):
 
         self.assertTrue(self.target_called)
         self.assertFalse(self.main_returned)
+
+    def test_rebind_recursion_depth(self):
+        self.skipUnlessSoftswitching()
+        self.recursion_depth_in_test = None
+
+        def tasklet_outer():
+            tasklet_inner()
+
+        def tasklet_inner():
+            stackless.main.switch()
+
+        def test():
+            self.recursion_depth_in_test = stackless.current.recursion_depth
+
+        tlet = stackless.tasklet(tasklet_outer)()
+        self.assertEqual(tlet.recursion_depth, 0)
+        tlet.run()
+        self.assertEqual(tlet.recursion_depth, 2)
+        tlet.bind(test, ())
+        self.assertEqual(tlet.recursion_depth, 0)
+        tlet.run()
+        self.assertEqual(tlet.recursion_depth, 0)
+        self.assertEqual(self.recursion_depth_in_test, 1)
 
 
 class TestSwitch(StacklessTestCase):
