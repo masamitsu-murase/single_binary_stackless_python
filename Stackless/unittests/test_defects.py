@@ -355,7 +355,7 @@ class TestShutdown(StacklessTestCase):
             """])
         self.assertEqual(rc, 42)
 
-    @unittest.skip("test triggers an assertion violation, issue #91 and issue #89")
+    @unittest.skip("test triggers an assertion violation, issue #89")
     def test_tasklet_end_with_wrong_recursion_level(self):
         # test for issue #91 https://bitbucket.org/stackless-dev/stackless/issues/91/
         """A test for issue #91, wrong recursion level after tasklet re-binding

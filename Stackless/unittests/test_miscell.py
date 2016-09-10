@@ -924,7 +924,6 @@ class TestBind(StacklessTestCase):
         self.assertTrue(self.target_called)
         self.assertFalse(self.main_returned)
 
-    @unittest.skip("fails, issue #91")
     def test_rebind_recursion_depth(self):
         self.skipUnlessSoftswitching()
         self.recursion_depth_in_test = None
