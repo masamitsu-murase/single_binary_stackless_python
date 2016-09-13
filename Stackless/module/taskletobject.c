@@ -63,6 +63,7 @@ slp_current_remove_tasklet(PyTaskletObject *task)
     PyThreadState *ts = task->cstate->tstate;
     PyTaskletObject **chain = &ts->st.current, *ret, *hold;
 
+    assert(ts != NULL);
     --ts->st.runcount;
     assert(ts->st.runcount >= 0);
     hold = ts->st.current;
