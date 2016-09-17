@@ -9,6 +9,7 @@ import weakref
 import types
 import contextlib
 import thread
+import threading
 
 from support import StacklessTestCase, AsTaskletTestCase
 
@@ -890,10 +891,25 @@ class TestBind(StacklessTestCase):
     def test_unbind_main(self):
         self.skipUnlessSoftswitching()
 
+        done = []
+
         def other():
             main = stackless.main
             self.assertRaisesRegex(RuntimeError, "can't unbind the main tasklet", main.bind, None)
-        stackless.tasklet(other)().switch()
+
+        # the initial nesting level depends on the test runner.
+        # We need a main tasklet with nesting_level == 0. Therefore we
+        # use a thread
+        def other_thread():
+            self.assertEqual(stackless.current.nesting_level, 0)
+            self.assertIs(stackless.current, stackless.main)
+            stackless.tasklet(other)().switch()
+            done.append(True)
+
+        t = threading.Thread(target=other_thread, name="other thread")
+        t.start()
+        t.join()
+        self.assertTrue(done[0])
 
     def test_rebind_main(self):
         # rebind the main tasklet of a thread. This is highly discouraged,
