@@ -43,7 +43,7 @@ def feed(line, slots):
 
 def generate():
     slotnames = parse()
-    f = file(dstname, "w")
+    f = open(dstname, "wb")
     print >> f, """\
 /*
  * this file was generated from typeobject.c using the script

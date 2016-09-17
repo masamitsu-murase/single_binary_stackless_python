@@ -35,7 +35,7 @@ def parse(fname):
     return res
 
 def generate():
-    f = file(dstname, "w")
+    f = open(dstname, "wb")  # use UNIX line endings
     print >> f, """\
 /*
  * this file was generated from the Python(r) C sources using the script
