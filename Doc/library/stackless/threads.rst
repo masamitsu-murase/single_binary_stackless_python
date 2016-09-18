@@ -38,8 +38,11 @@ will report as ``-1``. This also includes soft-switched tasklets,
 which share a C-state.
 
 The reason Stackless kills tasklets with C-state is that not doing so
-can cause serious leaks when a C-state is not unwound. Stackless cannot 
-kill soft-switched tasklets, because there is no central list of them. 
+can cause serious leaks when a C-state is not unwound. If Stackless runs
+in verbose mode (command line option :option:`-v` or :envvar:`PYTHONVERBOSE`),
+Stackless prints a warning message, if it deallocates a tasklet
+with a C-state. Stackless cannot
+kill soft-switched tasklets, because there is no central list of them.
 Stackless only knows about the hard-switched ones.
 
 Threads that end really should make sure that they finish whatever worker 
