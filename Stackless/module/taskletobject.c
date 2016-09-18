@@ -94,7 +94,7 @@ slp_current_unremove(PyTaskletObject* task)
  * problems elsewhere (why didn't the tasklet die when instructed to?)
  */
 static int
-tasklet_has_c_stack(PyTaskletObject *t)
+tasklet_has_c_stack_and_thread(PyTaskletObject *t)
 {
     return t->f.frame && t->cstate && t->cstate->tstate && t->cstate->nesting_level != 0 ;
 }
@@ -107,7 +107,7 @@ tasklet_traverse(PyTaskletObject *t, visitproc visit, void *arg)
     /* tasklets that need to be switched to for the kill, can't be collected.
      * Only trivial decrefs are allowed during GC collect
      */
-    if (tasklet_has_c_stack(t))
+    if (tasklet_has_c_stack_and_thread(t))
         PyObject_GC_Collectable((PyObject *)t, visit, arg, 0);
 
     /* we own the "execute reference" of all the frames */
@@ -186,7 +186,7 @@ static void
 tasklet_dealloc(PyTaskletObject *t)
 {
     PyObject_GC_UnTrack(t);
-    if (tasklet_has_c_stack(t)) {
+    if (tasklet_has_c_stack_and_thread(t)) {
         /*
          * we want to cleanly kill the tasklet in the case it
          * was forgotten. One way would be to resurrect it,
@@ -251,7 +251,7 @@ PyTasklet_BindEx(PyTaskletObject *task, PyObject *func, PyObject *args, PyObject
     if (PyTasklet_Scheduled(task)) {
         RUNTIME_ERROR("tasklet is scheduled", -1);
     }
-    if (tasklet_has_c_stack(task)) {
+    if (PyTasklet_GetNestingLevel(task)) {
         RUNTIME_ERROR("tasklet has C state on its stack", -1);
     }
     if (ts && task == ts->st.main && args == NULL && kwargs == NULL) {
@@ -572,7 +572,7 @@ tasklet_bind_thread(PyObject *self, PyObject *args)
     if (PyTasklet_Scheduled(task) && !task->flags.blocked) {
         RUNTIME_ERROR("can't (re)bind a runnable tasklet", NULL);
     }
-    if (tasklet_has_c_stack(task)) {
+    if (PyTasklet_GetNestingLevel(task)) {
         RUNTIME_ERROR("tasklet has C state on its stack", NULL);
     }
     if (target_tid != -1) {

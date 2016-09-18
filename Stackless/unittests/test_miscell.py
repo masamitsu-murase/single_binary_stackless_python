@@ -964,7 +964,6 @@ class TestBind(StacklessTestCase):
         self.assertEqual(tlet.recursion_depth, 0)
         self.assertEqual(self.recursion_depth_in_test, 1)
 
-    @unittest.skip("fails, issue #92")
     def test_unbind_fail_cstate_no_thread(self):
         # https://bitbucket.org/stackless-dev/stackless/issues/92
         loop = True

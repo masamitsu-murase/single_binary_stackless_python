@@ -387,7 +387,6 @@ class DeadThreadTest(RemoteTaskletTests):
         t.bind_thread()
         self.assertEqual(t.thread_id, stackless.getcurrent().thread_id)
 
-    @unittest.skip("triggers an assertion violation, see issue #92")
     def test_rebind_from_dead_fail_cstate(self):
         # A test for https://bitbucket.org/stackless-dev/stackless/issues/92
         loop = True
@@ -407,13 +406,13 @@ class DeadThreadTest(RemoteTaskletTests):
         t = threading.Thread(target=other_thread_main, name="other thread")
         t.start()
         t.join()
-
-        loop = False
         time.sleep(0.1)  # other_thread needs some time to be destroyed
+
         self.assertEqual(tlet.thread_id, -1)
         self.assertFalse(tlet.alive)
         self.assertFalse(tlet.restorable)
         self.assertGreater(tlet.nesting_level, 0)
+        loop = False
         try:
             self.assertRaisesRegex(RuntimeError, "tasklet has C state on its stack", tlet.bind_thread)
         except AssertionError:
@@ -421,7 +420,6 @@ class DeadThreadTest(RemoteTaskletTests):
             raise
         # the tasklet has no thread
         self.assertEqual(tlet.thread_id, -1)
-        self.assertRaisesRegex(RuntimeError, "thread", tlet.kill)  # ToDo: fix the regexp
 
     def test_methods_on_dead(self):
         """test that tasklet methods on a dead tasklet behave well"""
