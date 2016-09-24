@@ -345,15 +345,6 @@ class TestTaskletThrowNonImmediate(TestTaskletThrowImmediate):
 
 class TestSwitchTrap(StacklessTestCase):
 
-    def assertRaisesRegex(self, klass, rex, func, *args):
-        try:
-            func(*args)
-        except Exception, e:
-            self.assertTrue(rex in str(e))
-            self.assertTrue(isinstance(e, klass))
-        else:
-            self.assertTrue(False)
-
     class SwitchTrap(object):
 
         def __enter__(self):
