@@ -826,7 +826,7 @@ impl_tasklet_run_remove(PyTaskletObject *task, int remove)
     fail = slp_schedule_task(&ret, prev, task, stackless, &switched);
     if (fail) {
         if (removed) {
-            assert(ts->st.del_post_switch == prev);
+            assert(ts->st.del_post_switch == (PyObject *)prev);
             ts->st.del_post_switch = NULL;
             slp_current_unremove(prev);
         }
