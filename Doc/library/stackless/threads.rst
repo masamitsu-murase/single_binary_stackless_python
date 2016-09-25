@@ -32,8 +32,8 @@ terminates. In the later case the thread id becomes ``-1``. Application
 code can bind the tasklet to another thread using :meth:`~tasklet.bind_thread`.
 
 When a thread dies, only tasklets with a C-state are actively killed. 
-Soft-switched tasklets simply stop. All tasklets bound to a thread will 
-have their C-state nerfed, which means that their :attr:`~tasklet.thread_id`
+Soft-switched tasklets simply stop. All tasklets bound to the thread will 
+lose their thread-state, which means that their :attr:`~tasklet.thread_id`
 will report as ``-1``. This also includes soft-switched tasklets, 
 which share a C-state.
 
