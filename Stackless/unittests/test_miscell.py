@@ -504,7 +504,6 @@ class TestKill(StacklessTestCase):
         self.assertFalse(t.alive)
         self.assertEqual(t.thread_id, stackless.current.thread_id)
 
-    @unittest.skip("issue #93, triggers an assertion violation")
     @require_one_thread
     def test_kill_thread_without_main_tasklet(self):
         # this test depends on a race condition.
@@ -599,19 +598,15 @@ class TestKill(StacklessTestCase):
             tlet.remove()
             tlet.kill()
 
-    @unittest.skip("issue #93, fails")
     def test_kill_without_thread_state_nl0(self):
         return self._test_kill_without_thread_state(0, False)
 
-    @unittest.skip("issue #93, fails")
     def test_kill_without_thread_state_nl1(self):
         return self._test_kill_without_thread_state(1, False)
 
-    @unittest.skip("issue #93, fails")
     def test_kill_without_thread_state_blocked_nl0(self):
         return self._test_kill_without_thread_state(0, True)
 
-    @unittest.skip("issue #93, fails")
     def test_kill_without_thread_state_blocked_nl1(self):
         return self._test_kill_without_thread_state(1, True)
 
