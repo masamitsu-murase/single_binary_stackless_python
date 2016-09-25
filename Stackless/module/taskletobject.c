@@ -96,7 +96,10 @@ slp_current_unremove(PyTaskletObject* task)
 static int
 tasklet_has_c_stack_and_thread(PyTaskletObject *t)
 {
-    return t->f.frame && t->cstate && t->cstate->tstate && t->cstate->nesting_level != 0 ;
+    /* The GC may call this function for a current tasklet.
+     * Therefore we need the complete check. */
+    return t->f.frame && t->cstate && t->cstate->tstate &&
+        (t->cstate->tstate->st.current == t ? t->cstate->tstate->st.nesting_level : t->cstate->nesting_level) != 0;
 }
 
 static int
