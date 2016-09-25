@@ -206,8 +206,11 @@ tasklet_dealloc(PyTaskletObject *t)
         PyObject_ClearWeakRefs((PyObject *)t);
     if (t->cstate != NULL) {
         assert(t->cstate->task != t || t->cstate->ob_size == 0 || t->cstate->tstate == NULL);
-        if (Py_VerboseFlag && t->cstate->task == t && t->cstate->ob_size != 0) {
-            PySys_WriteStderr("# tasklet_dealloc: warning: tasklet %p has a non zero C-stack. \n", (void*)t);
+        if (t->cstate->task == t) {
+            t->cstate->task = NULL;
+            if (Py_VerboseFlag && t->cstate->ob_size != 0) {
+                PySys_WriteStderr("# tasklet_dealloc: warning: tasklet %p has a non zero C-stack. \n", (void*)t);
+            }
         }
         Py_DECREF(t->cstate);
     }
