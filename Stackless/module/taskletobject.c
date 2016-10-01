@@ -564,42 +564,51 @@ raised.\n\
 static PyObject *
 tasklet_bind_thread(PyObject *self, PyObject *args)
 {
-    PyTaskletObject *task = (PyTaskletObject *) self;
+    long target_tid = -1;
+    assert(PyTasklet_Check(self));
+    if (!PyArg_ParseTuple(args, "|l:bind_thread", &target_tid))
+        return NULL;
+    if (PyTasklet_BindThread((PyTaskletObject *) self, target_tid))
+        return NULL;
+    Py_RETURN_NONE;
+}
+
+int
+PyTasklet_BindThread(PyTaskletObject *task, long thread_id)
+{
     PyThreadState *ts = task->cstate->tstate;
     PyThreadState *cts = PyThreadState_GET();
     PyObject *old;
-    long target_tid = -1;
-    if (!PyArg_ParseTuple(args, "|l:bind_thread", &target_tid))
-        return NULL;
+    assert(PyTasklet_Check(task));
 
-    if (target_tid == -1 && ts == cts)
-        Py_RETURN_NONE; /* already bound to current thread*/
+    if (thread_id == -1 && ts == cts)
+        return 0; /* already bound to current thread*/
 
     if (PyTasklet_Scheduled(task) && !task->flags.blocked) {
-        RUNTIME_ERROR("can't (re)bind a runnable tasklet", NULL);
+        RUNTIME_ERROR("can't (re)bind a runnable tasklet", -1);
     }
     if (PyTasklet_GetNestingLevel(task)) {
-        RUNTIME_ERROR("tasklet has C state on its stack", NULL);
+        RUNTIME_ERROR("tasklet has C state on its stack", -1);
     }
-    if (target_tid != -1) {
+    if (thread_id != -1) {
         /* find the correct thread state */
         for(cts = PyInterpreterState_ThreadHead(cts->interp);
             cts != NULL;
             cts = PyThreadState_Next(cts))
         {
-            if (cts->thread_id == target_tid)
+            if (cts->thread_id == thread_id)
                 break;
         }
     }
     if (cts == NULL || cts->st.initial_stub == NULL) {
         PyErr_SetString(PyExc_ValueError, "bad thread");
-        return NULL;
+        return -1;
     }
     old = (PyObject*)task->cstate;
     task->cstate = cts->st.initial_stub;
     Py_INCREF(task->cstate);
     Py_DECREF(old);
-    Py_RETURN_NONE;
+    return 0;
 }
 
 /* other tasklet methods */
@@ -1273,6 +1282,11 @@ impl_tasklet_kill(PyTaskletObject *task, int pending)
     ret = impl_tasklet_throw(task, pending, PyExc_TaskletExit, NULL, NULL);
     STACKLESS_ASSERT();
     return ret;
+}
+
+int PyTasklet_KillEx(PyTaskletObject *task, int pending)
+{
+    return slp_return_wrapper_hard(impl_tasklet_kill(task, pending));
 }
 
 int PyTasklet_Kill(PyTaskletObject *task)
