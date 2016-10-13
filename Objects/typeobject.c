@@ -715,9 +715,13 @@ type_repr(PyTypeObject *type)
     return rtn;
 }
 
+static int
+slot_tp_init(PyObject *self, PyObject *args, PyObject *kwds);
+
 static PyObject *
 type_call(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
+    STACKLESS_GETARG();
     PyObject *obj;
 
     if (type->tp_new == NULL) {
@@ -742,10 +746,29 @@ type_call(PyTypeObject *type, PyObject *args, PyObject *kwds)
             return obj;
         type = obj->ob_type;
         if (PyType_HasFeature(type, Py_TPFLAGS_HAVE_CLASS) &&
-            type->tp_init != NULL &&
-            type->tp_init(obj, args, kwds) < 0) {
-            Py_DECREF(obj);
-            obj = NULL;
+            type->tp_init != NULL) {
+            initproc tp_init = type->tp_init;
+            int ret;
+#ifdef STACKLESS
+            int is_stackless;
+            if (tp_init == slot_tp_init)
+                STACKLESS_PROMOTE_ALL();
+            is_stackless = slp_try_stackless;
+#endif
+            ret = tp_init(obj, args, kwds);
+#ifdef STACKLESS
+            STACKLESS_ASSERT();
+            if (is_stackless && ret == STACKLESS_UNWINDING_MAGIC) {
+                /* It is a stackless call and it is unwinding.
+                 * the real result is in Py_UnwindToken */
+                Py_DECREF(obj);
+                return (PyObject *)Py_UnwindToken;
+            }
+#endif
+            if (ret < 0) {
+                Py_DECREF(obj);
+                obj = NULL;
+            }
         }
     }
     return obj;
@@ -2825,6 +2848,7 @@ PyTypeObject PyType_Type = {
     (inquiry)type_is_gc,                        /* tp_is_gc */
 };
 
+STACKLESS_DECLARE_METHOD(&PyType_Type, tp_call)
 
 /* The base type of all types (eventually)... except itself. */
 
@@ -5810,18 +5834,68 @@ slot_tp_descr_set(PyObject *self, PyObject *target, PyObject *value)
     return 0;
 }
 
+#ifdef STACKLESS
+PyObject *
+slp_tp_init_callback(PyFrameObject *f, int exc, PyObject *retval)
+{
+    PyThreadState *ts = PyThreadState_GET();
+    PyCFrameObject *cf = (PyCFrameObject *) f;
+
+    f = cf->f_back;
+    if (retval != NULL) {
+        if (retval != Py_None) {
+            PyErr_Format(PyExc_TypeError,
+                     "__init__() should return None, not '%.200s'",
+                     Py_TYPE(retval)->tp_name);
+            Py_DECREF(retval);
+            retval = NULL;
+        } else {
+            Py_DECREF(retval);
+            retval = cf->ob1;
+            cf->ob1 = NULL;
+        }
+    }
+    ts->frame = f;
+    Py_DECREF(cf);
+    return STACKLESS_PACK(retval);
+}
+#endif
+
 static int
 slot_tp_init(PyObject *self, PyObject *args, PyObject *kwds)
 {
-    STACKLESS_GETARG(); /* not yet supported */
+    STACKLESS_GETARG();
     static PyObject *init_str;
     PyObject *meth = lookup_method(self, "__init__", &init_str);
     PyObject *res;
+    PyCFrameObject *f;
 
     if (meth == NULL)
         return -1;
+#ifdef STACKLESS
+    if (stackless) {
+        f = slp_cframe_new(slp_tp_init_callback, 1);
+        if (f == NULL)
+            return -1;
+        Py_INCREF(self);
+        f->ob1 = self;
+        PyThreadState_GET()->frame = (PyFrameObject *) f;
+    }
+#endif
+    STACKLESS_PROMOTE_ALL();
     res = PyObject_Call(meth, args, kwds);
+    STACKLESS_ASSERT();
     Py_DECREF(meth);
+#ifdef STACKLESS
+    if (stackless && !STACKLESS_UNWINDING(res)) {
+        /* required, because added a C-frame */
+        STACKLESS_PACK(res);
+        return STACKLESS_UNWINDING_MAGIC;
+    }
+    if (STACKLESS_UNWINDING(res)) {
+        return STACKLESS_UNWINDING_MAGIC;
+    }
+#endif
     if (res == NULL)
         return -1;
     if (res != Py_None) {

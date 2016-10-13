@@ -224,6 +224,26 @@ def ctxpickling(testCase, n, when, expect_type, suppress_exc):
     return "OK"
 
 
+class InitTestClass:
+    def __init__(self, testcase):
+        testcase.started = True
+        schedule()
+
+
+class InitTestNewClass(object):
+    def __init__(self, testcase):
+        testcase.started = True
+        schedule()
+
+
+def inittest(testcase, cls):
+    # test pickling of stackless __init__
+    testcase.started = False
+    obj = cls(testcase)
+    testcase.assertTrue(testcase.started)
+    return "OK"
+
+
 def in_psyco():
     try:
         return __in_psyco__  # @UndefinedVariable
@@ -455,6 +475,12 @@ class PickledTaskletTestCases(object):
 
     def testCtx_exit_4(self):
         self.run_pickled(ctxpickling, self, 1, 'exit', RuntimeError, True)
+
+    def test__init__(self):
+        self.run_pickled(inittest, self, InitTestClass)
+
+    def test__init__new(self):
+        self.run_pickled(inittest, self, InitTestNewClass)
 
     def testFakeModules(self):
         types.ModuleType('fakemodule!')

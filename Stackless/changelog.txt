@@ -10,7 +10,14 @@ What's New in Stackless 2.7.x?
 
 *Release date: 20XX-XX-XX*
 
-- https://bitbucket.org/stackless-dev/stackless/issues/92  
+- https://bitbucket.org/stackless-dev/stackless/issues/94
+  Calls to __init__(self, ...) are now stackless, if
+  soft-switching is enabled.
+  Note: pickling and unpickling an object while its __init__() method runs,
+  may cause unexpected interactions between the object reconstruction and the
+  remaining part of __init__().
+
+- https://bitbucket.org/stackless-dev/stackless/issues/92
   If you run Stackless with the option '-v' (or set the environment variable
   PYTHONVERBOSE), Stackless prints a warning message, if it deallocates a
   tasklet, that has C-state.
