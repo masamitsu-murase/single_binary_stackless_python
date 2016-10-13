@@ -3355,6 +3355,7 @@ fast_yield:
         }
     }
 
+    assert(PyFrame_Check(tstate->frame));  /* to catch a Stackless CFrame */
     if (tstate->frame->f_exc_type != NULL)
         reset_exc_info(tstate);
     else {
