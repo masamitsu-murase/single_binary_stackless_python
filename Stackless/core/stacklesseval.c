@@ -336,7 +336,8 @@ slp_eval_frame(PyFrameObject *f)
     return slp_frame_dispatch(f, fprev, 0, Py_None);
 }
 
-static void kill_pending_current_main_and_watchdogs(PyThreadState *ts)
+static void
+kill_pending_current_main_and_watchdogs(PyThreadState *ts)
 {
     PyTaskletObject *t;
 
@@ -371,6 +372,43 @@ static void kill_pending_current_main_and_watchdogs(PyThreadState *ts)
         PyTasklet_KillEx(t, 1);
         PyErr_Clear();
         Py_DECREF(t);
+    }
+}
+
+static void
+run_other_threads(PyObject **sleep, int count)
+{
+    if (count == 0) {
+        /* shortcut */
+        return;
+    }
+    
+    assert(sleep != NULL);
+    if (*sleep == NULL) {
+        /* get a reference to time.sleep() */
+        PyObject *mod_time;
+        assert(Py_IsInitialized());
+        mod_time = PyImport_ImportModule("time");
+        if (mod_time != NULL) {
+            *sleep = PyObject_GetAttrString(mod_time, "sleep");
+            Py_DECREF(mod_time);
+        }
+        if (*sleep == NULL) {
+            PyErr_Clear();
+        }
+    }
+    while(count-- > 0) {
+        if (*sleep == NULL) {
+            Py_BEGIN_ALLOW_THREADS
+            Py_END_ALLOW_THREADS
+        } else {
+            PyObject *res = PyObject_CallFunction(*sleep, "(f)", (float)0.001);
+            if (res != NULL) {
+                Py_DECREF(res);
+            } else {
+                PyErr_Clear();
+            }
+        }
     }
 }
 
@@ -464,6 +502,7 @@ other_threads:
     {
         PyCStackObject *csfirst, *cs;
         PyTaskletObject *t;
+        PyObject *sleepfunc = NULL;
         int count;
 
         /* other threads, first pass: kill (pending) current, main and watchdog tasklets */
@@ -488,11 +527,7 @@ other_threads:
              * could try to get the HEAD lock. The result would be a wonderful dead lock.
              * If target_ts is NULL, we know for sure, that we don't hold the HEAD-lock.
              */
-            while(count-- > 0) {
-                /* schedule once for every thread. This way the thread has a chance to die */
-                Py_BEGIN_ALLOW_THREADS
-                Py_END_ALLOW_THREADS
-            }
+            run_other_threads(&sleepfunc, count);
             /* The other threads might have modified the thread state chain, but fortunately we
              * are done with it.
              */
@@ -504,8 +539,10 @@ other_threads:
         /* other threads, second pass: kill tasklets with nesting-level > 0 and
          * clear tstate if target_ts != NULL && target_ts != cts. */
         csfirst = slp_cstack_chain;
-        if (csfirst == NULL)
+        if (csfirst == NULL) {
+            Py_XDECREF(sleepfunc);
             return;
+        }
 
         count = 0;
         in_loop = 0;
@@ -541,12 +578,9 @@ other_threads:
              * could try to get the HEAD lock. The result would be a wonderful dead lock.
              * If target_ts is NULL, we know for sure, that we don't hold the HEAD-lock.
              */
-            while(count-- > 0) {
-                /* schedule once for every tasklet. This way the thread has a chance to die */
-                Py_BEGIN_ALLOW_THREADS
-                Py_END_ALLOW_THREADS
-            }
+            run_other_threads(&sleepfunc, count);
         }
+        Py_XDECREF(sleepfunc);
     }
 }
 
