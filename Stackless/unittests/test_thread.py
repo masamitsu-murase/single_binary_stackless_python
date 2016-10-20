@@ -12,6 +12,8 @@ try:
     withThreads = True
 except:
     withThreads = False
+    class threading(object):
+        Thread = object
 
 
 class SkipMixin(object):
@@ -273,6 +275,7 @@ class TestRebindCrash(SkipMixin, StacklessTestCase):
             end()
 
 
+@unittest.skipUnless(withThreads, "requires thread support")
 class RemoteTaskletTests(SkipMixin, StacklessTestCase):
     ThreadClass = LingeringThread
 
