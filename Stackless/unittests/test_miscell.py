@@ -1102,9 +1102,9 @@ class TestBind(StacklessTestCase):
         t = threading.Thread(target=other_thread_main, name="other thread")
         t.start()
         t.join()
+        time.sleep(0.05)  # other_thread needs some time to be destroyed
 
         loop = False
-        time.sleep(0.1)  # other_thread needs some time to be destroyed
         self.assertEqual(tlet.thread_id, -1)
         self.assertFalse(tlet.alive)
         self.assertFalse(tlet.restorable)
