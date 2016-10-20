@@ -193,8 +193,8 @@ class TestInterpreterShutdown(unittest.TestCase):
         self._test_shutdown_with_thread(5, True)
 
 
-# Module globals are cleared before __del__ is run
-# So we save functions, objects, ... in a class dict.
+# Module globals are cleared before __del__ is run.
+# So we save functions, objects, ... in the class dict.
 class Detector(object):
     debug = '--debug' in sys.argv
     EXIT_BASE = 20
@@ -259,6 +259,8 @@ class Detector(object):
         self.output.append(self.os_linesep)
 
 
+# Module globals are cleared while other_thread runs.
+# So we save functions, objects, ... in the class dict.
 class Test(object):
     CASES = (("tlet_paused", "paused", False),
              ("tlet_blocked", "blocked", False),
@@ -321,6 +323,8 @@ class Test(object):
                 func(bool(self.stackless_getcurrent().nesting_level), case)
             else:
                 apply(func, (True, case))
+            # From here on modules and globals are unavailable.
+            # Only local variables and closures can be used.
         except self.TaskletExit:
             self.checks[index] = checks_killed
             self.out.append(msg_killed)
@@ -361,6 +365,8 @@ class Test(object):
             print("tasklets prepared: ", self.tasklets)
         try:
             ready.release()
+            # From here on modules and globals are unavailable.
+            # Only local variables and closures can be used.
             if self.running:
                 while 1:  # True becomes None during interpreter shutdown
                     try:
