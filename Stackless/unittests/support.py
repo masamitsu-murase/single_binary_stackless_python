@@ -293,10 +293,16 @@ class StacklessTestCase(unittest.TestCase, StacklessTestCaseMixin):
     if sys.hexversion >= 0x3040000:
         def _addSkip(self, result, test_case, reason):
             self.addCleanup(self.__strip_attributes)
+            if hasattr(self, "_ran_AsTaskletTestCase_setUp"):
+                # avoid a assertion violation in AsTaskletTestCase.run
+                self._ran_AsTaskletTestCase_setUp = True
             super(StacklessTestCase, self)._addSkip(result, test_case, reason)
     else:
         def _addSkip(self, result, reason):
             self.addCleanup(self.__strip_attributes)
+            if hasattr(self, "_ran_AsTaskletTestCase_setUp"):
+                # avoid a assertion violation in AsTaskletTestCase.run
+                self._ran_AsTaskletTestCase_setUp = True
             super(StacklessTestCase, self)._addSkip(result, reason)
 
 _tc = StacklessTestCase(methodName='run')
