@@ -267,6 +267,14 @@ The ``tasklet`` class
    <slp-exc-section>`, and the purpose of the :ref:`TaskletExit <slp-exc>`
    exception.
 
+   If you try to raise an exception on a tasklet, that is not alive, the method
+   fails, except if *exc_class* is :exc:`TaskletExit` and the tasklet already ended.
+
+   .. versionchanged:: 3.3.7
+
+      In case of an error Stackless versions before 3.3.7 raise ``exc_class(*args)``.
+      Later versions raises :exc:`RuntimeError`.
+
 .. method:: tasklet.throw(exc=None, val=None, tb=None, pending=False)
 
    Raise an exception on the given tasklet.  The semantics are similar
@@ -277,14 +285,22 @@ The ``tasklet`` class
    runnable and the caller continues.  Otherwise, the target will be inserted
    before the current tasklet in the queue and switched to immediately.
 
+   If you try to raise an exception on a tasklet, that is not alive, the method
+   raises :exc:`RuntimeError` on the caller. There is one exception:
+   you can safely raise :exc:`TaskletExit`, if the tasklet already ended.
+
 .. method:: tasklet.kill(pending=False)
 
-   Raises the :ref:`TaskletExit <slp-exc>` exception on the tasklet.
-   *pending* has the same meaning as for :meth:`tasklet.throw`.
+   Terminates the tasklet and unblocks it, if the tasklet was blocked
+   on a channel. If the tasklet already ran to its end, the method does
+   nothing. If the tasklet has no thread, the method simply ends the
+   tasklet. Otherwise it raises the :ref:`TaskletExit <slp-exc>` exception
+   on the tasklet. *pending* has the same meaning as for :meth:`tasklet.throw`.
 
    This can be considered to be shorthand for::
 
-       >>> t.throw(TaskletExit, pending=pending)
+       >>> if t.alive:
+       >>>     t.throw(TaskletExit, pending=pending)
 
 .. method:: tasklet.set_atomic(flag)
 

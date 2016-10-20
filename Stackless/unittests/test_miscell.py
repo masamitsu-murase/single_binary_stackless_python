@@ -508,7 +508,6 @@ class TestKill(StacklessTestCase):
         self.assertFalse(t.alive)
         self.assertEqual(t.thread_id, stackless.current.thread_id)
 
-    @unittest.skip("issue #93, triggers an assertion violation")
     @unittest.skipUnless(withThreads, "requires thread support")
     @require_one_thread
     def test_kill_thread_without_main_tasklet(self):
@@ -604,22 +603,18 @@ class TestKill(StacklessTestCase):
             tlet.remove()
             tlet.kill()
 
-    @unittest.skip("issue #93, fails")
     @unittest.skipUnless(withThreads, "requires thread support")
     def test_kill_without_thread_state_nl0(self):
         return self._test_kill_without_thread_state(0, False)
 
-    @unittest.skip("issue #93, fails")
     @unittest.skipUnless(withThreads, "requires thread support")
     def test_kill_without_thread_state_nl1(self):
         return self._test_kill_without_thread_state(1, False)
 
-    @unittest.skip("issue #93, fails")
     @unittest.skipUnless(withThreads, "requires thread support")
     def test_kill_without_thread_state_blocked_nl0(self):
         return self._test_kill_without_thread_state(0, True)
 
-    @unittest.skip("issue #93, fails")
     @unittest.skipUnless(withThreads, "requires thread support")
     def test_kill_without_thread_state_blocked_nl1(self):
         return self._test_kill_without_thread_state(1, True)
