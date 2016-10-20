@@ -80,7 +80,6 @@ class TestTaskletDel(StacklessTestCase):
         hex(id(self.TaskletWithDelAndCollect(TaskletFunc)(self)))
         stackless.run()  # crash here
 
-    @unittest.skip("triggers an assertion failure")
     def test_tasklet_dealloc_in_thread_shutdown(self):
         # Test for https://bitbucket.org/stackless-dev/stackless/issues/89
         def other_thread_main():
@@ -210,7 +209,6 @@ class TestExceptionInScheduleCallback(StacklessTestCase):
         if next.is_main:
             raise RuntimeError("scheduleCallback")
 
-    #@unittest.skip('crashes python')
     def testExceptionInScheduleCallback(self):
         stackless.set_schedule_callback(self.scheduleCallback)
         self.addCleanup(stackless.set_schedule_callback, None)
@@ -355,7 +353,6 @@ class TestShutdown(StacklessTestCase):
             """])
         self.assertEqual(rc, 42)
 
-    @unittest.skip("test triggers an assertion violation, issue #89")
     def test_tasklet_end_with_wrong_recursion_level(self):
         # test for issue #91 https://bitbucket.org/stackless-dev/stackless/issues/91/
         """A test for issue #91, wrong recursion level after tasklet re-binding

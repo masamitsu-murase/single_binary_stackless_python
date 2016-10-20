@@ -49,6 +49,11 @@ Threads that end really should make sure that they finish whatever worker
 tasklets they have going by manually killing (``tasklet.kill()``) or 
 unbinding (``tasklet.bind(None)``) them, but that is up to application code.
 
+During interpreter shutdown Stackless kills other daemon threads (non-daemon
+are already dead at this point), if they execute Python code or switch
+tasklets. This way Stackless tries to avoid access violations, that might
+happen later after clearing the thread state structures.
+
 ----------------------
 A scheduler per thread
 ----------------------
