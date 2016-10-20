@@ -525,7 +525,7 @@ PyAPI_FUNC(int) slp_safe_pickling(int(*save)(PyObject *, PyObject *, int),
                                   PyObject *self, PyObject *args,
                                   int pers_save);
 /* utility function used by the reduce methods of tasklet and frame */
-int slp_pickle_with_tracing_state();
+int slp_pickle_with_tracing_state(void);
 
 /* debugging/monitoring */
 
