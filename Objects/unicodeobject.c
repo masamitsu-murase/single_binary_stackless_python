@@ -2335,6 +2335,8 @@ parse_format_flags(const char *f,
             f--;
         }
     }
+    if (width < precision)
+        width = precision;
     if (*f == '\0') {
         /* bogus format "%.1" => go backward, f points to "1" */
         f--;
@@ -9484,6 +9486,10 @@ case_operation(PyObject *self,
     kind = PyUnicode_KIND(self);
     data = PyUnicode_DATA(self);
     length = PyUnicode_GET_LENGTH(self);
+    if ((size_t) length > PY_SSIZE_T_MAX / (3 * sizeof(Py_UCS4))) {
+        PyErr_SetString(PyExc_OverflowError, "string is too long");
+        return NULL;
+    }
     tmp = PyMem_MALLOC(sizeof(Py_UCS4) * 3 * length);
     if (tmp == NULL)
         return PyErr_NoMemory();

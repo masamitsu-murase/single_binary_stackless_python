@@ -258,6 +258,11 @@ class TestBasicOps(unittest.TestCase):
 
                 self.pickletest(combinations(values, r))                 # test pickling
 
+    @support.bigaddrspacetest
+    def test_combinations_overflow(self):
+        with self.assertRaises((OverflowError, MemoryError)):
+            combinations("AA", 2**29)
+
         # Test implementation detail:  tuple re-use
     @support.impl_detail("tuple reuse is specific to CPython")
     def test_combinations_tuple_reuse(self):
@@ -339,8 +344,12 @@ class TestBasicOps(unittest.TestCase):
 
                 self.pickletest(cwr(values,r))                          # test pickling
 
-        # Test implementation detail:  tuple re-use
+    @support.bigaddrspacetest
+    def test_combinations_with_replacement_overflow(self):
+        with self.assertRaises((OverflowError, MemoryError)):
+            combinations_with_replacement("AA", 2**30)
 
+        # Test implementation detail:  tuple re-use
     @support.impl_detail("tuple reuse is specific to CPython")
     def test_combinations_with_replacement_tuple_reuse(self):
         cwr = combinations_with_replacement
@@ -408,6 +417,11 @@ class TestBasicOps(unittest.TestCase):
                     self.assertEqual(result, list(permutations(values)))       # test default r
 
                 self.pickletest(permutations(values, r))                # test pickling
+
+    @support.bigaddrspacetest
+    def test_permutations_overflow(self):
+        with self.assertRaises((OverflowError, MemoryError)):
+            permutations("A", 2**30)
 
     @support.impl_detail("tuple resuse is CPython specific")
     def test_permutations_tuple_reuse(self):
@@ -920,6 +934,11 @@ class TestBasicOps(unittest.TestCase):
             self.assertEqual(list(product(*args)), list(product2(*args)))
             args = map(iter, args)
             self.assertEqual(len(list(product(*args))), expected_len)
+
+    @support.bigaddrspacetest
+    def test_product_overflow(self):
+        with self.assertRaises((OverflowError, MemoryError)):
+            product(*(['ab']*2**5), repeat=2**25)
 
     @support.impl_detail("tuple reuse is specific to CPython")
     def test_product_tuple_reuse(self):
