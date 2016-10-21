@@ -154,8 +154,9 @@ class BasicSocketTests(unittest.TestCase):
         self.assertRaises(ValueError, ssl.RAND_bytes, -5)
         self.assertRaises(ValueError, ssl.RAND_pseudo_bytes, -5)
 
-        self.assertRaises(TypeError, ssl.RAND_egd, 1)
-        self.assertRaises(TypeError, ssl.RAND_egd, 'foo', 1)
+        if hasattr(ssl, 'RAND_egd'):
+            self.assertRaises(TypeError, ssl.RAND_egd, 1)
+            self.assertRaises(TypeError, ssl.RAND_egd, 'foo', 1)
         ssl.RAND_add("this is a random string", 75.0)
 
     @unittest.skipUnless(os.name == 'posix', 'requires posix')
@@ -291,7 +292,7 @@ class BasicSocketTests(unittest.TestCase):
         self.assertGreaterEqual(fix, 0)
         self.assertLess(fix, 256)
         self.assertGreaterEqual(patch, 0)
-        self.assertLessEqual(patch, 26)
+        self.assertLessEqual(patch, 63)
         self.assertGreaterEqual(status, 0)
         self.assertLessEqual(status, 15)
         # Version string as returned by {Open,Libre}SSL, the format might change
@@ -727,7 +728,7 @@ class ContextTests(unittest.TestCase):
     def test_load_cert_chain(self):
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
         # Combined key and cert in a single file
-        ctx.load_cert_chain(CERTFILE)
+        ctx.load_cert_chain(CERTFILE, keyfile=None)
         ctx.load_cert_chain(CERTFILE, keyfile=CERTFILE)
         self.assertRaises(TypeError, ctx.load_cert_chain, keyfile=CERTFILE)
         with self.assertRaises(OSError) as cm:
@@ -1281,11 +1282,8 @@ class NetworkedTests(unittest.TestCase):
             # Same with a server hostname
             s = ctx.wrap_socket(socket.socket(socket.AF_INET),
                                 server_hostname="svn.python.org")
-            if ssl.HAS_SNI:
-                s.connect(("svn.python.org", 443))
-                s.close()
-            else:
-                self.assertRaises(ValueError, s.connect, ("svn.python.org", 443))
+            s.connect(("svn.python.org", 443))
+            s.close()
             # This should fail because we have no verification certs
             ctx.verify_mode = ssl.CERT_REQUIRED
             s = ctx.wrap_socket(socket.socket(socket.AF_INET))
@@ -2038,7 +2036,6 @@ else:
                     cert = s.getpeercert()
                     self.assertTrue(cert, "Can't get peer certificate.")
 
-        @needs_sni
         def test_check_hostname(self):
             if support.verbose:
                 sys.stdout.write("\n")
@@ -2146,7 +2143,8 @@ else:
             try_protocol_combo(ssl.PROTOCOL_SSLv2, ssl.PROTOCOL_SSLv2, True, ssl.CERT_OPTIONAL)
             try_protocol_combo(ssl.PROTOCOL_SSLv2, ssl.PROTOCOL_SSLv2, True, ssl.CERT_REQUIRED)
             try_protocol_combo(ssl.PROTOCOL_SSLv2, ssl.PROTOCOL_SSLv23, False)
-            try_protocol_combo(ssl.PROTOCOL_SSLv2, ssl.PROTOCOL_SSLv3, False)
+            if hasattr(ssl, 'PROTOCOL_SSLv3'):
+                try_protocol_combo(ssl.PROTOCOL_SSLv2, ssl.PROTOCOL_SSLv3, False)
             try_protocol_combo(ssl.PROTOCOL_SSLv2, ssl.PROTOCOL_TLSv1, False)
             # SSLv23 client with specific SSL options
             if no_sslv2_implies_sslv3_hello():
@@ -2172,20 +2170,24 @@ else:
                         sys.stdout.write(
                             " SSL2 client to SSL23 server test unexpectedly failed:\n %s\n"
                             % str(x))
-            try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv3, True)
+            if hasattr(ssl, 'PROTOCOL_SSLv3'):
+                try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv3, True)
             try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv23, True)
             try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_TLSv1, True)
 
-            try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv3, True, ssl.CERT_OPTIONAL)
+            if hasattr(ssl, 'PROTOCOL_SSLv3'):
+                try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv3, True, ssl.CERT_OPTIONAL)
             try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv23, True, ssl.CERT_OPTIONAL)
             try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_TLSv1, True, ssl.CERT_OPTIONAL)
 
-            try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv3, True, ssl.CERT_REQUIRED)
+            if hasattr(ssl, 'PROTOCOL_SSLv3'):
+                try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv3, True, ssl.CERT_REQUIRED)
             try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv23, True, ssl.CERT_REQUIRED)
             try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_TLSv1, True, ssl.CERT_REQUIRED)
 
             # Server with specific SSL options
-            try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv3, False,
+            if hasattr(ssl, 'PROTOCOL_SSLv3'):
+                try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv3, False,
                                server_options=ssl.OP_NO_SSLv3)
             # Will choose TLSv1
             try_protocol_combo(ssl.PROTOCOL_SSLv23, ssl.PROTOCOL_SSLv23, True,
@@ -2195,6 +2197,8 @@ else:
 
 
         @skip_if_broken_ubuntu_ssl
+        @unittest.skipUnless(hasattr(ssl, 'PROTOCOL_SSLv3'),
+                             "OpenSSL is compiled without SSLv3 support")
         def test_protocol_sslv3(self):
             """Connecting to an SSLv3 server with various client options"""
             if support.verbose:
@@ -2222,7 +2226,8 @@ else:
             try_protocol_combo(ssl.PROTOCOL_TLSv1, ssl.PROTOCOL_TLSv1, True, ssl.CERT_REQUIRED)
             if hasattr(ssl, 'PROTOCOL_SSLv2'):
                 try_protocol_combo(ssl.PROTOCOL_TLSv1, ssl.PROTOCOL_SSLv2, False)
-            try_protocol_combo(ssl.PROTOCOL_TLSv1, ssl.PROTOCOL_SSLv3, False)
+            if hasattr(ssl, 'PROTOCOL_SSLv3'):
+                try_protocol_combo(ssl.PROTOCOL_TLSv1, ssl.PROTOCOL_SSLv3, False)
             try_protocol_combo(ssl.PROTOCOL_TLSv1, ssl.PROTOCOL_SSLv23, False,
                                client_options=ssl.OP_NO_TLSv1)
 
@@ -2237,7 +2242,8 @@ else:
             try_protocol_combo(ssl.PROTOCOL_TLSv1_1, ssl.PROTOCOL_TLSv1_1, True)
             if hasattr(ssl, 'PROTOCOL_SSLv2'):
                 try_protocol_combo(ssl.PROTOCOL_TLSv1_1, ssl.PROTOCOL_SSLv2, False)
-            try_protocol_combo(ssl.PROTOCOL_TLSv1_1, ssl.PROTOCOL_SSLv3, False)
+            if hasattr(ssl, 'PROTOCOL_SSLv3'):
+                try_protocol_combo(ssl.PROTOCOL_TLSv1_1, ssl.PROTOCOL_SSLv3, False)
             try_protocol_combo(ssl.PROTOCOL_TLSv1_1, ssl.PROTOCOL_SSLv23, False,
                                client_options=ssl.OP_NO_TLSv1_1)
 
@@ -2259,7 +2265,8 @@ else:
                                client_options=ssl.OP_NO_SSLv3|ssl.OP_NO_SSLv2,)
             if hasattr(ssl, 'PROTOCOL_SSLv2'):
                 try_protocol_combo(ssl.PROTOCOL_TLSv1_2, ssl.PROTOCOL_SSLv2, False)
-            try_protocol_combo(ssl.PROTOCOL_TLSv1_2, ssl.PROTOCOL_SSLv3, False)
+            if hasattr(ssl, 'PROTOCOL_SSLv3'):
+                try_protocol_combo(ssl.PROTOCOL_TLSv1_2, ssl.PROTOCOL_SSLv3, False)
             try_protocol_combo(ssl.PROTOCOL_TLSv1_2, ssl.PROTOCOL_SSLv23, False,
                                client_options=ssl.OP_NO_TLSv1_2)
 
@@ -2337,9 +2344,10 @@ else:
                 d1 = f.read()
             d2 = ''
             # now fetch the same data from the HTTPS server
-            url = 'https://%s:%d/%s' % (
-                HOST, server.port, os.path.split(CERTFILE)[1])
-            f = urllib.request.urlopen(url)
+            url = 'https://localhost:%d/%s' % (
+                server.port, os.path.split(CERTFILE)[1])
+            context = ssl.create_default_context(cafile=CERTFILE)
+            f = urllib.request.urlopen(url, context=context)
             try:
                 dlen = f.info().get("content-length")
                 if dlen and (int(dlen) > 0):

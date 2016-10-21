@@ -5,16 +5,21 @@ import logging
 import math
 import socket
 import sys
+import threading
 import time
 import unittest
 from unittest import mock
-from test.script_helper import assert_python_ok
-from test.support import IPV6_ENABLED, gc_collect
 
 import asyncio
 from asyncio import base_events
 from asyncio import constants
 from asyncio import test_utils
+try:
+    from test import support
+    from test.script_helper import assert_python_ok
+except ImportError:
+    from asyncio import test_support as support
+    from asyncio.test_support import assert_python_ok
 
 
 MOCK_ANY = mock.ANY
@@ -144,28 +149,71 @@ class BaseEventLoopTests(test_utils.TestCase):
         # are really slow
         self.assertLessEqual(dt, 0.9, dt)
 
-    def test_assert_is_current_event_loop(self):
+    def check_thread(self, loop, debug):
         def cb():
             pass
 
-        other_loop = base_events.BaseEventLoop()
-        other_loop._selector = mock.Mock()
-        asyncio.set_event_loop(other_loop)
+        loop.set_debug(debug)
+        if debug:
+            msg = ("Non-thread-safe operation invoked on an event loop other "
+                  "than the current one")
+            with self.assertRaisesRegex(RuntimeError, msg):
+                loop.call_soon(cb)
+            with self.assertRaisesRegex(RuntimeError, msg):
+                loop.call_later(60, cb)
+            with self.assertRaisesRegex(RuntimeError, msg):
+                loop.call_at(loop.time() + 60, cb)
+        else:
+            loop.call_soon(cb)
+            loop.call_later(60, cb)
+            loop.call_at(loop.time() + 60, cb)
 
-        # raise RuntimeError if the event loop is different in debug mode
-        self.loop.set_debug(True)
-        with self.assertRaises(RuntimeError):
-            self.loop.call_soon(cb)
-        with self.assertRaises(RuntimeError):
-            self.loop.call_later(60, cb)
-        with self.assertRaises(RuntimeError):
-            self.loop.call_at(self.loop.time() + 60, cb)
+    def test_check_thread(self):
+        def check_in_thread(loop, event, debug, create_loop, fut):
+            # wait until the event loop is running
+            event.wait()
+
+            try:
+                if create_loop:
+                    loop2 = base_events.BaseEventLoop()
+                    try:
+                        asyncio.set_event_loop(loop2)
+                        self.check_thread(loop, debug)
+                    finally:
+                        asyncio.set_event_loop(None)
+                        loop2.close()
+                else:
+                    self.check_thread(loop, debug)
+            except Exception as exc:
+                loop.call_soon_threadsafe(fut.set_exception, exc)
+            else:
+                loop.call_soon_threadsafe(fut.set_result, None)
+
+        def test_thread(loop, debug, create_loop=False):
+            event = threading.Event()
+            fut = asyncio.Future(loop=loop)
+            loop.call_soon(event.set)
+            args = (loop, event, debug, create_loop, fut)
+            thread = threading.Thread(target=check_in_thread, args=args)
+            thread.start()
+            loop.run_until_complete(fut)
+            thread.join()
+
+        self.loop._process_events = mock.Mock()
+        self.loop._write_to_self = mock.Mock()
+
+        # raise RuntimeError if the thread has no event loop
+        test_thread(self.loop, True)
 
         # check disabled if debug mode is disabled
-        self.loop.set_debug(False)
-        self.loop.call_soon(cb)
-        self.loop.call_later(60, cb)
-        self.loop.call_at(self.loop.time() + 60, cb)
+        test_thread(self.loop, False)
+
+        # raise RuntimeError if the event loop of the thread is not the called
+        # event loop
+        test_thread(self.loop, True, create_loop=True)
+
+        # check disabled if debug mode is disabled
+        test_thread(self.loop, False, create_loop=True)
 
     def test_run_once_in_executor_handle(self):
         def cb():
@@ -237,7 +285,8 @@ class BaseEventLoopTests(test_utils.TestCase):
     @mock.patch('asyncio.base_events.logger')
     def test__run_once_logging(self, m_logger):
         def slow_select(timeout):
-            # Sleep a bit longer than a second to avoid timer resolution issues.
+            # Sleep a bit longer than a second to avoid timer resolution
+            # issues.
             time.sleep(1.1)
             return []
 
@@ -360,6 +409,7 @@ class BaseEventLoopTests(test_utils.TestCase):
     def test_run_until_complete_loop(self):
         task = asyncio.Future(loop=self.loop)
         other_loop = self.new_test_loop()
+        self.addCleanup(other_loop.close)
         self.assertRaises(ValueError,
             other_loop.run_until_complete, task)
 
@@ -371,7 +421,7 @@ class BaseEventLoopTests(test_utils.TestCase):
             self.loop.run_until_complete, self.loop.subprocess_exec,
             asyncio.SubprocessProtocol)
 
-        # exepected multiple arguments, not a list
+        # expected multiple arguments, not a list
         self.assertRaises(TypeError,
             self.loop.run_until_complete, self.loop.subprocess_exec,
             asyncio.SubprocessProtocol, args)
@@ -540,6 +590,7 @@ class BaseEventLoopTests(test_utils.TestCase):
                 raise ValueError('spam')
 
         loop = Loop()
+        self.addCleanup(loop.close)
         asyncio.set_event_loop(loop)
 
         def run_loop():
@@ -634,9 +685,34 @@ class BaseEventLoopTests(test_utils.TestCase):
         except KeyboardInterrupt:
             pass
         self.loop.close()
-        gc_collect()
+        support.gc_collect()
 
         self.assertFalse(self.loop.call_exception_handler.called)
+
+    def test_run_until_complete_baseexception(self):
+        # Python issue #22429: run_until_complete() must not schedule a pending
+        # call to stop() if the future raised a BaseException
+        @asyncio.coroutine
+        def raise_keyboard_interrupt():
+            raise KeyboardInterrupt
+
+        self.loop._process_events = mock.Mock()
+
+        try:
+            self.loop.run_until_complete(raise_keyboard_interrupt())
+        except KeyboardInterrupt:
+            pass
+
+        def func():
+            self.loop.stop()
+            func.called = True
+        func.called = False
+        try:
+            self.loop.call_soon(func)
+            self.loop.run_forever()
+        except KeyboardInterrupt:
+            pass
+        self.assertTrue(func.called)
 
 
 class MyProto(asyncio.Protocol):
@@ -1041,7 +1117,7 @@ class BaseEventLoopWithSelectorTests(test_utils.TestCase):
         self.assertRaises(
             OSError, self.loop.run_until_complete, coro)
 
-    @unittest.skipUnless(IPV6_ENABLED, 'IPv6 not supported or enabled')
+    @unittest.skipUnless(support.IPV6_ENABLED, 'IPv6 not supported or enabled')
     def test_create_datagram_endpoint_no_matching_family(self):
         coro = self.loop.create_datagram_endpoint(
             asyncio.DatagramProtocol,
@@ -1107,19 +1183,23 @@ class BaseEventLoopWithSelectorTests(test_utils.TestCase):
 
     def test_call_coroutine(self):
         @asyncio.coroutine
-        def coroutine_function():
+        def simple_coroutine():
             pass
 
-        with self.assertRaises(TypeError):
-            self.loop.call_soon(coroutine_function)
-        with self.assertRaises(TypeError):
-            self.loop.call_soon_threadsafe(coroutine_function)
-        with self.assertRaises(TypeError):
-            self.loop.call_later(60, coroutine_function)
-        with self.assertRaises(TypeError):
-            self.loop.call_at(self.loop.time() + 60, coroutine_function)
-        with self.assertRaises(TypeError):
-            self.loop.run_in_executor(None, coroutine_function)
+        coro_func = simple_coroutine
+        coro_obj = coro_func()
+        self.addCleanup(coro_obj.close)
+        for func in (coro_func, coro_obj):
+            with self.assertRaises(TypeError):
+                self.loop.call_soon(func)
+            with self.assertRaises(TypeError):
+                self.loop.call_soon_threadsafe(func)
+            with self.assertRaises(TypeError):
+                self.loop.call_later(60, func)
+            with self.assertRaises(TypeError):
+                self.loop.call_at(self.loop.time() + 60, func)
+            with self.assertRaises(TypeError):
+                self.loop.run_in_executor(None, func)
 
     @mock.patch('asyncio.base_events.logger')
     def test_log_slow_callbacks(self, m_logger):
@@ -1140,14 +1220,16 @@ class BaseEventLoopWithSelectorTests(test_utils.TestCase):
         self.loop.run_forever()
         fmt, *args = m_logger.warning.call_args[0]
         self.assertRegex(fmt % tuple(args),
-                         "^Executing <Handle.*stop_loop_cb.*> took .* seconds$")
+                         "^Executing <Handle.*stop_loop_cb.*> "
+                         "took .* seconds$")
 
         # slow task
         asyncio.async(stop_loop_coro(self.loop), loop=self.loop)
         self.loop.run_forever()
         fmt, *args = m_logger.warning.call_args[0]
         self.assertRegex(fmt % tuple(args),
-                         "^Executing <Task.*stop_loop_coro.*> took .* seconds$")
+                         "^Executing <Task.*stop_loop_coro.*> "
+                         "took .* seconds$")
 
 
 if __name__ == '__main__':

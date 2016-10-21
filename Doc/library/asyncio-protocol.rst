@@ -207,10 +207,15 @@ BaseSubprocessTransport
    .. method:: get_pipe_transport(fd)
 
       Return the transport for the communication pipe corresponding to the
-      integer file descriptor *fd*.  The return value can be a readable or
-      writable streaming transport, depending on the *fd*.  If *fd* doesn't
-      correspond to a pipe belonging to this transport, :const:`None` is
-      returned.
+      integer file descriptor *fd*:
+
+      * ``0``: readable streaming transport of the standard input (*stdin*),
+        or :const:`None` if the subprocess was not created with ``stdin=PIPE``
+      * ``1``: writable streaming transport of the standard output (*stdout*),
+        or :const:`None` if the subprocess was not created with ``stdout=PIPE``
+      * ``2``: writable streaming transport of the standard error (*stderr*),
+        or :const:`None` if the subprocess was not created with ``stderr=PIPE``
+      * other *fd*: :const:`None`
 
    .. method:: get_returncode()
 
@@ -238,6 +243,12 @@ BaseSubprocessTransport
       On POSIX systems, this method sends SIGTERM to the subprocess.
       On Windows, the Windows API function TerminateProcess() is called to
       stop the subprocess.
+
+   .. method:: close()
+
+      Ask the subprocess to stop by calling the :meth:`terminate` method if the
+      subprocess hasn't returned yet, and close transports of all pipes
+      (*stdin*, *stdout* and *stderr*).
 
 
 .. _asyncio-protocol:
@@ -363,6 +374,14 @@ The following callbacks are called on :class:`Protocol` instances:
 a connection.  However, :meth:`eof_received` is called at most once
 and, if called, :meth:`data_received` won't be called after it.
 
+State machine:
+
+    start -> :meth:`~BaseProtocol.connection_made`
+    [-> :meth:`~Protocol.data_received` \*]
+    [-> :meth:`~Protocol.eof_received` ?]
+    -> :meth:`~BaseProtocol.connection_lost` -> end
+
+
 Datagram protocols
 ------------------
 
@@ -428,8 +447,8 @@ Coroutines and protocols
 ------------------------
 
 Coroutines can be scheduled in a protocol method using :func:`async`, but there
-is not guarantee on the execution order. Protocols are not aware of coroutines
-created in protocol methods and so will not wait for them.
+is no guarantee made about the execution order.  Protocols are not aware of
+coroutines created in protocol methods and so will not wait for them.
 
 To have a reliable execution order, use :ref:`stream objects <asyncio-streams>` in a
 coroutine with ``yield from``. For example, the :meth:`StreamWriter.drain`
@@ -439,29 +458,37 @@ coroutine can be used to wait until the write buffer is flushed.
 Protocol examples
 =================
 
-TCP echo client
----------------
+.. _asyncio-tcp-echo-client-protocol:
 
-TCP echo client example, send data and wait until the connection is closed::
+TCP echo client protocol
+------------------------
+
+TCP echo client  using the :meth:`BaseEventLoop.create_connection` method, send
+data and wait until the connection is closed::
 
     import asyncio
 
-    class EchoClient(asyncio.Protocol):
-        message = 'This is the message. It will be echoed.'
+    class EchoClientProtocol(asyncio.Protocol):
+        def __init__(self, message, loop):
+            self.message = message
+            self.loop = loop
 
         def connection_made(self, transport):
             transport.write(self.message.encode())
-            print('data sent: {}'.format(self.message))
+            print('Data sent: {!r}'.format(self.message))
 
         def data_received(self, data):
-            print('data received: {}'.format(data.decode()))
+            print('Data received: {!r}'.format(data.decode()))
 
         def connection_lost(self, exc):
-            print('server closed the connection')
-            asyncio.get_event_loop().stop()
+            print('The server closed the connection')
+            print('Stop the event lop')
+            self.loop.stop()
 
     loop = asyncio.get_event_loop()
-    coro = loop.create_connection(EchoClient, '127.0.0.1', 8888)
+    message = 'Hello World!'
+    coro = loop.create_connection(lambda: EchoClientProtocol(message, loop),
+                                  '127.0.0.1', 8888)
     loop.run_until_complete(coro)
     loop.run_forever()
     loop.close()
@@ -473,43 +500,147 @@ having to write a short coroutine to handle the exception and stop the
 running loop. At :meth:`~BaseEventLoop.run_until_complete` exit, the loop is
 no longer running, so there is no need to stop the loop in case of an error.
 
-TCP echo server
----------------
+.. seealso::
 
-TCP echo server example, send back received data and close the connection::
+   The :ref:`TCP echo client using streams <asyncio-tcp-echo-client-streams>`
+   example uses the :func:`asyncio.open_connection` function.
+
+
+.. _asyncio-tcp-echo-server-protocol:
+
+TCP echo server protocol
+------------------------
+
+TCP echo server using the :meth:`BaseEventLoop.create_server` method, send back
+received data and close the connection::
 
     import asyncio
 
-    class EchoServer(asyncio.Protocol):
+    class EchoServerClientProtocol(asyncio.Protocol):
         def connection_made(self, transport):
             peername = transport.get_extra_info('peername')
-            print('connection from {}'.format(peername))
+            print('Connection from {}'.format(peername))
             self.transport = transport
 
         def data_received(self, data):
-            print('data received: {}'.format(data.decode()))
+            message = data.decode()
+            print('Data received: {!r}'.format(message))
+
+            print('Send: {!r}'.format(message))
             self.transport.write(data)
 
-            # close the socket
+            print('Close the client socket')
             self.transport.close()
 
     loop = asyncio.get_event_loop()
-    coro = loop.create_server(EchoServer, '127.0.0.1', 8888)
+    # Each client connection will create a new protocol instance
+    coro = loop.create_server(EchoServerClientProtocol, '127.0.0.1', 8888)
     server = loop.run_until_complete(coro)
-    print('serving on {}'.format(server.sockets[0].getsockname()))
 
+    # Serve requests until CTRL+c is pressed
+    print('Serving on {}'.format(server.sockets[0].getsockname()))
     try:
         loop.run_forever()
     except KeyboardInterrupt:
-        print("exit")
-    finally:
-        server.close()
-        loop.close()
+        pass
+
+    # Close the server
+    server.close()
+    loop.run_until_complete(server.wait_closed())
+    loop.close()
 
 :meth:`Transport.close` can be called immediately after
 :meth:`WriteTransport.write` even if data are not sent yet on the socket: both
 methods are asynchronous. ``yield from`` is not needed because these transport
 methods are not coroutines.
+
+.. seealso::
+
+   The :ref:`TCP echo server using streams <asyncio-tcp-echo-server-streams>`
+   example uses the :func:`asyncio.start_server` function.
+
+
+.. _asyncio-udp-echo-client-protocol:
+
+UDP echo client protocol
+------------------------
+
+UDP echo client using the :meth:`BaseEventLoop.create_datagram_endpoint`
+method, send data and close the transport when we received the answer::
+
+    import asyncio
+
+    class EchoClientProtocol:
+        def __init__(self, message, loop):
+            self.message = message
+            self.loop = loop
+            self.transport = None
+
+        def connection_made(self, transport):
+            self.transport = transport
+            print('Send:', self.message)
+            self.transport.sendto(self.message.encode())
+
+        def datagram_received(self, data, addr):
+            print("Received:", data.decode())
+
+            print("Close the socket")
+            self.transport.close()
+
+        def error_received(self, exc):
+            print('Error received:', exc)
+
+        def connection_lost(self, exc):
+            print("Socket closed, stop the event loop")
+            loop = asyncio.get_event_loop()
+            loop.stop()
+
+    loop = asyncio.get_event_loop()
+    message = "Hello World!"
+    connect = loop.create_datagram_endpoint(
+        lambda: EchoClientProtocol(message, loop),
+        remote_addr=('127.0.0.1', 9999))
+    transport, protocol = loop.run_until_complete(connect)
+    loop.run_forever()
+    transport.close()
+    loop.close()
+
+
+.. _asyncio-udp-echo-server-protocol:
+
+UDP echo server protocol
+------------------------
+
+UDP echo server using the :meth:`BaseEventLoop.create_datagram_endpoint`
+method, send back received data::
+
+    import asyncio
+
+    class EchoServerProtocol:
+        def connection_made(self, transport):
+            self.transport = transport
+
+        def datagram_received(self, data, addr):
+            message = data.decode()
+            print('Received %r from %s' % (message, addr))
+            print('Send %r to %s' % (message, addr))
+            self.transport.sendto(data, addr)
+
+    loop = asyncio.get_event_loop()
+    print("Starting UDP server")
+    # One protocol instance will be created to serve all client requests
+    listen = loop.create_datagram_endpoint(
+        EchoServerProtocol, local_addr=('127.0.0.1', 9999))
+    transport, protocol = loop.run_until_complete(listen)
+
+    try:
+        loop.run_forever()
+    except KeyboardInterrupt:
+        pass
+
+    transport.close()
+    loop.close()
+
 
 .. _asyncio-register-socket:
 

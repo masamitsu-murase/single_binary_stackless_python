@@ -16,7 +16,7 @@ authentication, redirections, cookies and more.
 The :mod:`urllib.request` module defines the following functions:
 
 
-.. function:: urlopen(url, data=None[, timeout], *, cafile=None, capath=None, cadefault=False)
+.. function:: urlopen(url, data=None[, timeout], *, cafile=None, capath=None, cadefault=False, context=None)
 
    Open the URL *url*, which can be either a string or a
    :class:`Request` object.
@@ -47,21 +47,17 @@ The :mod:`urllib.request` module defines the following functions:
    the global default timeout setting will be used).  This actually
    only works for HTTP, HTTPS and FTP connections.
 
+   If *context* is specified, it must be a :class:`ssl.SSLContext` instance
+   describing the various SSL options. See :class:`~http.client.HTTPSConnection`
+   for more details.
+
    The optional *cafile* and *capath* parameters specify a set of trusted
    CA certificates for HTTPS requests.  *cafile* should point to a single
    file containing a bundle of CA certificates, whereas *capath* should
    point to a directory of hashed certificate files.  More information can
    be found in :meth:`ssl.SSLContext.load_verify_locations`.
 
-   The *cadefault* parameter specifies whether to fall back to loading a
-   default certificate store defined by the underlying OpenSSL library if the
-   *cafile* and *capath* parameters are omitted.  This will only work on
-   some non-Windows platforms.
-
-   .. warning::
-      If neither *cafile* nor *capath* is specified, and *cadefault* is ``False``,
-      an HTTPS request will not do any verification of the server's
-      certificate.
+   The *cadefault* parameter is ignored.
 
    For http and https urls, this function returns a
    :class:`http.client.HTTPResponse` object which has the following
@@ -110,6 +106,9 @@ The :mod:`urllib.request` module defines the following functions:
 
    .. versionchanged:: 3.3
       *cadefault* was added.
+
+   .. versionchanged:: 3.4.3
+      *context* was added.
 
 .. function:: install_opener(opener)
 

@@ -956,7 +956,7 @@ class HTMLDoc(Doc):
         if not argspec:
             argspec = '(...)'
 
-        decl = title + argspec + (note and self.grey(
+        decl = title + self.escape(argspec) + (note and self.grey(
                '<font face="helvetica, arial">%s</font>' % note))
 
         if skipdocs:
@@ -1479,12 +1479,18 @@ def ttypager(text):
         old = tty.tcgetattr(fd)
         tty.setcbreak(fd)
         getchar = lambda: sys.stdin.read(1)
-    except (ImportError, AttributeError):
+    except (ImportError, AttributeError, io.UnsupportedOperation):
         tty = None
         getchar = lambda: sys.stdin.readline()[:-1][:1]
 
     try:
-        r = inc = os.environ.get('LINES', 25) - 1
+        try:
+            h = int(os.environ.get('LINES', 0))
+        except ValueError:
+            h = 0
+        if h <= 1:
+            h = 25
+        r = inc = h - 1
         sys.stdout.write('\n'.join(lines[:inc]) + '\n')
         while lines[r:]:
             sys.stdout.write('-- more --')

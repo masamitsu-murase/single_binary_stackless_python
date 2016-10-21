@@ -51,11 +51,11 @@ test runner
       Kent Beck's original paper on testing frameworks using the pattern shared
       by :mod:`unittest`.
 
-   `Nose <http://code.google.com/p/python-nose/>`_ and `py.test <http://pytest.org>`_
+   `Nose <https://nose.readthedocs.org/en/latest/>`_ and `py.test <http://pytest.org>`_
       Third-party unittest frameworks with a lighter-weight syntax for writing
       tests.  For example, ``assert func(10) == 42``.
 
-   `The Python Testing Tools Taxonomy <http://wiki.python.org/moin/PythonTestingToolsTaxonomy>`_
+   `The Python Testing Tools Taxonomy <https://wiki.python.org/moin/PythonTestingToolsTaxonomy>`_
       An extensive list of Python testing tools including functional testing
       frameworks and mock object libraries.
 
@@ -67,7 +67,7 @@ test runner
    a GUI tool for test discovery and execution.  This is intended largely for ease of use
    for those new to unit testing.  For production environments it is
    recommended that tests be driven by a continuous integration system such as
-   `Buildbot <http://buildbot.net/trac>`_, `Jenkins <http://jenkins-ci.org>`_
+   `Buildbot <http://buildbot.net/>`_, `Jenkins <http://jenkins-ci.org/>`_
    or  `Hudson <http://hudson-ci.org/>`_.
 
 

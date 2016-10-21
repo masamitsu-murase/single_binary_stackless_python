@@ -269,8 +269,8 @@ the same rule. [2]_ The constructors :func:`int`, :func:`float`, and
 :func:`complex` can be used to produce numbers of a specific type.
 
 All numeric types (except complex) support the following operations, sorted by
-ascending priority (operations in the same box have the same priority; all
-numeric operations have a higher priority than comparison operations):
+ascending priority (all numeric operations have a higher priority than
+comparison operations):
 
 +---------------------+---------------------------------+---------+--------------------+
 | Operation           | Result                          | Notes   | Full documentation |
@@ -404,8 +404,7 @@ The priorities of the binary bitwise operations are all lower than the numeric
 operations and higher than the comparisons; the unary operation ``~`` has the
 same priority as the other unary numeric operations (``+`` and ``-``).
 
-This table lists the bitwise operations sorted in ascending priority
-(operations in the same box have the same priority):
+This table lists the bitwise operations sorted in ascending priority:
 
 +------------+--------------------------------+----------+
 | Operation  | Result                         | Notes    |
@@ -444,7 +443,7 @@ Additional Methods on Integer Types
 -----------------------------------
 
 The int type implements the :class:`numbers.Integral` :term:`abstract base
-class`. In addition, it provides one more method:
+class`. In addition, it provides a few more methods:
 
 .. method:: int.bit_length()
 
@@ -820,10 +819,10 @@ both mutable and immutable. The :class:`collections.abc.Sequence` ABC is
 provided to make it easier to correctly implement these operations on
 custom sequence types.
 
-This table lists the sequence operations sorted in ascending priority
-(operations in the same box have the same priority).  In the table, *s* and *t*
-are sequences of the same type, *n*, *i*, *j* and *k* are integers and *x* is
-an arbitrary object that meets any type and value restrictions imposed by *s*.
+This table lists the sequence operations sorted in ascending priority.  In the
+table, *s* and *t* are sequences of the same type, *n*, *i*, *j* and *k* are
+integers and *x* is an arbitrary object that meets any type and value
+restrictions imposed by *s*.
 
 The ``in`` and ``not in`` operations have the same priorities as the
 comparison operations. The ``+`` (concatenation) and ``*`` (repetition)
@@ -1513,7 +1512,7 @@ expression support in the :mod:`re` module).
    a :exc:`UnicodeError`. Other possible
    values are ``'ignore'``, ``'replace'``, ``'xmlcharrefreplace'``,
    ``'backslashreplace'`` and any other name registered via
-   :func:`codecs.register_error`, see section :ref:`codec-base-classes`. For a
+   :func:`codecs.register_error`, see section :ref:`error-handlers`. For a
    list of possible encodings, see section :ref:`standard-encodings`.
 
    .. versionchanged:: 3.1
@@ -2385,7 +2384,7 @@ arbitrary binary data.
    error handling scheme.  The default for *errors* is ``'strict'``, meaning
    that encoding errors raise a :exc:`UnicodeError`.  Other possible values are
    ``'ignore'``, ``'replace'`` and any other name registered via
-   :func:`codecs.register_error`, see section :ref:`codec-base-classes`. For a
+   :func:`codecs.register_error`, see section :ref:`error-handlers`. For a
    list of possible encodings, see section :ref:`standard-encodings`.
 
    .. note::
@@ -3762,11 +3761,13 @@ pairs within braces, for example: ``{'jack': 4098, 'sjoerd': 4127}`` or ``{4098:
       Return the item of *d* with key *key*.  Raises a :exc:`KeyError` if *key* is
       not in the map.
 
-      If a subclass of dict defines a method :meth:`__missing__`, if the key *key*
+      .. index:: __missing__()
+
+      If a subclass of dict defines a method :meth:`__missing__` and *key*
       is not present, the ``d[key]`` operation calls that method with the key *key*
       as argument.  The ``d[key]`` operation then returns or raises whatever is
-      returned or raised by the ``__missing__(key)`` call if the key is not
-      present. No other operations or methods invoke :meth:`__missing__`. If
+      returned or raised by the ``__missing__(key)`` call.
+      No other operations or methods invoke :meth:`__missing__`. If
       :meth:`__missing__` is not defined, :exc:`KeyError` is raised.
       :meth:`__missing__` must be a method; it cannot be an instance variable::
 
@@ -3780,8 +3781,9 @@ pairs within braces, for example: ``{'jack': 4098, 'sjoerd': 4127}`` or ``{4098:
           >>> c['red']
           1
 
-      See :class:`collections.Counter` for a complete implementation including
-      other methods helpful for accumulating and managing tallies.
+      The example above shows part of the implementation of
+      :class:`collections.Counter`.  A different ``__missing__`` method is used
+      by :class:`collections.defaultdict`.
 
    .. describe:: d[key] = value
 
@@ -4006,8 +4008,8 @@ before the statement body is executed and exited when the statement ends:
    The exception passed in should never be reraised explicitly - instead, this
    method should return a false value to indicate that the method completed
    successfully and does not want to suppress the raised exception. This allows
-   context management code (such as ``contextlib.nested``) to easily detect whether
-   or not an :meth:`__exit__` method has actually failed.
+   context management code to easily detect whether or not an :meth:`__exit__`
+   method has actually failed.
 
 Python defines several context managers to support easy thread synchronisation,
 prompt closure of files or other objects, and simpler manipulation of the active

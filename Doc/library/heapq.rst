@@ -123,7 +123,6 @@ pushing all values onto a heap and then popping off the smallest values one at a
 time::
 
    >>> def heapsort(iterable):
-   ...     'Equivalent to sorted(iterable)'
    ...     h = []
    ...     for value in iterable:
    ...         heappush(h, value)
@@ -131,6 +130,9 @@ time::
    ...
    >>> heapsort([1, 3, 5, 7, 9, 2, 4, 6, 8, 0])
    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+This is similar to ``sorted(iterable)``, but unlike :func:`sorted`, this
+implementation is not stable.
 
 Heap elements can be tuples.  This is useful for assigning comparison values
 (such as task priorities) alongside the main record being tracked::
@@ -258,11 +260,11 @@ However, there are other representations which are more efficient overall, yet
 the worst cases might be terrible.
 
 Heaps are also very useful in big disk sorts.  You most probably all know that a
-big sort implies producing "runs" (which are pre-sorted sequences, which size is
+big sort implies producing "runs" (which are pre-sorted sequences, whose size is
 usually related to the amount of CPU memory), followed by a merging passes for
 these runs, which merging is often very cleverly organised [#]_. It is very
 important that the initial sort produces the longest runs possible.  Tournaments
-are a good way to that.  If, using all the memory available to hold a
+are a good way to achieve that.  If, using all the memory available to hold a
 tournament, you replace and percolate items that happen to fit the current run,
 you'll produce runs which are twice the size of the memory for random input, and
 much better for input fuzzily ordered.

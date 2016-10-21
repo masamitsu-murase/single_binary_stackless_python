@@ -1,7 +1,7 @@
-.. highlightlang:: none
+.. highlightlang:: sh
 
 .. ATTENTION: You probably should update Misc/python.man, too, if you modify
-.. this file.
+   this file.
 
 .. _using-on-general:
 
@@ -148,6 +148,10 @@ source.
    added to the start of :data:`sys.path` and the ``__main__.py`` file in
    that location is executed as the :mod:`__main__` module.
 
+   .. seealso::
+      :func:`runpy.run_path`
+         Equivalent functionality directly available to Python code
+
 
 If no interface option is given, :option:`-i` is implied, ``sys.argv[0]`` is
 an empty string (``""``) and the current directory will be added to the
@@ -155,10 +159,10 @@ start of :data:`sys.path`.  Also, tab-completion and history editing is
 automatically enabled, if available on your platform (see
 :ref:`rlcompleter-config`).
 
+.. seealso::  :ref:`tut-invoking`
+
 .. versionchanged:: 3.4
    Automatic enabling of tab-completion and history editing.
-
-.. seealso::  :ref:`tut-invoking`
 
 
 Generic options
@@ -411,7 +415,7 @@ Options you shouldn't use
 
    Reserved for use by Jython_.
 
-.. _Jython: http://jython.org
+.. _Jython: http://www.jython.org/
 
 
 .. _using-on-envvars:
@@ -466,14 +470,6 @@ conflict.
    that objects defined or imported in it can be used without qualification in
    the interactive session.  You can also change the prompts :data:`sys.ps1` and
    :data:`sys.ps2` and the hook :data:`sys.__interactivehook__` in this file.
-
-
-.. envvar:: PYTHONY2K
-
-   Set this to a non-empty string to cause the :mod:`time` module to require
-   dates specified as strings to include 4-digit years, otherwise 2-digit years
-   are converted based on rules described in the :mod:`time` module
-   documentation.
 
 
 .. envvar:: PYTHONOPTIMIZE

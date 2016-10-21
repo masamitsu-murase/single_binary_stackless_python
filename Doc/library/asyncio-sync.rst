@@ -4,6 +4,29 @@
 Synchronization primitives
 ==========================
 
+Locks:
+
+* :class:`Lock`
+* :class:`Event`
+* :class:`Condition`
+* :class:`Semaphore`
+* :class:`BoundedSemaphore`
+
+Queues:
+
+* :class:`Queue`
+* :class:`PriorityQueue`
+* :class:`LifoQueue`
+* :class:`JoinableQueue`
+
+asyncio locks and queues API were designed to be close to classes of the
+:mod:`threading` module (:class:`~threading.Lock`, :class:`~threading.Event`,
+:class:`~threading.Condition`, :class:`~threading.Semaphore`,
+:class:`~threading.BoundedSemaphore`) and the :mod:`queue` module
+(:class:`~queue.Queue`, :class:`~queue.PriorityQueue`,
+:class:`~queue.LifoQueue`), but they have no *timeout* parameter. The
+:func:`asyncio.wait_for` function can be used to cancel a task after a timeout.
+
 Locks
 -----
 
@@ -293,7 +316,7 @@ Queue
 
    .. method:: full()
 
-      Return ``True`` if there are maxsize items in the queue.
+      Return ``True`` if there are :attr:`maxsize` items in the queue.
 
       .. note::
 
@@ -302,11 +325,14 @@ Queue
 
    .. method:: get()
 
-      Remove and return an item from the queue.
-
-      If you yield from :meth:`get()`, wait until a item is available.
+      Remove and return an item from the queue. If queue is empty, wait until
+      an item is available.
 
       This method is a :ref:`coroutine <coroutine>`.
+
+      .. seealso::
+
+         The :meth:`empty` method.
 
    .. method:: get_nowait()
 
@@ -317,12 +343,14 @@ Queue
 
    .. method:: put(item)
 
-      Put an item into the queue.
-
-      If you yield from ``put()``, wait until a free slot is available before
-      adding item.
+      Put an item into the queue. If the queue is full, wait until a free slot
+      is available before adding item.
 
       This method is a :ref:`coroutine <coroutine>`.
+
+      .. seealso::
+
+         The :meth:`full` method.
 
    .. method:: put_nowait(item)
 
@@ -400,13 +428,11 @@ Exceptions
 
 .. exception:: QueueEmpty
 
-   Exception raised when non-blocking :meth:`~Queue.get` (or
-   :meth:`~Queue.get_nowait`) is called
-   on a :class:`Queue` object which is empty.
+   Exception raised when the :meth:`~Queue.get_nowait` method is called on a
+   :class:`Queue` object which is empty.
 
 
 .. exception:: QueueFull
 
-   Exception raised when non-blocking :meth:`~Queue.put` (or
-   :meth:`~Queue.put_nowait`) is called
-   on a :class:`Queue` object which is full.
+   Exception raised when the :meth:`~Queue.put_nowait` method is called on a
+   :class:`Queue` object which is full.

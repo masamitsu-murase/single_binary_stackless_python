@@ -77,30 +77,60 @@ Coroutines (and tasks) can only run when the event loop is running.
 
 .. _asyncio-hello-world-coroutine:
 
-Example: "Hello World" coroutine
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Example: Hello World coroutine
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Print ``"Hello World"`` every two seconds using a coroutine::
+Example of coroutine displaying ``"Hello World"``::
 
     import asyncio
 
     @asyncio.coroutine
-    def greet_every_two_seconds():
-        while True:
-            print('Hello World')
-            yield from asyncio.sleep(2)
+    def hello_world():
+        print("Hello World!")
 
     loop = asyncio.get_event_loop()
-    try:
-        loop.run_until_complete(greet_every_two_seconds())
-    finally:
-        loop.close()
+    # Blocking call which returns when the hello_world() coroutine is done
+    loop.run_until_complete(hello_world())
+    loop.close()
 
 .. seealso::
 
-   The :ref:`Hello World with a callback <asyncio-hello-world-callback>`
-   example uses a callback scheduled by the :meth:`BaseEventLoop.call_soon`
-   method.
+   The :ref:`Hello World with call_soon() <asyncio-hello-world-callback>`
+   example uses the :meth:`BaseEventLoop.call_soon` method to schedule a
+   callback.
+
+
+.. _asyncio-date-coroutine:
+
+Example: Coroutine displaying the current date
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Example of coroutine displaying the current date every second during 5 seconds
+using the :meth:`sleep` function::
+
+    import asyncio
+    import datetime
+
+    @asyncio.coroutine
+    def display_date(loop):
+        end_time = loop.time() + 5.0
+        while True:
+            print(datetime.datetime.now())
+            if (loop.time() + 1.0) >= end_time:
+                break
+            yield from asyncio.sleep(1)
+
+    loop = asyncio.get_event_loop()
+    # Blocking call which returns when the display_date() coroutine is done
+    loop.run_until_complete(display_date(loop))
+    loop.close()
+
+.. seealso::
+
+   The :ref:`display the current date with call_later()
+   <asyncio-date-callback>` example uses a callback with the
+   :meth:`BaseEventLoop.call_later` method.
+
 
 Example: Chain coroutines
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -223,6 +253,11 @@ Future
       future is already done when this is called, the callback is scheduled
       with :meth:`~BaseEventLoop.call_soon`.
 
+      :ref:`Use functools.partial to pass parameters to the callback
+      <asyncio-pass-keywords>`. For example,
+      ``fut.add_done_callback(functools.partial(print, "Future:",
+      flush=True))`` will call ``print("Future:", fut, flush=True)``.
+
    .. method:: remove_done_callback(fn)
 
       Remove all instances of a callback from the "call when done" list.
@@ -302,14 +337,9 @@ flow::
     finally:
         loop.close()
 
-In this example, the future is responsible to display the result and to stop
-the loop.
-
-.. note::
-   The "slow_operation" coroutine object is only executed when the event loop
-   starts running, so it is possible to add a "done callback" to the future
-   after creating the task scheduling the coroutine object.
-
+In this example, the future is used to link ``slow_operation()`` to
+``got_result()``: when ``slow_operation()`` is done, ``got_result()`` is called
+with the result.
 
 
 Task
@@ -383,7 +413,7 @@ Task
 
       Return the list of stack frames for this task's coroutine.
 
-      If the coroutine is active, this returns the stack where it is suspended.
+      If the coroutine is not done, this returns the stack where it is suspended.
       If the coroutine has completed successfully or was cancelled, this
       returns an empty list.  If the coroutine was terminated by an exception,
       this returns the list of traceback frames.
@@ -478,7 +508,8 @@ Task functions
 
 .. function:: async(coro_or_future, \*, loop=None)
 
-   Wrap a :ref:`coroutine object <coroutine>` in a future.
+   Schedule the execution of a :ref:`coroutine object <coroutine>`: wrap it in
+   a future. Return a :class:`Task` object.
 
    If the argument is a :class:`Future`, it is returned directly.
 

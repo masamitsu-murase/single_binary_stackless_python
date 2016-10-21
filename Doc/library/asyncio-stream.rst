@@ -170,16 +170,22 @@ StreamWriter
 
    .. method:: drain()
 
-      Wait until the write buffer of the underlying transport is flushed.
+      Let the write buffer of the underlying transport a chance to be flushed.
 
       The intended use is to write::
 
           w.write(data)
           yield from w.drain()
 
-      When the transport buffer is full (the protocol is paused), block until
-      the buffer is (partially) drained and the protocol is resumed. When there
-      is nothing to wait for, the yield-from continues immediately.
+      When the size of the transport buffer reaches the high-water limit (the
+      protocol is paused), block until the size of the buffer is drained down
+      to the low-water limit and the protocol is resumed. When there is nothing
+      to wait for, the yield-from continues immediately.
+
+      Yielding from :meth:`drain` gives the opportunity for the loop to
+      schedule the write operation and flush the buffer. It should especially
+      be used when a possibly large amount of data is written to the transport,
+      and the coroutine does not yield-from between calls to :meth:`write`.
 
       This method is a :ref:`coroutine <coroutine>`.
 
@@ -241,6 +247,85 @@ IncompleteReadError
 Stream examples
 ===============
 
+.. _asyncio-tcp-echo-client-streams:
+
+TCP echo client using streams
+-----------------------------
+
+TCP echo client using the :func:`asyncio.open_connection` function::
+
+    import asyncio
+
+    @asyncio.coroutine
+    def tcp_echo_client(message, loop):
+        reader, writer = yield from asyncio.open_connection('127.0.0.1', 8888,
+                                                            loop=loop)
+
+        print('Send: %r' % message)
+        writer.write(message.encode())
+
+        data = yield from reader.read(100)
+        print('Received: %r' % data.decode())
+
+        print('Close the socket')
+        writer.close()
+
+    message = 'Hello World!'
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(tcp_echo_client(message, loop))
+    loop.close()
+
+.. seealso::
+
+   The :ref:`TCP echo client protocol <asyncio-tcp-echo-client-protocol>`
+   example uses the :meth:`BaseEventLoop.create_connection` method.
+
+
+.. _asyncio-tcp-echo-server-streams:
+
+TCP echo server using streams
+-----------------------------
+
+TCP echo server using the :func:`asyncio.start_server` function::
+
+    import asyncio
+
+    @asyncio.coroutine
+    def handle_echo(reader, writer):
+        data = yield from reader.read(100)
+        message = data.decode()
+        addr = writer.get_extra_info('peername')
+        print("Received %r from %r" % (message, addr))
+
+        print("Send: %r" % message)
+        writer.write(data)
+        yield from writer.drain()
+
+        print("Close the client socket")
+        writer.close()
+
+    loop = asyncio.get_event_loop()
+    coro = asyncio.start_server(handle_echo, '127.0.0.1', 8888, loop=loop)
+    server = loop.run_until_complete(coro)
+
+    # Serve requests until CTRL+c is pressed
+    print('Serving on {}'.format(server.sockets[0].getsockname()))
+    try:
+        loop.run_forever()
+    except KeyboardInterrupt:
+        pass
+
+    # Close the server
+    server.close()
+    loop.run_until_complete(server.wait_closed())
+    loop.close()
+
+.. seealso::
+
+   The :ref:`TCP echo server protocol <asyncio-tcp-echo-server-protocol>`
+   example uses the :meth:`BaseEventLoop.create_server` method.
+
+
 Get HTTP headers
 ----------------
 
@@ -301,6 +386,7 @@ Coroutine waiting until a socket receives data using the
     except ImportError:
         from asyncio.windows_utils import socketpair
 
+    @asyncio.coroutine
     def wait_for_data(loop):
         # Create a pair of connected sockets
         rsock, wsock = socketpair()

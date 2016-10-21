@@ -67,9 +67,11 @@ ppc_getcounter(uint64 *v)
    even in 64-bit mode, we need to use "a" and "d" for the lower and upper
    32-bit pieces of the result. */
 
-#define READ_TIMESTAMP(val) \
-    __asm__ __volatile__("rdtsc" : \
-                         "=a" (((int*)&(val))[0]), "=d" (((int*)&(val))[1]));
+#define READ_TIMESTAMP(val) do {                        \
+    unsigned int h, l;                                  \
+    __asm__ __volatile__("rdtsc" : "=a" (l), "=d" (h)); \
+    (val) = ((uint64)l) | (((uint64)h) << 32);          \
+    } while(0)
 
 
 #else
@@ -1671,7 +1673,7 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
     f->f_stacktop = NULL;       /* remains NULL unless yield suspends frame */
     f->f_executing = 1;
 
-    if (co->co_flags & CO_GENERATOR && !throwflag) {
+    if (co->co_flags & CO_GENERATOR) {
 #ifdef STACKLESS
         /* In non-Stackless Python, this clause is executed on first entry of
            the generator and on the return from each yield.  In Stackless, we
@@ -1679,7 +1681,7 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
            to avoid incorrect reexecution and exc reference leaking. */
         if (f->f_execute == PyEval_EvalFrame_noval) {
 #endif
-        if (f->f_exc_type != NULL && f->f_exc_type != Py_None) {
+        if (!throwflag && f->f_exc_type != NULL && f->f_exc_type != Py_None) {
             /* We were in an except handler when we left,
                restore the exception state which was put aside
                (see YIELD_VALUE). */
@@ -3845,7 +3847,8 @@ fast_block_end:
 #endif
 
 fast_yield:
-    if (co->co_flags & CO_GENERATOR && (why == WHY_YIELD || why == WHY_RETURN)) {
+    if (co->co_flags & CO_GENERATOR) {
+
         /* The purpose of this block is to put aside the generator's exception
            state and restore that of the calling frame. If the current
            exception state is from the caller, we clear the exception values

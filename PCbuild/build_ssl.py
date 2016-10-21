@@ -68,7 +68,7 @@ def get_ssl_dir():
     propfile = (os.path.join(os.path.dirname(__file__), 'pyproject.props'))
     with open(propfile, encoding='utf-8-sig') as f:
         m = re.search('openssl-([^<]+)<', f.read())
-        return "..\..\openssl-"+m.group(1)
+        return "..\externals\openssl-"+m.group(1)
 
 
 def create_makefile64(makefile, m32):
@@ -181,6 +181,17 @@ def main():
     ssl_dir = get_ssl_dir()
     if ssl_dir is None:
         sys.exit(1)
+
+    # add our copy of NASM to PATH.  It will be on the same level as openssl
+    for dir in os.listdir(os.path.join(ssl_dir, os.pardir)):
+        if dir.startswith('nasm'):
+            nasm_dir = os.path.join(ssl_dir, os.pardir, dir)
+            nasm_dir = os.path.abspath(nasm_dir)
+            os.environ['PATH'] += os.pathsep.join(['', nasm_dir])
+            break
+    else:
+        print('NASM was not found, make sure it is on PATH')
+
 
     old_cd = os.getcwd()
     try:

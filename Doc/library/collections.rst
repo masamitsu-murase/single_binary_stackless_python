@@ -109,7 +109,7 @@ The class can be used to simulate nested scopes and is useful in templating.
       writing to any mapping in the chain.
 
     * Django's `Context class
-      <http://code.djangoproject.com/browser/django/trunk/django/template/context.py>`_
+      <https://github.com/django/django/blob/master/django/template/context.py>`_
       for templating is a read-only chain of mappings.  It also features
       pushing and popping of contexts similar to the
       :meth:`~collections.ChainMap.new_child` method and the
@@ -908,13 +908,17 @@ customize a prototype instance:
     >>> janes_account = default_account._replace(owner='Jane')
 
 Enumerated constants can be implemented with named tuples, but it is simpler
-and more efficient to use a simple class declaration:
+and more efficient to use a simple :class:`~enum.Enum`:
 
     >>> Status = namedtuple('Status', 'open pending closed')._make(range(3))
     >>> Status.open, Status.pending, Status.closed
     (0, 1, 2)
-    >>> class Status:
-        open, pending, closed = range(3)
+    >>> from enum import Enum
+    >>> class Status(Enum):
+    ...     open, pending, closed = range(3)
+
+
+.. seealso::
 
     * `Recipe for named tuple abstract base class with a metaclass mix-in
       <http://code.activestate.com/recipes/577629-namedtupleabc-abstract-base-class-mix-in-for-named/>`_

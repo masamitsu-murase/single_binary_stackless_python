@@ -76,7 +76,7 @@ Windows
 
 Common limits of Windows event loops:
 
-- :meth:`~BaseEventLoop.create_unix_server` and
+- :meth:`~BaseEventLoop.create_unix_connection` and
   :meth:`~BaseEventLoop.create_unix_server` are not supported: the socket
   family :data:`socket.AF_UNIX` is specific to UNIX
 - :meth:`~BaseEventLoop.add_signal_handler` and
@@ -87,7 +87,8 @@ Common limits of Windows event loops:
 
 :class:`SelectorEventLoop` specific limits:
 
-- :class:`~selectors.SelectSelector` is used but it only supports sockets
+- :class:`~selectors.SelectSelector` is used which only supports sockets
+  and is limited to 512 sockets.
 - :meth:`~BaseEventLoop.add_reader` and :meth:`~BaseEventLoop.add_writer` only
   accept file descriptors of sockets
 - Pipes are not supported
@@ -150,6 +151,7 @@ loop per thread that interacts with :mod:`asyncio`. The module-level functions
 :func:`get_event_loop` and :func:`set_event_loop` provide convenient access to
 event loops managed by the default policy.
 
+
 Event loop policy interface
 ---------------------------
 
@@ -157,22 +159,31 @@ An event loop policy must implement the following interface:
 
 .. class:: AbstractEventLoopPolicy
 
+   Event loop policy.
+
    .. method:: get_event_loop()
 
-   Get the event loop for the current context. Returns an event loop object
-   implementing the :class:`BaseEventLoop` interface, or raises an exception in case
-   no event loop has been set for the current context and the current policy
-   does not specify to create one. It should never return ``None``.
+      Get the event loop for the current context.
+
+      Returns an event loop object implementing the :class:`BaseEventLoop`
+      interface.
+
+      Raises an exception in case no event loop has been set for the current
+      context and the current policy does not specify to create one. It must
+      never return ``None``.
 
    .. method:: set_event_loop(loop)
 
-   Set the event loop for the current context to *loop*.
+      Set the event loop for the current context to *loop*.
 
    .. method:: new_event_loop()
 
-   Create and return a new event loop object according to this policy's rules.
-   If there's need to set this loop as the event loop for the current context,
-   :meth:`set_event_loop` must be called explicitly.
+      Create and return a new event loop object according to this policy's
+      rules.
+
+      If there's need to set this loop as the event loop for the current
+      context, :meth:`set_event_loop` must be called explicitly.
+
 
 Access to the global loop policy
 --------------------------------

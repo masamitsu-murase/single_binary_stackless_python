@@ -269,15 +269,16 @@ module, supports rotation of disk log files.
    You can use the *maxBytes* and *backupCount* values to allow the file to
    :dfn:`rollover` at a predetermined size. When the size is about to be exceeded,
    the file is closed and a new file is silently opened for output. Rollover occurs
-   whenever the current log file is nearly *maxBytes* in length; if *maxBytes* is
-   zero, rollover never occurs.  If *backupCount* is non-zero, the system will save
-   old log files by appending the extensions '.1', '.2' etc., to the filename. For
-   example, with a *backupCount* of 5 and a base file name of :file:`app.log`, you
-   would get :file:`app.log`, :file:`app.log.1`, :file:`app.log.2`, up to
-   :file:`app.log.5`. The file being written to is always :file:`app.log`.  When
-   this file is filled, it is closed and renamed to :file:`app.log.1`, and if files
-   :file:`app.log.1`, :file:`app.log.2`, etc.  exist, then they are renamed to
-   :file:`app.log.2`, :file:`app.log.3` etc.  respectively.
+   whenever the current log file is nearly *maxBytes* in length; if either of
+   *maxBytes* or *backupCount* is zero, rollover never occurs.  If *backupCount*
+   is non-zero, the system will save old log files by appending the extensions
+   '.1', '.2' etc., to the filename. For example, with a *backupCount* of 5 and
+   a base file name of :file:`app.log`, you would get :file:`app.log`,
+   :file:`app.log.1`, :file:`app.log.2`, up to :file:`app.log.5`. The file being
+   written to is always :file:`app.log`.  When this file is filled, it is closed
+   and renamed to :file:`app.log.1`, and if files :file:`app.log.1`,
+   :file:`app.log.2`, etc.  exist, then they are renamed to :file:`app.log.2`,
+   :file:`app.log.3` etc.  respectively.
 
 
    .. method:: doRollover()
@@ -839,16 +840,21 @@ supports sending logging messages to a Web server, using either ``GET`` or
 ``POST`` semantics.
 
 
-.. class:: HTTPHandler(host, url, method='GET', secure=False, credentials=None)
+.. class:: HTTPHandler(host, url, method='GET', secure=False, credentials=None, context=None)
 
    Returns a new instance of the :class:`HTTPHandler` class. The *host* can be
-   of the form ``host:port``, should you need to use a specific port number.
-   If no *method* is specified, ``GET`` is used. If *secure* is true, an HTTPS
-   connection will be used. If *credentials* is specified, it should be a
-   2-tuple consisting of userid and password, which will be placed in an HTTP
+   of the form ``host:port``, should you need to use a specific port number.  If
+   no *method* is specified, ``GET`` is used. If *secure* is true, a HTTPS
+   connection will be used. The *context* parameter may be set to a
+   :class:`ssl.SSLContext` instance to configure the SSL settings used for the
+   HTTPS connection. If *credentials* is specified, it should be a 2-tuple
+   consisting of userid and password, which will be placed in a HTTP
    'Authorization' header using Basic authentication. If you specify
    credentials, you should also specify secure=True so that your userid and
    password are not passed in cleartext across the wire.
+
+   .. versionchanged:: 3.4.3
+      The *context* parameter was added.
 
    .. method:: mapLogRecord(record)
 

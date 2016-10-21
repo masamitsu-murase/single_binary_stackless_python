@@ -67,13 +67,27 @@ Run an event loop
    This is idempotent and irreversible. No other methods should be called after
    this one.
 
+.. _asyncio-pass-keywords:
 
 Calls
 -----
 
+Most :mod:`asyncio` functions don't accept keywords. If you want to pass
+keywords to your callback, use :func:`functools.partial`. For example,
+``loop.call_soon(functools.partial(print, "Hello", flush=True))`` will call
+``print("Hello", flush=True)``.
+
+.. note::
+   :func:`functools.partial` is better than ``lambda`` functions, because
+   :mod:`asyncio` can inspect :func:`functools.partial` object to display
+   parameters in debug mode, whereas ``lambda`` functions have a poor
+   representation.
+
 .. method:: BaseEventLoop.call_soon(callback, \*args)
 
-   Arrange for a callback to be called as soon as possible.
+   Arrange for a callback to be called as soon as possible.  The callback is
+   called after :meth:`call_soon` returns, when control returns to the event
+   loop.
 
    This operates as a FIFO queue, callbacks are called in the order in
    which they are registered.  Each callback will be called exactly once.
@@ -82,6 +96,9 @@ Calls
    callback when it is called.
 
    An instance of :class:`asyncio.Handle` is returned.
+
+   :ref:`Use functools.partial to pass keywords to the callback
+   <asyncio-pass-keywords>`.
 
 .. method:: BaseEventLoop.call_soon_threadsafe(callback, \*args)
 
@@ -118,12 +135,19 @@ a different clock than :func:`time.time`.
    is called. If you want the callback to be called with some named
    arguments, use a closure or :func:`functools.partial`.
 
+   :ref:`Use functools.partial to pass keywords to the callback
+   <asyncio-pass-keywords>`.
+
 .. method:: BaseEventLoop.call_at(when, callback, *args)
 
    Arrange for the *callback* to be called at the given absolute timestamp
-   *when* (an int or float), using the same time reference as :meth:`time`.
+   *when* (an int or float), using the same time reference as
+   :meth:`BaseEventLoop.time`.
 
    This method's behavior is the same as :meth:`call_later`.
+
+   :ref:`Use functools.partial to pass keywords to the callback
+   <asyncio-pass-keywords>`.
 
 .. method:: BaseEventLoop.time()
 
@@ -243,6 +267,9 @@ Creating connections
 
    On Windows with :class:`ProactorEventLoop`, this method is not supported.
 
+   See :ref:`UDP echo client protocol <asyncio-udp-echo-client-protocol>` and
+   :ref:`UDP echo server protocol <asyncio-udp-echo-server-protocol>` examples.
+
 
 .. method:: BaseEventLoop.create_unix_connection(protocol_factory, path, \*, ssl=None, sock=None, server_hostname=None)
 
@@ -255,8 +282,6 @@ Creating connections
    establish the connection in the background.  When successful, the
    coroutine returns a ``(transport, protocol)`` pair.
 
-   On Windows with :class:`ProactorEventLoop`, SSL/TLS is not supported.
-
    See the :meth:`BaseEventLoop.create_connection` method for parameters.
 
    Availability: UNIX.
@@ -267,35 +292,41 @@ Creating listening connections
 
 .. method:: BaseEventLoop.create_server(protocol_factory, host=None, port=None, \*, family=socket.AF_UNSPEC, flags=socket.AI_PASSIVE, sock=None, backlog=100, ssl=None, reuse_address=None)
 
-   Create a TCP server bound to *host* and *port*. Return a :class:`Server` object,
-   its :attr:`~Server.sockets` attribute contains created sockets. Use the
-   :meth:`Server.close` method to stop the server: close listening sockets.
+   Create a TCP server (socket type :data:`~socket.SOCK_STREAM`) bound to
+   *host* and *port*.
+
+   Return a :class:`Server` object, its :attr:`~Server.sockets` attribute
+   contains created sockets. Use the :meth:`Server.close` method to stop the
+   server: close listening sockets.
+
+   Parameters:
+
+   * If *host* is an empty string or ``None``, all interfaces are assumed
+     and a list of multiple sockets will be returned (most likely
+     one for IPv4 and another one for IPv6).
+
+   * *family* can be set to either :data:`socket.AF_INET` or
+     :data:`~socket.AF_INET6` to force the socket to use IPv4 or IPv6. If not set
+     it will be determined from host (defaults to :data:`socket.AF_UNSPEC`).
+
+   * *flags* is a bitmask for :meth:`getaddrinfo`.
+
+   * *sock* can optionally be specified in order to use a preexisting
+     socket object. If specified, *host* and *port* should be omitted (must be
+     :const:`None`).
+
+   * *backlog* is the maximum number of queued connections passed to
+     :meth:`~socket.socket.listen` (defaults to 100).
+
+   * *ssl* can be set to an :class:`~ssl.SSLContext` to enable SSL over the
+     accepted connections.
+
+   * *reuse_address* tells the kernel to reuse a local socket in
+     TIME_WAIT state, without waiting for its natural timeout to
+     expire. If not specified will automatically be set to True on
+     UNIX.
 
    This method is a :ref:`coroutine <coroutine>`.
-
-   If *host* is an empty string or ``None``, all interfaces are assumed
-   and a list of multiple sockets will be returned (most likely
-   one for IPv4 and another one for IPv6).
-
-   *family* can be set to either :data:`socket.AF_INET` or
-   :data:`~socket.AF_INET6` to force the socket to use IPv4 or IPv6. If not set
-   it will be determined from host (defaults to :data:`socket.AF_UNSPEC`).
-
-   *flags* is a bitmask for :meth:`getaddrinfo`.
-
-   *sock* can optionally be specified in order to use a preexisting
-   socket object.
-
-   *backlog* is the maximum number of queued connections passed to
-   :meth:`~socket.socket.listen` (defaults to 100).
-
-   *ssl* can be set to an :class:`~ssl.SSLContext` to enable SSL over the
-   accepted connections.
-
-   *reuse_address* tells the kernel to reuse a local socket in
-   TIME_WAIT state, without waiting for its natural timeout to
-   expire. If not specified will automatically be set to True on
-   UNIX.
 
    On Windows with :class:`ProactorEventLoop`, SSL/TLS is not supported.
 
@@ -326,6 +357,9 @@ On Windows with :class:`ProactorEventLoop`, these methods are not supported.
    Start watching the file descriptor for read availability and then call the
    *callback* with specified arguments.
 
+   :ref:`Use functools.partial to pass keywords to the callback
+   <asyncio-pass-keywords>`.
+
 .. method:: BaseEventLoop.remove_reader(fd)
 
    Stop watching the file descriptor for read availability.
@@ -334,6 +368,9 @@ On Windows with :class:`ProactorEventLoop`, these methods are not supported.
 
    Start watching the file descriptor for write availability and then call the
    *callback* with specified arguments.
+
+   :ref:`Use functools.partial to pass keywords to the callback
+   <asyncio-pass-keywords>`.
 
 .. method:: BaseEventLoop.remove_writer(fd)
 
@@ -458,8 +495,8 @@ Use :class:`ProactorEventLoop` to support pipes on Windows.
    Register write pipe in eventloop.
 
    *protocol_factory* should instantiate object with :class:`BaseProtocol`
-   interface. *pipe* is file-like object.
-   Return pair (transport, protocol), where transport support
+   interface. *pipe* is :term:`file-like object <file object>`.
+   Return pair ``(transport, protocol)``, where *transport* supports
    :class:`WriteTransport` interface.
 
    With :class:`SelectorEventLoop` event loop, the *pipe* is set to
@@ -485,6 +522,9 @@ Availability: UNIX only.
    Raise :exc:`ValueError` if the signal number is invalid or uncatchable.
    Raise :exc:`RuntimeError` if there is a problem setting up the handler.
 
+   :ref:`Use functools.partial to pass keywords to the callback
+   <asyncio-pass-keywords>`.
+
 .. method:: BaseEventLoop.remove_signal_handler(sig)
 
    Remove a handler for a signal.
@@ -509,6 +549,9 @@ pool of processes). By default, an event loop uses a thread pool executor
 
    The *executor* argument should be an :class:`~concurrent.futures.Executor`
    instance. The default executor is used if *executor* is ``None``.
+
+   :ref:`Use functools.partial to pass keywords to the callback
+   <asyncio-pass-keywords>`.
 
    This method is a :ref:`coroutine <coroutine>`.
 
@@ -598,7 +641,7 @@ Server
    Server listening on sockets.
 
    Object created by the :meth:`BaseEventLoop.create_server` method and the
-   :func:`start_server` function. Don't instanciate the class directly.
+   :func:`start_server` function. Don't instantiate the class directly.
 
    .. method:: close()
 
@@ -638,28 +681,31 @@ Handle
 
 
 Event loop examples
-===================
+-------------------
 
 .. _asyncio-hello-world-callback:
 
-Hello World with a callback
----------------------------
+Hello World with call_soon()
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Print ``"Hello World"`` every two seconds using a callback scheduled by the
-:meth:`BaseEventLoop.call_soon` method::
+Example using the :meth:`BaseEventLoop.call_soon` method to schedule a
+callback. The callback displays ``"Hello World"`` and then stops the event
+loop::
 
     import asyncio
 
-    def print_and_repeat(loop):
+    def hello_world(loop):
         print('Hello World')
-        loop.call_later(2, print_and_repeat, loop)
+        loop.stop()
 
     loop = asyncio.get_event_loop()
-    loop.call_soon(print_and_repeat, loop)
-    try:
-        loop.run_forever()
-    finally:
-        loop.close()
+
+    # Schedule a call to hello_world()
+    loop.call_soon(hello_world, loop)
+
+    # Blocking call interrupted by loop.stop()
+    loop.run_forever()
+    loop.close()
 
 .. seealso::
 
@@ -667,10 +713,46 @@ Print ``"Hello World"`` every two seconds using a callback scheduled by the
    uses a :ref:`coroutine <coroutine>`.
 
 
+.. _asyncio-date-callback:
+
+Display the current date with call_later()
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Example of callback displaying the current date every second. The callback uses
+the :meth:`BaseEventLoop.call_later` method to reschedule itself during 5
+seconds, and then stops the event loop::
+
+    import asyncio
+    import datetime
+
+    def display_date(end_time, loop):
+        print(datetime.datetime.now())
+        if (loop.time() + 1.0) < end_time:
+            loop.call_later(1, display_date, end_time, loop)
+        else:
+            loop.stop()
+
+    loop = asyncio.get_event_loop()
+
+    # Schedule the first call to display_date()
+    end_time = loop.time() + 5.0
+    loop.call_soon(display_date, end_time, loop)
+
+    # Blocking call interrupted by loop.stop()
+    loop.run_forever()
+    loop.close()
+
+.. seealso::
+
+   The :ref:`coroutine displaying the current date
+   <asyncio-date-coroutine>` example uses a :ref:`coroutine
+   <coroutine>`.
+
+
 .. _asyncio-watch-read-event:
 
 Watch a file descriptor for read events
----------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Wait until a file descriptor received some data using the
 :meth:`BaseEventLoop.add_reader` method and then close the event loop::
@@ -688,12 +770,12 @@ Wait until a file descriptor received some data using the
     def reader():
         data = rsock.recv(100)
         print("Received:", data.decode())
-        # We are done: unregister the register
+        # We are done: unregister the file descriptor
         loop.remove_reader(rsock)
         # Stop the event loop
         loop.stop()
 
-    # Wait for read event
+    # Register the file descriptor for read event
     loop.add_reader(rsock, reader)
 
     # Simulate the reception of data from the network
@@ -719,7 +801,7 @@ Wait until a file descriptor received some data using the
 
 
 Set signal handlers for SIGINT and SIGTERM
-------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Register handlers for signals :py:data:`SIGINT` and :py:data:`SIGTERM` using
 the :meth:`BaseEventLoop.add_signal_handler` method::
@@ -744,3 +826,5 @@ the :meth:`BaseEventLoop.add_signal_handler` method::
         loop.run_forever()
     finally:
         loop.close()
+
+This example only works on UNIX.

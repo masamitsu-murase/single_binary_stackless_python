@@ -245,6 +245,9 @@ Process-wide parameters
    :data:`sys.exec_prefix` to be empty.  It is up to the caller to modify these
    if required after calling :c:func:`Py_Initialize`.
 
+   The path argument is copied internally, so the caller may free it after the
+   call completes.
+
 
 .. c:function:: const char* Py_GetVersion()
 
@@ -1179,7 +1182,7 @@ These functions are only intended to be used by advanced debugging tools.
 
 .. c:function:: PyThreadState * PyInterpreterState_ThreadHead(PyInterpreterState *interp)
 
-   Return the a pointer to the first :c:type:`PyThreadState` object in the list of
+   Return the pointer to the first :c:type:`PyThreadState` object in the list of
    threads associated with the interpreter *interp*.
 
 

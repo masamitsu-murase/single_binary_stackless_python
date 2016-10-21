@@ -2940,8 +2940,7 @@ PyUnicode_FromEncodedObject(PyObject *obj,
     /* Retrieve a bytes buffer view through the PEP 3118 buffer interface */
     if (PyObject_GetBuffer(obj, &buffer, PyBUF_SIMPLE) < 0) {
         PyErr_Format(PyExc_TypeError,
-                     "coercing to str: need bytes, bytearray "
-                     "or buffer-like object, %.80s found",
+                     "coercing to str: need a bytes-like object, %.80s found",
                      Py_TYPE(obj)->tp_name);
         return NULL;
     }
@@ -4191,9 +4190,13 @@ unicode_decode_call_errorhandler_writer(
     if (PyUnicode_READY(repunicode) < 0)
         goto onError;
     replen = PyUnicode_GET_LENGTH(repunicode);
-    writer->min_length += replen;
-    if (replen > 1)
+    if (replen > 1) {
+        writer->min_length += replen - 1;
         writer->overallocate = 1;
+        if (_PyUnicodeWriter_Prepare(writer, writer->min_length,
+                            PyUnicode_MAX_CHAR_VALUE(repunicode)) == -1)
+            goto onError;
+    }
     if (_PyUnicodeWriter_WriteStr(writer, repunicode) == -1)
         goto onError;
 
@@ -5049,7 +5052,7 @@ PyUnicode_DecodeUTF32Stateful(const char *s,
         }
 
         if (Py_UNICODE_IS_SURROGATE(ch)) {
-            errmsg = "codepoint in surrogate code point range(0xd800, 0xe000)";
+            errmsg = "code point in surrogate code point range(0xd800, 0xe000)";
             startinpos = ((const char *)q) - starts;
             endinpos = startinpos + 4;
         }
@@ -5068,7 +5071,7 @@ PyUnicode_DecodeUTF32Stateful(const char *s,
                 q += 4;
                 continue;
             }
-            errmsg = "codepoint not in range(0x110000)";
+            errmsg = "code point not in range(0x110000)";
             startinpos = ((const char *)q) - starts;
             endinpos = startinpos + 4;
         }
@@ -9651,6 +9654,10 @@ case_operation(PyObject *self,
     kind = PyUnicode_KIND(self);
     data = PyUnicode_DATA(self);
     length = PyUnicode_GET_LENGTH(self);
+    if ((size_t) length > PY_SSIZE_T_MAX / (3 * sizeof(Py_UCS4))) {
+        PyErr_SetString(PyExc_OverflowError, "string is too long");
+        return NULL;
+    }
     tmp = PyMem_MALLOC(sizeof(Py_UCS4) * 3 * length);
     if (tmp == NULL)
         return PyErr_NoMemory();
@@ -9887,8 +9894,8 @@ PyUnicode_Join(PyObject *separator, PyObject *seq)
             Py_UCS4 * to_ = (Py_UCS4 *)((data)) + (start); \
             for (; i_ < (length); ++i_, ++to_) *to_ = (value); \
             break; \
-        default: assert(0); \
         } \
+        default: assert(0); \
         } \
     } while (0)
 
