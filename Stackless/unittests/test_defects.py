@@ -275,6 +275,23 @@ class TestShutdown(StacklessTestCase):
         self.assertEqual(rc, 42)
 
 
+class TestStacklessProtokoll(StacklessTestCase):
+    """Various tests for violations of the STACKLESS_GETARG() STACKLESS_ASSERT() protocol
+
+    See https://bitbucket.org/stackless-dev/stackless/issues/84
+    """
+    def test_invalid_args_channel_next(self):
+        """test of typeobject.c wrap_next(...)"""
+        func = stackless.channel().__next__
+        # func(None) causes the crash
+        self.assertRaises(TypeError, func, None)
+
+    def test_invalid_args_tasklet_kill(self):
+        func = stackless.tasklet().kill
+        # func(False, None) causes the crash
+        self.assertRaises(TypeError, func, False, None)
+
+
 if __name__ == '__main__':
     if not sys.argv[1:]:
         sys.argv.append('-v')

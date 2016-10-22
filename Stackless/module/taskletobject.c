@@ -1258,7 +1258,9 @@ int PyTasklet_Kill(PyTaskletObject *task)
 static PyObject *
 tasklet_kill(PyObject *self, PyObject *args, PyObject *kwds)
 {
+    STACKLESS_GETARG();
     int pending;
+    PyObject *result;
     PyObject *pendingO = Py_False;
     char *kwlist[] = {"pending", 0};
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O:kill", kwlist, &pendingO))
@@ -1266,7 +1268,10 @@ tasklet_kill(PyObject *self, PyObject *args, PyObject *kwds)
     pending = PyObject_IsTrue(pendingO);
     if (pending == -1)
         return NULL;
-    return impl_tasklet_kill((PyTaskletObject*)self, pending);
+    STACKLESS_PROMOTE_ALL();
+    result = impl_tasklet_kill((PyTaskletObject*)self, pending);
+    STACKLESS_ASSERT();
+    return result;
 }
 
 

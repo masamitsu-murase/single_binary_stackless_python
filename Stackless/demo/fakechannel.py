@@ -19,7 +19,7 @@ class MyChannel:
             sender = stackless.current
             self.queue.append((sender, data))
             self.balance += 1
-            jump_off(sender)
+            stackless.schedule_remove()
 
     def receive(self):
         if self.balance > 0:
@@ -31,14 +31,8 @@ class MyChannel:
             receiver = stackless.current
             self.queue.append(receiver)
             self.balance -= 1
-            jump_off(receiver)
+            stackless.schedule_remove()
             return self.temp
-
-
-def jump_off(task):
-    stackless.tasklet().capture()
-    task.remove()
-    stackless.schedule()
 
 
 def f1(ch):
