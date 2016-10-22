@@ -6,14 +6,20 @@ Should be run in the folder Stackless/unittests.
 """
 
 
-import os, sys, glob, unittest, stackless
+import os
+import sys
+import glob
+import unittest
+import stackless
+
 
 def getsoft():
     hold = stackless.enable_softswitch(False)
     stackless.enable_softswitch(hold)
     return hold
 
-def makeSuite(target, path = None):
+
+def makeSuite(target, path=None):
     "Build a test suite of all available test files."
 
     suite = unittest.TestSuite()
@@ -27,11 +33,11 @@ def makeSuite(target, path = None):
         modname = os.path.splitext(os.path.basename(filename))[0]
         module = __import__(modname)
         tests = unittest.TestLoader().loadTestsFromModule(module)
-        use_it = target == 0 or idx+1 == target
+        use_it = target == 0 or idx + 1 == target
         if use_it:
             suite.addTest(tests)
             if target > 0:
-                print("single test of '%s', switch=%s" % \
+                print("single test of '%s', switch=%s" %
                       (filename, ("hard", "soft")[getsoft()]))
 
     return suite
@@ -44,7 +50,7 @@ def main():
         target = int(sys.argv[1])
     except IndexError:
         try:
-            target = TARGET
+            target = TARGET  # @UndefinedVariable
         except NameError:
             target = 0
     try:
@@ -57,7 +63,7 @@ def main():
             stackless.enable_softswitch(switch)
             testSuite = makeSuite(abs(target), path)
             verbosity = 1
-            #verbosity = 2  # to turn on verbose mode
+            # verbosity = 2  # to turn on verbose mode
             unittest.TextTestRunner(verbosity=verbosity).run(testSuite)
     finally:
         stackless.enable_softswitch(hold)

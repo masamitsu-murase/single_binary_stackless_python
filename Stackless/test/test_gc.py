@@ -1,7 +1,8 @@
 from stackless import *
-import stackless
 
 i = 0
+
+
 def unbounded():
     global i
     i = 0
@@ -13,6 +14,7 @@ def unbounded():
         print repr(e), str(e)
     print "actually exit"
 
+
 def unbounded_notrap():
     global i
     i = 0
@@ -20,13 +22,17 @@ def unbounded_notrap():
         i += 1
         print i
 
+
 class ObjGetter(object):
+
     def __init__(self, obj):
         self.obj = obj
+
     def __getitem__(self, item):
         if not item:
             return self.obj
         return getattr(self.obj, item)
+
 
 def desc_tasklet(t):
     print ("""
@@ -39,6 +45,7 @@ Tasklet:             %()r
     next:            %(next)r
     prev:            %(prev)r
 """ % ObjGetter(t))
+
 
 def test(fn):
     global i

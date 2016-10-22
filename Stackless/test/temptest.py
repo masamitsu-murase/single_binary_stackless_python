@@ -1,11 +1,16 @@
 # speed test
-import time, sys
+import time
+import sys
+import struct
 from stackless import *
+from stackless import test_cframe
 
 enable_softswitch(1)
 
+
 def f(x):
     print"f start/end"
+
 
 def schedule_cb(prev, next):
     print
@@ -19,6 +24,7 @@ def schedule_cb(prev, next):
 
 set_schedule_callback(schedule_cb)
 
+
 class MyTasklet(tasklet):
     __slots__ = ["name"]
 
@@ -27,8 +33,10 @@ class MyTasklet(tasklet):
         if not name:
             name = "at " + hex(id(self))
         self.name = name
+
     def __new__(self, func, name):
         return tasklet.__new__(self, func)
+
     def __repr__(self):
         return "Tasklet %s" % self.name
 
@@ -41,22 +49,41 @@ print "run"
 run()
 set_schedule_callback(None)
 
-import struct
 adrsize = len(struct.pack("P", 0))
+
+
 def stacksize(tasklet):
     stack = str(tasklet.cstate)
-    return len(stack)/adrsize
+    return len(stack) / adrsize
 
 # this thing exactly works if the below is set to 0.
 # this is very bad. Move this to temptest and test it there!
 # everything else seems to work.
 tmp = enable_softswitch(0)
+
+
 def f(n, sched):
     for i in xrange(0, n, 20):
-        sched(); sched(); sched(); sched(); sched()
-        sched(); sched(); sched(); sched(); sched()
-        sched(); sched(); sched(); sched(); sched()
-        sched(); sched(); sched(); sched(); sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
+        sched()
 
 t = tasklet(f)(1, schedule)
 print "Stack size of initial stub   =", stacksize(t)
@@ -67,4 +94,5 @@ schedule()
 print "Stack size of cframe tasklet =", stacksize(t)
 run()
 enable_softswitch(tmp)
-import gc; gc.collect()
+import gc
+gc.collect()

@@ -351,6 +351,7 @@ class TestTracingProperties(StacklessTestCase):
         if ex:
             raise ex[0]
 
+
 # Test tracing. A simplified version of demo/tracing.py
 class mutex:
     def __init__(self, capacity=1):

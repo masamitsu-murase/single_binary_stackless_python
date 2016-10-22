@@ -4,19 +4,20 @@ I'm adding this file to the unittests as a template to cure similar
 problems in the future. This file only works in a debug build.
 """
 
-import sys, gc
+import sys
+import gc
 import pickle as pickle
 from stackless import *
 
 try:
-    genschedoutertest
+    genschedoutertest  # @UndefinedVariable
 except NameError:
     try:
         exec(open("test_pickle.py").read())
     except SystemExit:
         pass
 
-t=tasklet(genschedoutertest)(20,13)
+t = tasklet(genschedoutertest)(20, 13)  # @UndefinedVariable
 t.run()
 s = pickle.dumps(t)
 t.run()
@@ -40,7 +41,7 @@ for i, ob in enumerate(post):
 del i, ob
 gc.collect()
 print("refs after  unpickling, objects", sys.gettotalrefcount(), len(post))
-newob = post[:len(post)-len(pre)]
+newob = post[:len(post) - len(pre)]
 print("look into newob")
 del pre, post
 gc.collect()

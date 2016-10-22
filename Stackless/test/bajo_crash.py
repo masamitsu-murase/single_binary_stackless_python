@@ -1,6 +1,8 @@
 import stackless
 
+
 class A:
+
     def T1(self):
         print "T1"
 
@@ -8,6 +10,7 @@ class A:
         t1 = stackless.tasklet(self.T1)()
         t1.remove()
         stackless.schedule()
+
 
 def Start():
     try:

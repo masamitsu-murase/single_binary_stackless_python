@@ -16,8 +16,9 @@ Will try to enhance this,soon.
 
 from stackless import *
 
+
 class HandledTasklet(tasklet):
-    
+
     def __new__(self, func):
         def handler(*args, **kwds):
             try:

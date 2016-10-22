@@ -8,22 +8,25 @@ test_pywin = 1
 
 ch = channel()
 
+
 def f1(n):
     print "f1 called"
     for i in xrange(n):
-        #print "f1", i
+        # print "f1", i
         if i == 4:
             if test_exception:
-                1/0
+                1 / 0
         if i % 1000 == 0:
             schedule()
+
 
 def f2(n):
     print "f2 called"
     for i in xrange(n):
-        #print "f2", i
+        # print "f2", i
         if i % 1000 == 0:
             schedule()
+
 
 def tt(n, timeout):
     t1 = tasklet(f1)(n)
@@ -42,13 +45,14 @@ tt(2000, 100)
 if victim:
     print "Watchdog was called"
     print victim
-    
+
 
 def infinite():
     global count
     count = 0
     while 1:
         count += 1
+
 
 def test_inf(limit):
     print "calling infinite"
@@ -60,4 +64,5 @@ def test_inf(limit):
 
 print "cleaning up:"
 run()
-import gc;gc.collect()
+import gc
+gc.collect()

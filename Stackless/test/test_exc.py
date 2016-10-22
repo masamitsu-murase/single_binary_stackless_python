@@ -2,13 +2,15 @@ from stackless import *
 
 import sys
 
+
 def f():
     print "in function"
     print sys.exc_info()
-    
+
+
 def testfunc():
     try:
-        1/0
+        1 / 0
     except:
         print "before tasklet"
         print sys.exc_info()
