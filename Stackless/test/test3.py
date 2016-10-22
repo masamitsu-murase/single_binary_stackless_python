@@ -1,12 +1,13 @@
-import stackless, random
-
-
+import stackless
+import random
+from timeit import default_timer as timer
 
 wait = stackless.schedule
 
 
 class InterruptTasklet(Exception):
     pass
+
 
 def uniquetask(prevtasklet):
     if prevtasklet is not None and prevtasklet.alive:
@@ -15,11 +16,13 @@ def uniquetask(prevtasklet):
         print "exception was sent"
     return stackless.getcurrent()
 
+
 def runner(callable, args, kwds):
     try:
         callable(*args, **kwds)
     except InterruptTasklet:
         print "exception caught"
+
 
 def schedule(callable, *args, **kwds):
     t = stackless.tasklet(runner)(callable, args, kwds)
