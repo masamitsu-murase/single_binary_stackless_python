@@ -10,6 +10,9 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issue/85
+  Fix a rare problem in the watchdog logic.
+
 - https://bitbucket.org/stackless-dev/stackless/issue/80
   Fix an assertion failure during shutdown. The assertion was added by
   the first attempt to fix issue #60. Thanks to Masamitsu Murase
