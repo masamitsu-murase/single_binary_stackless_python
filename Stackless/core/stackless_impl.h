@@ -157,9 +157,9 @@ PyAPI_FUNC(PyTaskletObject *) slp_get_watchdog(PyThreadState *ts, int interrupt)
      (PyObject *) Py_UnwindToken)
 
 #define STACKLESS_UNPACK(retval) \
-    (assert(STACKLESS_UNWINDING(retval)), \
+    ((void)(assert(STACKLESS_UNWINDING(retval)), \
      retval = Py_UnwindToken->tempval, \
-     Py_UnwindToken->tempval = NULL, retval)
+     Py_UnwindToken->tempval = NULL, retval))
 
 #else
 
