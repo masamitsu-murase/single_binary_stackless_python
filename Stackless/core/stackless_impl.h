@@ -155,9 +155,9 @@ PyAPI_FUNC(PyTaskletObject *) slp_get_watchdog(PyThreadState *ts, int interrupt)
      (PyObject *) Py_UnwindToken)
 
 #define STACKLESS_UNPACK(retval) \
-    (assert(STACKLESS_UNWINDING(retval)), \
+    ((void)(assert(STACKLESS_UNWINDING(retval)), \
      retval = Py_UnwindToken->tempval, \
-     Py_UnwindToken->tempval = NULL, retval)
+     Py_UnwindToken->tempval = NULL, retval))
 
 #else
 
@@ -166,7 +166,7 @@ PyAPI_FUNC(PyTaskletObject *) slp_get_watchdog(PyThreadState *ts, int interrupt)
      (PyObject *) Py_UnwindToken)
 
 #define STACKLESS_UNPACK(retval) \
-    (retval = Py_UnwindToken->tempval, retval)
+    ((void)(retval = Py_UnwindToken->tempval, retval))
 
 #endif
 
@@ -194,7 +194,7 @@ PyAPI_FUNC(PyTaskletObject *) slp_get_watchdog(PyThreadState *ts, int interrupt)
 #define STACKLESS_PROMOTE_WRAPPER(wp) \
     (slp_try_stackless = stackless & wp->descr->d_slpmask)
 
-#define STACKLESS_PROMOTE_ALL() (slp_try_stackless = stackless, NULL)
+#define STACKLESS_PROMOTE_ALL() ((void)(slp_try_stackless = stackless, NULL))
 
 #define STACKLESS_PROPOSE(func) {int stackless = slp_enable_softswitch; \
                  STACKLESS_PROMOTE(func);}
@@ -502,7 +502,7 @@ PyAPI_FUNC(int) slp_safe_pickling(int(*save)(PyObject *, PyObject *, int),
                                   PyObject *self, PyObject *args,
                                   int pers_save);
 /* utility function used by the reduce methods of tasklet and frame */
-int slp_pickle_with_tracing_state();
+int slp_pickle_with_tracing_state(void);
 
 /* debugging/monitoring */
 
