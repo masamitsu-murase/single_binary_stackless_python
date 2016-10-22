@@ -382,8 +382,10 @@ static int
 tasklet_init(PyObject *self, PyObject *args, PyObject *kwds)
 {
     PyObject *result = tasklet_bind(self, args, kwds);
+    if (NULL == result)
+        return -1;
     Py_DECREF(result);
-    return result != NULL ? 0 : -1;
+    return 0;
 }
 
 
@@ -778,6 +780,7 @@ impl_tasklet_run_remove(PyTaskletObject *task, int remove)
             removed = 1;
         }
     } else {
+#ifdef WITH_THREAD
         /* interthread. */
         PyThreadState *rts = task->cstate->tstate;
         PyTaskletObject *current;
@@ -804,6 +807,9 @@ impl_tasklet_run_remove(PyTaskletObject *task, int remove)
             /* remote thread is in a weird state.  Just insert it */
             fail = impl_tasklet_insert(task);
         }
+#else
+        RUNTIME_ERROR("tasklet has an invalid thread.", NULL);
+#endif
     }
     if (fail)
         return NULL;
@@ -1189,7 +1195,7 @@ tasklet_raise_exception(PyObject *myself, PyObject *args)
     PyObject *klass = PySequence_GetItem(args, 0);
 
     if (klass == NULL)
-        VALUE_ERROR("tasklet.raise_exception(e, v...)", NULL);
+        TYPE_ERROR("raise_exception() takes at least 1 argument", NULL);
     args = PySequence_GetSlice(args, 1, PySequence_Size(args));
     if (!args) goto err_exit;
     STACKLESS_PROMOTE_ALL();

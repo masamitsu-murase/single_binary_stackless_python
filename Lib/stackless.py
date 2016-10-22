@@ -39,6 +39,35 @@ class range(object):
 _wrap.range = range
 del range
 
+__all__ = ['atomic',
+           'channel',
+           'enable_softswitch',
+           'get_channel_callback',
+           'get_schedule_callback',
+           'get_thread_info',
+           'getcurrent',
+           'getcurrentid',
+           'getdebug',
+           'getmain',
+           'getruncount',
+           'getthreads',
+           'getuncollectables',
+           'pickle_with_tracing_state',
+           'run',
+           'schedule',
+           'schedule_remove',
+           'set_channel_callback',
+           'set_error_handler',
+           'set_schedule_callback',
+           'switch_trap',
+           'tasklet',
+           'stackless',  # ugly
+           ]
+
+# these definitions have no function, but they help IDEs (i.e. PyDev) to recognise
+# expressions like "stackless.current" as well defined.
+current = runcount = main = debug = uncollectables = threads = pickle_with_tracing_state = None
+
 def transmogrify():
     """
     this function creates a subclass of the ModuleType with properties.
