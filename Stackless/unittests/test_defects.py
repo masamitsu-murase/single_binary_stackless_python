@@ -275,6 +275,66 @@ class TestShutdown(StacklessTestCase):
             """])
         self.assertEqual(rc, 42)
 
+    def test_interthread_kill(self):
+        # test for issue #87 https://bitbucket.org/stackless-dev/stackless/issues/87/
+        import subprocess
+        rc = subprocess.call([sys.executable, "-S", "-E", "-c", """from __future__ import print_function, absolute_import\nif 1:
+            import sys
+            import _thread as thread
+            import stackless
+            import os
+            import time
+            from stackless import _test_nostacklesscall as apply
+
+            # This lock is used as a simple event variable.
+            ready = thread.allocate_lock()
+            ready.acquire()
+
+            if False:  # change to True to enable debug messages
+                sys.stdout = sys.stderr  # C-assert messages go to STDERR
+            else:
+                def print(*args):
+                    pass
+
+            # Module globals are cleared before __del__ is run
+            # So we save functions, objects, ... in a class dict.
+            class C(object):
+                time_sleep = time.sleep
+
+                def other_thread_main(self):
+                    print("other thread started")
+                    assert stackless.main.nesting_level == 0
+                    self.main = stackless.main
+                    assert stackless.main is stackless.current
+                    t1 = stackless.tasklet(apply)(self.main.switch)
+                    t1.run()
+                    assert t1.paused
+                    assert t1.nesting_level == 1
+                    print("OT-Main:", self.main)
+                    print("OT-t1:", t1)
+
+                    try:
+                        ready.release()
+                        while True:
+                            self.main.run()
+                    except TaskletExit:
+                        self.time_sleep(999999)
+
+            print("Main-Thread:", stackless.current)
+            x = C()
+            thread.start_new_thread(x.other_thread_main, ())
+            ready.acquire()  # Be sure the other thread is waiting.
+            x.main.kill()
+            time.sleep(0.5)  # give other thread time to run
+            # state is now: other thread has 2 tasklets:
+            # - main tasklet is stackless and blocked in sleep(999999)
+            # - t1 has a C-state and is paused
+            print("at end")
+            sys.stdout.flush()
+            sys.exit(42)
+            """])
+        self.assertEqual(rc, 42)
+
 
 class TestStacklessProtokoll(StacklessTestCase):
     """Various tests for violations of the STACKLESS_GETARG() STACKLESS_ASSERT() protocol
