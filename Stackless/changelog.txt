@@ -10,6 +10,10 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/90
+  Stackless now raises a RuntimeError, if you try to unbind (tlet.bind(None))
+  a main-tasklet.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/78
   Documentation update: if you iterate over a channel, the
   sender must send StopIteration manually. See
