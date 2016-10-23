@@ -124,7 +124,7 @@ slp_resurrect_and_kill(PyObject *self, void(*killer)(PyObject *))
 
     /* this is different from typeobject.c's slot_tp_del: our callers already 
        called PyObject_GC_UnTrack(self) */
-    assert(PyType_IS_GC(Py_TYPE(self)) && _Py_AS_GC(self)->gc.gc_refs == _PyGC_REFS_UNTRACKED);
+    assert(PyObject_IS_GC(self) && ! _PyObject_GC_IS_TRACKED(self));
 
     /* Temporarily resurrect the object. */
     assert(Py_REFCNT(self) == 0);
