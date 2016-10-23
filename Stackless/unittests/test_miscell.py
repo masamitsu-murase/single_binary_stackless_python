@@ -459,6 +459,7 @@ class TestKill(StacklessTestCase):
 class TestErrorHandler(StacklessTestCase):
 
     def setUp(self):
+        super(TestErrorHandler, self).setUp()
         self.handled = self.ran = 0
         self.handled_tasklet = None
 
@@ -551,26 +552,6 @@ class TestErrorHandler(StacklessTestCase):
 # Test context manager soft switching support
 # See http://www.stackless.com/ticket/22
 #
-
-
-class AsTaskletTestCase(StacklessTestCase):
-    """A test case class, that runs tests as tasklets"""
-
-    def setUp(self):
-        self._ran_AsTaskletTestCase_setUp = True
-        if stackless.enable_softswitch(None):
-            self.assertEqual(stackless.current.nesting_level, 0)  # @UndefinedVariable
-
-        super(StacklessTestCase, self).setUp()  # yes, its intended: call setUp on the grand parent class
-        self.assertEqual(stackless.getruncount(), 1, "Leakage from other tests, with %d tasklets still in the scheduler" % (stackless.getruncount() - 1))
-        if withThreads:
-            self.assertEqual(threading.activeCount(), 1, "Leakage from other threads, with %d threads running (1 expected)" % (threading.activeCount()))
-
-    def run(self, result=None):
-        super_run = super(AsTaskletTestCase, self).run
-        stackless.tasklet(super_run)(result)
-        stackless.run()
-        assert self._ran_AsTaskletTestCase_setUp
 
 
 def _create_contextlib_test_classes():
@@ -873,6 +854,7 @@ class TestSwitch(StacklessTestCase):
     """
 
     def setUp(self):
+        super(TestSwitch, self).setUp()
         self.source = stackless.getcurrent()
         self.finished = False
         self.c = stackless.channel()
@@ -946,7 +928,7 @@ class TestSwitch(StacklessTestCase):
         self.assertTrue(self.finished)
 
 
-class TestModule(unittest.TestCase):
+class TestModule(StacklessTestCase):
 
     def test_get_debug(self):
         self.assertIn(stackless.getdebug(), [True, False])
