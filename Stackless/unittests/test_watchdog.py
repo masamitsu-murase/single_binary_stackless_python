@@ -27,7 +27,7 @@ def get_current_watchdog_list():
             for obj in referrers:
                 if isinstance(obj, list):
                     result.append(obj)
-            assert len(result) == 1, "list references %d" % len(l)
+            assert len(result) == 1, "found %d list references, expected 1" % len(result)
         else:
             stackless.tasklet(_tasklet)(stackless.current)
             stackless.run()

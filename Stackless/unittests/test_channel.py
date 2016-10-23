@@ -240,6 +240,7 @@ class TestClose(StacklessTestCase):
         self.c = stackless.channel()
 
     # TODO: This test shows how ill conceived the current closing/closed semantics are.
+    # See https://bitbucket.org/stackless-dev/stackless/issues/53
     def testSequence(self):
         def sender():
             self.c.send_sequence(range(10))
@@ -262,6 +263,28 @@ class TestClose(StacklessTestCase):
         stackless.tasklet(receiver)()
         stackless.run()
         self.assertEqual(data, list(range(11)))
+        self.assertTrue(self.c.closed)
+
+    def testSequence2(self):
+        def sender():
+            length = self.c.send_sequence(range(10))
+            self.assertEqual(length, 10)
+            # A future version of Stackless may send StopIteration
+            # automatically, if you close the channel
+            # See https://bitbucket.org/stackless-dev/stackless/issues/53
+            self.c.send_exception(StopIteration)
+            self.c.close()
+
+        data = []
+
+        def receiver():
+            for i in self.c:
+                data.append(i)
+
+        stackless.tasklet(sender)()
+        stackless.tasklet(receiver)()
+        stackless.run()
+        self.assertEqual(data, list(range(10)))
         self.assertTrue(self.c.closed)
 
     def testSender(self):
