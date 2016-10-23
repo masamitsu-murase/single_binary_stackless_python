@@ -1285,7 +1285,7 @@ schedule_task_destruct(PyObject **retval, PyTaskletObject *prev, PyTaskletObject
     tasklet is initialized in the middle of an existing indeterminate call
     stack.  Therefore it is not guaranteed that there is not a pre-existing
     recursion depth from before its initialization. So, assert that this
-    is zero, or that we are the main tasklet being destroyed (see tasklet_end)
+    is zero, or that we are the main tasklet being destroyed (see tasklet_end).
     */
     assert(ts->recursion_depth == 0 || (ts->st.main == NULL && prev == next));
     prev->recursion_depth = 0;
