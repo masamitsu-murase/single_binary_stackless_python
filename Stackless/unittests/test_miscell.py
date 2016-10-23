@@ -133,6 +133,35 @@ class TestWatchdog(StacklessTestCase):
         self.assertEqual(t.recursion_depth, 0)
 
 
+class TestTaskletSwitching(StacklessTestCase):
+    """Test the tasklet's own scheduling methods"""
+
+    def test_raise_exception(self):
+        c = stackless.channel()
+
+        def foo():
+            self.assertRaises(IndexError, c.receive)
+        s = stackless.tasklet(foo)()
+        s.run()  # necessary, since raise_exception won't automatically run it
+        s.raise_exception(IndexError)
+
+    def test_run(self):
+        c = stackless.channel()
+        flag = [False]
+
+        def foo():
+            flag[0] = True
+        s = stackless.tasklet(foo)()
+        s.run()
+        self.assertEqual(flag[0], True)
+
+    def test_switch_to_current(self):
+        # See https://bitbucket.org/stackless-dev/stackless/issues/88
+        current = stackless.current
+        current.switch()
+        current.switch()  # this second switch used to trigger an assertion violation
+
+
 class TestTaskletThrowBase(object):
 
     def test_throw_noargs(self):
