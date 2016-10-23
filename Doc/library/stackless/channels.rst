@@ -102,10 +102,20 @@ The ``channel`` class
 .. method:: channel.send_sequence(seq)
 
    Send a stream of values over the channel.  Combined with a generator, this
-   is a very efficient way to build fast pipes.
+   is a very efficient way to build fast pipes. This method returns the length
+   of *seq*. 
+
+   This method is equivalent to::
+
+       def send_sequence(channel, sequence):
+           length = 0
+           for item in sequence:
+               channel.send(item)
+               length += 1
+           return length
 
    Example - sending a sequence over a channel::
-   
+
        >>> def sender(channel):
        ...     channel.send_sequence(sequence)
        ...
@@ -135,11 +145,23 @@ The ``channel`` class
    Channels can work as an iterator.  When they are used in this way, call
    overhead is removed on the receiving side, making it an efficient approach.
    
+   The receiver does not know, if the sender will send further objects
+   or not. Therefore the sender must notify the receiver about the
+   end-of-iteration condition. Currently this requires sending a
+   :exc:`StopIteration` over the channel (i.e. by
+   calling ``channel.send_exception(StopIteration)``).
+
+   .. note::
+
+      A future version of Stackless may send a :exc:`StopIteration` automatically,
+      if you close the channel.
+   
    Example - iterating over a channel::
    
        >>> def sender(channel):
        ...     for value in sequence:
        ...         channel.send(value)
+       ...     channel.send_exception(StopIteration)
        ...
        >>> def receiver(channel):
        ...     for value in channel:
@@ -158,6 +180,27 @@ The ``channel`` class
        1
        2
        3       
+
+   Of course you can combine :meth:`send_sequence` with iterating over a channel::
+   
+      >>> def sender(channel, sequence):
+      ...     channel.send_sequence(sequence)
+      ...     channel.send_exception(StopIteration)
+      ...
+      >>> def receiver(channel):
+      ...     for value in channel:
+      ...         print value
+      ...
+      >>> c = stackless.channel()
+      >>> stackless.tasklet(sender)(c, range(4))
+      <_stackless.tasklet object at 0x0244E0E8>
+      >>> stackless.tasklet(receiver)(c)
+      <_stackless.tasklet object at 0x0244E140>
+      >>> stackless.run()
+      0
+      1
+      2
+      3
 
 .. method:: channel.next()
 
