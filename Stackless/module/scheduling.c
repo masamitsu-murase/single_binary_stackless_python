@@ -974,8 +974,11 @@ slp_schedule_task(PyObject **result, PyTaskletObject *prev, PyTaskletObject *nex
         return schedule_task_block(result, prev, stackless, did_switch);
 
 #ifdef WITH_THREAD
-    /* note that next->cstate is undefined if it is ourself */
-    if (next->cstate != NULL && next->cstate->tstate != ts) {
+    /* note that next->cstate is undefined if it is ourself. 
+       Also note, that prev->cstate->tstate == NULL during Py_Finalize() */
+    assert(prev->cstate == NULL || prev->cstate->tstate == NULL || prev->cstate->tstate == ts);
+    /* The last condition is required during shutdown when next->cstate->tstate == NULL */
+    if (next->cstate != NULL && next->cstate->tstate != ts && next != prev) {
         return schedule_task_interthread(result, prev, next, stackless, did_switch);
     }
 #endif
