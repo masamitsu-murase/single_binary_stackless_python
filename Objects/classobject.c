@@ -484,6 +484,8 @@ PyTypeObject PyClass_Type = {
     class_new,                                  /* tp_new */
 };
 
+STACKLESS_DECLARE_METHOD(&PyClass_Type, tp_call)
+
 int
 PyClass_IsSubclass(PyObject *klass, PyObject *base)
 {
@@ -550,6 +552,7 @@ PyInstance_NewRaw(PyObject *klass, PyObject *dict)
 PyObject *
 PyInstance_New(PyObject *klass, PyObject *arg, PyObject *kw)
 {
+    STACKLESS_GETARG();
     register PyInstanceObject *inst;
     PyObject *init;
     static PyObject *initstr;
@@ -579,8 +582,34 @@ PyInstance_New(PyObject *klass, PyObject *arg, PyObject *kw)
         }
     }
     else {
-        PyObject *res = PyEval_CallObjectWithKeywords(init, arg, kw);
+        PyObject *res;
+#ifdef STACKLESS
+        if (stackless) {
+            PyCFrameObject *f = slp_cframe_new(slp_tp_init_callback, 1);
+            if (f == NULL) {
+                Py_DECREF(init);
+                Py_DECREF(inst);
+                return NULL;
+            }
+            Py_INCREF(inst);
+            f->ob1 = (PyObject *) inst;
+            PyThreadState_GET()->frame = (PyFrameObject *) f;
+        }
+#endif
+        STACKLESS_PROMOTE_ALL();
+        res = PyEval_CallObjectWithKeywords(init, arg, kw);
+        STACKLESS_ASSERT();
         Py_DECREF(init);
+#ifdef STACKLESS
+        if (stackless && !STACKLESS_UNWINDING(res)) {
+            /* required, because we added a C-frame */
+            res = STACKLESS_PACK(res);
+        }
+        if (STACKLESS_UNWINDING(res)) {
+            Py_DECREF(inst);
+            return res;
+        }
+#endif
         if (res == NULL) {
             Py_DECREF(inst);
             inst = NULL;

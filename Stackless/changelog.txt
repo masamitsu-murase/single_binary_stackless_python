@@ -10,6 +10,13 @@ What's New in Stackless 2.7.x?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/94
+  Calls to __init__(self, ...) are now stackless, if
+  soft-switching is enabled.
+  Note: pickling and unpickling an object while its __init__() method runs,
+  may cause unexpected interactions between the object reconstruction and the
+  remaining part of __init__().
+
 - https://bitbucket.org/stackless-dev/stackless/issues/93
   Unify tasklet.kill(), tasklet.throw() and tasklet.raise_exception().
   They now behave almost identically. This affects the error handling in some

@@ -175,6 +175,9 @@ PyAPI_FUNC(PyTaskletObject *) slp_get_watchdog(PyThreadState *ts, int interrupt)
 #define STACKLESS_UNWINDING(obj) \
     ((PyObject *) (obj) == (PyObject *) Py_UnwindToken)
 
+/* an arbitrary positive number */
+#define STACKLESS_UNWINDING_MAGIC 0x7fedcba9
+
 /* macros for setting/resetting the stackless flag */
 
 #define STACKLESS_POSSIBLE()                                        \
@@ -543,6 +546,7 @@ PyTaskletTStateStruc * slp_get_saved_tstate(PyTaskletObject *task);
 PyObject * slp_get_channel_callback(void);
 
 int slp_prepare_slots(PyTypeObject*);
+PyObject * slp_tp_init_callback(PyFrameObject *f, int exc, PyObject *retval);
 
 /* macro for use when interrupting tasklets from watchdog */
 #define TASKLET_NESTING_OK(task) \
