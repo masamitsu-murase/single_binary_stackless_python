@@ -2,6 +2,308 @@
 Python News
 +++++++++++
 
+What's New in Python 2.7.10?
+============================
+
+*Release date: 2015-05-23*
+
+Library
+-------
+
+- Issue #22931: Allow '[' and ']' in cookie values.
+
+
+What's New in Python 2.7.10 release candidate 1?
+================================================
+
+*Release date: 2015-05-10*
+
+Core and Builtins
+-----------------
+
+- Issue #20274: When calling a _sqlite.Connection, it now complains if passed
+  any keyword arguments.  Previously it silently ignored them.
+
+- Issue #20274: Remove ignored and erroneous "kwargs" parameters from three
+  METH_VARARGS methods on _sqlite.Connection.
+
+- Issue #23629: Fix the default __sizeof__ implementation for variable-sized
+  objects.
+
+- Issue #23055: Fixed a buffer overflow in PyUnicode_FromFormatV.  Analysis
+  and fix by Guido Vranken.
+
+- Issue #23048: Fix jumping out of an infinite while loop in the pdb.
+
+Library
+-------
+
+- The keywords attribute of functools.partial is now always a dictionary.
+
+- Issue #24134: assertRaises() and assertRaisesRegexp() checks are not longer
+  successful if the callable is None.
+
+- Issue #23008: Fixed resolving attributes with boolean value is False in pydoc.
+
+- Issues #24099, #24100, and #24101: Fix free-after-use bug in heapq's siftup
+  and siftdown functions.
+
+- Backport collections.deque fixes from Python 3.5.  Prevents reentrant badness
+  during deletion by deferring the decref until the container has been restored
+  to a consistent state.
+
+- Issue #23842: os.major(), os.minor() and os.makedev() now support ints again.
+
+- Issue #23811: Add missing newline to the PyCompileError error message.
+  Patch by Alex Shkop.
+
+- Issue #17898: Fix exception in gettext.py when parsing certain plural forms.
+
+- Issue #23865: close() methods in multiple modules now are idempotent and more
+  robust at shutdown. If they need to release multiple resources, all are
+  released even if errors occur.
+
+- Issue #23881: urllib.ftpwrapper constructor now closes the socket if the FTP
+  connection failed.
+
+- Issue #15133: _tkinter.tkapp.getboolean() now supports long and Tcl_Obj and
+  always returns bool.  tkinter.BooleanVar now validates input values (accepted
+  bool, int, long, str, unicode, and Tcl_Obj).  tkinter.BooleanVar.get() now
+  always returns bool.
+
+- Issue #23338: Fixed formatting ctypes error messages on Cygwin.
+  Patch by Makoto Kato.
+
+- Issue #16840: Tkinter now supports 64-bit integers added in Tcl 8.4 and
+  arbitrary precision integers added in Tcl 8.5.
+
+- Issue #23834: Fix socket.sendto(), use the C long type to store the result of
+  sendto() instead of the C int type.
+
+- Issue #21526: Tkinter now supports new boolean type in Tcl 8.5.
+
+- Issue #23838: linecache now clears the cache and returns an empty result on
+  MemoryError.
+
+- Issue #23742: ntpath.expandvars() no longer loses unbalanced single quotes.
+
+- Issue #21802: The reader in BufferedRWPair now is closed even when closing
+  writer failed in BufferedRWPair.close().
+
+- Issue #23671: string.Template now allows to specify the "self" parameter as
+  keyword argument.  string.Formatter now allows to specify the "self" and
+  the "format_string" parameters as keyword arguments.
+
+- Issue #21560: An attempt to write a data of wrong type no longer cause
+  GzipFile corruption.  Original patch by Wolfgang Maier.
+
+- Issue #23647: Increase impalib's MAXLINE to accommodate modern mailbox sizes.
+
+- Issue #23539: If body is None, http.client.HTTPConnection.request now sets
+  Content-Length to 0 for PUT, POST, and PATCH headers to avoid 411 errors from
+  some web servers.
+
+- Issue #23136: _strptime now uniformly handles all days in week 0, including
+  Dec 30 of previous year.  Based on patch by Jim Carroll.
+
+- Issue #23138: Fixed parsing cookies with absent keys or values in cookiejar.
+  Patch by Demian Brecht.
+
+- Issue #23051: multiprocessing.Pool methods imap() and imap_unordered() now
+  handle exceptions raised by an iterator.  Patch by Alon Diamant and Davin
+  Potts.
+
+- Issue #22928: Disabled HTTP header injections in httplib.
+  Original patch by Demian Brecht.
+
+- Issue #23615: Module tarfile is now can be reloaded with imp.reload().
+
+- Issue #22853: Fixed a deadlock when use multiprocessing.Queue at import time.
+  Patch by Florian Finkernagel and Davin Potts.
+
+- Issue #23476: In the ssl module, enable OpenSSL's X509_V_FLAG_TRUSTED_FIRST
+  flag on certificate stores when it is available.
+
+- Issue #23576: Avoid stalling in SSL reads when EOF has been reached in the
+  SSL layer but the underlying connection hasn't been closed.
+
+- Issue #23504: Added an __all__ to the types module.
+
+- Issue #23458: On POSIX, the file descriptor kept open by os.urandom() is now
+  set to non inheritable
+
+- Issue #22113: struct.pack_into() now supports new buffer protocol (in
+  particular accepts writable memoryview).
+
+- Issues #814253, #9179: Warnings now are raised when group references and
+  conditional group references are used in lookbehind assertions in regular
+  expressions.
+
+- Issue #23215: Multibyte codecs with custom error handlers that ignores errors
+  consumed too much memory and raised SystemError or MemoryError.
+  Original patch by Aleksi Torhamo.
+
+- Issue #5700: io.FileIO() called flush() after closing the file.
+  flush() was not called in close() if closefd=False.
+
+- Issue #21548: Fix pydoc.synopsis() and pydoc.apropos() on modules with empty
+  docstrings.  Initial patch by Yuyang Guo.
+
+- Issue #22885: Fixed arbitrary code execution vulnerability in the dumbdbm
+  module.  Original patch by Claudiu Popa.
+
+- Issue #23481: Remove RC4 from the SSL module's default cipher list.
+
+- Issue #21849: Fixed xmlrpclib serialization of non-ASCII unicode strings in
+  the multiprocessing module.
+
+- Issue #21840: Fixed expanding unicode variables of form $var in
+  posixpath.expandvars().  Fixed all os.path implementations on
+  unicode-disabled builds.
+
+- Issue #23367: Fix possible overflows in the unicodedata module.
+
+- Issue #23363: Fix possible overflow in itertools.permutations.
+
+- Issue #23364: Fix possible overflow in itertools.product.
+
+- Issue #23365: Fixed possible integer overflow in
+  itertools.combinations_with_replacement.
+
+- Issue #23366: Fixed possible integer overflow in itertools.combinations.
+
+- Issue #23191: fnmatch functions that use caching are now threadsafe.
+
+- Issue #18518: timeit now rejects statements which can't be compiled outside
+  a function or a loop (e.g. "return" or "break").
+
+- Issue #19996: Make :mod:`httplib` ignore headers with no name rather than
+  assuming the body has started.
+
+- Issue #20188: Support Application-Layer Protocol Negotiation (ALPN) in the ssl
+  module.
+
+- Issue #23248: Update ssl error codes from latest OpenSSL git master.
+
+- Issue #23098: 64-bit dev_t is now supported in the os module.
+
+- Issue #23063: In the disutils' check command, fix parsing of reST with code or
+  code-block directives.
+
+- Issue #21356: Make ssl.RAND_egd() optional to support LibreSSL. The
+  availability of the function is checked during the compilation. Patch written
+  by Bernard Spil.
+
+- Backport the context argument to ftplib.FTP_TLS.
+
+- Issue #23111: Maximize compatibility in protocol versions of ftplib.FTP_TLS.
+
+- Issue #23112: Fix SimpleHTTPServer to correctly carry the query string and
+  fragment when it redirects to add a trailing slash.
+
+- Issue #22585: On OpenBSD 5.6 and newer, os.urandom() now calls getentropy(),
+  instead of reading /dev/urandom, to get pseudo-random bytes.
+
+- Issue #23093: In the io, module allow more operations to work on detached
+  streams.
+
+- Issue #23071: Added missing names to codecs.__all__.  Patch by Martin Panter.
+
+- Issue #23016: A warning no longer produces an AttributeError when sys.stderr
+  is None.
+
+- Issue #21032. Fixed socket leak if HTTPConnection.getresponse() fails.
+  Original patch by Martin Panter.
+
+- Issue #22609: Constructors and update methods of mapping classes in the
+  collections module now accept the self keyword argument.
+
+Documentation
+-------------
+
+- Issue #23006: Improve the documentation and indexing of dict.__missing__.
+  Add an entry in the language datamodel special methods section.
+  Revise and index its discussion in the stdtypes mapping/dict section.
+  Backport the code example from 3.4.
+
+- Issue #21514: The documentation of the json module now refers to new JSON RFC
+  7159 instead of obsoleted RFC 4627.
+
+Tools/Demos
+-----------
+
+- Issue #23330: h2py now supports arbitrary filenames in #include.
+
+- Issue #6639: Module-level turtle functions no longer raise TclError after
+  closing the window.
+
+- Issue #22314: pydoc now works when the LINES environment variable is set.
+
+- Issue #18905: "pydoc -p 0" now outputs actually used port.  Based on patch by
+  Wieland Hoffmann.
+
+- Issue #23345: Prevent test_ssl failures with large OpenSSL patch level
+  values (like 0.9.8zc).
+
+Tests
+-----
+
+- Issue #23799: Added test.test_support.start_threads() for running and
+  cleaning up multiple threads.
+
+- Issue #22390: test.regrtest now emits a warning if temporary files or
+  directories are left after running a test.
+
+- Issue #23583: Added tests for standard IO streams in IDLE.
+
+- Issue #23392: Added tests for marshal C API that works with FILE*.
+
+- Issue #18982: Add tests for CLI of the calendar module.
+
+- Issue #19949: The test_xpickle test now tests compatibility with installed
+  Python 2.7 and reports skipped tests.  Based on patch by Zachary Ware.
+
+- Issue #11578: Backported test for the timeit module.
+
+- Issue #22943: bsddb tests are locale independend now.
+
+IDLE
+----
+
+- Issue #23583: Fixed writing unicode to standard output stream in IDLE.
+
+- Issue #20577: Configuration of the max line length for the FormatParagraph
+  extension has been moved from the General tab of the Idle preferences dialog
+  to the FormatParagraph tab of the Config Extensions dialog.
+  Patch by Tal Einat.
+
+- Issue #16893: Update Idle doc chapter to match current Idle and add new
+  information.
+
+- Issue #23180: Rename IDLE "Windows" menu item to "Window".
+  Patch by Al Sweigart.
+
+Build
+-----
+
+- Issue #15506: Use standard PKG_PROG_PKG_CONFIG autoconf macro in the configure
+  script.
+
+- Issue #23032: Fix installer build failures on OS X 10.4 Tiger
+  by disabling assembly code in the OpenSSL build.
+
+- Issue #23686: Update OS X 10.5 installer and Windows builds to use
+  OpenSSL 1.0.2a.
+
+C API
+-----
+
+- Issue #23998: PyImport_ReInitLock() now checks for lock allocation error
+
+- Issue #22079: PyType_Ready() now checks that statically allocated type has
+  no dynamically allocated bases.
+
+
 What's New in Python 2.7.9?
 ===========================
 
@@ -105,7 +407,7 @@ Library
 
 - Issue #22776: Brought excluded code into the scope of a try block in
   SysLogHandler.emit().
- 
+
 - Issue #17381: Fixed ranges handling in case-insensitive regular expressions.
 
 - Issue #19329: Optimized compiling charsets in regular expressions.
@@ -299,6 +601,23 @@ Library
 
 IDLE
 ----
+
+- Issue #3068: Add Idle extension configuration dialog to Options menu.
+  Changes are written to HOME/.idlerc/config-extensions.cfg.
+  Original patch by Tal Einat.
+
+- Issue #16233: A module browser (File : Class Browser, Alt+C) requires a
+  editor window with a filename.  When Class Browser is requested otherwise,
+  from a shell, output window, or 'Untitled' editor, Idle no longer displays
+  an error box.  It now pops up an  Open Module box (Alt+M). If a valid name
+  is entered and a module is opened, a corresponding browser is also opened.
+
+- Issue #4832: Save As to type Python files automatically adds .py to the
+  name you enter (even if your system does not display it).  Some systems
+  automatically add .txt when type is Text files.
+
+- Issue #21986: Code objects are not normally pickled by the pickle module.
+  To match this, they are no longer pickled when running under Idle.
 
 - Issue #22221: IDLE now ignores the source encoding declaration on the second
   line if the first line contains anything except a comment.

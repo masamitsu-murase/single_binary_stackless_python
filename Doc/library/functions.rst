@@ -22,11 +22,16 @@ available.  They are listed here in alphabetical order.
 :func:`classmethod`  :func:`getattr`    :func:`map`         |func-repr|_       :func:`xrange`
 :func:`cmp`          :func:`globals`    :func:`max`         :func:`reversed`   :func:`zip`
 :func:`compile`      :func:`hasattr`    |func-memoryview|_  :func:`round`      :func:`__import__`
-:func:`complex`      :func:`hash`       :func:`min`         |func-set|_        :func:`apply`
-:func:`delattr`      :func:`help`       :func:`next`        :func:`setattr`    :func:`buffer`
-|func-dict|_         :func:`hex`        :func:`object`      :func:`slice`      :func:`coerce`
-:func:`dir`          :func:`id`         :func:`oct`         :func:`sorted`     :func:`intern`
+:func:`complex`      :func:`hash`       :func:`min`         |func-set|_        ..
+:func:`delattr`      :func:`help`       :func:`next`        :func:`setattr`    ..
+|func-dict|_         :func:`hex`        :func:`object`      :func:`slice`      ..
+:func:`dir`          :func:`id`         :func:`oct`         :func:`sorted`     ..
 ===================  =================  ==================  =================  ====================
+
+In addition, there are other four built-in functions that are no longer
+considered essential: :func:`apply`, :func:`buffer`, :func:`coerce`, and
+:func:`intern`.  They are documented in the :ref:`non-essential-built-in-funcs`
+section.
 
 .. using :func:`dict` would create a link to another page, so local targets are
    used, with replacement texts to make the output in the table consistent
@@ -1172,12 +1177,6 @@ available.  They are listed here in alphabetical order.
      where they occur if that is desired.
 
    There are a number of other caveats:
-
-   If a module is syntactically correct but its initialization fails, the first
-   :keyword:`import` statement for it does not bind its name locally, but does
-   store a (partially initialized) module object in ``sys.modules``.  To reload the
-   module you must first :keyword:`import` it again (this will bind the name to the
-   partially initialized module object) before you can :func:`reload` it.
 
    When a module is reloaded, its dictionary (containing the module's global
    variables) is retained.  Redefinitions of names will override the old

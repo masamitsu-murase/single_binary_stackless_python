@@ -105,6 +105,11 @@ struct py_ssl_library_code {
 # define HAVE_SNI 0
 #endif
 
+/* ALPN added in OpenSSL 1.0.2 */
+#if !defined(LIBRESSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x1000200fL && !defined(OPENSSL_NO_TLSEXT)
+# define HAVE_ALPN
+#endif
+
 enum py_ssl_error {
     /* these mirror ssl.h */
     PY_SSL_ERROR_NONE,
@@ -205,8 +210,12 @@ typedef struct {
     PyObject_HEAD
     SSL_CTX *ctx;
 #ifdef OPENSSL_NPN_NEGOTIATED
-    char *npn_protocols;
+    unsigned char *npn_protocols;
     int npn_protocols_len;
+#endif
+#ifdef HAVE_ALPN
+    unsigned char *alpn_protocols;
+    int alpn_protocols_len;
 #endif
 #ifndef OPENSSL_NO_TLSEXT
     PyObject *set_hostname;
@@ -1408,7 +1417,20 @@ static PyObject *PySSL_selected_npn_protocol(PySSLSocket *self) {
 
     if (out == NULL)
         Py_RETURN_NONE;
-    return PyUnicode_FromStringAndSize((char *) out, outlen);
+    return PyString_FromStringAndSize((char *)out, outlen);
+}
+#endif
+
+#ifdef HAVE_ALPN
+static PyObject *PySSL_selected_alpn_protocol(PySSLSocket *self) {
+    const unsigned char *out;
+    unsigned int outlen;
+
+    SSL_get0_alpn_selected(self->ssl, &out, &outlen);
+
+    if (out == NULL)
+        Py_RETURN_NONE;
+    return PyString_FromStringAndSize((char *)out, outlen);
 }
 #endif
 
@@ -1698,26 +1720,6 @@ static PyObject *PySSL_SSLread(PySSLSocket *self, PyObject *args)
     BIO_set_nbio(SSL_get_rbio(self->ssl), nonblocking);
     BIO_set_nbio(SSL_get_wbio(self->ssl), nonblocking);
 
-    /* first check if there are bytes ready to be read */
-    PySSL_BEGIN_ALLOW_THREADS
-    count = SSL_pending(self->ssl);
-    PySSL_END_ALLOW_THREADS
-
-    if (!count) {
-        sockstate = check_socket_and_wait_for_timeout(sock, 0);
-        if (sockstate == SOCKET_HAS_TIMED_OUT) {
-            PyErr_SetString(PySSLErrorObject,
-                            "The read operation timed out");
-            goto error;
-        } else if (sockstate == SOCKET_TOO_LARGE_FOR_SELECT) {
-            PyErr_SetString(PySSLErrorObject,
-                            "Underlying socket too large for select().");
-            goto error;
-        } else if (sockstate == SOCKET_HAS_BEEN_CLOSED) {
-            count = 0;
-            goto done;
-        }
-    }
     do {
         PySSL_BEGIN_ALLOW_THREADS
         count = SSL_read(self->ssl, mem, len);
@@ -1925,6 +1927,9 @@ static PyMethodDef PySSLMethods[] = {
 #ifdef OPENSSL_NPN_NEGOTIATED
     {"selected_npn_protocol", (PyCFunction)PySSL_selected_npn_protocol, METH_NOARGS},
 #endif
+#ifdef HAVE_ALPN
+    {"selected_alpn_protocol", (PyCFunction)PySSL_selected_alpn_protocol, METH_NOARGS},
+#endif
     {"compression", (PyCFunction)PySSL_compression, METH_NOARGS},
     {"shutdown", (PyCFunction)PySSL_SSLshutdown, METH_NOARGS,
      PySSL_SSLshutdown_doc},
@@ -2032,6 +2037,9 @@ context_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 #ifdef OPENSSL_NPN_NEGOTIATED
     self->npn_protocols = NULL;
 #endif
+#ifdef HAVE_ALPN
+    self->alpn_protocols = NULL;
+#endif
 #ifndef OPENSSL_NO_TLSEXT
     self->set_hostname = NULL;
 #endif
@@ -2064,6 +2072,15 @@ context_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
                                    sizeof(SID_CTX));
 #undef SID_CTX
 
+#ifdef X509_V_FLAG_TRUSTED_FIRST
+    {
+        /* Improve trust chain building when cross-signed intermediate
+           certificates are present. See https://bugs.python.org/issue23476. */
+        X509_STORE *store = SSL_CTX_get_cert_store(self->ctx);
+        X509_STORE_set_flags(store, X509_V_FLAG_TRUSTED_FIRST);
+    }
+#endif
+
     return (PyObject *)self;
 }
 
@@ -2091,7 +2108,10 @@ context_dealloc(PySSLContext *self)
     context_clear(self);
     SSL_CTX_free(self->ctx);
 #ifdef OPENSSL_NPN_NEGOTIATED
-    PyMem_Free(self->npn_protocols);
+    PyMem_FREE(self->npn_protocols);
+#endif
+#ifdef HAVE_ALPN
+    PyMem_FREE(self->alpn_protocols);
 #endif
     Py_TYPE(self)->tp_free(self);
 }
@@ -2118,6 +2138,30 @@ set_ciphers(PySSLContext *self, PyObject *args)
 }
 
 #ifdef OPENSSL_NPN_NEGOTIATED
+static int
+do_protocol_selection(int alpn, unsigned char **out, unsigned char *outlen,
+                      const unsigned char *server_protocols, unsigned int server_protocols_len,
+                      const unsigned char *client_protocols, unsigned int client_protocols_len)
+{
+    int ret;
+    if (client_protocols == NULL) {
+        client_protocols = (unsigned char *)"";
+        client_protocols_len = 0;
+    }
+    if (server_protocols == NULL) {
+        server_protocols = (unsigned char *)"";
+        server_protocols_len = 0;
+    }
+
+    ret = SSL_select_next_proto(out, outlen,
+                                server_protocols, server_protocols_len,
+                                client_protocols, client_protocols_len);
+    if (alpn && ret != OPENSSL_NPN_NEGOTIATED)
+        return SSL_TLSEXT_ERR_NOACK;
+
+    return SSL_TLSEXT_ERR_OK;
+}
+
 /* this callback gets passed to SSL_CTX_set_next_protos_advertise_cb */
 static int
 _advertiseNPN_cb(SSL *s,
@@ -2127,10 +2171,10 @@ _advertiseNPN_cb(SSL *s,
     PySSLContext *ssl_ctx = (PySSLContext *) args;
 
     if (ssl_ctx->npn_protocols == NULL) {
-        *data = (unsigned char *) "";
+        *data = (unsigned char *)"";
         *len = 0;
     } else {
-        *data = (unsigned char *) ssl_ctx->npn_protocols;
+        *data = ssl_ctx->npn_protocols;
         *len = ssl_ctx->npn_protocols_len;
     }
 
@@ -2143,23 +2187,9 @@ _selectNPN_cb(SSL *s,
               const unsigned char *server, unsigned int server_len,
               void *args)
 {
-    PySSLContext *ssl_ctx = (PySSLContext *) args;
-
-    unsigned char *client = (unsigned char *) ssl_ctx->npn_protocols;
-    int client_len;
-
-    if (client == NULL) {
-        client = (unsigned char *) "";
-        client_len = 0;
-    } else {
-        client_len = ssl_ctx->npn_protocols_len;
-    }
-
-    SSL_select_next_proto(out, outlen,
-                          server, server_len,
-                          client, client_len);
-
-    return SSL_TLSEXT_ERR_OK;
+    PySSLContext *ctx = (PySSLContext *)args;
+    return do_protocol_selection(0, out, outlen, server, server_len,
+                                 ctx->npn_protocols, ctx->npn_protocols_len);
 }
 #endif
 
@@ -2198,6 +2228,50 @@ _set_npn_protocols(PySSLContext *self, PyObject *args)
 #else
     PyErr_SetString(PyExc_NotImplementedError,
                     "The NPN extension requires OpenSSL 1.0.1 or later.");
+    return NULL;
+#endif
+}
+
+#ifdef HAVE_ALPN
+static int
+_selectALPN_cb(SSL *s,
+              const unsigned char **out, unsigned char *outlen,
+              const unsigned char *client_protocols, unsigned int client_protocols_len,
+              void *args)
+{
+    PySSLContext *ctx = (PySSLContext *)args;
+    return do_protocol_selection(1, (unsigned char **)out, outlen,
+                                 ctx->alpn_protocols, ctx->alpn_protocols_len,
+                                 client_protocols, client_protocols_len);
+}
+#endif
+
+static PyObject *
+_set_alpn_protocols(PySSLContext *self, PyObject *args)
+{
+#ifdef HAVE_ALPN
+    Py_buffer protos;
+
+    if (!PyArg_ParseTuple(args, "s*:set_npn_protocols", &protos))
+        return NULL;
+
+    PyMem_FREE(self->alpn_protocols);
+    self->alpn_protocols = PyMem_Malloc(protos.len);
+    if (!self->alpn_protocols)
+        return PyErr_NoMemory();
+    memcpy(self->alpn_protocols, protos.buf, protos.len);
+    self->alpn_protocols_len = protos.len;
+    PyBuffer_Release(&protos);
+
+    if (SSL_CTX_set_alpn_protos(self->ctx, self->alpn_protocols, self->alpn_protocols_len))
+        return PyErr_NoMemory();
+    SSL_CTX_set_alpn_select_cb(self->ctx, _selectALPN_cb, self);
+
+    PyBuffer_Release(&protos);
+    Py_RETURN_NONE;
+#else
+    PyErr_SetString(PyExc_NotImplementedError,
+                    "The ALPN extension requires OpenSSL 1.0.2 or later.");
     return NULL;
 #endif
 }
@@ -3188,6 +3262,8 @@ static struct PyMethodDef context_methods[] = {
                        METH_VARARGS | METH_KEYWORDS, NULL},
     {"set_ciphers", (PyCFunction) set_ciphers,
                     METH_VARARGS, NULL},
+    {"_set_alpn_protocols", (PyCFunction) _set_alpn_protocols,
+                           METH_VARARGS, NULL},
     {"_set_npn_protocols", (PyCFunction) _set_npn_protocols,
                            METH_VARARGS, NULL},
     {"load_cert_chain", (PyCFunction) load_cert_chain,
@@ -3301,6 +3377,11 @@ Returns 1 if the OpenSSL PRNG has been seeded with enough data and 0 if not.\n\
 It is necessary to seed the PRNG with RAND_add() on some platforms before\n\
 using the ssl() function.");
 
+#endif /* HAVE_OPENSSL_RAND */
+
+
+#ifdef HAVE_RAND_EGD
+
 static PyObject *
 PySSL_RAND_egd(PyObject *self, PyObject *arg)
 {
@@ -3327,7 +3408,7 @@ Queries the entropy gather daemon (EGD) on the socket named by 'path'.\n\
 Returns number of bytes read.  Raises SSLError if connection to EGD\n\
 fails or if it does not provide enough data to seed PRNG.");
 
-#endif /* HAVE_OPENSSL_RAND */
+#endif /* HAVE_RAND_EGD */
 
 
 PyDoc_STRVAR(PySSL_get_default_verify_paths_doc,
@@ -3564,7 +3645,7 @@ PySSL_enum_certificates(PyObject *self, PyObject *args, PyObject *kwds)
     PyObject *keyusage = NULL, *cert = NULL, *enc = NULL, *tup = NULL;
     PyObject *result = NULL;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|s:enum_certificates",
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s:enum_certificates",
                                      kwlist, &store_name)) {
         return NULL;
     }
@@ -3652,7 +3733,7 @@ PySSL_enum_crls(PyObject *self, PyObject *args, PyObject *kwds)
     PyObject *crl = NULL, *enc = NULL, *tup = NULL;
     PyObject *result = NULL;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|s:enum_crls",
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s:enum_crls",
                                      kwlist, &store_name)) {
         return NULL;
     }
@@ -3720,10 +3801,12 @@ static PyMethodDef PySSL_methods[] = {
 #ifdef HAVE_OPENSSL_RAND
     {"RAND_add",            PySSL_RAND_add, METH_VARARGS,
      PySSL_RAND_add_doc},
-    {"RAND_egd",            PySSL_RAND_egd, METH_VARARGS,
-     PySSL_RAND_egd_doc},
     {"RAND_status",         (PyCFunction)PySSL_RAND_status, METH_NOARGS,
      PySSL_RAND_status_doc},
+#endif
+#ifdef HAVE_RAND_EGD
+    {"RAND_egd",            PySSL_RAND_egd, METH_VARARGS,
+     PySSL_RAND_egd_doc},
 #endif
     {"get_default_verify_paths", (PyCFunction)PySSL_get_default_verify_paths,
      METH_NOARGS, PySSL_get_default_verify_paths_doc},
@@ -3797,10 +3880,11 @@ static int _setup_ssl_threads(void) {
 
     if (_ssl_locks == NULL) {
         _ssl_locks_count = CRYPTO_num_locks();
-        _ssl_locks = (PyThread_type_lock *)
-            PyMem_Malloc(sizeof(PyThread_type_lock) * _ssl_locks_count);
-        if (_ssl_locks == NULL)
+        _ssl_locks = PyMem_New(PyThread_type_lock, _ssl_locks_count);
+        if (_ssl_locks == NULL) {
+            PyErr_NoMemory();
             return 0;
+        }
         memset(_ssl_locks, 0,
                sizeof(PyThread_type_lock) * _ssl_locks_count);
         for (i = 0;  i < _ssl_locks_count;  i++) {
@@ -3968,6 +4052,10 @@ init_ssl(void)
                             X509_V_FLAG_CRL_CHECK|X509_V_FLAG_CRL_CHECK_ALL);
     PyModule_AddIntConstant(m, "VERIFY_X509_STRICT",
                             X509_V_FLAG_X509_STRICT);
+#ifdef X509_V_FLAG_TRUSTED_FIRST
+    PyModule_AddIntConstant(m, "VERIFY_X509_TRUSTED_FIRST",
+                            X509_V_FLAG_TRUSTED_FIRST);
+#endif
 
     /* Alert Descriptions from ssl.h */
     /* note RESERVED constants no longer intended for use have been removed */
@@ -4092,6 +4180,14 @@ init_ssl(void)
 #endif
     Py_INCREF(r);
     PyModule_AddObject(m, "HAS_NPN", r);
+
+#ifdef HAVE_ALPN
+    r = Py_True;
+#else
+    r = Py_False;
+#endif
+    Py_INCREF(r);
+    PyModule_AddObject(m, "HAS_ALPN", r);
 
     /* Mappings for error codes */
     err_codes_to_names = PyDict_New();

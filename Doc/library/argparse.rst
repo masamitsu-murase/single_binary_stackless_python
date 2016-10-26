@@ -1216,8 +1216,8 @@ Action classes implement the Action API, a callable which returns a callable
 which processes arguments from the command-line. Any object which follows this
 API may be passed as the ``action`` parameter to :meth:`add_argument`.
 
-.. class:: Action(option_strings, dest, nargs=None, const=None, default=None,
-                  type=None, choices=None, required=False, help=None,
+.. class:: Action(option_strings, dest, nargs=None, const=None, default=None, \
+                  type=None, choices=None, required=False, help=None, \
                   metavar=None)
 
 Action objects are used by an ArgumentParser to represent the information needed
@@ -1499,12 +1499,15 @@ Sub-commands
    * parser_class - class which will be used to create sub-parser instances, by
      default the class of the current parser (e.g. ArgumentParser)
 
-   * dest - name of the attribute under which sub-command name will be
+   * action_ - the basic type of action to be taken when this argument is
+     encountered at the command line
+
+   * dest_ - name of the attribute under which sub-command name will be
      stored; by default None and no value is stored
 
-   * help - help for sub-parser group in help output, by default None
+   * help_ - help for sub-parser group in help output, by default None
 
-   * metavar - string presenting available sub-commands in help; by default it
+   * metavar_ - string presenting available sub-commands in help; by default it
      is None and presents sub-commands in form {cmd1, cmd2, ..}
 
    Some example usage::
@@ -1881,10 +1884,7 @@ Customizing file parsing
    as an argument::
 
     def convert_arg_line_to_args(self, arg_line):
-        for arg in arg_line.split():
-            if not arg.strip():
-                continue
-            yield arg
+        return arg_line.split()
 
 
 Exiting methods

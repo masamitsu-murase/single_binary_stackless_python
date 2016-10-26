@@ -170,7 +170,7 @@ and special characters::
    >>> print '"Isn\'t," she said.'
    "Isn't," she said.
    >>> s = 'First line.\nSecond line.'  # \n means newline
-   >>> s  # without print(), \n is included in the output
+   >>> s  # without print, \n is included in the output
    'First line.\nSecond line.'
    >>> print s  # with print, \n produces a new line
    First line.
@@ -309,7 +309,7 @@ indices, if both are within bounds.  For example, the length of ``word[1:3]`` is
 
 Attempting to use a index that is too large will result in an error::
 
-   >>> word[42]  # the word only has 7 characters
+   >>> word[42]  # the word only has 6 characters
    Traceback (most recent call last):
      File "<stdin>", line 1, in <module>
    IndexError: string index out of range

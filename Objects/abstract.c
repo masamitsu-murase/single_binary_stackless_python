@@ -500,7 +500,7 @@ PyBuffer_ToContiguous(void *buf, Py_buffer *view, Py_ssize_t len, char fort)
 
     /* Otherwise a more elaborate scheme is needed */
 
-    /* XXX(nnorwitz): need to check for overflow! */
+    /* view->ndim <= 64 */
     indices = (Py_ssize_t *)PyMem_Malloc(sizeof(Py_ssize_t)*(view->ndim));
     if (indices == NULL) {
         PyErr_NoMemory();
@@ -522,10 +522,10 @@ PyBuffer_ToContiguous(void *buf, Py_buffer *view, Py_ssize_t len, char fort)
      */
     elements = len / view->itemsize;
     while (elements--) {
-        addone(view->ndim, indices, view->shape);
         ptr = PyBuffer_GetPointer(view, indices);
         memcpy(dest, ptr, view->itemsize);
         dest += view->itemsize;
+        addone(view->ndim, indices, view->shape);
     }
     PyMem_Free(indices);
     return 0;
@@ -551,7 +551,7 @@ PyBuffer_FromContiguous(Py_buffer *view, void *buf, Py_ssize_t len, char fort)
 
     /* Otherwise a more elaborate scheme is needed */
 
-    /* XXX(nnorwitz): need to check for overflow! */
+    /* view->ndim <= 64 */
     indices = (Py_ssize_t *)PyMem_Malloc(sizeof(Py_ssize_t)*(view->ndim));
     if (indices == NULL) {
         PyErr_NoMemory();
@@ -573,10 +573,10 @@ PyBuffer_FromContiguous(Py_buffer *view, void *buf, Py_ssize_t len, char fort)
      */
     elements = len / view->itemsize;
     while (elements--) {
-        addone(view->ndim, indices, view->shape);
         ptr = PyBuffer_GetPointer(view, indices);
         memcpy(ptr, src, view->itemsize);
         src += view->itemsize;
+        addone(view->ndim, indices, view->shape);
     }
 
     PyMem_Free(indices);

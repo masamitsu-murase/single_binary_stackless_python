@@ -24,6 +24,11 @@ This module defines classes which implement the client side of the HTTP and
 HTTPS protocols.  It is normally not used directly --- the module :mod:`urllib`
 uses it to handle URLs that use HTTP and HTTPS.
 
+.. seealso::
+
+    The `Requests package <http://requests.readthedocs.org/>`_
+    is recommended for a higher-level http client interface.
+
 .. note::
 
    HTTPS support is only available if the :mod:`socket` module was compiled with
@@ -433,9 +438,16 @@ HTTPConnection Objects
    and the selector *url*.  If the *body* argument is present, it should be a
    string of data to send after the headers are finished. Alternatively, it may
    be an open file object, in which case the contents of the file is sent; this
-   file object should support ``fileno()`` and ``read()`` methods. The header
-   Content-Length is automatically set to the correct value. The *headers*
-   argument should be a mapping of extra HTTP headers to send with the request.
+   file object should support ``fileno()`` and ``read()`` methods. The
+   *headers* argument should be a mapping of extra HTTP headers to send with
+   the request.
+
+   If one is not provided in *headers*, a ``Content-Length`` header is added
+   automatically for all methods if the length of the body can be determined,
+   either from the length of the ``str`` representation, or from the reported
+   size of the file on disk. If *body* is ``None`` the header is not set except
+   for methods that expect a body (``PUT``, ``POST``, and ``PATCH``) in which
+   case it is set to ``0``.
 
    .. versionchanged:: 2.6
       *body* can be a file object.
@@ -579,13 +591,13 @@ Examples
 Here is an example session that uses the ``GET`` method::
 
    >>> import httplib
-   >>> conn = httplib.HTTPConnection("www.python.org")
-   >>> conn.request("GET", "/index.html")
+   >>> conn = httplib.HTTPSConnection("www.python.org")
+   >>> conn.request("GET", "/")
    >>> r1 = conn.getresponse()
    >>> print r1.status, r1.reason
    200 OK
    >>> data1 = r1.read()
-   >>> conn.request("GET", "/parrot.spam")
+   >>> conn.request("GET", "/")
    >>> r2 = conn.getresponse()
    >>> print r2.status, r2.reason
    404 Not Found
@@ -596,8 +608,8 @@ Here is an example session that uses the ``HEAD`` method.  Note that the
 ``HEAD`` method never returns any data. ::
 
    >>> import httplib
-   >>> conn = httplib.HTTPConnection("www.python.org")
-   >>> conn.request("HEAD","/index.html")
+   >>> conn = httplib.HTTPSConnection("www.python.org")
+   >>> conn.request("HEAD","/")
    >>> res = conn.getresponse()
    >>> print res.status, res.reason
    200 OK

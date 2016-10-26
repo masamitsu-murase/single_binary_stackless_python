@@ -80,7 +80,7 @@ Copyright (C) 1994 Steen Lumholt.
 #define CONST
 #endif
 
-#if TK_VERSION_HEX < 0x08030102
+#if TK_HEX_VERSION < 0x08030201
 #error "Tk older than 8.3.1 not supported"
 #endif
 
@@ -94,6 +94,12 @@ Copyright (C) 1994 Steen Lumholt.
 */
 #if TCL_UTF_MAX != 3 && !(defined(Py_UNICODE_WIDE) && TCL_UTF_MAX==6)
 #error "unsupported Tcl configuration"
+#endif
+
+#if TK_HEX_VERSION >= 0x08050208 && TK_HEX_VERSION < 0x08060000 || \
+    TK_HEX_VERSION >= 0x08060200
+#define HAVE_LIBTOMMAMTH
+#include <tclTomMath.h>
 #endif
 
 #if !(defined(MS_WINDOWS) || defined(__CYGWIN__))
@@ -257,13 +263,16 @@ typedef struct {
     int dispatching;
     /* We cannot include tclInt.h, as this is internal.
        So we cache interesting types here. */
-    Tcl_ObjType *BooleanType;
-    Tcl_ObjType *ByteArrayType;
-    Tcl_ObjType *DoubleType;
-    Tcl_ObjType *IntType;
-    Tcl_ObjType *ListType;
-    Tcl_ObjType *ProcBodyType;
-    Tcl_ObjType *StringType;
+    const Tcl_ObjType *OldBooleanType;
+    const Tcl_ObjType *BooleanType;
+    const Tcl_ObjType *ByteArrayType;
+    const Tcl_ObjType *DoubleType;
+    const Tcl_ObjType *IntType;
+    const Tcl_ObjType *WideIntType;
+    const Tcl_ObjType *BignumType;
+    const Tcl_ObjType *ListType;
+    const Tcl_ObjType *ProcBodyType;
+    const Tcl_ObjType *StringType;
 } TkappObject;
 
 #define Tkapp_Check(v) (Py_TYPE(v) == &Tkapp_Type)
@@ -733,10 +742,13 @@ Tkapp_New(char *screenName, char *baseName, char *className,
     }
 #endif
 
-    v->BooleanType = Tcl_GetObjType("boolean");
+    v->OldBooleanType = Tcl_GetObjType("boolean");
+    v->BooleanType = Tcl_GetObjType("booleanString");
     v->ByteArrayType = Tcl_GetObjType("bytearray");
     v->DoubleType = Tcl_GetObjType("double");
     v->IntType = Tcl_GetObjType("int");
+    v->WideIntType = Tcl_GetObjType("wideInt");
+    v->BignumType = Tcl_GetObjType("bignum");
     v->ListType = Tcl_GetObjType("list");
     v->ProcBodyType = Tcl_GetObjType("procbody");
     v->StringType = Tcl_GetObjType("string");
@@ -1033,6 +1045,45 @@ statichere PyTypeObject PyTclObject_Type = {
 #define CHECK_STRING_LENGTH(s)
 #endif
 
+#ifdef HAVE_LIBTOMMAMTH
+static Tcl_Obj*
+asBignumObj(PyObject *value)
+{
+    Tcl_Obj *result;
+    int neg;
+    PyObject *hexstr;
+    char *hexchars;
+    mp_int bigValue;
+
+    neg = Py_SIZE(value) < 0;
+    hexstr = _PyLong_Format(value, 16, 0, 1);
+    if (hexstr == NULL)
+        return NULL;
+    hexchars = PyString_AsString(hexstr);
+    if (hexchars == NULL) {
+        Py_DECREF(hexstr);
+        return NULL;
+    }
+    hexchars += neg + 2; /* skip sign and "0x" */
+    mp_init(&bigValue);
+    if (mp_read_radix(&bigValue, hexchars, 16) != MP_OKAY) {
+        mp_clear(&bigValue);
+        Py_DECREF(hexstr);
+        PyErr_NoMemory();
+        return NULL;
+    }
+    Py_DECREF(hexstr);
+    bigValue.sign = neg ? MP_NEG : MP_ZPOS;
+    result = Tcl_NewBignumObj(&bigValue);
+    mp_clear(&bigValue);
+    if (result == NULL) {
+        PyErr_NoMemory();
+        return NULL;
+    }
+    return result;
+}
+#endif
+
 static Tcl_Obj*
 AsObj(PyObject *value)
 {
@@ -1041,13 +1092,52 @@ AsObj(PyObject *value)
     if (PyString_Check(value))
         return Tcl_NewStringObj(PyString_AS_STRING(value),
                                 PyString_GET_SIZE(value));
-    else if (PyBool_Check(value))
+
+    if (PyBool_Check(value))
         return Tcl_NewBooleanObj(PyObject_IsTrue(value));
-    else if (PyInt_Check(value))
+
+    if (PyInt_Check(value))
         return Tcl_NewLongObj(PyInt_AS_LONG(value));
-    else if (PyFloat_Check(value))
+
+    if (PyLong_CheckExact(value)) {
+        int overflow;
+        long longValue;
+#ifdef TCL_WIDE_INT_TYPE
+        Tcl_WideInt wideValue;
+#endif
+        longValue = PyLong_AsLongAndOverflow(value, &overflow);
+        if (!overflow) {
+            return Tcl_NewLongObj(longValue);
+        }
+        /* If there is an overflow in the long conversion,
+           fall through to wideInt handling. */
+#ifdef TCL_WIDE_INT_TYPE
+        if (_PyLong_AsByteArray((PyLongObject *)value,
+                                (unsigned char *)(void *)&wideValue,
+                                sizeof(wideValue),
+#ifdef WORDS_BIGENDIAN
+                                0,
+#else
+                                1,
+#endif
+                                /* signed */ 1) == 0) {
+            return Tcl_NewWideIntObj(wideValue);
+        }
+        PyErr_Clear();
+#endif
+        /* If there is an overflow in the wideInt conversion,
+           fall through to bignum handling. */
+#ifdef HAVE_LIBTOMMAMTH
+        return asBignumObj(value);
+#endif
+        /* If there is no wideInt or bignum support,
+           fall through to default object handling. */
+    }
+
+    if (PyFloat_Check(value))
         return Tcl_NewDoubleObj(PyFloat_AS_DOUBLE(value));
-    else if (PyTuple_Check(value)) {
+
+    if (PyTuple_Check(value)) {
         Tcl_Obj **argv;
         Py_ssize_t size, i;
 
@@ -1067,8 +1157,9 @@ AsObj(PyObject *value)
         ckfree(FREECAST argv);
         return result;
     }
+
 #ifdef Py_USING_UNICODE
-    else if (PyUnicode_Check(value)) {
+    if (PyUnicode_Check(value)) {
         Py_UNICODE *inbuf = PyUnicode_AS_UNICODE(value);
         Py_ssize_t size = PyUnicode_GET_SIZE(value);
         /* This #ifdef assumes that Tcl uses UCS-2.
@@ -1111,15 +1202,16 @@ AsObj(PyObject *value)
 #else
         return Tcl_NewUnicodeObj(inbuf, size);
 #endif
-
     }
 #endif
-    else if(PyTclObject_Check(value)) {
+
+    if(PyTclObject_Check(value)) {
         Tcl_Obj *v = ((PyTclObject*)value)->value;
         Tcl_IncrRefCount(v);
         return v;
     }
-    else {
+
+    {
         PyObject *v = PyObject_Str(value);
         if (!v)
             return 0;
@@ -1129,21 +1221,90 @@ AsObj(PyObject *value)
     }
 }
 
+static PyObject *
+fromBoolean(PyObject* tkapp, Tcl_Obj *value)
+{
+    int boolValue;
+    if (Tcl_GetBooleanFromObj(Tkapp_Interp(tkapp), value, &boolValue) == TCL_ERROR)
+        return Tkinter_Error(tkapp);
+    return PyBool_FromLong(boolValue);
+}
+
+#ifdef TCL_WIDE_INT_TYPE
+static PyObject*
+fromWideIntObj(PyObject* tkapp, Tcl_Obj *value)
+{
+        Tcl_WideInt wideValue;
+        if (Tcl_GetWideIntFromObj(Tkapp_Interp(tkapp), value, &wideValue) == TCL_OK) {
+#ifdef HAVE_LONG_LONG
+            if (sizeof(wideValue) <= SIZEOF_LONG_LONG)
+                return PyLong_FromLongLong(wideValue);
+#endif
+            return _PyLong_FromByteArray((unsigned char *)(void *)&wideValue,
+                                         sizeof(wideValue),
+#ifdef WORDS_BIGENDIAN
+                                         0,
+#else
+                                         1,
+#endif
+                                         /* signed */ 1);
+        }
+        return NULL;
+}
+#endif
+
+#ifdef HAVE_LIBTOMMAMTH
+static PyObject*
+fromBignumObj(PyObject* tkapp, Tcl_Obj *value)
+{
+    mp_int bigValue;
+    unsigned long numBytes;
+    unsigned char *bytes;
+    PyObject *res;
+
+    if (Tcl_GetBignumFromObj(Tkapp_Interp(tkapp), value, &bigValue) != TCL_OK)
+        return Tkinter_Error(tkapp);
+    numBytes = mp_unsigned_bin_size(&bigValue);
+    bytes = PyMem_Malloc(numBytes);
+    if (bytes == NULL) {
+        mp_clear(&bigValue);
+        return PyErr_NoMemory();
+    }
+    if (mp_to_unsigned_bin_n(&bigValue, bytes,
+                                &numBytes) != MP_OKAY) {
+        mp_clear(&bigValue);
+        PyMem_Free(bytes);
+        return PyErr_NoMemory();
+    }
+    res = _PyLong_FromByteArray(bytes, numBytes,
+                                /* big-endian */ 0,
+                                /* unsigned */ 0);
+    PyMem_Free(bytes);
+    if (res != NULL && bigValue.sign == MP_NEG) {
+        PyObject *res2 = PyNumber_Negative(res);
+        Py_DECREF(res);
+        res = res2;
+    }
+    mp_clear(&bigValue);
+    return res;
+}
+#endif
+
 static PyObject*
 FromObj(PyObject* tkapp, Tcl_Obj *value)
 {
     PyObject *result = NULL;
     TkappObject *app = (TkappObject*)tkapp;
+    Tcl_Interp *interp = Tkapp_Interp(tkapp);
 
     if (value->typePtr == NULL) {
         result = fromTclStringAndSize(value->bytes, value->length);
         return result;
     }
 
-    if (value->typePtr == app->BooleanType) {
-        result = value->internalRep.longValue ? Py_True : Py_False;
-        Py_INCREF(result);
-        return result;
+    if (value->typePtr == app->BooleanType ||
+        value->typePtr == app->OldBooleanType) {
+        return fromBoolean(tkapp, value);
     }
 
     if (value->typePtr == app->ByteArrayType) {
@@ -1157,8 +1318,32 @@ FromObj(PyObject* tkapp, Tcl_Obj *value)
     }
 
     if (value->typePtr == app->IntType) {
-        return PyInt_FromLong(value->internalRep.longValue);
+        long longValue;
+        if (Tcl_GetLongFromObj(interp, value, &longValue) == TCL_OK)
+            return PyInt_FromLong(longValue);
+        /* If there is an error in the long conversion,
+           fall through to wideInt handling. */
     }
+
+#ifdef TCL_WIDE_INT_TYPE
+    if (value->typePtr == app->IntType ||
+        value->typePtr == app->WideIntType) {
+        result = fromWideIntObj(tkapp, value);
+        if (result != NULL || PyErr_Occurred())
+            return result;
+        Tcl_ResetResult(interp);
+        /* If there is an error in the wideInt conversion,
+           fall through to bignum handling. */
+    }
+#endif
+
+#ifdef HAVE_LIBTOMMAMTH
+    if (value->typePtr == app->IntType ||
+        value->typePtr == app->WideIntType ||
+        value->typePtr == app->BignumType) {
+        return fromBignumObj(tkapp, value);
+    }
+#endif
 
     if (value->typePtr == app->ListType) {
         int size;
@@ -1166,15 +1351,14 @@ FromObj(PyObject* tkapp, Tcl_Obj *value)
         PyObject *elem;
         Tcl_Obj *tcl_elem;
 
-        status = Tcl_ListObjLength(Tkapp_Interp(tkapp), value, &size);
+        status = Tcl_ListObjLength(interp, value, &size);
         if (status == TCL_ERROR)
             return Tkinter_Error(tkapp);
         result = PyTuple_New(size);
         if (!result)
             return NULL;
         for (i = 0; i < size; i++) {
-            status = Tcl_ListObjIndex(Tkapp_Interp(tkapp),
-                                      value, i, &tcl_elem);
+            status = Tcl_ListObjIndex(interp, value, i, &tcl_elem);
             if (status == TCL_ERROR) {
                 Py_DECREF(result);
                 return Tkinter_Error(tkapp);
@@ -1221,6 +1405,24 @@ FromObj(PyObject* tkapp, Tcl_Obj *value)
         return PyString_FromStringAndSize(c, size);
 #endif
     }
+
+#if TK_HEX_VERSION >= 0x08050000
+    if (app->BooleanType == NULL &&
+        strcmp(value->typePtr->name, "booleanString") == 0) {
+        /* booleanString type is not registered in Tcl */
+        app->BooleanType = value->typePtr;
+        return fromBoolean(tkapp, value);
+    }
+#endif
+
+#ifdef HAVE_LIBTOMMAMTH
+    if (app->BignumType == NULL &&
+        strcmp(value->typePtr->name, "bignum") == 0) {
+        /* bignum type is not registered in Tcl */
+        app->BignumType = value->typePtr;
+        return fromBignumObj(tkapp, value);
+    }
+#endif
 
     return newPyTclObject(value);
 }
@@ -1896,11 +2098,16 @@ static PyObject *
 Tkapp_GetInt(PyObject *self, PyObject *args)
 {
     char *s;
-    int v;
+#if defined(TCL_WIDE_INT_TYPE) || defined(HAVE_LIBTOMMAMTH)
+    Tcl_Obj *value;
+    PyObject *result;
+#else
+    int intValue;
+#endif
 
     if (PyTuple_Size(args) == 1) {
         PyObject* o = PyTuple_GetItem(args, 0);
-        if (PyInt_Check(o)) {
+        if (PyInt_Check(o) || PyLong_Check(o)) {
             Py_INCREF(o);
             return o;
         }
@@ -1908,9 +2115,31 @@ Tkapp_GetInt(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "s:getint", &s))
         return NULL;
     CHECK_STRING_LENGTH(s);
-    if (Tcl_GetInt(Tkapp_Interp(self), s, &v) == TCL_ERROR)
+#if defined(TCL_WIDE_INT_TYPE) || defined(HAVE_LIBTOMMAMTH)
+    value = Tcl_NewStringObj(s, -1);
+    if (value == NULL)
         return Tkinter_Error(self);
-    return Py_BuildValue("i", v);
+    /* Don't use Tcl_GetInt() because it returns ambiguous result for value
+       in ranges -2**32..-2**31-1 and 2**31..2**32-1 (on 32-bit platform).
+
+       Prefer bignum because Tcl_GetWideIntFromObj returns ambiguous result for
+       value in ranges -2**64..-2**63-1 and 2**63..2**64-1 (on 32-bit platform).
+     */
+#ifdef HAVE_LIBTOMMAMTH
+    result = fromBignumObj(self, value);
+#else
+    result = fromWideIntObj(self, value);
+#endif
+    Tcl_DecrRefCount(value);
+    if (result != NULL)
+        return PyNumber_Int(result);
+    if (PyErr_Occurred())
+        return NULL;
+#else
+    if (Tcl_GetInt(Tkapp_Interp(self), s, &intValue) == TCL_OK)
+        return PyInt_FromLong(intValue);
+#endif
+    return Tkinter_Error(self);
 }
 
 static PyObject *
@@ -1935,19 +2164,26 @@ Tkapp_GetDouble(PyObject *self, PyObject *args)
 }
 
 static PyObject *
-Tkapp_GetBoolean(PyObject *self, PyObject *args)
+Tkapp_GetBoolean(PyObject *self, PyObject *arg)
 {
     char *s;
     int v;
 
-    if (PyTuple_Size(args) == 1) {
-        PyObject *o = PyTuple_GetItem(args, 0);
-        if (PyInt_Check(o)) {
-            Py_INCREF(o);
-            return o;
-        }
+    if (PyInt_Check(arg)) /* int or bool */
+        return PyBool_FromLong(PyInt_AS_LONG(arg));
+
+    if (PyLong_Check(arg))
+        return PyBool_FromLong(Py_SIZE(arg) != 0);
+
+    if (PyTclObject_Check(arg)) {
+        if (Tcl_GetBooleanFromObj(Tkapp_Interp(self),
+                                  ((PyTclObject*)arg)->value,
+                                  &v) == TCL_ERROR)
+            return Tkinter_Error(self);
+        return PyBool_FromLong(v);
     }
-    if (!PyArg_ParseTuple(args, "s:getboolean", &s))
+
+    if (!PyArg_Parse(arg, "s:getboolean", &s))
         return NULL;
     CHECK_STRING_LENGTH(s);
     if (Tcl_GetBoolean(Tkapp_Interp(self), s, &v) == TCL_ERROR)
@@ -3008,7 +3244,7 @@ static PyMethodDef Tkapp_methods[] =
     {"globalunsetvar",     Tkapp_GlobalUnsetVar, METH_VARARGS},
     {"getint",                 Tkapp_GetInt, METH_VARARGS},
     {"getdouble",              Tkapp_GetDouble, METH_VARARGS},
-    {"getboolean",             Tkapp_GetBoolean, METH_VARARGS},
+    {"getboolean",             Tkapp_GetBoolean, METH_O},
     {"exprstring",             Tkapp_ExprString, METH_VARARGS},
     {"exprlong",               Tkapp_ExprLong, METH_VARARGS},
     {"exprdouble",             Tkapp_ExprDouble, METH_VARARGS},

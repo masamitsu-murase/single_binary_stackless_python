@@ -192,7 +192,7 @@ instead.
        ------------------------  ---------  ---------  ----------  ---------  -----------  -----------
         *SSLv2*                    yes        no         yes         no         no         no
         *SSLv3*                    no         yes        yes         no         no         no
-        *SSLv23*                   yes        no         yes         no         no         no
+        *SSLv23*                   no         yes        yes         yes        yes        yes
         *TLSv1*                    no         no         yes         yes        no         no
         *TLSv1.1*                  no         no         yes         no         yes        no
         *TLSv1.2*                  no         no         yes         no         no         yes
@@ -201,9 +201,8 @@ instead.
    .. note::
 
       Which connections succeed will vary depending on the version of
-      OpenSSL.  For example, beginning with OpenSSL 1.0.0, an SSLv23 client
-      will not actually attempt SSLv2 connections unless you explicitly
-      enable SSLv2 ciphers (which is not recommended, as SSLv2 is broken).
+      OpenSSL.  For example, before OpenSSL 1.0.0, an SSLv23 client
+      would always attempt SSLv2 connections.
 
    The *ciphers* parameter sets the available ciphers for this SSL object.
    It should be a string in the `OpenSSL cipher list format
@@ -246,14 +245,13 @@ purposes.
    :const:`None`, this function can choose to trust the system's default
    CA certificates instead.
 
-   The settings in Python 2.7.9 are: :data:`PROTOCOL_SSLv23`,
-   :data:`OP_NO_SSLv2`, and :data:`OP_NO_SSLv3` with high encryption cipher
-   suites without RC4 and without unauthenticated cipher suites. Passing
-   :data:`~Purpose.SERVER_AUTH` as *purpose* sets
-   :data:`~SSLContext.verify_mode` to :data:`CERT_REQUIRED` and either loads CA
-   certificates (when at least one of *cafile*, *capath* or *cadata* is given)
-   or uses :meth:`SSLContext.load_default_certs` to load default CA
-   certificates.
+   The settings are: :data:`PROTOCOL_SSLv23`, :data:`OP_NO_SSLv2`, and
+   :data:`OP_NO_SSLv3` with high encryption cipher suites without RC4 and
+   without unauthenticated cipher suites. Passing :data:`~Purpose.SERVER_AUTH`
+   as *purpose* sets :data:`~SSLContext.verify_mode` to :data:`CERT_REQUIRED`
+   and either loads CA certificates (when at least one of *cafile*, *capath* or
+   *cadata* is given) or uses :meth:`SSLContext.load_default_certs` to load
+   default CA certificates.
 
    .. note::
       The protocol, options, cipher and other settings may change to more
@@ -265,18 +263,22 @@ purposes.
 
    .. note::
       If you find that when certain older clients or servers attempt to connect
-      with a :class:`SSLContext` created by this function that they get an
-      error stating "Protocol or cipher suite mismatch", it may be that they
-      only support SSL3.0 which this function excludes using the
-      :data:`OP_NO_SSLv3`. SSL3.0 has problematic security due to a number of
-      poor implementations and it's reliance on MD5 within the protocol. If you
-      wish to continue to use this function but still allow SSL 3.0 connections
-      you can re-enable them using::
+      with a :class:`SSLContext` created by this function that they get an error
+      stating "Protocol or cipher suite mismatch", it may be that they only
+      support SSL3.0 which this function excludes using the
+      :data:`OP_NO_SSLv3`. SSL3.0 is widely considered to be `completely broken
+      <https://en.wikipedia.org/wiki/POODLE>`_. If you still wish to continue to
+      use this function but still allow SSL 3.0 connections you can re-enable
+      them using::
 
          ctx = ssl.create_default_context(Purpose.CLIENT_AUTH)
          ctx.options &= ~ssl.OP_NO_SSLv3
 
    .. versionadded:: 2.7.9
+
+   .. versionchanged:: 2.7.10
+
+     RC4 was dropped from the default cipher string.
 
 
 Random generation
@@ -284,10 +286,10 @@ Random generation
 
 .. function:: RAND_status()
 
-   Returns ``True`` if the SSL pseudo-random number generator has been seeded with
-   'enough' randomness, and ``False`` otherwise.  You can use :func:`ssl.RAND_egd`
-   and :func:`ssl.RAND_add` to increase the randomness of the pseudo-random
-   number generator.
+   Return ``True`` if the SSL pseudo-random number generator has been seeded
+   with 'enough' randomness, and ``False`` otherwise.  You can use
+   :func:`ssl.RAND_egd` and :func:`ssl.RAND_add` to increase the randomness of
+   the pseudo-random number generator.
 
 .. function:: RAND_egd(path)
 
@@ -300,9 +302,11 @@ Random generation
    See http://egd.sourceforge.net/ or http://prngd.sourceforge.net/ for sources
    of entropy-gathering daemons.
 
+   Availability: not available with LibreSSL.
+
 .. function:: RAND_add(bytes, entropy)
 
-   Mixes the given *bytes* into the SSL pseudo-random number generator.  The
+   Mix the given *bytes* into the SSL pseudo-random number generator.  The
    parameter *entropy* (a float) is a lower bound on the entropy contained in
    string (so you can always use :const:`0.0`).  See :rfc:`1750` for more
    information on sources of entropy.
@@ -481,9 +485,9 @@ Constants
 
 .. data:: VERIFY_DEFAULT
 
-   Possible value for :attr:`SSLContext.verify_flags`. In this mode,
-   certificate revocation lists (CRLs) are not checked. By default OpenSSL
-   does neither require nor verify CRLs.
+   Possible value for :attr:`SSLContext.verify_flags`. In this mode, certificate
+   revocation lists (CRLs) are not checked. By default OpenSSL does neither
+   require nor verify CRLs.
 
    .. versionadded:: 2.7.9
 
@@ -510,6 +514,14 @@ Constants
    for broken X.509 certificates.
 
    .. versionadded:: 2.7.9
+
+.. data:: VERIFY_X509_TRUSTED_FIRST
+
+   Possible value for :attr:`SSLContext.verify_flags`. It instructs OpenSSL to
+   prefer trusted certificates when building the trust chain to validate a
+   certificate. This flag is enabled by default.
+
+   .. versionadded:: 2.7.10
 
 .. data:: PROTOCOL_SSLv23
 
@@ -636,6 +648,13 @@ Constants
    This option is only available with OpenSSL 1.0.0 and later.
 
    .. versionadded:: 2.7.9
+
+.. data:: HAS_ALPN
+
+   Whether the OpenSSL library has built-in support for the *Application-Layer
+   Protocol Negotiation* TLS extension as described in :rfc:`7301`.
+
+   .. versionadded:: 2.7.10
 
 .. data:: HAS_ECDH
 
@@ -863,9 +882,19 @@ SSL sockets also have the following additional methods and attributes:
 
    .. versionadded:: 2.7.9
 
+.. method:: SSLSocket.selected_alpn_protocol()
+
+   Return the protocol that was selected during the TLS handshake.  If
+   :meth:`SSLContext.set_alpn_protocols` was not called, if the other party does
+   not support ALPN, if this socket does not support any of the client's
+   proposed protocols, or if the handshake has not happened yet, ``None`` is
+   returned.
+
+   .. versionadded:: 2.7.10
+
 .. method:: SSLSocket.selected_npn_protocol()
 
-   Returns the higher-level protocol that was selected during the TLS/SSL
+   Return the higher-level protocol that was selected during the TLS/SSL
    handshake. If :meth:`SSLContext.set_npn_protocols` was not called, or
    if the other party does not support NPN, or if the handshake has not yet
    happened, this will return ``None``.
@@ -1033,6 +1062,20 @@ to speed up repeated connections from the same clients.
       when connected, the :meth:`SSLSocket.cipher` method of SSL sockets will
       give the currently selected cipher.
 
+.. method:: SSLContext.set_alpn_protocols(protocols)
+
+   Specify which protocols the socket should advertise during the SSL/TLS
+   handshake. It should be a list of ASCII strings, like ``['http/1.1',
+   'spdy/2']``, ordered by preference. The selection of a protocol will happen
+   during the handshake, and will play out according to :rfc:`7301`. After a
+   successful handshake, the :meth:`SSLSocket.selected_alpn_protocol` method will
+   return the agreed-upon protocol.
+
+   This method will raise :exc:`NotImplementedError` if :data:`HAS_ALPN` is
+   False.
+
+   .. versionadded:: 2.7.10
+
 .. method:: SSLContext.set_npn_protocols(protocols)
 
    Specify which protocols the socket should advertise during the SSL/TLS
@@ -1071,7 +1114,7 @@ to speed up repeated connections from the same clients.
 
    Due to the early negotiation phase of the TLS connection, only limited
    methods and attributes are usable like
-   :meth:`SSLSocket.selected_npn_protocol` and :attr:`SSLSocket.context`.
+   :meth:`SSLSocket.selected_alpn_protocol` and :attr:`SSLSocket.context`.
    :meth:`SSLSocket.getpeercert`, :meth:`SSLSocket.getpeercert`,
    :meth:`SSLSocket.cipher` and :meth:`SSLSocket.compress` methods require that
    the TLS connection has progressed beyond the TLS Client Hello and therefore

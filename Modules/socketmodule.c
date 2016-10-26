@@ -2901,7 +2901,8 @@ sock_sendto(PySocketSockObject *s, PyObject *args)
     char *buf;
     Py_ssize_t len;
     sock_addr_t addrbuf;
-    int addrlen, n = -1, flags, timeout;
+    int addrlen, flags, timeout;
+    long n = -1;
     int arglen;
 
     flags = 0;
@@ -4207,7 +4208,8 @@ socket_getaddrinfo(PyObject *self, PyObject *args)
         goto err;
     }
 
-    if ((all = PyList_New(0)) == NULL)
+    all = PyList_New(0);
+    if (all == NULL)
         goto err;
     for (res = res0; res; res = res->ai_next) {
         PyObject *addr =
