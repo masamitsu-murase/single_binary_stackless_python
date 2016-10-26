@@ -522,6 +522,11 @@ class TestKill(StacklessTestCase):
         tlet = stackless.tasklet()
         self.tlet = tlet
 
+        class DelayError(Exception):
+            def __str__(self):
+                time.sleep(0.05)
+                return super(DelayError, self).__str__()
+
         # catch stderr
         self.addCleanup(setattr, sys, "stderr", sys.stderr)
         sys.stderr = open(os.devnull, "wb")
@@ -532,7 +537,7 @@ class TestKill(StacklessTestCase):
             tlet.bind(channel.receive, ())
             tlet.run()
             ready.release()
-            1 / 0  # raise an exception
+            raise DelayError("a slow exception")
             # during the processing of this exception the
             # thread has no main tasklet. Exception processing
             # takes some time. During this time the main thread
