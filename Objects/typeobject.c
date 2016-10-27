@@ -5885,13 +5885,12 @@ slot_tp_init(PyObject *self, PyObject *args, PyObject *kwds)
     static PyObject *init_str;
     PyObject *meth = lookup_method(self, "__init__", &init_str);
     PyObject *res;
-    PyCFrameObject *f;
 
     if (meth == NULL)
         return -1;
 #ifdef STACKLESS
     if (stackless) {
-        f = slp_cframe_new(slp_tp_init_callback, 1);
+        PyCFrameObject *f = slp_cframe_new(slp_tp_init_callback, 1);
         if (f == NULL)
             return -1;
         Py_INCREF(self);
