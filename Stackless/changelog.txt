@@ -1,14 +1,14 @@
 Stackless-Python News
 +++++++++++++++++++++
 
-This file documents changes to the Stackless extension of C-Python.
+This file documents user visible changes to the Stackless extension of C-Python.
 For other changes see Misc/NEWS.
 
 
-What's New in Stackless 2.7.x?
-==============================
+What's New in Stackless 2.7.10?
+===============================
 
-*Release date: 20XX-XX-XX*
+*Release date: 2016-10-27*
 
 - https://bitbucket.org/stackless-dev/stackless/issues/94
   Calls to __init__(self, ...) are now stackless, if
