@@ -31,6 +31,21 @@
     <Filter Include="Resource Files">
       <UniqueIdentifier>{c3e03a5c-56c7-45fd-8543-e5d2326b907d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Stackless">
+      <UniqueIdentifier>{125d3abc-bdfd-45ac-a86b-ebc6b19f2764}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Stackless\core">
+      <UniqueIdentifier>{f15d330a-d49c-4f70-8842-dcc50ad9daca}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Stackless\module">
+      <UniqueIdentifier>{1a6464b0-a6bb-4509-84b6-c449a205ed79}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Stackless\pickling">
+      <UniqueIdentifier>{0085117c-72da-4443-b802-0831179c29aa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Stackless\platf">
+      <UniqueIdentifier>{c3927286-e7db-4da5-86d8-660bb30740e7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Include\abstract.h">
@@ -299,6 +314,51 @@
     </ClInclude>
     <ClInclude Include="..\Include\weakrefobject.h">
       <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Stackless\stackless.h">
+      <Filter>Stackless</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Stackless\stackless_api.h">
+      <Filter>Stackless</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Stackless\stackless_version.h">
+      <Filter>Stackless</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Stackless\core\cframeobject.h">
+      <Filter>Stackless\core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Stackless\core\slp_exttype.h">
+      <Filter>Stackless\core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Stackless\core\stackless_impl.h">
+      <Filter>Stackless\core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Stackless\core\stackless_methods.h">
+      <Filter>Stackless\core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Stackless\core\stackless_structs.h">
+      <Filter>Stackless\core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Stackless\core\stackless_tstate.h">
+      <Filter>Stackless\core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Stackless\core\backwardcompat.h">
+      <Filter>Stackless\core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Stackless\module\channelobject.h">
+      <Filter>Stackless\module</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Stackless\platf\slp_platformselect.h">
+      <Filter>Stackless\platf</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Stackless\platf\switch_x64_msvc.h">
+      <Filter>Stackless\platf</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Stackless\platf\switch_x86_msvc.h">
+      <Filter>Stackless\platf</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Stackless\pickling\prickelpit.h">
+      <Filter>Stackless\pickling</Filter>
     </ClInclude>
     <ClInclude Include="..\Modules\_math.h">
       <Filter>Modules</Filter>
@@ -944,10 +1004,50 @@
     <ClCompile Include="..\Python\traceback.c">
       <Filter>Python</Filter>
     </ClCompile>
+    <ClCompile Include="..\Stackless\core\cframeobject.c">
+      <Filter>Stackless\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Stackless\core\slp_transfer.c">
+      <Filter>Stackless\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Stackless\core\stackless_util.c">
+      <Filter>Stackless\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Stackless\core\stacklesseval.c">
+      <Filter>Stackless\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Stackless\module\channelobject.c">
+      <Filter>Stackless\module</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Stackless\module\scheduling.c">
+      <Filter>Stackless\module</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Stackless\module\stacklessmodule.c">
+      <Filter>Stackless\module</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Stackless\module\taskletobject.c">
+      <Filter>Stackless\module</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Stackless\pickling\prickelpit.c">
+      <Filter>Stackless\pickling</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Stackless\pickling\safe_pickle.c">
+      <Filter>Stackless\pickling</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\PC\python_nt.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Stackless\readme.txt">
+      <Filter>Stackless</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\Stackless\platf\switch_x64_masm.asm">
+      <Filter>Stackless\platf</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

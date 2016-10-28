@@ -16,7 +16,7 @@ TCL = "tcl-" + '.'.join(tclver)
 TK = "tk-8.5.15.0"
 TIX = "tix-8.4.3.5"
 
-ROOT = os.path.abspath(os.path.join(here, par, 'externals'))
+ROOT = os.path.abspath(os.path.join(here, par, par, 'externals'))
 # Windows 2000 compatibility: WINVER 0x0500
 # http://msdn2.microsoft.com/en-us/library/aa383745.aspx
 NMAKE = ('nmake /nologo /f %s '

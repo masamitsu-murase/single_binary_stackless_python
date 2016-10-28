@@ -13,7 +13,7 @@ set job1=..\..\tools\pybench\pybench.py -n 1 -C 1 --with-gc
 set path1=..\..\tools\pybench
 
 rem or the whole testsuite for more thorough testing
-set job2=..\..\lib\test\regrtest.py -f pgo_test_list.txt
+set job2=..\..\lib\test\regrtest.py -f ..\..\PCbuild\pgo_test_list.txt
 set path2=..\..\lib
 
 set job=%job1%

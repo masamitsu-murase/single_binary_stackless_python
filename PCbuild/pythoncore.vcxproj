@@ -201,6 +201,21 @@
     <ClInclude Include="..\PC\pyconfig.h" />
     <ClInclude Include="..\Python\importdl.h" />
     <ClInclude Include="..\Python\thread_nt.h" />
+    <ClInclude Include="..\Stackless\core\backwardcompat.h" />
+    <ClInclude Include="..\Stackless\core\cframeobject.h" />
+    <ClInclude Include="..\Stackless\core\slp_exttype.h" />
+    <ClInclude Include="..\Stackless\core\stackless_impl.h" />
+    <ClInclude Include="..\Stackless\core\stackless_methods.h" />
+    <ClInclude Include="..\Stackless\core\stackless_structs.h" />
+    <ClInclude Include="..\Stackless\core\stackless_tstate.h" />
+    <ClInclude Include="..\Stackless\module\channelobject.h" />
+    <ClInclude Include="..\Stackless\pickling\prickelpit.h" />
+    <ClInclude Include="..\Stackless\platf\slp_platformselect.h" />
+    <ClInclude Include="..\Stackless\platf\switch_x64_msvc.h" />
+    <ClInclude Include="..\Stackless\platf\switch_x86_msvc.h" />
+    <ClInclude Include="..\Stackless\stackless.h" />
+    <ClInclude Include="..\Stackless\stackless_api.h" />
+    <ClInclude Include="..\Stackless\stackless_version.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Modules\_bisectmodule.c" />
@@ -380,9 +395,41 @@
     <ClCompile Include="..\Python\sysmodule.c" />
     <ClCompile Include="..\Python\thread.c" />
     <ClCompile Include="..\Python\traceback.c" />
+    <ClCompile Include="..\Stackless\core\cframeobject.c" />
+    <ClCompile Include="..\Stackless\core\slp_transfer.c" />
+    <ClCompile Include="..\Stackless\core\stacklesseval.c" />
+    <ClCompile Include="..\Stackless\core\stackless_util.c" />
+    <ClCompile Include="..\Stackless\module\channelobject.c" />
+    <ClCompile Include="..\Stackless\module\scheduling.c" />
+    <ClCompile Include="..\Stackless\module\stacklessmodule.c" />
+    <ClCompile Include="..\Stackless\module\taskletobject.c" />
+    <ClCompile Include="..\Stackless\pickling\prickelpit.c" />
+    <ClCompile Include="..\Stackless\pickling\safe_pickle.c" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\PC\python_nt.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\Stackless\platf\switch_x64_masm.asm">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='PGInstrument|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='PGUpdate|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64 /nologo /c /Zi /Fo "$(IntDir)%(Filename) .obj" "%(FullPath)"</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Running ml64</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename) .obj;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='PGInstrument|x64'">ml64 /nologo /c /Zi /Fo "$(IntDir)%(Filename) .obj" "%(FullPath)"</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='PGInstrument|x64'">Running ml64</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='PGInstrument|x64'">$(IntDir)%(Filename) .obj;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='PGUpdate|x64'">ml64 /nologo /c /Zi /Fo "$(IntDir)%(Filename) .obj" "%(FullPath)"</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='PGUpdate|x64'">Running ml64</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='PGUpdate|x64'">$(IntDir)%(Filename) .obj;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64 /nologo /c /Zi /Fo "$(IntDir)%(Filename) .obj" "%(FullPath)"</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Running ml64</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename) .obj;%(Outputs)</Outputs>
+    </CustomBuild>
+    <None Include="..\Stackless\readme.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
