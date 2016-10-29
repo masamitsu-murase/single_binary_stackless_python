@@ -5,10 +5,10 @@ This file documents user visible changes to the Stackless extension of C-Python.
 For other changes see Misc/NEWS.
 
 
-What's New in Stackless 2.7.xx?
+What's New in Stackless 2.7.11?
 ===============================
 
-*Release date: 20XX-XX-XX*
+*Release date: 2016-10-29*
 
 - https://bitbucket.org/stackless-dev/stackless/issues/96
   Impose a very high limit on the recursion depth of cPickle.
