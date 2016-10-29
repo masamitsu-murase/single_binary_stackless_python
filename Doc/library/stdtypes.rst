@@ -393,19 +393,22 @@ Notes:
 All :class:`numbers.Real` types (:class:`int`, :class:`long`, and
 :class:`float`) also include the following operations:
 
-+--------------------+------------------------------------+--------+
-| Operation          | Result                             | Notes  |
-+====================+====================================+========+
-| ``math.trunc(x)``  | *x* truncated to Integral          |        |
-+--------------------+------------------------------------+--------+
-| ``round(x[, n])``  | *x* rounded to n digits,           |        |
-|                    | rounding ties away from zero. If n |        |
-|                    | is omitted, it defaults to 0.      |        |
-+--------------------+------------------------------------+--------+
-| ``math.floor(x)``  | the greatest integral float <= *x* |        |
-+--------------------+------------------------------------+--------+
-| ``math.ceil(x)``   | the least integral float >= *x*    |        |
-+--------------------+------------------------------------+--------+
++--------------------+---------------------------------------------+
+| Operation          | Result                                      |
++====================+=============================================+
+| :func:`math.trunc(\| *x* truncated to :class:`~numbers.Integral` |
+| x) <math.trunc>`   |                                             |
++--------------------+---------------------------------------------+
+| :func:`round(x[,   | *x* rounded to *n* digits,                  |
+| n]) <round>`       | rounding ties away from zero. If *n*        |
+|                    | is omitted, it defaults to 0.               |
++--------------------+---------------------------------------------+
+| :func:`math.floor(\| the greatest integer as a float <= *x*      |
+| x) <math.floor>`   |                                             |
++--------------------+---------------------------------------------+
+| :func:`math.ceil(x)| the least integer as a float >= *x*         |
+| <math.ceil>`       |                                             |
++--------------------+---------------------------------------------+
 
 .. XXXJH exceptions: overflow (when? what operations?) zerodivision
 
@@ -963,10 +966,9 @@ string functions based on regular expressions.
 
 .. method:: str.find(sub[, start[, end]])
 
-   Return the lowest index in the string where substring *sub* is found, such
-   that *sub* is contained in the slice ``s[start:end]``.  Optional arguments
-   *start* and *end* are interpreted as in slice notation.  Return ``-1`` if
-   *sub* is not found.
+   Return the lowest index in the string where substring *sub* is found within
+   the slice ``s[start:end]``.  Optional arguments *start* and *end* are
+   interpreted as in slice notation.  Return ``-1`` if *sub* is not found.
 
    .. note::
 
@@ -1780,7 +1782,7 @@ The constructors for both classes work the same:
 
    .. describe:: len(s)
 
-      Return the cardinality of set *s*.
+      Return the number of elements in set *s* (cardinality of *s*).
 
    .. describe:: x in s
 
@@ -2747,7 +2749,7 @@ is generally interpreted as simple bytes.
    .. attribute:: shape
 
       A tuple of integers the length of :attr:`ndim` giving the shape of the
-      memory as a N-dimensional array.
+      memory as an N-dimensional array.
 
    .. attribute:: ndim
 
@@ -2951,12 +2953,12 @@ need to explicitly set it on the underlying function object::
 See :ref:`types` for more information.
 
 
+.. index:: object; code, code object
+
 .. _bltin-code-objects:
 
 Code Objects
 ------------
-
-.. index:: object: code
 
 .. index::
    builtin: compile

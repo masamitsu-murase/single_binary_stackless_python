@@ -272,7 +272,8 @@ Note:
 
 .. function:: ismethod(object)
 
-   Return true if the object is a bound method written in Python.
+   Return true if the object is a bound or unbound method written in Python.
+
 
 
 .. function:: isfunction(object)
@@ -442,8 +443,12 @@ Retrieving source code
 .. function:: cleandoc(doc)
 
    Clean up indentation from docstrings that are indented to line up with blocks
-   of code.  Any whitespace that can be uniformly removed from the second line
-   onwards is removed.  Also, all tabs are expanded to spaces.
+   of code.
+
+   All leading whitespace is removed from the first line.  Any leading whitespace
+   that can be uniformly removed from the second line onwards is removed.  Empty
+   lines at the beginning and end are subsequently removed.  Also, all tabs are
+   expanded to spaces.
 
    .. versionadded:: 2.6
 
