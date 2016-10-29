@@ -10,6 +10,12 @@ What's New in Stackless 2.7.xx?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/96
+  Impose a very high limit on the recursion depth of cPickle.
+  Previously an infinite recursion could eat up all you memory
+  and finally crash Stackless. No the recursion stops after using
+  about 170MB (32bit) / 300MB (64bit) of memory.
+
 
 What's New in Stackless 2.7.10?
 ===============================
