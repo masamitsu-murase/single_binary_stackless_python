@@ -5,14 +5,8 @@ This file documents user visible changes to the Stackless extension of C-Python.
 For other changes see Misc/NEWS.
 
 
-What's New in Stackless 2.7.XX?
-===============================
-
-*Release date: 20XX-XX-XX*
-
-
-What's New in Stackless 2.7.11?
-===============================
+What's New in Stackless 2.7.11 and 2.7.12?
+==========================================
 
 *Release date: 2016-10-29*
 
