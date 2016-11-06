@@ -440,6 +440,7 @@ class TestNewWatchdog(StacklessTestCase):
         except AssertionError:
             self.watchdog_list[0] = None
             self.watchdog_list[1:] = []
+            raise
         super(TestNewWatchdog, self).tearDown()
 
     def test_run_from_worker(self):
@@ -559,7 +560,7 @@ class TestNewWatchdog(StacklessTestCase):
 
         def task():
             while True:
-                for i in range(200):
+                for i in range(500):
                     i = i
                 stackless.schedule()
 

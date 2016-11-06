@@ -34,19 +34,24 @@ Test for defects go into test_defects
 
 from __future__ import print_function, absolute_import, division
 import sys
-import _thread as thread
 import stackless
 import codecs
 import os
 import time
 import collections
 import unittest
-import threading
 import subprocess
 from stackless import _test_nostacklesscall as apply
+try:
+    import _thread as thread
+    import threading
+    withThreads = True
+except:
+    withThreads = False
 from support import StacklessTestCase
 
 
+@unittest.skipUnless(withThreads, "requires thread support")
 class TestThreadShutdown(StacklessTestCase):
 
     def _test_thread_shutdown(self, func, expect_kill):
@@ -125,6 +130,8 @@ class TestInterpreterShutdown(unittest.TestCase):
 
     def _test_shutdown_with_thread(self, case, is_hard, allowed_errors=(), debug=False):
         # test for issue #81 https://bitbucket.org/stackless-dev/stackless/issues/81/
+        if not withThreads:
+            self.skipTest("requires thread support")
         script = __file__
         if script.endswith("pyc") or script.endswith("pyo"):
             script = script[:-1]
