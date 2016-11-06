@@ -1,14 +1,19 @@
 Stackless-Python News
 +++++++++++++++++++++
 
-This file documents changes to the Stackless extension of C-Python.
+This file documents user visible changes to the Stackless extension of C-Python.
 For other changes see Misc/NEWS.
-
 
 What's New in Stackless 3.X.X?
 ==============================
 
 *Release date: 20XX-XX-XX*
+
+- https://bitbucket.org/stackless-dev/stackless/issues/96
+  Impose a very high limit on the recursion depth of cPickle.
+  Previously an infinite recursion could eat up all you memory
+  and finally crash Stackless. No the recursion stops after using
+  about 170MB (32bit) / 300MB (64bit) of memory.
 
 - https://bitbucket.org/stackless-dev/stackless/issues/93
   Unify tasklet.kill(), tasklet.throw() and tasklet.raise_exception().
