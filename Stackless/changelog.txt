@@ -10,6 +10,10 @@ What's New in Stackless 2.7.XX?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/98
+  Prevent an unlikely NULL-pointer access in safe_pickle.c pickle_callback().
+  The bug is very old and might affect multiprocessing.
+
 
 What's New in Stackless 2.7.11 and 2.7.12?
 ==========================================

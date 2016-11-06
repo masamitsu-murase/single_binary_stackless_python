@@ -31,8 +31,12 @@ pickle_callback(PyFrameObject *f, int exc, PyObject *retval)
      */
     saved_base = ts->st.cstack_root;
     ts->st.cstack_root = STACK_REFPLUS + (intptr_t *) &f;
-    Py_DECREF(retval);
-    cf->i = cPickle_save(cf->ob1, cf->ob2, cf->n);
+    if (retval) {
+        Py_DECREF(retval);
+        cf->i = cPickle_save(cf->ob1, cf->ob2, cf->n);
+    } else {
+        cf->i = -1;
+    }
     ts->st.cstack_root = saved_base;
 
     /* jump back. No decref, frame contains result. */
@@ -41,6 +45,7 @@ pickle_callback(PyFrameObject *f, int exc, PyObject *retval)
     ts->frame = cf->f_back;
     slp_transfer_return(cst);
     /* never come here */
+    assert(0);
     return NULL;
 }
 
