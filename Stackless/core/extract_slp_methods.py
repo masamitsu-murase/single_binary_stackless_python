@@ -22,11 +22,12 @@ def cfiles(rootpath):
                 work.append(fname)
             elif os.path.splitext(fname)[-1] == ".c":
                 yield fname
-        
+
 
 def parse(fname):
     find = "STACKLESS_DECLARE_METHOD"
-    txt = open(fname, encoding="ISO-8859-1").read()
+    with open(fname, encoding="ISO-8859-1") as f:
+        txt = f.read()
     if txt.find(find) < 0:
         return
 
@@ -35,7 +36,7 @@ def parse(fname):
     return res
 
 def generate():
-    f = open(dstname, "w")
+    f = open(dstname, "wt", encoding="UTF-8", newline="\n")
     print("""\
 /*
  * this file was generated from the Python(r) C sources using the script
@@ -76,6 +77,7 @@ static _stackless_method _stackless_methtable[] = {\
                   (typ, tabs, ind, meth), file=f)
     print("    {0, 0} /* sentinel */", file=f)
     print("};", file=f)
+    f.close()
 
 if __name__ == "__main__":
     generate()
