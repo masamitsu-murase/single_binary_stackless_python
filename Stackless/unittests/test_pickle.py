@@ -224,6 +224,20 @@ def ctxpickling(testCase, n, when, expect_type, suppress_exc):
     return "OK"
 
 
+class InitTestClass:
+    def __init__(self, testcase):
+        testcase.started = True
+        schedule()
+
+
+def inittest(testcase, cls):
+    # test pickling of stackless __init__
+    testcase.started = False
+    obj = cls(testcase)
+    testcase.assertTrue(testcase.started)
+    return "OK"
+
+
 def is_soft():
     softswitch = stackless.enable_softswitch(0)
     stackless.enable_softswitch(softswitch)
@@ -452,6 +466,9 @@ class PickledTaskletTestCases(object):
 
     def testCtx_exit_4(self):
         self.run_pickled(ctxpickling, self, 1, 'exit', RuntimeError, True)
+
+    def test__init__(self):
+        self.run_pickled(inittest, self, InitTestClass)
 
     def testFakeModules(self):
         types.ModuleType('fakemodule!')
