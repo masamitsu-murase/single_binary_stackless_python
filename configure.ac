@@ -387,10 +387,10 @@ fi
 # Stackless flags for compiling the hard switching code
 case $MACHDEP in
  	darwin)
- 		SLPFLAGS="-fomit-frame-pointer -O2"
+ 		SLPFLAGS="-fomit-frame-pointer -fno-inline-functions"
  		;;
  	*)
- 		SLPFLAGS="-fno-omit-frame-pointer -O2"
+ 		SLPFLAGS="-fno-omit-frame-pointer -fno-inline-functions"
  		;;
 esac
 AC_SUBST(SLPFLAGS)
@@ -4681,13 +4681,6 @@ for h in `(cd $srcdir;echo Python/thread_*.h)`
 do
   THREADHEADERS="$THREADHEADERS \$(srcdir)/$h"
 done
-
-AC_SUBST(SLPFLAGS)
-SLPFLAGS="-fno-omit-frame-pointer -O2"
-case $MACHDEP in
-darwin) SLPFLAGS="-fomit-frame-pointer -O2";;
-'') SLPFLAGS="-fno-omit-frame-pointer -O2";;
-esac
 
 AC_SUBST(SRCDIRS)
 SRCDIRS="Parser Grammar Objects Python Modules Mac Stackless Stackless/core Stackless/module Stackless/pickling"
