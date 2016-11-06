@@ -693,10 +693,11 @@ impl_tasklet_insert(PyTaskletObject *task)
     if (task->flags.blocked)
         RUNTIME_ERROR("You cannot run a blocked tasklet", -1);
     if (task->next == NULL) {
-        if (task->f.frame == NULL && task != ts->st.current)
-            RUNTIME_ERROR("You cannot run an unbound(dead) tasklet", -1);
+        assert(task->cstate);
         if (task->cstate->tstate == NULL || task->cstate->tstate->st.main == NULL)
             RUNTIME_ERROR("Target thread isn't initialized", -1);
+        if (task->f.frame == NULL && task != task->cstate->tstate->st.current)
+            RUNTIME_ERROR("You cannot run an unbound(dead) tasklet", -1);
         Py_INCREF(task);
         slp_current_insert(task);
         /* The tasklet may belong to a different thread, and that thread may
