@@ -607,7 +607,6 @@ class TestNewWatchdog(StacklessTestCase):
         stackless.run()
         self.assertEqual(self.done, 2)
 
-    @unittest.skip("issue #85, assertion violation")
     def test_watchdog_priority_soft(self):
         """Verify that outermost "real" watchdog gets awoken"""
         self._test_watchdog_priority(True)
