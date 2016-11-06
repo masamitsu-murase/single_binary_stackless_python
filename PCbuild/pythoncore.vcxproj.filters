@@ -425,6 +425,7 @@
     </ClInclude>
     <ClInclude Include="..\Include\namespaceobject.h">
       <Filter>Include</Filter>
+    </ClInclude>
     <ClInclude Include="..\Stackless\stackless.h">
       <Filter>Stackless</Filter>
     </ClInclude>
