@@ -22,6 +22,17 @@ Tasklets
   Binds a tasklet function to parameters, making it ready to run and inserts in
   into the runnables queue.  Returns ``0`` if successful or ``-1`` in the case of failure.
 
+.. c:function:: int PyTasklet_BindEx(PyTaskletObject *task, PyObject *func, PyObject *args, PyObject *kwargs)
+
+  Binds a tasklet to a function and/or to parameters, making it ready to run. This is the C equivalent to
+  method :py:meth:`tasklet.bind`. The arguments *func*, *args* and *kwargs* are optional and
+  may be ``NULL`` or `Py_None`. Returns ``0`` if successful or ``-1`` in the case of failure.
+
+.. c:function:: int PyTasklet_BindThread(PyTaskletObject *task, long thread_id)
+
+  Binds a tasklet function to a thread. This is the C equivalent to
+  method :py:meth:`tasklet.bind_thread`. Returns ``0`` if successful or ``-1`` in the case of failure.
+
 .. c:function:: int PyTasklet_Run(PyTaskletObject *task)
 
   Forces *task* to run immediately.  Returns ``0`` if successful, and ``-1`` in the
@@ -78,6 +89,13 @@ Tasklets
   Raises :exc:`TaskletExit` on tasklet *self*.  This should result in *task* being
   silently killed. (This exception is ignored by tasklet_end and
   does not invoke main as exception handler.)
+  Returns ``1`` if the call soft switched, ``0`` if the call hard
+  switched and ``-1`` in the case of failure.
+
+.. c:function:: int PyTasklet_KillEx(PyTaskletObject *self, int pending)
+
+  Raises :exc:`TaskletExit` on tasklet *self*.  This is the C equivalent to
+  method :py:meth:`tasklet.kill`.
   Returns ``1`` if the call soft switched, ``0`` if the call hard
   switched and ``-1`` in the case of failure.
 
