@@ -10,9 +10,10 @@ import weakref
 import types
 import _thread as thread
 import time
+import os
 from stackless import _test_nostacklesscall as apply
 
-from support import StacklessTestCase, AsTaskletTestCase
+from support import StacklessTestCase, AsTaskletTestCase, require_one_thread
 try:
     import threading
     withThreads = True
@@ -454,6 +455,7 @@ class TestSwitchTrap(StacklessTestCase):
 
 
 class TestKill(StacklessTestCase):
+    SLP_TASKLET_KILL_REBINDS_THREAD = False  # see tasklet.c function impl_tasklet_kill()
 
     def test_kill_pending_true(self):
         killed = [False]
@@ -486,6 +488,136 @@ class TestKill(StacklessTestCase):
         self.assertFalse(killed[0])
         t.kill(pending=False)
         self.assertTrue(killed[0])
+
+    def test_kill_current(self):
+        killed = [False]
+
+        def task():
+            try:
+                stackless.current.kill()
+            except TaskletExit:
+                killed[0] = True
+                raise
+        t = stackless.tasklet(task)()
+        t.run()
+        self.assertTrue(killed[0])
+        self.assertFalse(t.alive)
+        self.assertEqual(t.thread_id, stackless.current.thread_id)
+
+    @require_one_thread
+    def test_kill_thread_without_main_tasklet(self):
+        # this test depends on a race condition.
+        # unfortunately I do not have any better test case
+
+        # This lock is used as a simple event variable.
+        ready = thread.allocate_lock()
+        ready.acquire()
+
+        channel = stackless.channel()
+        tlet = stackless.tasklet()
+        self.tlet = tlet
+
+        class DelayError(Exception):
+            def __str__(self):
+                time.sleep(0.05)
+                return super(DelayError, self).__str__()
+
+        # catch stderr
+        self.addCleanup(setattr, sys, "stderr", sys.stderr)
+        sys.stderr = open(os.devnull, "w")
+        self.addCleanup(sys.stderr.close)
+
+        def other_thread_main():
+            tlet.bind_thread()
+            tlet.bind(channel.receive, ())
+            tlet.run()
+            ready.release()
+            raise DelayError("a slow exception")
+            # during the processing of this exception the
+            # thread has no main tasklet. Exception processing
+            # takes some time. During this time the main thread
+            # kills the tasklet
+
+        thread.start_new_thread(other_thread_main, ())
+        ready.acquire()  # Be sure the other thread is ready.
+        #print("at end")
+        is_blocked = tlet.blocked
+        #tlet.bind_thread()
+        try:
+            tlet.kill(pending=True)
+        except RuntimeError as e:
+            self.assertIn("Target thread isn't initialised", str(e))
+            # print("got exception")
+        else:
+            # print("no exception")
+            pass
+        self.assertTrue(is_blocked)
+        time.sleep(0.5)
+        # print("unbinding done")
+
+    def _test_kill_without_thread_state(self, nl, block):
+        channel = stackless.channel()
+        loop = True
+
+        def task():
+            while loop:
+                try:
+                    if block:
+                        channel.receive()
+                    else:
+                        stackless.main.run()
+                except TaskletExit:
+                    pass
+
+        def other_thread_main():
+            tlet.bind_thread()
+            tlet.run()
+
+        if nl == 0:
+            tlet = stackless.tasklet().bind(task, ())
+        else:
+            tlet = stackless.tasklet().bind(apply, (task,))
+        t = threading.Thread(target=other_thread_main, name="other thread")
+        t.start()
+        t.join()
+        time.sleep(0.05)  # time for other_thread to clear its state
+
+        loop = False
+        if block:
+            self.assertTrue(tlet.blocked)
+        else:
+            self.assertFalse(tlet.blocked)
+        self.assertFalse(tlet.alive)
+        self.assertEqual(tlet.thread_id, -1)
+        self.assertRaisesRegex(RuntimeError, "tasklet has no thread", tlet.throw, TaskletExit, pending=True)
+        tlet.kill(pending=True)
+        self.assertFalse(tlet.blocked)
+        if self.SLP_TASKLET_KILL_REBINDS_THREAD and stackless.enable_softswitch(None) and nl == 0:
+            # rebinding and soft switching
+            self.assertTrue(tlet.scheduled)
+            self.assertTrue(tlet.alive)
+            tlet.remove()
+            tlet.bind(None)
+        else:
+            # hard switching
+            self.assertFalse(tlet.scheduled)
+            self.assertIsNone(tlet.next)
+            self.assertIsNone(tlet.prev)
+            self.assertFalse(tlet.alive)
+            tlet.remove()
+            tlet.kill()
+
+    def test_kill_without_thread_state_nl0(self):
+        return self._test_kill_without_thread_state(0, False)
+
+    def test_kill_without_thread_state_nl1(self):
+        return self._test_kill_without_thread_state(1, False)
+
+    def test_kill_without_thread_state_blocked_nl0(self):
+        return self._test_kill_without_thread_state(0, True)
+
+    def test_kill_without_thread_state_blocked_nl1(self):
+        return self._test_kill_without_thread_state(1, True)
 
 
 class TestErrorHandler(StacklessTestCase):
