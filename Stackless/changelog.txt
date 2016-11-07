@@ -10,6 +10,26 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/93
+  Unify tasklet.kill(), tasklet.throw() and tasklet.raise_exception().
+  They now behave almost identically. This affects the error handling in some
+  corner cases:
+  + Some crash bugs have been fixed. Stackless Python now raises RuntimeError
+    instead of crashing.
+  + It is not possible to raise an exception in a dead (== not alive) tasklet.
+    In general, if you try it, the method call fails with an appropriate
+    RuntimeError. However there are exceptions:
+  + For Stackless versions before 3.3.7
+    tasklet.raise_exception(exc_class, *args) raises exc_class(*args) instead
+    of RuntimeError.
+  + If you call tasklet.kill() or tasklet.throw(TaskletExit) or
+    tasklet.raise_exception(TaskletExit) and if the tasklet already ran to its
+    end (tasklet.frame is None), the call succeeds.
+  + If you call tasklet.kill() on a tasklet, that didn't run to its end
+    (tasklet.frame is not None), but has no thread (tasklet.thread_id == -1),
+    Stackless drops the frame and proceeds as if the tasklet ran to its end.
+  Most users won't notice the difference.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/89
 - https://bitbucket.org/stackless-dev/stackless/issues/81
   Fix (crash) bugs during thread and interpreter shutdown.
@@ -331,7 +351,7 @@ The very beginning of Stackless
 			It turns out to make sense:
 			Try to let the innermost interpreter resolve some recusrions.
 <<<<<<< local
-			Find an equivalent of olde Py_UnwindToken. Probably the 
+			Find an equivalent of olde Py_UnwindToken. Probably the
 =======
 			Find an equivalent of old Py_UnwindToken. Probably the
 >>>>>>> other
