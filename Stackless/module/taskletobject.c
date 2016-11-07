@@ -1153,7 +1153,7 @@ _impl_tasklet_throw_bomb(PyTaskletObject *self, int pending, PyObject *bomb)
         assert(self->next == NULL && self->prev == NULL);
 #endif
 
-        /* Due to bugs the above assertion my not hold.
+        /* Due to bugs the above assertion may not hold.
          * Try to work around.
          */
         if (self->next) {
