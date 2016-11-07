@@ -103,13 +103,12 @@ static int
 tasklet_traverse(PyTaskletObject *t, visitproc visit, void *arg)
 {
     PyFrameObject *f;
-    PyThreadState *ts = PyThreadState_GET();
-    if (t->cstate->tstate) {
-        /* its thread is alive */
-        if (ts != t->cstate->tstate)
-            /* can't collect from this thread! */
-            PyObject_GC_Collectable((PyObject *)t, visit, arg, 0);
-    }
+
+    /* tasklets that need to be switched to for the kill, can't be collected.
+     * Only trivial decrefs are allowed during GC collect
+     */
+    if (tasklet_has_c_stack(t))
+        PyObject_GC_Collectable((PyObject *)t, visit, arg, 0);
 
     /* we own the "execute reference" of all the frames */
     for (f = t->f.frame; f != NULL; f = f->f_back) {
@@ -133,6 +132,18 @@ tasklet_clear_frames(PyTaskletObject *t)
         Py_DECREF(f);
         f = tmp;
     }
+}
+
+static void
+tasklet_clear(PyTaskletObject *t)
+{
+    tasklet_clear_frames(t);
+    TASKLET_SETVAL(t, Py_None); /* always non-zero */
+
+    /* unlink task from cstate */
+    if (t->cstate != NULL && t->cstate->task == t)
+        t->cstate->task = NULL;
+    Py_CLEAR(t->cstate);
 }
 
 /*
@@ -172,23 +183,10 @@ kill_finally (PyObject *ob)
 /* destructing a tasklet without destroying it */
 
 static void
-tasklet_clear(PyTaskletObject *t)
-{
-    /* if (slp_get_frame(t) != NULL) */
-    if (t->f.frame != NULL)
-        kill_finally((PyObject *) t);
-    TASKLET_SETVAL(t, Py_None); /* always non-zero */
-    /* unlink task from cstate */
-    if (t->cstate != NULL && t->cstate->task == t)
-        t->cstate->task = NULL;
-}
-
-
-static void
 tasklet_dealloc(PyTaskletObject *t)
 {
     PyObject_GC_UnTrack(t);
-    if (t->f.frame != NULL) {
+    if (tasklet_has_c_stack(t)) {
         /*
          * we want to cleanly kill the tasklet in the case it
          * was forgotten. One way would be to resurrect it,
@@ -202,9 +200,10 @@ tasklet_dealloc(PyTaskletObject *t)
             return;
         }
     }
+
+    tasklet_clear_frames(t);
     if (t->tsk_weakreflist != NULL)
         PyObject_ClearWeakRefs((PyObject *)t);
-    assert(t->f.frame == NULL);
     if (t->cstate != NULL) {
         assert(t->cstate->task != t || Py_SIZE(t->cstate) == 0);
         Py_DECREF(t->cstate);
@@ -240,7 +239,7 @@ PyTasklet_BindEx(PyTaskletObject *task, PyObject *func, PyObject *args, PyObject
         args = NULL;
     if (kwargs == Py_None)
         kwargs = NULL;
-    
+
     if (func != NULL && !PyCallable_Check(func))
         TYPE_ERROR("tasklet function must be a callable or None", -1);
     if (ts && ts->st.current == task) {
@@ -621,7 +620,7 @@ static int
 impl_tasklet_remove(PyTaskletObject *task)
 {
     PyThreadState *ts = PyThreadState_GET();
-    
+
     assert(PyTasklet_Check(task));
     if (ts->st.main == NULL) return PyTasklet_Remove_M(task);
     assert(ts->st.current != NULL);
@@ -756,7 +755,7 @@ impl_tasklet_run_remove(PyTaskletObject *task, int remove)
     PyObject *ret;
     int inserted, fail, switched, removed=0;
     PyTaskletObject *prev = ts->st.current;
-    
+
     assert(PyTasklet_Check(task));
     if (ts->st.main == NULL) {
         if (!remove)
@@ -764,7 +763,7 @@ impl_tasklet_run_remove(PyTaskletObject *task, int remove)
         else
             return PyTasklet_Switch_M(task);
     }
-    
+
 
     /* we always call impl_tasklet_insert, so we must
      * also uninsert in case of failure
@@ -1186,7 +1185,7 @@ impl_tasklet_raise_exception(PyTaskletObject *self, PyObject *klass, PyObject *a
     /* if the tasklet is dead, do not run it (no frame) but explode */
     if (slp_get_frame(self) == NULL)
         return slp_bomb_explode(bomb);
-    
+
     TASKLET_CLAIMVAL(self, &tmpval);
     TASKLET_SETVAL_OWN(self, bomb);
     fail = slp_schedule_task(&ret, ts->st.current, self, stackless, 0);
@@ -1578,7 +1577,7 @@ tasklet_get_trace_function(PyTaskletObject *task)
         Py_INCREF(temp);
         return temp;
     }
-    
+
     f = task->f.cframe;
     while (NULL != f && PyCFrame_Check(f)) {
         if (f->f_execute == slp_restore_tracing) {
@@ -1629,7 +1628,7 @@ tasklet_set_trace_function(PyTaskletObject *task, PyObject *value)
         PyEval_SetTrace(tf, value);
         return 0;
     }
-    
+
     f = task->f.cframe;
     while (NULL != f && PyCFrame_Check(f)) {
         if (f->f_execute == slp_restore_tracing) {
@@ -1666,7 +1665,7 @@ tasklet_set_trace_function(PyTaskletObject *task, PyObject *value)
     /* task is neither current nor has a restore_tracing frame.
        ==> tracing is currently off */
     if (NULL == value)
-        /* nothing to do */ 
+        /* nothing to do */
         return 0;
 
     /* here we must add an restore tracing cframe */
@@ -1712,7 +1711,7 @@ tasklet_get_profile_function(PyTaskletObject *task)
         Py_INCREF(temp);
         return temp;
     }
-    
+
     f = task->f.cframe;
     while (NULL != f && PyCFrame_Check(f)) {
         if (f->f_execute == slp_restore_tracing) {
@@ -1763,7 +1762,7 @@ tasklet_set_profile_function(PyTaskletObject *task, PyObject *value)
         PyEval_SetProfile(tf, value);
         return 0;
     }
-    
+
     f = task->f.cframe;
     while (NULL != f && PyCFrame_Check(f)) {
         if (f->f_execute == slp_restore_tracing) {
@@ -1800,7 +1799,7 @@ tasklet_set_profile_function(PyTaskletObject *task, PyObject *value)
     /* task is neither current nor has a restore_tracing frame.
        ==> tracing is currently off */
     if (NULL == value)
-        /* nothing to do */ 
+        /* nothing to do */
         return 0;
 
     /* here we must add an restore tracing cframe */
