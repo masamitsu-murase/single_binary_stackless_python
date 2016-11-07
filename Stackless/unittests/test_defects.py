@@ -4,6 +4,8 @@ import stackless
 import gc
 import sys
 import types
+from io import BytesIO
+import time
 try:
     import threading
     withThreads = True
@@ -427,6 +429,64 @@ class TestStacklessProtokoll(StacklessTestCase):
         # func(False, None) causes the crash
         self.assertRaises(TypeError, func, False, None)
 
+
+class TestCPickleBombHandling_Dict(dict):
+    pass
+
+
+class TestCPickleBombHandling_Cls(object):
+    def __getstate__(self):
+        try:
+            started = self.started
+        except AttributeError:
+            pass
+        else:
+            self.started = None
+            started.set()
+        # print("started")
+        time.sleep(0.05)  # give the other thread a chance to run
+        return self.__dict__
+
+
+class TestCPickleBombHandling(StacklessTestCase):
+    def other_thread(self, pickler, c):
+        try:
+            pickler.dump(c)
+        except TaskletExit:
+            self.killed = None
+        except:
+            self.killed = sys.exc_info()
+        else:
+            self.killed = False
+
+    def test_kill_during_cPickle_stack_switch(self):
+        # this test kills the main/current tasklet of a other-thread,
+        # which is fast-pickling a recursive structure. This leads to an
+        # infinite recursion, which gets interrupted by a bomb thrown from
+        # main-thread. Until issue #98 got fixed, this caused a crash.
+        # See https://bitbucket.org/stackless-dev/stackless/issues/98
+        buf = BytesIO()
+        import _pickle as pickle
+        pickler = pickle.Pickler(buf, protocol=-1)
+        pickler.fast = 1
+
+        started = threading.Event()
+
+        c = TestCPickleBombHandling_Cls()
+        c.started = started
+        d = TestCPickleBombHandling_Dict()
+        d[1] = d
+        c.recursive = d
+        self.killed = "undefined"
+        t = threading.Thread(target=self.other_thread, name="other_thread", args=(pickler, c))
+        t.start()
+        started.wait()
+        stackless.get_thread_info(t.ident)[0].kill(pending=True)
+        # print("killing")
+        t.join()
+        if isinstance(self.killed, tuple):
+            raise (self.killed[0], self.killed[1], self.killed[2])
+        self.assertIsNone(self.killed)
 
 if __name__ == '__main__':
     if not sys.argv[1:]:
