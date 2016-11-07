@@ -2,7 +2,7 @@ from __future__ import print_function, absolute_import, division
 import sys
 import _thread as thread
 import stackless
-import codecs
+import builtins
 import os
 import time
 import collections
@@ -63,13 +63,14 @@ class Detector(object):
         self.checks = checks
         self.tasklets = tasklets
 
-        # register the detector in the codecs search path
-        # it will be cleared after clearing the thread states
-        # this way the detector runs very late
-        def dummy_codecs_search_function(name):
-            return None
-        codecs.register(dummy_codecs_search_function)
-        dummy_codecs_search_function.x = self
+        # In Py_Finalize() the PyImport_Cleanup() runs shortly after 
+        # slp_kill_tasks_with_stacks(NULL).
+        # As very first action of PyImport_Cleanup() the Python
+        # interpreter sets builtins._ to None.
+        # Therefore we can use this assignment to trigger the execution
+        # of this detector. At this point the interpreter is still almost fully
+        # intact.
+        builtins._ = self
 
     def __del__(self):
         if self.debug:

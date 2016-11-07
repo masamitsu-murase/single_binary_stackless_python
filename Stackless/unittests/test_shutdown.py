@@ -34,19 +34,24 @@ Test for defects go into test_defects
 
 from __future__ import print_function, absolute_import, division
 import sys
-import _thread as thread
 import stackless
-import codecs
+import builtins
 import os
 import time
 import collections
 import unittest
-import threading
 import subprocess
 from stackless import _test_nostacklesscall as apply
+try:
+    import _thread as thread
+    import threading
+    withThreads = True
+except:
+    withThreads = False
 from support import StacklessTestCase
 
 
+@unittest.skipUnless(withThreads, "requires thread support")
 class TestThreadShutdown(StacklessTestCase):
 
     def _test_thread_shutdown(self, func, expect_kill):
@@ -125,6 +130,8 @@ class TestInterpreterShutdown(unittest.TestCase):
 
     def _test_shutdown_with_thread(self, case, is_hard, allowed_errors=(), debug=False):
         # test for issue #81 https://bitbucket.org/stackless-dev/stackless/issues/81/
+        if not withThreads:
+            self.skipTest("requires thread support")
         script = __file__
         if script.endswith("pyc") or script.endswith("pyo"):
             script = script[:-1]
@@ -213,13 +220,14 @@ class Detector(object):
         self.checks = checks
         self.tasklets = tasklets
 
-        # register the detector in the codecs search path
-        # it will be cleared after clearing the thread states
-        # this way the detector runs very late
-        def dummy_codecs_search_function(name):
-            return None
-        codecs.register(dummy_codecs_search_function)
-        dummy_codecs_search_function.x = self
+        # In Py_Finalize() the PyImport_Cleanup() runs shortly after 
+        # slp_kill_tasks_with_stacks(NULL).
+        # As very first action of PyImport_Cleanup() the Python
+        # interpreter sets builtins._ to None.
+        # Therefore we can use this assignment to trigger the execution
+        # of this detector. At this point the interpreter is still almost fully
+        # intact.
+        builtins._ = self
 
     def __del__(self):
         if self.debug:
@@ -398,7 +406,7 @@ def interpreter_shutdown_test():
     test = Test()
     detector = Detector(test.out, test.checks, test.tasklets)
     assert sys.getrefcount(detector) - sys.getrefcount(object()) == 2
-    detector = None  # the last ref is now in the codecs search path
+    detector = None  # the last ref is now in bultins._
     thread.start_new_thread(test.other_thread_main, ())
     ready.acquire()  # Be sure the other thread is ready.
     # print("at end")

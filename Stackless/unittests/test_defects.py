@@ -4,7 +4,11 @@ import stackless
 import gc
 import sys
 import types
-import threading
+try:
+    import threading
+    withThreads = True
+except:
+    withThreads = False
 
 from stackless import _test_nostacklesscall as apply
 from support import StacklessTestCase, captured_stderr, require_one_thread
@@ -81,6 +85,7 @@ class TestTaskletDel(StacklessTestCase):
         hex(id(self.TaskletWithDelAndCollect(TaskletFunc)(self)))
         stackless.run()  # crash here
 
+    @unittest.skipUnless(withThreads, "requires thread support")
     def test_tasklet_dealloc_in_thread_shutdown(self):
         # Test for https://bitbucket.org/stackless-dev/stackless/issues/89
         def other_thread_main():
@@ -298,6 +303,7 @@ class TestShutdown(StacklessTestCase):
             """])
         self.assertEqual(rc, 42)
 
+    @unittest.skipUnless(withThreads, "requires thread support")
     def test_interthread_kill(self):
         # test for issue #87 https://bitbucket.org/stackless-dev/stackless/issues/87/
         import subprocess
@@ -358,6 +364,7 @@ class TestShutdown(StacklessTestCase):
             """])
         self.assertEqual(rc, 42)
 
+    @unittest.skipUnless(withThreads, "requires thread support")
     def test_tasklet_end_with_wrong_recursion_level(self):
         # test for issue #91 https://bitbucket.org/stackless-dev/stackless/issues/91/
         """A test for issue #91, wrong recursion level after tasklet re-binding
