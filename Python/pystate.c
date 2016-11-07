@@ -373,7 +373,7 @@ PyThreadState_Clear(PyThreadState *tstate)
 #endif
     if (Py_VerboseFlag && tstate->frame != NULL)
         fprintf(stderr,
-          "PyThreadState_Clear: warning: thread still has a frame\n");
+        "# PyThreadState_Clear: warning: thread still has a frame\n");
 
     Py_CLEAR(tstate->frame);
 
