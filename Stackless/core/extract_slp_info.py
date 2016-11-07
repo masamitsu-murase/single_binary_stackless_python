@@ -11,16 +11,16 @@ srcname = "../../Objects/typeobject.c"
 dstname = "slp_exttype.h"
 
 def parse():
-    f = open(srcname)
     line = ""
     slots = []
     buf = ""
-    for line in f:
-        if line.endswith("\\\n"):
-            buf += line
-        else:
-            feed(buf+line, slots)
-            buf = ""
+    with open(srcname) as f:
+        for line in f:
+            if line.endswith("\\\n"):
+                buf += line
+            else:
+                feed(buf+line, slots)
+                buf = ""
     return slots
 
 def feed(line, slots):
@@ -43,7 +43,7 @@ def feed(line, slots):
 
 def generate():
     slotnames = parse()
-    f = open(dstname, "w")
+    f = open(dstname, "wt", encoding="UTF-8", newline="\n")
     print("""\
 /*
  * this file was generated from typeobject.c using the script
@@ -56,6 +56,7 @@ typedef struct _slp_methodflags {\
     for slot in slotnames:
         print("    signed char %s;" % slot, file=f)
     print("} slp_methodflags;", file=f)
+    f.close()
     print("Found", len(slotnames), "slots")
 
 if __name__ == "__main__":
