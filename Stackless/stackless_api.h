@@ -52,6 +52,16 @@ PyAPI_FUNC(PyTaskletObject *) PyTasklet_New(PyTypeObject *type, PyObject *func);
 PyAPI_FUNC(int) PyTasklet_Setup(PyTaskletObject *task, PyObject *args, PyObject *kwds);
 
 /*
+ * bind a tasklet function to parameters, making it ready to run.
+ */
+PyAPI_FUNC(int) PyTasklet_BindEx(PyTaskletObject *task, PyObject *func, PyObject *args, PyObject *kwargs);
+
+/*
+ * bind a tasklet function to a thread.
+ */
+PyAPI_FUNC(int) PyTasklet_BindThread(PyTaskletObject *task, long thread_id);
+
+/*
  * forces the tasklet to run immediately.
  */
 PyAPI_FUNC(int) PyTasklet_Run(PyTaskletObject *task);
@@ -113,6 +123,7 @@ PyAPI_FUNC(int) PyTasklet_Throw(PyTaskletObject *self,
  */
 
 PyAPI_FUNC(int) PyTasklet_Kill(PyTaskletObject *self);
+PyAPI_FUNC(int) PyTasklet_KillEx(PyTaskletObject *self, int pending);
 /* 0 = success	-1 = failure.
  * Note that this call always ends in some exception, so the
  * caller always should return NULL.
