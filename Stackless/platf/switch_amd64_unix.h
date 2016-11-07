@@ -104,12 +104,20 @@ int
 slp_switch(void)
 {
     register long *stackref, stsizediff;
-    void * rbp; int mxcsr; short x87cw;
+    int mxcsr; short x87cw;
+#if STACKLESS_FRHACK
+    __asm__ volatile (
+        "fstcw %0\n\t"
+        "stmxcsr %1\n\t"
+        : "=m" (x87cw), "=m" (mxcsr) : : REGS_CLOBBERED );
+#else
+    void * rbp;
     __asm__ volatile (
         "fstcw %0\n\t"
         "stmxcsr %1\n\t"
         "movq %%rbp, %2\n\t"
         : "=m" (x87cw), "=m" (mxcsr), "=m" (rbp) : : REGS_CLOBBERED );
+#endif
     __asm__ ("movq %%rsp, %0" : "=g" (stackref));
     {
         SLP_SAVE_STATE(stackref, stsizediff);
@@ -120,11 +128,18 @@ slp_switch(void)
             : "r" (stsizediff)
             );
         SLP_RESTORE_STATE();
+#if STACKLESS_FRHACK
+        __asm__ volatile (
+	    "ldmxcsr %1\n\t"
+            "fldcw %0\n\t"
+            : : "m" (x87cw), "m" (mxcsr));
+#else
         __asm__ volatile (
             "movq %2, %%rbp\n\t"
 	    "ldmxcsr %1\n\t"
             "fldcw %0\n\t"
             : : "m" (x87cw), "m" (mxcsr), "m" (rbp));
+#endif
         return 0;
     }
 }
