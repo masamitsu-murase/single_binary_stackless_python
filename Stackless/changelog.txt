@@ -256,18 +256,6 @@ What's New in Stackless 3.3.5?
 - http://www.stackless.com/ticket/23: Fix compile error with STACKLESS_OFF
   defined
 
-<<<<<<< local
-=======
-
-What's New in Stackless 2.7.4rc2?
-=================================
-
-*Release date: 2013-05-01*
-
-(A selection of user visible changes from mercurial commit log messages. Use
- "hg log -b 2.7-slp -r v2.7.4rc2-slp:v2.7.2-slp  -v -M" to get the complete log.)
-
->>>>>>> other
 - http://www.stackless.com/ticket/21: Fix crash on exit.
 
 - http://www.stackless.com/ticket/22: soft switching for context managers.
@@ -370,11 +358,7 @@ The very beginning of Stackless
 			Especially, the frame dispatcher idea will be revived.
 			It turns out to make sense:
 			Try to let the innermost interpreter resolve some recusrions.
-<<<<<<< local
-			Find an equivalent of olde Py_UnwindToken. Probably the
-=======
 			Find an equivalent of old Py_UnwindToken. Probably the
->>>>>>> other
 			protocol of the new generators can be extended.
 			Now I *do* think to modify frames. They get an additional
 			field for their C stack part.
