@@ -2048,7 +2048,7 @@ PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw)
         if (!stackless)
 #endif
         Py_LeaveRecursiveCall();
-        if (result == NULL && !PyErr_Occurred())
+        if (STACKLESS_RETVAL(result) == NULL && !PyErr_Occurred())
             PyErr_SetString(
                 PyExc_SystemError,
                 "NULL result without error in PyObject_Call");
