@@ -2054,14 +2054,14 @@ PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw)
 #endif
         Py_LeaveRecursiveCall();
 #ifdef NDEBUG
-        if (result == NULL && !PyErr_Occurred()) {
+        if (STACKLESS_RETVAL(result) == NULL && !PyErr_Occurred()) {
             PyErr_SetString(
                 PyExc_SystemError,
                 "NULL result without error in PyObject_Call");
         }
 #else
-        assert((result != NULL && !PyErr_Occurred())
-                || (result == NULL && PyErr_Occurred()));
+        assert((STACKLESS_RETVAL(result) != NULL && !PyErr_Occurred())
+                || (STACKLESS_RETVAL(result) == NULL && PyErr_Occurred()));
 #endif
         return result;
     }
