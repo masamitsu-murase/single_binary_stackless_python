@@ -21,7 +21,15 @@
              "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", \
              "f8", "f9", "f10", "f11", "f12", "f13", "f14", "f15"
 
-static int
+/*
+ * You may want to make the function static enable optimizations.
+ * However, the ABI SPEC does not apply to static functions. Therefore
+ * I make slp_switch a regular global function.
+ */
+#if 0
+static
+#endif
+int
 slp_switch(void)
 {
     register int *stackref, stsizediff;
@@ -37,7 +45,6 @@ slp_switch(void)
         SLP_RESTORE_STATE();
         return 0;
     }
-    __asm__ volatile ("" : : : REGS_TO_SAVE);
 }
 
 #endif

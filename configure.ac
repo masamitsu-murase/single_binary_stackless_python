@@ -435,10 +435,10 @@ fi
 # Stackless flags for compiling the hard switching code
 case $MACHDEP in
 	darwin)
-		SLPFLAGS="-fomit-frame-pointer -O2"
+		SLPFLAGS="-fomit-frame-pointer -fno-inline-functions"
 		;;
 	*)
-		SLPFLAGS="-fno-omit-frame-pointer -O2"
+		SLPFLAGS="-fno-omit-frame-pointer -fno-inline-functions"
 		;;
 esac
 AC_SUBST(SLPFLAGS)
@@ -4817,13 +4817,6 @@ if test "$have_gcc_asm_for_x87" = yes; then
         ;;
     esac
 fi
-AC_SUBST(SLPFLAGS)
-SLPFLAGS="-fno-omit-frame-pointer -O2"
-case $MACHDEP in
-darwin) SLPFLAGS="-fomit-frame-pointer -O2";;
-'') SLPFLAGS="-fno-omit-frame-pointer -O2";;
-esac
-
 
 # ensurepip option
 AC_MSG_CHECKING(for ensurepip)

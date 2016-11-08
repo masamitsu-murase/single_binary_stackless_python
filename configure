@@ -3371,10 +3371,10 @@ fi
 # Stackless flags for compiling the hard switching code
 case $MACHDEP in
 	darwin)
-		SLPFLAGS="-fomit-frame-pointer -O2"
+		SLPFLAGS="-fomit-frame-pointer -fno-inline-functions"
 		;;
 	*)
-		SLPFLAGS="-fno-omit-frame-pointer -O2"
+		SLPFLAGS="-fno-omit-frame-pointer -fno-inline-functions"
 		;;
 esac
 
@@ -15493,13 +15493,6 @@ $as_echo "#define HAVE_IPA_PURE_CONST_BUG 1" >>confdefs.h
         ;;
     esac
 fi
-
-SLPFLAGS="-fno-omit-frame-pointer -O2"
-case $MACHDEP in
-darwin) SLPFLAGS="-fomit-frame-pointer -O2";;
-'') SLPFLAGS="-fno-omit-frame-pointer -O2";;
-esac
-
 
 # ensurepip option
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ensurepip" >&5
