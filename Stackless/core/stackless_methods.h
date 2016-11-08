@@ -1,5 +1,5 @@
 /*
- * this file was generated from the Python C sources using the script
+ * this file was generated from the Python(r) C sources using the script
  * Stackless/core/extract_slp_methods.py .
  * please don't edit this output, but work on the script.
  */
@@ -15,18 +15,20 @@ typedef struct {
 
 static _stackless_method _stackless_methtable[] = {
     /* from classobject.c */
-    {&PyMethod_Type,        MFLAG_OFS(tp_call)},
+    {&PyMethod_Type,            MFLAG_OFS(tp_call)},
     /* from descrobject.c */
     {&PyMethodDescr_Type,        MFLAG_OFS(tp_call)},
     {&PyClassMethodDescr_Type,    MFLAG_OFS(tp_call)},
-    {&_PyMethodWrapper_Type,        MFLAG_OFS(tp_call)},
+    {&_PyMethodWrapper_Type,    MFLAG_OFS(tp_call)},
     /* from funcobject.c */
-    {&PyFunction_Type,        MFLAG_OFS(tp_call)},
+    {&PyFunction_Type,            MFLAG_OFS(tp_call)},
     /* from genobject.c */
-    {&PyGen_Type,            MFLAG_OFS(tp_iternext)},
+    {&PyGen_Type,                MFLAG_OFS(tp_iternext)},
     /* from methodobject.c */
-    {&PyCFunction_Type,        MFLAG_OFS(tp_call)},
+    {&PyCFunction_Type,            MFLAG_OFS(tp_call)},
+    /* from typeobject.c */
+    {&PyType_Type,                MFLAG_OFS(tp_call)},
     /* from channelobject.c */
-    {&PyChannel_Type,                   MFLAG_OFS(tp_iternext)},
+    {&PyChannel_Type,            MFLAG_OFS(tp_iternext)},
     {0, 0} /* sentinel */
 };
