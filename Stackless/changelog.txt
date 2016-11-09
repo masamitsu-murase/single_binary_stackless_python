@@ -9,6 +9,14 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/97
+  Fix the stack switching for optimized builds for all Unix-like architectures
+  except amd64, where it was already OK. This change removes the "static"
+  declaration from the function slp_switch(). This forces the compiler
+  to adhere to the ABI specification. On i386 and amd64 it is now save to
+  configure stackless with --enable-stacklessfewerregisters, except if you
+  compile for darwin.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/94
   Calls to __init__(self, ...) are now stackless, if
   soft-switching is enabled.

@@ -3163,6 +3163,16 @@ else
 
 fi
 
+
+# Check whether --enable-stacklessfewerregisters was given.
+if test "${enable_stacklessfewerregisters+set}" = set; then :
+  enableval=$enable_stacklessfewerregisters; STACKLESS_FRHACK=1
+else
+   STACKLESS_FRHACK=0
+fi
+
+
+
 # Check whether --enable-framework was given.
 if test "${enable_framework+set}" = set; then :
   enableval=$enable_framework;
@@ -3361,6 +3371,17 @@ if test "$cross_compiling" = yes; then
 	esac
 	_PYTHON_HOST_PLATFORM="$MACHDEP${_host_cpu:+-$_host_cpu}"
 fi
+
+# Stackless flags for compiling the hard switching code
+case $MACHDEP in
+	darwin)
+		SLPFLAGS="-fomit-frame-pointer -fno-inline-functions"
+		;;
+	*)
+		SLPFLAGS="-fno-omit-frame-pointer -fno-inline-functions"
+		;;
+esac
+
 
 # Some systems cannot stand _XOPEN_SOURCE being defined at all; they
 # disable features if it is defined, without any means to access these
@@ -6631,6 +6652,7 @@ $as_echo "$ac_cv_enable_unreachable_code_warning" >&6; }
                 ;;
     esac
 
+    BASECFLAGS="${BASECFLAGS} -DSTACKLESS_FRHACK=${STACKLESS_FRHACK}"
     case $ac_sys_system in
 	SCO_SV*)
 	    BASECFLAGS="$BASECFLAGS -m486 -DSCO5"
