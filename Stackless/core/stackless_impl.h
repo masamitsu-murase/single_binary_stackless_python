@@ -554,6 +554,8 @@ PyObject * slp_get_channel_callback(void);
 #define STACKLESS_RETRACT() assert(1)
 #define STACKLESS_ASSERT() assert(1)
 
+#define STACKLESS_RETVAL(obj) (obj)
+
 #define STACKLESS_DECLARE_METHOD(type, meth)
 
 #endif /* STACKLESS */
