@@ -114,6 +114,8 @@ PyAPI_FUNC(PyObject *) PyEval_EvalFrame_with_cleanup(struct _frame *f,  int thro
 /* other eval_frame functions from module/scheduling.c */
 PyAPI_FUNC(PyObject *) slp_restore_exception(PyFrameObject *f, int exc, PyObject *retval);
 PyAPI_FUNC(PyObject *) slp_restore_tracing(PyFrameObject *f, int exc, PyObject *retval);
+/* other eval_frame functions from Objects/typeobject.c */
+PyObject * slp_tp_init_callback(PyFrameObject *f, int exc, PyObject *retval);
 
 /* rebirth of software stack avoidance */
 
@@ -172,6 +174,9 @@ PyAPI_FUNC(PyTaskletObject *) slp_get_watchdog(PyThreadState *ts, int interrupt)
 
 #define STACKLESS_UNWINDING(obj) \
     ((PyObject *) (obj) == (PyObject *) Py_UnwindToken)
+
+/* an arbitrary positive number */
+#define STACKLESS_UNWINDING_MAGIC 0x7fedcba9
 
 #define STACKLESS_RETVAL(obj) \
     (STACKLESS_UNWINDING(obj) ? Py_UnwindToken->tempval : (obj))

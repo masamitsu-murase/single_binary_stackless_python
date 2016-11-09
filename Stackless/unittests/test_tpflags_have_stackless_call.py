@@ -23,6 +23,8 @@ This is a test for issue http://www.stackless.com/ticket/18
 
 import unittest
 import stackless
+import gc
+import sys
 from support import StacklessTestCase
 
 
@@ -235,8 +237,159 @@ class TestNonStacklessCall(StacklessTestCase):
         stackless.tasklet(self.callIndirect)()
         stackless.run()
 
+
+class TestInitIsStackless(StacklessTestCase):
+    """Test, if __init__ supports the stackless protocoll"""
+    def nestingLevelTest(self, cls):
+        # check the nesting level and the ref counts
+        def func(obj=None):
+            if obj is None:
+                self.assertGreater(stackless.current.nesting_level, 0)
+                return None
+            self.assertIs(obj.__class__, cls)
+            obj.nesting_level = stackless.current.nesting_level
+            return None
+
+        with stackless.atomic():
+            # None-refcount it needs protection, it the test suite is multithreaded
+            gc.collect()
+            rc_none = sys.getrefcount(None)
+            rc_cls = sys.getrefcount(cls)
+            c = cls(func)
+            self.assertEqual(sys.getrefcount(None), rc_none)
+            self.assertEqual(sys.getrefcount(c) - sys.getrefcount(object()), 1)
+        self.assertIs(c.__class__, cls)
+        current_nesting_level = stackless.current.nesting_level
+        if hasattr(c, "nesting_level"):
+            if stackless.enable_softswitch(None):
+                self.assertEqual(c.nesting_level, current_nesting_level)
+            else:
+                self.assertGreater(c.nesting_level, current_nesting_level)
+        c = None
+        gc.collect()
+        self.assertEqual(sys.getrefcount(cls), rc_cls)
+
+    def C__init__(self, func):
+        return func(self)
+
+    class C:
+        def __init__(self, func):
+            return func(self)
+
+    class CSyn:
+        pass
+    CSyn.__init__ = C__init__
+
+    class CNew(object):
+        def __init__(self, func):
+            return func(self)
+
+    class CNewSyn(object):
+        pass
+    CNewSyn.__init__ = C__init__
+
+    class CNonStackless:
+        __init__ = stackless._test_nostacklesscall
+
+    class CNewNonStackless(object):
+        __init__ = stackless._test_nostacklesscall
+
+    def testNestingLevelNew(self):
+        self.nestingLevelTest(self.CNew)
+
+    def testNestingLevelNewSynthetic(self):
+        self.nestingLevelTest(self.CNewSyn)
+
+    def testNestingLevel(self):
+        self.nestingLevelTest(self.C)
+
+    def testNestingLevelSynthetic(self):
+        self.nestingLevelTest(self.CSyn)
+
+    def testNestingLevelNonStackless(self):
+        self.nestingLevelTest(self.CNonStackless)
+
+    def testNestingLevelNewNonStackless(self):
+        self.nestingLevelTest(self.CNewNonStackless)
+
+    def returnTypeTest(self, cls):
+        # check the nesting level and the ref counts
+        def func(obj):
+            return "not None"
+
+        def helper():
+            # we need a close control over references to None here
+            try:
+                cls(func)
+            except TypeError:
+                emsg = sys.exc_info()[1].args[0]
+                return emsg
+            self.fail("does not raise the expected exception")
+
+        gc.collect()
+        with stackless.atomic():
+            rc_none = sys.getrefcount(None)
+            rc_cls = sys.getrefcount(cls)
+            # we need a close control over references to None here
+            emsg = helper()
+            rc_none2 = sys.getrefcount(None)
+            rc_cls2 = sys.getrefcount(cls)
+        self.assertEqual(rc_cls, rc_cls2)
+        self.assertEqual(rc_none, rc_none2)
+        self.assertIn("__init__() should return None", emsg)
+
+    def testReturnType(self):
+        self.returnTypeTest(self.C)
+
+    def testReturnTypeSynthetic(self):
+        self.returnTypeTest(self.CSyn)
+
+    def testReturnTypeNew(self):
+        self.returnTypeTest(self.CNew)
+
+    def testReturnTypeNewSynthetic(self):
+        self.returnTypeTest(self.CNewSyn)
+
+    def exceptionTest(self, cls):
+        # check the nesting level and the ref counts
+        def func(obj):
+            1 / 0
+
+        def helper():
+            # we need a close control over references to None here
+            try:
+                cls(func)
+            except ZeroDivisionError:
+                emsg = sys.exc_info()[1].args[0]
+                return emsg
+            self.fail("does not raise the expected exception")
+
+        emsg = ''
+        gc.collect()
+        with stackless.atomic():
+            rc_none = sys.getrefcount(None)
+            rc_cls = sys.getrefcount(cls)
+            # we need a close control over references to None here
+            emsg = helper()
+            rc_none2 = sys.getrefcount(None)
+            rc_cls2 = sys.getrefcount(cls)
+        self.assertEqual(rc_cls, rc_cls2)
+        self.assertEqual(rc_none, rc_none2)
+        self.assertIn("division by zero", emsg)
+
+    def testException(self):
+        self.exceptionTest(self.C)
+
+    def testExceptionSynthetic(self):
+        self.exceptionTest(self.CSyn)
+
+    def testExceptionNew(self):
+        self.exceptionTest(self.CNew)
+
+    def testExceptionNewSynthetic(self):
+        self.exceptionTest(self.CNewSyn)
+
 if __name__ == "__main__":
-    import sys
     if not sys.argv[1:]:
         sys.argv.append('-v')
     unittest.main()
