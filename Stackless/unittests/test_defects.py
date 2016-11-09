@@ -4,6 +4,7 @@ import stackless
 import gc
 import sys
 import types
+import threading
 
 from stackless import _test_nostacklesscall as apply
 from support import StacklessTestCase, captured_stderr, require_one_thread
@@ -79,6 +80,28 @@ class TestTaskletDel(StacklessTestCase):
             pass
         hex(id(self.TaskletWithDelAndCollect(TaskletFunc)(self)))
         stackless.run()  # crash here
+
+    def test_tasklet_dealloc_in_thread_shutdown(self):
+        # Test for https://bitbucket.org/stackless-dev/stackless/issues/89
+        def other_thread_main():
+            # print("other thread started")
+            self.assertIs(stackless.main, stackless.current)
+            tasklet2 = stackless.tasklet(apply)(stackless.main.run,)
+            # print("OT Main:", stackless.main)
+            # print("OT tasklet2:", tasklet2)
+            tasklet2.run()
+            self.assertTrue(tasklet2.scheduled)
+            self.other_thread_started = True
+            # the crash from issue #89 happened during the shutdown of other thread
+
+        self.other_thread_started = False
+        self.assertIs(stackless.main, stackless.current)
+        # print("Main Thread:", stackless.main)
+        t = threading.Thread(target=other_thread_main, name="other thread")
+        t.start()
+        t.join()
+        self.assertTrue(self.other_thread_started)
+        # print("OK")
 
 
 class Schedule(StacklessTestCase):
@@ -187,7 +210,6 @@ class TestExceptionInScheduleCallback(StacklessTestCase):
         if next.is_main:
             raise RuntimeError("scheduleCallback")
 
-    #@unittest.skip('crashes python')
     def testExceptionInScheduleCallback(self):
         stackless.set_schedule_callback(self.scheduleCallback)
         self.addCleanup(stackless.set_schedule_callback, None)
@@ -336,7 +358,6 @@ class TestShutdown(StacklessTestCase):
             """])
         self.assertEqual(rc, 42)
 
-    @unittest.skip("test triggers an assertion violation, issue #89")
     def test_tasklet_end_with_wrong_recursion_level(self):
         # test for issue #91 https://bitbucket.org/stackless-dev/stackless/issues/91/
         """A test for issue #91, wrong recursion level after tasklet re-binding
@@ -358,7 +379,7 @@ class TestShutdown(StacklessTestCase):
                 pass
 
         def tlet_inner():
-            assert stackless.current.recursion_depth == 2
+            assert stackless.current.recursion_depth >= 2, "wrong recursion depth: %d" % (stackless.current.recursion_depth,)
             stackless.main.switch()
 
         def tlet_outer():
@@ -370,10 +391,10 @@ class TestShutdown(StacklessTestCase):
             print("Other thread main", stackless.main)
             print("Other thread paused", self.tlet)
             self.tlet.run()
-            self.assertEqual(self.tlet.recursion_depth, 2)
+            self.assertGreaterEqual(self.tlet.recursion_depth, 2)
             self.tlet.bind(lambda: None, ())
             self.assertEqual(self.tlet.recursion_depth, 0)
-            # before issue #91 got fixed, the assertion violatition occurred here
+            # before issue #91 got fixed, the assertion violation occurred here
 
         print("Main thread", stackless.current)
         t = threading.Thread(target=other_thread_main, name="other thread")

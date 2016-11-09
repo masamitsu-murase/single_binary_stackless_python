@@ -335,76 +335,163 @@ slp_eval_frame(PyFrameObject *f)
     return slp_frame_dispatch(f, fprev, 0, Py_None);
 }
 
+static void
+kill_pending_current_main_and_watchdogs(PyThreadState *ts)
+{
+    PyTaskletObject *t;
+
+    assert(ts != PyThreadState_GET());  /* don't kill ourself */
+
+    /* kill watchdogs */
+    if (ts->st.watchdogs && PyList_CheckExact(ts->st.watchdogs)) {
+        Py_ssize_t i;
+        /* we don't kill the "intterupt" slot, number 0 */
+        for(i = PyList_GET_SIZE(ts->st.watchdogs) - 1; i > 0; i--) {
+            PyObject * item = PyList_GET_ITEM(ts->st.watchdogs, i);
+            assert(item && PyTasklet_Check(item));
+            t = (PyTaskletObject *) item;
+            Py_INCREF(t);  /* it is a borrowed ref */
+            PyTasklet_KillEx(t, 1);
+            PyErr_Clear();
+            Py_DECREF(t);
+        }
+    }
+    /* kill main */
+    t = ts->st.main;
+    if (t != NULL) {
+        Py_INCREF(t);  /* it is a borrowed ref */
+        PyTasklet_KillEx(t, 1);
+        PyErr_Clear();
+        Py_DECREF(t);
+    }
+    /* kill current */
+    t = ts->st.current;
+    if (t != NULL) {
+        Py_INCREF(t);  /* it is a borrowed ref */
+        PyTasklet_KillEx(t, 1);
+        PyErr_Clear();
+        Py_DECREF(t);
+    }
+}
+
+static void
+run_other_threads(PyObject **sleep, int count)
+{
+    if (count == 0) {
+        /* shortcut */
+        return;
+    }
+
+    assert(sleep != NULL);
+    if (*sleep == NULL) {
+        /* get a reference to time.sleep() */
+        PyObject *mod_time;
+        assert(Py_IsInitialized());
+        mod_time = PyImport_ImportModule("time");
+        if (mod_time != NULL) {
+            *sleep = PyObject_GetAttrString(mod_time, "sleep");
+            Py_DECREF(mod_time);
+        }
+        if (*sleep == NULL) {
+            PyErr_Clear();
+        }
+    }
+    while(count-- > 0) {
+        if (*sleep == NULL) {
+            Py_BEGIN_ALLOW_THREADS
+            Py_END_ALLOW_THREADS
+        } else {
+            PyObject *res = PyObject_CallFunction(*sleep, "(f)", (float)0.001);
+            if (res != NULL) {
+                Py_DECREF(res);
+            } else {
+                PyErr_Clear();
+            }
+        }
+    }
+}
+
 /* a thread (or threads) is exiting.  After this call, no tasklet may
- * refer to the current thread's tstate
+ * refer to target_ts, if target_ts != NULL.
+ * Also inactivate all other threads during interpreter shut down (target_ts == NULL).
+ * Later in the shutdown sequence Python clears the tstate structure. This
+ * causes access violations, if another thread is still active.
  */
 void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
 {
-    PyThreadState *ts = PyThreadState_GET();
-    int count = 0;
+    PyThreadState *cts = PyThreadState_GET();
+    int in_loop = 0;
 
-    /* a loop to kill tasklets on the local thread */
-    while (1) {
-        PyCStackObject *csfirst = slp_cstack_chain, *cs;
-        PyTaskletObject *t;
+    if (target_ts == NULL || target_ts == cts) {
+        /* a loop to kill tasklets on the local thread */
+        while (1) {
+            PyCStackObject *csfirst = slp_cstack_chain, *cs;
+            PyTaskletObject *t;
 
-        if (csfirst == NULL)
-            break;
-        for (cs = csfirst; ; cs = cs->next) {
-            if (count && cs == csfirst) {
-                /* nothing found */
-                return;
+            if (csfirst == NULL)
+                goto other_threads;
+            for (cs = csfirst; ; cs = cs->next) {
+                if (in_loop && cs == csfirst) {
+                    /* nothing found */
+                    goto other_threads;
+                }
+                in_loop = 1;
+                /* has tstate already been cleared or is it a foreign thread? */
+                if (cs->tstate != cts)
+                    continue;
+
+                if (cs->task == NULL) {
+                    cs->tstate = NULL;
+                    continue;
+                }
+                /* is it already dead? */
+                if (cs->task->f.frame == NULL) {
+                    cs->tstate = NULL;
+                    continue;
+                }
+                break;
             }
-            ++count;
-            /* has tstate already been cleared or is it a foreign thread? */
-            if (cs->tstate != ts)
-                continue;
+            in_loop = 0;
+            t = cs->task;
+            Py_INCREF(t); /* cs->task is a borrowed ref */
+            assert(t->cstate == cs);
 
-            if (cs->task == NULL) {
-                cs->tstate = NULL;
-                continue;
-            }
-            /* is it already dead? */
-            if (cs->task->f.frame == NULL) {
-                cs->tstate = NULL;
-                continue;
-            }
-            break;
-        }
-        count = 0;
-        t = cs->task;
-        Py_INCREF(t); /* cs->task is a borrowed ref */
-
-        /* We need to ensure that the tasklet 't' is in the scheduler
-         * tasklet chain before this one (our main).  This ensures
-         * that this one is directly switched back to after 't' is
-         * killed.  The reason we do this this is because if another
-         * tasklet is switched to, this is of course it being scheduled
-         * and run.  Why we do not need to do this for tasklets blocked
-         * on channels is that when they are scheduled to be run and
-         * killed, they will be implicitly placed before this one,
-         * leaving it to run next.
-         */
-        if (!t->flags.blocked && t != cs->tstate->st.current) {
-            /* unlink from runnable queue if it wasn't previously remove()'d */
-            if (t->next) {
+            /* If a thread ends, the thread no longer has a main tasklet and
+             * the thread is not in a valid state. tstate->st.current is
+             * undefined. It may point to a tasklet, but the other fields in
+             * tstate have wrong values.
+             *
+             * Therefore we need to ensure, that t is not tstate->st.current.
+             * Convert t into a free floating tasklet. PyTasklet_Kill works
+             * for floating tasklets too.
+             */
+            if (t->next && !t->flags.blocked) {
                 assert(t->prev);
                 slp_current_remove_tasklet(t);
-                assert(t->cstate->tstate == ts);
-            } else
-                Py_INCREF(t); /* a new reference for the runnable queue */
-            /* insert into the 'current' chain without modifying 'current' */
-            slp_current_insert(t);
-        }
+                assert(Py_REFCNT(t) > 1);
+                Py_DECREF(t);
+                assert(t->next == NULL);
+                assert(t->prev == NULL);
+            }
+            assert(t != cs->tstate->st.current);
 
-        PyTasklet_Kill(t);
-        PyErr_Clear();
+            /* has the tasklet nesting_level > 0? The Stackles documentation
+             * specifies: "When a thread dies, only tasklets with a C-state are actively killed.
+             * Soft-switched tasklets simply stop."
+             */
+            if ((cts->st.current == cs->task ? cts->st.nesting_level : cs->nesting_level) > 0) {
+                /* Is is hard switched. */
+                PyTasklet_Kill(t);
+                PyErr_Clear();
+            }
 
-        /* must clear the tstate */
-        t->cstate->tstate = NULL;
-        Py_DECREF(t);
-    }
+            /* must clear the tstate */
+            t->cstate->tstate = NULL;
+            Py_DECREF(t);
+        } /* while(1) */
+    } /* if(...) */
 
+other_threads:
     /* and a separate simple loop to kill tasklets on foreign threads.
      * Since foreign tasklets are scheduled in their own good time,
      * there is no guarantee that they are actually dead when we
@@ -412,23 +499,87 @@ void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
      * states.  That will hopefully happen when their threads exit.
      */
     {
-        PyCStackObject *csfirst = slp_cstack_chain, *cs;
+        PyCStackObject *csfirst, *cs;
         PyTaskletObject *t;
-        
-        if (csfirst == NULL)
-            return;
-        count = 0;
-        for (cs = csfirst; ; cs = cs->next) {
-            if (count && cs == csfirst) {
-                return;
+        PyObject *sleepfunc = NULL;
+        int count;
+
+        /* other threads, first pass: kill (pending) current, main and watchdog tasklets */
+        if (target_ts == NULL) {
+            PyThreadState *ts;
+            count = 0;
+            for (ts = cts->interp->tstate_head; ts != NULL; ts = ts->next) {
+                if (ts != cts) {
+                    /* Inactivate thread ts. In case the thread is active,
+                     * it will be killed. If the thread is sleping, it
+                     * continues to sleep.
+                     */
+                    count++;
+                    kill_pending_current_main_and_watchdogs(ts);
+                    /* It helps to inactivate threads reliably */
+                    if (PyExc_TaskletExit)
+                        PyThreadState_SetAsyncExc(ts->thread_id, PyExc_TaskletExit);
+                }
             }
-            count++;
-            t = cs->task;
-            Py_INCREF(t); /* cs->task is a borrowed ref */
-            PyTasklet_Kill(t);
-            PyErr_Clear();
-            Py_DECREF(t);
+            /* We must not release the GIL while we might hold the HEAD-lock.
+             * Otherwise another thread (usually the thread of the killed tasklet)
+             * could try to get the HEAD lock. The result would be a wonderful dead lock.
+             * If target_ts is NULL, we know for sure, that we don't hold the HEAD-lock.
+             */
+            run_other_threads(&sleepfunc, count);
+            /* The other threads might have modified the thread state chain, but fortunately we
+             * are done with it.
+             */
+        } else if (target_ts != cts) {
+            kill_pending_current_main_and_watchdogs(target_ts);
+            /* Here it is not safe to release the GIL. */
         }
+
+        /* other threads, second pass: kill tasklets with nesting-level > 0 and
+         * clear tstate if target_ts != NULL && target_ts != cts. */
+        csfirst = slp_cstack_chain;
+        if (csfirst == NULL) {
+            Py_XDECREF(sleepfunc);
+            return;
+        }
+
+        count = 0;
+        in_loop = 0;
+        for (cs = csfirst; !(in_loop && cs == csfirst); cs = cs->next) {
+            in_loop = 1;
+            t = cs->task;
+            if (t == NULL)
+                continue;
+            Py_INCREF(t);  /* cs->task is a borrowed ref */
+            assert(t->cstate == cs);
+            if (cs->tstate == cts) {
+                Py_DECREF(t);
+                continue;  /* already handled */
+            }
+            if (target_ts != NULL && cs->tstate != target_ts) {
+                Py_DECREF(t);
+                continue;  /* we are not interested in this thread */
+            }
+            if (((cs->tstate && cs->tstate->st.current == t) ? cs->tstate->st.nesting_level : cs->nesting_level) > 0) {
+                /* Kill only tasklets with nesting level > 0 */
+                count++;
+                PyTasklet_Kill(t);
+                PyErr_Clear();
+            }
+            Py_DECREF(t);
+            if (target_ts != NULL) {
+                cs->tstate = NULL;
+            }
+        }
+        if (target_ts == NULL) {
+            /* We must not release the GIL while we might hold the HEAD-lock.
+             * Otherwise another thread (usually the thread of the killed tasklet)
+             * could try to get the HEAD lock. The result would be a wonderful dead lock.
+             * If target_ts is NULL, we know for sure, that we don't hold the HEAD-lock.
+             */
+            run_other_threads(&sleepfunc, count);
+        }
+        Py_XDECREF(sleepfunc);
     }
 }
 
