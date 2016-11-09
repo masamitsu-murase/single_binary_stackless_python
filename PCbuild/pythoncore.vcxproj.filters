@@ -1019,6 +1019,9 @@
     <ClCompile Include="..\Modules\hashtable.c">
       <Filter>Modules</Filter>
     </ClCompile>
+    <ClCompile Include="..\PC\invalid_parameter_handler.c">
+      <Filter>PC</Filter>
+    </ClCompile>
     <ClCompile Include="..\Stackless\core\cframeobject.c">
       <Filter>Stackless\core</Filter>
     </ClCompile>
