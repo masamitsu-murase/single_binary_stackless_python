@@ -10,6 +10,13 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/92  
+  If you run Stackless with the option '-v' (or set the environment variable
+  PYTHONVERBOSE), Stackless prints a warning message, if it deallocates a
+  tasklet, that has C-state.
+  Additionally, the methods tasklet.bind() and tasklet.bind_thread() now check
+  correctly, if the tasklet has C-state.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/91
   Stackless now resets the recursion depth, if you re-bind
   a tasklet to another callable.

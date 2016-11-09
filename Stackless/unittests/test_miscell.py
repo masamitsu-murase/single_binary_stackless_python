@@ -9,6 +9,8 @@ import contextlib
 import weakref
 import types
 import _thread as thread
+import time
+from stackless import _test_nostacklesscall as apply
 
 from support import StacklessTestCase, AsTaskletTestCase
 try:
@@ -951,6 +953,34 @@ class TestBind(StacklessTestCase):
         tlet.run()
         self.assertEqual(tlet.recursion_depth, 0)
         self.assertEqual(self.recursion_depth_in_test, 1)
+
+    def test_unbind_fail_cstate_no_thread(self):
+        # https://bitbucket.org/stackless-dev/stackless/issues/92
+        loop = True
+
+        def task():
+            while loop:
+                try:
+                    stackless.main.switch()
+                except TaskletExit:
+                    pass
+
+        def other_thread_main():
+            tlet.bind_thread()
+            tlet.run()
+
+        tlet = stackless.tasklet().bind(apply, (task,))
+        t = threading.Thread(target=other_thread_main, name="other thread")
+        t.start()
+        t.join()
+        time.sleep(0.05)  # other_thread needs some time to be destroyed
+
+        loop = False
+        self.assertEqual(tlet.thread_id, -1)
+        self.assertFalse(tlet.alive)
+        self.assertFalse(tlet.restorable)
+        self.assertGreater(tlet.nesting_level, 0)
+        self.assertRaisesRegex(RuntimeError, "tasklet has C state on its stack", tlet.bind, None)
 
 
 class TestSwitch(StacklessTestCase):
