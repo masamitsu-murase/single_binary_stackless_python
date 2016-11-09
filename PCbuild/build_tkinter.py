@@ -16,7 +16,7 @@ TCL = "tcl-" + '.'.join(tclver)
 TK = "tk-8.6.1.0"
 TIX = "tix-8.4.3.4"
 
-ROOT = os.path.abspath(os.path.join(here, par, par))
+ROOT = os.path.abspath(os.path.join(here, par, 'externals'))
 NMAKE = ('nmake /nologo /f %s %s %s')
 
 def nmake(makefile, command="", **kw):
