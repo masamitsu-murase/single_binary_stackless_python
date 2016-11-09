@@ -1077,39 +1077,114 @@ PyTasklet_Throw_M(PyTaskletObject *self, int pending, PyObject *exc,
 }
 
 static PyObject *
-impl_tasklet_throw(PyTaskletObject *self, int pending, PyObject *exc, PyObject *val, PyObject *tb)
+#if PY_VERSION_HEX < 0x03030700
+#define SLP_IMPL_THROW_BOMB_WITH_BOE 1
+_impl_tasklet_throw_bomb(PyTaskletObject *self, int pending, PyObject *bomb, int bomb_on_error)
+#else
+#undef SLP_IMPL_THROW_BOMB_WITH_BOE
+_impl_tasklet_throw_bomb(PyTaskletObject *self, int pending, PyObject *bomb)
+#endif
 {
     STACKLESS_GETARG();
     PyThreadState *ts = PyThreadState_GET();
-    PyObject *ret, *bomb, *tmpval;
+    PyObject *ret, *tmpval;
     int fail;
 
-    if (ts->st.main == NULL)
-        return PyTasklet_Throw_M(self, pending, exc, val, tb);
-
-    bomb = slp_exc_to_bomb(exc, val, tb);
-    if (bomb == NULL)
-        return NULL;
-
+    assert(bomb != NULL);
+    assert(PyBomb_Check(bomb));
     /* raise it directly if target is ourselves.  delayed exception makes
      * no sense in this case
      */
-    if (ts->st.current == self)
+    if (ts->st.current == self) {
+        assert(self->cstate->tstate == ts);
         return slp_bomb_explode(bomb);
+    }
 
-    /* don't attempt to send to a dead tasklet.
-     * f.frame is null for the running tasklet and a dead tasklet
-     * A new tasklet has a CFrame
+    /* Handle new or dead tasklets.
      */
-    if (self->cstate->tstate == NULL || (self->f.frame == NULL && self != self->cstate->tstate->st.current)) {
-        /* however, allow tasklet exit errors for already dead tasklets */
-        if (PyObject_IsSubclass(((PyBombObject*)bomb)->curexc_type, PyExc_TaskletExit)) {
+    if (slp_get_frame(self) == NULL) {
+        /* The tasklet is not alive.
+         * There are a few special cases:
+         *  - The purpose of raising exception TaskletExit is to end the tasklet. Therefore
+         *    it is no error, if the tasklet already run to its end.
+         *  - Otherwise we have to raise a RuntimeError.
+         */
+        if (!PyObject_IsSubclass(((PyBombObject*)bomb)->curexc_type, PyExc_TaskletExit) ||
+            (self->cstate->tstate == NULL && self->f.frame != NULL)) {
+            /* Error: the exception is not TaskletExit or the tasklet did not run to its end. */
+#ifdef SLP_IMPL_THROW_BOMB_WITH_BOE
+            if (bomb_on_error)
+                return slp_bomb_explode(bomb);
+#endif
             Py_DECREF(bomb);
-            Py_RETURN_NONE;
+            if (self->cstate->tstate == NULL) {
+                RUNTIME_ERROR("tasklet has no thread", NULL);
+            }
+            RUNTIME_ERROR("You cannot throw to a dead tasklet", NULL);
+        }
+        /* A TaskletExit exception. The tasklet already ended (== can't be
+         * resurrected by bind_thread).
+         * Simply end the tasklet.
+         */
+        /* next two if()... just for test coverage mesurement */
+        if (self->cstate->tstate != NULL) {
+            assert(self->cstate->tstate != NULL);
+        }
+        if (self->f.frame == NULL) {
+            assert(self->f.frame == NULL);
         }
         Py_DECREF(bomb);
-        RUNTIME_ERROR("You cannot throw to a dead tasklet", NULL);
+
+        /* Now obey the post conditions of tasklet.throw:
+         * 1. the tasklet is not blocked
+         */
+        if (self->next && self->flags.blocked) {
+            /* we claim the channel's reference */
+            slp_channel_remove_slow(self, NULL, NULL, NULL);
+        } else {
+            Py_INCREF(self);
+        }
+        /* Obey the post conditions of throw():
+         * 2. the tasklet is not scheduled. This is also a precondition,
+         *    because a dead tasklet must not be scheduled.
+         */
+
+#if 0   /* disabled until https://bitbucket.org/stackless-dev/stackless/issues/81 is resolved */
+        assert(self->next == NULL && self->prev == NULL);
+#endif
+
+        /* Due to bugs the above assertion my not hold.
+         * Try to work around.
+         */
+        if (self->next) {
+            if (self->cstate->tstate != NULL) {
+                /* The tasklet has a tstate an is scheduled.
+                 * we can use the regular remove.
+                 */
+                slp_current_remove_tasklet(self);
+            } else {
+                /* The tasklet has no tstate, is not blocked on a channel.
+                 * This happens, if a thread ended, but the tasklet was
+                 * survived killing.
+                 */
+                SLP_HEADCHAIN_REMOVE(self, prev, next);
+            }
+            Py_DECREF(self);
+        }
+        Py_DECREF(self);  /* the ref from the channel */
+        Py_RETURN_NONE;
     }
+    assert(self->cstate->tstate != NULL);
+    /* don't modify a tasklet on an uninitialised or dead thread */
+    if (pending && self->cstate->tstate->st.main == NULL) {
+#ifdef SLP_IMPL_THROW_BOMB_WITH_BOE
+        if (bomb_on_error)
+            return slp_bomb_explode(bomb);
+#endif
+        Py_DECREF(bomb);
+        RUNTIME_ERROR("Target thread isn't initialised", NULL);
+    }
+
     TASKLET_CLAIMVAL(self, &tmpval);
     TASKLET_SETVAL_OWN(self, bomb);
     if (!pending) {
@@ -1138,6 +1213,30 @@ impl_tasklet_throw(PyTaskletObject *self, int pending, PyObject *exc, PyObject *
         TASKLET_SETVAL_OWN(self, tmpval);
     else
         Py_DECREF(tmpval);
+    return ret;
+}
+
+static PyObject *
+impl_tasklet_throw(PyTaskletObject *self, int pending, PyObject *exc, PyObject *val, PyObject *tb)
+{
+    STACKLESS_GETARG();
+    PyThreadState *ts = PyThreadState_GET();
+    PyObject *ret, *bomb;
+
+    if (ts->st.main == NULL)
+        return PyTasklet_Throw_M(self, pending, exc, val, tb);
+
+    bomb = slp_exc_to_bomb(exc, val, tb);
+    if (bomb == NULL)
+        return NULL;
+
+    STACKLESS_PROMOTE_ALL();
+#ifdef SLP_IMPL_THROW_BOMB_WITH_BOE
+    ret = _impl_tasklet_throw_bomb(self, pending, bomb, 0);
+#else
+    ret = _impl_tasklet_throw_bomb(self, pending, bomb);
+#endif
+    STACKLESS_ASSERT();
     return ret;
 }
 
@@ -1191,27 +1290,22 @@ impl_tasklet_raise_exception(PyTaskletObject *self, PyObject *klass, PyObject *a
 {
     STACKLESS_GETARG();
     PyThreadState *ts = PyThreadState_GET();
-    PyObject *ret, *bomb, *tmpval;
-    int fail;
+    PyObject *ret, *bomb;
 
     if (ts->st.main == NULL)
         return PyTasklet_RaiseException_M(self, klass, args);
     bomb = slp_make_bomb(klass, args, "tasklet.raise_exception");
     if (bomb == NULL)
         return NULL;
-    if (ts->st.current == self)
-        return slp_bomb_explode(bomb);
-    /* if the tasklet is dead, do not run it (no frame) but explode */
-    if (slp_get_frame(self) == NULL)
-        return slp_bomb_explode(bomb);
 
-    TASKLET_CLAIMVAL(self, &tmpval);
-    TASKLET_SETVAL_OWN(self, bomb);
-    fail = slp_schedule_task(&ret, ts->st.current, self, stackless, 0);
-    if (fail)
-        TASKLET_SETVAL_OWN(self, tmpval);
-    else
-        Py_DECREF(tmpval);
+    STACKLESS_PROMOTE_ALL();
+#ifdef SLP_IMPL_THROW_BOMB_WITH_BOE
+    ret = _impl_tasklet_throw_bomb(self, 0, bomb, 1);
+#else
+    ret = _impl_tasklet_throw_bomb(self, 0, bomb);
+#endif
+    STACKLESS_ASSERT();
+
     return ret;
 }
 
@@ -1256,20 +1350,38 @@ impl_tasklet_kill(PyTaskletObject *task, int pending)
     STACKLESS_GETARG();
     PyObject *ret;
 
-    /*
-     * silently do nothing if the tasklet is dead.
-     * simple raising would kill ourself in this case.
+    /* We might be called without a thread state. If the tasklet
+     * still has a frame, impl_tasklet_throw() will raise
+     * RuntimeError. Therefore we need either to bind the tasklet to
+     * a thread or drop its frames. Both makes sense, but the documentation
+     * states, that Stackless does not silently change the thread of
+     * a tasklet. Therefore we drop the frames.
      */
-    if (slp_get_frame(task) == NULL) {
-        /* it can still be a new tasklet and not a dead one */
-        Py_CLEAR(task->f.cframe);
-        if (task->next) {
-            /* remove it from the run queue */
-            assert(!task->flags.blocked);
-            slp_current_remove_tasklet(task);
-            Py_DECREF(task);
+    assert(task->cstate);
+    if (task->cstate->tstate == NULL) {
+#ifdef SLP_TASKLET_KILL_REBINDS_THREAD
+        /* No thread state. Silently bind the tasklet to
+         * the current thread or drop its frames.
+         * Either action prevents an error in impl_tasklet_throw().
+         */
+        if (task->cstate->nesting_level == 0 && task->f.frame) {
+            /* rebind to the current thread */
+            PyObject *arg = PyTuple_New(0);
+            if (arg == NULL)
+                return NULL;
+            ret = tasklet_bind_thread((PyObject *)task, arg);
+            Py_DECREF(arg);
+            assert(ret != NULL); /* should not fail, if nesting_level is 0 */
+            if (ret == NULL)  /* in case of a bug */
+                return NULL;
+            Py_DECREF(ret);
+        } else {
+            Py_CLEAR(task->f.frame);  /* or better tasklet_clear_frames(task) ? */
         }
-        Py_RETURN_NONE;
+#else
+        /* drop the frame */
+        Py_CLEAR(task->f.frame);  /* or better tasklet_clear_frames(task) ? */
+#endif
     }
 
     /* we might be called after exceptions are gone */
