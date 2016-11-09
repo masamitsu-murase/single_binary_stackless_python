@@ -218,7 +218,7 @@ PyAPI_FUNC(PyTaskletObject *) slp_get_watchdog(PyThreadState *ts, int interrupt)
 
 #define STACKLESS_DECLARE_METHOD(type, meth)
 
-/* This can be set to 0 to completely disable the augmentation of
+/* This can be set to 1 to completely disable the augmentation of
  * type info with stackless property.  For debugging.
  */
 #define STACKLESS_NO_TYPEINFO 0
