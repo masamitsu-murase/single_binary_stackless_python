@@ -440,6 +440,7 @@ class TestNewWatchdog(StacklessTestCase):
         except AssertionError:
             self.watchdog_list[0] = None
             self.watchdog_list[1:] = []
+            raise
         super(TestNewWatchdog, self).tearDown()
 
     def test_run_from_worker(self):
@@ -559,7 +560,7 @@ class TestNewWatchdog(StacklessTestCase):
 
         def task():
             while True:
-                for i in range(200):
+                for i in range(500):
                     i = i
                 stackless.schedule()
 
@@ -607,7 +608,6 @@ class TestNewWatchdog(StacklessTestCase):
         stackless.run()
         self.assertEqual(self.done, 2)
 
-    @unittest.skip("issue #85, assertion violation")
     def test_watchdog_priority_soft(self):
         """Verify that outermost "real" watchdog gets awoken"""
         self._test_watchdog_priority(True)

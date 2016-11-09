@@ -5,20 +5,20 @@ import unittest
 import stackless
 import sys
 import traceback
-import contextlib
 import weakref
 import types
-import _thread as thread
+import contextlib
 import time
 import os
 from stackless import _test_nostacklesscall as apply
-
-from support import StacklessTestCase, AsTaskletTestCase, require_one_thread
 try:
+    import _thread as thread
     import threading
     withThreads = True
 except:
     withThreads = False
+
+from support import StacklessTestCase, AsTaskletTestCase, require_one_thread
 
 
 def is_soft():
@@ -504,6 +504,7 @@ class TestKill(StacklessTestCase):
         self.assertFalse(t.alive)
         self.assertEqual(t.thread_id, stackless.current.thread_id)
 
+    @unittest.skipUnless(withThreads, "requires thread support")
     @require_one_thread
     def test_kill_thread_without_main_tasklet(self):
         # this test depends on a race condition.
@@ -607,15 +608,19 @@ class TestKill(StacklessTestCase):
             tlet.remove()
             tlet.kill()
 
+    @unittest.skipUnless(withThreads, "requires thread support")
     def test_kill_without_thread_state_nl0(self):
         return self._test_kill_without_thread_state(0, False)
 
+    @unittest.skipUnless(withThreads, "requires thread support")
     def test_kill_without_thread_state_nl1(self):
         return self._test_kill_without_thread_state(1, False)
 
+    @unittest.skipUnless(withThreads, "requires thread support")
     def test_kill_without_thread_state_blocked_nl0(self):
         return self._test_kill_without_thread_state(0, True)
 
+    @unittest.skipUnless(withThreads, "requires thread support")
     def test_kill_without_thread_state_blocked_nl1(self):
         return self._test_kill_without_thread_state(1, True)
 
@@ -1011,6 +1016,7 @@ class TestBind(StacklessTestCase):
         self.assertFalse(t.scheduled)
         t.run()
 
+    @unittest.skipUnless(withThreads, "requires thread support")
     def test_unbind_main(self):
         self.skipUnlessSoftswitching()
 
@@ -1034,6 +1040,7 @@ class TestBind(StacklessTestCase):
         t.join()
         self.assertTrue(done[0])
 
+    @unittest.skipUnless(withThreads, "requires thread support")
     def test_rebind_main(self):
         # rebind the main tasklet of a thread. This is highly discouraged,
         # because it will deadlock, if the thread is a non daemon threading.Thread.
@@ -1086,6 +1093,7 @@ class TestBind(StacklessTestCase):
         self.assertEqual(tlet.recursion_depth, 0)
         self.assertEqual(self.recursion_depth_in_test, 1)
 
+    @unittest.skipUnless(withThreads, "requires thread support")
     def test_unbind_fail_cstate_no_thread(self):
         # https://bitbucket.org/stackless-dev/stackless/issues/92
         loop = True

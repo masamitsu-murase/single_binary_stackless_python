@@ -34,9 +34,8 @@ What's New in Stackless 3.X.X?
 - https://bitbucket.org/stackless-dev/stackless/issues/81
   Fix (crash) bugs during thread and interpreter shutdown.
   If a thread dies, Stackless now really kills tasklets with C-state. During
-  interpreter shutdown, Stackless also kills daemon threads, if they execute
-  Python code or switch tasklets. This change avoids crashes during a later
-  shutdown stage.
+  interpreter shutdown, Stackless also kills daemon threads, if they switch
+  tasklets. This change avoids crashes during a later shutdown stage.
 
 - https://bitbucket.org/stackless-dev/stackless/issues/92
   If you run Stackless with the option '-v' (or set the environment variable

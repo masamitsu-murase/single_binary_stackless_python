@@ -516,9 +516,6 @@ other_threads:
                      */
                     count++;
                     kill_pending_current_main_and_watchdogs(ts);
-                    /* It helps to inactivate threads reliably */
-                    if (PyExc_TaskletExit)
-                        PyThreadState_SetAsyncExc(ts->thread_id, PyExc_TaskletExit);
                 }
             }
             /* We must not release the GIL while we might hold the HEAD-lock.
