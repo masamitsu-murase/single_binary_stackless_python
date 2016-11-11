@@ -119,8 +119,9 @@ class Schedule(StacklessTestCase):
             stackless.schedule_remove()
             self.fail("We shouldn't be here")
         stackless.run()  # flush all runnables
-        stackless.tasklet(func)(self)
+        t = stackless.tasklet(func)(self)
         stackless.run()
+        t.kill()  # avoid a resource leak caused by an uncollectable tasklet
 
     @require_one_thread
     def testScheduleRemove2(self):
@@ -383,6 +384,7 @@ class TestShutdown(StacklessTestCase):
         tasklet of other thread ended. To do so, it creates a new temporary main tasklet. The
         assertion failure happens during the end of the killed tasklet.
         """
+        self.skipUnlessSoftswitching()
         if True:
             def print(*args):
                 pass
@@ -401,7 +403,7 @@ class TestShutdown(StacklessTestCase):
             print("Other thread paused", self.tlet)
             self.tlet.run()
             self.assertGreaterEqual(self.tlet.recursion_depth, 2)
-            self.tlet.bind(lambda: None, ())
+            self.tlet.bind(lambda: None, ())  # requires soft switching
             self.assertEqual(self.tlet.recursion_depth, 0)
             # before issue #91 got fixed, the assertion violation occurred here
 

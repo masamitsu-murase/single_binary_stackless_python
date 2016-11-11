@@ -652,6 +652,9 @@ class TestNewWatchdog(StacklessTestCase):
         stackless.run()
         self.assertLessEqual([None], self.watchdog_list)
         stackless.run()
+        # avoid a resource leak
+        for t in tasklets:
+            t.kill()
 
     def test_schedule_deeper_soft(self):
         self._test_schedule_deeper(True)
