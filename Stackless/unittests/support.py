@@ -29,7 +29,10 @@ import stackless
 import weakref
 import pickle
 import inspect
+import gc
 
+# emit warnings about uncollectable objects
+gc.set_debug(gc.DEBUG_UNCOLLECTABLE)
 try:
     long
 except NameError:
@@ -259,6 +262,7 @@ class StacklessTestCase(unittest.TestCase, StacklessTestCaseMixin):
                     activeThreads.pop().join(0.5)
                 active_count = threading.active_count()
             self.assertEqual(active_count, expected_thread_count, "Leakage from other threads, with %d threads running (%d expected)" % (active_count, expected_thread_count))
+        gc.collect()  # emits warnings about uncollectable objects after each test
 
     # limited pickling support for test cases
     # Between setUp() and tearDown() the test-case has a
