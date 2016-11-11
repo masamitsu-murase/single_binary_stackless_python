@@ -4,7 +4,7 @@ import unittest
 import stackless
 import sys
 import time
-from stackless import _test_nostacklesscall as apply
+from stackless import _test_nostacklesscall as apply_not_stackless
 
 from support import StacklessTestCase, AsTaskletTestCase
 try:
@@ -410,7 +410,7 @@ class DeadThreadTest(RemoteTaskletTests):
             tlet.bind_thread()
             tlet.run()
 
-        tlet = stackless.tasklet().bind(apply, (task,))
+        tlet = stackless.tasklet().bind(apply_not_stackless, (task,))
         t = threading.Thread(target=other_thread_main, name="other thread")
         t.start()
         t.join()

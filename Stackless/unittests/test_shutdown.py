@@ -41,7 +41,7 @@ import time
 import collections
 import unittest
 import subprocess
-from stackless import _test_nostacklesscall as apply
+from stackless import _test_nostacklesscall as apply_not_stackless
 try:
     import _thread as thread
     import threading
@@ -107,7 +107,7 @@ class TestThreadShutdown(StacklessTestCase):
 
     def testThreadShutdown_nl1(self):
         def func(main):
-            apply(main.run)
+            apply_not_stackless(main.run)
         self._test_thread_shutdown(func, True)
 
     def testThreadShutdown_nl0_blocked(self):
@@ -121,7 +121,7 @@ class TestThreadShutdown(StacklessTestCase):
         c = stackless.channel()
 
         def func(main):
-            apply(c.receive)
+            apply_not_stackless(c.receive)
         self._test_thread_shutdown(func, True)
 
 
@@ -331,7 +331,7 @@ class Test(object):
             if nesting_level == 0:
                 func(bool(self.stackless_getcurrent().nesting_level), case)
             else:
-                apply(func, True, case)
+                apply_not_stackless(func, True, case)
             # From here on modules and globals are unavailable.
             # Only local variables and closures can be used.
         except self.TaskletExit:
