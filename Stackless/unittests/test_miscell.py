@@ -10,7 +10,7 @@ import types
 import contextlib
 import time
 import os
-from stackless import _test_nostacklesscall as apply
+from stackless import _test_nostacklesscall as apply_not_stackless
 try:
     import _thread as thread
     import threading
@@ -577,7 +577,7 @@ class TestKill(StacklessTestCase):
         if nl == 0:
             tlet = stackless.tasklet().bind(task, ())
         else:
-            tlet = stackless.tasklet().bind(apply, (task,))
+            tlet = stackless.tasklet().bind(apply_not_stackless, (task,))
         t = threading.Thread(target=other_thread_main, name="other thread")
         t.start()
         t.join()
@@ -1109,7 +1109,7 @@ class TestBind(StacklessTestCase):
             tlet.bind_thread()
             tlet.run()
 
-        tlet = stackless.tasklet().bind(apply, (task,))
+        tlet = stackless.tasklet().bind(apply_not_stackless, (task,))
         t = threading.Thread(target=other_thread_main, name="other thread")
         t.start()
         t.join()
