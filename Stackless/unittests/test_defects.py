@@ -12,7 +12,7 @@ try:
 except:
     withThreads = False
 
-from stackless import _test_nostacklesscall as apply
+from stackless import _test_nostacklesscall as apply_not_stackless
 from support import StacklessTestCase, captured_stderr, require_one_thread
 
 
@@ -93,7 +93,7 @@ class TestTaskletDel(StacklessTestCase):
         def other_thread_main():
             # print("other thread started")
             self.assertIs(stackless.main, stackless.current)
-            tasklet2 = stackless.tasklet(apply)(stackless.main.run,)
+            tasklet2 = stackless.tasklet(apply_not_stackless)(stackless.main.run,)
             # print("OT Main:", stackless.main)
             # print("OT tasklet2:", tasklet2)
             tasklet2.run()
@@ -119,8 +119,9 @@ class Schedule(StacklessTestCase):
             stackless.schedule_remove()
             self.fail("We shouldn't be here")
         stackless.run()  # flush all runnables
-        stackless.tasklet(func)(self)
+        t = stackless.tasklet(func)(self)
         stackless.run()
+        t.kill()  # avoid a resource leak caused by an uncollectable tasklet
 
     @require_one_thread
     def testScheduleRemove2(self):
@@ -290,13 +291,13 @@ class TestShutdown(StacklessTestCase):
         import subprocess
         rc = subprocess.call([sys.executable, "-S", "-E", "-c", """if 1:
             import stackless, sys
-            from stackless import _test_nostacklesscall as apply
+            from stackless import _test_nostacklesscall as apply_not_stackless
 
             def func():
                 global channel
                 assert stackless.current.nesting_level == 0
-                assert apply(lambda : stackless.current.nesting_level) == 1, "apply does not recurse"
-                apply(channel.receive)  # crash at nesting level 1
+                assert apply_not_stackless(lambda : stackless.current.nesting_level) == 1, "apply_not_stackless does not recurse"
+                apply_not_stackless(channel.receive)  # crash at nesting level 1
 
             channel = stackless.channel()
             task = stackless.tasklet().bind(func, ())  # simplest tasklet
@@ -315,7 +316,7 @@ class TestShutdown(StacklessTestCase):
             import stackless
             import os
             import time
-            from stackless import _test_nostacklesscall as apply
+            from stackless import _test_nostacklesscall as apply_not_stackless
 
             # This lock is used as a simple event variable.
             ready = thread.allocate_lock()
@@ -337,7 +338,7 @@ class TestShutdown(StacklessTestCase):
                     assert stackless.main.nesting_level == 0
                     self.main = stackless.main
                     assert stackless.main is stackless.current
-                    t1 = stackless.tasklet(apply)(self.main.switch)
+                    t1 = stackless.tasklet(apply_not_stackless)(self.main.switch)
                     t1.run()
                     assert t1.paused
                     assert t1.nesting_level == 1
@@ -383,6 +384,7 @@ class TestShutdown(StacklessTestCase):
         tasklet of other thread ended. To do so, it creates a new temporary main tasklet. The
         assertion failure happens during the end of the killed tasklet.
         """
+        self.skipUnlessSoftswitching()
         if True:
             def print(*args):
                 pass
@@ -401,7 +403,7 @@ class TestShutdown(StacklessTestCase):
             print("Other thread paused", self.tlet)
             self.tlet.run()
             self.assertGreaterEqual(self.tlet.recursion_depth, 2)
-            self.tlet.bind(lambda: None, ())
+            self.tlet.bind(lambda: None, ())  # requires soft switching
             self.assertEqual(self.tlet.recursion_depth, 0)
             # before issue #91 got fixed, the assertion violation occurred here
 
