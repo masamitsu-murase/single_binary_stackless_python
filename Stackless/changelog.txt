@@ -9,6 +9,12 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/99
+  On UNIX like systems you can use the command 
+  $ make teststackless
+  to run the Stackless unit tests. Previously the command required some non
+  POSIX commands.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/97
   Fix the stack switching for optimized builds for all Unix-like architectures
   except amd64, where it was already OK. This change removes the "static"
