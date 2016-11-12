@@ -82,7 +82,8 @@ class LingeringThread(threading.Thread):
 
     def join(self):
         self.shutdown.set()
-        return super(LingeringThread, self).join()
+        super(LingeringThread, self).join()
+        time.sleep(0.01)  # give the thread a chance to clean up
 
     def __enter__(self):
         pass
@@ -351,6 +352,7 @@ class DeadThreadTest(RemoteTaskletTests):
         theThread, t = self.create_thread_task()
         self.assertTrue(t.alive)
         theThread.join()
+        time.sleep(0.01)  # give the thread a short time to clean up
         # now the tasklet should have been killed.
         self.assertFalse(t.alive)
 
@@ -360,6 +362,7 @@ class DeadThreadTest(RemoteTaskletTests):
         t.remove()
         self.assertFalse(t.scheduled)
         theThread.join()
+        time.sleep(0.01)  # give the thread a short time to clean up
         # now the tasklet should have been killed.
         self.assertFalse(t.alive)
 
