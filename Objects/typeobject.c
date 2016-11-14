@@ -4848,6 +4848,7 @@ wrap_next(PyObject *self, PyObject *args, void *wrapped)
     STACKLESS_PROMOTE_ALL();
     res = (*func)(self);
     STACKLESS_ASSERT();
+    STACKLESS_ASSERT_UNWINDING_VALUE_IS_NOT(res, NULL);
     if (res == NULL && !PyErr_Occurred())
         PyErr_SetNone(PyExc_StopIteration);
     return res;

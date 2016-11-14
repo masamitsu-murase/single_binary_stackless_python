@@ -181,6 +181,9 @@ PyAPI_FUNC(PyTaskletObject *) slp_get_watchdog(PyThreadState *ts, int interrupt)
 #define STACKLESS_RETVAL(obj) \
     (STACKLESS_UNWINDING(obj) ? Py_UnwindToken->tempval : (obj))
 
+#define STACKLESS_ASSERT_UNWINDING_VALUE_IS_NOT(obj, val) \
+    assert(!STACKLESS_UNWINDING(obj) || ((Py_UnwindToken->tempval) != (val)))
+
 /* macros for setting/resetting the stackless flag */
 
 #define STACKLESS_POSSIBLE()                                        \
@@ -577,6 +580,7 @@ PyObject * slp_tp_init_callback(PyFrameObject *f, int exc, PyObject *retval);
 #define STACKLESS_ASSERT() assert(1)
 
 #define STACKLESS_RETVAL(obj) (obj)
+#define STACKLESS_ASSERT_UNWINDING_VALUE_IS_NOT(val) assert(1)
 
 #define STACKLESS_DECLARE_METHOD(type, meth)
 
