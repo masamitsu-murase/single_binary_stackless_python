@@ -490,6 +490,19 @@ class TestCPickleBombHandling(StacklessTestCase):
             raise (self.killed[0], self.killed[1], self.killed[2])
         self.assertIsNone(self.killed)
 
+
+class TestFrameClear(StacklessTestCase):
+    def test_frame_clear(self):
+        # a test for Stackless issue #66
+        # https://bitbucket.org/stackless-dev/stackless/issues/66
+        def generator():
+            yield None
+
+        geniter = generator()
+        frame = geniter.gi_frame
+        frame.clear()  # causes the failure
+
+
 if __name__ == '__main__':
     if not sys.argv[1:]:
         sys.argv.append('-v')
