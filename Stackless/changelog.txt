@@ -10,8 +10,13 @@ What's New in Stackless 2.7.XX?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/101
+  Enhance Tools/gdb/libpython.py to support debugging Stackless Python.
+  You can now debug Stackless Python with gdb. Unfortunately gdb still
+  does not know about inactive tasklets and their frames.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/99
-  On UNIX like systems you can use the command 
+  On UNIX like systems you can use the command
   $ make teststackless
   to run the Stackless unit tests. Previously the command required some non
   POSIX commands.
