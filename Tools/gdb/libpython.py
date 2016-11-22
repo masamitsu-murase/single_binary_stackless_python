@@ -86,6 +86,10 @@ hexdigits = "0123456789abcdef"
 
 ENCODING = locale.getpreferredencoding()
 
+# name of the evalframeex function. It CPython and Stackless Python
+# use different names
+EVALFRAMEEX_FUNCTION_NAME = None
+
 class NullPyObjectPtr(RuntimeError):
     pass
 
@@ -1426,7 +1430,17 @@ class Frame(object):
 
     def is_evalframeex(self):
         '''Is this a PyEval_EvalFrameEx frame?'''
-        if self._gdbframe.name() == 'PyEval_EvalFrameEx':
+        global EVALFRAMEEX_FUNCTION_NAME
+        if EVALFRAMEEX_FUNCTION_NAME is None:
+            try:
+                gdb.lookup_type("PyCFrameObject")
+                # it is Stackless Python
+                EVALFRAMEEX_FUNCTION_NAME = 'PyEval_EvalFrame_value'
+            except gdb.error:
+                # regular CPython
+                EVALFRAMEEX_FUNCTION_NAME = 'PyEval_EvalFrameEx'
+
+        if self._gdbframe.name() == EVALFRAMEEX_FUNCTION_NAME:
             '''
             I believe we also need to filter on the inline
             struct frame_id.inline_depth, only regarding frames with
