@@ -10,6 +10,7 @@ import types
 import contextlib
 import time
 import os
+import struct
 from stackless import _test_nostacklesscall as apply_not_stackless
 try:
     import _thread as thread
@@ -1222,6 +1223,30 @@ class TestModule(StacklessTestCase):
 
     def test_threads(self):
         self.assertEqual(type(stackless.threads), list)
+
+
+class TestCstate(StacklessTestCase):
+    def test_cstate(self):
+        self.assertIsInstance(stackless.main.cstate, stackless.cstack)
+
+    def test_str_size(self):
+        c = stackless.main.cstate
+        s = str(c)
+        self.assertEqual(len(s), c.size * struct.calcsize("P"))
+
+    def test_nesting_level(self):
+        c = stackless.main.cstate
+        l1 = c.nesting_level
+        self.assertIsInstance(l1, int)
+
+    def test_chain(self):
+        start = stackless.main.cstate
+        c = start.next
+        self.assertIsNot(c, start)
+        while(c is not start):
+            self.assertIsInstance(c, stackless.cstack)
+            self.assertIs(c.prev.next, c)
+            c = c.next
 
 
 #///////////////////////////////////////////////////////////////////////////////
