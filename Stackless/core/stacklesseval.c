@@ -189,11 +189,12 @@ Note: For inspection, str() can dump it as a string.\
 
 
 static PyMemberDef cstack_members[] = {
-    {"size", T_INT, offsetof(PyCStackObject, ob_base.ob_size), READONLY},
+    {"size", T_PYSSIZET, offsetof(PyCStackObject, ob_base.ob_size), READONLY},
     {"next", T_OBJECT, offsetof(PyCStackObject, next), READONLY},
     {"prev", T_OBJECT, offsetof(PyCStackObject, prev), READONLY},
     {"task", T_OBJECT, offsetof(PyCStackObject, task), READONLY},
     {"startaddr", T_ADDR, offsetof(PyCStackObject, startaddr), READONLY},
+    {"nesting_level", T_INT, offsetof(PyCStackObject, nesting_level), READONLY},
     {0}
 };
 
@@ -203,8 +204,9 @@ static PyObject *
 cstack_str(PyObject *o)
 {
     PyCStackObject *cst = (PyCStackObject*)o;
-    return PyUnicode_FromStringAndSize((char*)&cst->stack,
-        Py_SIZE(cst)*sizeof(cst->stack[0]));
+    return PyUnicode_Decode((char*)&cst->stack,
+        Py_SIZE(cst)*sizeof(cst->stack[0]),
+		"latin_1", "strict");
 }
 
 PyTypeObject PyCStack_Type = {
