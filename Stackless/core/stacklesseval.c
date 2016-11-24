@@ -189,11 +189,12 @@ Note: For inspection, str() can dump it as a string.\
 
 
 static PyMemberDef cstack_members[] = {
-    {"size", T_INT, offsetof(PyCStackObject, ob_size), READONLY},
+    {"size", T_PYSSIZET, offsetof(PyCStackObject, ob_size), READONLY},
     {"next", T_OBJECT, offsetof(PyCStackObject, next), READONLY},
     {"prev", T_OBJECT, offsetof(PyCStackObject, prev), READONLY},
     {"task", T_OBJECT, offsetof(PyCStackObject, task), READONLY},
     {"startaddr", T_ADDR, offsetof(PyCStackObject, startaddr), READONLY},
+    {"nesting_level", T_INT, offsetof(PyCStackObject, nesting_level), READONLY},
     {0}
 };
 
@@ -382,7 +383,7 @@ run_other_threads(PyObject **sleep, int count)
         /* shortcut */
         return;
     }
-    
+
     assert(sleep != NULL);
     if (*sleep == NULL) {
         /* get a reference to time.sleep() */
