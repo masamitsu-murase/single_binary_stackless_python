@@ -493,6 +493,7 @@ class TestCPickleBombHandling(StacklessTestCase):
         else:
             self.killed = False
 
+    @unittest.skipUnless(withThreads, "requires thread support")
     def test_kill_during_cPickle_stack_switch(self):
         # this test kills the main/current tasklet of a other-thread,
         # which is fast-pickling a recursive structure. This leads to an
