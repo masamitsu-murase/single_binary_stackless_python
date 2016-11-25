@@ -550,7 +550,10 @@ other_threads:
             if (t == NULL)
                 continue;
             Py_INCREF(t);  /* cs->task is a borrowed ref */
-            assert(t->cstate == cs);
+            if (t->cstate != cs) {
+                Py_DECREF(t);
+                continue;  /* not the current cstate of the tasklet */
+            }
             if (cs->tstate == cts) {
                 Py_DECREF(t);
                 continue;  /* already handled */

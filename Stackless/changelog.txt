@@ -9,6 +9,9 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/103
+  Fix an invalid assertion during interpreter shutdown.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/101
   Enhance Tools/gdb/libpython.py to support debugging Stackless Python.
   You can now debug Stackless Python with gdb. Unfortunately gdb still
