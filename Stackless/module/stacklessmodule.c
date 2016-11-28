@@ -137,7 +137,7 @@ PyThreadState *slp_initial_tstate = NULL;
 
 static void *slp_error_handler = NULL;
 
-int 
+int
 slp_pickle_with_tracing_state()
 {
     PyObject *flag;
@@ -316,7 +316,7 @@ PyStackless_GetCurrentId(void)
     PyThreadState *ts = PyThreadState_GET();
 #endif
     PyTaskletObject *t = NULL;
-    /* if there is threadstate, and there is a main tasklet, then the 
+    /* if there is threadstate, and there is a main tasklet, then the
      * "current" is the actively running tasklet.
      * If there isn't a "main", then the tasklet in "current" is merely a
      * runnable one
@@ -1150,7 +1150,7 @@ build_args(char *format, va_list va)
         return PyTuple_New(0);
     if (args == NULL)
         return NULL;
-    
+
     if (!PyTuple_Check(args)) {
         PyObject *a;
         a = PyTuple_New(1);
