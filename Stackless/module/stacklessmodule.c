@@ -1674,6 +1674,9 @@ static int init_stackless_methods(void)
 int
 _PyStackless_InitTypes(void)
 {
+    /* record the thread state for thread support */
+    slp_initial_tstate = PyThreadState_GET();
+
     if (0
         || init_stackless_methods()
         || PyType_Ready(&PyTasklet_Type) /* need this early for the main tasklet */
@@ -1709,9 +1712,6 @@ PyInit__stackless(void)
         || PyType_Ready(&PyAtomic_Type)
         )
         return NULL;
-
-    /* record the thread state for thread support */
-    slp_initial_tstate = PyThreadState_GET();
 
     /* Create the module and add the functions */
     slp_module = PyModule_Create(&stacklessmodule);
