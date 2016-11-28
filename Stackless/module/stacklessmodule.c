@@ -137,7 +137,7 @@ PyThreadState *slp_initial_tstate = NULL;
 
 static void *slp_error_handler = NULL;
 
-int 
+int
 slp_pickle_with_tracing_state()
 {
     PyObject *flag, *slp_module;
@@ -315,7 +315,7 @@ PyStackless_GetCurrentId(void)
     PyThreadState *ts = PyThreadState_GET();
 #endif
     PyTaskletObject *t = NULL;
-    /* if there is threadstate, and there is a main tasklet, then the 
+    /* if there is threadstate, and there is a main tasklet, then the
      * "current" is the actively running tasklet.
      * If there isn't a "main", then the tasklet in "current" is merely a
      * runnable one
@@ -1144,7 +1144,7 @@ build_args(char *format, va_list va)
         return PyTuple_New(0);
     if (args == NULL)
         return NULL;
-    
+
     if (!PyTuple_Check(args)) {
         PyObject *a;
         a = PyTuple_New(1);
@@ -1674,6 +1674,9 @@ static int init_stackless_methods(void)
 int
 _PyStackless_InitTypes(void)
 {
+    /* record the thread state for thread support */
+    slp_initial_tstate = PyThreadState_GET();
+
     if (0
         || init_stackless_methods()
         || PyType_Ready(&PyTasklet_Type) /* need this early for the main tasklet */
@@ -1709,9 +1712,6 @@ PyInit__stackless(void)
         || PyType_Ready(&PyAtomic_Type)
         )
         return NULL;
-
-    /* record the thread state for thread support */
-    slp_initial_tstate = PyThreadState_GET();
 
     /* Create the module and add the functions */
     slp_module = PyModule_Create(&stacklessmodule);
