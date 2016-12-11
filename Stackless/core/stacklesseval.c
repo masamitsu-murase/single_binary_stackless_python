@@ -377,7 +377,7 @@ kill_pending_current_main_and_watchdogs(PyThreadState *ts)
 }
 
 static void
-run_other_threads(PyObject **sleep, int count)
+run_other_threads(PyObject **sleep, Py_ssize_t count)
 {
     if (count == 0) {
         /* shortcut */
@@ -545,10 +545,10 @@ other_threads:
      * states.  That will hopefully happen when their threads exit.
      */
     {
-        PyCStackObject *csfirst, *cs;
+        PyCStackObject *cs;
         PyTaskletObject *t;
         PyObject *sleepfunc = NULL;
-        int count;
+        Py_ssize_t count;
 
         /* other threads, first pass: kill (pending) current, main and watchdog tasklets */
         if (target_ts == NULL) {
@@ -580,50 +580,120 @@ other_threads:
 
         /* other threads, second pass: kill tasklets with nesting-level > 0 and
          * clear tstate if target_ts != NULL && target_ts != cts. */
-        csfirst = slp_cstack_chain;
-        if (csfirst == NULL) {
+        if (slp_cstack_chain == NULL) {
             Py_XDECREF(sleepfunc);
             goto current_main;
         }
 
         count = 0;
         in_loop = 0;
-        for (cs = csfirst; !(in_loop && cs == csfirst); cs = cs->next) {
+        /* build a tuple of all tasklets to be killed:
+         * 1. count the tasklets
+         * 2. alloc a tuple and record them
+         * 3. kill them
+         * Steps 1 and 2 must not run Python code (release the GIL), because another thread could
+         * modify slp_cstack_chain.
+         */
+        for(cs = slp_cstack_chain; cs != slp_cstack_chain || in_loop == 0; cs = cs->next) {
+            /* Count tasklets to be killed.
+             * This loop body must not release the GIL
+             */
+            assert(cs);
+            assert(cs->next);
+            assert(cs->next->prev == cs);
             in_loop = 1;
             t = cs->task;
             if (t == NULL)
                 continue;
-            Py_INCREF(t);  /* cs->task is a borrowed ref */
             if (t->cstate != cs) {
-                Py_DECREF(t);
                 continue;  /* not the current cstate of the tasklet */
             }
             if (cs->tstate == NULL || cs->tstate == cts) {
-                Py_DECREF(t);
                 continue;  /* already handled */
             }
             if (target_ts != NULL && cs->tstate != target_ts) {
-                Py_DECREF(t);
                 continue;  /* we are not interested in this thread */
             }
-            if (((cs->tstate && cs->tstate->st.current == t) ? cs->tstate->st.nesting_level : cs->nesting_level) > 0) {
+            if (((cs->tstate && cs->tstate->st.current == t) ?
+                cs->tstate->st.nesting_level : cs->nesting_level) > 0) {
                 /* Kill only tasklets with nesting level > 0 */
                 count++;
-                PyTasklet_Kill(t);
-                PyErr_Clear();
-            }
-            Py_DECREF(t);
-            if (target_ts != NULL) {
-                cs->tstate = NULL;
             }
         }
-        if (target_ts == NULL) {
-            /* We must not release the GIL while we might hold the HEAD-lock.
-             * Otherwise another thread (usually the thread of the killed tasklet)
-             * could try to get the HEAD lock. The result would be a wonderful dead lock.
-             * If target_ts is NULL, we know for sure, that we don't hold the HEAD-lock.
-             */
-            run_other_threads(&sleepfunc, count);
+        assert(cs == slp_cstack_chain);
+        if (count > 0) {
+            PyObject *tasklets = PyTuple_New(count);
+            if (NULL == tasklets) {
+                PyErr_Print();
+                return;
+            }
+            assert(cs == slp_cstack_chain);
+            for(in_loop = 0, count=0; cs != slp_cstack_chain || in_loop == 0; cs = cs->next) {
+                /* Record tasklets to be killed.
+                 * This loop body must not release the GIL.
+                 */
+                assert(cs);
+                assert(cs->next);
+                assert(cs->next->prev == cs);
+                in_loop = 1;
+                t = cs->task;
+                if (t == NULL)
+                    continue;
+                if (t->cstate != cs) {
+                    continue;  /* not the current cstate of the tasklet */
+                }
+                if (cs->tstate == NULL || cs->tstate == cts) {
+                    continue;  /* already handled */
+                }
+                if (target_ts != NULL && cs->tstate != target_ts) {
+                    continue;  /* we are not interested in this thread */
+                }
+                if (((cs->tstate && cs->tstate->st.current == t) ?
+                    cs->tstate->st.nesting_level : cs->nesting_level) > 0) {
+                    /* Kill only tasklets with nesting level > 0 */
+                    Py_INCREF(t);
+                    assert(count < PyTuple_GET_SIZE(tasklets));
+                    PyTuple_SET_ITEM(tasklets, count, (PyObject *)t); /* steals a reference to t */
+                    count++;
+                }
+            }
+            assert(count == PyTuple_GET_SIZE(tasklets));
+            for (count = 0; count < PyTuple_GET_SIZE(tasklets); count++) {
+                /* Kill the tasklets.
+                 */
+                t = (PyTaskletObject *)PyTuple_GET_ITEM(tasklets, count);
+                cs = t->cstate;
+                assert(cs);
+                if (cs->tstate == NULL || cs->tstate == cts) {
+                    continue;  /* already handled */
+                }
+                if (target_ts != NULL && cs->tstate != target_ts) {
+                    continue;  /* we are not interested in this thread */
+                }
+                Py_INCREF(cs);
+                if (((cs->tstate && cs->tstate->st.current == t) ?
+                    cs->tstate->st.nesting_level : cs->nesting_level) > 0) {
+                    /* Kill only tasklets with nesting level > 0
+                     * We must check again, because killing one tasklet
+                     * can change the state of other tasklets too.
+                     */
+                    PyTasklet_Kill(t);
+                    PyErr_Clear();
+                }
+                if (target_ts != NULL) {
+                    cs->tstate = NULL;
+                }
+                Py_DECREF(cs);
+            }
+            Py_DECREF(tasklets);
+            if (target_ts == NULL) {
+                /* We must not release the GIL while we might hold the HEAD-lock.
+                 * Otherwise another thread (usually the thread of the killed tasklet)
+                 * could try to get the HEAD lock. The result would be a wonderful dead lock.
+                 * If target_ts is NULL, we know for sure, that we don't hold the HEAD-lock.
+                 */
+                run_other_threads(&sleepfunc, count);
+            }
         }
         Py_XDECREF(sleepfunc);
     }
@@ -636,17 +706,16 @@ current_main:
      * should be left.
      */
     if (target_ts == NULL || target_ts == cts) {
-        /* a loop to kill tasklets on the local thread */
-        PyCStackObject *csfirst = slp_cstack_chain, *cs;
+        PyCStackObject *cs;
 
-        if (csfirst == NULL)
+        if (slp_cstack_chain == NULL)
             return;
         in_loop = 0;
-        for (cs = csfirst; ; cs = cs->next) {
-            if (in_loop && cs == csfirst) {
-                /* nothing found */
-                break;
-            }
+        for (cs = slp_cstack_chain; cs != slp_cstack_chain || in_loop == 0; cs = cs->next) {
+            /* This loop body must not release the GIL. */
+            assert(cs);
+            assert(cs->next);
+            assert(cs->next->prev == cs);
             in_loop = 1;
             /* has tstate already been cleared or is it a foreign thread? */
             if (target_ts == NULL || cs->tstate == cts) {

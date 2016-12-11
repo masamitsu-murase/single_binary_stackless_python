@@ -373,6 +373,81 @@ class TestShutdown(StacklessTestCase):
             """] + args)
         self.assertEqual(rc, 42)
 
+    @unittest.skipUnless(withThreads, "requires thread support")
+    def test_kill_modifies_slp_cstack_chain(self):
+        # test for issue #105 https://bitbucket.org/stackless-dev/stackless/issues/105/
+
+        args = []
+        if not stackless.enable_softswitch(None):
+            args.append("--hard")
+
+        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", """from __future__ import print_function, absolute_import, division\nif 1:
+            import threading
+            import stackless
+            import time
+            import sys
+            from stackless import _test_nostacklesscall as apply
+
+            DEBUG = False
+            event = threading.Event()
+
+            if not DEBUG:
+                def print(*args, **kw):
+                    pass
+
+            def mytask():
+                stackless.schedule_remove()
+
+            class TaskHolder(object):
+                def __init__(self, task):
+                    self.task = task
+
+                def __del__(self):
+                    while self.task.alive:
+                        time.sleep(0.1)
+                        print("TaskHolder.__del__, task1 is still alive")
+                    print("TaskHolder.__del__: task1 is now dead")
+                    self.task = None
+
+            def other_thread():
+                # create a paused tasklet
+                task1 = stackless.tasklet(apply)(mytask)
+                stackless.run()
+                assert(task1.alive)
+                assert(task1.paused)
+                assert(task1.nesting_level > 0)
+                assert(task1 is task1.cstate.task)
+                assert(len(str(task1.cstate)) > 0)
+                assert(sys.getrefcount(task1.cstate) - sys.getrefcount(object()) == 1)
+                assert(task1.tempval is task1)
+                assert(sys.getrefcount(task1) - sys.getrefcount(object()) == 2)
+                task1.tempval = TaskHolder(task1)
+                assert(sys.getrefcount(task1) - sys.getrefcount(object()) == 2)
+                print("task1", task1)
+                print("task1.cstate", repr(task1.cstate))
+                print("ending main tasklet of other_thread, going run the scheduler")
+                task1 = None
+                event.set()
+
+                # sleep for a long time
+                t = 10000
+                while t > 0:
+                    try:
+                        t -= 1
+                        stackless.run()
+                        time.sleep(0.01)
+                    except:
+                        pass
+
+            t = threading.Thread(target=other_thread, name="other_thread")
+            t.daemon = True
+            t.start()
+            event.wait(5.0)
+            print("end")
+            sys.exit(42)
+        """] + args)
+        self.assertEqual(rc, 42)
+
 
 class TestInterpreterShutdown(unittest.TestCase):
     # intentionally not a subclass of StacklessTestCase.
