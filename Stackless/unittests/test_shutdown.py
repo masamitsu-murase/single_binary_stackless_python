@@ -125,6 +125,255 @@ class TestThreadShutdown(StacklessTestCase):
         self._test_thread_shutdown(func, True)
 
 
+class TestShutdown(StacklessTestCase):
+    @unittest.skipUnless(withThreads, "requires thread support")
+    def test_deep_thread(self):
+        # test for issue #103 https://bitbucket.org/stackless-dev/stackless/issues/103/
+
+        args = []
+        if not stackless.enable_softswitch(None):
+            args.append("--hard")
+
+        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", """from __future__ import print_function, absolute_import\nif 1:
+            import threading
+            import stackless
+            import time
+            import sys
+            from stackless import _test_nostacklesscall as apply
+
+            if "--hard" in sys.argv:
+                stackless.enable_softswitch(False)
+
+            RECURSION_DEPTH = 200
+
+            event = threading.Event()
+
+            def recurse():
+                if stackless.current.nesting_level < RECURSION_DEPTH:
+                    apply(recurse)
+                else:
+                    event.set()
+                    time.sleep(10)
+
+            t = threading.Thread(target=recurse, name="other_thread")
+            t.daemon = True
+            t.start()
+            event.wait(10)
+            # print("end")
+            sys.stdout.flush()
+            sys.exit(42)
+            """] + args)
+        self.assertEqual(rc, 42)
+
+    def test_deep_tasklets(self):
+        # test for issue #103 https://bitbucket.org/stackless-dev/stackless/issues/103/
+
+        args = []
+        if not stackless.enable_softswitch(None):
+            args.append("--hard")
+
+        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", """from __future__ import print_function, absolute_import\nif 1:
+            import stackless
+            import sys
+            from stackless import _test_nostacklesscall as apply
+
+            if "--hard" in sys.argv:
+                stackless.enable_softswitch(False)
+
+            RECURSION_DEPTH = 200
+
+            def recurse():
+                if stackless.current.nesting_level < RECURSION_DEPTH:
+                    stackless.schedule()
+                    apply(recurse)
+                else:
+                    stackless.schedule_remove()
+
+            tasklets = []
+            for i in range(20):
+                task = stackless.tasklet(recurse)()
+                tasklets.append(task)  # keep the tasklet objects alive
+
+            stackless.run()
+            # print("end")
+            sys.stdout.flush()
+            sys.exit(42)
+            """] + args)
+        self.assertEqual(rc, 42)
+
+    def test_exit_in_deep_tasklet1(self):
+        # test for issue #103 https://bitbucket.org/stackless-dev/stackless/issues/103/
+
+        args = []
+        if not stackless.enable_softswitch(None):
+            args.append("--hard")
+
+        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", """from __future__ import print_function, absolute_import\nif 1:
+            import stackless
+            import sys
+            from stackless import _test_nostacklesscall as apply
+
+            if "--hard" in sys.argv:
+                stackless.enable_softswitch(False)
+
+            RECURSION_DEPTH = 200
+
+            def recurse():
+                if stackless.current.nesting_level < RECURSION_DEPTH:
+                    stackless.schedule()
+                    apply(recurse)
+                else:
+                    sys.exit(43)  # deeply nested, non main tasklet
+
+            tasklets = []
+            for i in range(20):
+                task = stackless.tasklet(recurse)()
+                tasklets.append(task)  # keep the tasklet objects alive
+
+            try:
+                stackless.run()
+            except TaskletExit:
+                # print("Got TaskletExit", repr(stackless.current.cstate))
+                sys.stdout.flush()
+                sys.exit(42)
+
+            print("OOPS, must not be reached")
+            sys.stdout.flush()
+            sys.exit(44)
+            """] + args)
+        self.assertEqual(rc, 42)
+
+    def test_exit_in_deep_tasklet2(self):
+        # test for issue #103 https://bitbucket.org/stackless-dev/stackless/issues/103/
+
+        args = []
+        if not stackless.enable_softswitch(None):
+            args.append("--hard")
+
+        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", """from __future__ import print_function, absolute_import\nif 1:
+            import stackless
+            import sys
+            from stackless import _test_nostacklesscall as apply
+
+            if "--hard" in sys.argv:
+                stackless.enable_softswitch(False)
+
+            RECURSION_DEPTH = 200
+
+            last = None
+
+            def recurse():
+                global last
+                if stackless.current.nesting_level < RECURSION_DEPTH:
+                    stackless.schedule()
+                    apply(recurse)
+                else:
+                    last = stackless.current
+                    sys.exit(42)  # deeply nested, non main tasklet
+
+            tasklets = []
+            for i in range(20):
+                task = stackless.tasklet(recurse)()
+                tasklets.append(task)  # keep the tasklet objects alive
+
+            try:
+                stackless.run()
+            except TaskletExit:
+                # print("Got TaskletExit", repr(stackless.current.cstate))
+                sys.stdout.flush()
+                last.run()  # switch back
+                sys.exit(43)
+
+            print("OOPS, must not be reached")
+            sys.stdout.flush()
+            sys.exit(44)
+            """] + args)
+        self.assertEqual(rc, 42)
+
+    def test_deep_Py_Exit(self):
+        # test for issue #103 https://bitbucket.org/stackless-dev/stackless/issues/103/
+        try:
+            import ctypes  # @UnusedImport
+        except ImportError:
+            self.skipTest("test requires ctypes")
+
+        args = []
+        if not stackless.enable_softswitch(None):
+            args.append("--hard")
+
+        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", """from __future__ import print_function, absolute_import\nif 1:
+            import stackless
+            import sys
+            import ctypes
+            from stackless import _test_nostacklesscall as apply
+
+            if "--hard" in sys.argv:
+                stackless.enable_softswitch(False)
+
+            RECURSION_DEPTH = 200
+
+            Py_Exit = ctypes.pythonapi.Py_Exit
+            Py_Exit.restype = None
+            Py_Exit.argtypes = (ctypes.c_int,)
+
+            def recurse():
+                if stackless.current.nesting_level < RECURSION_DEPTH:
+                    apply(recurse)
+                else:
+                    sys.stdout.flush()
+                    Py_Exit(42)
+
+            recurse()
+
+            print("OOPS, must not be reached")
+            sys.stdout.flush()
+            sys.exit(43)
+            """] + args)
+        self.assertEqual(rc, 42)
+
+    @unittest.skipUnless(withThreads, "requires thread support")
+    def test_other_thread_Py_Exit(self):
+        # test for issue #103 https://bitbucket.org/stackless-dev/stackless/issues/103/
+        try:
+            import ctypes  # @UnusedImport
+        except ImportError:
+            self.skipTest("test requires ctypes")
+
+        args = []
+        if not stackless.enable_softswitch(None):
+            args.append("--hard")
+
+        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", """from __future__ import print_function, absolute_import\nif 1:
+            import stackless
+            import sys
+            import ctypes
+            import threading
+            import time
+
+            if "--hard" in sys.argv:
+                stackless.enable_softswitch(False)
+
+            Py_Exit = ctypes.pythonapi.Py_Exit
+            Py_Exit.restype = None
+            Py_Exit.argtypes = (ctypes.c_int,)
+
+            def exit():
+                # print("Calling Py_Exit(42)")
+                sys.stdout.flush()
+                Py_Exit(42)
+
+            t = threading.Thread(target=exit, name="othere_thread")
+            t.daemon = True
+            t.start()
+            time.sleep(1)
+
+            print("OOPS, must not be reached")
+            sys.stdout.flush()
+            sys.exit(43)
+            """] + args)
+        self.assertEqual(rc, 42)
+
+
 class TestInterpreterShutdown(unittest.TestCase):
     # intentionally not a subclass of StacklessTestCase.
 
