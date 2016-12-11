@@ -11,7 +11,8 @@ What's New in Stackless 2.7.XX?
 *Release date: 20XX-XX-XX*
 
 - https://bitbucket.org/stackless-dev/stackless/issues/103
-  Fix an invalid assertion during interpreter shutdown.
+  Improve the interpreter shutdown, if deeply nested
+  tasklets are present. Previously you some assertions could fail.
 
 - https://bitbucket.org/stackless-dev/stackless/issues/101
   Enhance Tools/gdb/libpython.py to support debugging Stackless Python.
