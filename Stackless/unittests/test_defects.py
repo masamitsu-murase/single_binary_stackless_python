@@ -289,7 +289,7 @@ class TestShutdown(StacklessTestCase):
     def test_cstack_new(self):
         # test for issue #80 https://bitbucket.org/stackless-dev/stackless/issues/80/
         import subprocess
-        rc = subprocess.call([sys.executable, "-S", "-E", "-c", """if 1:
+        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", """if 1:
             import stackless, sys
             from stackless import _test_nostacklesscall as apply_not_stackless
 
@@ -310,7 +310,7 @@ class TestShutdown(StacklessTestCase):
     def test_interthread_kill(self):
         # test for issue #87 https://bitbucket.org/stackless-dev/stackless/issues/87/
         import subprocess
-        rc = subprocess.call([sys.executable, "-S", "-E", "-c", """from __future__ import print_function, absolute_import\nif 1:
+        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", """from __future__ import print_function, absolute_import\nif 1:
             import sys
             import _thread as thread
             import stackless
@@ -413,38 +413,6 @@ class TestShutdown(StacklessTestCase):
         print("OK")
         t.join()
         print("Done")
-
-    @unittest.skipUnless(withThreads, "requires thread support")
-    def test_deep_thread(self):
-        # test for issue #103 https://bitbucket.org/stackless-dev/stackless/issues/103/
-        import subprocess
-        rc = subprocess.call([sys.executable, "-S", "-E", "-c", """from __future__ import print_function, absolute_import\nif 1:
-            import threading
-            import stackless
-            import time
-            import sys
-            from stackless import _test_nostacklesscall as apply
-
-            RECURSION_DEPTH = 200
-
-            event = threading.Event()
-
-            def recurse():
-                if stackless.current.nesting_level < RECURSION_DEPTH:
-                    apply(recurse)
-                else:
-                    event.set()
-                    time.sleep(10)
-
-            t = threading.Thread(target=recurse, name="other_thread")
-            t.daemon = True
-            t.start()
-            event.wait(10)
-            # print("end")
-            sys.stdout.flush()
-            sys.exit(42)
-            """])
-        self.assertEqual(rc, 42)
 
 
 class TestStacklessProtokoll(StacklessTestCase):

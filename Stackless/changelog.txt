@@ -13,7 +13,8 @@ What's New in Stackless 3.X.X?
   Initialise the global variable slp_initial_tstate early before it is used.
 
 - https://bitbucket.org/stackless-dev/stackless/issues/103
-  Fix an invalid assertion during interpreter shutdown.
+  Improve the interpreter shutdown, if deeply nested
+  tasklets are present. Previously you some assertions could fail.
 
 - https://bitbucket.org/stackless-dev/stackless/issues/101
   Enhance Tools/gdb/libpython.py to support debugging Stackless Python.
