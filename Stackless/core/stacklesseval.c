@@ -425,7 +425,15 @@ void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
     int in_loop = 0;
 
     if (target_ts == NULL || target_ts == cts) {
-        /* a loop to kill tasklets on the local thread */
+        /* Step I of III
+         * A loop to kill tasklets on the current thread.
+         *
+         * Plan:
+         *  - loop over all cstacks
+         *  - if a cstack belongs to the current thread and is the
+         *    cstack of a tasklet, eventually kill the tasklet. Then remove the
+         *    tstate of all cstacks, which still belong to the killed tasklet.
+         */
         while (1) {
             PyCStackObject *csfirst = slp_cstack_chain, *cs;
             PyTaskletObject *t;
@@ -442,59 +450,95 @@ void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
                 if (cs->tstate != cts)
                     continue;
 
-                if (cs->task == NULL) {
-                    cs->tstate = NULL;
+                /* here we are looking for tasks only */
+                if (cs->task == NULL)
+                    continue;
+
+                /* Do not damage the initial stub */
+                assert(cs != cts->st.initial_stub);
+
+                /* is it the current cstack of the tasklet */
+                if (cs->task->cstate != cs)
+                    continue;
+
+                /* Do not damage the current tasklet of the current thread.
+                 * Otherwise we fail to kill other tasklets.
+                 * Unfortunately cts->st.current is only valid, if
+                 * cts->st.main != NULL.
+                 *
+                 * Why? When the main tasklet ends,  the function
+                 * tasklet_end(PyObject *retval) calls slp_current_remove()
+                 * for the main tasklet. This call sets tstate->st.current to
+                 * the next scheduled tasklet. Then tasklet_end() cleans up
+                 * the main tasklet and returns.
+                 */
+                if (cts->st.main != NULL && cs->task == cts->st.current) {
                     continue;
                 }
-                /* is it already dead? */
-                if (cs->task->f.frame == NULL) {
-                    cs->tstate = NULL;
-                    continue;
-                }
+
                 break;
             }
-            in_loop = 0;
             t = cs->task;
             Py_INCREF(t); /* cs->task is a borrowed ref */
-            assert(t->cstate == cs);
+            assert(cs == t->cstate);
 
-            /* If a thread ends, the thread no longer has a main tasklet and
-             * the thread is not in a valid state. tstate->st.current is
-             * undefined. It may point to a tasklet, but the other fields in
-             * tstate have wrong values.
-             *
-             * Therefore we need to ensure, that t is not tstate->st.current.
-             * Convert t into a free floating tasklet. PyTasklet_Kill works
-             * for floating tasklets too.
-             */
-            if (t->next && !t->flags.blocked) {
-                assert(t->prev);
-                slp_current_remove_tasklet(t);
-                assert(Py_REFCNT(t) > 1);
-                Py_DECREF(t);
-                assert(t->next == NULL);
-                assert(t->prev == NULL);
+            /* Is tasklet t already dead? */
+            if (t->f.frame != NULL) {
+                /* If a thread ends, the thread no longer has a main tasklet and
+                 * the thread is not in a valid state. tstate->st.current is
+                 * undefined. It may point to a tasklet, but the other fields in
+                 * tstate have wrong values.
+                 *
+                 * Therefore we need to ensure, that t is not tstate->st.current.
+                 * Convert t into a free floating tasklet. PyTasklet_Kill works
+                 * for floating tasklets too.
+                 */
+                if (t->next && !t->flags.blocked) {
+                    assert(t->prev);
+                    slp_current_remove_tasklet(t);
+                    assert(Py_REFCNT(t) > 1);
+                    Py_DECREF(t);
+                    assert(t->next == NULL);
+                    assert(t->prev == NULL);
+                }
+                assert(t != cs->tstate->st.current);
+
+                /* has the tasklet nesting_level > 0? The Stackles documentation
+                 * specifies: "When a thread dies, only tasklets with a C-state are actively killed.
+                 * Soft-switched tasklets simply stop."
+                 */
+                if ((cts->st.current == cs->task ? cts->st.nesting_level : cs->nesting_level) > 0) {
+                    /* Is is hard switched. */
+                    PyTasklet_Kill(t);
+                    PyErr_Clear();
+                }
+            } /* already dead? */
+
+            /* Now remove the tstate from all cstacks of tasklet t */
+            csfirst = slp_cstack_chain;
+            if (csfirst != NULL) {
+                in_loop = 0;
+                for (cs = csfirst; ; cs = cs->next) {
+                    if (in_loop && cs == csfirst) {
+                        /* nothing found */
+                        break;
+                    }
+                    in_loop = 1;
+                    if (cs->task == t) {
+                        assert(cs->tstate == cts);
+                        cs->tstate = NULL;
+                    }
+                }
             }
-            assert(t != cs->tstate->st.current);
-
-            /* has the tasklet nesting_level > 0? The Stackles documentation
-             * specifies: "When a thread dies, only tasklets with a C-state are actively killed.
-             * Soft-switched tasklets simply stop."
-             */
-            if ((cts->st.current == cs->task ? cts->st.nesting_level : cs->nesting_level) > 0) {
-                /* Is is hard switched. */
-                PyTasklet_Kill(t);
-                PyErr_Clear();
-            }
-
-            /* must clear the tstate */
-            t->cstate->tstate = NULL;
             Py_DECREF(t);
+            in_loop = 0;
         } /* while(1) */
     } /* if(...) */
 
 other_threads:
-    /* and a separate simple loop to kill tasklets on foreign threads.
+    /* Step II of III
+     *
+     * A separate simple loop to kill tasklets on foreign threads.
      * Since foreign tasklets are scheduled in their own good time,
      * there is no guarantee that they are actually dead when we
      * exit this function.  Therefore, we also can't clear their thread
@@ -539,7 +583,7 @@ other_threads:
         csfirst = slp_cstack_chain;
         if (csfirst == NULL) {
             Py_XDECREF(sleepfunc);
-            return;
+            goto current_main;
         }
 
         count = 0;
@@ -554,7 +598,7 @@ other_threads:
                 Py_DECREF(t);
                 continue;  /* not the current cstate of the tasklet */
             }
-            if (cs->tstate == cts) {
+            if (cs->tstate == NULL || cs->tstate == cts) {
                 Py_DECREF(t);
                 continue;  /* already handled */
             }
@@ -583,6 +627,33 @@ other_threads:
         }
         Py_XDECREF(sleepfunc);
     }
+
+current_main:
+    /* Step III of III
+     *
+     * Finally remove the thread state from all remaining cstacks.
+     * In theory only cstacks of the main tasklet and the initial stub
+     * should be left.
+     */
+    if (target_ts == NULL || target_ts == cts) {
+        /* a loop to kill tasklets on the local thread */
+        PyCStackObject *csfirst = slp_cstack_chain, *cs;
+
+        if (csfirst == NULL)
+            return;
+        in_loop = 0;
+        for (cs = csfirst; ; cs = cs->next) {
+            if (in_loop && cs == csfirst) {
+                /* nothing found */
+                break;
+            }
+            in_loop = 1;
+            /* has tstate already been cleared or is it a foreign thread? */
+            if (target_ts == NULL || cs->tstate == cts) {
+                cs->tstate = NULL;
+            }
+        } /* for(...) */
+    } /* if(...) */
 }
 
 void PyStackless_kill_tasks_with_stacks(int allthreads)
