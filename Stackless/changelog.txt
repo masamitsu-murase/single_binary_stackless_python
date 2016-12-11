@@ -10,6 +10,9 @@ What's New in Stackless 2.7.XX?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/105
+  Fix an occasional NULL-pointer access during interpreter shutdown.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/103
   Improve the interpreter shutdown, if deeply nested
   tasklets are present. Previously you some assertions could fail.
