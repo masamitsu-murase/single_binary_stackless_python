@@ -9,6 +9,9 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/105
+  Fix an occasional NULL-pointer access during interpreter shutdown.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/104
   Initialise the global variable slp_initial_tstate early before it is used.
 
