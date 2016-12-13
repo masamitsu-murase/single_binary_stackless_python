@@ -78,7 +78,9 @@ The ``tasklet`` class
    >>> t = stackless.tasklet()
    >>> t.bind(func)
    >>> t.setup(1, 2, 3, name="test")
-   
+
+   and
+
    >>> t = stackless.tasklet()
    >>> t.bind(func, (1, 2, 3), {"name":"test"})
    >>> t.insert()
@@ -147,12 +149,17 @@ The ``tasklet`` class
    provided with arguments to pass to it, they are implicitly
    scheduled and will be run in turn when the scheduler is next run.
 
-   The above code is equivalent to::
-   
-   >>> t = stackless.tasklet()
-   >>> t.bind(func, (1, 2), {"name":"test"})
-   >>> t.insert()
-   
+   The method :meth:`setup` is equivalent to::
+
+   >>> def setup(self, *args, **kwargs):
+   >>>     assert isinstance(self, stackless.tasklet)
+   >>>     with stackless.atomic():
+   >>>         if self.alive:
+   >>>             raise(RuntimeError("tasklet is alive")
+   >>>         self.bind(None, args, kwargs)
+   >>>         self.insert()
+   >>>         return self
+
 .. method:: tasklet.insert()
 
    Insert a tasklet at the end of the scheduler runnables queue, given that it isn't blocked.
