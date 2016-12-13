@@ -1,3 +1,9 @@
+#
+# -*- coding: utf-8 -*-
+#
+
+from __future__ import print_function, absolute_import, division
+
 import sys
 import types
 import unittest
@@ -303,7 +309,7 @@ class AbstractTestPickledTasklets(StacklessTestCase):
         reset()
 
         if self.verbose:
-            print "starting tasklet"
+            print("starting tasklet")
         t.run()
 
         self.assertEqual(is_empty(), True)
@@ -312,7 +318,7 @@ class AbstractTestPickledTasklets(StacklessTestCase):
         #t.tempval = None
 
         if self.verbose:
-            print "pickling"
+            print("pickling")
         pi = self.dumps(t)
 
         # if self.verbose: print repr(pi)
@@ -320,11 +326,11 @@ class AbstractTestPickledTasklets(StacklessTestCase):
         # t.remove()
 
         if self.verbose:
-            print "unpickling"
+            print("unpickling")
         ip = self.loads(pi)
 
         if self.verbose:
-            print "starting unpickled tasklet"
+            print("starting unpickled tasklet")
         if is_soft():
             ip.run()
         else:
@@ -415,7 +421,7 @@ class PickledTaskletTestCases(object):
         # magic from getting pickled and refusing to unpickle.
         def rectest(verbose, nrec, lev=0):
             if verbose:
-                print str(nrec), lev
+                print(str(nrec), lev)
             if lev < nrec:
                 rectest(verbose, nrec, lev + 1)
             else:
