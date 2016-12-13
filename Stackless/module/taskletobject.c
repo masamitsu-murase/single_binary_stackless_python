@@ -373,6 +373,7 @@ tasklet_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     if (t == NULL)
         return NULL;
     *(int*)&t->flags = 0;
+    t->recursion_depth = 0;
     t->next = NULL;
     t->prev = NULL;
     t->f.frame = NULL;
@@ -1047,6 +1048,27 @@ static PyObject *
 tasklet_setup(PyObject *self, PyObject *args, PyObject *kwds)
 {
     PyTaskletObject *task = (PyTaskletObject *) self;
+
+    if (PyTasklet_Alive(task)) {
+        RUNTIME_ERROR("tasklet is alive", NULL);
+    }
+
+    /* The implementation of PyTasklet_Alive does not imply,
+     * that the current tasklet is always alive. But I can't figure out,
+     * how to create a current tasklet, that is dead.
+     */
+    assert(task->cstate->tstate == NULL || task->cstate->tstate->st.current != task);
+
+    /* guaranted by !alive && !current.
+     * Equivalent to the call of tasklet_clear_frames(task) in PyTasklet_BindEx().
+     */
+    assert(task->f.frame == NULL);
+
+    /* the following assertions are equivalent to the remaining argument checks
+     * in PyTasklet_BindEx().
+     */
+    assert(!PyTasklet_Scheduled(task));
+    assert(PyTasklet_GetNestingLevel(task) == 0);
 
     if (impl_tasklet_setup(task, args, kwds, 1))
         return NULL;
