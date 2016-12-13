@@ -1123,6 +1123,20 @@ class TestBind(StacklessTestCase):
         self.assertGreater(tlet.nesting_level, 0)
         self.assertRaisesRegex(RuntimeError, "tasklet has C state on its stack", tlet.bind, None)
 
+    def test_setup_fail_alive(self):
+        # make sure, that you can't bind a tasklet, which is alive
+        # https://bitbucket.org/stackless-dev/stackless/issues/106
+
+        def task():
+            t = stackless.current
+            t.tempval = lambda: None
+            self.assertTrue(t.alive)
+            self.assertRaisesRegex(RuntimeError, "tasklet is alive", t.setup)
+
+        t = stackless.tasklet(task, ())
+        t.run()
+        self.assertFalse(t.alive)
+
 
 class TestSwitch(StacklessTestCase):
     """Test the new tasklet.switch() method, which allows
