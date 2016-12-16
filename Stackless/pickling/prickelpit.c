@@ -195,7 +195,7 @@ static int init_type(PyTypeObject *t, int register_reduce, int (*initchain)(void
     PyWrapperDescrObject *init;
     PyObject *args, *retval = NULL, *func;
     int ret = 0;
-    char *name = strrchr(t->tp_name, '.')+1;
+    const char *name = strrchr(t->tp_name, '.')+1;
 
     /* we patch the type to use *our* name, which makes no difference */
     assert (strcmp(name, t->tp_base->tp_name) == 0);
