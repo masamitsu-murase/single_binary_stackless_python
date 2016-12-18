@@ -1288,12 +1288,12 @@ class Frame(object):
             try:
                 gdb.lookup_type("PyCFrameObject")
                 # it is Stackless Python
-                EVALFRAMEEX_FUNCTION_NAME = 'PyEval_EvalFrame_value'
+                EVALFRAMEEX_FUNCTION_NAME = ('slp_eval_frame_value', 'PyEval_EvalFrame_value')
             except gdb.error:
                 # regular CPython
-                EVALFRAMEEX_FUNCTION_NAME = 'PyEval_EvalFrameEx'
+                EVALFRAMEEX_FUNCTION_NAME = ('PyEval_EvalFrameEx',)
 
-        if self._gdbframe.name() == EVALFRAMEEX_FUNCTION_NAME:
+        if self._gdbframe.name() in EVALFRAMEEX_FUNCTION_NAME:
             '''
             I believe we also need to filter on the inline
             struct frame_id.inline_depth, only regarding frames with
