@@ -48,21 +48,21 @@ extern "C" {
 
 /*** access to system-wide globals from stacklesseval.c ***/
 
+/* variables for the stackless protocol */
 PyAPI_DATA(int) slp_enable_softswitch;
 PyAPI_DATA(int) slp_try_stackless;
-PyAPI_DATA(PyCStackObject *) slp_cstack_chain;
+PyAPI_DATA(int) slp_in_psyco;  /* required for compatibility with old extension modules */
 
-PyAPI_FUNC(PyCStackObject *) slp_cstack_new(PyCStackObject **cst,
-                                            intptr_t *stackref,
-                                            PyTaskletObject *task);
-PyAPI_FUNC(size_t) slp_cstack_save(PyCStackObject *cstprev);
-PyAPI_FUNC(void) slp_cstack_restore(PyCStackObject *cst);
+extern PyCStackObject * slp_cstack_chain;
 
-PyAPI_FUNC(int) slp_transfer(PyCStackObject **cstprev, PyCStackObject *cst,
-                             PyTaskletObject *prev);
+PyCStackObject * slp_cstack_new(PyCStackObject **cst, intptr_t *stackref, PyTaskletObject *task);
+size_t slp_cstack_save(PyCStackObject *cstprev);
+void slp_cstack_restore(PyCStackObject *cst);
+
+int slp_transfer(PyCStackObject **cstprev, PyCStackObject *cst, PyTaskletObject *prev);
 
 #ifdef Py_DEBUG
-PyAPI_FUNC(int) slp_transfer_return(PyCStackObject *cst);
+int slp_transfer_return(PyCStackObject *cst);
 #else
 #define slp_transfer_return(cst) \
                 slp_transfer(NULL, (cst), NULL)
@@ -73,47 +73,41 @@ PyAPI_FUNC(void) _PyStackless_Init(void);
 
 /* clean-up up at the end */
 
-PyAPI_FUNC(void) slp_stacklesseval_fini(void);
-PyAPI_FUNC(void) slp_scheduling_fini(void);
-PyAPI_FUNC(void) slp_cframe_fini(void);
+void slp_stacklesseval_fini(void);
+void slp_scheduling_fini(void);
+void slp_cframe_fini(void);
 
-PyAPI_FUNC(void) PyStackless_Fini(void);
+void PyStackless_Fini(void);
 
-PyAPI_FUNC(void) PyStackless_kill_tasks_with_stacks(int allthreads);
+void PyStackless_kill_tasks_with_stacks(int allthreads);
 
 /* the special version of eval_frame */
-PyAPI_FUNC(PyObject *) slp_eval_frame(struct _frame *f);
+PyObject * slp_eval_frame(struct _frame *f);
 
 /* the frame dispatcher */
-PyAPI_FUNC(PyObject *) slp_frame_dispatch(PyFrameObject *f,
-                                          PyFrameObject *stopframe, int exc,
-                                          PyObject *retval);
+PyObject * slp_frame_dispatch(PyFrameObject *f,
+                              PyFrameObject *stopframe, int exc,
+                              PyObject *retval);
 
 /* the frame dispatcher for toplevel tasklets */
-PyAPI_FUNC(PyObject *) slp_frame_dispatch_top(PyObject *retval);
+PyObject * slp_frame_dispatch_top(PyObject *retval);
 
 /* the now exported eval_frame */
-PyAPI_FUNC(PyObject *) PyEval_EvalFrame(struct _frame *f);
 PyAPI_FUNC(PyObject *) PyEval_EvalFrameEx_slp(struct _frame *, int, PyObject *);
 
 /* eval_frame with stack overflow, triggered there with a macro */
-PyAPI_FUNC(PyObject *) slp_eval_frame_newstack(struct _frame *f, int throwflag, PyObject *retval);
+PyObject * slp_eval_frame_newstack(struct _frame *f, int throwflag, PyObject *retval);
 
-/* the new eval_frame loop with or without value or resuming an iterator 
+/* the new eval_frame loop with or without value or resuming an iterator
    or setting up or cleaning up a with block */
-PyAPI_FUNC(PyObject *) PyEval_EvalFrame_value(struct _frame *f,  int throwflag,
-                                              PyObject *retval);
-PyAPI_FUNC(PyObject *) PyEval_EvalFrame_noval(struct _frame *f,  int throwflag,
-                                              PyObject *retval);
-PyAPI_FUNC(PyObject *) PyEval_EvalFrame_iter(struct _frame *f,  int throwflag,
-                                             PyObject *retval);
-PyAPI_FUNC(PyObject *) PyEval_EvalFrame_setup_with(struct _frame *f,  int throwflag,
-                                             PyObject *retval);
-PyAPI_FUNC(PyObject *) PyEval_EvalFrame_with_cleanup(struct _frame *f,  int throwflag,
-                                             PyObject *retval);
+PyObject * slp_eval_frame_value(struct _frame *f,  int throwflag, PyObject *retval);
+PyObject * slp_eval_frame_noval(struct _frame *f,  int throwflag, PyObject *retval);
+PyObject * slp_eval_frame_iter(struct _frame *f,  int throwflag, PyObject *retval);
+PyObject * slp_eval_frame_setup_with(struct _frame *f,  int throwflag, PyObject *retval);
+PyObject * slp_eval_frame_with_cleanup(struct _frame *f,  int throwflag, PyObject *retval);
 /* other eval_frame functions from module/scheduling.c */
-PyAPI_FUNC(PyObject *) slp_restore_exception(PyFrameObject *f, int exc, PyObject *retval);
-PyAPI_FUNC(PyObject *) slp_restore_tracing(PyFrameObject *f, int exc, PyObject *retval);
+PyObject * slp_restore_exception(PyFrameObject *f, int exc, PyObject *retval);
+PyObject * slp_restore_tracing(PyFrameObject *f, int exc, PyObject *retval);
 /* other eval_frame functions from Objects/typeobject.c */
 PyObject * slp_tp_init_callback(PyFrameObject *f, int exc, PyObject *retval);
 
@@ -128,14 +122,14 @@ PyAPI_DATA(PyUnwindObject *) Py_UnwindToken;
 
 /* frame cloning both needed in tasklets and generators */
 
-PyAPI_FUNC(struct _frame *) slp_clone_frame(struct _frame *f);
-PyAPI_FUNC(struct _frame *) slp_ensure_new_frame(struct _frame *f);
+struct _frame * slp_clone_frame(struct _frame *f);
+struct _frame * slp_ensure_new_frame(struct _frame *f);
 
 /* exposing some hidden types */
 
 PyAPI_DATA(PyTypeObject) PyGen_Type;
 PyAPI_FUNC(PyObject *) PyGenerator_NewWithQualName(struct _frame *f, PyObject *name, PyObject *qualname);
-PyAPI_FUNC(PyObject *) slp_gen_send_ex(PyGenObject *gen, PyObject *arg, int exc);
+PyObject * slp_gen_send_ex(PyGenObject *gen, PyObject *arg, int exc);
 #define PyGenerator_Check(op) PyObject_TypeCheck(op, &PyGen_Type)
 
 PyAPI_DATA(PyTypeObject) PyMethodDescr_Type;
@@ -144,7 +138,7 @@ PyAPI_DATA(PyTypeObject) PyClassMethodDescr_Type;
 #define PyMethodWrapper_Check(op) PyObject_TypeCheck(op, &_PyMethodWrapper_Type)
 
 /* access to the current watchdog tasklet */
-PyAPI_FUNC(PyTaskletObject *) slp_get_watchdog(PyThreadState *ts, int interrupt);
+PyTaskletObject * slp_get_watchdog(PyThreadState *ts, int interrupt);
 
 
 /* fast (release) and safe (debug) access to the unwind token and retval */
@@ -371,48 +365,40 @@ do { \
 
 /* operations on chains */
 
-PyAPI_FUNC(void) slp_current_insert(PyTaskletObject *task);
-PyAPI_FUNC(void) slp_current_insert_after(PyTaskletObject *task);
-PyAPI_FUNC(void) slp_current_uninsert(PyTaskletObject *task);
-PyAPI_FUNC(PyTaskletObject *) slp_current_remove(void);
-PyAPI_FUNC(void) slp_current_remove_tasklet(PyTaskletObject *task);
-PyAPI_FUNC(void) slp_current_unremove(PyTaskletObject *task);
-PyAPI_FUNC(void) slp_channel_insert(
-                                    PyChannelObject *channel,
-                                    PyTaskletObject *task,
-                                    int dir, PyTaskletObject *next);
-PyAPI_FUNC(PyTaskletObject *) slp_channel_remove(
-                                    PyChannelObject *channel,
-                                    PyTaskletObject *task,
-                                    int *dir, PyTaskletObject **next);
-PyAPI_FUNC(void) slp_channel_remove_slow(
-                                    PyTaskletObject *task,
-                                    PyChannelObject **u_chan,
-                                    int *dir, PyTaskletObject **next);									
+void slp_current_insert(PyTaskletObject *task);
+void slp_current_insert_after(PyTaskletObject *task);
+void slp_current_uninsert(PyTaskletObject *task);
+PyTaskletObject * slp_current_remove(void);
+void slp_current_remove_tasklet(PyTaskletObject *task);
+void slp_current_unremove(PyTaskletObject *task);
+void slp_channel_insert(PyChannelObject *channel,
+                        PyTaskletObject *task,
+                        int dir, PyTaskletObject *next);
+PyTaskletObject * slp_channel_remove(PyChannelObject *channel,
+                                     PyTaskletObject *task,
+                                     int *dir, PyTaskletObject **next);
+void slp_channel_remove_slow(PyTaskletObject *task,
+                             PyChannelObject **u_chan,
+                             int *dir, PyTaskletObject **next);
 
 /* recording the main thread state */
-
-PyAPI_DATA(PyThreadState *) slp_initial_tstate;
+extern PyThreadState * slp_initial_tstate;
 
 /* protecting soft-switched tasklets in other threads */
-
-PyAPI_FUNC(int) slp_ensure_linkage(PyTaskletObject *task);
+int slp_ensure_linkage(PyTaskletObject *task);
 
 /* tasklet/scheduling operations */
+PyObject * slp_tasklet_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 
-PyAPI_FUNC(PyObject *) slp_tasklet_new(PyTypeObject *type, PyObject *args,
-                                       PyObject *kwds);
+int slp_schedule_task(PyObject **result,
+                      PyTaskletObject *prev,
+                      PyTaskletObject *next,
+                      int stackless,
+                      int *did_switch);
 
-PyAPI_FUNC(int) slp_schedule_task(
-                                    PyObject **result,
-                                    PyTaskletObject *prev,
-                                    PyTaskletObject *next,
-                                    int stackless,
-                                    int *did_switch);
+void slp_thread_unblock(PyThreadState *ts);
 
-PyAPI_FUNC(void) slp_thread_unblock(PyThreadState *ts);
-
-PyAPI_FUNC(int) initialize_main_and_current(void);
+int slp_initialize_main_and_current(void);
 
 /* setting the tasklet's tempval, optimized for no change */
 
@@ -457,23 +443,23 @@ do { \
 
 /* exception handling */
 
-PyAPI_FUNC(PyObject *) slp_make_bomb(PyObject *klass, PyObject *args, char *msg);
-PyAPI_FUNC(PyObject *) slp_exc_to_bomb(PyObject *exc, PyObject *val, PyObject *tb);
-PyAPI_FUNC(PyObject *) slp_curexc_to_bomb(void);
-PyAPI_FUNC(PyObject *) slp_nomemory_bomb(void);
-PyAPI_FUNC(PyObject *) slp_bomb_explode(PyObject *bomb);
-PyAPI_FUNC(int) slp_init_bombtype(void);
+PyObject * slp_make_bomb(PyObject *klass, PyObject *args, char *msg);
+PyObject * slp_exc_to_bomb(PyObject *exc, PyObject *val, PyObject *tb);
+PyObject * slp_curexc_to_bomb(void);
+PyObject * slp_nomemory_bomb(void);
+PyObject * slp_bomb_explode(PyObject *bomb);
+int slp_init_bombtype(void);
 
 /* tasklet startup */
 
-PyAPI_FUNC(PyObject *) slp_run_tasklet(PyFrameObject *f);
+PyObject * slp_run_tasklet(PyFrameObject *f);
 
 /* handy abbrevations */
 
-PyAPI_FUNC(PyObject *) slp_type_error(const char *msg);
-PyAPI_FUNC(PyObject *) slp_runtime_error(const char *msg);
-PyAPI_FUNC(PyObject *) slp_value_error(const char *msg);
-PyAPI_FUNC(PyObject *) slp_null_error(void);
+PyObject * slp_type_error(const char *msg);
+PyObject * slp_runtime_error(const char *msg);
+PyObject * slp_value_error(const char *msg);
+PyObject * slp_null_error(void);
 
 /* this seems to be needed for gcc */
 
@@ -490,28 +476,28 @@ PyAPI_FUNC(PyObject *) slp_null_error(void);
 #define RUNTIME_ERROR(str, ret) return (slp_runtime_error(str), ret)
 #define VALUE_ERROR(str, ret) return (slp_value_error(str), ret)
 
-PyAPI_FUNC(PyCFrameObject *) slp_cframe_new(PyFrame_ExecFunc *exec,
-                                            unsigned int linked);
-PyAPI_FUNC(PyCFrameObject *) slp_cframe_newfunc(PyObject *func,
-                                                PyObject *args,
-                                                PyObject *kwds,
-                                                unsigned int linked);
+PyCFrameObject * slp_cframe_new(PyFrame_ExecFunc *exec,
+                                unsigned int linked);
+PyCFrameObject * slp_cframe_newfunc(PyObject *func,
+                                    PyObject *args,
+                                    PyObject *kwds,
+                                    unsigned int linked);
 
-PyAPI_FUNC(PyFrameObject *) slp_get_frame(PyTaskletObject *task);
-PyAPI_FUNC(void) slp_check_pending_irq(void);
-PyAPI_FUNC(int) slp_return_wrapper(PyObject *retval);
-PyAPI_FUNC(int) slp_return_wrapper_hard(PyObject *retval);
-PyAPI_FUNC(int) slp_int_wrapper(PyObject *retval);
-PyAPI_FUNC(int) slp_current_wrapper(int(*func)(PyTaskletObject*),
-                                    PyTaskletObject *task);
-PyAPI_FUNC(int) slp_resurrect_and_kill(PyObject *self,
-                                       void(*killer)(PyObject *));
+PyFrameObject * slp_get_frame(PyTaskletObject *task);
+void slp_check_pending_irq(void);
+int slp_return_wrapper(PyObject *retval);
+int slp_return_wrapper_hard(PyObject *retval);
+int slp_int_wrapper(PyObject *retval);
+int slp_current_wrapper(int(*func)(PyTaskletObject*),
+                        PyTaskletObject *task);
+int slp_resurrect_and_kill(PyObject *self,
+                           void(*killer)(PyObject *));
 
 /* stackless pickling support */
 
-PyAPI_FUNC(int) slp_safe_pickling(int(*save)(PyObject *, PyObject *, int),
-                                  PyObject *self, PyObject *args,
-                                  int pers_save);
+int slp_safe_pickling(int(*save)(PyObject *, PyObject *, int),
+                      PyObject *self, PyObject *args,
+                     int pers_save);
 /* utility function used by the reduce methods of tasklet and frame */
 int slp_pickle_with_tracing_state(void);
 
@@ -519,8 +505,8 @@ int slp_pickle_with_tracing_state(void);
 
 typedef int (slp_schedule_hook_func) (PyTaskletObject *from,
                                        PyTaskletObject *to);
-PyAPI_DATA(slp_schedule_hook_func) *_slp_schedule_fasthook;
-PyAPI_DATA(PyObject* ) _slp_schedule_hook;
+extern slp_schedule_hook_func* _slp_schedule_fasthook;
+extern PyObject* _slp_schedule_hook;
 int slp_schedule_callback(PyTaskletObject *prev, PyTaskletObject *next);
 
 int slp_prepare_slots(PyTypeObject*);

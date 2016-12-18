@@ -1112,15 +1112,15 @@ static int init_frametype(void)
     return slp_register_execute(&PyFrame_Type, "eval_frame",
                              PyEval_EvalFrameEx_slp, REF_INVALID_EXEC(eval_frame))
         || slp_register_execute(&PyFrame_Type, "eval_frame_value",
-                             PyEval_EvalFrame_value, REF_INVALID_EXEC(eval_frame_value))
+                             slp_eval_frame_value, REF_INVALID_EXEC(eval_frame_value))
         || slp_register_execute(&PyFrame_Type, "eval_frame_noval",
-                             PyEval_EvalFrame_noval, REF_INVALID_EXEC(eval_frame_noval))
+                             slp_eval_frame_noval, REF_INVALID_EXEC(eval_frame_noval))
         || slp_register_execute(&PyFrame_Type, "eval_frame_iter",
-                             PyEval_EvalFrame_iter, REF_INVALID_EXEC(eval_frame_iter))
+                             slp_eval_frame_iter, REF_INVALID_EXEC(eval_frame_iter))
         || slp_register_execute(&PyFrame_Type, "eval_frame_setup_with",
-                             PyEval_EvalFrame_setup_with, REF_INVALID_EXEC(eval_frame_setup_with))
+                             slp_eval_frame_setup_with, REF_INVALID_EXEC(eval_frame_setup_with))
         || slp_register_execute(&PyFrame_Type, "eval_frame_with_cleanup",
-                             PyEval_EvalFrame_with_cleanup, REF_INVALID_EXEC(eval_frame_with_cleanup))
+                             slp_eval_frame_with_cleanup, REF_INVALID_EXEC(eval_frame_with_cleanup))
         || slp_register_execute(&PyCFrame_Type, "channel_seq_callback",
                              channel_seq_callback, REF_INVALID_EXEC(channel_seq_callback))
         || slp_register_execute(&PyCFrame_Type, "slp_restore_exception",
