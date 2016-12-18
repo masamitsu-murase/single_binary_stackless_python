@@ -2138,7 +2138,7 @@ module.\n\
 
 
 PyTypeObject PyTasklet_Type = {
-    PyObject_HEAD_INIT(&PyType_Type)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "_stackless.tasklet",
     sizeof(PyTaskletObject),
     0,

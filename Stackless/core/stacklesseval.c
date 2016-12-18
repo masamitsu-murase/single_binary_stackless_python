@@ -210,7 +210,7 @@ cstack_str(PyObject *o)
 }
 
 PyTypeObject PyCStack_Type = {
-    PyObject_HEAD_INIT(&PyType_Type)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "_stackless.cstack",
     sizeof(PyCStackObject),
     sizeof(PyObject *),
@@ -1038,7 +1038,7 @@ static void unwind_dealloc(PyObject *op) {
 }
 
 static PyTypeObject PyUnwindToken_Type = {
-    PyObject_HEAD_INIT(&PyUnwindToken_Type)
+    PyVarObject_HEAD_INIT(&PyUnwindToken_Type, 0)
     "UnwindToken",
     0,
     0,
