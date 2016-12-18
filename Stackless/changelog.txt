@@ -9,6 +9,11 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/109
+  The Stackless python*.dll no longer exports private symbols. Symbols
+  required by Stackless-aware 3rd party extension modules should still be
+  available.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/108
   Use PyVarObject_HEAD_INIT to initialise type objects. See PEP 3123.
 
