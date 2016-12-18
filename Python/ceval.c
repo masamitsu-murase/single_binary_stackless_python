@@ -1062,8 +1062,8 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
 
 #ifdef STACKLESS
 
-    f->f_execute = PyEval_EvalFrame_noval;
-    return PyEval_EvalFrame_value(f, throwflag, retval);
+    f->f_execute = slp_eval_frame_noval;
+    return slp_eval_frame_value(f, throwflag, retval);
 exit_eval_frame:
     Py_LeaveRecursiveCall();
     tstate->frame = f->f_back;
@@ -1071,7 +1071,7 @@ exit_eval_frame:
 }
 
 PyObject *
-PyEval_EvalFrame_noval(PyFrameObject *f, int throwflag, PyObject *retval)
+slp_eval_frame_noval(PyFrameObject *f, int throwflag, PyObject *retval)
 {
     PyObject *r;
     /*
@@ -1083,13 +1083,13 @@ PyEval_EvalFrame_noval(PyFrameObject *f, int throwflag, PyObject *retval)
      * XXX We could save a cycle with a compiler specific #ifdef...
      */
     Py_XINCREF(f); /* fool the link optimizer */
-    r = PyEval_EvalFrame_value(f, throwflag, retval);
+    r = slp_eval_frame_value(f, throwflag, retval);
     Py_XDECREF(f);
     return r;
 }
 
 PyObject *
-PyEval_EvalFrame_iter(PyFrameObject *f, int throwflag, PyObject *retval)
+slp_eval_frame_iter(PyFrameObject *f, int throwflag, PyObject *retval)
 {
     PyObject *r;
     /*
@@ -1100,13 +1100,13 @@ PyEval_EvalFrame_iter(PyFrameObject *f, int throwflag, PyObject *retval)
      * NOTE / XXX: see above.
      */
     Py_XINCREF(retval); /* fool the link optimizer */
-    r = PyEval_EvalFrame_value(f, throwflag, retval);
+    r = slp_eval_frame_value(f, throwflag, retval);
     Py_XDECREF(retval);
     return r;
 }
 
 PyObject *
-PyEval_EvalFrame_setup_with(PyFrameObject *f, int throwflag, PyObject *retval)
+slp_eval_frame_setup_with(PyFrameObject *f, int throwflag, PyObject *retval)
 {
     PyObject *r;
     /*
@@ -1117,14 +1117,14 @@ PyEval_EvalFrame_setup_with(PyFrameObject *f, int throwflag, PyObject *retval)
      */
     Py_XINCREF(f);	    /* fool the link optimizer */
     Py_XINCREF(retval); /* fool the link optimizer */
-    r = PyEval_EvalFrame_value(f, throwflag, retval);
+    r = slp_eval_frame_value(f, throwflag, retval);
     Py_XDECREF(retval);
     Py_XDECREF(f);
     return r;
 }
 
 PyObject *
-PyEval_EvalFrame_with_cleanup(PyFrameObject *f, int throwflag, PyObject *retval)
+slp_eval_frame_with_cleanup(PyFrameObject *f, int throwflag, PyObject *retval)
 {
     PyObject *r;
     /*
@@ -1135,14 +1135,14 @@ PyEval_EvalFrame_with_cleanup(PyFrameObject *f, int throwflag, PyObject *retval)
      */
     Py_XINCREF(f);      /* fool the link optimizer */
     Py_XINCREF(f);	    /* fool the link optimizer */
-    r = PyEval_EvalFrame_value(f, throwflag, retval);
+    r = slp_eval_frame_value(f, throwflag, retval);
     Py_XDECREF(f);
     Py_XDECREF(f);
     return r;
 }
 
 PyObject *
-PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
+slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
 {
     /* unfortunately we repeat all the variables here... */
 #ifdef DXPAIRS
@@ -1234,12 +1234,12 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
 
 
 #ifdef STACKLESS
-    if (f->f_execute == PyEval_EvalFrame_value) {
+    if (f->f_execute == slp_eval_frame_value) {
     /* this is a return */
         PUSH(retval); /* we are back from a function call */
     }
     else {
-        if (f->f_execute == PyEval_EvalFrame_iter) {
+        if (f->f_execute == slp_eval_frame_iter) {
             /* finalise the for_iter operation */
             opcode = NEXTOP();
             oparg = NEXTARG();
@@ -1270,7 +1270,7 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
                 JUMPBY(oparg);
             }
         }
-        else if (f->f_execute == PyEval_EvalFrame_setup_with) {
+        else if (f->f_execute == slp_eval_frame_setup_with) {
             /* finalise the SETUP_WITH operation */
             opcode = NEXTOP();
             oparg = NEXTARG();
@@ -1291,7 +1291,7 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
                 PUSH(retval);
             }
         }
-        else if (f->f_execute == PyEval_EvalFrame_with_cleanup) {
+        else if (f->f_execute == slp_eval_frame_with_cleanup) {
             /* finalise the WITH_CLEANUP operation */
 
             if (retval) {
@@ -1329,10 +1329,10 @@ PyEval_EvalFrame_value(PyFrameObject *f, int throwflag, PyObject *retval)
         }
         else {
             /* don't push it, frame ignores value */
-            assert (f->f_execute == PyEval_EvalFrame_noval);
+            assert (f->f_execute == slp_eval_frame_noval);
             Py_XDECREF(retval);
         }
-        f->f_execute = PyEval_EvalFrame_value;
+        f->f_execute = slp_eval_frame_value;
 
     }
 
@@ -3702,16 +3702,16 @@ exit_eval_frame:
     return retval;
 
 stackless_setup_with:
-    f->f_execute = PyEval_EvalFrame_setup_with;
+    f->f_execute = slp_eval_frame_setup_with;
     goto stackless_call_with_opcode;
 
 stackless_with_cleanup:
-    f->f_execute = PyEval_EvalFrame_with_cleanup;
+    f->f_execute = slp_eval_frame_with_cleanup;
     goto stackless_call;
 
 stackless_iter:
     /* restore this opcode and enable frame to handle it */
-    f->f_execute = PyEval_EvalFrame_iter;
+    f->f_execute = slp_eval_frame_iter;
 stackless_call_with_opcode:
     next_instr -= (oparg >> 16) ? 6 : 3;
 
@@ -3730,10 +3730,10 @@ stackless_call:
     STACKLESS_UNPACK(retval);
     retval = tstate->frame->f_execute(tstate->frame, 0, retval);
     if (tstate->frame != f) {
-        assert(f->f_execute == PyEval_EvalFrame_value || f->f_execute == PyEval_EvalFrame_noval ||
-            f->f_execute == PyEval_EvalFrame_setup_with || f->f_execute == PyEval_EvalFrame_with_cleanup);
-        if (f->f_execute == PyEval_EvalFrame_noval)
-            f->f_execute = PyEval_EvalFrame_value;
+        assert(f->f_execute == slp_eval_frame_value || f->f_execute == slp_eval_frame_noval ||
+            f->f_execute == slp_eval_frame_setup_with || f->f_execute == slp_eval_frame_with_cleanup);
+        if (f->f_execute == slp_eval_frame_noval)
+            f->f_execute = slp_eval_frame_value;
         return retval;
     }
     if (STACKLESS_UNWINDING(retval))
@@ -3741,18 +3741,18 @@ stackless_call:
 
     x = retval;
     f->f_stacktop = NULL;
-    if (f->f_execute == PyEval_EvalFrame_iter) {
+    if (f->f_execute == slp_eval_frame_iter) {
         next_instr += (oparg >> 16) ? 6 : 3;
-        f->f_execute = PyEval_EvalFrame_value;
+        f->f_execute = slp_eval_frame_value;
         goto stackless_iter_return;
     }
-    else if (f->f_execute == PyEval_EvalFrame_setup_with) {
+    else if (f->f_execute == slp_eval_frame_setup_with) {
         next_instr += (oparg >> 16) ? 6 : 3;
-        f->f_execute = PyEval_EvalFrame_value;
+        f->f_execute = slp_eval_frame_value;
         goto stackless_setup_with_return;
     }
-    else if (f->f_execute == PyEval_EvalFrame_with_cleanup) {
-        f->f_execute = PyEval_EvalFrame_value;
+    else if (f->f_execute == slp_eval_frame_with_cleanup) {
+        f->f_execute = slp_eval_frame_value;
         goto stackless_with_cleanup_return;
     }
 
@@ -3760,7 +3760,7 @@ stackless_call:
 
 stackless_interrupt_call:
 
-    f->f_execute = PyEval_EvalFrame_noval;
+    f->f_execute = slp_eval_frame_noval;
     f->f_stacktop = stack_pointer;
 
     /* the -1 is to adjust for the f_lasti change.

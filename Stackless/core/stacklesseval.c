@@ -732,7 +732,7 @@ void PyStackless_kill_tasks_with_stacks(int allthreads)
     PyThreadState *ts = PyThreadState_Get();
 
     if (ts->st.main == NULL) {
-        if (initialize_main_and_current()) {
+        if (slp_initialize_main_and_current()) {
             PyObject *s = PyString_FromString("tasklet cleanup");
             PyErr_WriteUnraisable(s);
             Py_XDECREF(s);
@@ -984,7 +984,7 @@ gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result)
             PyErr_SetNone(PyExc_StopIteration);
         /* Stackless extra handling */
         /* are we awaited by a for_iter or called by next() ? */
-        else if (ts->frame->f_execute != PyEval_EvalFrame_iter) {
+        else if (ts->frame->f_execute != slp_eval_frame_iter) {
             /* do the missing part of the next call */
             if (!PyErr_Occurred())
                 PyErr_SetNone(PyExc_StopIteration);

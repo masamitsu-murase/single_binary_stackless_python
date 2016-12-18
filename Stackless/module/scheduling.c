@@ -1214,7 +1214,7 @@ hard_switching:
 }
 
 int
-initialize_main_and_current(void)
+slp_initialize_main_and_current(void)
 {
     PyThreadState *ts = PyThreadState_GET();
     PyTaskletObject *task;
@@ -1519,7 +1519,7 @@ slp_run_tasklet(PyFrameObject *f)
     PyThreadState *ts = PyThreadState_GET();
     PyObject *retval;
 
-    if ( (ts->st.main == NULL) && initialize_main_and_current()) {
+    if ( (ts->st.main == NULL) && slp_initialize_main_and_current()) {
         ts->frame = NULL;
         return NULL;
     }
