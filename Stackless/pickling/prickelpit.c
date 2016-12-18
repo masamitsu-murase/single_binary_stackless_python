@@ -136,8 +136,8 @@ static PyMethodDef prefix##_methods[] = { \
     {NULL, NULL} \
 }; \
  \
-static PyTypeObject wrap_##type = { \
-    PyObject_HEAD_INIT(&PyType_Type) \
+static struct _typeobject wrap_##type = { \
+    PyVarObject_HEAD_INIT(&PyType_Type, 0) \
     "_stackless._wrap." name, \
     0, \
     0, \
@@ -218,7 +218,7 @@ static int init_type(PyTypeObject *t, int (*initchain)(void))
         return -1;
     /* register with copy_reg */
     if (pickle_reg != NULL &&
-        (retval = PyObject_CallFunction(pickle_reg, "OO", 
+        (retval = PyObject_CallFunction(pickle_reg, "OO",
                                         t->tp_base, reduce)) == NULL)
         ret = -1;
     Py_XDECREF(retval);
@@ -892,7 +892,7 @@ frame_setstate(PyFrameObject *f, PyObject *args)
     Py_ssize_t tmp;
 
     if (is_wrong_type(Py_TYPE(f))) return NULL;
-    
+
     if (!PyArg_ParseTuple (args, frametuplesetstatefmt,
                            &PyCode_Type, &f_code,
                            &valid,
@@ -1469,7 +1469,7 @@ dictview_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     inst = PyObject_GC_New(dictviewobject, type->tp_base);
     if (inst == NULL)
         return NULL;
-    Py_INCREF(dict);    
+    Py_INCREF(dict);
     inst->dv_dict = (PyDictObject *)dict;
     if (inst != NULL)
         Py_TYPE(inst) = type;
@@ -2476,7 +2476,7 @@ init_prickelpit(void)
         Py_CLEAR(types_mod);
         return NULL;
     }
-    
+
     pickle_reg = PyObject_GetAttrString(copy_reg, "pickle");
     Py_DECREF(copy_reg);
     if (pickle_reg == NULL) {

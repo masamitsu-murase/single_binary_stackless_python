@@ -80,7 +80,7 @@ PyDoc_STRVAR(PyAtomic_Type__doc__,
 current tasklet to true for the duration.\n");
 
 PyTypeObject PyAtomic_Type = {
-    PyObject_HEAD_INIT(NULL)
+    PyVarObject_HEAD_INIT(NULL, 0)
     "_stackless.atomic",
     sizeof(PyAtomicObject),
     0,
@@ -1077,7 +1077,7 @@ test_nostacklesscall_call(PyObject *f, PyObject *arg, PyObject *kw)
 static PyObject *get_test_nostacklesscallobj(void)
 {
     static PyTypeObject test_nostacklesscallType = {
-            PyObject_HEAD_INIT(&PyType_Type)
+            PyVarObject_HEAD_INIT(NULL, 0)
             "_stackless.test_nostacklesscall_type",   /*tp_name*/
             sizeof(test_nostacklesscallObject), /*tp_basicsize*/
             0,                         /*tp_itemsize*/

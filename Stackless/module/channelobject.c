@@ -350,7 +350,7 @@ channel_callback(PyChannelObject *channel, PyTaskletObject *task, int sending, i
 {
     PyObject *ret;
     PyObject *type, *value, *traceback;
-    
+
     PyErr_Fetch(&type, &value, &traceback);
     ret = PyObject_CallFunction(channel_hook, "(OOii)", channel,
                                 task, sending, willblock);
@@ -447,7 +447,7 @@ generic_channel_action(PyChannelObject *self, PyObject *arg, int dir, int stackl
     if (cando)
         /* communication 1): there is somebody waiting */
         fail = generic_channel_cando(ts, &retval, self, dir, stackless);
-    else 
+    else
         fail = generic_channel_block(ts, &retval, self, dir, stackless);
 
     if (fail) {
@@ -512,7 +512,7 @@ generic_channel_cando(PyThreadState *ts, PyObject **result, PyChannelObject *sel
     }
 
     oldflags = ts->st.runflags;
-    ts->st.runflags |= runflags; /* extra info for slp_schedule_task */    
+    ts->st.runflags |= runflags; /* extra info for slp_schedule_task */
     fail = slp_schedule_task(result, source, switchto, stackless, &switched);
 
     if (fail || !switched)
@@ -1174,7 +1174,7 @@ is resumed. If there is no waiting sender, the receiver is suspended.\
 ");
 
 PyTypeObject PyChannel_Type = {
-    PyObject_HEAD_INIT(&PyType_Type)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "_stackless.channel",
     sizeof(PyChannelObject),
     0,

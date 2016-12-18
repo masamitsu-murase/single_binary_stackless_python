@@ -265,7 +265,7 @@ static PyMemberDef cframe_memberlist[] = {
 };
 
 PyTypeObject PyCFrame_Type = {
-    PyObject_HEAD_INIT(&PyType_Type)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "_stackless.cframe",
     sizeof(PyCFrameObject),
     0,
