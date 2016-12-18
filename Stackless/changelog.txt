@@ -10,6 +10,9 @@ What's New in Stackless 2.7.XX?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/108
+  Use PyVarObject_HEAD_INIT to initialise type objects. See PEP 3123.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/106
   Raise RuntimeError, if you call tasklet.setup() on a tasklet, that is
   already alive.

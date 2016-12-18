@@ -266,8 +266,7 @@ t.tempval = b\n\
 t.run()  # let the bomb explode");
 
 PyTypeObject PyBomb_Type = {
-    PyObject_HEAD_INIT(&PyType_Type)
-    0,
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "_stackless.bomb",
     sizeof(PyBombObject),
     0,
@@ -374,7 +373,7 @@ transfer_with_exc(PyCStackObject **cstprev, PyCStackObject *cst, PyTaskletObject
     sm.magic2 = SAVED_TSTATE_MAGIC2;
 
     /* prevent overly compiler optimisation.
-    We store the address of sm into a global variable. 
+    We store the address of sm into a global variable.
     This way the optimizer can't change the layout of the structure. */
     _dont_optimise_away_saved_tstat_with_magic = &sm;
 
@@ -449,7 +448,7 @@ int
 slp_schedule_callback(PyTaskletObject *prev, PyTaskletObject *next)
 {
     PyObject *args;
-    
+
     if (prev == NULL) prev = (PyTaskletObject *)Py_None;
     if (next == NULL) next = (PyTaskletObject *)Py_None;
     args = Py_BuildValue("(OO)", prev, next);
@@ -488,7 +487,7 @@ slp_call_schedule_fasthook(PyThreadState *ts, PyTaskletObject *prev, PyTaskletOb
      */
     tmp = ts->st.del_post_switch;
     ts->st.del_post_switch = NULL;
-    
+
     ts->st.schedlock = 1;
     old_current = ts->st.current;
     if (prev)
@@ -739,7 +738,7 @@ static int schedule_thread_block(PyThreadState *ts)
     Py_END_ALLOW_THREADS
     ts->st.thread.is_idle = 0;
 
-    
+
     return 0;
 }
 
@@ -771,7 +770,7 @@ schedule_task_block(PyObject **result, PyTaskletObject *prev, int stackless, int
     PyTaskletObject *next = NULL;
     int fail, revive_main = 0;
     PyTaskletObject *wakeup;
-    
+
     /* which "main" do we awaken if we are blocking? */
     wakeup = slp_get_watchdog(ts, 0);
 
@@ -820,7 +819,7 @@ schedule_task_block(PyObject **result, PyTaskletObject *prev, int stackless, int
     /* this must be after releasing the locks because of hard switching */
     fail = slp_schedule_task(result, prev, next, stackless, did_switch);
     Py_DECREF(next);
-    
+
     /* Now we may have switched (on this thread), clear any post-switch stuff.
      * We may have a valuable "tmpval" here
      * because of channel switching, so be careful to maintain that.
@@ -917,7 +916,7 @@ static void slp_schedule_soft_irq(PyThreadState *ts, PyTaskletObject *prev,
     watchdog = slp_get_watchdog(ts, 1);
 
     prev->flags.pending_irq = 0;
-    
+
     if (watchdog->next != NULL)
         return; /* target isn't floating, we are probably raising an exception */
 
@@ -975,7 +974,7 @@ slp_schedule_task(PyObject **result, PyTaskletObject *prev, PyTaskletObject *nex
         return schedule_task_block(result, prev, stackless, did_switch);
 
 #ifdef WITH_THREAD
-    /* note that next->cstate is undefined if it is ourself. 
+    /* note that next->cstate is undefined if it is ourself.
        Also note, that prev->cstate->tstate == NULL during Py_Finalize() */
     assert(prev->cstate == NULL || prev->cstate->tstate == NULL || prev->cstate->tstate == ts);
     /* The last condition is required during shutdown when next->cstate->tstate == NULL */
@@ -1186,7 +1185,7 @@ hard_switching:
         *result = retval;
 
         /* Now evaluate any pending pending slp_restore_tracing cframes.
-           They were inserted by tasklet_set_trace_function or 
+           They were inserted by tasklet_set_trace_function or
            tasklet_set_profile_function */
         if (prev->cstate->nesting_level > 0) {
             PyCFrameObject *f = (PyCFrameObject *)(ts->frame);
@@ -1204,7 +1203,7 @@ hard_switching:
                 assert(PyFrame_Check(ts->frame));
             }
         }
-        
+
         return 0;
     }
     else {
@@ -1219,7 +1218,7 @@ initialize_main_and_current(void)
 {
     PyThreadState *ts = PyThreadState_GET();
     PyTaskletObject *task;
-    
+
     /* refuse executing main in an unhandled error context */
     if (! (PyErr_Occurred() == NULL || PyErr_Occurred() == Py_None) ) {
 #ifdef _DEBUG
@@ -1300,7 +1299,7 @@ schedule_task_destruct(PyObject **retval, PyTaskletObject *prev, PyTaskletObject
      * nothing significant must happen once we are unwinding the stack.
      */
     assert(ts->st.del_post_switch == NULL);
-    ts->st.del_post_switch = (PyObject*)prev; 
+    ts->st.del_post_switch = (PyObject*)prev;
     /* do a soft switch */
     if (prev != next) {
         int switched;

@@ -248,7 +248,7 @@ PyTasklet_BindEx(PyTaskletObject *task, PyObject *func, PyObject *args, PyObject
         args = NULL;
     if (kwargs == Py_None)
         kwargs = NULL;
-    
+
     if (func != NULL && !PyCallable_Check(func))
         TYPE_ERROR("tasklet function must be a callable or None", -1);
     if (ts && ts->st.current == task) {
@@ -639,7 +639,7 @@ static int
 impl_tasklet_remove(PyTaskletObject *task)
 {
     PyThreadState *ts = PyThreadState_GET();
-    
+
     assert(PyTasklet_Check(task));
     if (ts->st.main == NULL) return PyTasklet_Remove_M(task);
     assert(ts->st.current != NULL);
@@ -775,7 +775,7 @@ impl_tasklet_run_remove(PyTaskletObject *task, int remove)
     PyObject *ret;
     int inserted, fail, switched, removed=0;
     PyTaskletObject *prev = ts->st.current;
-    
+
     assert(PyTasklet_Check(task));
     if (ts->st.main == NULL) {
         if (!remove)
@@ -783,7 +783,7 @@ impl_tasklet_run_remove(PyTaskletObject *task, int remove)
         else
             return PyTasklet_Switch_M(task);
     }
-    
+
 
     /* we always call impl_tasklet_insert, so we must
      * also uninsert in case of failure
@@ -1735,7 +1735,7 @@ tasklet_get_trace_function(PyTaskletObject *task)
         Py_INCREF(temp);
         return temp;
     }
-    
+
     f = task->f.cframe;
     while (NULL != f && PyCFrame_Check(f)) {
         if (f->f_execute == slp_restore_tracing) {
@@ -1786,7 +1786,7 @@ tasklet_set_trace_function(PyTaskletObject *task, PyObject *value)
         PyEval_SetTrace(tf, value);
         return 0;
     }
-    
+
     f = task->f.cframe;
     while (NULL != f && PyCFrame_Check(f)) {
         if (f->f_execute == slp_restore_tracing) {
@@ -1823,7 +1823,7 @@ tasklet_set_trace_function(PyTaskletObject *task, PyObject *value)
     /* task is neither current nor has a restore_tracing frame.
        ==> tracing is currently off */
     if (NULL == value)
-        /* nothing to do */ 
+        /* nothing to do */
         return 0;
 
     /* here we must add an restore tracing cframe */
@@ -1869,7 +1869,7 @@ tasklet_get_profile_function(PyTaskletObject *task)
         Py_INCREF(temp);
         return temp;
     }
-    
+
     f = task->f.cframe;
     while (NULL != f && PyCFrame_Check(f)) {
         if (f->f_execute == slp_restore_tracing) {
@@ -1920,7 +1920,7 @@ tasklet_set_profile_function(PyTaskletObject *task, PyObject *value)
         PyEval_SetProfile(tf, value);
         return 0;
     }
-    
+
     f = task->f.cframe;
     while (NULL != f && PyCFrame_Check(f)) {
         if (f->f_execute == slp_restore_tracing) {
@@ -1957,7 +1957,7 @@ tasklet_set_profile_function(PyTaskletObject *task, PyObject *value)
     /* task is neither current nor has a restore_tracing frame.
        ==> tracing is currently off */
     if (NULL == value)
-        /* nothing to do */ 
+        /* nothing to do */
         return 0;
 
     /* here we must add an restore tracing cframe */
@@ -2138,8 +2138,7 @@ module.\n\
 
 
 PyTypeObject PyTasklet_Type = {
-    PyObject_HEAD_INIT(&PyType_Type)
-    0,
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "_stackless.tasklet",
     sizeof(PyTaskletObject),
     0,

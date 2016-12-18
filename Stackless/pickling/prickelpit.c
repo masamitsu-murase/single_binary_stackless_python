@@ -137,8 +137,7 @@ static PyMethodDef prefix##_methods[] = { \
 }; \
  \
 static struct _typeobject wrap_##type = { \
-    PyObject_HEAD_INIT(&PyType_Type) \
-    0, \
+    PyVarObject_HEAD_INIT(&PyType_Type, 0) \
     "_stackless._wrap." name, \
     0, \
     0, \
