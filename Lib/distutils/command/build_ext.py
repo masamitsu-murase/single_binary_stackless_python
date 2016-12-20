@@ -171,6 +171,7 @@ class build_ext (Command):
                 self.include_dirs.append(slpy_include)
 
         self.ensure_string_list('libraries')
+        self.ensure_string_list('link_objects')
 
         # Life is easier if we're not forever checking for None, so
         # simplify these options to empty lists if unset

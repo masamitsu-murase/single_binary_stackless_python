@@ -815,7 +815,7 @@ PyType_GenericAlloc(PyTypeObject *type, Py_ssize_t nitems)
         Py_INCREF(type);
 
     if (type->tp_itemsize == 0)
-        PyObject_INIT(obj, type);
+        (void)PyObject_INIT(obj, type);
     else
         (void) PyObject_INIT_VAR((PyVarObject *)obj, type, nitems);
 
@@ -1299,8 +1299,10 @@ call_method(PyObject *o, char *name, PyObject **nameobj, char *format, ...)
 
     va_end(va);
 
-    if (args == NULL)
+    if (args == NULL) {
+        Py_DECREF(func);
         return NULL;
+    }
 
     assert(PyTuple_Check(args));
     STACKLESS_PROMOTE_ALL();
@@ -1340,8 +1342,10 @@ call_maybe(PyObject *o, char *name, PyObject **nameobj, char *format, ...)
 
     va_end(va);
 
-    if (args == NULL)
+    if (args == NULL) {
+        Py_DECREF(func);
         return NULL;
+    }
 
     assert(PyTuple_Check(args));
     STACKLESS_PROMOTE_ALL();
@@ -1409,7 +1413,7 @@ classic_mro(PyObject *cls)
 
     The next three properties are the 3 constraints in "C3".
 
-    Local precendece order.
+    Local precedence order.
     If A precedes B in C's MRO, then A will precede B in the MRO of all
     subclasses of C.
 
@@ -2575,11 +2579,25 @@ _PyType_Lookup(PyTypeObject *type, PyObject *name)
     /* Look in tp_dict of types in MRO */
     mro = type->tp_mro;
 
-    /* If mro is NULL, the type is either not yet initialized
-       by PyType_Ready(), or already cleared by type_clear().
-       Either way the safest thing to do is to return NULL. */
-    if (mro == NULL)
-        return NULL;
+    if (mro == NULL) {
+        if ((type->tp_flags & Py_TPFLAGS_READYING) == 0 &&
+            PyType_Ready(type) < 0) {
+            /* It's not ideal to clear the error condition,
+               but this function is documented as not setting
+               an exception, and I don't want to change that.
+               When PyType_Ready() can't proceed, it won't
+               set the "ready" flag, so future attempts to ready
+               the same type will call it again -- hopefully
+               in a context that propagates the exception out.
+            */
+            PyErr_Clear();
+            return NULL;
+        }
+        mro = type->tp_mro;
+        if (mro == NULL) {
+            return NULL;
+        }
+    }
 
     res = NULL;
     assert(PyTuple_Check(mro));
@@ -3313,7 +3331,7 @@ reduce_2(PyObject *obj)
         PyErr_Format(PyExc_TypeError,
                      "can't pickle %.200s objects",
                      ((PyTypeObject *)cls)->tp_name);
-        return NULL;
+        goto end;
     }
 
     getnewargs = PyObject_GetAttrString(obj, "__getnewargs__");
@@ -3738,8 +3756,10 @@ add_members(PyTypeObject *type, PyMemberDef *memb)
         descr = PyDescr_NewMember(type, memb);
         if (descr == NULL)
             return -1;
-        if (PyDict_SetItemString(dict, memb->name, descr) < 0)
+        if (PyDict_SetItemString(dict, memb->name, descr) < 0) {
+            Py_DECREF(descr);
             return -1;
+        }
         Py_DECREF(descr);
     }
     return 0;
@@ -3758,8 +3778,10 @@ add_getset(PyTypeObject *type, PyGetSetDef *gsp)
 
         if (descr == NULL)
             return -1;
-        if (PyDict_SetItemString(dict, gsp->name, descr) < 0)
+        if (PyDict_SetItemString(dict, gsp->name, descr) < 0) {
+            Py_DECREF(descr);
             return -1;
+        }
         Py_DECREF(descr);
     }
     return 0;
@@ -4135,6 +4157,12 @@ PyType_Ready(PyTypeObject *type)
      */
     _Py_AddToAllObjects((PyObject *)type, 0);
 #endif
+
+    if (type->tp_name == NULL) {
+        PyErr_Format(PyExc_SystemError,
+                     "Type does not define the tp_name field.");
+        goto error;
+    }
 
     /* Initialize tp_base (defaults to BaseObject unless that's us) */
     base = type->tp_base;
@@ -5609,8 +5637,8 @@ slot_tp_call(PyObject *self, PyObject *args, PyObject *kwds)
         return NULL;
 
 #ifdef STACKLESS
-    /* PyObject_Call does not call Py_EnterRecursiveCall if soft switching is enabled. 
-       Therefore we must call Py_EnterRecursiveCall here to limit the stack depth. 
+    /* PyObject_Call does not call Py_EnterRecursiveCall if soft switching is enabled.
+       Therefore we must call Py_EnterRecursiveCall here to limit the stack depth.
        Scenario:
            class A(object):
                pass
@@ -5618,9 +5646,9 @@ slot_tp_call(PyObject *self, PyObject *args, PyObject *kwds)
            a = A() # ok
            a() # infinite recursion
        This bounces between slot_tp_call() and PyObject_Call() without
-       ever hitting eval_frame() (which has the main recursion check). 
-       
-       Call Py_EnterRecursiveCall only if soft switching. If we would call it 
+       ever hitting eval_frame() (which has the main recursion check).
+
+       Call Py_EnterRecursiveCall only if soft switching. If we would call it
        allways, we would halve the possible recursion depth. This could break code. */
     if (stackless)
         if (Py_EnterRecursiveCall(" in __call__")) {
@@ -6798,8 +6826,10 @@ add_operators(PyTypeObject *type)
                 d->d_slpmask = ((signed char *) type->tp_as_mapping)[p->slp_offset];
             }
 #endif
-            if (PyDict_SetItem(dict, p->name_strobj, descr) < 0)
+            if (PyDict_SetItem(dict, p->name_strobj, descr) < 0) {
+                Py_DECREF(descr);
                 return -1;
+            }
             Py_DECREF(descr);
         }
     }
