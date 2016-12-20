@@ -10,6 +10,7 @@ import unittest
 import pickle
 import cPickle
 import gc
+import inspect
 
 from stackless import schedule, tasklet, stackless
 
@@ -598,6 +599,50 @@ class TestFramePickling(StacklessTestCase):
             cell = localsplus_as_tuple[1 + code.co_nlocals + i]
             self.assertIsInstance(cell, cell_type)
             self.assertIs(cell.cell_contents, result)
+
+
+class Traceback_TestCases(object):
+    def testTracebackFrameLinkage(self):
+        def a():
+            # raise an exception
+            1 // 0
+
+        def b():
+            return a()
+
+        def c():
+            return b()
+
+        try:
+            c()
+        except ZeroDivisionError:
+            tb = sys.exc_info()[2]
+
+        innerframes_orig = inspect.getinnerframes(tb)
+        p = self.dumps(tb)
+        tb2 = self.loads(p)
+        # basics
+        self.assertIs(type(tb), type(tb2))
+        self.assertIsNot(tb, tb2)
+        innerframes = inspect.getinnerframes(tb2)
+        # compare the content
+        self.assertListEqual([i[1:] for i in innerframes_orig], [i[1:] for i in innerframes])
+        # check linkage
+        all_outerframes_orig = inspect.getouterframes(innerframes_orig[-1][0])
+        all_outerframes = inspect.getouterframes(innerframes[-1][0])
+        l = len(innerframes_orig)
+        self.assertGreater(len(all_outerframes_orig), l)
+        self.assertGreaterEqual(len(all_outerframes), l)
+        # compare the content
+        self.assertListEqual([i[1:] for i in all_outerframes_orig[:l - 1]], [i[1:] for i in all_outerframes[:l - 1]])
+
+
+class TestTracebackPy(StacklessTestCase, Traceback_TestCases, PyPickleMixin):
+    pass
+
+
+class TestTracebackC(StacklessTestCase, Traceback_TestCases, CPickleMixin):
+    pass
 
 
 class OldStackless_WrapFactories_TestCases(object):

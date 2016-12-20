@@ -10,6 +10,10 @@ What's New in Stackless 2.7.XX?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/107
+  Improve unpickling of traceback objects. Stackless now reconstructs the
+  frame.f_back linkage in frames directly referenced by traceback objects.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/109
   The Stackless python*.dll no longer exports private symbols. Symbols
   required by Stackless-aware 3rd party extension modules should still be

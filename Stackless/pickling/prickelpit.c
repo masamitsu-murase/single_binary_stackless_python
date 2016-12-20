@@ -1224,6 +1224,14 @@ tb_setstate(PyObject *self, PyObject *args)
     tb->tb_lineno = lineno;
     tb->ob_type = tb->ob_type->tp_base;
 
+    if (frame != NULL && next != NULL && next->tb_frame != NULL &&
+        (PyObject *)(next->tb_frame->f_back) == Py_None) {
+        /* Reconstruct the f_back chain as far as possible. */
+        next->tb_frame->f_back = frame;
+        Py_INCREF(frame);
+        Py_DECREF(Py_None);
+    }
+
     Py_INCREF(self);
     return self;
 }
