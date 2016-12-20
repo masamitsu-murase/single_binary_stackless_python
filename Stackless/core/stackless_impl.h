@@ -51,7 +51,6 @@ extern "C" {
 /* variables for the stackless protocol */
 PyAPI_DATA(int) slp_enable_softswitch;
 PyAPI_DATA(int) slp_try_stackless;
-PyAPI_DATA(int) slp_in_psyco;  /* required for compatibility with old extension modules */
 
 extern PyCStackObject * slp_cstack_chain;
 
