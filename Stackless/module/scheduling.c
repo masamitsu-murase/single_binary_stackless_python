@@ -1473,7 +1473,7 @@ tasklet_end(PyObject *retval)
             bomb = slp_curexc_to_bomb();
             if (bomb == NULL)
                 bomb = slp_nomemory_bomb();
-            Py_REPLACE(retval, bomb);
+            Py_SETREF(retval, bomb);
             TASKLET_SETVAL(task, retval);
         }
         next = wakeup;
