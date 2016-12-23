@@ -589,6 +589,7 @@ class SwitchTest(RemoteTaskletTests):
         """Test that inter-thread switching fails"""
         theThread, t = self.create_thread_task()
         with theThread:
+            time.sleep(0.01)
             self.assertTrue(t.paused)
             self.assertRaisesRegexp(RuntimeError, "different thread", t.switch)
 
