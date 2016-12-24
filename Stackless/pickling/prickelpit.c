@@ -179,6 +179,36 @@ static struct _typeobject wrap_##type = { \
 };
 
 static PyObject *types_mod = NULL;
+static PyObject *reduce_frame_func = NULL;
+
+PyDoc_STRVAR(set_reduce_frame__doc__,
+"set_reduce_frame(func) -- set the function used to reduce frames during pickling.\n"
+"The function takes a frame as its sole argument and must return a pickleable object.\n");
+
+static PyObject *
+set_reduce_frame(PyObject *self, PyObject *func)
+{
+    if (func == Py_None) {
+        Py_CLEAR(reduce_frame_func);
+    } else {
+        if (!PyCallable_Check(func)) {
+            TYPE_ERROR("func must be callable", NULL);
+        }
+        Py_INCREF(func);
+        Py_XSETREF(reduce_frame_func, func);
+    }
+    Py_RETURN_NONE;
+}
+
+PyObject *
+slp_reduce_frame(PyFrameObject * frame) {
+    if (!PyFrame_Check(frame) || reduce_frame_func == NULL) {
+        Py_INCREF(frame);
+        return (PyObject *)frame;
+    }
+    return PyObject_CallFunctionObjArgs(reduce_frame_func, (PyObject *)frame, NULL);
+}
+
 
 static struct PyMethodDef _new_methoddef[] = {
     {"__new__", (PyCFunction)_new_wrapper, METH_VARARGS | METH_KEYWORDS,
@@ -1156,13 +1186,19 @@ static PyObject *
 tb_reduce(tracebackobject * tb)
 {
     PyObject *tup = NULL;
-    char *fmt = "(O()(OiiO))";
+    PyObject *frame_reducer;
+    const char *fmt = "(O()(OiiO))";
 
     if (tb->tb_next == NULL)
         fmt = "(O()(Oii))";
+    frame_reducer = slp_reduce_frame(tb->tb_frame);
+    if (frame_reducer == NULL)
+        return NULL;
+
     tup = Py_BuildValue(fmt,
                         &wrap_PyTraceBack_Type,
-                        tb->tb_frame, tb->tb_lasti, tb->tb_lineno, tb->tb_next);
+                        frame_reducer, tb->tb_lasti, tb->tb_lineno, tb->tb_next);
+    Py_DECREF(frame_reducer);
     return tup;
 }
 
@@ -2242,11 +2278,16 @@ static PyObject *
 gen_reduce(PyGenObject *gen)
 {
     PyObject *tup;
+    PyObject *frame_reducer;
+    frame_reducer = slp_reduce_frame(gen->gi_frame);
+    if (frame_reducer == NULL)
+        return NULL;
     tup = Py_BuildValue("(O()(Oi))",
                         &wrap_PyGen_Type,
-                        gen->gi_frame,
+                        frame_reducer,
                         gen->gi_running
                         );
+    Py_DECREF(frame_reducer);
     return tup;
 }
 
@@ -2458,6 +2499,7 @@ static int
 _wrapmodule_traverse(PyObject *self, visitproc visit, void *arg)
 {
     Py_VISIT(gen_exhausted_frame);
+    Py_VISIT(reduce_frame_func);
     return 0;
 }
 
@@ -2465,15 +2507,21 @@ static int
 _wrapmodule_clear(PyObject *self)
 {
     Py_CLEAR(gen_exhausted_frame);
+    Py_CLEAR(reduce_frame_func);
     return 0;
 }
+
+static PyMethodDef _wrapmodule_methods[] = {
+    {"set_reduce_frame", set_reduce_frame, METH_O, set_reduce_frame__doc__},
+    {NULL,                          NULL}       /* sentinel */
+};
 
 static struct PyModuleDef _wrapmodule = {
     PyModuleDef_HEAD_INIT,
     "_stackless._wrap",
     NULL,
     -1,
-    NULL,
+    _wrapmodule_methods,
     NULL,
     _wrapmodule_traverse,
     _wrapmodule_clear,

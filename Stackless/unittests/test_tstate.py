@@ -6,7 +6,7 @@ from io import BytesIO
 from stackless import *
 
 from support import test_main  # @UnusedImport
-from support import StacklessTestCase
+from support import StacklessTestCase, get_reduce_frame
 
 # import os
 # def debug():
@@ -332,9 +332,10 @@ class TestTracingState(StacklessTestCase):
             return
 
         # test if the tracing cframe is present / not present
-        self.assertListEqual(reduced_tasklet1[2][3], [frame])
+        reduce_frame = get_reduce_frame()
+        self.assertListEqual(reduced_tasklet1[2][3], [reduce_frame(frame)])
         self.assertEquals(len(reduced_tasklet2[2][3]), 2)
-        self.assertIs(reduced_tasklet2[2][3][0], frame)
+        self.assertIs(reduced_tasklet2[2][3][0], reduce_frame(frame))
         self.assertIsInstance(reduced_tasklet2[2][3][1], stackless.cframe)
 
         cf = reduced_tasklet2[2][3][1]

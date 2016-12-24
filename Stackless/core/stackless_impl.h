@@ -388,6 +388,8 @@ PyObject * slp_restore_exception(PyFrameObject *f, int exc, PyObject *retval);
 PyObject * slp_restore_tracing(PyFrameObject *f, int exc, PyObject *retval);
 /* other eval_frame functions from Objects/typeobject.c */
 PyObject * slp_tp_init_callback(PyFrameObject *f, int exc, PyObject *retval);
+/* functions related to pickling */
+PyObject * slp_reduce_frame(PyFrameObject * frame);
 
 /* rebirth of software stack avoidance */
 
