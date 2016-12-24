@@ -128,11 +128,7 @@ struct _frame * slp_clone_frame(struct _frame *f);
 struct _frame * slp_ensure_new_frame(struct _frame *f);
 
 /* exposing some hidden types */
-
-PyAPI_DATA(PyTypeObject) PyGen_Type;
-PyAPI_FUNC(PyObject *) PyGenerator_New(struct _frame *f);
 PyObject * slp_gen_send_ex(PyGenObject *gen, PyObject *arg, int exc);
-#define PyGenerator_Check(op) PyObject_TypeCheck(op, &PyGen_Type)
 
 PyAPI_DATA(PyTypeObject) PyMethodDescr_Type;
 PyAPI_DATA(PyTypeObject) PyClassMethodDescr_Type;
