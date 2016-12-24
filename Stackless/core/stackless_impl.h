@@ -16,20 +16,23 @@ extern "C" {
 #include "core/stackless_structs.h"
 #include "pickling/prickelpit.h"
 
-#ifndef Py_REPLACE
-/* add the useful macros from http://bugs.python.org/issue20440 */
-#define Py_REPLACE(ptr, new_value) do { \
-    PyObject *__tmp__ = ptr; \
-    ptr = new_value; \
-    Py_DECREF(__tmp__); \
-} while (0)
+/* CPython added these two macros in object.h for 2.7 and 3.5 */
+#ifndef Py_SETREF
+#define Py_SETREF(op, op2)                      \
+    do {                                        \
+        PyObject *_py_tmp = (PyObject *)(op);   \
+        (op) = (op2);                           \
+        Py_DECREF(_py_tmp);                     \
+    } while (0)
+#endif
 
-#define Py_XREPLACE(ptr, new_value) do { \
-    PyObject *__tmp__ = ptr; \
-    ptr = new_value; \
-    Py_XDECREF(__tmp__); \
-} while (0)
-
+#ifndef Py_XSETREF
+#define Py_XSETREF(op, op2)                     \
+    do {                                        \
+        PyObject *_py_tmp = (PyObject *)(op);   \
+        (op) = (op2);                           \
+        Py_XDECREF(_py_tmp);                    \
+    } while (0)
 #endif
 
 #undef STACKLESS_SPY

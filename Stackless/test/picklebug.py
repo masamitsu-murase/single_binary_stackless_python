@@ -1,24 +1,31 @@
+#
+# -*- coding: utf-8 -*-
+#
+
 """
 This file was needed to figure out a deep problem with generator pickling.
 I'm adding this file to the unittests as a template to cure similar
 problems in the future. This file only works in a debug build.
+
+Run with python -i ...
 """
+
+from __future__ import absolute_import, print_function, division
 
 import sys
 import gc
-import pickle as pickle
+import pickle
 import os
-from stackless import *
+import stackless
 
 try:
     genschedoutertest  # @UndefinedVariable
 except NameError:
-    try:
-        exec(open(os.path.join(os.path.dirname(__file__), "test_pickle.py")).read())
-    except SystemExit:
-        pass
+    sys.path.insert(0, os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                     os.pardir, "unittests")))
+    from test_pickle import genschedoutertest
 
-t = tasklet(genschedoutertest)(20, 13)  # @UndefinedVariable
+t = stackless.tasklet(genschedoutertest)(20, 13)  # @UndefinedVariable
 t.run()
 s = pickle.dumps(t)
 t.run()
