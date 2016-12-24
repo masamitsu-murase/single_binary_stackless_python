@@ -9,6 +9,12 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/111
+  Restore the Python ABI function PyGen_New(). Previously Stackless named this
+  function PyGenerator_New() and used a macro the redefine PyGen_New as
+  PyGenerator_New. Stackless is now again binary compatible with Python-
+  extensions using PyGen_New().
+
 - https://bitbucket.org/stackless-dev/stackless/issues/107
   Improve unpickling of traceback objects. Stackless now reconstructs the
   frame.f_back linkage in frames directly referenced by traceback objects.

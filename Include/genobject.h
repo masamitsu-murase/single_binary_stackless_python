@@ -41,9 +41,6 @@ PyAPI_DATA(PyTypeObject) PyGen_Type;
 PyAPI_FUNC(PyObject *) PyGen_New(struct _frame *);
 PyAPI_FUNC(PyObject *) PyGen_NewWithQualName(struct _frame *,
     PyObject *name, PyObject *qualname);
-#ifdef STACKLESS
-#define PyGen_NewWithQualName PyGenerator_NewWithQualName
-#endif
 PyAPI_FUNC(int) PyGen_NeedsFinalizing(PyGenObject *);
 PyAPI_FUNC(int) _PyGen_FetchStopIterationValue(PyObject **);
 PyObject *_PyGen_Send(PyGenObject *, PyObject *);
