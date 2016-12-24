@@ -1,6 +1,7 @@
 import unittest
 import gc
 import stackless
+import types
 
 from support import StacklessTestCase
 
@@ -35,6 +36,23 @@ class TestGarbageCollection(StacklessTestCase):
             relevant = True
         if relevant and len(leakage):
             self.assertTrue(len(leakage) == 0, "Leaked %s" % repr(leakage))
+
+
+class TestGeneratorWrapper(StacklessTestCase):
+    def test_run_wrap_generator(self):
+        g = stackless._wrap.generator()
+        self.assertIsInstance(g, types.GeneratorType)
+        self.assertIsNot(type(g), types.GeneratorType)
+        self.assertRaises(StopIteration, next, g)
+
+    def test_wrap_generator_frame_code(self):
+        g0 = stackless._wrap.generator()
+        g1 = stackless._wrap.generator()
+        self.assertIsInstance(g0.gi_frame, types.FrameType)
+        self.assertIsInstance(g0.gi_code, types.CodeType)
+        self.assertIs(g0.gi_code, g1.gi_code)
+        self.assertIsNot(g0.gi_frame, g1.gi_frame)
+        self.assertEqual(g0.__name__, "exhausted_generator")
 
 if __name__ == '__main__':
     unittest.main()

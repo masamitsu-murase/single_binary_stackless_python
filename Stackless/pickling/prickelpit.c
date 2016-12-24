@@ -2117,33 +2117,12 @@ static int init_methodwrappertype(void)
 
  ******************************************************/
 
-/* Note: this definition is not compatible to 2.2.3, since
-   the gi_weakreflist does not exist. Therefore, we don't
-   create the object ourselves, but use the provided function
-   with a fake frame. The gi_weakreflist is not touched.
- */
-
-typedef struct {
-    PyObject_HEAD
-    /* The gi_ prefix is intended to remind of generator-iterator. */
-
-    PyFrameObject *gi_frame;
-
-    /* True if generator is being executed. */
-    int gi_running;
-
-#if PY_VERSION_HEX >= 0x02060000   /* 2.6 */
-    /* The code object backing the generator */
-    PyObject *gi_code;
-#endif
-    /* List of weak reference. */
-    PyObject *gi_weakreflist;
-} genobject;
-
 static PyTypeObject wrap_PyGen_Type;
+/* Used to initialize a generator created by gen_new. */
+static PyFrameObject *gen_exhausted_frame;
 
 static PyObject *
-gen_reduce(genobject *gen)
+gen_reduce(PyGenObject *gen)
 {
     PyObject *tup;
     tup = Py_BuildValue("(O()(Oi))",
@@ -2157,11 +2136,13 @@ gen_reduce(genobject *gen)
 static PyObject *
 gen_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-    genobject *gen;
-
+    PyGenObject *gen;
     if (is_wrong_type(type)) return NULL;
-    Py_INCREF(Py_None);
-    gen = (genobject *) PyGenerator_New((PyFrameObject *) Py_None);
+
+    /* A reference to frame is stolen by PyGen_New. */
+    assert(gen_exhausted_frame != NULL);
+    assert(PyFrame_Check(gen_exhausted_frame));
+    gen = (PyGenObject *) PyGen_New(slp_ensure_new_frame(gen_exhausted_frame));
     if (gen == NULL)
         return NULL;
     gen->ob_type = type;
@@ -2171,7 +2152,7 @@ gen_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 static PyObject *
 gen_setstate(PyObject *self, PyObject *args)
 {
-    genobject *gen = (genobject *) self;
+    PyGenObject *gen = (PyGenObject *) self;
     PyFrameObject *f;
     int gi_running;
 
@@ -2183,21 +2164,17 @@ gen_setstate(PyObject *self, PyObject *args)
     if (!gi_running) {
         if ((f = slp_ensure_new_frame(f)) != NULL) {
             /* use a second one for late initialization */
-            genobject *tmpgen;
+            PyGenObject *tmpgen;
             /* PyGenerator_New eats an existing reference */
-            if ((tmpgen = (genobject *)
-                       PyGenerator_New(f)) == NULL) {
+            if ((tmpgen = (PyGenObject *)
+                       PyGen_New(f)) == NULL) {
                 Py_DECREF(f);
                 return NULL;
             }
             Py_INCREF(f);
-            Py_DECREF(gen->gi_frame);
-            gen->gi_frame = f;
-#if PY_VERSION_HEX >= 0x02060000   /* 2.6 */
+            Py_SETREF(gen->gi_frame, f);
             Py_INCREF(f->f_code);
-            Py_DECREF(gen->gi_code);
-            gen->gi_code = (PyObject *)f->f_code;
-#endif
+            Py_SETREF(gen->gi_code, (PyObject *)f->f_code);
             /* The frame the temporary generator references
                will have GeneratorExit raised on it, when the
                temporary generator is torn down.  So clearing
@@ -2221,13 +2198,9 @@ gen_setstate(PyObject *self, PyObject *args)
      * generator without the corresponding tasklet.
      */
     Py_INCREF(f);
-    Py_DECREF(gen->gi_frame);
-    gen->gi_frame = f;
-#if PY_VERSION_HEX >= 0x02060000   /* 2.6 */
+    Py_SETREF(gen->gi_frame, f);
     Py_INCREF(f->f_code);
-    Py_DECREF(gen->gi_code);
-    gen->gi_code = (PyObject *)f->f_code;
-#endif
+    Py_SETREF(gen->gi_code, (PyObject *)f->f_code);
     gen->gi_running = gi_running;
     gen->ob_type = gen->ob_type->tp_base;
     Py_INCREF(gen);
@@ -2242,10 +2215,10 @@ DEF_INVALID_EXEC(gen_iternext_callback)
 static int init_generatortype(void)
 {
     int res;
-    genobject *gen = (genobject *) run_script(
-        "def f(): yield 42\n"           /* define a generator */
-        "g = f()\n"                     /* instanciate it */
-        "g.next()\n", "g");             /* force callback frame creation */
+    PyGenObject *gen = (PyGenObject *) run_script(
+        "def exhausted_generator(): yield 42\n"   /* define a generator */
+        "g = exhausted_generator()\n"             /* instanciate it */
+        "g.next()\n", "g");                       /* force callback frame creation */
     PyFrameObject *cbframe;
 
     if (gen == NULL || gen->gi_frame->f_back == NULL)
@@ -2255,6 +2228,13 @@ static int init_generatortype(void)
               gen->gi_frame->f_back->f_execute,
               REF_INVALID_EXEC(gen_iternext_callback))
           || init_type(&wrap_PyGen_Type, 1, initchain);
+
+    assert(gen_exhausted_frame == NULL);
+    gen_exhausted_frame = slp_ensure_new_frame(gen->gi_frame);
+    if (gen_exhausted_frame == NULL) {
+        return -1;
+    }
+
     Py_DECREF(gen);
     return res;
 }

@@ -387,13 +387,8 @@ PyTypeObject PyGen_Type = {
 
 STACKLESS_DECLARE_METHOD(&PyGen_Type, tp_iternext);
 
-#ifdef STACKLESS
-PyObject *
-PyGenerator_New(PyFrameObject *f)
-#else
 PyObject *
 PyGen_New(PyFrameObject *f)
-#endif
 {
     PyGenObject *gen = PyObject_GC_New(PyGenObject, &PyGen_Type);
     if (gen == NULL) {
@@ -401,19 +396,8 @@ PyGen_New(PyFrameObject *f)
         return NULL;
     }
     gen->gi_frame = f;
-#ifdef STACKLESS
-    /* Support for unpickling generators.  This will segmentation fault if
-       called by pricklepit.c:gen_new as that passes Py_None as a placeholder. */
-    if ((PyObject*)f == Py_None) {
-        Py_INCREF(Py_None);
-        gen->gi_code = Py_None;
-    } else {
-#endif
     Py_INCREF(f->f_code);
     gen->gi_code = (PyObject *)(f->f_code);
-#ifdef STACKLESS
-    }
-#endif
     gen->gi_running = 0;
     gen->gi_weakreflist = NULL;
     _PyObject_GC_TRACK(gen);
