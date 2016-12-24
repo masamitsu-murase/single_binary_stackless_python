@@ -33,9 +33,6 @@ PyAPI_DATA(PyTypeObject) PyGen_Type;
 #define PyGen_CheckExact(op) (Py_TYPE(op) == &PyGen_Type)
 
 PyAPI_FUNC(PyObject *) PyGen_New(struct _frame *);
-#ifdef STACKLESS
-#define PyGen_New PyGenerator_New
-#endif
 PyAPI_FUNC(int) PyGen_NeedsFinalizing(PyGenObject *);
 PyAPI_FUNC(int) _PyGen_FetchStopIterationValue(PyObject **);
 PyObject *_PyGen_Send(PyGenObject *, PyObject *);
