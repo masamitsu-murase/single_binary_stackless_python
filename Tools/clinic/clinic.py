@@ -650,6 +650,7 @@ class CLanguage(Language):
             fields = list(fields)
             fields.insert(0, normalize_snippet("""
                 {{
+                    {stackless_getarg}
                     {return_value_declaration}
                     {declarations}
                     {initializers}
@@ -657,7 +658,9 @@ class CLanguage(Language):
             # just imagine--your code is here in the middle
             fields.append(normalize_snippet("""
                     {modifications}
+                    {stackless_promote}
                     {return_value} = {c_basename}_impl({impl_arguments});
+                    {stackless_assert}
                     {return_conversion}
 
                 {exit_label}
@@ -1095,7 +1098,10 @@ class CLanguage(Language):
             # if we have any gotos
             need_exit_label = "goto exit;" in template
             template = linear_format(template,
-                exit_label="exit:" if need_exit_label else ''
+                exit_label="exit:" if need_exit_label else '',
+                stackless_getarg="STACKLESS_GETARG();" if need_exit_label and f.stackless else '',
+                stackless_promote="STACKLESS_PROMOTE_ALL();" if need_exit_label and f.stackless else '',
+                stackless_assert="STACKLESS_ASSERT();" if need_exit_label and f.stackless else ''
                 )
 
             s = template.format_map(template_dict)
