@@ -1030,6 +1030,7 @@ builtin_eval_impl(PyModuleDef *module, PyObject *source, PyObject *globals, PyOb
 static PyObject *
 builtin_eval(PyModuleDef *module, PyObject *args)
 {
+    STACKLESS_GETARG();
     PyObject *return_value = NULL;
     PyObject *source;
     PyObject *globals = Py_None;
@@ -1039,7 +1040,9 @@ builtin_eval(PyModuleDef *module, PyObject *args)
         1, 3,
         &source, &globals, &locals))
         goto exit;
+    STACKLESS_PROMOTE_ALL();
     return_value = builtin_eval_impl(module, source, globals, locals);
+    STACKLESS_ASSERT();
 
 exit:
     return return_value;
@@ -1047,7 +1050,7 @@ exit:
 
 static PyObject *
 builtin_eval_impl(PyModuleDef *module, PyObject *source, PyObject *globals, PyObject *locals)
-/*[clinic end generated code: output=c24abb7472109f9a input=23391c4fc7497323]*/
+/*[clinic end generated code: output=28c7bb349e59eeb7 input=23391c4fc7497323]*/
 {
     STACKLESS_GETARG();
     PyObject *result, *tmp = NULL;
@@ -1155,6 +1158,7 @@ builtin_exec_impl(PyModuleDef *module, PyObject *source, PyObject *globals, PyOb
 static PyObject *
 builtin_exec(PyModuleDef *module, PyObject *args)
 {
+    STACKLESS_GETARG();
     PyObject *return_value = NULL;
     PyObject *source;
     PyObject *globals = Py_None;
@@ -1164,7 +1168,9 @@ builtin_exec(PyModuleDef *module, PyObject *args)
         1, 3,
         &source, &globals, &locals))
         goto exit;
+    STACKLESS_PROMOTE_ALL();
     return_value = builtin_exec_impl(module, source, globals, locals);
+    STACKLESS_ASSERT();
 
 exit:
     return return_value;
@@ -1172,7 +1178,7 @@ exit:
 
 static PyObject *
 builtin_exec_impl(PyModuleDef *module, PyObject *source, PyObject *globals, PyObject *locals)
-/*[clinic end generated code: output=101daa75fa09f8a6 input=b73d7f2ce89fd88a]*/
+/*[clinic end generated code: output=7298a022b00bf491 input=b73d7f2ce89fd88a]*/
 {
 	STACKLESS_GETARG();
     PyObject *v;
