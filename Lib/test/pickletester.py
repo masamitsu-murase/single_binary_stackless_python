@@ -403,10 +403,12 @@ DATA3 = b'\x80\x02c__builtin__\nset\nq\x00]q\x01(K\x01K\x02e\x85q\x02Rq\x03.'
 DATA4 = b'\x80\x02c__builtin__\nxrange\nq\x00K\x00K\x05K\x01\x87q\x01Rq\x02.'
 try:
     import stackless
+    has_stackless = True
     DATA4_SLP = b'\x80\x02cstackless._wrap\nrange\nq\x00K\x00K\x05K\x01\x87q\x01Rq\x02)b.'
-except:
+except ImportError:
+    has_stackless = False
     DATA4_SLP = DATA4
-    
+
 
 # a SimpleCookie() object pickled from 2.x with protocol 2
 DATA5 = (b'\x80\x02cCookie\nSimpleCookie\nq\x00)\x81q\x01U\x03key'
@@ -1332,12 +1334,9 @@ class AbstractPickleTests(unittest.TestCase):
         loaded = self.loads(DATA3)
         self.assertEqual(loaded, set([1, 2]))
         loaded = self.loads(DATA4_SLP)
-        try:
-            import stackless
-        except ImportError:
+        if not has_stackless:
+            # stackless provides a fake range for unpickling
             self.assertEqual(type(loaded), type(range(0)))
-        else:
-            pass # stackless provides a fake range for unpickling
         self.assertEqual(list(loaded), list(range(5)))
         loaded = self.loads(DATA5)
         self.assertEqual(type(loaded), SimpleCookie)
@@ -1705,6 +1704,8 @@ class AbstractPickleTests(unittest.TestCase):
     def test_local_lookup_error(self):
         # Test that whichmodule() errors out cleanly when looking up
         # an assumed globally-reachable object fails.
+        if has_stackless:
+            self.skipTest("Stackless can pickle functions by value")
         def f():
             pass
         # Since the function is local, lookup will fail
