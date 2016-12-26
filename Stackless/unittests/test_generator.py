@@ -2,6 +2,8 @@ import unittest
 import gc
 import stackless
 import types
+import pickle
+import copyreg
 
 from support import StacklessTestCase
 
@@ -48,6 +50,53 @@ class TestGeneratorWrapper(StacklessTestCase):
         self.assertIs(g0.gi_code, g1.gi_code)
         self.assertIsNot(g0.gi_frame, g1.gi_frame)
         self.assertEqual(g0.__name__, "exhausted_generator")
+
+
+class TestGeneratorPickling(StacklessTestCase):
+    def test_name(self):
+        def g():
+            yield 1
+        gen_orig = g()
+        p = pickle.dumps(gen_orig)
+        gen_new = pickle.loads(p)
+
+        self.assertEqual(gen_new.__name__, gen_orig.__name__)
+
+    def test_qualname(self):
+        def g():
+            yield 1
+        gen_orig = g()
+        p = pickle.dumps(gen_orig)
+        gen_new = pickle.loads(p)
+
+        self.assertEqual(gen_new.__qualname__, gen_orig.__qualname__)
+
+    def test_noname(self):
+        # Ensure unpickling compatibility with Python versions < 3.5
+        def g():
+            yield 11
+        gen_orig = g()
+
+        r = copyreg.dispatch_table[type(gen_orig)](gen_orig)
+
+        self.assertIsInstance(r, tuple)
+        self.assertEqual(len(r), 3)
+        self.assertEqual(len(r[2]), 4)
+
+        gen_new = r[0](*r[1])
+        self.assertEqual(gen_new.__qualname__, "exhausted_generator")
+        self.assertEqual(gen_new.__name__, "exhausted_generator")
+        self.assertIs(type(gen_new), stackless._wrap.generator)
+
+        gen_new.__setstate__(r[2][:-2])
+
+        self.assertEqual(gen_new.__qualname__, "g")
+        self.assertEqual(gen_new.__name__, "g")
+        self.assertIs(type(gen_new), type(gen_orig))
+
+        v = gen_new.__next__()
+        self.assertEqual(v, 11)
+
 
 if __name__ == '__main__':
     unittest.main()

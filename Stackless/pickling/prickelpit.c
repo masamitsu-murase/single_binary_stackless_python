@@ -2240,10 +2240,12 @@ static PyObject *
 gen_reduce(PyGenObject *gen)
 {
     PyObject *tup;
-    tup = Py_BuildValue("(O()(Oi))",
+    tup = Py_BuildValue("(O()(OiOO))",
                         &wrap_PyGen_Type,
                         gen->gi_frame,
-                        gen->gi_running
+                        gen->gi_running,
+                        gen->gi_name,
+                        gen->gi_qualname
                         );
     return tup;
 }
@@ -2270,11 +2272,21 @@ gen_setstate(PyObject *self, PyObject *args)
     PyGenObject *gen = (PyGenObject *) self;
     PyFrameObject *f;
     int gi_running;
+    PyObject *name = NULL;
+    PyObject *qualname = NULL;
 
     if (is_wrong_type(self->ob_type)) return NULL;
-    if (!PyArg_ParseTuple(args, "O!i:generator",
-                          &PyFrame_Type, &f, &gi_running))
+    if (!PyArg_ParseTuple(args, "O!i|OO:generator",
+                          &PyFrame_Type, &f, &gi_running, &name, &qualname))
         return NULL;
+
+    if (name == NULL) {
+        name = f->f_code->co_name;
+        assert(name != NULL);
+    }
+    if (qualname == NULL) {
+        qualname = name;
+    }
 
     if (!gi_running) {
         if ((f = slp_ensure_new_frame(f)) != NULL) {
@@ -2290,6 +2302,10 @@ gen_setstate(PyObject *self, PyObject *args)
             Py_SETREF(gen->gi_frame, f);
             Py_INCREF(f->f_code);
             Py_SETREF(gen->gi_code, (PyObject *)f->f_code);
+            Py_INCREF(name);
+            Py_SETREF(gen->gi_name, name);
+            Py_INCREF(qualname);
+            Py_SETREF(gen->gi_qualname, qualname);
             /* The frame the temporary generator references
                will have GeneratorExit raised on it, when the
                temporary generator is torn down.  So clearing
@@ -2317,6 +2333,10 @@ gen_setstate(PyObject *self, PyObject *args)
     Py_INCREF(f->f_code);
     Py_SETREF(gen->gi_code, (PyObject *)f->f_code);
     gen->gi_running = gi_running;
+    Py_INCREF(name);
+    Py_SETREF(gen->gi_name, name);
+    Py_INCREF(qualname);
+    Py_SETREF(gen->gi_qualname, qualname);
     Py_TYPE(gen) = Py_TYPE(gen)->tp_base;
     Py_INCREF(gen);
     return (PyObject *)gen;
