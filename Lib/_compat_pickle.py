@@ -141,6 +141,13 @@ PYTHON2_EXCEPTIONS = (
     "ZeroDivisionError",
 )
 
+try:
+    import stackless
+except ImportError:
+    pass
+else:
+    PYTHON2_EXCEPTIONS = PYTHON2_EXCEPTIONS + ("TaskletExit",)
+
 for excname in PYTHON2_EXCEPTIONS:
     NAME_MAPPING[("exceptions", excname)] = ("builtins", excname)
 
