@@ -1298,7 +1298,7 @@ _Py_PrintFatalError(int fd)
         goto display_stack;
     }
 
-    has_tb = (tb != NULL && tb != Py_None);
+    has_tb = (tb != Py_None);
     PyErr_Display(exception, v, tb);
     Py_XDECREF(exception);
     Py_XDECREF(v);
