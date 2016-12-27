@@ -558,7 +558,7 @@ Py_Finalize(void)
     _Py_Finalizing = tstate;
     initialized = 0;
 
-    /* Flush stdout+stderr */
+    /* Flush sys.stdout and sys.stderr */
     flush_std_files();
 
     /* Disable signal handling */
@@ -587,7 +587,7 @@ Py_Finalize(void)
     /* Destroy all modules */
     PyImport_Cleanup();
 
-    /* Flush stdout+stderr (again, in case more was printed) */
+    /* Flush sys.stdout and sys.stderr (again, in case more was printed) */
     flush_std_files();
 
     /* Collect final garbage.  This disposes of cycles created by
@@ -1268,6 +1268,7 @@ initstdio(void)
 static void
 _Py_PrintFatalError(int fd)
 {
+    PyObject *ferr, *res;
     PyObject *exception, *v, *tb;
     int has_tb;
     PyThreadState *tstate;
@@ -1278,6 +1279,13 @@ _Py_PrintFatalError(int fd)
         goto display_stack;
     }
 
+    ferr = _PySys_GetObjectId(&PyId_stderr);
+    if (ferr == NULL || ferr == Py_None) {
+        /* sys.stderr is not set yet or set to None,
+           no need to try to display the exception */
+        goto display_stack;
+    }
+
     PyErr_NormalizeException(&exception, &v, &tb);
     if (tb == NULL) {
         tb = Py_None;
@@ -1285,7 +1293,7 @@ _Py_PrintFatalError(int fd)
     }
     PyException_SetTraceback(v, tb);
     if (exception == NULL) {
-        /* too bad, PyErr_NormalizeException() failed */
+        /* PyErr_NormalizeException() failed */
         goto display_stack;
     }
 
@@ -1294,6 +1302,14 @@ _Py_PrintFatalError(int fd)
     Py_XDECREF(exception);
     Py_XDECREF(v);
     Py_XDECREF(tb);
+
+    /* sys.stderr may be buffered: call sys.stderr.flush() */
+    res = _PyObject_CallMethodId(ferr, &PyId_flush, "");
+    if (res == NULL)
+        PyErr_Clear();
+    else
+        Py_DECREF(res);
+
     if (has_tb)
         return;
 
@@ -1318,36 +1334,53 @@ void
 Py_FatalError(const char *msg)
 {
     const int fd = fileno(stderr);
+    static int reentrant = 0;
+#ifdef MS_WINDOWS
+    size_t len;
+    WCHAR* buffer;
+    size_t i;
+#endif
+
+    if (reentrant) {
+        /* Py_FatalError() caused a second fatal error.
+           Example: flush_std_files() raises a recursion error. */
+        goto exit;
+    }
+    reentrant = 1;
 
     fprintf(stderr, "Fatal Python error: %s\n", msg);
     fflush(stderr); /* it helps in Windows debug build */
 
+    /* Print the exception (if an exception is set) with its traceback,
+     * or display the current Python stack. */
     _Py_PrintFatalError(fd);
 
+    /* Flush sys.stdout and sys.stderr */
+    flush_std_files();
+
     /* The main purpose of faulthandler is to display the traceback. We already
-     * did our best to display it. So faulthandler can now be disabled. */
+     * did our best to display it. So faulthandler can now be disabled.
+     * (Don't trigger it on abort().) */
     _PyFaulthandler_Fini();
 
 #ifdef MS_WINDOWS
-    {
-        size_t len = strlen(msg);
-        WCHAR* buffer;
-        size_t i;
+    len = strlen(msg);
 
-        /* Convert the message to wchar_t. This uses a simple one-to-one
-        conversion, assuming that the this error message actually uses ASCII
-        only. If this ceases to be true, we will have to convert. */
-        buffer = alloca( (len+1) * (sizeof *buffer));
-        for( i=0; i<=len; ++i)
-            buffer[i] = msg[i];
-        OutputDebugStringW(L"Fatal Python error: ");
-        OutputDebugStringW(buffer);
-        OutputDebugStringW(L"\n");
-    }
-#ifdef _DEBUG
+    /* Convert the message to wchar_t. This uses a simple one-to-one
+    conversion, assuming that the this error message actually uses ASCII
+    only. If this ceases to be true, we will have to convert. */
+    buffer = alloca( (len+1) * (sizeof *buffer));
+    for( i=0; i<=len; ++i)
+        buffer[i] = msg[i];
+    OutputDebugStringW(L"Fatal Python error: ");
+    OutputDebugStringW(buffer);
+    OutputDebugStringW(L"\n");
+#endif /* MS_WINDOWS */
+
+exit:
+#if defined(MS_WINDOWS) && defined(_DEBUG)
     DebugBreak();
 #endif
-#endif /* MS_WINDOWS */
     abort();
 }
 
