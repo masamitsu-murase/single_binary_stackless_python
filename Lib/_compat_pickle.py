@@ -142,11 +142,18 @@ PYTHON2_EXCEPTIONS = (
 )
 
 try:
-    import stackless
-except ImportError:
+    TaskletExit
+except NameError:
     pass
 else:
-    PYTHON2_EXCEPTIONS = PYTHON2_EXCEPTIONS + ("TaskletExit",)
+    PYTHON2_EXCEPTIONS += ("TaskletExit",)
+
+try:
+    WindowsError
+except NameError:
+    pass
+else:
+    PYTHON2_EXCEPTIONS += ("WindowsError",)
 
 for excname in PYTHON2_EXCEPTIONS:
     NAME_MAPPING[("exceptions", excname)] = ("builtins", excname)
