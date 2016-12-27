@@ -2081,16 +2081,6 @@ _Py_CheckFunctionResult(PyObject *func, PyObject *result, const char *where)
 
     assert((func != NULL) ^ (where != NULL));
 
-#ifndef NDEBUG
-    /* In debug mode: abort() with an assertion error. Use two different
-       assertions, so if an assertion fails, it's possible to know
-       if result was set or not and if an exception was raised or not. */
-    if (STACKLESS_RETVAL(result) != NULL)
-        assert(!err_occurred);
-    else
-        assert(err_occurred);
-#endif
-
     if (STACKLESS_RETVAL(result) == NULL) {
         if (!err_occurred) {
             if (func)
@@ -2101,7 +2091,7 @@ _Py_CheckFunctionResult(PyObject *func, PyObject *result, const char *where)
                 PyErr_Format(PyExc_SystemError,
                              "%s returned NULL without setting an error",
                              where);
-            return NULL;
+            goto error;
         }
     }
     else {
@@ -2120,10 +2110,17 @@ _Py_CheckFunctionResult(PyObject *func, PyObject *result, const char *where)
                              "%s returned a result with an error set",
                              where);
             _PyErr_ChainExceptions(exc, val, tb);
-            return NULL;
+            goto error;
         }
     }
     return result;
+
+error:
+#ifdef Py_DEBUG
+    /* Ensure that the bug is catched in debug mode */
+    Py_FatalError("Function result is invalid");
+#endif
+    return NULL;
 }
 
 PyObject *
