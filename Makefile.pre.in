@@ -1676,7 +1676,7 @@ funny:
 		-o -print
 
 # Perform some verification checks on any modified files.
-patchcheck:
+patchcheck: all
 	$(RUNSHARED) ./$(BUILDPYTHON) $(srcdir)/Tools/scripts/patchcheck.py
 
 # Dependencies

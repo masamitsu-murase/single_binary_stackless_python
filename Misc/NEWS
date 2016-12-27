@@ -10,13 +10,48 @@ Release date: 2015-03-28
 Core and Builtins
 -----------------
 
+- Issue #23192: Fixed generator lambdas.  Patch by Bruno Cauet.
+
+- Issue #23629: Fix the default __sizeof__ implementation for variable-sized
+  objects.
+
 Library
 -------
+
+- Issue #23631: Fix traceback.format_list when a traceback has been mutated.
+
+- Issue #23568: Add rdivmod support to MagicMock() objects.
+  Patch by Håkan Lövdahl.
+
+- Issue #2052: Add charset parameter to HtmlDiff.make_file().
+
+- Issue #23138: Fixed parsing cookies with absent keys or values in cookiejar.
+  Patch by Demian Brecht.
+
+- Issue #23051: multiprocessing.Pool methods imap() and imap_unordered() now
+  handle exceptions raised by an iterator.  Patch by Alon Diamant and Davin
+  Potts.
+
+- Issue #23581: Add matmul support to MagicMock. Patch by Håkan Lövdahl.
+
+- Issue #23566: enable(), register(), dump_traceback() and
+  dump_traceback_later() functions of faulthandler now accept file
+  descriptors. Patch by Wei Wu.
+
+- Issue #22928: Disabled HTTP header injections in http.client.
+  Original patch by Demian Brecht.
+
+- Issue #23615: Modules bz2, tarfile and tokenize now can be reloaded with
+  imp.reload().  Patch by Thomas Kluyver.
 
 - Issue #23605: os.walk() now calls os.scandir() instead of os.listdir().
   The usage of os.scandir() reduces the number of calls to os.stat().
   Initial patch written by Ben Hoyt.
 
+Build
+-----
+
+- Issue #23585: make patchcheck will ensure the interpreter is built.
 
 What's New in Python 3.5 alpha 2?
 =================================

@@ -1837,9 +1837,9 @@ __gt__
 __hash__
 __iadd__
 __iand__
-__idivmod__
 __ifloordiv__
 __ilshift__
+__imatmul__
 __imod__
 __imul__
 __index__
@@ -1856,6 +1856,7 @@ __le__
 __len__
 __lshift__
 __lt__
+__matmul__
 __mod__
 __mul__
 __neg__
@@ -1870,6 +1871,7 @@ __rdivmod__
 __repr__
 __rfloordiv__
 __rlshift__
+__rmatmul__
 __rmod__
 __rmul__
 __ror__
