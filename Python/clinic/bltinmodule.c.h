@@ -109,18 +109,18 @@ PyDoc_STRVAR(builtin_chr__doc__,
 "Return a Unicode string of one character with ordinal i; 0 <= i <= 0x10ffff.");
 
 #define BUILTIN_CHR_METHODDEF    \
-    {"chr", (PyCFunction)builtin_chr, METH_VARARGS, builtin_chr__doc__},
+    {"chr", (PyCFunction)builtin_chr, METH_O, builtin_chr__doc__},
 
 static PyObject *
 builtin_chr_impl(PyModuleDef *module, int i);
 
 static PyObject *
-builtin_chr(PyModuleDef *module, PyObject *args)
+builtin_chr(PyModuleDef *module, PyObject *arg)
 {
     PyObject *return_value = NULL;
     int i;
 
-    if (!PyArg_ParseTuple(args,
+    if (!PyArg_Parse(arg,
         "i:chr",
         &i))
         goto exit;
@@ -662,4 +662,4 @@ builtin_issubclass(PyModuleDef *module, PyObject *args)
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=df5f7b0d0ba87749 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=eb789f519d550116 input=a9049054013a1b77]*/
