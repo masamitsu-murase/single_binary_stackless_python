@@ -10,6 +10,7 @@ sub-second periodicity (contrarily to signal()).
 
 import io
 import os
+import select
 import signal
 import socket
 import time
@@ -37,8 +38,12 @@ class EINTRBaseTest(unittest.TestCase):
                          cls.signal_period)
 
     @classmethod
-    def tearDownClass(cls):
+    def stop_alarm(cls):
         signal.setitimer(signal.ITIMER_REAL, 0, 0)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.stop_alarm()
         signal.signal(signal.SIGALRM, cls.orig_handler)
 
     @classmethod
@@ -259,7 +264,7 @@ class TimeEINTRTest(EINTRBaseTest):
     def test_sleep(self):
         t0 = time.monotonic()
         time.sleep(self.sleep_time)
-        signal.alarm(0)
+        self.stop_alarm()
         dt = time.monotonic() - t0
         self.assertGreaterEqual(dt, self.sleep_time)
 
@@ -303,12 +308,46 @@ class SignalEINTRTest(EINTRBaseTest):
         self.assertGreaterEqual(dt, self.sleep_time)
 
 
+@unittest.skipUnless(hasattr(signal, "setitimer"), "requires setitimer()")
+class SelectEINTRTest(EINTRBaseTest):
+    """ EINTR tests for the select module. """
+
+    def test_select(self):
+        t0 = time.monotonic()
+        select.select([], [], [], self.sleep_time)
+        self.stop_alarm()
+        dt = time.monotonic() - t0
+        self.assertGreaterEqual(dt, self.sleep_time)
+
+    @unittest.skipUnless(hasattr(select, 'poll'), 'need select.poll')
+    def test_poll(self):
+        poller = select.poll()
+
+        t0 = time.monotonic()
+        poller.poll(self.sleep_time * 1e3)
+        self.stop_alarm()
+        dt = time.monotonic() - t0
+        self.assertGreaterEqual(dt, self.sleep_time)
+
+    @unittest.skipUnless(hasattr(select, 'epoll'), 'need select.epoll')
+    def test_epoll(self):
+        poller = select.epoll()
+        self.addCleanup(poller.close)
+
+        t0 = time.monotonic()
+        poller.poll(self.sleep_time)
+        self.stop_alarm()
+        dt = time.monotonic() - t0
+        self.assertGreaterEqual(dt, self.sleep_time)
+
+
 def test_main():
     support.run_unittest(
         OSEINTRTest,
         SocketEINTRTest,
         TimeEINTRTest,
-        SignalEINTRTest)
+        SignalEINTRTest,
+        SelectEINTRTest)
 
 
 if __name__ == "__main__":

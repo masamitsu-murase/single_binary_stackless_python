@@ -81,16 +81,24 @@ py_getentropy(unsigned char *buffer, Py_ssize_t size, int fatal)
 {
     while (size > 0) {
         Py_ssize_t len = Py_MIN(size, 256);
-        int res = getentropy(buffer, len);
-        if (res < 0) {
-            if (fatal) {
-                Py_FatalError("getentropy() failed");
-            }
-            else {
+        int res;
+
+        if (!fatal) {
+            Py_BEGIN_ALLOW_THREADS
+            res = getentropy(buffer, len);
+            Py_END_ALLOW_THREADS
+
+            if (res < 0) {
                 PyErr_SetFromErrno(PyExc_OSError);
                 return -1;
             }
         }
+        else {
+            res = getentropy(buffer, len);
+            if (res < 0)
+                Py_FatalError("getentropy() failed");
+        }
+
         buffer += len;
         size -= len;
     }
@@ -115,9 +123,18 @@ py_getrandom(void *buffer, Py_ssize_t size, int raise)
 
     while (0 < size) {
         errno = 0;
-        /* the libc doesn't expose getrandom() yet, see:
+
+        /* Use syscall() because the libc doesn't expose getrandom() yet, see:
          * https://sourceware.org/bugzilla/show_bug.cgi?id=17252 */
-        n = syscall(SYS_getrandom, buffer, size, flags);
+        if (raise) {
+            Py_BEGIN_ALLOW_THREADS
+            n = syscall(SYS_getrandom, buffer, size, flags);
+            Py_END_ALLOW_THREADS
+        }
+        else {
+            n = syscall(SYS_getrandom, buffer, size, flags);
+        }
+
         if (n < 0) {
             if (errno == ENOSYS) {
                 getrandom_works = 0;
@@ -221,7 +238,7 @@ dev_urandom_python(char *buffer, Py_ssize_t size)
 
     if (urandom_cache.fd >= 0) {
         /* Does the fd point to the same thing as before? (issue #21207) */
-        if (_Py_fstat(urandom_cache.fd, &st)
+        if (_Py_fstat_noraise(urandom_cache.fd, &st)
             || st.st_dev != urandom_cache.st_dev
             || st.st_ino != urandom_cache.st_ino) {
             /* Something changed: forget the cached fd (but don't close it,
@@ -250,7 +267,6 @@ dev_urandom_python(char *buffer, Py_ssize_t size)
         }
         else {
             if (_Py_fstat(fd, &st)) {
-                PyErr_SetFromErrno(PyExc_OSError);
                 close(fd);
                 return -1;
             }

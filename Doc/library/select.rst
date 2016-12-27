@@ -145,6 +145,13 @@ The module defines the following:
       library, and does not handle file descriptors that don't originate from
       WinSock.
 
+   .. versionchanged:: 3.5
+      The function is now retried with a recomputed timeout when interrupted by
+      a signal, except if the signal handler raises an exception (see
+      :pep:`475` for the rationale), instead of raising
+      :exc:`InterruptedError`.
+
+
 .. attribute:: PIPE_BUF
 
    The minimum number of bytes which can be written without blocking to a pipe
@@ -322,6 +329,12 @@ Edge and Level Trigger Polling (epoll) Objects
 
    Wait for events. timeout in seconds (float)
 
+   .. versionchanged:: 3.5
+      The function is now retried with a recomputed timeout when interrupted by
+      a signal, except if the signal handler raises an exception (see
+      :pep:`475` for the rationale), instead of raising
+      :exc:`InterruptedError`.
+
 
 .. _poll-objects:
 
@@ -400,6 +413,12 @@ linearly scanned again. :c:func:`select` is O(highest file descriptor), while
    length of time in milliseconds which the system will wait for events before
    returning. If *timeout* is omitted, negative, or :const:`None`, the call will
    block until there is an event for this poll object.
+
+   .. versionchanged:: 3.5
+      The function is now retried with a recomputed timeout when interrupted by
+      a signal, except if the signal handler raises an exception (see
+      :pep:`475` for the rationale), instead of raising
+      :exc:`InterruptedError`.
 
 
 .. _kqueue-objects:
