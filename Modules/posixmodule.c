@@ -1280,10 +1280,6 @@ fildes_converter(PyObject *o, void *p)
     fd = PyObject_AsFileDescriptor(o);
     if (fd < 0)
         return 0;
-    if (!_PyVerify_fd(fd)) {
-        posix_error();
-        return 0;
-    }
     *pointer = fd;
     return 1;
 }
@@ -1294,9 +1290,14 @@ posix_fildes_fd(int fd, int (*func)(int))
     int res;
     int async_err = 0;
 
+    if (!_PyVerify_fd(fd))
+        return posix_error();
+
     do {
         Py_BEGIN_ALLOW_THREADS
+        _Py_BEGIN_SUPPRESS_IPH
         res = (*func)(fd);
+        _Py_END_SUPPRESS_IPH
         Py_END_ALLOW_THREADS
     } while (res != 0 && errno == EINTR && !(async_err = PyErr_CheckSignals()));
     if (res != 0)
@@ -2315,6 +2316,10 @@ FTRUNCATE
 #endif
 /*[python end generated code: output=4bd4f6f7d41267f1 input=80b4c890b6774ea5]*/
 
+#ifdef MS_WINDOWS
+    #undef PATH_HAVE_FTRUNCATE
+    #define PATH_HAVE_FTRUNCATE 1
+#endif
 
 /*[python input]
 
@@ -4355,6 +4360,7 @@ os_unlink_impl(PyModuleDef *module, path_t *path, int dir_fd)
     int result;
 
     Py_BEGIN_ALLOW_THREADS
+    _Py_BEGIN_SUPPRESS_IPH
 #ifdef MS_WINDOWS
     if (path->wide)
         result = Py_DeleteFileW(path->wide);
@@ -4369,6 +4375,7 @@ os_unlink_impl(PyModuleDef *module, path_t *path, int dir_fd)
 #endif /* HAVE_UNLINKAT */
         result = unlink(path->narrow);
 #endif
+    _Py_END_SUPPRESS_IPH
     Py_END_ALLOW_THREADS
 
     if (result)
@@ -7688,6 +7695,7 @@ os_open_impl(PyModuleDef *module, path_t *path, int flags, int mode, int dir_fd)
     flags |= O_CLOEXEC;
 #endif
 
+    _Py_BEGIN_SUPPRESS_IPH
     do {
         Py_BEGIN_ALLOW_THREADS
 #ifdef MS_WINDOWS
@@ -7703,6 +7711,7 @@ os_open_impl(PyModuleDef *module, path_t *path, int flags, int mode, int dir_fd)
             fd = open(path->narrow, flags, mode);
         Py_END_ALLOW_THREADS
     } while (fd < 0 && errno == EINTR && !(async_err = PyErr_CheckSignals()));
+    _Py_END_SUPPRESS_IPH
 
     if (fd == -1) {
         if (!async_err)
@@ -7741,7 +7750,9 @@ os_close_impl(PyModuleDef *module, int fd)
      * for more details.
      */
     Py_BEGIN_ALLOW_THREADS
+    _Py_BEGIN_SUPPRESS_IPH
     res = close(fd);
+    _Py_END_SUPPRESS_IPH
     Py_END_ALLOW_THREADS
     if (res < 0)
         return posix_error();
@@ -7765,9 +7776,11 @@ os_closerange_impl(PyModuleDef *module, int fd_low, int fd_high)
 {
     int i;
     Py_BEGIN_ALLOW_THREADS
+    _Py_BEGIN_SUPPRESS_IPH
     for (i = fd_low; i < fd_high; i++)
         if (_PyVerify_fd(i))
             close(i);
+    _Py_END_SUPPRESS_IPH
     Py_END_ALLOW_THREADS
     Py_RETURN_NONE;
 }
@@ -7819,7 +7832,9 @@ os_dup2_impl(PyModuleDef *module, int fd, int fd2, int inheritable)
      */
 #ifdef MS_WINDOWS
     Py_BEGIN_ALLOW_THREADS
+    _Py_BEGIN_SUPPRESS_IPH
     res = dup2(fd, fd2);
+    _Py_END_SUPPRESS_IPH
     Py_END_ALLOW_THREADS
     if (res < 0)
         return posix_error();
@@ -7953,11 +7968,13 @@ os_lseek_impl(PyModuleDef *module, int fd, Py_off_t position, int how)
         return -1;
     }
     Py_BEGIN_ALLOW_THREADS
+    _Py_BEGIN_SUPPRESS_IPH
 #ifdef MS_WINDOWS
     result = _lseeki64(fd, position, how);
 #else
     result = lseek(fd, position, how);
 #endif
+    _Py_END_SUPPRESS_IPH
     Py_END_ALLOW_THREADS
     if (result < 0)
         posix_error();
@@ -8164,7 +8181,9 @@ os_pread_impl(PyModuleDef *module, int fd, int length, Py_off_t offset)
 
     do {
         Py_BEGIN_ALLOW_THREADS
+        _Py_BEGIN_SUPPRESS_IPH
         n = pread(fd, PyBytes_AS_STRING(buffer), length, offset);
+        _Py_END_SUPPRESS_IPH
         Py_END_ALLOW_THREADS
     } while (n < 0 && errno == EINTR && !(async_err = PyErr_CheckSignals()));
 
@@ -8272,6 +8291,7 @@ posix_sendfile(PyObject *self, PyObject *args, PyObject *kwdict)
         }
     }
 
+    _Py_BEGIN_SUPPRESS_IPH
     do {
         Py_BEGIN_ALLOW_THREADS
 #ifdef __APPLE__
@@ -8281,6 +8301,7 @@ posix_sendfile(PyObject *self, PyObject *args, PyObject *kwdict)
 #endif
         Py_END_ALLOW_THREADS
     } while (ret < 0 && errno == EINTR && !(async_err = PyErr_CheckSignals()));
+    _Py_END_SUPPRESS_IPH
 
     if (sf.headers != NULL)
         iov_cleanup(sf.headers, hbuf, sf.hdr_cnt);
@@ -8397,9 +8418,13 @@ static int
 os_isatty_impl(PyModuleDef *module, int fd)
 /*[clinic end generated code: output=acec9d3c29d16d33 input=08ce94aa1eaf7b5e]*/
 {
+    int return_value;
     if (!_PyVerify_fd(fd))
         return 0;
-    return isatty(fd);
+    _Py_BEGIN_SUPPRESS_IPH
+    return_value = isatty(fd);
+    _Py_END_SUPPRESS_IPH
+    return return_value;
 }
 
 
@@ -8594,7 +8619,9 @@ os_pwrite_impl(PyModuleDef *module, int fd, Py_buffer *buffer, Py_off_t offset)
 
     do {
         Py_BEGIN_ALLOW_THREADS
+        _Py_BEGIN_SUPPRESS_IPH
         size = pwrite(fd, buffer->buf, (size_t)buffer->len, offset);
+        _Py_END_SUPPRESS_IPH
         Py_END_ALLOW_THREADS
     } while (size < 0 && errno == EINTR && !(async_err = PyErr_CheckSignals()));
 
@@ -8753,7 +8780,7 @@ os_makedev_impl(PyModuleDef *module, int major, int minor)
 #endif /* HAVE_DEVICE_MACROS */
 
 
-#ifdef HAVE_FTRUNCATE
+#if defined HAVE_FTRUNCATE || defined MS_WINDOWS
 /*[clinic input]
 os.ftruncate
 
@@ -8771,9 +8798,18 @@ os_ftruncate_impl(PyModuleDef *module, int fd, Py_off_t length)
     int result;
     int async_err = 0;
 
+    if (!_PyVerify_fd(fd))
+        return posix_error();
+
     do {
         Py_BEGIN_ALLOW_THREADS
+        _Py_BEGIN_SUPPRESS_IPH
+#ifdef MS_WINDOWS
+        result = _chsize_s(fd, length);
+#else
         result = ftruncate(fd, length);
+#endif
+        _Py_END_SUPPRESS_IPH
         Py_END_ALLOW_THREADS
     } while (result != 0 && errno == EINTR &&
              !(async_err = PyErr_CheckSignals()));
@@ -8781,10 +8817,10 @@ os_ftruncate_impl(PyModuleDef *module, int fd, Py_off_t length)
         return (!async_err) ? posix_error() : NULL;
     Py_RETURN_NONE;
 }
-#endif /* HAVE_FTRUNCATE */
+#endif /* HAVE_FTRUNCATE || MS_WINDOWS */
 
 
-#ifdef HAVE_TRUNCATE
+#if defined HAVE_TRUNCATE || defined MS_WINDOWS
 /*[clinic input]
 os.truncate
     path: path_t(allow_fd='PATH_HAVE_FTRUNCATE')
@@ -8801,21 +8837,39 @@ os_truncate_impl(PyModuleDef *module, path_t *path, Py_off_t length)
 /*[clinic end generated code: output=f60a9e08370e9e2e input=77229cf0b50a9b77]*/
 {
     int result;
+#ifdef MS_WINDOWS
+    int fd;
+#endif
+
+    if (path->fd != -1)
+        return os_ftruncate_impl(module, path->fd, length);
 
     Py_BEGIN_ALLOW_THREADS
-#ifdef HAVE_FTRUNCATE
-    if (path->fd != -1)
-        result = ftruncate(path->fd, length);
+    _Py_BEGIN_SUPPRESS_IPH
+#ifdef MS_WINDOWS
+    if (path->wide)
+        fd = _wopen(path->wide, _O_WRONLY | _O_BINARY | _O_NOINHERIT);
     else
+        fd = _open(path->narrow, _O_WRONLY | _O_BINARY | _O_NOINHERIT);
+    if (fd < 0) 
+        result = -1;
+    else {
+        result = _chsize_s(fd, length);
+        close(fd);
+        if (result < 0)
+            errno = result;
+    }
+#else
+    result = truncate(path->narrow, length);
 #endif
-        result = truncate(path->narrow, length);
+    _Py_END_SUPPRESS_IPH
     Py_END_ALLOW_THREADS
     if (result < 0)
         return path_error(path);
 
     Py_RETURN_NONE;
 }
-#endif /* HAVE_TRUNCATE */
+#endif /* HAVE_TRUNCATE || MS_WINDOWS */
 
 
 /* Issue #22396: On 32-bit AIX platform, the prototypes of os.posix_fadvise()
@@ -10327,8 +10381,6 @@ conv_sysconf_confname(PyObject *arg, int *valuep)
                            / sizeof(struct constdef));
 }
 
-#include "clinic/posixmodule.c.h"
-
 
 /*[clinic input]
 os.sysconf -> long
@@ -11168,12 +11220,16 @@ static int
 os_get_inheritable_impl(PyModuleDef *module, int fd)
 /*[clinic end generated code: output=36110bb36efaa21e input=89ac008dc9ab6b95]*/
 {
-    if (!_PyVerify_fd(fd)){
+    int return_value;
+    if (!_PyVerify_fd(fd)) {
         posix_error();
         return -1;
     }
 
-    return _Py_get_inheritable(fd);
+    _Py_BEGIN_SUPPRESS_IPH
+    return_value = _Py_get_inheritable(fd);
+    _Py_END_SUPPRESS_IPH
+    return return_value;
 }
 
 
@@ -11190,10 +11246,14 @@ static PyObject *
 os_set_inheritable_impl(PyModuleDef *module, int fd, int inheritable)
 /*[clinic end generated code: output=2ac5c6ce8623f045 input=9ceaead87a1e2402]*/
 {
+    int result;
     if (!_PyVerify_fd(fd))
         return posix_error();
 
-    if (_Py_set_inheritable(fd, inheritable, NULL) < 0)
+    _Py_BEGIN_SUPPRESS_IPH
+    result = _Py_set_inheritable(fd, inheritable, NULL);
+    _Py_END_SUPPRESS_IPH
+    if (result < 0)
         return NULL;
     Py_RETURN_NONE;
 }
@@ -11264,7 +11324,9 @@ posix_get_blocking(PyObject *self, PyObject *args)
     if (!_PyVerify_fd(fd))
         return posix_error();
 
+    _Py_BEGIN_SUPPRESS_IPH
     blocking = _Py_get_blocking(fd);
+    _Py_END_SUPPRESS_IPH
     if (blocking < 0)
         return NULL;
     return PyBool_FromLong(blocking);
@@ -11280,7 +11342,7 @@ PyDoc_STRVAR(set_blocking__doc__,
 static PyObject*
 posix_set_blocking(PyObject *self, PyObject *args)
 {
-    int fd, blocking;
+    int fd, blocking, result;
 
     if (!PyArg_ParseTuple(args, "ii:set_blocking", &fd, &blocking))
         return NULL;
@@ -11288,7 +11350,10 @@ posix_set_blocking(PyObject *self, PyObject *args)
     if (!_PyVerify_fd(fd))
         return posix_error();
 
-    if (_Py_set_blocking(fd, blocking) < 0)
+    _Py_BEGIN_SUPPRESS_IPH
+    result = _Py_set_blocking(fd, blocking);
+    _Py_END_SUPPRESS_IPH
+    if (result < 0)
         return NULL;
     Py_RETURN_NONE;
 }
@@ -11627,7 +11692,7 @@ static PyMethodDef DirEntry_methods[] = {
     {NULL}
 };
 
-PyTypeObject DirEntryType = {
+static PyTypeObject DirEntryType = {
     PyVarObject_HEAD_INIT(NULL, 0)
     MODNAME ".DirEntry",                    /* tp_name */
     sizeof(DirEntry),                       /* tp_basicsize */
@@ -11959,7 +12024,7 @@ ScandirIterator_dealloc(ScandirIterator *iterator)
     Py_TYPE(iterator)->tp_free((PyObject *)iterator);
 }
 
-PyTypeObject ScandirIteratorType = {
+static PyTypeObject ScandirIteratorType = {
     PyVarObject_HEAD_INIT(NULL, 0)
     MODNAME ".ScandirIterator",             /* tp_name */
     sizeof(ScandirIterator),                /* tp_basicsize */
@@ -12070,6 +12135,8 @@ error:
     return NULL;
 }
 
+
+#include "clinic/posixmodule.c.h"
 
 /*[clinic input]
 dump buffer
@@ -12771,7 +12838,7 @@ static char *have_functions[] = {
     "HAVE_FSTATVFS",
 #endif
 
-#ifdef HAVE_FTRUNCATE
+#if defined HAVE_FTRUNCATE || defined MS_WINDOWS
     "HAVE_FTRUNCATE",
 #endif
 

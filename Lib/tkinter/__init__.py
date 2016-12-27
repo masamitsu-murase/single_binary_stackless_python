@@ -391,6 +391,11 @@ class BooleanVar(Variable):
         """
         Variable.__init__(self, master, value, name)
 
+    def set(self, value):
+        """Set the variable to VALUE."""
+        return self._tk.globalsetvar(self._name, self._tk.getboolean(value))
+    initialize = set
+
     def get(self):
         """Return the value of the variable as a bool."""
         try:
@@ -1847,7 +1852,7 @@ class Tk(Misc, Wm):
             import os
             baseName = os.path.basename(sys.argv[0])
             baseName, ext = os.path.splitext(baseName)
-            if ext not in ('.py', '.pyc', '.pyo'):
+            if ext not in ('.py', '.pyc'):
                 baseName = baseName + ext
         interactive = 0
         self.tk = _tkinter.create(screenName, baseName, className, interactive, wantobjects, useTk, sync, use)

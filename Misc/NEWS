@@ -10,11 +10,71 @@ Release date: XXX
 Core and Builtins
 -----------------
 
+- Issue #23731: Implement PEP 488: removal of .pyo files.
+
+- Issue #23726: Don't enable GC for user subclasses of non-GC types that
+  don't add any new fields.  Patch by Eugene Toder.
+
+- Issue #23309: Avoid a deadlock at shutdown if a daemon thread is aborted
+  while it is holding a lock to a buffered I/O object, and the main thread
+  tries to use the same I/O object (typically stdout or stderr).  A fatal
+  error is emitted instead.
+
 - Issue #22977: Fixed formatting Windows error messages on Wine.
   Patch by Martin Panter.
 
+- Issue #23466: %c, %o, %x, and %X in bytes formatting now raise TypeError on
+  non-integer input.
+
 Library
 -------
+
+- Issue #22982: Improve BOM handling when seeking to multiple positions of
+  a writable text file.
+
+- Issue #23464: Removed deprecated asyncio JoinableQueue.
+
+- Issue #23529: Limit the size of decompressed data when reading from
+  GzipFile, BZ2File or LZMAFile.  This defeats denial of service attacks
+  using compressed bombs (i.e. compressed payloads which decompress to a huge
+  size).  Patch by Martin Panter and Nikolaus Rath.
+
+- Issue #21859: Added Python implementation of io.FileIO.
+
+- Issue #23865: close() methods in multiple modules now are idempotent and more
+  robust at shutdown. If needs to release multiple resources, they are released
+  even if errors are occured.
+
+- Issue #23400: Raise same exception on both Python 2 and 3 if sem_open is not
+  available.  Patch by Davin Potts.
+
+- Issue #10838: The subprocess now module includes SubprocessError and
+  TimeoutError in its list of exported names for the users wild enough
+  to use ``from subprocess import *``.
+
+- Issue #23411: Added DefragResult, ParseResult, SplitResult, DefragResultBytes,
+  ParseResultBytes, and SplitResultBytes to urllib.parse.__all__.
+  Patch by Martin Panter.
+
+- Issue #23881: urllib.request.ftpwrapper constructor now closes the socket if
+  the FTP connection failed to fix a ResourceWarning.
+
+- Issue #23853: :meth:`socket.socket.sendall` does no more reset the socket
+  timeout each time data is sent successfuly. The socket timeout is now the
+  maximum total duration to send all data.
+
+- Issue #22721: An order of multiline pprint output of set or dict containing
+  orderable and non-orderable elements no longer depends on iteration order of
+  set or dict.
+
+- Issue #15133: _tkinter.tkapp.getboolean() now supports Tcl_Obj and always
+  returns bool.  tkinter.BooleanVar now validates input values (accepted bool,
+  int, str, and Tcl_Obj).  tkinter.BooleanVar.get() now always returns bool.
+
+- Issue #10590: xml.sax.parseString() now supports string argument.
+
+- Issue #23338: Fixed formatting ctypes error messages on Cygwin.
+  Patch by Makoto Kato.
 
 - Issue #15582: inspect.getdoc() now follows inheritance chains.
 
@@ -60,13 +120,33 @@ Library
   only calls fstat() once. Before fstat() was called twice, which was not
   necessary.
 
+- Issue #23704: collections.deque() objects now support __add__, __mul__, and
+  __imul__().
+
+- Issue #23171: csv.Writer.writerow() now supports arbitrary iterables.
+
+- Issue #23745: The new email header parser now handles duplicate MIME
+  parameter names without error, similar to how get_param behaves.
+
+- Issue #22117: Fix os.utime(), it now rounds the timestamp towards minus
+  infinity (-inf) instead of rounding towards zero.
+
 Build
 -----
+
+- Issue #23817: FreeBSD now uses "1.0" the the SOVERSION as other operating
+  systems, instead of just "1".
 
 - Issue #23501: Argument Clinic now generates code into separate files by default.
 
 Tests
 -----
+
+- Issue #23799: Added test.support.start_threads() for running and
+  cleaning up multiple threads.
+
+- Issue #22390: test.regrtest now emits a warning if temporary files or
+  directories are left after running a test.
 
 Tools/Demos
 -----------
@@ -88,9 +168,6 @@ Release date: 2015-03-28
 Core and Builtins
 -----------------
 
-- Issue #23466: %c, %o, %x, and %X in bytes formatting now raise TypeError on
-  non-integer input.
-
 - Issue #23573: Increased performance of string search operations (str.find,
   str.index, str.count, the in operator, str.split, str.partition) with
   arguments of different kinds (UCS1, UCS2, UCS4).
@@ -110,14 +187,6 @@ Core and Builtins
 
 Library
 -------
-
-- Issue #23171: csv.Writer.writerow() now supports arbitrary iterables.
-
-- Issue #23745: The new email header parser now handles duplicate MIME
-  parameter names without error, similar to how get_param behaves.
-
-- Issue #22117: Fix os.utime(), it now rounds the timestamp towards minus
-  infinity (-inf) instead of rounding towards zero.
 
 - Issue #14260: The groupindex attribute of regular expression pattern object
   now is non-modifiable mapping.
@@ -186,7 +255,6 @@ Library
 - Issue #23704: collections.deque() objects now support methods for index(),
   insert(), and copy().  This allows deques to be registered as a
   MutableSequence and it improves their substitutablity for lists.
-  Deques now also support __add__, __mul__, and __imul__().
 
 - Issue #23715: :func:`signal.sigwaitinfo` and :func:`signal.sigtimedwait` are
   now retried when interrupted by a signal not in the *sigset* parameter, if
@@ -233,6 +301,8 @@ Library
 
 - Issue #2052: Add charset parameter to HtmlDiff.make_file().
 
+- Issue #23668: Support os.truncate and os.ftruncate on Windows.
+
 - Issue #23138: Fixed parsing cookies with absent keys or values in cookiejar.
   Patch by Demian Brecht.
 
@@ -263,12 +333,6 @@ Build
 
 Tests
 -----
-
-- Issue #23799: Added test.support.start_threads() for running and
-  cleaning up multiple threads.
-
-- Issue #22390: test.regrtest now emits a warning if temporary files or
-  directories are left after running a test.
 
 - Issue #23583: Added tests for standard IO streams in IDLE.
 

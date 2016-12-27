@@ -13,6 +13,7 @@ import gc
 import importlib
 import importlib.util
 import logging.handlers
+import nntplib
 import os
 import platform
 import re
@@ -375,36 +376,32 @@ def rmtree(path):
         pass
 
 def make_legacy_pyc(source):
-    """Move a PEP 3147 pyc/pyo file to its legacy pyc/pyo location.
-
-    The choice of .pyc or .pyo extension is done based on the __debug__ flag
-    value.
+    """Move a PEP 3147/488 pyc file to its legacy pyc location.
 
     :param source: The file system path to the source file.  The source file
-        does not need to exist, however the PEP 3147 pyc file must exist.
+        does not need to exist, however the PEP 3147/488 pyc file must exist.
     :return: The file system path to the legacy pyc file.
     """
     pyc_file = importlib.util.cache_from_source(source)
     up_one = os.path.dirname(os.path.abspath(source))
-    legacy_pyc = os.path.join(up_one, source + ('c' if __debug__ else 'o'))
+    legacy_pyc = os.path.join(up_one, source + 'c')
     os.rename(pyc_file, legacy_pyc)
     return legacy_pyc
 
 def forget(modname):
     """'Forget' a module was ever imported.
 
-    This removes the module from sys.modules and deletes any PEP 3147 or
-    legacy .pyc and .pyo files.
+    This removes the module from sys.modules and deletes any PEP 3147/488 or
+    legacy .pyc files.
     """
     unload(modname)
     for dirname in sys.path:
         source = os.path.join(dirname, modname + '.py')
         # It doesn't matter if they exist or not, unlink all possible
-        # combinations of PEP 3147 and legacy pyc and pyo files.
+        # combinations of PEP 3147/488 and legacy pyc files.
         unlink(source + 'c')
-        unlink(source + 'o')
-        unlink(importlib.util.cache_from_source(source, debug_override=True))
-        unlink(importlib.util.cache_from_source(source, debug_override=False))
+        for opt in ('', 1, 2):
+            unlink(importlib.util.cache_from_source(source, optimization=opt))
 
 # Check whether a gui is actually available
 def _is_gui_available():
@@ -1341,6 +1338,10 @@ def transient_internet(resource_name, *, timeout=30.0, errnos=()):
         if timeout is not None:
             socket.setdefaulttimeout(timeout)
         yield
+    except nntplib.NNTPTemporaryError as err:
+        if verbose:
+            sys.stderr.write(denied.args[0] + "\n")
+        raise denied from err
     except OSError as err:
         # urllib can wrap original socket errors multiple times (!), we must
         # unwrap to get at the original error.
