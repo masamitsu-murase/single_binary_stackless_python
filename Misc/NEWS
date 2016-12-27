@@ -1,4 +1,4 @@
-﻿+++++++++++
++++++++++++
 Python News
 +++++++++++
 
@@ -9,6 +9,8 @@ Release date: XXX
 
 Core and Builtins
 -----------------
+- Issue #22631: Added Linux-specific socket constant CAN_RAW_FD_FRAMES.
+  Patch courtesy of Joe Jevnik.
 
 - Issue #23731: Implement PEP 488: removal of .pyo files.
 
@@ -29,6 +31,9 @@ Core and Builtins
 Library
 -------
 
+- Issue #23811: Add missing newline to the PyCompileError error message.
+  Patch by Alex Shkop.
+
 - Issue #21116: Avoid blowing memory when allocating a multiprocessing shared
   array that's larger than 50% of the available RAM.  Patch by Médéric Boquien.
 
@@ -45,8 +50,8 @@ Library
 - Issue #21859: Added Python implementation of io.FileIO.
 
 - Issue #23865: close() methods in multiple modules now are idempotent and more
-  robust at shutdown. If needs to release multiple resources, they are released
-  even if errors are occured.
+  robust at shutdown. If they need to release multiple resources, all are
+  released even if errors occur.
 
 - Issue #23400: Raise same exception on both Python 2 and 3 if sem_open is not
   available.  Patch by Davin Potts.
@@ -134,6 +139,9 @@ Library
 - Issue #22117: Fix os.utime(), it now rounds the timestamp towards minus
   infinity (-inf) instead of rounding towards zero.
 
+- Issue #23310: Fix MagicMock's initializer to work with __methods__, just
+  like configure_mock().  Patch by Kasia Jachim.
+
 Build
 -----
 
@@ -153,6 +161,9 @@ Tests
 
 Tools/Demos
 -----------
+
+- Issue #20586: Argument Clinic now ensures that functions without docstrings
+  have signatures.
 
 - Issue #23492: Argument Clinic now generates argument parsing code with
   PyArg_Parse instead of PyArg_ParseTuple if possible.
@@ -1097,7 +1108,7 @@ Library
   (including empty directories) in ZIP file.
 
 - Issue #22449: In the ssl.SSLContext.load_default_certs, consult the
-  enviromental variables SSL_CERT_DIR and SSL_CERT_FILE on Windows.
+  environmental variables SSL_CERT_DIR and SSL_CERT_FILE on Windows.
 
 - Issue #22508: The email.__version__ variable has been removed; the email
   code is no longer shipped separately from the stdlib, and __version__

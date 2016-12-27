@@ -573,6 +573,9 @@ then
 fi
 AC_MSG_RESULT($MACHDEP)
 
+AC_SUBST(PLATDIR)
+PLATDIR=plat-$MACHDEP
+
 # Record the configure-time value of MACOSX_DEPLOYMENT_TARGET,
 # it may influence the way we can build extensions, so distutils
 # needs to check it
@@ -2890,6 +2893,16 @@ if test "$ipv6" = "yes" -a "$ipv6lib" != "none"; then
 		fi
 	fi
 fi
+
+AC_MSG_CHECKING(for CAN_RAW_FD_FRAMES)
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[ /* CAN_RAW_FD_FRAMES available check */
+#include <linux/can/raw.h>]],
+[[int can_raw_fd_frames = CAN_RAW_FD_FRAMES;]])],[
+  AC_DEFINE(HAVE_LINUX_CAN_RAW_FD_FRAMES, 1, [Define if compiling using Linux 3.6 or later.])
+  AC_MSG_RESULT(yes)
+],[
+  AC_MSG_RESULT(no)
+])
 
 AC_MSG_CHECKING(for OSX 10.5 SDK or later)
 AC_COMPILE_IFELSE([
