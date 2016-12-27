@@ -147,7 +147,7 @@ PEP 465 - A dedicated infix operator for matrix multiplication
 --------------------------------------------------------------
 
 This PEP proposes a new binary operator to be used for matrix multiplication,
-called ``@``. (Mnemonic: ``@`` is ``*`` for matrices.)
+called ``@``. (Mnemonic: ``@`` is ``*`` for mATrices.)
 
 .. seealso::
 
@@ -410,6 +410,9 @@ shutil
 signal
 ------
 
+* On Windows, :func:`signal.set_wakeup_fd` now also supports socket handles.
+  (Contributed by Victor Stinner in :issue:`22018`.)
+
 * Different constants of :mod:`signal` module are now enumeration values using
   the :mod:`enum` module. This allows meaningful names to be printed during
   debugging, instead of integer “magic numbers”.  (Contributed by Giampaolo
@@ -495,6 +498,13 @@ xmlrpc
 
 * :class:`xmlrpc.client.ServerProxy` is now a :term:`context manager`.
   (Contributed by Claudiu Popa in :issue:`20627`.)
+
+xml.sax
+-------
+
+* SAX parsers now support a character stream of
+  :class:`~xml.sax.xmlreader.InputSource` object.
+  (Contributed by Serhiy Storchaka in :issue:`2175`.)
 
 faulthandler
 ------------
@@ -634,9 +644,51 @@ Changes in the Python API
   raise an exception:
 
   - :func:`open`, :func:`os.open`, :func:`io.open`
-  - :func:`os.read`, :func:`os.write`
+  - functions of the :mod:`faulthandler` module
+  - :mod:`os` functions:
+
+    * :func:`os.fchdir`
+    * :func:`os.fchmod`
+    * :func:`os.fchown`
+    * :func:`os.fdatasync`
+    * :func:`os.fstat`
+    * :func:`os.fstatvfs`
+    * :func:`os.fsync`
+    * :func:`os.ftruncate`
+    * :func:`os.mkfifo`
+    * :func:`os.mknod`
+    * :func:`os.posix_fadvise`
+    * :func:`os.posix_fallocate`
+    * :func:`os.pread`
+    * :func:`os.pwrite`
+    * :func:`os.read`
+    * :func:`os.readv`
+    * :func:`os.sendfile`
+    * :func:`os.wait3`
+    * :func:`os.wait4`
+    * :func:`os.wait`
+    * :func:`os.waitid`
+    * :func:`os.waitpid`
+    * :func:`os.write`
+    * :func:`os.writev`
+    * special cases: :func:`os.close` and :func:`os.dup2` now ignore
+      :py:data:`~errno.EINTR` error, the syscall is not retried (see the PEP
+      for the rationale)
+
   - :func:`select.select`, :func:`select.poll.poll`, :func:`select.epoll.poll`,
     :func:`select.kqueue.control`, :func:`select.devpoll.poll`
+  - :func:`socket.socket` methods:
+
+    * :meth:`~socket.socket.accept`
+    * :meth:`~socket.socket.connect` (except for non-blocking sockets)
+    * :meth:`~socket.socket.recv`
+    * :meth:`~socket.socket.recvfrom`
+    * :meth:`~socket.socket.recvmsg`
+    * :meth:`~socket.socket.send`
+    * :meth:`~socket.socket.sendall`
+    * :meth:`~socket.socket.sendmsg`
+    * :meth:`~socket.socket.sendto`
+
   - :func:`signal.sigtimedwait`, :func:`signal.sigwaitinfo`
   - :func:`time.sleep`
 
