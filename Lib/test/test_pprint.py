@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 
-import pprint
-import test.support
-import unittest
-import test.test_set
-import random
 import collections
+import io
 import itertools
+import pprint
+import random
+import test.support
+import test.test_set
 import types
+import unittest
 
 # list, tuple and dict subclasses that do or don't overwrite __repr__
 class list2(list):
@@ -55,6 +56,18 @@ class QueryTestCase(unittest.TestCase):
         self.a = list(range(100))
         self.b = list(range(200))
         self.a[-12] = self.b
+
+    def test_init(self):
+        pp = pprint.PrettyPrinter()
+        pp = pprint.PrettyPrinter(indent=4, width=40, depth=5,
+                                  stream=io.StringIO(), compact=True)
+        pp = pprint.PrettyPrinter(4, 40, 5, io.StringIO())
+        with self.assertRaises(TypeError):
+            pp = pprint.PrettyPrinter(4, 40, 5, io.StringIO(), True)
+        self.assertRaises(ValueError, pprint.PrettyPrinter, indent=-1)
+        self.assertRaises(ValueError, pprint.PrettyPrinter, depth=0)
+        self.assertRaises(ValueError, pprint.PrettyPrinter, depth=-1)
+        self.assertRaises(ValueError, pprint.PrettyPrinter, width=0)
 
     def test_basic(self):
         # Verify .isrecursive() and .isreadable() w/o recursion
@@ -259,19 +272,23 @@ class QueryTestCase(unittest.TestCase):
             r"{5: [[]], 'xy\tab\n': (3,), (): {}}")
 
     def test_ordered_dict(self):
+        d = collections.OrderedDict()
+        self.assertEqual(pprint.pformat(d, width=1), 'OrderedDict()')
+        d = collections.OrderedDict([])
+        self.assertEqual(pprint.pformat(d, width=1), 'OrderedDict()')
         words = 'the quick brown fox jumped over a lazy dog'.split()
         d = collections.OrderedDict(zip(words, itertools.count()))
         self.assertEqual(pprint.pformat(d),
 """\
-{'the': 0,
- 'quick': 1,
- 'brown': 2,
- 'fox': 3,
- 'jumped': 4,
- 'over': 5,
- 'a': 6,
- 'lazy': 7,
- 'dog': 8}""")
+OrderedDict([('the', 0),
+             ('quick', 1),
+             ('brown', 2),
+             ('fox', 3),
+             ('jumped', 4),
+             ('over', 5),
+             ('a', 6),
+             ('lazy', 7),
+             ('dog', 8)])""")
 
     def test_mapping_proxy(self):
         words = 'the quick brown fox jumped over a lazy dog'.split()
@@ -290,15 +307,15 @@ mappingproxy({'a': 6,
         d = collections.OrderedDict(zip(words, itertools.count()))
         m = types.MappingProxyType(d)
         self.assertEqual(pprint.pformat(m), """\
-mappingproxy({'the': 0,
-              'quick': 1,
-              'brown': 2,
-              'fox': 3,
-              'jumped': 4,
-              'over': 5,
-              'a': 6,
-              'lazy': 7,
-              'dog': 8})""")
+mappingproxy(OrderedDict([('the', 0),
+                          ('quick', 1),
+                          ('brown', 2),
+                          ('fox', 3),
+                          ('jumped', 4),
+                          ('over', 5),
+                          ('a', 6),
+                          ('lazy', 7),
+                          ('dog', 8)]))""")
 
     def test_subclassing(self):
         o = {'names with spaces': 'should be presented using repr()',

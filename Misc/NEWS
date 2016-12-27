@@ -30,6 +30,25 @@ Core and Builtins
 Library
 -------
 
+- Issue #14260: The groupindex attribute of regular expression pattern object
+  now is non-modifiable mapping.
+
+- Issue #23792: Ignore KeyboardInterrupt when the pydoc pager is active.
+  This mimics the behavior of the standard unix pagers, and prevents
+  pipepager from shutting down while the pager itself is still running.
+
+- Issue #23775: pprint() of OrderedDict now outputs the same representation
+  as repr().
+
+- Issue #23765: Removed IsBadStringPtr calls in ctypes
+
+- Issue #22364: Improved some re error messages using regex for hints.
+
+- Issue #23742: ntpath.expandvars() no longer loses unbalanced single quotes.
+
+- Issue #21717: The zipfile.ZipFile.open function now supports 'x' (exclusive
+  creation) mode.
+
 - Issue #21802: The reader in BufferedRWPair now is closed even when closing
   writer failed in BufferedRWPair.close().
 
@@ -285,6 +304,9 @@ Library
 
 - Issue #19705: turtledemo now has a visual sorting algorithm demo.  Original
   patch from Jason Yeo.
+
+- Issue #23801: Fix issue where cgi.FieldStorage did not always ignore the
+  entire preamble to a multipart body.
 
 Build
 -----

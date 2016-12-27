@@ -35,21 +35,15 @@ typedef struct {
  */
 PyAPI_FUNC(void) _PyTime_gettimeofday(_PyTime_timeval *tp);
 
-/* Similar to _PyTime_gettimeofday() but retrieve also information on the
- * clock used to get the current time. */
-PyAPI_FUNC(int) _PyTime_gettimeofday_info(
-    _PyTime_timeval *tp,
-    _Py_clock_info_t *info);
-
-#define _PyTime_INTERVAL(tv_start, tv_end) \
-    ((tv_end.tv_sec - tv_start.tv_sec) + \
-     (tv_end.tv_usec - tv_start.tv_usec) * 0.000001)
-
 typedef enum {
     /* Round towards zero. */
     _PyTime_ROUND_DOWN=0,
-    /* Round away from zero. */
-    _PyTime_ROUND_UP
+    /* Round away from zero.
+       For example, used for timeout to wait "at least" N seconds. */
+    _PyTime_ROUND_UP,
+    /* Round towards minus infinity (-inf).
+       For example, used to read a clock. */
+    _PyTime_ROUND_FLOOR
 } _PyTime_round_t;
 
 /* Convert a number of seconds, int or float, to time_t. */
@@ -84,32 +78,90 @@ PyAPI_FUNC(int) _PyTime_ObjectToTimespec(
     long *nsec,
     _PyTime_round_t);
 
+/* Initialize time.
+   Return 0 on success, raise an exception and return -1 on error. */
+PyAPI_FUNC(int) _PyTime_Init(void);
+
+/****************** NEW _PyTime_t API **********************/
+
+#ifdef PY_INT64_T
+/* _PyTime_t: Python timestamp with subsecond precision. It can be used to
+   store a duration, and so indirectly a date (related to another date, like
+   UNIX epoch). */
+typedef PY_INT64_T _PyTime_t;
+#define _PyTime_MIN PY_LLONG_MIN
+#define _PyTime_MAX PY_LLONG_MAX
+#else
+#  error "_PyTime_t need signed 64-bit integer type"
+#endif
+
+/* Create a timestamp from a number of nanoseconds (C long). */
+PyAPI_FUNC(_PyTime_t) _PyTime_FromNanoseconds(PY_LONG_LONG ns);
+
+/* Convert a Python float or int to a timetamp.
+   Raise an exception and return -1 on error, return 0 on success. */
+PyAPI_FUNC(int) _PyTime_FromSecondsObject(_PyTime_t *t,
+    PyObject *obj,
+    _PyTime_round_t round);
+
+/* Convert a timestamp to a number of seconds as a C double. */
+PyAPI_FUNC(double) _PyTime_AsSecondsDouble(_PyTime_t t);
+
+/* Convert timestamp to a number of milliseconds (10^-3 seconds). */
+PyAPI_FUNC(_PyTime_t) _PyTime_AsMilliseconds(_PyTime_t t,
+    _PyTime_round_t round);
+
+/* Convert timestamp to a number of microseconds (10^-6 seconds). */
+PyAPI_FUNC(_PyTime_t) _PyTime_AsMicroseconds(_PyTime_t t,
+    _PyTime_round_t round);
+
+/* Convert timestamp to a number of nanoseconds (10^-9 seconds) as a Python int
+   object. */
+PyAPI_FUNC(PyObject *) _PyTime_AsNanosecondsObject(_PyTime_t t);
+
+/* Convert a timestamp to a timeval structure (microsecond resolution).
+   tv_usec is always positive.
+   Return -1 if the conversion overflowed, return 0 on success. */
+PyAPI_FUNC(int) _PyTime_AsTimeval(_PyTime_t t,
+    struct timeval *tv,
+    _PyTime_round_t round);
+
+#if defined(HAVE_CLOCK_GETTIME) || defined(HAVE_KQUEUE)
+/* Convert a timestamp to a timespec structure (nanosecond resolution).
+   tv_nsec is always positive.
+   Raise an exception and return -1 on error, return 0 on success. */
+PyAPI_FUNC(int) _PyTime_AsTimespec(_PyTime_t t, struct timespec *ts);
+#endif
+
+/* Get the current time from the system clock.
+ * Fill clock information if info is not NULL.
+ * Raise an exception and return -1 on error, return 0 on success.
+ */
+PyAPI_FUNC(int) _PyTime_GetSystemClockWithInfo(
+    _PyTime_t *t,
+    _Py_clock_info_t *info);
+
 /* Get the time of a monotonic clock, i.e. a clock that cannot go backwards.
    The clock is not affected by system clock updates. The reference point of
    the returned value is undefined, so that only the difference between the
    results of consecutive calls is valid.
 
-   The function never fails. _PyTime_Init() ensures that a monotonic clock
+   The function cannot fail. _PyTime_Init() ensures that a monotonic clock
    is available and works. */
-PyAPI_FUNC(void) _PyTime_monotonic(
-    _PyTime_timeval *tp);
+PyAPI_FUNC(_PyTime_t) _PyTime_GetMonotonicClock(void);
 
-/* Similar to _PyTime_monotonic(), fill also info (if set) with information of
-   the function used to get the time.
+/* Get the time of a monotonic clock, i.e. a clock that cannot go backwards.
+   The clock is not affected by system clock updates. The reference point of
+   the returned value is undefined, so that only the difference between the
+   results of consecutive calls is valid.
+
+   Fill info (if set) with information of the function used to get the time.
 
    Return 0 on success, raise an exception and return -1 on error. */
-PyAPI_FUNC(int) _PyTime_monotonic_info(
-    _PyTime_timeval *tp,
+PyAPI_FUNC(int) _PyTime_GetMonotonicClockWithInfo(
+    _PyTime_t *t,
     _Py_clock_info_t *info);
 
-/* Add interval seconds to tv */
-PyAPI_FUNC(void)
-_PyTime_AddDouble(_PyTime_timeval *tv, double interval,
-                  _PyTime_round_t round);
-
-/* Initialize time.
-   Return 0 on success, raise an exception and return -1 on error. */
-PyAPI_FUNC(int) _PyTime_Init(void);
 
 #ifdef __cplusplus
 }

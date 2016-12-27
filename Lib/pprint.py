@@ -34,10 +34,10 @@ saferepr()
 
 """
 
+import collections as _collections
 import re
 import sys as _sys
 import types as _types
-from collections import OrderedDict as _OrderedDict
 from io import StringIO as _StringIO
 
 __all__ = ["pprint","pformat","isreadable","isrecursive","saferepr",
@@ -124,9 +124,12 @@ class PrettyPrinter:
         """
         indent = int(indent)
         width = int(width)
-        assert indent >= 0, "indent must be >= 0"
-        assert depth is None or depth > 0, "depth must be > 0"
-        assert width, "width must be != 0"
+        if indent < 0:
+            raise ValueError('indent must be >= 0')
+        if depth is not None and depth <= 0:
+            raise ValueError('depth must be > 0')
+        if not width:
+            raise ValueError('width must be != 0')
         self._depth = depth
         self._indent_per_level = indent
         self._width = width
@@ -185,16 +188,25 @@ class PrettyPrinter:
             write((self._indent_per_level - 1) * ' ')
         length = len(object)
         if length:
-            if isinstance(object, _OrderedDict):
-                items = list(object.items())
-            else:
-                items = sorted(object.items(), key=_safe_tuple)
+            items = sorted(object.items(), key=_safe_tuple)
             self._format_dict_items(items, stream, indent, allowance + 1,
                                     context, level)
         write('}')
 
     _dispatch[dict.__repr__] = _pprint_dict
-    _dispatch[_OrderedDict.__repr__] = _pprint_dict
+
+    def _pprint_ordered_dict(self, object, stream, indent, allowance, context, level):
+        if not len(object):
+            stream.write(repr(object))
+            return
+        cls = object.__class__
+        stream.write(cls.__name__ + '(')
+        self._format(list(object.items()), stream,
+                     indent + len(cls.__name__) + 1, allowance + 1,
+                     context, level)
+        stream.write(')')
+
+    _dispatch[_collections.OrderedDict.__repr__] = _pprint_ordered_dict
 
     def _pprint_list(self, object, stream, indent, allowance, context, level):
         stream.write('[')

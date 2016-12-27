@@ -49,9 +49,11 @@ This article explains the new features in Python 3.5, compared to 3.4.
 
 For full details, see the :source:`Misc/NEWS` file.
 
-.. note:: Prerelease users should be aware that this document is currently in
-   draft form. It will be updated substantially as Python 3.5 moves towards
-   release, so it's worth checking back even after reading earlier versions.
+.. note::
+
+   Prerelease users should be aware that this document is currently in draft
+   form. It will be updated substantially as Python 3.5 moves towards release,
+   so it's worth checking back even after reading earlier versions.
 
 
 .. seealso::
@@ -454,6 +456,9 @@ zipfile
 * Added support for writing ZIP files to unseekable streams.
   (Contributed by Serhiy Storchaka in :issue:`23252`.)
 
+* The :func:`zipfile.ZipFile.open` function now supports ``'x'`` (exclusive
+  creation) mode.  (Contributed by Serhiy Storchaka in :issue:`21717`.)
+
 
 Optimizations
 =============
@@ -520,11 +525,12 @@ Deprecated Python modules, functions and methods
   ``True``, but this default is deprecated.  Specify the *decode_data* keyword
   with an appropriate value to avoid the deprecation warning.
 
-* :class:`~http.cookies.Morsel` has previously allowed for setting attributes
-  :attr:`~http.cookies.Morsel.key`, :attr:`~http.cookies.Morsel.value` and
-  :attr:`~http.cookies.Morsel.coded_value`. Use the preferred
-  :func:`~http.cookies.Morsel.set` method in order to avoid the deprecation
-  warning.
+* Directly assigning values to the :attr:`~http.cookies.Morsel.key`,
+  :attr:`~http.cookies.Morsel.value` and
+  :attr:`~http.cookies.Morsel.coded_value` of :class:`~http.cookies.Morsel`
+  objects is deprecated.  Use the :func:`~http.cookies.Morsel.set` method
+  instead.  In addition, the undocumented *LegalChars* parameter of
+  :func:`~http.cookies.Morsel.set` is deprecated, and is now ignored.
 
 * Passing a format string as keyword argument *format_string* to the
   :meth:`~string.Formatter.format` method of the :class:`string.Formatter`
@@ -568,6 +574,14 @@ that may require changes to your code.
 
 Changes in the Python API
 -------------------------
+
+* :pep:`475`: the following functions are now retried when interrupted instead
+  of raising :exc:`InterruptedError` if the signal handler does not raise
+  an exception:
+
+  - :func:`os.open`, :func:`open`
+  - :func:`os.read`, :func:`os.write`
+  - :func:`time.sleep`
 
 * Before Python 3.5, a :class:`datetime.time` object was considered to be false
   if it represented midnight in UTC.  This behavior was considered obscure and
@@ -621,6 +635,16 @@ Changes in the Python API
   an empty string.  For compatibility use patterns that never match an empty
   string (e.g. ``'x+'`` instead of ``'x*'``).  Patterns that could only match
   an empty string (such as ``'\b'``) now raise an error.
+
+* The :class:`~http.cookies.Morsel` dict-like interface has been made self
+  consistent:  morsel comparison now takes the :attr:`~http.cookies.Morsel.key`
+  and :attr:`~http.cookies.Morsel.value` into account,
+  :meth:`~http.cookies.Morsel.copy` now results in a
+  :class:`~http.cookies.Morsel` instance rather than a *dict*, and
+  :meth:`~http.cookies.Morsel.update` will no raise an exception if any of the
+  keys in the update dictionary are invalid.  In addition, the undocumented
+  *LegalChars* parameter of :func:`~http.cookies.Morsel.set` is deprecated and
+  is now ignored.  (:issue:`2211`)
 
 Changes in the C API
 --------------------
