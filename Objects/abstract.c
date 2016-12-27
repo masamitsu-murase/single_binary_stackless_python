@@ -2075,9 +2075,11 @@ PyObject_CallObject(PyObject *o, PyObject *a)
 }
 
 PyObject*
-_Py_CheckFunctionResult(PyObject *result, const char *func_name)
+_Py_CheckFunctionResult(PyObject *func, PyObject *result, const char *where)
 {
     int err_occurred = (PyErr_Occurred() != NULL);
+
+    assert((func != NULL) ^ (where != NULL));
 
 #ifndef NDEBUG
     /* In debug mode: abort() with an assertion error. Use two different
@@ -2091,8 +2093,14 @@ _Py_CheckFunctionResult(PyObject *result, const char *func_name)
 
     if (STACKLESS_RETVAL(result) == NULL) {
         if (!err_occurred) {
-            PyErr_Format(PyExc_SystemError,
-                         "NULL result without error in %s", func_name);
+            if (func)
+                PyErr_Format(PyExc_SystemError,
+                             "%R returned NULL without setting an error",
+                             func);
+            else
+                PyErr_Format(PyExc_SystemError,
+                             "%s returned NULL without setting an error",
+                             where);
             return NULL;
         }
     }
@@ -2103,8 +2111,14 @@ _Py_CheckFunctionResult(PyObject *result, const char *func_name)
 
             Py_DECREF(STACKLESS_RETVAL(result));
 
-            PyErr_Format(PyExc_SystemError,
-                         "result with error in %s", func_name);
+            if (func)
+                PyErr_Format(PyExc_SystemError,
+                             "%R returned a result with an error set",
+                             func);
+            else
+                PyErr_Format(PyExc_SystemError,
+                             "%s returned a result with an error set",
+                             where);
             _PyErr_ChainExceptions(exc, val, tb);
             return NULL;
         }
@@ -2150,7 +2164,7 @@ PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw)
 #endif
     Py_LeaveRecursiveCall();
 
-    return _Py_CheckFunctionResult(result, "PyObject_Call");
+    return _Py_CheckFunctionResult(func, result, NULL);
 }
 
 static PyObject*

@@ -149,7 +149,7 @@ PyCFunction_Call(PyObject *func, PyObject *args, PyObject *kwds)
     }
     STACKLESS_ASSERT();
 
-    return _Py_CheckFunctionResult(res, "PyCFunction_Call");
+    return _Py_CheckFunctionResult(func, res, NULL);
 }
 
 /* Methods (the standard built-in methods, that is) */
