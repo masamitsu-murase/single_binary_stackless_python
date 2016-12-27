@@ -14,7 +14,19 @@ DEBUG_RE = re.compile(r'_d\.(pyd|dll|exe)$', re.IGNORECASE)
 PYTHON_DLL_RE = re.compile(r'python\d\d?\.dll$', re.IGNORECASE)
 
 def is_not_debug(p):
-    return not DEBUG_RE.search(p.name) and not TKTCL_RE.search(p.name)
+    if DEBUG_RE.search(p.name):
+        return False
+
+    if TKTCL_RE.search(p.name):
+        return False
+
+    return p.name.lower() not in {
+        '_ctypes_test.pyd',
+        '_testbuffer.pyd',
+        '_testcapi.pyd',
+        '_testimportmultiple.pyd',
+        'xxlimited.pyd',
+    }
 
 def is_not_debug_or_python(p):
     return is_not_debug(p) and not PYTHON_DLL_RE.search(p.name)
@@ -31,14 +43,6 @@ def include_in_lib(p):
         return True
 
     suffix = p.suffix.lower()
-    if suffix == '.pyd':
-        return name not in {
-            '_ctypes_test.pyd',
-            '_testbuffer.pyd',
-            '_testcapi.pyd',
-            '_testimportmultiple.pyd',
-            'xxlimited.pyd',
-        }
     return suffix not in {'.pyc', '.pyo'}
 
 def include_in_tools(p):
@@ -68,7 +72,7 @@ EMBED_LAYOUT = [
     ('python35.zip', 'Lib', '**/*', include_in_lib),
 ]
 
-def copy_to_layout(target, source, rel_sources):
+def copy_to_layout(target, rel_sources):
     count = 0
 
     if target.suffix.lower() == '.zip':
@@ -142,22 +146,11 @@ def main():
     try:
         for t, s, p, c in layout:
             s = source / s.replace("$arch", arch)
-            copied = copy_to_layout(
-                temp / t.rstrip('/'),
-                source,
-                rglob(s, p, c)
-            )
+            copied = copy_to_layout(temp / t.rstrip('/'), rglob(s, p, c))
             print('Copied {} files'.format(copied))
 
-        if rar and rar.is_file():
-            subprocess.check_call([
-                str(rar),
-                "a",
-                "-m5", "-ed", "-ep1", "-s", "-r",
-                "-sfxwincon.sfx",
-                str(out),
-                str(temp / '*')
-            ])
+        total = copy_to_layout(out, rglob(temp, '*', None))
+        print('Wrote {} files to {}'.format(total, out))
     finally:
         if delete_temp:
             shutil.rmtree(temp, True)

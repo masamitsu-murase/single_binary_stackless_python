@@ -789,9 +789,9 @@ static encodefuncentry encodefuncs[] = {
 /*[clinic input]
 _io.TextIOWrapper.__init__
     buffer: object
-    encoding: str(nullable=True) = NULL
-    errors: str(nullable=True) = NULL
-    newline: str(nullable=True) = NULL
+    encoding: str(accept={str, NoneType}) = NULL
+    errors: str(accept={str, NoneType}) = NULL
+    newline: str(accept={str, NoneType}) = NULL
     line_buffering: int(c_default="0") = False
     write_through: int(c_default="0") = False
 
@@ -830,7 +830,7 @@ _io_TextIOWrapper___init___impl(textio *self, PyObject *buffer,
                                 const char *encoding, const char *errors,
                                 const char *newline, int line_buffering,
                                 int write_through)
-/*[clinic end generated code: output=56a83402ce2a8381 input=1f20decb8d54a4ec]*/
+/*[clinic end generated code: output=56a83402ce2a8381 input=3126cb3101a2c99b]*/
 {
     PyObject *raw, *codec_info = NULL;
     _PyIO_State *state = NULL;
@@ -2262,7 +2262,6 @@ _io_TextIOWrapper_tell_impl(textio *self)
     Py_ssize_t skip_bytes, skip_back;
     PyObject *saved_state = NULL;
     char *input, *input_end;
-    char *dec_buffer;
     Py_ssize_t dec_buffer_len;
     int dec_flags;
 
@@ -2327,14 +2326,24 @@ _io_TextIOWrapper_tell_impl(textio *self)
         goto fail;
 
 #define DECODER_GETSTATE() do { \
+        PyObject *dec_buffer; \
         PyObject *_state = PyObject_CallMethodObjArgs(self->decoder, \
             _PyIO_str_getstate, NULL); \
         if (_state == NULL) \
             goto fail; \
-        if (!PyArg_ParseTuple(_state, "y#i", &dec_buffer, &dec_buffer_len, &dec_flags)) { \
+        if (!PyArg_ParseTuple(_state, "Oi", &dec_buffer, &dec_flags)) { \
             Py_DECREF(_state); \
             goto fail; \
         } \
+        if (!PyBytes_Check(dec_buffer)) { \
+            PyErr_Format(PyExc_TypeError, \
+                         "decoder getstate() should have returned a bytes " \
+                         "object, not '%.200s'", \
+                         Py_TYPE(dec_buffer)->tp_name); \
+            Py_DECREF(_state); \
+            goto fail; \
+        } \
+        dec_buffer_len = PyBytes_GET_SIZE(dec_buffer); \
         Py_DECREF(_state); \
     } while (0)
 
