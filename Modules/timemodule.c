@@ -1391,50 +1391,35 @@ floatsleep(double secs)
     struct timeval timeout;
     double frac;
     int err = 0;
-
-    _PyTime_monotonic(&deadline);
-    _PyTime_ADD_SECONDS(deadline, secs);
-
-    while (1) {
-        frac = fmod(secs, 1.0);
-        secs = floor(secs);
-        timeout.tv_sec = (long)secs;
-        timeout.tv_usec = (long)(frac*1000000.0);
-
-        Py_BEGIN_ALLOW_THREADS
-        err = select(0, (fd_set *)0, (fd_set *)0, (fd_set *)0, &timeout);
-        Py_END_ALLOW_THREADS
-
-        if (!(err != 0 && errno == EINTR))
-            break;
-
-        /* select() was interrupted by a signal */
-        if (PyErr_CheckSignals())
-            return -1;
-
-        _PyTime_monotonic(&monotonic);
-        secs = _PyTime_INTERVAL(monotonic, deadline);
-        if (secs <= 0.0) {
-            err = 0;
-            errno = 0;
-            break;
-        }
-    }
-
-    if (err != 0) {
-        PyErr_SetFromErrno(PyExc_OSError);
-        return -1;
-    }
 #else
     double millisecs;
     unsigned long ul_millis;
     DWORD rc;
     HANDLE hInterruptEvent;
+#endif
 
     _PyTime_monotonic(&deadline);
-    _PyTime_ADD_SECONDS(deadline, secs);
+    _PyTime_AddDouble(&deadline, secs, _PyTime_ROUND_UP);
 
     do {
+#ifndef MS_WINDOWS
+        frac = fmod(secs, 1.0);
+        secs = floor(secs);
+        timeout.tv_sec = (long)secs;
+        timeout.tv_usec = (long)(frac*1e6);
+
+        Py_BEGIN_ALLOW_THREADS
+        err = select(0, (fd_set *)0, (fd_set *)0, (fd_set *)0, &timeout);
+        Py_END_ALLOW_THREADS
+
+        if (err == 0)
+            break;
+
+        if (errno != EINTR) {
+            PyErr_SetFromErrno(PyExc_OSError);
+            return -1;
+        }
+#else
         millisecs = secs * 1000.0;
         if (millisecs > (double)ULONG_MAX) {
             PyErr_SetString(PyExc_OverflowError,
@@ -1448,32 +1433,32 @@ floatsleep(double secs)
         ul_millis = (unsigned long)millisecs;
         if (ul_millis == 0 || !_PyOS_IsMainThread()) {
             Py_BEGIN_ALLOW_THREADS
-            Sleep(0);
+            Sleep(ul_millis);
             Py_END_ALLOW_THREADS
             break;
         }
-        else {
-            hInterruptEvent = _PyOS_SigintEvent();
-            ResetEvent(hInterruptEvent);
 
-            Py_BEGIN_ALLOW_THREADS
-            rc = WaitForSingleObjectEx(hInterruptEvent, ul_millis, FALSE);
-            Py_END_ALLOW_THREADS
+        hInterruptEvent = _PyOS_SigintEvent();
+        ResetEvent(hInterruptEvent);
 
-            if (rc != WAIT_OBJECT_0)
-                break;
+        Py_BEGIN_ALLOW_THREADS
+        rc = WaitForSingleObjectEx(hInterruptEvent, ul_millis, FALSE);
+        Py_END_ALLOW_THREADS
 
-            /* WaitForSingleObjectEx() was interrupted by SIGINT */
-
-            if (PyErr_CheckSignals())
-                return -1;
-
-            _PyTime_monotonic(&monotonic);
-            secs = _PyTime_INTERVAL(monotonic, deadline);
-            if (secs <= 0.0)
-                break;
-        }
-    } while (1);
+        if (rc != WAIT_OBJECT_0)
+            break;
 #endif
+
+        /* sleep was interrupted by SIGINT */
+        if (PyErr_CheckSignals())
+            return -1;
+
+        _PyTime_monotonic(&monotonic);
+        secs = _PyTime_INTERVAL(monotonic, deadline);
+        if (secs <= 0.0)
+            break;
+        /* retry with the recomputed delay */
+    } while (1);
+
     return 0;
 }

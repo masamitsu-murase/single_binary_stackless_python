@@ -162,6 +162,8 @@ Some smaller changes made to the core Python language are:
   error handlers now works with decoding and translating.
   (Contributed by Serhiy Storchaka in :issue:`19676` and :issue:`22286`.)
 
+* The :option:`-b` option now affects comparisons of :class:`bytes` with
+  :class:`int`.  (Contributed by Serhiy Storchaka in :issue:`23681`)
 
 
 New Modules
@@ -511,6 +513,12 @@ Deprecated Python modules, functions and methods
   *decode_data* keyword to :class:`~smtpd.SMTPServer`.  The default value is
   ``True``, but this default is deprecated.  Specify the *decode_data* keyword
   with an appropriate value to avoid the deprecation warning.
+
+* :class:`~http.cookies.Morsel` has previously allowed for setting attributes
+  :attr:`~http.cookies.Morsel.key`, :attr:`~http.cookies.Morsel.value` and
+  :attr:`~http.cookies.Morsel.coded_value`. Use the preferred
+  :func:`~http.cookies.Morsel.set` method in order to avoid the deprecation
+  warning.
 
 
 Deprecated functions and types of the C API

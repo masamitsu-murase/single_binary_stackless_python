@@ -718,14 +718,10 @@ static int devpoll_flush(devpollObject *self)
     size = sizeof(struct pollfd)*self->n_fds;
     self->n_fds = 0;
 
-    Py_BEGIN_ALLOW_THREADS
-    n = write(self->fd_devpoll, self->fds, size);
-    Py_END_ALLOW_THREADS
-
-    if (n == -1 ) {
-        PyErr_SetFromErrno(PyExc_IOError);
+    n = _Py_write(self->fd_devpoll, self->fds, size);
+    if (n == -1)
         return -1;
-    }
+
     if (n < size) {
         /*
         ** Data writed to /dev/poll is a binary data structure. It is not
@@ -1013,7 +1009,6 @@ newDevPollObject(void)
     struct pollfd *fds;
     struct rlimit limit;
 
-    Py_BEGIN_ALLOW_THREADS
     /*
     ** If we try to process more that getrlimit()
     ** fds, the kernel will give an error, so
@@ -1021,18 +1016,14 @@ newDevPollObject(void)
     ** value, because we can change rlimit() anytime.
     */
     limit_result = getrlimit(RLIMIT_NOFILE, &limit);
-    if (limit_result != -1)
-        fd_devpoll = _Py_open("/dev/poll", O_RDWR);
-    Py_END_ALLOW_THREADS
-
     if (limit_result == -1) {
         PyErr_SetFromErrno(PyExc_OSError);
         return NULL;
     }
-    if (fd_devpoll == -1) {
-        PyErr_SetFromErrnoWithFilename(PyExc_IOError, "/dev/poll");
+
+    fd_devpoll = _Py_open("/dev/poll", O_RDWR);
+    if (fd_devpoll == -1)
         return NULL;
-    }
 
     fds = PyMem_NEW(struct pollfd, limit.rlim_cur);
     if (fds == NULL) {

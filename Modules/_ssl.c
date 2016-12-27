@@ -2941,11 +2941,9 @@ load_dh_params(PySSLContext *self, PyObject *filepath)
     DH *dh;
 
     f = _Py_fopen_obj(filepath, "rb");
-    if (f == NULL) {
-        if (!PyErr_Occurred())
-            PyErr_SetFromErrnoWithFilenameObject(PyExc_OSError, filepath);
+    if (f == NULL)
         return NULL;
-    }
+
     errno = 0;
     PySSL_BEGIN_ALLOW_THREADS
     dh = PEM_read_DHparams(f, NULL, NULL, NULL);
@@ -3674,18 +3672,22 @@ static PyTypeObject PySSLMemoryBIO_Type = {
 static PyObject *
 PySSL_RAND_add(PyObject *self, PyObject *args)
 {
-    char *buf;
+    Py_buffer view;
+    const char *buf;
     Py_ssize_t len, written;
     double entropy;
 
-    if (!PyArg_ParseTuple(args, "s#d:RAND_add", &buf, &len, &entropy))
+    if (!PyArg_ParseTuple(args, "s*d:RAND_add", &view, &entropy))
         return NULL;
+    buf = (const char *)view.buf;
+    len = view.len;
     do {
         written = Py_MIN(len, INT_MAX);
         RAND_add(buf, (int)written, entropy);
         buf += written;
         len -= written;
     } while (len);
+    PyBuffer_Release(&view);
     Py_INCREF(Py_None);
     return Py_None;
 }

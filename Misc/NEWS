@@ -10,6 +10,11 @@ Release date: 2015-03-28
 Core and Builtins
 -----------------
 
+- Issue #23681: The -b option now affects comparisons of bytes with int.
+
+- Issue #23632: Memoryviews now allow tuple indexing (including for
+  multi-dimensional memoryviews).
+
 - Issue #23192: Fixed generator lambdas.  Patch by Bruno Cauet.
 
 - Issue #23629: Fix the default __sizeof__ implementation for variable-sized
@@ -17,6 +22,52 @@ Core and Builtins
 
 Library
 -------
+
+- Issue #22351: The nntplib.NNTP constructor no longer leaves the connection
+  and socket open until the garbage collector cleans them up.  Patch by
+  Martin Panter.
+
+- Issue #23704: collections.deque() objects now support methods for index(),
+  insert(), and copy().  This allows deques to be registered as a
+  MutableSequence and it improves their substitutablity for lists.
+
+- Issue #23715: :func:`signal.sigwaitinfo` and :func:`signal.sigtimedwait` are
+  now retried when interrupted by a signal not in the *sigset* parameter, if
+  the signal handler does not raise an exception. signal.sigtimedwait()
+  recomputes the timeout with a monotonic clock when it is retried.
+
+- Issue #23001: Few functions in modules mmap, ossaudiodev, socket, ssl, and
+  codecs, that accepted only read-only bytes-like object now accept writable
+  bytes-like object too.
+
+- Issue #23646: If time.sleep() is interrupted by a signal, the sleep is now
+  retried with the recomputed delay, except if the signal handler raises an
+  exception (PEP 475).
+
+- Issue #23136: _strptime now uniformly handles all days in week 0, including
+  Dec 30 of previous year.  Based on patch by Jim Carroll.
+
+- Issue #23700: Iterator of NamedTemporaryFile now keeps a reference to
+  NamedTemporaryFile instance.  Patch by Bohuslav Kabrda.
+
+- Issue #22903: The fake test case created by unittest.loader when it fails
+  importing a test module is now picklable.
+
+- Issue #22181: On Linux, os.urandom() now uses the new getrandom() syscall if
+  available, syscall introduced in the Linux kernel 3.17. It is more reliable
+  and more secure, because it avoids the need of a file descriptor and waits
+  until the kernel has enough entropy.
+
+- Issue #2211: Updated the implementation of the http.cookies.Morsel class.
+  Setting attributes key, value and coded_value directly now is deprecated.
+  update() and setdefault() now transform and check keys.  Comparing for
+  equality now takes into account attributes key, value and coded_value.
+  copy() now returns a Morsel, not a dict.  repr() now contains all attributes.
+  Optimized checking keys and quoting values.  Added new tests.
+  Original patch by Demian Brecht.
+
+- Issue #18983: Allow selection of output units in timeit.
+  Patch by Julian Gindi.
 
 - Issue #23631: Fix traceback.format_list when a traceback has been mutated.
 
@@ -52,6 +103,14 @@ Build
 -----
 
 - Issue #23585: make patchcheck will ensure the interpreter is built.
+
+Tools/Demos
+-----------
+
+- Issue #22826: The result of open() in Tools/freeze/bkfile.py is now better
+  compatible with regular files (in particular it now supports the context
+  management protocol).
+
 
 What's New in Python 3.5 alpha 2?
 =================================
@@ -176,7 +235,7 @@ Build
 - Issue #23445: pydebug builds now use "gcc -Og" where possible, to make
   the resulting executable faster.
 
-- Issue #23593: Update OS X 10.5 installer build to use OpenSSL 1.0.2.
+- Issue #23686: Update OS X 10.5 installer build to use OpenSSL 1.0.2a.
 
 C API
 -----

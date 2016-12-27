@@ -7930,7 +7930,7 @@ os_openpty_impl(PyModuleDef *module)
 
     slave_fd = _Py_open(slave_name, O_RDWR);
     if (slave_fd < 0)
-        goto posix_error;
+        goto error;
 
 #else
     master_fd = open(DEV_PTY_FILE, O_RDWR | O_NOCTTY); /* open master */
@@ -7958,8 +7958,8 @@ os_openpty_impl(PyModuleDef *module)
         goto posix_error;
 
     slave_fd = _Py_open(slave_name, O_RDWR | O_NOCTTY); /* open slave */
-    if (slave_fd < 0)
-        goto posix_error;
+    if (slave_fd == -1)
+        goto error;
 
     if (_Py_set_inheritable(master_fd, 0, NULL) < 0)
         goto posix_error;
@@ -7977,9 +7977,7 @@ os_openpty_impl(PyModuleDef *module)
 
 posix_error:
     posix_error();
-#if defined(HAVE_OPENPTY) || defined(HAVE__GETPTY)
 error:
-#endif
     if (master_fd != -1)
         close(master_fd);
     if (slave_fd != -1)
@@ -11209,37 +11207,27 @@ os_read_impl(PyModuleDef *module, int fd, Py_ssize_t length)
 /*[clinic end generated code: output=1f3bc27260a24968 input=1df2eaa27c0bf1d3]*/
 {
     Py_ssize_t n;
-    int async_err = 0;
     PyObject *buffer;
 
     if (length < 0) {
         errno = EINVAL;
         return posix_error();
     }
-    if (!_PyVerify_fd(fd))
-        return posix_error();
 
 #ifdef MS_WINDOWS
-    #define READ_CAST (int)
+    /* On Windows, the count parameter of read() is an int */
     if (length > INT_MAX)
         length = INT_MAX;
-#else
-    #define READ_CAST
 #endif
 
     buffer = PyBytes_FromStringAndSize((char *)NULL, length);
     if (buffer == NULL)
         return NULL;
 
-    do {
-        Py_BEGIN_ALLOW_THREADS
-        n = read(fd, PyBytes_AS_STRING(buffer), READ_CAST length);
-        Py_END_ALLOW_THREADS
-    } while (n < 0 && errno == EINTR && !(async_err = PyErr_CheckSignals()));
-
-    if (n < 0) {
+    n = _Py_read(fd, PyBytes_AS_STRING(buffer), length);
+    if (n == -1) {
         Py_DECREF(buffer);
-        return (!async_err) ? posix_error() : NULL;
+        return NULL;
     }
 
     if (n != length)
@@ -11543,33 +11531,7 @@ static Py_ssize_t
 os_write_impl(PyModuleDef *module, int fd, Py_buffer *data)
 /*[clinic end generated code: output=aeb96acfdd4d5112 input=3207e28963234f3c]*/
 {
-    Py_ssize_t size;
-    int async_err = 0;
-    Py_ssize_t len = data->len;
-
-    if (!_PyVerify_fd(fd)) {
-        posix_error();
-        return -1;
-    }
-
-    do {
-        Py_BEGIN_ALLOW_THREADS
-#ifdef MS_WINDOWS
-        if (len > INT_MAX)
-            len = INT_MAX;
-        size = write(fd, data->buf, (int)len);
-#else
-        size = write(fd, data->buf, len);
-#endif
-        Py_END_ALLOW_THREADS
-    } while (size < 0 && errno == EINTR && !(async_err = PyErr_CheckSignals()));
-
-    if (size < 0) {
-        if (!async_err)
-            posix_error();
-        return -1;
-    }
-    return size;
+    return _Py_write(fd, data->buf, data->len);
 }
 
 #ifdef HAVE_SENDFILE

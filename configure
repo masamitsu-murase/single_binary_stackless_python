@@ -15865,6 +15865,42 @@ $as_echo "#define HAVE_DIRENT_D_TYPE 1" >>confdefs.h
 
 fi
 
+# check if the Linux getrandom() syscall is available
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for the Linux getrandom() syscall" >&5
+$as_echo_n "checking for the Linux getrandom() syscall... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+
+    #include <sys/syscall.h>
+
+    int main() {
+        const int flags = 0;
+        char buffer[1];
+        int n;
+        /* ignore the result, Python checks for ENOSYS at runtime */
+        (void)syscall(SYS_getrandom, buffer, sizeof(buffer), flags);
+        return 0;
+    }
+
+
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  have_getrandom_syscall=yes
+else
+  have_getrandom_syscall=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_getrandom_syscall" >&5
+$as_echo "$have_getrandom_syscall" >&6; }
+
+if test "$have_getrandom_syscall" = yes; then
+
+$as_echo "#define HAVE_GETRANDOM_SYSCALL 1" >>confdefs.h
+
+fi
+
 # generate output files
 ac_config_files="$ac_config_files Makefile.pre Modules/Setup.config Misc/python.pc Misc/python-config.sh"
 
