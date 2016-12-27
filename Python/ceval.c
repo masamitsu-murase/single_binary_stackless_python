@@ -3870,8 +3870,7 @@ fast_block_end:
     if (why != WHY_RETURN)
         retval = NULL;
 
-    assert((STACKLESS_RETVAL(retval) != NULL && !PyErr_Occurred())
-            || (STACKLESS_RETVAL(retval) == NULL && PyErr_Occurred()));
+    assert((STACKLESS_RETVAL(retval) != NULL) ^ (PyErr_Occurred() != NULL));
 
 fast_yield:
     if (co->co_flags & CO_GENERATOR) {
@@ -3934,14 +3933,15 @@ exit_eval_frame:
     f->f_executing = 0;
     tstate->frame = f->f_back;
 
-    return retval;
+    return _Py_CheckFunctionResult(retval, "PyEval_EvalFrameEx");
 
 #else
     Py_LeaveRecursiveCall();
     f->f_executing = 0;
     tstate->frame = f->f_back;
+
     Py_DECREF(f);
-    return retval;
+    return _Py_CheckFunctionResult(retval, "PyEval_EvalFrameEx");
 
 stackless_setup_with:
     f->f_execute = slp_eval_frame_setup_with;
@@ -4907,13 +4907,6 @@ PyEval_CallObjectWithKeywords(PyObject *func, PyObject *arg, PyObject *kw)
     STACKLESS_GETARG();
     PyObject *result;
 
-#ifdef Py_DEBUG
-    /* PyEval_CallObjectWithKeywords() must not be called with an exception
-       set, because it may clear it (directly or indirectly)
-       and so the caller looses its exception */
-    assert(!PyErr_Occurred());
-#endif
-
     if (arg == NULL) {
         arg = PyTuple_New(0);
         if (arg == NULL)
@@ -4939,8 +4932,6 @@ PyEval_CallObjectWithKeywords(PyObject *func, PyObject *arg, PyObject *kw)
     STACKLESS_ASSERT();
     Py_DECREF(arg);
 
-    assert((STACKLESS_RETVAL(result) != NULL && !PyErr_Occurred())
-           || (STACKLESS_RETVAL(result) == NULL && PyErr_Occurred()));
     return result;
 }
 
@@ -5045,11 +5036,15 @@ call_function(PyObject ***pp_stack, int oparg
             STACKLESS_PROPOSE_FLAG(flags & METH_STACKLESS);
             if (flags & METH_NOARGS && na == 0) {
                 C_TRACE(x, (*meth)(self,NULL));
+
+                x = _Py_CheckFunctionResult(x, "call_function");
             }
             else if (flags & METH_O && na == 1) {
                 PyObject *arg = EXT_POP(*pp_stack);
                 C_TRACE(x, (*meth)(self,arg));
                 Py_DECREF(arg);
+
+                x = _Py_CheckFunctionResult(x, "call_function");
             }
             else {
                 STACKLESS_RETRACT();
@@ -5072,7 +5067,8 @@ call_function(PyObject ***pp_stack, int oparg
             }
         }
         STACKLESS_ASSERT();
-    } else {
+    }
+    else {
         if (PyMethod_Check(func) && PyMethod_GET_SELF(func) != NULL) {
             /* optimize access to bound methods */
             PyObject *self = PyMethod_GET_SELF(func);
@@ -5094,9 +5090,9 @@ call_function(PyObject ***pp_stack, int oparg
             x = do_call(func, pp_stack, na, nk);
         READ_TIMESTAMP(*pintr1);
         Py_DECREF(func);
+
+        assert((STACKLESS_RETVAL(x) != NULL) ^ (PyErr_Occurred() != NULL));
     }
-    assert((STACKLESS_RETVAL(x) != NULL && !PyErr_Occurred())
-           || (STACKLESS_RETVAL(x) == NULL && PyErr_Occurred()));
 
     /* Clear the stack of the function object.  Also removes
        the arguments in case they weren't consumed already
@@ -5108,8 +5104,7 @@ call_function(PyObject ***pp_stack, int oparg
         PCALL(PCALL_POP);
     }
 
-    assert((STACKLESS_RETVAL(x) != NULL && !PyErr_Occurred())
-           || (STACKLESS_RETVAL(x) == NULL && PyErr_Occurred()));
+    assert((STACKLESS_RETVAL(x) != NULL) ^ (PyErr_Occurred() != NULL));
     return x;
 }
 
@@ -5412,8 +5407,6 @@ ext_call_fail:
     Py_XDECREF(callargs);
     Py_XDECREF(kwdict);
     Py_XDECREF(stararg);
-    assert((STACKLESS_RETVAL(result) != NULL && !PyErr_Occurred())
-           || (STACKLESS_RETVAL(result) == NULL && PyErr_Occurred()));
     return result;
 }
 

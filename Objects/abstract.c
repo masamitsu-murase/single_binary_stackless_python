@@ -2074,50 +2074,83 @@ PyObject_CallObject(PyObject *o, PyObject *a)
     return PyEval_CallObjectWithKeywords(o, a, NULL);
 }
 
+PyObject*
+_Py_CheckFunctionResult(PyObject *result, const char *func_name)
+{
+    int err_occurred = (PyErr_Occurred() != NULL);
+
+#ifdef NDEBUG
+    /* In debug mode: abort() with an assertion error. Use two different
+       assertions, so if an assertion fails, it's possible to know
+       if result was set or not and if an exception was raised or not. */
+    if (STACKLESS_RETVAL(result) != NULL)
+        assert(!err_occurred);
+    else
+        assert(err_occurred);
+#endif
+
+    if (STACKLESS_RETVAL(result) == NULL) {
+        if (!err_occurred) {
+            PyErr_Format(PyExc_SystemError,
+                         "NULL result without error in %s", func_name);
+            return NULL;
+        }
+    }
+    else {
+        if (err_occurred) {
+            PyObject *exc, *val, *tb;
+            PyErr_Fetch(&exc, &val, &tb);
+
+            Py_DECREF(STACKLESS_RETVAL(result));
+
+            PyErr_Format(PyExc_SystemError,
+                         "result with error in %s", func_name);
+            _PyErr_ChainExceptions(exc, val, tb);
+            return NULL;
+        }
+    }
+    return result;
+}
+
 PyObject *
 PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw)
 {
     STACKLESS_GETARG();
     ternaryfunc call;
+    PyObject *result;
 
     /* PyObject_Call() must not be called with an exception set,
        because it may clear it (directly or indirectly) and so the
        caller looses its exception */
     assert(!PyErr_Occurred());
 
-    if ((call = func->ob_type->tp_call) != NULL) {
-        PyObject *result;
-#ifdef STACKLESS
-        /* only do recursion adjustment if there is no danger
-         * of softswitching, i.e. if we are not being called by
-         * run_cframe.  Were a softswitch to occur, the readjustment
-         * of the recursion depth would happen for the wrong frame.
-         */
-        if (!stackless)
-#endif
-        if (Py_EnterRecursiveCall(" while calling a Python object"))
-            return NULL;
-        result = (STACKLESS_PROMOTE(func), (*call)(func, arg, kw) );
-        STACKLESS_ASSERT();
-#ifdef STACKLESS
-        if (!stackless)
-#endif
-        Py_LeaveRecursiveCall();
-#ifdef NDEBUG
-        if (STACKLESS_RETVAL(result) == NULL && !PyErr_Occurred()) {
-            PyErr_SetString(
-                PyExc_SystemError,
-                "NULL result without error in PyObject_Call");
-        }
-#else
-        assert((STACKLESS_RETVAL(result) != NULL && !PyErr_Occurred())
-                || (STACKLESS_RETVAL(result) == NULL && PyErr_Occurred()));
-#endif
-        return result;
+    call = func->ob_type->tp_call;
+    if (call == NULL) {
+        PyErr_Format(PyExc_TypeError, "'%.200s' object is not callable",
+                     func->ob_type->tp_name);
+        return NULL;
     }
-    PyErr_Format(PyExc_TypeError, "'%.200s' object is not callable",
-                 func->ob_type->tp_name);
-    return NULL;
+
+#ifdef STACKLESS
+    /* only do recursion adjustment if there is no danger
+     * of softswitching, i.e. if we are not being called by
+     * run_cframe.  Were a softswitch to occur, the readjustment
+     * of the recursion depth would happen for the wrong frame.
+     */
+    if (!stackless)
+#endif
+    if (Py_EnterRecursiveCall(" while calling a Python object"))
+        return NULL;
+
+    result = (STACKLESS_PROMOTE(func), (*call)(func, arg, kw) );
+    STACKLESS_ASSERT();
+
+#ifdef STACKLESS
+    if (!stackless)
+#endif
+    Py_LeaveRecursiveCall();
+
+    return _Py_CheckFunctionResult(result, "PyObject_Call");
 }
 
 static PyObject*

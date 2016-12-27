@@ -78,81 +78,78 @@ PyCFunction_GetFlags(PyObject *op)
     return PyCFunction_GET_FLAGS(op);
 }
 
-#ifdef STACKLESS
-#define WRAP_RETURN(call) { \
-	PyObject * retval; \
-	STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS); \
-	retval = (call); \
-	CHECK_RESULT(retval); \
-	STACKLESS_ASSERT(); \
-	return retval; \
-}
-#else
-#define WRAP_RETURN(call) return (call);
-#endif
-
 PyObject *
-PyCFunction_Call(PyObject *func, PyObject *arg, PyObject *kw)
+PyCFunction_Call(PyObject *func, PyObject *args, PyObject *kwds)
 {
     STACKLESS_GETARG();
-#define CHECK_RESULT(res) assert(res != NULL || PyErr_Occurred())
-
     PyCFunctionObject* f = (PyCFunctionObject*)func;
     PyCFunction meth = PyCFunction_GET_FUNCTION(func);
     PyObject *self = PyCFunction_GET_SELF(func);
-#ifndef STACKLESS
-    PyObject *res;
-#endif
+    PyObject *arg, *res;
     Py_ssize_t size;
+    int flags;
 
-#ifdef STACKLESS
-    switch (PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_STACKLESS)) {
-#else
-    switch (PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST)) {
-#endif
-    case METH_VARARGS:
-        if (kw == NULL || PyDict_Size(kw) == 0) {
-            WRAP_RETURN( (*meth)(self, arg) )
-        }
-        break;
-    case METH_VARARGS | METH_KEYWORDS:
-        WRAP_RETURN( (*(PyCFunctionWithKeywords)meth)(self, arg, kw) )
-    case METH_NOARGS:
-        if (kw == NULL || PyDict_Size(kw) == 0) {
-            size = PyTuple_GET_SIZE(arg);
-            if (size == 0) {
-                WRAP_RETURN( (*meth)(self, NULL) )
-            }
-            PyErr_Format(PyExc_TypeError,
-                "%.200s() takes no arguments (%zd given)",
-                f->m_ml->ml_name, size);
-            return NULL;
-        }
-        break;
-    case METH_O:
-        if (kw == NULL || PyDict_Size(kw) == 0) {
-            size = PyTuple_GET_SIZE(arg);
-            if (size == 1) {
-                WRAP_RETURN( (*meth)(self, PyTuple_GET_ITEM(arg, 0)) )
-            }
-            PyErr_Format(PyExc_TypeError,
-                "%.200s() takes exactly one argument (%zd given)",
-                f->m_ml->ml_name, size);
-            return NULL;
-        }
-        break;
-    default:
-        PyErr_SetString(PyExc_SystemError, "Bad call flags in "
-                        "PyCFunction_Call. METH_OLDARGS is no "
-                        "longer supported!");
+    /* PyCFunction_Call() must not be called with an exception set,
+       because it may clear it (directly or indirectly) and so the
+       caller looses its exception */
+    assert(!PyErr_Occurred());
 
-        return NULL;
+    flags = PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_STACKLESS);
+
+    if (flags == (METH_VARARGS | METH_KEYWORDS)) {
+        STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS);
+        res = (*(PyCFunctionWithKeywords)meth)(self, args, kwds);
     }
-    PyErr_Format(PyExc_TypeError, "%.200s() takes no keyword arguments",
-                 f->m_ml->ml_name);
-    return NULL;
+    else {
+        if (kwds != NULL && PyDict_Size(kwds) != 0) {
+            PyErr_Format(PyExc_TypeError, "%.200s() takes no keyword arguments",
+                         f->m_ml->ml_name);
+            return NULL;
+        }
 
-#undef CHECK_RESULT
+        switch (flags) {
+        case METH_VARARGS:
+            STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS);
+            res = (*meth)(self, args);
+            break;
+
+        case METH_NOARGS:
+            size = PyTuple_GET_SIZE(args);
+            if (size != 0) {
+                PyErr_Format(PyExc_TypeError,
+                    "%.200s() takes no arguments (%zd given)",
+                    f->m_ml->ml_name, size);
+                return NULL;
+            }
+
+            STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS);
+            res = (*meth)(self, NULL);
+            break;
+
+        case METH_O:
+            size = PyTuple_GET_SIZE(args);
+            if (size != 1) {
+                PyErr_Format(PyExc_TypeError,
+                    "%.200s() takes exactly one argument (%zd given)",
+                    f->m_ml->ml_name, size);
+                return NULL;
+            }
+
+            arg = PyTuple_GET_ITEM(args, 0);
+            STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS);
+            res = (*meth)(self, arg);
+            break;
+
+        default:
+            PyErr_SetString(PyExc_SystemError,
+                            "Bad call flags in PyCFunction_Call. "
+                            "METH_OLDARGS is no longer supported!");
+            return NULL;
+        }
+    }
+    STACKLESS_ASSERT();
+
+    return _Py_CheckFunctionResult(res, "PyCFunction_Call");
 }
 
 /* Methods (the standard built-in methods, that is) */
