@@ -2,13 +2,33 @@
 Python News
 +++++++++++
 
-What's New in Python 3.5 alpha 2?
-=================================
+What's New in Python 3.5.0 alpha 3?
+===================================
 
-Release date: 2015-03-08
+Release date: 2015-03-28
 
 Core and Builtins
 -----------------
+
+Library
+-------
+
+- Issue #23605: os.walk() now calls os.scandir() instead of os.listdir().
+  The usage of os.scandir() reduces the number of calls to os.stat().
+  Initial patch written by Ben Hoyt.
+
+
+What's New in Python 3.5 alpha 2?
+=================================
+
+Release date: 2015-03-09
+
+Core and Builtins
+-----------------
+
+- Issue #22980: Under Linux, C extensions now include bitness in the file
+  name, to make it easy to test 32-bit and 64-bit builds in the same
+  working tree.
 
 - Issue #23571: PyObject_Call() and PyCFunction_Call() now raise a SystemError
   if a function returns a result and raises an exception. The SystemError is
@@ -16,6 +36,15 @@ Core and Builtins
 
 Library
 -------
+
+- Issue #22524: New os.scandir() function, part of the PEP 471: "os.scandir()
+  function -- a better and faster directory iterator". Patch written by Ben
+  Hoyt.
+
+- Issue #23103: Reduced the memory consumption of IPv4Address and IPv6Address.
+
+- Issue #21793: BaseHTTPRequestHandler again logs response code as numeric,
+  not as stringified enum.  Patch by Demian Brecht.
 
 - Issue #23476: In the ssl module, enable OpenSSL's X509_V_FLAG_TRUSTED_FIRST
   flag on certificate stores when it is available.
