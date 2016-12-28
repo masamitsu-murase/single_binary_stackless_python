@@ -38,10 +38,20 @@ Core and Builtins
 Library
 -------
 
+- Issue #21795: smtpd now supports the 8BITMIME extension whenever
+  the new *decode_data* constructor argument is set to False.
+
+- Issue #24155: optimize heapq.heapify() for better cache performance
+  when heapifying large lists.
+
+- Issue #21800: imaplib now supports RFC 5161 (enable), RFC 6855
+  (utf8/internationalized email) and automatically encodes non-ASCII
+  usernames and passwords to UTF8.
+
 - Issue #24134: assertRaises(), assertRaisesRegex(), assertWarns() and
   assertWarnsRegex() checks are not longer successful if the callable is None.
 
-- Issue #24018: Add a collections.Generator abstract base class.
+- Issue #24018: Add a collections.abc.Generator abstract base class.
   Contributed by Stefan Behnel.
 
 - Issue #23880: Tkinter's getint() and getdouble() now support Tcl_Obj.
@@ -76,6 +86,10 @@ Library
 
 - Issue #23887: urllib.error.HTTPError now has a proper repr() representation.
   Patch by Berker Peksag.
+
+- asyncio: New event loop APIs: set_task_factory() and get_task_factory().
+
+- asyncio: async() function is deprecated in favour of ensure_future().
 
 Tests
 -----
