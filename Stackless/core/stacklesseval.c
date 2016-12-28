@@ -852,19 +852,6 @@ finally:
 
 *******************************************************/
 
-typedef struct {
-    PyObject_HEAD
-    /* The gi_ prefix is intended to remind of generator-iterator. */
-
-    PyFrameObject *gi_frame;
-
-    /* True if generator is being executed. */
-    char gi_running;
-
-    /* List of weak reference. */
-    PyObject *gi_weakreflist;
-} genobject;
-
 /*
  * Note:
  * Generators are quite a bit slower in Stackless, because
@@ -876,10 +863,9 @@ typedef struct {
 PyObject* gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result);
 
 PyObject *
-slp_gen_send_ex(PyGenObject *ob, PyObject *arg, int exc)
+slp_gen_send_ex(PyGenObject *gen, PyObject *arg, int exc)
 {
     STACKLESS_GETARG();
-    genobject *gen = (genobject *) ob;
     PyThreadState *ts = PyThreadState_GET();
     PyFrameObject *f = gen->gi_frame;
     PyFrameObject *stopframe = ts->frame;
@@ -950,7 +936,7 @@ gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result)
 {
     PyThreadState *ts = PyThreadState_GET();
     PyCFrameObject *cf = (PyCFrameObject *) f;
-    genobject *gen = (genobject *) cf->ob1;
+    PyGenObject *gen = (PyGenObject *) cf->ob1;
     PyObject *arg = cf->ob2;
 
     gen->gi_running = 0;
