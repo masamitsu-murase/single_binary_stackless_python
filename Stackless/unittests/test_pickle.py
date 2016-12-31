@@ -1,14 +1,12 @@
 import sys
 import types
 import unittest
-import pickle
 import gc
-import io
 import inspect
 
 from stackless import schedule, tasklet, stackless
 
-from support import StacklessTestCase
+from support import StacklessTestCase, StacklessPickleTestCase
 
 
 # because test runner instances in the testsuite contain copies of the old stdin/stdout thingies,
@@ -245,32 +243,10 @@ def is_soft():
     return softswitch
 
 
-class PyPickleMixin(object):
-
-    def dumps(self, obj, protocol=None, *, fix_imports=True):
-        f = io.BytesIO()
-        pickle._Pickler(f, protocol, fix_imports=fix_imports).dump(obj)
-        return f.getvalue()
-
-    def loads(self, s, *, fix_imports=True, encoding="ASCII", errors="strict"):
-        file = io.BytesIO(s)
-        return pickle._Unpickler(file, fix_imports=fix_imports,
-                                 encoding=encoding, errors=errors).load()
-
-
-class CPickleMixin(object):
-
-    def dumps(self, obj, protocol=None, *, fix_imports=True):
-        return pickle.dumps(obj, protocol=protocol, fix_imports=fix_imports)
-
-    def loads(self, s, *, fix_imports=True, encoding="ASCII", errors="strict"):
-        return pickle.loads(s, fix_imports=fix_imports, encoding=encoding, errors=errors)
-
-
-class AbstractTestPickledTasklets(StacklessTestCase):
+class TestPickledTasklets(StacklessPickleTestCase):
 
     def setUp(self):
-        super(AbstractTestPickledTasklets, self).setUp()
+        super(TestPickledTasklets, self).setUp()
         self.verbose = VERBOSE
 
     def tearDown(self):
@@ -283,7 +259,7 @@ class AbstractTestPickledTasklets(StacklessTestCase):
             current.kill()
             current = next
 
-        super(AbstractTestPickledTasklets, self).tearDown()
+        super(TestPickledTasklets, self).tearDown()
 
         del self.verbose
 
@@ -330,24 +306,6 @@ class AbstractTestPickledTasklets(StacklessTestCase):
         self.assertNotEqual(new_ident, old_ident)
         self.assertEqual(is_empty(), True)
 
-    # compatibility to 2.2.3
-    global have_enumerate
-    try:
-        enumerate
-        have_enumerate = True
-    except NameError:
-        have_enumerate = False
-
-    global have_fromkeys
-    try:
-        {}.fromkeys
-        have_fromkeys = True
-    except AttributeError:
-        have_fromkeys = False
-
-
-class PickledTaskletTestCases(object):
-
     def testClassPersistence(self):
         t1 = CustomTasklet(nothing)()
         s = self.dumps(t1)
@@ -387,9 +345,8 @@ class PickledTaskletTestCases(object):
     def testSet(self):
         self.run_pickled(settest, 20, 13)
 
-    if have_enumerate:
-        def testEnumerate(self):
-            self.run_pickled(enumeratetest, 20, 13)
+    def testEnumerate(self):
+        self.run_pickled(enumeratetest, 20, 13)
 
     def testTuple(self):
         self.run_pickled(tupletest, 20, 13)
@@ -535,14 +492,6 @@ class PickledTaskletTestCases(object):
         self.assertEqual(f1.__module__, f2.__module__)
 
 
-class TestPickledTaskletsPy(AbstractTestPickledTasklets, PickledTaskletTestCases, PyPickleMixin):
-    pass
-
-
-class TestPickledTaskletsC(AbstractTestPickledTasklets, PickledTaskletTestCases, CPickleMixin):
-    pass
-
-
 class TestFramePickling(StacklessTestCase):
 
     def testLocalplus(self):
@@ -583,7 +532,7 @@ class TestFramePickling(StacklessTestCase):
             self.assertIs(cell.cell_contents, result)
 
 
-class DictViewPicklingTestCases(object):
+class TestDictViewPickling(StacklessPickleTestCase):
 
     def testDictKeyViewPickling(self):
         # stackless python prior to 2.7.3 used to register its own __reduce__
@@ -605,15 +554,7 @@ class DictViewPicklingTestCases(object):
         self.assertEqual(list(view1), list(view2))
 
 
-class TestDictViewPicklingPy(AbstractTestPickledTasklets, DictViewPicklingTestCases, PyPickleMixin):
-    pass
-
-
-class TestDictViewPicklingC(AbstractTestPickledTasklets, DictViewPicklingTestCases, CPickleMixin):
-    pass
-
-
-class Traceback_TestCases(object):
+class TestTraceback(StacklessPickleTestCase):
     def testTracebackFrameLinkage(self):
         def a():
             # raise an exception
@@ -648,13 +589,6 @@ class Traceback_TestCases(object):
         # compare the content
         self.assertListEqual([i[1:] for i in all_outerframes_orig[:l - 1]], [i[1:] for i in all_outerframes[:l - 1]])
 
-
-class TestTracebackPy(StacklessTestCase, Traceback_TestCases, PyPickleMixin):
-    pass
-
-
-class TestTracebackC(StacklessTestCase, Traceback_TestCases, CPickleMixin):
-    pass
 
 if __name__ == '__main__':
     if not sys.argv[1:]:
