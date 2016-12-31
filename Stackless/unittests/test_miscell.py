@@ -1,6 +1,5 @@
 # import common
 
-import pickle
 import unittest
 import stackless
 import sys
@@ -87,14 +86,16 @@ class TestWatchdog(StacklessTestCase):
         t = stackless.tasklet(runtask)()
         self.lifecycle(t)
 
+    @StacklessTestCase.prepare_pickle_test_method
     def test_aliveness2(self):
         """ Same as 1, but with a pickled unrun tasklet. """
         t = stackless.tasklet(runtask)()
-        t_new = pickle.loads(pickle.dumps((t)))
+        t_new = self.loads(self.dumps((t)))
         t.remove()
         t_new.insert()
         self.lifecycle(t_new)
 
+    @StacklessTestCase.prepare_pickle_test_method
     def test_aliveness3(self):
         """ Same as 1, but with a pickled run(slightly) tasklet. """
 
@@ -118,8 +119,8 @@ class TestWatchdog(StacklessTestCase):
         self.assertEqual(t.recursion_depth, softSwitching and 1 or 2)
 
         # Now save & load
-        dumped = pickle.dumps(t)
-        t_new = pickle.loads(dumped)
+        dumped = self.dumps(t)
+        t_new = self.loads(dumped)
 
         # Remove and insert & swap names around a bit
         t.remove()

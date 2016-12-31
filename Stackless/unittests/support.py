@@ -28,6 +28,7 @@ import re
 import stackless
 import weakref
 import pickle
+import cPickle
 import inspect
 import gc
 
@@ -159,6 +160,77 @@ class StacklessTestCase(unittest.TestCase, StacklessTestCaseMixin):
             cls.prepare_test_methods()
 
     @classmethod
+    def prepare_test_method(cls, func, name):
+        """Called after class creation
+
+        This method creates the _H methods, which run without
+        soft switching
+        """
+        if hasattr(func, "enable_softswitch") and not getattr(func, "_H_created", False):
+            return ((func, name), )
+
+        def wrapper_hardswitch(self, method=func):
+            self.assertTrue(self.__setup_called, "Broken test case: it didn't call super(..., self).setUp()")
+            self.assertFalse(stackless.enable_softswitch(None), "softswitch is enabled")
+            return method(self)
+        wrapper_hardswitch.enable_softswitch = False
+        wrapper_hardswitch.__name__ = name + "_H"
+        if func.__doc__:
+            doc = func.__doc__
+            if doc.startswith("(soft) "):
+                doc = doc[7:]
+            wrapper_hardswitch.__doc__ = "(hard) " + doc
+        setattr(cls, wrapper_hardswitch.__name__, wrapper_hardswitch)
+
+        if not hasattr(func, "_H_created"):
+            func._H_created = True
+            func.enable_softswitch = True
+            if func.__doc__:
+                func.__doc__ = "(soft) " + func.__doc__
+        return ((func, name), (wrapper_hardswitch, wrapper_hardswitch.__name__))
+
+    @classmethod
+    def prepare_pickle_test_method(cls, func, name=None):
+        """Called after class creation
+
+        This method creates the Py0...n C0...n methods, which run with
+        the Python or C implementation of the enumerated pickle protocol.
+
+        This method also acts as a method decorator.
+        """
+        if name is None:
+            # used as a decorator
+            func.prepare = cls.prepare_pickle_test_method
+            return func
+
+        if hasattr(func, "_pickle_created"):
+            return StacklessTestCase.prepare_test_method.__func__(cls, func, name)
+        setattr(cls, name, None)
+        r = []
+        for i in range(0, pickle.HIGHEST_PROTOCOL + 1):
+            for p_letter in ("C", "P"):
+                def test(self, method=func, proto=i, pickle_module=p_letter, unpickle_module=p_letter):
+                    self.assertTrue(self._StacklessTestCase__setup_called, "Broken test case: it didn't call super(..., self).setUp()")
+                    self._pickle_protocol = proto
+                    self._pickle_module = pickle_module
+                    self._unpickle_module = unpickle_module
+                    return method(self)
+                if i == 0 and p_letter == "C":
+                    test.__name__ = name
+                else:
+                    test.__name__ = "{:s}_{:s}{:d}".format(name, p_letter, i)
+                test._pickle_created = True
+                if func.__doc__:
+                    doc = func.__doc__
+                    match = re.match(r"\([PC][0-{:d}]\)".format(pickle.HIGHEST_PROTOCOL), doc)
+                    if match:
+                        doc = match.string[match.end():]
+                    test.__doc__ = "({:s}{:d}) {:s}".format(p_letter, i, doc)
+                setattr(cls, test.__name__, test)
+                r.extend(StacklessTestCase.prepare_test_method.__func__(cls, test, test.__name__))
+        return r
+
+    @classmethod
     def prepare_test_methods(cls):
         """Called after class creation
 
@@ -169,29 +241,10 @@ class StacklessTestCase(unittest.TestCase, StacklessTestCaseMixin):
         for n in names:
             m = getattr(cls, n)
             if inspect.ismethod(m):
-                m = m.im_func
-            if hasattr(m, "enable_softswitch") and not getattr(m, "_H_created", False):
-                continue
-
-            def wrapper_hardswitch(self, method=m):
-                self.assertTrue(self.__setup_called, "Broken test case: it didn't call super(..., self).setUp()")
-                self.assertFalse(stackless.enable_softswitch(None), "softswitch is enabled")
-                return method(self)
-            wrapper_hardswitch.enable_softswitch = False
-            wrapper_hardswitch.__name__ = n + "_H"
-            if m.__doc__:
-                doc = m.__doc__
-                if doc.startswith("(soft) "):
-                    doc = doc[7:]
-                wrapper_hardswitch.__doc__ = "(hard) " + doc
-            setattr(cls, wrapper_hardswitch.__name__, wrapper_hardswitch)
-
-            if hasattr(m, "_H_created"):
-                continue
-            m._H_created = True
-            m.enable_softswitch = True
-            if m.__doc__:
-                m.__doc__ = "(soft) " + m.__doc__
+                m = m.__func__
+            prepare = getattr(m, "prepare", cls.prepare_test_method)
+            for x in prepare.__func__(cls, m, n):
+                pass
 
     __setup_called = False
     __preexisting_threads = None
@@ -219,7 +272,7 @@ class StacklessTestCase(unittest.TestCase, StacklessTestCaseMixin):
 
         This method must be called from :meth:`setUp`.
         """
-        self.__setup_called = True
+        self._StacklessTestCase__setup_called = True
         self.addCleanup(stackless.enable_softswitch, stackless.enable_softswitch(self.__enable_softswitch))
 
         self.__active_test_cases[id(self)] = self
@@ -263,6 +316,20 @@ class StacklessTestCase(unittest.TestCase, StacklessTestCaseMixin):
                 active_count = threading.active_count()
             self.assertEqual(active_count, expected_thread_count, "Leakage from other threads, with %d threads running (%d expected)" % (active_count, expected_thread_count))
         gc.collect()  # emits warnings about uncollectable objects after each test
+
+    def dumps(self, *args, **kw):
+        if self._pickle_module == "P":
+            return pickle.dumps(*args, protocol=self._pickle_protocol, **kw)
+        elif self._pickle_module == "C":
+            return cPickle.dumps(*args, protocol=self._pickle_protocol, **kw)
+        raise ValueError("Invalid pickle module")
+
+    def loads(self, *args, **kw):
+        if self._pickle_module == "P":
+            return pickle.loads(*args, **kw)
+        elif self._pickle_module == "C":
+            return cPickle.loads(*args, **kw)
+        raise ValueError("Invalid pickle module")
 
     # limited pickling support for test cases
     # Between setUp() and tearDown() the test-case has a
@@ -315,6 +382,14 @@ try:
     StacklessTestCase.SAFE_TESTCASE_ATTRIBUTES = _tc.__dict__.keys()
 finally:
     del _tc
+
+
+class StacklessPickleTestCase(StacklessTestCase):
+    """A test case class for pickle tests"""
+
+    @classmethod
+    def prepare_test_method(cls, func, name):
+        return cls.prepare_pickle_test_method(func, name)
 
 
 def restore_testcase_from_id(id_):

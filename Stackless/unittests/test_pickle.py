@@ -7,14 +7,12 @@ from __future__ import print_function, absolute_import, division
 import sys
 import types
 import unittest
-import pickle
-import cPickle
 import gc
 import inspect
 
 from stackless import schedule, tasklet, stackless
 
-from support import StacklessTestCase
+from support import StacklessTestCase, StacklessPickleTestCase
 
 
 # because test runner instances in the testsuite contain copies of the old stdin/stdout thingies,
@@ -264,28 +262,10 @@ def is_soft():
     return softswitch and not in_psyco()
 
 
-class PyPickleMixin(object):
-
-    def dumps(self, *args, **kw):
-        return pickle.dumps(*args, **kw)
-
-    def loads(self, *args, **kw):
-        return pickle.loads(*args, **kw)
-
-
-class CPickleMixin(object):
-
-    def dumps(self, *args, **kw):
-        return cPickle.dumps(*args, **kw)
-
-    def loads(self, *args, **kw):
-        return cPickle.loads(*args, **kw)
-
-
-class AbstractTestPickledTasklets(StacklessTestCase):
+class TestPickledTasklets(StacklessPickleTestCase):
 
     def setUp(self):
-        super(AbstractTestPickledTasklets, self).setUp()
+        super(TestPickledTasklets, self).setUp()
         self.verbose = VERBOSE
 
     def tearDown(self):
@@ -298,7 +278,7 @@ class AbstractTestPickledTasklets(StacklessTestCase):
             current.kill()
             current = next
 
-        super(AbstractTestPickledTasklets, self).tearDown()
+        super(TestPickledTasklets, self).tearDown()
 
         del self.verbose
 
@@ -345,24 +325,6 @@ class AbstractTestPickledTasklets(StacklessTestCase):
         self.assertNotEqual(new_ident, old_ident)
         self.assertEqual(is_empty(), True)
 
-    # compatibility to 2.2.3
-    global have_enumerate
-    try:
-        enumerate
-        have_enumerate = True
-    except NameError:
-        have_enumerate = False
-
-    global have_fromkeys
-    try:
-        {}.fromkeys
-        have_fromkeys = True
-    except AttributeError:
-        have_fromkeys = False
-
-
-class PickledTaskletTestCases(object):
-
     def testClassPersistence(self):
         t1 = CustomTasklet(nothing)()
         s = self.dumps(t1)
@@ -402,9 +364,8 @@ class PickledTaskletTestCases(object):
     def testSet(self):
         self.run_pickled(settest, 20, 13)
 
-    if have_enumerate:
-        def testEnumerate(self):
-            self.run_pickled(enumeratetest, 20, 13)
+    def testEnumerate(self):
+        self.run_pickled(enumeratetest, 20, 13)
 
     def testTuple(self):
         self.run_pickled(tupletest, 20, 13)
@@ -553,14 +514,6 @@ class PickledTaskletTestCases(object):
         self.assertEqual(f1.__module__, f2.__module__)
 
 
-class TestPickledTaskletsPy(AbstractTestPickledTasklets, PickledTaskletTestCases, PyPickleMixin):
-    pass
-
-
-class TestPickledTaskletsC(AbstractTestPickledTasklets, PickledTaskletTestCases, CPickleMixin):
-    pass
-
-
 class TestFramePickling(StacklessTestCase):
 
     def testLocalplus(self):
@@ -601,7 +554,7 @@ class TestFramePickling(StacklessTestCase):
             self.assertIs(cell.cell_contents, result)
 
 
-class Traceback_TestCases(object):
+class TestTraceback(StacklessPickleTestCase):
     def testTracebackFrameLinkage(self):
         def a():
             # raise an exception
@@ -637,15 +590,7 @@ class Traceback_TestCases(object):
         self.assertListEqual([i[1:] for i in all_outerframes_orig[:l - 1]], [i[1:] for i in all_outerframes[:l - 1]])
 
 
-class TestTracebackPy(StacklessTestCase, Traceback_TestCases, PyPickleMixin):
-    pass
-
-
-class TestTracebackC(StacklessTestCase, Traceback_TestCases, CPickleMixin):
-    pass
-
-
-class OldStackless_WrapFactories_TestCases(object):
+class TestOldStackless_WrapFactories(StacklessPickleTestCase):
 
     def testXrange(self):
         # Stackless prior to version 2.7.3 used to register its own __reduce__
@@ -675,14 +620,6 @@ class OldStackless_WrapFactories_TestCases(object):
         x = self.loads(p)
         self.assertIs(type(x), xrange)
         self.assertEqual(repr(x), repr(xrange(123, 798, 45)))
-
-
-class TestOldStackless_WrapFactoriesPy(StacklessTestCase, OldStackless_WrapFactories_TestCases, PyPickleMixin):
-    pass
-
-
-class TestOldStackless_WrapFactoriesC(StacklessTestCase, OldStackless_WrapFactories_TestCases, CPickleMixin):
-    pass
 
 
 if __name__ == '__main__':

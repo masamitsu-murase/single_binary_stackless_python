@@ -1,4 +1,3 @@
-import pickle
 import sys
 import unittest
 import stackless
@@ -276,11 +275,12 @@ class TestWatchdog(StacklessTestCase):
         orig.set_ignore_nesting(1)
         not_finished = stackless.run(100)
         self.assertEqual(not_finished, orig)
-        return pickle.dumps(not_finished)
+        return self.dumps(not_finished)
 
+    @StacklessTestCase.prepare_pickle_test_method
     def test_pickle(self):
         # Run global
-        t = pickle.loads(self.get_pickled_tasklet())
+        t = self.loads(self.get_pickled_tasklet())
         t.insert()
         if is_soft():
             stackless.run()
@@ -288,7 +288,7 @@ class TestWatchdog(StacklessTestCase):
             self.assertRaises(RuntimeError, stackless.run)
 
         # Run on tasklet
-        t = pickle.loads(self.get_pickled_tasklet())
+        t = self.loads(self.get_pickled_tasklet())
         t.insert()
         if is_soft():
             t.run()
@@ -297,17 +297,18 @@ class TestWatchdog(StacklessTestCase):
             return  # enough crap
 
         # Run on watchdog
-        t = pickle.loads(self.get_pickled_tasklet())
+        t = self.loads(self.get_pickled_tasklet())
         t.insert()
         while stackless.runcount > 1:
             returned = stackless.run(100)
 
+    @StacklessTestCase.prepare_pickle_test_method
     def test_run_return(self):
         # if the main tasklet had previously gone into C stack recusion-based switch, stackless.run() would give
         # strange results
         # this would happen after, e.g. tasklet pickling and unpickling
         # note, the bug was hard to repro, most of the time, it didn't occur.
-        t = pickle.loads(self.get_pickled_tasklet())
+        t = self.loads(self.get_pickled_tasklet())
 
         def func():
             pass
