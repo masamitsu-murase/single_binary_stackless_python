@@ -1,8 +1,10 @@
+from __future__ import absolute_import
 import unittest
 import gc
 import stackless
 import types
 
+from support import test_main  # @UnusedImport
 from support import StacklessTestCase
 
 

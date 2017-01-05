@@ -32,6 +32,7 @@ import inspect
 import io
 import contextlib
 import gc
+from test.support import run_unittest
 
 # emit warnings about uncollectable objects
 gc.set_debug(gc.DEBUG_UNCOLLECTABLE)
@@ -440,3 +441,23 @@ class AsTaskletTestCase(StacklessTestCase):
         result = c.receive()
         assert self._ran_AsTaskletTestCase_setUp
         return result
+
+
+def test_main():
+    """Main function for the CPython :mod:`test.regrtest` test driver.
+
+    Import this function into your test_ module. It uses introspection
+    to find the module name and run your tests.
+    """
+    stack = inspect.stack(0)
+    for i in range(1, 5):
+        try:
+            the_module = stack[i][0].f_locals["the_module"]
+            break
+        except KeyError:
+            pass
+    else:
+        raise RuntimeError("can't find local variable 'the_module'")
+
+    test_suite = unittest.TestLoader().loadTestsFromModule(the_module)
+    return run_unittest(test_suite)
