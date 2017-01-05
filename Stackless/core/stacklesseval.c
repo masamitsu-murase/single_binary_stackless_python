@@ -932,11 +932,17 @@ slp_gen_send_ex(PyGenObject *gen, PyObject *arg, int exc)
     Py_INCREF(f);
     ts->frame = f;
 
-    retval = Py_None;
-    Py_INCREF(retval);
+    if (exc)
+        retval = NULL;
+    else {
+        retval = Py_None;
+        Py_INCREF(retval);
+    }
 
-    if (stackless)
+    if (stackless) {
+        assert(exc == 0);
         return STACKLESS_PACK(retval);
+    }
     return slp_frame_dispatch(f, stopframe, exc, retval);
 }
 
