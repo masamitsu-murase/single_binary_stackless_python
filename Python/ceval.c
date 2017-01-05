@@ -1263,7 +1263,7 @@ slp_eval_frame_setup_with(PyFrameObject *f, int throwflag, PyObject *retval)
      * SETUP_WITH operation.
      * NOTE / XXX: see above.
      */
-    Py_XINCREF(f);	    /* fool the link optimizer */
+    Py_XINCREF(f);      /* fool the link optimizer */
     Py_XINCREF(retval); /* fool the link optimizer */
     r = slp_eval_frame_value(f, throwflag, retval);
     Py_XDECREF(retval);
@@ -1282,7 +1282,7 @@ slp_eval_frame_with_cleanup(PyFrameObject *f, int throwflag, PyObject *retval)
      * NOTE / XXX: see above.
      */
     Py_XINCREF(f);      /* fool the link optimizer */
-    Py_XINCREF(f);	    /* fool the link optimizer */
+    Py_XINCREF(f);      /* fool the link optimizer */
     r = slp_eval_frame_value(f, throwflag, retval);
     Py_XDECREF(f);
     Py_XDECREF(f);
@@ -1708,8 +1708,10 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
 
     why = WHY_NOT;
 
-    if (throwflag) /* support for generator.throw() */
+    if (throwflag) { /* support for generator.throw() */
+        assert(retval == NULL);  /* to prevent reference leaks */
         goto error;
+    }
 
 
 #ifdef STACKLESS
@@ -1733,6 +1735,7 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
             }
             else if (!PyErr_Occurred()) {
                 /* iterator ended normally */
+                assert(retval == NULL);  /* to prevent reference leaks */
                 retval = POP();
                 Py_DECREF(retval);
                 /* perform the delayed block jump */
@@ -1746,6 +1749,7 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
                 if (tstate->c_tracefunc != NULL)
                     call_exc_trace(tstate->c_tracefunc, tstate->c_traceobj, tstate, f);
                 PyErr_Clear();
+                assert(retval == NULL);  /* to prevent reference leaks */
                 retval = POP();
                 Py_DECREF(retval);
                 JUMPBY(oparg);
