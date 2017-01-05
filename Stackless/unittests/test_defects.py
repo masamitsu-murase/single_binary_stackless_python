@@ -505,6 +505,42 @@ class TestFrameClear(StacklessTestCase):
         frame.clear()  # causes the failure
 
 
+class TestContextManager(StacklessTestCase):
+    def test_crash_on_WHY_SILENCED(self):
+        current_switch = stackless.current.switch
+        steps = []
+
+        class CtxManager:
+            def __enter__(self):
+                steps.append(2)
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                steps.append(4)
+                current_switch()  # causes a stack corruption upon resuming __exit__
+                steps.append(5)
+                return True  # silence the exception
+
+        def task():
+            try:
+                steps.append(1)
+                return "OK"
+            finally:
+                with CtxManager():
+                    steps.append(3)
+                    1 // 0
+                steps.append(6)
+                # Stackless issue #115 ()
+                # Leaving this finally block crashes Python,
+                # because the interpreter stack is corrupt.
+
+        t = stackless.tasklet(task)()
+        t.run()
+        self.assertListEqual(steps, [1, 2, 3, 4])
+        t.run()
+        r = t.tempval
+        self.assertListEqual(steps, [1, 2, 3, 4, 5, 6])
+
+
 if __name__ == '__main__':
     if not sys.argv[1:]:
         sys.argv.append('-v')
