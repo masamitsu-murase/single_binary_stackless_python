@@ -13,6 +13,7 @@ except:
     withThreads = False
 
 from stackless import _test_nostacklesscall as apply_not_stackless
+from support import test_main  # @UnusedImport
 from support import StacklessTestCase, captured_stderr, require_one_thread
 
 

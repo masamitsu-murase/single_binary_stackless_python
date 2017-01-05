@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 # import common
 
 import unittest
@@ -6,6 +7,7 @@ import sys
 import time
 from stackless import _test_nostacklesscall as apply_not_stackless
 
+from support import test_main  # @UnusedImport
 from support import StacklessTestCase, AsTaskletTestCase
 try:
     import threading
