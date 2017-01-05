@@ -9,6 +9,10 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/115
+  Fix an unlikely crash caused by an context manager, which silences an
+  exception.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/117
   Fix various reference leaks:
   - Leak of a reference to Py_None in generator.throw()
