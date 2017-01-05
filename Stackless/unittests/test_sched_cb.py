@@ -1,9 +1,11 @@
+from __future__ import absolute_import
 import unittest
 import stackless
 import gc
 import traceback
 import sys
 
+from support import test_main  # @UnusedImport
 from support import StacklessTestCase
 
 

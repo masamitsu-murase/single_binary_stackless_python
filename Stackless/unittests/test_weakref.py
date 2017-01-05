@@ -1,8 +1,10 @@
+from __future__ import absolute_import
 import unittest
 import weakref
 
 from stackless import *
 
+from support import test_main  # @UnusedImport
 from support import StacklessTestCase
 
 

@@ -1,5 +1,7 @@
+from __future__ import absolute_import
 import unittest
 
+from support import test_main  # @UnusedImport
 from support import StacklessTestCase
 
 
