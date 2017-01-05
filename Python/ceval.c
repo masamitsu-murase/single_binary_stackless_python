@@ -1786,22 +1786,10 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
                     err = 0;
                 Py_DECREF(retval);
 
-                if (err >= 0) {
-                    if (err > 0) {
-                        /* There was an exception and a true return */
-                        PyObject *v = SECOND();
-                        PyObject *w = THIRD();
-                        err = 0;
-                        STACKADJ(-2);
-                        Py_INCREF(Py_None);
-                        SET_TOP(Py_None);
-                        Py_DECREF(u);
-                        Py_DECREF(v);
-                        Py_DECREF(w);
-                    } else {
-                        /* The stack was rearranged to remove EXIT
-                           above. Let END_FINALLY do its thing */
-                    }
+                if (err > 0) {
+                    err = 0;
+                    /* There was an exception and a True return */
+                    PUSH(PyLong_FromLong((long) WHY_SILENCED));
                 }
                 /* XXX: The main loop contains a PREDICT(END_FINALLY).
                  * I wonder, if we must use it here?
