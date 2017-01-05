@@ -1,8 +1,10 @@
+from __future__ import absolute_import
 import sys
 import unittest
 import stackless
 import random
 
+from support import test_main  # @UnusedImport
 from support import StacklessTestCase, require_one_thread
 
 

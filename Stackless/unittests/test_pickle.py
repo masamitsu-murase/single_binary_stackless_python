@@ -12,6 +12,7 @@ import inspect
 
 from stackless import schedule, tasklet, stackless
 
+from support import test_main  # @UnusedImport
 from support import StacklessTestCase, StacklessPickleTestCase
 
 

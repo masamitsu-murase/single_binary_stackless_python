@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import unittest
 import stackless
 try:
@@ -8,6 +9,7 @@ except ImportError:
 import sys
 import traceback
 import contextlib
+from support import test_main  # @UnusedImport
 from support import StacklessTestCase, require_one_thread
 
 

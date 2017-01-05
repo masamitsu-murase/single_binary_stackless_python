@@ -12,6 +12,7 @@ try:
 except:
     withThreads = False
 
+from support import test_main  # @UnusedImport
 from support import StacklessTestCase, require_one_thread
 
 

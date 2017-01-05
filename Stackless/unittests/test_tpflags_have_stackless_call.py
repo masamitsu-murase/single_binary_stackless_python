@@ -21,10 +21,12 @@ Test the stackless nesting level of instance calls
 This is a test for issue http://www.stackless.com/ticket/18
 """
 
+from __future__ import absolute_import
 import unittest
 import stackless
 import gc
 import sys
+from support import test_main  # @UnusedImport
 from support import StacklessTestCase
 
 
