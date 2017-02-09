@@ -603,7 +603,7 @@ PyInstance_New(PyObject *klass, PyObject *arg, PyObject *kw)
 #ifdef STACKLESS
         if (stackless && !STACKLESS_UNWINDING(res)) {
             /* required, because we added a C-frame */
-            res = STACKLESS_PACK(res);
+            res = STACKLESS_PACK(PyThreadState_GET(), res);
         }
         if (STACKLESS_UNWINDING(res)) {
             Py_DECREF(inst);

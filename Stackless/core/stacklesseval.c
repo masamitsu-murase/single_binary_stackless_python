@@ -941,7 +941,7 @@ slp_gen_send_ex(PyGenObject *gen, PyObject *arg, int exc)
 
     if (stackless) {
         assert(exc == 0);
-        return STACKLESS_PACK(retval);
+        return STACKLESS_PACK(ts, retval);
     }
     return slp_frame_dispatch(f, stopframe, exc, retval);
 }
@@ -1018,6 +1018,7 @@ unwind_repr(PyObject *op)
 
 /* dummy deallocator, just in case */
 static void unwind_dealloc(PyObject *op) {
+    assert(0);  /*should never be called*/
 }
 
 static PyTypeObject PyUnwindToken_Type = {
@@ -1039,7 +1040,6 @@ static PyTypeObject PyUnwindToken_Type = {
 
 static PyUnwindObject unwind_token = {
     PyObject_HEAD_INIT(&PyUnwindToken_Type)
-    NULL
 };
 
 PyUnwindObject *Py_UnwindToken = &unwind_token;
@@ -1071,7 +1071,7 @@ slp_frame_dispatch(PyFrameObject *f, PyFrameObject *stopframe, int exc, PyObject
     while (1) {
         retval = f->f_execute(f, exc, retval);
         if (STACKLESS_UNWINDING(retval))
-            STACKLESS_UNPACK(retval);
+            STACKLESS_UNPACK(ts, retval);
         /* A soft switch is only complete here */
         Py_CLEAR(ts->st.del_post_switch);
         f = ts->frame;
@@ -1100,7 +1100,7 @@ slp_frame_dispatch_top(PyObject *retval)
 
         retval = f->f_execute(f, 0, retval);
         if (STACKLESS_UNWINDING(retval))
-            STACKLESS_UNPACK(retval);
+            STACKLESS_UNPACK(ts, retval);
         /* A soft switch is only complete here */
         Py_CLEAR(ts->st.del_post_switch);
         f = ts->frame;

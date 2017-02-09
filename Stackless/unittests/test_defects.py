@@ -487,6 +487,110 @@ class TestCPickleBombHandling(StacklessTestCase):
             raise (self.killed[0], self.killed[1], self.killed[2])
         self.assertIsNone(self.killed)
 
+
+class TestUnwinding(StacklessTestCase):
+    # a test case for https://bitbucket.org/stackless-dev/stackless/issues/119
+    # The macros STACKLESS_PACK(retval) / STACKLESS_UNPACK(retval) are not thread
+    # safe. And thread switching can occur, if a destructor runs during stack unwinding.
+
+    def test_interpreter_recursion(self):
+        # This test calls pure Python-functions during unwinding.
+        # The test ensures, that a recursively invoked interpreter does not
+        # unwind the stack, while a higher level interpreter unwinds the stack.
+        self.skipUnlessSoftswitching()
+
+        def inner_detector():
+            pass
+
+        class Detector(object):
+            def __del__(self):
+                # print("__del__, going to sleep", file=sys.stderr)
+                inner_detector()
+
+        def inner_func():
+            return 4711
+
+        def func():
+            return inner_func()
+
+        func.detector = Detector()
+        get_func = [func].pop
+        del func
+        # there is only one reference to func.
+
+        # print("going to call func", file=sys.stderr)
+        # call func and release the last reference to func. This way
+        # Detector.__del__ runs during stack unwinding.
+        # Until STACKLESS_PACK(retval) / STACKLESS_UNPACK(retval) becomes
+        # thread safe, this raises SystemError or crashes with an assertion
+        # failure.
+        r = get_func()()
+        # print("called func", file=sys.stderr)
+        self.assertEqual(r, 4711)
+
+    @unittest.skipUnless(withThreads, "requires thread support")
+    def test_concurrent_unwinding(self):
+        # This test switches tasks during unwinding. The other tasks performs stackless
+        # calls too. This test ensures, that the STACKLESS_PACK() / STACKLESS_UNPACK()
+        # mechanism is thread safe.
+        self.skipUnlessSoftswitching()
+
+        terminate = False
+        started = threading.Event()
+        go = threading.Event()
+
+        def other_thread_inner():
+            started.set()
+            self.assertEqual(stackless.current.nesting_level, 0)
+
+        def other_thread():
+            """A thread, that repeatedly calls other_thread_inner() at nesting level 0.
+            """
+            while not terminate:
+                other_thread_inner()
+                go.wait()  # used to start in a defined state
+
+        class Detector(object):
+            def __del__(self):
+                # print("__del__, going to sleep", file=sys.stderr)
+                go.set()  # make other_thread runnable
+                time.sleep(0.1)  # release GIL
+                # print("__del__, sleep done", file=sys.stderr)
+                pass
+
+        def inner_func():
+            return 4711
+
+        def func():
+            return inner_func()
+
+        t = threading.Thread(target=other_thread, name="other_thread")
+        t.start()
+        started.wait()
+        time.sleep(0.05)  # give othere_thread time to reach go.wait()
+
+        func.detector = Detector()
+        get_func = [func].pop
+        del func
+        # there is only one reference to func.
+
+        # print("going to call func", file=sys.stderr)
+        try:
+            # call func and release the last reference to func. This way
+            # Detector.__del__ runs during stack unwinding.
+            # Until STACKLESS_PACK(retval) / STACKLESS_UNPACK(retval) becomes
+            # thread safe, this raises SystemError or crashes with an assertion
+            # failure.
+            r = get_func()()
+        finally:
+            # make sure, that other_thread terminates
+            terminate = True
+            go.set()  # just in case Detector.__del__() does not run
+            t.join(.5)
+            # print("called func", file=sys.stderr)
+        self.assertEqual(r, 4711)
+
+
 if __name__ == '__main__':
     if not sys.argv[1:]:
         sys.argv.append('-v')

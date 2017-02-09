@@ -78,7 +78,7 @@ slp_return_wrapper(PyObject *retval)
     if (retval == NULL)
         return -1;
     if (STACKLESS_UNWINDING(retval)) {
-        STACKLESS_UNPACK(retval);
+        STACKLESS_UNPACK(PyThreadState_GET(), retval);
         Py_XDECREF(retval);
         return 1;
     }

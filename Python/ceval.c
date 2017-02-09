@@ -3732,7 +3732,7 @@ stackless_call:
     f->f_lasti = INSTR_OFFSET() - 1;
     if (tstate->frame->f_back != f)
         return retval;
-    STACKLESS_UNPACK(retval);
+    STACKLESS_UNPACK(tstate, retval);
     retval = tstate->frame->f_execute(tstate->frame, 0, retval);
     if (tstate->frame != f) {
         assert(f->f_execute == slp_eval_frame_value || f->f_execute == slp_eval_frame_noval ||
@@ -3742,7 +3742,7 @@ stackless_call:
         return retval;
     }
     if (STACKLESS_UNWINDING(retval))
-        STACKLESS_UNPACK(retval);
+        STACKLESS_UNPACK(tstate, retval);
 
     x = retval;
     f->f_stacktop = NULL;
@@ -4028,7 +4028,7 @@ PyEval_EvalCodeEx(PyCodeObject *co, PyObject *globals, PyObject *locals,
     retval = Py_None;
     if (stackless) {
         tstate->frame = f;
-        return STACKLESS_PACK(retval);
+        return STACKLESS_PACK(tstate, retval);
     }
     else {
         if (f->f_back != NULL)
@@ -4919,7 +4919,7 @@ fast_function(PyObject *func, PyObject ***pp_stack, int n, int na, int nk)
             Py_INCREF(Py_None);
             retval = Py_None;
             tstate->frame = f;
-            return STACKLESS_PACK(retval);
+            return STACKLESS_PACK(tstate, retval);
         }
         return slp_eval_frame(f);
 #else

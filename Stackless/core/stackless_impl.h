@@ -98,7 +98,6 @@ PyObject * slp_restore_tracing(PyFrameObject *f, int exc, PyObject *retval);
 
 typedef struct {
     PyObject_HEAD
-    PyObject *tempval;
 } PyUnwindObject;
 
 PyAPI_DATA(PyUnwindObject *) Py_UnwindToken;
@@ -121,30 +120,17 @@ PyAPI_DATA(PyTypeObject) PyMethodWrapper_Type;
 PyTaskletObject * slp_get_watchdog(PyThreadState *ts, int interrupt);
 
 
-/* fast (release) and safe (debug) access to the unwind token and retval */
+/* access to the unwind token and retval */
 
-#ifdef Py_DEBUG
-
-#define STACKLESS_PACK(retval) \
-    (assert(Py_UnwindToken->tempval == NULL), \
-     Py_UnwindToken->tempval = (retval), \
+#define STACKLESS_PACK(tstate, retval) \
+    (assert((tstate)->st.unwinding_retval == NULL), \
+     (tstate)->st.unwinding_retval = (retval), \
      (PyObject *) Py_UnwindToken)
 
-#define STACKLESS_UNPACK(retval) \
+#define STACKLESS_UNPACK(tstate, retval) \
     ((void)(assert(STACKLESS_UNWINDING(retval)), \
-     retval = Py_UnwindToken->tempval, \
-     Py_UnwindToken->tempval = NULL, retval))
-
-#else
-
-#define STACKLESS_PACK(retval) \
-    (Py_UnwindToken->tempval = (retval), \
-     (PyObject *) Py_UnwindToken)
-
-#define STACKLESS_UNPACK(retval) \
-    ((void)(retval = Py_UnwindToken->tempval, retval))
-
-#endif
+     retval = (tstate)->st.unwinding_retval, \
+     (tstate)->st.unwinding_retval = NULL, retval))
 
 #define STACKLESS_UNWINDING(obj) \
     ((PyObject *) (obj) == (PyObject *) Py_UnwindToken)
@@ -152,16 +138,17 @@ PyTaskletObject * slp_get_watchdog(PyThreadState *ts, int interrupt);
 /* an arbitrary positive number */
 #define STACKLESS_UNWINDING_MAGIC 0x7fedcba9
 
-#define STACKLESS_RETVAL(obj) \
-    (STACKLESS_UNWINDING(obj) ? Py_UnwindToken->tempval : (obj))
+#define STACKLESS_RETVAL(tstate, obj) \
+    (STACKLESS_UNWINDING(obj) ? (tstate)->st.unwinding_retval : (obj))
 
-#define STACKLESS_ASSERT_UNWINDING_VALUE_IS_NOT(obj, val) \
-    assert(!STACKLESS_UNWINDING(obj) || ((Py_UnwindToken->tempval) != (val)))
+#define STACKLESS_ASSERT_UNWINDING_VALUE_IS_NOT(tstate, obj, val) \
+    assert(!STACKLESS_UNWINDING(obj) || (((tstate)->st.unwinding_retval) != (val)))
 
 /* macros for setting/resetting the stackless flag */
 
 #define STACKLESS_POSSIBLE()                                        \
-    (slp_enable_softswitch && !slp_in_psyco)
+    (slp_enable_softswitch && !slp_in_psyco && \
+    PyThreadState_GET()->st.unwinding_retval == NULL)
 
 #define STACKLESS_GETARG() int stackless = (stackless = slp_try_stackless, \
                            slp_try_stackless = 0, stackless)
@@ -545,8 +532,8 @@ PyObject * slp_tp_init_callback(PyFrameObject *f, int exc, PyObject *retval);
 #define STACKLESS_RETRACT() assert(1)
 #define STACKLESS_ASSERT() assert(1)
 
-#define STACKLESS_RETVAL(obj) (obj)
-#define STACKLESS_ASSERT_UNWINDING_VALUE_IS_NOT(obj, val) assert(1)
+#define STACKLESS_RETVAL(tstate, obj) (obj)
+#define STACKLESS_ASSERT_UNWINDING_VALUE_IS_NOT(tstate, obj, val) assert(1)
 
 #define STACKLESS_DECLARE_METHOD(type, meth)
 

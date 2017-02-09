@@ -967,7 +967,7 @@ test_cframe_nr(PyObject *self, PyObject *args, PyObject *kwds)
     cf->n = switches;
     ts->frame = (PyFrameObject *) cf;
     Py_INCREF(Py_None);
-    return STACKLESS_PACK(Py_None);
+    return STACKLESS_PACK(ts, Py_None);
 }
 
 

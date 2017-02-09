@@ -4876,7 +4876,7 @@ wrap_next(PyObject *self, PyObject *args, void *wrapped)
     STACKLESS_PROMOTE_ALL();
     res = (*func)(self);
     STACKLESS_ASSERT();
-    STACKLESS_ASSERT_UNWINDING_VALUE_IS_NOT(res, NULL);
+    STACKLESS_ASSERT_UNWINDING_VALUE_IS_NOT(PyThreadState_GET(), res, NULL);
     if (res == NULL && !PyErr_Occurred())
         PyErr_SetNone(PyExc_StopIteration);
     return res;
@@ -5972,7 +5972,7 @@ slp_tp_init_callback(PyFrameObject *f, int exc, PyObject *retval)
     }
     ts->frame = f;
     Py_DECREF(cf);
-    return STACKLESS_PACK(retval);
+    return STACKLESS_PACK(ts, retval);
 }
 #endif
 
@@ -6003,7 +6003,7 @@ slot_tp_init(PyObject *self, PyObject *args, PyObject *kwds)
 #ifdef STACKLESS
     if (stackless && !STACKLESS_UNWINDING(res)) {
         /* required, because added a C-frame */
-        STACKLESS_PACK(res);
+        STACKLESS_PACK(PyThreadState_GET(), res);
         return STACKLESS_UNWINDING_MAGIC;
     }
     if (STACKLESS_UNWINDING(res)) {

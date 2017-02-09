@@ -2560,7 +2560,7 @@ PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw)
         if (!stackless)
 #endif
         Py_LeaveRecursiveCall();
-        if (STACKLESS_RETVAL(result) == NULL && !PyErr_Occurred())
+        if (STACKLESS_RETVAL(PyThreadState_GET(), result) == NULL && !PyErr_Occurred())
             PyErr_SetString(
                 PyExc_SystemError,
                 "NULL result without error in PyObject_Call");
@@ -3153,7 +3153,7 @@ PyIter_Next(PyObject *iter)
     STACKLESS_PROMOTE_METHOD(iter, tp_iternext);
     result = (*iter->ob_type->tp_iternext)(iter);
     STACKLESS_ASSERT();
-    STACKLESS_ASSERT_UNWINDING_VALUE_IS_NOT(result, NULL);
+    STACKLESS_ASSERT_UNWINDING_VALUE_IS_NOT(PyThreadState_GET(), result, NULL);
     if (result == NULL &&
         PyErr_Occurred() &&
         PyErr_ExceptionMatches(PyExc_StopIteration))
