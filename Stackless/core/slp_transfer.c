@@ -121,6 +121,7 @@ slp_transfer(PyCStackObject **cstprev, PyCStackObject *cst,
 
     /* since we change the stack we must assure that the protocol was met */
     STACKLESS_ASSERT();
+    SLP_ASSERT_FRAME_IN_TRANSFER(ts);
 
     if ((intptr_t *) &ts > ts->st.cstack_base)
         return climb_stack_and_transfer(cstprev, cst, prev);
@@ -149,6 +150,7 @@ slp_transfer(PyCStackObject **cstprev, PyCStackObject *cst,
     _cst = cst;
     _prev = prev;
     result = slp_switch();
+    SLP_ASSERT_FRAME_IN_TRANSFER(ts);
     if (!result) {
         if (_cst) {
             /* record the context of the target stack.  Can't do it before the switch because

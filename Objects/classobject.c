@@ -584,8 +584,9 @@ PyInstance_New(PyObject *klass, PyObject *arg, PyObject *kw)
     else {
         PyObject *res;
 #ifdef STACKLESS
+        PyCFrameObject *f = NULL;
         if (stackless) {
-            PyCFrameObject *f = slp_cframe_new(slp_tp_init_callback, 1);
+            f = slp_cframe_new(slp_tp_init_callback, 1);
             if (f == NULL) {
                 Py_DECREF(init);
                 Py_DECREF(inst);
@@ -593,7 +594,7 @@ PyInstance_New(PyObject *klass, PyObject *arg, PyObject *kw)
             }
             Py_INCREF(inst);
             f->ob1 = (PyObject *) inst;
-            PyThreadState_GET()->frame = (PyFrameObject *) f;
+            SLP_SET_CURRENT_FRAME(PyThreadState_GET(), (PyFrameObject *)f);
         }
 #endif
         STACKLESS_PROMOTE_ALL();
@@ -603,8 +604,13 @@ PyInstance_New(PyObject *klass, PyObject *arg, PyObject *kw)
 #ifdef STACKLESS
         if (stackless && !STACKLESS_UNWINDING(res)) {
             /* required, because we added a C-frame */
-            res = STACKLESS_PACK(PyThreadState_GET(), res);
+            PyThreadState *ts = PyThreadState_GET();
+            res = STACKLESS_PACK(ts, res);
+            assert(f);
+            assert((PyFrameObject *)f == SLP_CURRENT_FRAME(ts));
+            SLP_STORE_NEXT_FRAME(ts, (PyFrameObject *)f);
         }
+        Py_XDECREF(f);
         if (STACKLESS_UNWINDING(res)) {
             Py_DECREF(inst);
             return res;

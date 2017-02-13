@@ -997,7 +997,7 @@ exit_frame:
 
     /* epilog to return from the frame */
     ts = PyThreadState_GET();
-    ts->frame = f->f_back;
+    SLP_STORE_NEXT_FRAME(ts, f->f_back);
     Py_DECREF(f);
     return retval;
 }
@@ -1026,7 +1026,7 @@ channel_send_sequence(PyChannelObject *self, PyObject *v)
     f->ob2 = (PyObject *) self;
     f->i = 0;
     f->n = 0;
-    ts->frame = (PyFrameObject *) f;
+    SLP_STORE_NEXT_FRAME(ts, (PyFrameObject *) f);
     Py_INCREF(Py_None);
     return STACKLESS_PACK(ts, Py_None);
 error:

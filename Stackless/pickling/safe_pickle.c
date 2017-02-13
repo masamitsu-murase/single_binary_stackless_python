@@ -42,7 +42,8 @@ pickle_callback(PyFrameObject *f, int exc, PyObject *retval)
     /* jump back. No decref, frame contains result. */
     Py_DECREF(cur->cstate);
     cur->cstate = cst;
-    ts->frame = cf->f_back;
+    SLP_STORE_NEXT_FRAME(ts, cf->f_back);
+    SLP_FRAME_EXECFUNC_DECREF(f);
     slp_transfer_return(cst);
     /* never come here */
     assert(0);
@@ -82,11 +83,18 @@ slp_safe_pickling(int(*save)(PyObject *, PyObject *, int),
     Py_INCREF(args);
     cf->ob2 = args;
     cf->n = pers_save;
-    ts->frame = (PyFrameObject *) cf;
+    SLP_STORE_NEXT_FRAME(ts, (PyFrameObject *) cf);
     cst = cur->cstate;
     cur->cstate = NULL;
     if (slp_transfer(&cur->cstate, NULL, cur) < 0)
         return -1; /* fatal */
+    {
+        /* Clear the frame reference held by the transfer mechanism. */
+        PyFrameObject *f;
+        f = SLP_CLAIM_NEXT_FRAME(ts);
+        assert(f == cf->f_back);
+        Py_XDECREF(f);
+    }
     Py_XDECREF(cur->cstate);
     cur->cstate = cst;
     ret = cf->i;

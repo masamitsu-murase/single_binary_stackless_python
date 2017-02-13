@@ -66,10 +66,23 @@ cframe_traverse(PyCFrameObject *cf, visitproc visit, void *arg)
 static void
 cframe_clear(PyCFrameObject *cf)
 {
-    Py_CLEAR(cf->f_back);
-    Py_CLEAR(cf->ob1);
-    Py_CLEAR(cf->ob2);
-    Py_CLEAR(cf->ob3);
+    /* The Python C-API documentation recomends to use Py_CLEAR() to release
+     * references held by container objects. The following code is an unrolled
+     * version of four Py_CLEAR() macros. It is more robust at no additional
+     * costs.
+     */
+    PyFrameObject *tmp_f_back;
+    PyObject *tmp_ob1, *tmp_ob2, *tmp_ob3;
+    tmp_f_back = cf->f_back;
+    tmp_ob1 = cf->ob1;
+    tmp_ob2 = cf->ob2;
+    tmp_ob3 = cf->ob3;
+    cf->f_back = NULL;
+    cf->ob1 = cf->ob2 = cf->ob3 = NULL;
+    Py_XDECREF(tmp_f_back);
+    Py_XDECREF(tmp_ob1);
+    Py_XDECREF(tmp_ob2);
+    Py_XDECREF(tmp_ob3);
 }
 
 
@@ -93,8 +106,9 @@ slp_cframe_new(PyFrame_ExecFunc *exec, unsigned int linked)
         _Py_NewReference((PyObject *) cf);
     }
 
-    if (linked)
-        back = ts->frame;
+    if (linked) {
+        back = SLP_CURRENT_FRAME(ts);
+    }
     else
         back = NULL;
     Py_XINCREF(back);
@@ -203,7 +217,7 @@ static PyObject * run_cframe(PyFrameObject *f, int exc, PyObject *retval)
     PyTaskletObject *task = ts->st.current;
     int done = cf->i;
 
-    ts->frame = f;
+    SLP_SET_CURRENT_FRAME(ts, f);
 
     if (retval == NULL || done)
         goto exit_run_cframe;
@@ -218,18 +232,17 @@ static PyObject * run_cframe(PyFrameObject *f, int exc, PyObject *retval)
 
     if (STACKLESS_UNWINDING(retval)) {
         /* try to shortcut */
-        if (ts->st.current == task && ts->frame != NULL &&
-            ts->frame->f_back == (PyFrameObject *) cf) {
-            Py_DECREF(ts->frame->f_back);
-            ts->frame->f_back = cf->f_back;
-            Py_DECREF(cf); /* the exec reference */
+        PyFrameObject *f;  /* a borrowed ref */
+        if (ts->st.current == task && (f = SLP_PEEK_NEXT_FRAME(ts)) != NULL &&
+            f->f_back == (PyFrameObject *) cf) {
+                Py_XINCREF(cf->f_back);
+                Py_SETREF(f->f_back, cf->f_back);
         }
         return retval;
     }
     /* pop frame */
 exit_run_cframe:
-    ts->frame = cf->f_back;
-    Py_DECREF(cf);
+    SLP_STORE_NEXT_FRAME(ts, cf->f_back);
     return retval;
 }
 

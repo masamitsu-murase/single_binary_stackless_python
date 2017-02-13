@@ -25,6 +25,282 @@ extern "C" {
  * This would usually be done in place with the assembly macros.
  */
 
+
+
+/*
+ * About the reference counting of frames and C-frames
+ *
+ * The reference counting of frames follows the rules for Python objects
+ * as documented in the Python C-API documentation. The only exception is
+ * that the reference in PyThreadState.frame is a borrowed (uncounted)
+ * reference. No difference to regular C-Python up to this point.
+ * (New since Stackless 2.7.13. In previous versions frames ate their own
+ * reference when returning.)
+ *
+ * But what happens during stack unwinding and stack switching? Both
+ * operations transfer the frame to be executed next up to the eval-frame loop
+ * or to the new stack. Without special provisions the ref-count of this frame
+ * could drop to zero during unwinding/switching. To avoid this, the "transfer
+ * mechanism" itself owns a reference. It is created by the macro
+ * SLP_STORE_NEXT_FRAME(tstate, frame). The macro
+ * SLP_CLAIM_NEXT_FRAME(tstate) removes the reference from the "tranfer
+ * mechanism", stores the frame in 'tstate->frame' and returns a new reference
+ * to the frame.
+ * To enforce the sequent execution of SLP_STORE_NEXT_FRAME() and
+ * SLP_CLAIM_NEXT_FRAME(), SLP_STORE_NEXT_FRAME() invalidates tstate->frame,
+ * if SLP_WITH_FRAME_REF_DEBUG is defined.
+ *
+ * There are a few additional macros, which shall be used to access the members
+ * of tstate. They all add debug code in debug builds, but not in release builds:
+ *
+ * SLP_ASSERT_FRAME_IN_TRANSFER(tstate)
+ *
+ *  Assert, that a frame is in transfer. (Because frame transfers can be nested,
+ *  if a Py_DECREF causes a recursive invocation of the interpreter, it is not
+ *  possible to assert, that no frame is in transfer.)
+ *
+ *
+ * SLP_IS_FRAME_IN_TRANSFER_AFTER_EXPR(tstate, py_ssize_t_tmpvar, expr)
+ *
+ *  This macro executes 'expr' and returns 1 if 'expr' started a frame transfer.
+ *  Otherwise, the macro returns 0. 'py_ssize_t_tmpvar' is a temporary Py_ssize_t
+ *  variable.
+ *
+ *
+ * SLP_CURRENT_FRAME_IS_VALID(tstate)
+ *
+ *  Returns 1 if 'tstate->frame' is valid. To be used in assertions and debug code.
+ *
+ *
+ * SLP_SET_CURRENT_FRAME(tstate, frame)
+ *
+ *  Set the current frame (tstate->frame) to frame.
+ *
+ *
+ * SLP_STORE_NEXT_FRAME(tstate, frame)
+ *
+ *  Store a new reference to the (next) frame in the transfer mechanism and
+ *  invalidate the current frame.
+ *
+ *
+ * SLP_CLAIM_NEXT_FRAME(tstate)
+ *
+ *  Removes the reference to the next frame from the "tranfer mechanism",
+ *  stores the frame in 'tstate->frame' and returns a new reference to the frame.
+ *
+ *
+ * SLP_CURRENT_FRAME(tstate)
+ *
+ *  Return a borrowed reference to the current frame (tstate->frame). Assert
+ *  that the current frame is valid.
+ *
+ *
+ * SLP_PEEK_NEXT_FRAME(tstate)
+ *
+ *  Return a borrowed reference to the next frame, if a frame transfer is in
+ *  progress. Otherwise, return a borrowed reference to the current frame.
+ *
+ *
+ * The following two macros deal with the frame execution functions
+ * 'frame->f_execute':
+ *
+ * CALL_FRAME_FUNCTION(frame, exc, retval)
+ *
+ *  Execute the frame->f_execute(frame, exc, retval). In debug builds,
+ *  the macro performs a few sanity checks.
+ *
+ *
+ * SLP_FRAME_EXECFUNC_DECREF(cframe)
+ *
+ *  If a frame execution function hard switches the stack (using
+ *  slp_transfer_return()) instead of returning to the caller, pending
+ *  Py_DECREF()-calls for references hold by the C-functions on the stack
+ *  won't be executed. This would cause reference leaks.
+ *  To avoid such leaks, the frame execution function must call
+ *  SLP_FRAME_EXECFUNC_DECREF(cframe) before it calls slp_transfer_return().
+ *  The macro SLP_FRAME_EXECFUNC_DECREF(cframe) performs the required
+ *  'Py_DECREF's.
+ *
+ *
+ * The following macro is used to eventually restore 'tstate->frame'
+ * during a frame transfer.
+ *
+ * SLP_WITH_VALID_CURRENT_FRAME(expr)
+ *
+ *  Execute 'expr' with a valid 'tstate->frame'.
+ *  Used in _Py_Dealloc() to eventually restore 'tstate->frame'. Only defined
+ *  if Py_TRACE_REFS is defined.
+ */
+
+/* The macro SLP_WITH_FRAME_REF_DEBUG gets eventually defined in
+ * stackless_tstate.h. It enables reference debugging for frames and C-frames.
+ */
+#ifdef SLP_WITH_FRAME_REF_DEBUG
+#ifndef Py_TRACE_REFS
+#error "SLP_WITH_FRAME_REF_DEBUG requires Py_TRACE_REFS"
+/* The SLP_WITH_FRAME_REF_DEBUG mode sets 'tstate->frame' to the invalid
+ * address 1, in order to prevent any usage of the frame during a frame
+ * transfer.
+ * A Py_DECREF can lead to a recursive invocation of the Python interpreter
+ * during frame transfers. Therefore, it is necessary to restore
+ * 'tstate->frame', if a reference counter drops to zero. This is done by
+ * patching _Py_Dealloc(), which is only available, if Py_TRACE_REFS is
+ * defined.
+ */
+#endif
+
+#define _SLP_FRAME_IN_TRANSFER(tstate) \
+    ((tstate)->frame == (PyFrameObject *)((Py_uintptr_t) 1))
+
+#define _SLP_FRAME_STATE_IS_CONSISTENT(tstate) \
+    (_SLP_FRAME_IN_TRANSFER(tstate) == (tstate)->st.frame_refcnt)
+
+#define SLP_ASSERT_FRAME_IN_TRANSFER(tstate) \
+    (assert(_SLP_FRAME_STATE_IS_CONSISTENT(tstate)), \
+    assert(_SLP_FRAME_IN_TRANSFER(tstate)))
+
+#define SLP_IS_FRAME_IN_TRANSFER_AFTER_EXPR(tstate, py_ssize_t_tmpvar, expr) \
+    ((py_ssize_t_tmpvar) = (tstate)->st.frame_refcnt, \
+    assert(_SLP_FRAME_STATE_IS_CONSISTENT(tstate)), \
+    assert(!_SLP_FRAME_IN_TRANSFER(tstate)), \
+    assert((py_ssize_t_tmpvar) == 0), \
+    (void)(expr), \
+    assert((tstate)->st.frame_refcnt >= 0), \
+    assert(_SLP_FRAME_IN_TRANSFER(tstate) == (tstate)->st.frame_refcnt), \
+    (tstate)->st.frame_refcnt > 0)
+
+#define SLP_CURRENT_FRAME_IS_VALID(tstate) \
+    (!_SLP_FRAME_IN_TRANSFER(tstate) && ((tstate)->frame == NULL || Py_REFCNT((tstate)->frame) > 0))
+
+#define SLP_SET_CURRENT_FRAME(tstate, frame_) \
+    (assert(_SLP_FRAME_STATE_IS_CONSISTENT(tstate)), \
+    assert(SLP_CURRENT_FRAME_IS_VALID(tstate)), \
+    (void)((tstate)->frame = (frame_)), \
+    assert(_SLP_FRAME_STATE_IS_CONSISTENT(tstate)), \
+    assert(SLP_CURRENT_FRAME_IS_VALID(tstate)))
+
+void slp_store_next_frame(PyThreadState *tstate, PyFrameObject *frame);
+#define SLP_STORE_NEXT_FRAME(tstate, frame_) \
+    slp_store_next_frame(tstate, frame_)
+
+PyFrameObject * slp_claim_next_frame(PyThreadState *tstate);
+#define SLP_CLAIM_NEXT_FRAME(tstate) \
+    slp_claim_next_frame(tstate)
+
+#define SLP_CURRENT_FRAME(tstate) \
+    (assert(SLP_CURRENT_FRAME_IS_VALID(tstate)), (tstate)->frame)
+
+#define SLP_PEEK_NEXT_FRAME(tstate) \
+    (assert(_SLP_FRAME_STATE_IS_CONSISTENT(tstate)), \
+    (_SLP_FRAME_IN_TRANSFER(tstate) ? (tstate)->st.next_frame : SLP_CURRENT_FRAME(tstate)))
+
+#if (SLP_WITH_FRAME_REF_DEBUG == 2)
+/* extra heavy debugging */
+#define SLP_FRAME_EXECFUNC_DECREF(cf) \
+    do { \
+        if (cf) { \
+            assert(PyCFrame_Check(cf)); \
+            assert(Py_REFCNT(cf) >= 2); \
+            Py_DECREF(cf); /* the eval_frame loop */ \
+            Py_DECREF(cf); /* wrap_call_frame */ \
+        } \
+    } while (0)
+
+PyObject * slp_wrap_call_frame(PyFrameObject *frame, int exc, PyObject *retval);
+#define CALL_FRAME_FUNCTION(frame_, exc, retval) \
+    slp_wrap_call_frame(frame_, exc, retval)
+
+#endif  /* #if (SLP_WITH_FRAME_REF_DEBUG == 2) */
+
+/* Used in _Py_Dealloc() to eventually restore 'tstate->frame' */
+#define SLP_WITH_VALID_CURRENT_FRAME(expr) \
+    do { \
+        if (_PyThreadState_Current != NULL && \
+            (assert(_SLP_FRAME_STATE_IS_CONSISTENT(_PyThreadState_Current)), \
+            _SLP_FRAME_IN_TRANSFER(_PyThreadState_Current))) \
+        { \
+            PyThreadState * ts = _PyThreadState_Current; \
+            PyFrameObject * frame = SLP_CLAIM_NEXT_FRAME(ts); \
+            (void)(expr); \
+            assert(frame == NULL || Py_REFCNT(frame) >= 1); \
+            assert(_SLP_FRAME_STATE_IS_CONSISTENT(ts)); \
+            assert(SLP_CURRENT_FRAME(ts) == frame); \
+            SLP_STORE_NEXT_FRAME(ts, frame); \
+            Py_XDECREF(frame); \
+        } else { \
+            (void)(expr); \
+            assert(_PyThreadState_Current == NULL || _SLP_FRAME_STATE_IS_CONSISTENT(_PyThreadState_Current)); \
+            assert(_PyThreadState_Current == NULL || !_SLP_FRAME_IN_TRANSFER(_PyThreadState_Current)); \
+        } \
+    } while (0)
+
+#else /* #ifdef SLP_WITH_FRAME_REF_DEBUG */
+
+#define SLP_ASSERT_FRAME_IN_TRANSFER(tstate) \
+    assert((tstate)->st.frame_refcnt > 0)
+
+#define SLP_IS_FRAME_IN_TRANSFER_AFTER_EXPR(tstate, py_ssize_t_tmpvar, expr) \
+    ((py_ssize_t_tmpvar) = (tstate)->st.frame_refcnt, \
+    assert((py_ssize_t_tmpvar) >= 0), \
+    (void)(expr), \
+    assert((tstate)->st.frame_refcnt >= (py_ssize_t_tmpvar)), \
+    (tstate)->st.frame_refcnt > (py_ssize_t_tmpvar))
+
+#define SLP_CURRENT_FRAME_IS_VALID(tstate) \
+    ((tstate)->frame == NULL || Py_REFCNT((tstate)->frame) > 0)
+
+#define SLP_SET_CURRENT_FRAME(tstate, frame_) \
+    (assert((tstate)->st.frame_refcnt >= 0), \
+    assert(SLP_CURRENT_FRAME_IS_VALID(tstate)), \
+    (void)((tstate)->frame = (frame_)), \
+    assert(SLP_CURRENT_FRAME_IS_VALID(tstate)))
+
+#define SLP_STORE_NEXT_FRAME(tstate, frame_) \
+    do { \
+        assert((tstate)->st.frame_refcnt >= 0); \
+        SLP_SET_CURRENT_FRAME((tstate), (frame_)); \
+        Py_XINCREF((tstate)->frame); \
+        (tstate)->st.frame_refcnt++; \
+    } while (0)
+
+#define SLP_CLAIM_NEXT_FRAME(tstate) \
+    (assert((tstate)->st.frame_refcnt > 0), \
+    (tstate)->st.frame_refcnt--, \
+    (tstate)->frame)
+
+#define SLP_CURRENT_FRAME(tstate) \
+    (assert(SLP_CURRENT_FRAME_IS_VALID(tstate)), (tstate)->frame)
+
+#define SLP_PEEK_NEXT_FRAME(tstate) \
+    ((tstate)->frame)
+
+#ifdef Py_TRACE_REFS
+#define SLP_WITH_VALID_CURRENT_FRAME(expr) \
+    do { \
+        (void)(expr); \
+    } while (0)
+
+#endif  /* #ifdef Py_TRACE_REFS */
+
+#endif /* #ifdef SLP_WITH_FRAME_REF_DEBUG */
+
+#ifndef SLP_FRAME_EXECFUNC_DECREF
+
+#define SLP_FRAME_EXECFUNC_DECREF(cf) \
+    do{ \
+        if (cf) { \
+            assert(PyCFrame_Check(cf)); \
+            assert(Py_REFCNT(cf) >= 1); \
+            Py_DECREF(cf); /* the eval_frame loop */ \
+        } \
+    } while (0)
+
+#define CALL_FRAME_FUNCTION(frame_, exc, retval) \
+     (assert((frame_) && (frame_)->f_execute), \
+     ((frame_)->f_execute((frame_), (exc), (retval))))
+
+#endif
+
 /********************************************************************
  *
  * This section defines/references stuff from stacklesseval.c
@@ -147,8 +423,11 @@ PyTaskletObject * slp_get_watchdog(PyThreadState *ts, int interrupt);
     (slp_enable_softswitch && !slp_in_psyco && \
     PyThreadState_GET()->st.unwinding_retval == NULL)
 
-#define STACKLESS_GETARG() int stackless = (stackless = slp_try_stackless, \
-                           slp_try_stackless = 0, stackless)
+#define STACKLESS_GETARG() \
+    int stackless = (assert(SLP_CURRENT_FRAME_IS_VALID(PyThreadState_GET())), \
+                     stackless = slp_try_stackless, \
+                     slp_try_stackless = 0, \
+                     stackless)
 
 #define STACKLESS_PROMOTE(func) \
     (stackless ? slp_try_stackless = \
@@ -513,6 +792,9 @@ PyObject * slp_tp_init_callback(PyFrameObject *f, int exc, PyObject *retval);
 #else /* STACKLESS */
 
 /* turn the stackless flag macros into dummies */
+
+#define SLP_PEEK_NEXT_FRAME(tstate) \
+    ((tstate)->frame)
 
 #define STACKLESS_GETARG() int stackless = 0
 #define STACKLESS_PROMOTE(func) stackless = 0
