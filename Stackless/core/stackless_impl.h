@@ -91,9 +91,6 @@ PyObject * slp_frame_dispatch(PyFrameObject *f,
                               PyFrameObject *stopframe, int exc,
                               PyObject *retval);
 
-/* the frame dispatcher for toplevel tasklets */
-PyObject * slp_frame_dispatch_top(PyObject *retval);
-
 /* the now exported eval_frame */
 PyAPI_FUNC(PyObject *) PyEval_EvalFrameEx_slp(struct _frame *, int, PyObject *);
 
@@ -377,6 +374,7 @@ int slp_ensure_linkage(PyTaskletObject *task);
 
 /* tasklet/scheduling operations */
 PyObject * slp_tasklet_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+PyObject * slp_tasklet_end(PyObject *retval);
 
 int slp_schedule_task(PyObject **result,
                       PyTaskletObject *prev,
@@ -437,10 +435,6 @@ PyObject * slp_curexc_to_bomb(void);
 PyObject * slp_nomemory_bomb(void);
 PyObject * slp_bomb_explode(PyObject *bomb);
 int slp_init_bombtype(void);
-
-/* tasklet startup */
-
-PyObject * slp_run_tasklet(PyFrameObject *f);
 
 /* handy abbrevations */
 
