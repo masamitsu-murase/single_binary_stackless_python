@@ -283,13 +283,42 @@ climb_stack_and_eval_frame(PyFrameObject *f)
     /* in rare cases, the need might have vanished due to the recursion */
     intptr_t *goobledigoobs;
     if (needed > 0) {
-    goobledigoobs = alloca(needed * sizeof(intptr_t));
+        goobledigoobs = alloca(needed * sizeof(intptr_t));
         if (goobledigoobs == NULL)
             return NULL;
     }
     return slp_eval_frame(f);
 }
 
+static PyObject * slp_frame_dispatch_top(PyObject *retval);
+
+static PyObject *
+slp_run_tasklet(PyFrameObject *f)
+{
+    PyThreadState *ts = PyThreadState_GET();
+    PyObject *retval;
+
+    if ( (ts->st.main == NULL) && slp_initialize_main_and_current()) {
+        ts->frame = NULL;
+        return NULL;
+    }
+    ts->frame = f;
+
+    TASKLET_CLAIMVAL(ts->st.current, &retval);
+
+    if (PyBomb_Check(retval))
+        retval = slp_bomb_explode(retval);
+    while (ts->st.main != NULL) {
+        /* XXX correct condition? or current? */
+        retval = slp_frame_dispatch_top(retval);
+        retval = slp_tasklet_end(retval);
+        if (STACKLESS_UNWINDING(retval))
+            STACKLESS_UNPACK(ts, retval);
+        /* if we softswitched out from the tasklet end */
+        Py_CLEAR(ts->st.del_post_switch);
+    }
+    return retval;
+}
 
 PyObject *
 slp_eval_frame(PyFrameObject *f)
@@ -1088,7 +1117,7 @@ slp_frame_dispatch(PyFrameObject *f, PyFrameObject *stopframe, int exc, PyObject
     return retval;
 }
 
-PyObject *
+static PyObject *
 slp_frame_dispatch_top(PyObject *retval)
 {
     PyThreadState *ts = PyThreadState_GET();

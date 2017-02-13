@@ -1351,8 +1351,8 @@ extern int PyStackless_CallErrorHandler(void);
  * the exception to be continued in the new
  * context.
  */
-static PyObject *
-tasklet_end(PyObject *retval)
+PyObject *
+slp_tasklet_end(PyObject *retval)
 {
     PyThreadState *ts = PyThreadState_GET();
     PyTaskletObject *task = ts->st.current;
@@ -1506,40 +1506,6 @@ end:
     return retval;
 }
 
-/*
-  the following functions only have to handle "real"
-  tasklets, those which need to switch the C stack.
-  The "soft" tasklets are handled by frame pushing.
-  It is not so much simpler than I thought :-(
-*/
-
-PyObject *
-slp_run_tasklet(PyFrameObject *f)
-{
-    PyThreadState *ts = PyThreadState_GET();
-    PyObject *retval;
-
-    if ( (ts->st.main == NULL) && slp_initialize_main_and_current()) {
-        ts->frame = NULL;
-        return NULL;
-    }
-    ts->frame = f;
-
-    TASKLET_CLAIMVAL(ts->st.current, &retval);
-
-    if (PyBomb_Check(retval))
-        retval = slp_bomb_explode(retval);
-    while (ts->st.main != NULL) {
-        /* XXX correct condition? or current? */
-        retval = slp_frame_dispatch_top(retval);
-        retval = tasklet_end(retval);
-        if (STACKLESS_UNWINDING(retval))
-            STACKLESS_UNPACK(ts, retval);
-        /* if we softswitched out from the tasklet end */
-        Py_CLEAR(ts->st.del_post_switch);
-    }
-    return retval;
-}
 
 /* Clear out the free list */
 
