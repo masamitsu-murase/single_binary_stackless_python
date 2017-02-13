@@ -31,6 +31,7 @@ What's New in Stackless 2.7.XX?
     a tasklet didn't run to its end or various other conditions. This part
     of the fix changes the Stackless reference counting for frames to follow
     the general rules for Python objects.
+  - Leak of a reference to a frame in stackless.tasklet.__setstate__()
 
   Additionally, this change brings the handling of caught exceptions more in
   line with C-Python.
