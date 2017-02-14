@@ -48,6 +48,20 @@ static int autoTLSkey = 0;
 #define HEAD_UNLOCK() /* Nothing */
 #endif
 
+#ifdef STACKLESS
+#ifdef WITH_THREAD
+void
+slp_head_lock(void) {
+    HEAD_LOCK();
+}
+
+void
+slp_head_unlock(void) {
+    HEAD_UNLOCK();
+}
+#endif
+#endif
+
 static PyInterpreterState *interp_head = NULL;
 
 PyThreadState *_PyThreadState_Current = NULL;
