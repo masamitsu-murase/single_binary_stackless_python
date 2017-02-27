@@ -2081,7 +2081,7 @@ _Py_CheckFunctionResult(PyObject *func, PyObject *result, const char *where)
 
     assert((func != NULL) ^ (where != NULL));
 
-    if (STACKLESS_RETVAL(result) == NULL) {
+    if (STACKLESS_RETVAL(PyThreadState_GET(), result) == NULL) {
         if (!err_occurred) {
             if (func)
                 PyErr_Format(PyExc_SystemError,
@@ -2103,7 +2103,7 @@ _Py_CheckFunctionResult(PyObject *func, PyObject *result, const char *where)
             PyObject *exc, *val, *tb;
             PyErr_Fetch(&exc, &val, &tb);
 
-            Py_DECREF(STACKLESS_RETVAL(result));
+            Py_DECREF(STACKLESS_RETVAL(PyThreadState_GET(), result));
 
             if (func)
                 PyErr_Format(PyExc_SystemError,
@@ -2791,7 +2791,7 @@ PyIter_Next(PyObject *iter)
     STACKLESS_PROMOTE_METHOD(iter, tp_iternext);
     result = (*iter->ob_type->tp_iternext)(iter);
     STACKLESS_ASSERT();
-    STACKLESS_ASSERT_UNWINDING_VALUE_IS_NOT(result, NULL);
+    STACKLESS_ASSERT_UNWINDING_VALUE_IS_NOT(PyThreadState_GET(), result, NULL);
     if (result == NULL &&
         PyErr_Occurred() &&
         PyErr_ExceptionMatches(PyExc_StopIteration))
