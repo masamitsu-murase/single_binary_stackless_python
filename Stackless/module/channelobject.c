@@ -1022,7 +1022,7 @@ channel_send_sequence(PyChannelObject *self, PyObject *v)
     f->n = 0;
     ts->frame = (PyFrameObject *) f;
     Py_INCREF(Py_None);
-    return STACKLESS_PACK(Py_None);
+    return STACKLESS_PACK(ts, Py_None);
 error:
     Py_DECREF(it);
     return NULL;

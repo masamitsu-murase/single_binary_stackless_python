@@ -3838,8 +3838,8 @@ fast_block_end:
     if (why != WHY_RETURN)
         retval = NULL;
 
-    assert((STACKLESS_RETVAL(retval) != NULL && !PyErr_Occurred())
-            || (STACKLESS_RETVAL(retval) == NULL && PyErr_Occurred()));
+    assert((STACKLESS_RETVAL(tstate, retval) != NULL && !PyErr_Occurred())
+            || (STACKLESS_RETVAL(tstate, retval) == NULL && PyErr_Occurred()));
 
 fast_yield:
     if (co->co_flags & CO_GENERATOR) {
@@ -3936,7 +3936,7 @@ stackless_call:
     f->f_lasti = INSTR_OFFSET() - 1;
     if (tstate->frame->f_back != f)
         return retval;
-    STACKLESS_UNPACK(retval);
+    STACKLESS_UNPACK(tstate, retval);
     retval = tstate->frame->f_execute(tstate->frame, 0, retval);
     if (tstate->frame != f) {
         assert(f->f_execute == slp_eval_frame_value || f->f_execute == slp_eval_frame_noval ||
@@ -3946,7 +3946,7 @@ stackless_call:
         return retval;
     }
     if (STACKLESS_UNWINDING(retval))
-        STACKLESS_UNPACK(retval);
+        STACKLESS_UNPACK(tstate, retval);
 
     f->f_stacktop = NULL;
     if (f->f_execute == slp_eval_frame_iter) {
@@ -4340,7 +4340,7 @@ PyEval_EvalCodeEx(PyObject *_co, PyObject *globals, PyObject *locals,
     retval = Py_None;
     if (stackless) {
         tstate->frame = f;
-        return STACKLESS_PACK(retval);
+        return STACKLESS_PACK(tstate, retval);
     }
     else {
         if (f->f_back != NULL)
@@ -4896,8 +4896,8 @@ PyEval_CallObjectWithKeywords(PyObject *func, PyObject *arg, PyObject *kw)
     STACKLESS_ASSERT();
     Py_DECREF(arg);
 
-    assert((STACKLESS_RETVAL(result) != NULL && !PyErr_Occurred())
-           || (STACKLESS_RETVAL(result) == NULL && PyErr_Occurred()));
+    assert((STACKLESS_RETVAL(PyThreadState_GET(), result) != NULL && !PyErr_Occurred())
+           || (STACKLESS_RETVAL(PyThreadState_GET(), result) == NULL && PyErr_Occurred()));
     return result;
 }
 
@@ -5052,8 +5052,8 @@ call_function(PyObject ***pp_stack, int oparg
         READ_TIMESTAMP(*pintr1);
         Py_DECREF(func);
     }
-    assert((STACKLESS_RETVAL(x) != NULL && !PyErr_Occurred())
-           || (STACKLESS_RETVAL(x) == NULL && PyErr_Occurred()));
+    assert((STACKLESS_RETVAL(PyThreadState_GET(), x) != NULL && !PyErr_Occurred())
+           || (STACKLESS_RETVAL(PyThreadState_GET(), x) == NULL && PyErr_Occurred()));
 
     /* Clear the stack of the function object.  Also removes
        the arguments in case they weren't consumed already
@@ -5065,8 +5065,8 @@ call_function(PyObject ***pp_stack, int oparg
         PCALL(PCALL_POP);
     }
 
-    assert((STACKLESS_RETVAL(x) != NULL && !PyErr_Occurred())
-           || (STACKLESS_RETVAL(x) == NULL && PyErr_Occurred()));
+    assert((STACKLESS_RETVAL(PyThreadState_GET(), x) != NULL && !PyErr_Occurred())
+           || (STACKLESS_RETVAL(PyThreadState_GET(), x) == NULL && PyErr_Occurred()));
     return x;
 }
 
@@ -5120,11 +5120,11 @@ fast_function(PyObject *func, PyObject ***pp_stack, int n, int na, int nk)
         }
 #ifdef STACKLESS
         f->f_execute = PyEval_EvalFrameEx_slp;
-        if (slp_enable_softswitch) {
+        if (STACKLESS_POSSIBLE()) {
             Py_INCREF(Py_None);
             retval = Py_None;
             tstate->frame = f;
-            return STACKLESS_PACK(retval);
+            return STACKLESS_PACK(tstate, retval);
         }
         return slp_eval_frame(f);
 #else
@@ -5366,8 +5366,8 @@ ext_call_fail:
     Py_XDECREF(callargs);
     Py_XDECREF(kwdict);
     Py_XDECREF(stararg);
-    assert((STACKLESS_RETVAL(result) != NULL && !PyErr_Occurred())
-           || (STACKLESS_RETVAL(result) == NULL && PyErr_Occurred()));
+    assert((STACKLESS_RETVAL(PyThreadState_GET(), result) != NULL && !PyErr_Occurred())
+           || (STACKLESS_RETVAL(PyThreadState_GET(), result) == NULL && PyErr_Occurred()));
     return result;
 }
 
