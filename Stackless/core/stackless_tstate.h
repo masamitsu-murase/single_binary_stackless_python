@@ -24,16 +24,12 @@ typedef struct _sts {
     struct _tasklet *main;
     /* runnable tasklets */
     struct _tasklet *current;
-    int runcount;
 
     /* scheduling */
     long tick_counter;
     long tick_watermark;
     long interval;
     PyObject * (*interrupt) (void);    /* the fast scheduler */
-    /* trap recursive scheduling via callbacks */
-    int schedlock;
-    int runflags;                               /* flags for stackless.run() behaviour */
 #ifdef WITH_THREAD
     struct {
         PyObject *block_lock;                   /* to block the thread */
@@ -41,12 +37,17 @@ typedef struct _sts {
         int is_idle;                            /* unblocked, but waiting for GIL */
     } thread;
 #endif
-    /* number of nested interpreters (1.0/2.0 merge) */
-    int nesting_level;
     PyObject *del_post_switch;                  /* To decref after a switch */
     PyObject *interrupted;                      /* The interrupted tasklet in stackles.run() */
-    int switch_trap;                            /* if non-zero, switching is forbidden */
     PyObject *watchdogs;                        /* the stack of currently running watchdogs */
+    PyObject *unwinding_retval;                 /* The return value during stack unwinding */
+    int runcount;
+    /* trap recursive scheduling via callbacks */
+    int schedlock;
+    int runflags;                               /* flags for stackless.run() behaviour */
+    /* number of nested interpreters (1.0/2.0 merge) */
+    int nesting_level;
+    int switch_trap;                            /* if non-zero, switching is forbidden */
 } PyStacklessState;
 
 /* internal macro to temporarily disable soft interrupts */
@@ -59,20 +60,21 @@ typedef struct _sts {
     tstate->st.serial_last_jump = 0; \
     tstate->st.cstack_base = NULL; \
     tstate->st.cstack_root = NULL; \
+    tstate->st.main = NULL; \
+    tstate->st.current = NULL; \
     tstate->st.tick_counter = 0; \
     tstate->st.tick_watermark = 0; \
     tstate->st.interval = 0; \
     tstate->st.interrupt = NULL; \
-    tstate->st.schedlock = 0; \
-    tstate->st.main = NULL; \
-    tstate->st.current = NULL; \
-    tstate->st.runcount = 0; \
-    tstate->st.nesting_level = 0; \
-    tstate->st.runflags = 0; \
     tstate->st.del_post_switch = NULL; \
     tstate->st.interrupted = NULL; \
-    tstate->st.switch_trap = 0; \
-    tstate->st.watchdogs = NULL;
+    tstate->st.watchdogs = NULL; \
+    tstate->st.unwinding_retval = NULL; \
+    tstate->st.runcount = 0; \
+    tstate->st.schedlock = 0; \
+    tstate->st.nesting_level = 0; \
+    tstate->st.runflags = 0; \
+    tstate->st.switch_trap = 0;
 
 
 /* note that the scheduler knows how to zap. It checks if it is in charge
@@ -89,7 +91,8 @@ void slp_kill_tasks_with_stacks(struct _ts *tstate);
     Py_CLEAR(tstate->st.initial_stub); \
     Py_CLEAR(tstate->st.del_post_switch); \
     Py_CLEAR(tstate->st.interrupted); \
-    Py_CLEAR(tstate->st.watchdogs);
+    Py_CLEAR(tstate->st.watchdogs); \
+    Py_CLEAR(tstate->st.unwinding_retval);
 
 #ifdef WITH_THREAD
 

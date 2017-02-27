@@ -9,6 +9,11 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/119
+  Fix a rare bug in the stack unwinding mechanism, that caused a SystemError
+  exception or an assertion violation, if a __del__()-method or a weakref
+  callback runs during stack unwinding.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/115
   Fix an unlikely crash caused by an context manager, which silences an
   exception.

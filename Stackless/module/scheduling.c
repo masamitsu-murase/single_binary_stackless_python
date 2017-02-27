@@ -563,7 +563,7 @@ slp_restore_exception(PyFrameObject *f, int exc, PyObject *retval)
     cf->ob1 = cf->ob2 = cf->ob3 = NULL;
     Py_DECREF(cf);
     ts->frame = f;
-    return STACKLESS_PACK(retval);
+    return STACKLESS_PACK(ts, retval);
 }
 
 PyObject *
@@ -593,7 +593,7 @@ slp_restore_tracing(PyFrameObject *f, int exc, PyObject *retval)
     PyEval_SetProfile((Py_tracefunc)cf->any2, cf->ob2);
     Py_DECREF(cf);
     ts->frame = f;
-    return STACKLESS_PACK(retval);
+    return STACKLESS_PACK(ts, retval);
 }
 
 int
@@ -1149,7 +1149,7 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
     ts->st.current = next;
     if (did_switch)
         *did_switch = 1;
-    *result = STACKLESS_PACK(retval);
+    *result = STACKLESS_PACK(ts, retval);
     return 0;
 
 hard_switching:
@@ -1197,7 +1197,7 @@ hard_switching:
 
                 /* Hack: call the eval frame function directly */
                 retval = slp_restore_tracing((PyFrameObject *)f, 0, Py_None);
-                STACKLESS_UNPACK(retval);
+                STACKLESS_UNPACK(ts, retval);
                 if (NULL == retval)
                     return -1;
                 assert(PyFrame_Check(ts->frame));
@@ -1534,7 +1534,7 @@ slp_run_tasklet(PyFrameObject *f)
         retval = slp_frame_dispatch_top(retval);
         retval = tasklet_end(retval);
         if (STACKLESS_UNWINDING(retval))
-            STACKLESS_UNPACK(retval);
+            STACKLESS_UNPACK(ts, retval);
         /* if we softswitched out from the tasklet end */
         Py_CLEAR(ts->st.del_post_switch);
     }
