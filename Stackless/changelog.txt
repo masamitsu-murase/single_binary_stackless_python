@@ -9,6 +9,11 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/121
+  Fix a reference leak. If Python clears a thread state and a destructor or a
+  weakref-callback runs Python code, Python used to leak a reference to a
+  C-stack object.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/119
   Fix a rare bug in the stack unwinding mechanism, that caused a SystemError
   exception or an assertion violation, if a __del__()-method or a weakref
