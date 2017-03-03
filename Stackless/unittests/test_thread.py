@@ -611,6 +611,33 @@ class SetupFromDifferentThreadTest(RemoteTaskletTests):
         theThread.join()
 
 
+@unittest.skipUnless(withThreads, "requires thread support")
+class TestThreadLocalStorage(StacklessTestCase):
+    class ObjectWithDestructor(object):
+        def __init__(self, event):
+            self.event = event
+
+        def __del__(self):
+            self.event.set()
+
+    def test_destructor_at_end_of_thread(self):
+        # Test case for issue #121 https://bitbucket.org/stackless-dev/stackless/issue/121
+        # Run a destructor during clean up of thread local storage
+        # Until issue #121 got fixed, this caused a reference leak
+        tls = threading.local()
+        deleted = threading.Event()
+
+        def other_thread():
+            tls.owd = self.ObjectWithDestructor(deleted)
+
+        self.assertFalse(deleted.is_set())
+        t = threading.Thread(target=other_thread, name="other thread")
+        t.start()
+        t.join()
+        time.sleep(0.1)  # give the thread time to clean up
+        self.assertTrue(deleted.is_set())
+
+
 if __name__ == '__main__':
     if not sys.argv[1:]:
         sys.argv.append('-v')

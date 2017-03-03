@@ -247,7 +247,7 @@ void
 PyThreadState_Clear(PyThreadState *tstate)
 {
 #ifdef STACKLESS
-    STACKLESS_PYSTATE_CLEAR;
+    slp_kill_tasks_with_stacks(tstate);
 #endif
     if (Py_VerboseFlag && tstate->frame != NULL)
         fprintf(stderr,
@@ -270,6 +270,9 @@ PyThreadState_Clear(PyThreadState *tstate)
     tstate->c_tracefunc = NULL;
     Py_CLEAR(tstate->c_profileobj);
     Py_CLEAR(tstate->c_traceobj);
+#ifdef STACKLESS
+    STACKLESS_PYSTATE_CLEAR;
+#endif
 }
 
 

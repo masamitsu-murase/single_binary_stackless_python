@@ -112,7 +112,6 @@ struct _ts; /* Forward */
 void slp_kill_tasks_with_stacks(struct _ts *tstate);
 
 #define __STACKLESS_PYSTATE_CLEAR \
-    slp_kill_tasks_with_stacks(tstate); \
     Py_CLEAR(tstate->st.initial_stub); \
     Py_CLEAR(tstate->st.del_post_switch); \
     Py_CLEAR(tstate->st.interrupted); \
