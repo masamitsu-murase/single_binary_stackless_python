@@ -9,6 +9,11 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/122
+  Disable the C-stack cache, if Py_REF_DEBUG is defined. The cache causes false
+  block leak errors from the test suite. The performance penalty is irrelevant in
+  debug builds.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/119
   Fix a rare bug in the stack unwinding mechanism, that caused a SystemError
   exception or an assertion violation, if a __del__()-method or a weakref

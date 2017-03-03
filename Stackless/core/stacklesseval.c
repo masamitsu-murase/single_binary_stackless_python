@@ -67,6 +67,9 @@ cstack_dealloc(PyCStackObject *cst)
     slp_cstack_chain = cst;
     SLP_CHAIN_REMOVE(PyCStackObject, &slp_cstack_chain, cst, next,
                      prev);
+#ifdef Py_REF_DEBUG
+    PyObject_Del(cst);
+#else
     if (Py_SIZE(cst) >= CSTACK_SLOTS) {
         PyObject_Del(cst);
     }
@@ -77,6 +80,7 @@ cstack_dealloc(PyCStackObject *cst)
         cstack_cache[Py_SIZE(cst)] = cst;
         ++cstack_cachecount;
     }
+#endif
 }
 
 
