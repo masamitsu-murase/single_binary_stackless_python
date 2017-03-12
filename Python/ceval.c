@@ -3288,6 +3288,7 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
                 goto stackless_iter;
 stackless_iter_return:
                 next = retval;
+                iter = TOP();
             }
 #else
             next = (*iter->ob_type->tp_iternext)(iter);
