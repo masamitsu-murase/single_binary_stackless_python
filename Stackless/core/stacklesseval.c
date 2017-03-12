@@ -1122,7 +1122,7 @@ gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result)
          * a leaking StopIteration into RuntimeError (with its cause
          * set appropriately). */
         if ((((PyCodeObject *)gen->gi_code)->co_flags &
-                                                CO_FUTURE_GENERATOR_STOP)
+            (CO_FUTURE_GENERATOR_STOP | CO_COROUTINE | CO_ITERABLE_COROUTINE))
             && PyErr_ExceptionMatches(PyExc_StopIteration))
         {
             PyObject *exc, *val, *val2, *tb;

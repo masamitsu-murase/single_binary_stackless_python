@@ -7,7 +7,7 @@
    */
 
 /* enable more aggressive intra-module optimizations, where available */
-#define PY_LOCAL_AGGRESSIVE
+#undef PY_LOCAL_AGGRESSIVE
 
 #include "Python.h"
 
@@ -1772,28 +1772,20 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
             }
         }
         else if (f->f_execute == slp_eval_frame_with_cleanup) {
-            /* finalise the WITH_CLEANUP operation */
-
+            /* finalise the WITH_CLEANUP_START operation */
             if (retval) {
-                PyObject *u = TOP();
-                int err;
-                if (u != Py_None)
-                    err = PyObject_IsTrue(retval);
-                else
-                    err = 0;
-                Py_DECREF(retval);
-
-                if (err > 0) {
-                    err = 0;
-                    /* There was an exception and a True return */
-                    PUSH(PyLong_FromLong((long) WHY_SILENCED));
-                }
-                /* XXX: The main loop contains a PREDICT(END_FINALLY).
+                /* recompute exc */
+                PyObject *exc = TOP();
+                if (PyLong_Check(exc))
+                    exc = Py_None;
+                PUSH(exc);
+                PUSH(retval);
+                /* XXX: The main loop contains a PREDICT(WITH_CLEANUP_FINISH);
                  * I wonder, if we must use it here?
                  * If so, then set f_execute too.
                  */
                 /*f->f_execute = PyEval_EvalFrame_value;
-                PREDICT(END_FINALLY); */
+                PREDICT(WITH_CLEANUP_FINISH); */
             }
         }
         else {

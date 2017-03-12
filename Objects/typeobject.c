@@ -6485,6 +6485,7 @@ slot_tp_finalize(PyObject *self)
 static PyObject *
 slot_am_await(PyObject *self)
 {
+    STACKLESS_GETARG(); /* not supported */
     PyObject *func, *res;
     _Py_IDENTIFIER(__await__);
 
@@ -6503,6 +6504,7 @@ slot_am_await(PyObject *self)
 static PyObject *
 slot_am_aiter(PyObject *self)
 {
+    STACKLESS_GETARG(); /* not supported */
     PyObject *func, *res;
     _Py_IDENTIFIER(__aiter__);
 
@@ -6521,6 +6523,7 @@ slot_am_aiter(PyObject *self)
 static PyObject *
 slot_am_anext(PyObject *self)
 {
+    STACKLESS_GETARG(); /* not supported */
     PyObject *func, *res;
     _Py_IDENTIFIER(__anext__);
 

@@ -422,13 +422,18 @@ failed_throw:
 static PyObject *
 gen_iternext(PyGenObject *gen)
 {
+    STACKLESS_GETARG();
+    PyObject *retval;
     if (((PyCodeObject*)gen->gi_code)->co_flags & CO_COROUTINE) {
         PyErr_SetString(PyExc_TypeError,
                         "coroutine-objects do not support iteration");
         return NULL;
     }
 
-    return gen_send_ex(gen, NULL, 0);
+    STACKLESS_PROMOTE_ALL();
+    retval = gen_send_ex(gen, NULL, 0);
+    STACKLESS_ASSERT();
+    return retval;
 }
 
 /*
