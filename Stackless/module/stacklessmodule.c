@@ -488,10 +488,10 @@ PyStackless_RunWatchdogEx(long timeout, int flags)
     PyTaskletObject *old_current, *victim;
     PyObject *retval;
     int fail;
-    PyObject* (*old_interrupt)(void);
-    int old_runflags;
-    long old_watermark, old_interval;
-    int interrupt = 0;
+    PyObject* (*old_interrupt)(void) = NULL;
+    int old_runflags = 0;
+    long old_watermark = 0, old_interval = 0;
+    int interrupt;
 
     if (ts->st.main == NULL)
         return PyStackless_RunWatchdog_M(timeout, flags);
@@ -504,11 +504,11 @@ PyStackless_RunWatchdogEx(long timeout, int flags)
         return NULL;
 
     old_current = ts->st.current;
-    /* store wathhdog state and set up a new one, if we are the active intterupt watchdog */
+    /* store watchdog state and set up a new one, if we are the active interrupt watchdog */
     if (interrupt) {
         old_interrupt = ts->st.interrupt;
         old_runflags = ts->st.runflags;
-    old_watermark = ts->st.tick_watermark;
+        old_watermark = ts->st.tick_watermark;
         old_interval = ts->st.interval;
 
         if (timeout <= 0)
