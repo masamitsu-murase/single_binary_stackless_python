@@ -664,7 +664,7 @@ channel_send_exception(PyObject *myself, PyObject *args)
         goto err_exit;
     }
     Py_INCREF(Py_None);
-    retval = Py_None;
+    Py_SETREF(retval, Py_None);
 err_exit:
     Py_DECREF(klass);
     Py_XDECREF(args);
@@ -734,7 +734,7 @@ channel_send_throw(PyObject *myself, PyObject *args)
         goto err_exit;
     }
     Py_INCREF(Py_None);
-    retval = Py_None;
+    Py_SETREF(retval, Py_None);
 err_exit:
     return retval;
 }

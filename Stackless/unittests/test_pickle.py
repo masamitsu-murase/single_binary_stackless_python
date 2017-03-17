@@ -532,6 +532,35 @@ class TestFramePickling(StacklessTestCase):
             self.assertIsInstance(cell, cell_type)
             self.assertIs(cell.cell_contents, result)
 
+    def testSetstateFailure(self):
+        # incomplete, just one of many failure modes of stackless._wrap.frame.__setstate__
+        foo = "foo"
+
+        def f1(bar="bar"):
+            try:
+                1 / 0
+            except ZeroDivisionError:
+                x = foo
+                locals()
+                return stackless._wrap.frame.__reduce__(sys._getframe())
+            assert False
+
+        def f2():
+            try:
+                1 / 0
+            except ZeroDivisionError:
+                return f1()
+
+        r = f2()
+        self.assertEqual(len(r), 3)
+        wrap_frame = r[0](*r[1])
+        self.assertIsInstance(wrap_frame, stackless._wrap.frame)
+        invalid_state = r[2][:-2] + ((("Not a", "tuple of 3", "integers"),), r[2][-1])
+        self.assertRaisesRegexp(TypeError, "an integer is required", wrap_frame.__setstate__, invalid_state)
+        # must not raise an assertion
+        wrap_frame.__setstate__(r[2])
+        self.assertIs(type(wrap_frame), types.FrameType)
+
 
 class TestDictViewPickling(StacklessPickleTestCase):
 
