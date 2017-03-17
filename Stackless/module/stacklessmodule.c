@@ -1524,9 +1524,16 @@ slpmodule_getthreads(PyObject *self)
 
     for (ts = interp->tstate_head; ts != NULL; ts = ts->next) {
         PyObject *id = PyLong_FromLong(ts->thread_id);
-
-        if (id == NULL || PyList_Append(lis, id))
+        if (id == NULL) {
+            Py_DECREF(lis);
             return NULL;
+        }
+        if (PyList_Append(lis, id)) {
+            Py_DECREF(lis);
+            Py_DECREF(id);
+            return NULL;
+        }
+        Py_DECREF(id);
     }
     PyList_Reverse(lis);
     return lis;
