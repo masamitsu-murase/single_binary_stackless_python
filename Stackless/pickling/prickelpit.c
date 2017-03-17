@@ -217,7 +217,7 @@ static int init_type(PyTypeObject *t, int register_reduce, int (*initchain)(void
     if (func == NULL || PyDict_SetItemString(t->tp_dict, "__new__", func))
         return -1;
     if (register_reduce) {
-	    /* register with copy_reg */
+            /* register with copy_reg */
         args = Py_BuildValue("(OO)", t->tp_base, reduce);
         if (pickle_reg != NULL &&
             (retval = PyObject_Call(pickle_reg, args, NULL)) == NULL)
@@ -853,7 +853,6 @@ err_exit:
 
 #define frametuplenewfmt "O!"
 #define frametuplesetstatefmt "O!iSO!iO!OOiiO!O:frame_new"
-/*#define frametuplesetstatefmt "O!iSO!iO!OiOiiO!O:frame_new"*/
 
 static PyObject *
 frame_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
@@ -876,6 +875,7 @@ frame_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     if (globals == NULL)
         return NULL;
     f = PyFrame_New(ts, (PyCodeObject *) f_code, globals, globals);
+    assert(f->f_execute == NULL); /* frame is not executable */
     if (f != NULL)
         f->ob_type = &wrap_PyFrame_Type;
     Py_DECREF(globals);
@@ -886,7 +886,7 @@ frame_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 static PyObject *
 frame_setstate(PyFrameObject *f, PyObject *args)
 {
-    int /*f_restricted, */ f_lasti, f_lineno, i;
+    int f_lasti, f_lineno, i;
     PyObject *f_globals, *f_locals, *blockstack_as_tuple;
     PyObject *localsplus_as_tuple, *exc_as_tuple, *trace, *f_code;
     PyObject *exec_name = NULL;
@@ -896,14 +896,8 @@ frame_setstate(PyFrameObject *f, PyObject *args)
 
     if (is_wrong_type(f->ob_type)) return NULL;
 
-    if (f->f_globals != NULL) {
-        Py_DECREF(f->f_globals);
-        f->f_globals = NULL;
-    }
-    if (f->f_locals != NULL) {
-        Py_DECREF(f->f_locals);
-        f->f_locals = NULL;
-    }
+    Py_CLEAR(f->f_globals);
+    Py_CLEAR(f->f_locals);
 
     if (!PyArg_ParseTuple (args, frametuplesetstatefmt,
                            &PyCode_Type, &f_code,
@@ -913,7 +907,6 @@ frame_setstate(PyFrameObject *f, PyObject *args)
                            &have_locals,
                            &PyDict_Type, &f_locals,
                            &trace,
-/*                             &f_restricted, */
                    &exc_as_tuple,
                    &f_lasti,
                    &f_lineno,
@@ -945,10 +938,9 @@ frame_setstate(PyFrameObject *f, PyObject *args)
             goto err_exit;
         }
         Py_INCREF(trace);
+        assert(f->f_trace == NULL);
         f->f_trace = trace;
     }
-
-/*      f->f_restricted = f_restricted; */
 
     if (exc_as_tuple != Py_None) {
         if (PyTuple_GET_SIZE(exc_as_tuple) != 4) {
@@ -956,6 +948,11 @@ frame_setstate(PyFrameObject *f, PyObject *args)
                             "bad exception tuple for frame");
             goto err_exit;
         }
+        assert(f->f_exc_type == NULL);
+        assert(f->f_exc_value == NULL);
+        assert(f->f_exc_traceback == NULL);
+        assert(((&f->f_exc_type) + 1 == &f->f_exc_value) &&
+            ((&f->f_exc_type) + 2 == &f->f_exc_traceback));
         slp_from_tuple_with_nulls(&f->f_exc_type, exc_as_tuple);
     }
 
@@ -1031,14 +1028,18 @@ frame_setstate(PyFrameObject *f, PyObject *args)
         }
     }
 
-    /* see if this frame is valid to be run */
+    /* See if this frame is valid to be run. */
     f->f_execute = valid ? good_func : bad_func;
 
     f->ob_type = &PyFrame_Type;
     Py_INCREF(f);
     return (PyObject *) f;
 err_exit:
-    Py_XDECREF(f);
+    /* Make sure that the frame is not executable. */
+    f->f_execute = NULL;
+    /* Clear members that could leak. */
+    PyFrame_Type.tp_clear((PyObject*)f);
+
     return NULL;
 }
 
