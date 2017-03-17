@@ -553,14 +553,36 @@ kill_wrap_bad_guy(PyTaskletObject *prev, PyTaskletObject *bad_guy)
 PyObject *
 slp_restore_exception(PyFrameObject *f, int exc, PyObject *retval)
 {
+    PyObject *tmp_type, *tmp_value, *tmp_tb;
     PyThreadState *ts = PyThreadState_GET();
     PyCFrameObject *cf = (PyCFrameObject *) f;
 
+    if (cf->ob1 == NULL) {
+        /* set_exc_info in ceval.c contains the same assertions */
+        assert(cf->ob2 == NULL);
+        assert(cf->ob3 == NULL);
+    }
+
     f = cf->f_back;
+    /* Set new exception for this thread.
+     * This code is follows suit the code of set_exc_info() in ceval.c */
+    tmp_type = ts->exc_type;
+    tmp_value = ts->exc_value;
+    tmp_tb = ts->exc_traceback;
     ts->exc_type = cf->ob1;
     ts->exc_value = cf->ob2;
     ts->exc_traceback = cf->ob3;
     cf->ob1 = cf->ob2 = cf->ob3 = NULL;
+
+    /* For b/w compatibility */
+    PySys_SetObject("exc_type", ts->exc_type);
+    PySys_SetObject("exc_value", ts->exc_value);
+    PySys_SetObject("exc_traceback", ts->exc_traceback);
+
+    Py_XDECREF(tmp_type);
+    Py_XDECREF(tmp_value);
+    Py_XDECREF(tmp_tb);
+
     Py_DECREF(cf);
     ts->frame = f;
     return STACKLESS_PACK(ts, retval);
@@ -1071,6 +1093,9 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
     }
     if (ts->exc_type != NULL) {
         /* build a shadow frame if we are returning here*/
+        /* The following code follows suit the code of sys.exc_clear() and
+         * ceval.c set_exc_info()
+         */
         if (ts->frame != NULL) {
             PyCFrameObject *f = slp_cframe_new(slp_restore_exception, 1);
             if (f == NULL)
@@ -1078,10 +1103,26 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
             f->ob1 = ts->exc_type;
             f->ob2 = ts->exc_value;
             f->ob3 = ts->exc_traceback;
+            ts->exc_type = NULL;
+            ts->exc_value = NULL;
+            ts->exc_traceback = NULL;
             prev->f.frame = (PyFrameObject *) f;
+        } else {
+            PyObject *tmp_type, *tmp_value, *tmp_tb;
+            tmp_type = ts->exc_type;
+            tmp_value = ts->exc_value;
+            tmp_tb = ts->exc_traceback;
+            ts->exc_type = NULL;
+            ts->exc_value = NULL;
+            ts->exc_traceback = NULL;
+            Py_XDECREF(tmp_type);
+            Py_XDECREF(tmp_value);
+            Py_XDECREF(tmp_tb);
         }
-        ts->exc_type = ts->exc_value =
-                           ts->exc_traceback = NULL;
+        /* For b/w compatibility */
+        PySys_SetObject("exc_type", Py_None);
+        PySys_SetObject("exc_value", Py_None);
+        PySys_SetObject("exc_traceback", Py_None);
     }
     if (ts->use_tracing || ts->tracing) {
         /* build a shadow frame if we are returning here */
@@ -1425,12 +1466,23 @@ slp_tasklet_end(PyObject *retval)
      * clean up any current exception - this tasklet is dead.
      * This only happens if we are killing tasklets in the middle
      * of their execution.
+     * The code follows suit the code of sys.exc_clear().
      */
     if (ts->exc_type != NULL && ts->exc_type != Py_None) {
-        Py_DECREF(ts->exc_type);
-        Py_XDECREF(ts->exc_value);
-        Py_XDECREF(ts->exc_traceback);
-        ts->exc_type = ts->exc_value = ts->exc_traceback = NULL;
+        PyObject *tmp_type, *tmp_value, *tmp_tb;
+        tmp_type = ts->exc_type;
+        tmp_value = ts->exc_value;
+        tmp_tb = ts->exc_traceback;
+        ts->exc_type = NULL;
+        ts->exc_value = NULL;
+        ts->exc_traceback = NULL;
+        Py_DECREF(tmp_type);
+        Py_XDECREF(tmp_value);
+        Py_XDECREF(tmp_tb);
+        /* For b/w compatibility */
+        PySys_SetObject("exc_type", Py_None);
+        PySys_SetObject("exc_value", Py_None);
+        PySys_SetObject("exc_traceback", Py_None);
     }
 
     /* capture all exceptions */
