@@ -567,11 +567,13 @@ class TestTraceback(StacklessPickleTestCase):
         def c():
             return b()
 
-        try:
-            c()
-        except ZeroDivisionError:
-            tb = sys.exc_info()[2]
+        def d():
+            try:
+                c()
+            except ZeroDivisionError:
+                return sys.exc_info()[2]
 
+        tb = d()  # this way tb dosn't reference the current frame
         innerframes_orig = inspect.getinnerframes(tb)
         p = self.dumps(tb)
         tb2 = self.loads(p)

@@ -252,14 +252,18 @@ class TestInitIsStackless(StacklessTestCase):
             obj.nesting_level = stackless.current.nesting_level
             return None
 
+        cls(func).__class__  # the first access of __class__ releases 1 ref to None
         with stackless.atomic():
-            # None-refcount it needs protection, it the test suite is multithreaded
+            # None-refcount needs protection, it the test suite is multithreaded
             gc.collect()
-            rc_none = sys.getrefcount(None)
-            rc_cls = sys.getrefcount(cls)
+            rc_none = rc_none2 = sys.getrefcount(None)
+            rc_cls = rc_cls2 = sys.getrefcount(cls)
             c = cls(func)
-            self.assertEqual(sys.getrefcount(None), rc_none)
-            self.assertEqual(sys.getrefcount(c) - sys.getrefcount(object()), 1)
+            rc_none2 = sys.getrefcount(None)
+            rc_cls2 = sys.getrefcount(cls)
+        self.assertEqual(rc_none, rc_none2)
+        self.assertEqual(rc_cls + 1, rc_cls2)  # one ref for c
+        self.assertEqual(sys.getrefcount(c) - sys.getrefcount(object()), 1)
         self.assertIs(c.__class__, cls)
         current_nesting_level = stackless.current.nesting_level
         if hasattr(c, "nesting_level"):
@@ -328,6 +332,7 @@ class TestInitIsStackless(StacklessTestCase):
                 return emsg
             self.fail("does not raise the expected exception")
 
+        helper()  # warm up.
         gc.collect()
         with stackless.atomic():
             rc_none = sys.getrefcount(None)
@@ -367,6 +372,7 @@ class TestInitIsStackless(StacklessTestCase):
             self.fail("does not raise the expected exception")
 
         emsg = ''
+        helper()  # warm up
         gc.collect()
         with stackless.atomic():
             rc_none = sys.getrefcount(None)
