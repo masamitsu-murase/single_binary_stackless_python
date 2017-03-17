@@ -515,14 +515,17 @@ tasklet_setstate(PyObject *self, PyObject *args)
         PyFrameObject *back;
         f = (PyFrameObject *) PyList_GET_ITEM(lis, 0);
 
+        /* slp_ensure_new_frame() returns a new ref */
         if ((f = slp_ensure_new_frame(f)) == NULL)
             return NULL;
         back = f;
         for (i=1; i<nframes; ++i) {
             f = (PyFrameObject *) PyList_GET_ITEM(lis, i);
-            if ((f = slp_ensure_new_frame(f)) == NULL)
+            if ((f = slp_ensure_new_frame(f)) == NULL) {
+                Py_DECREF(back);
                 return NULL;
-            Py_INCREF(back);
+            }
+            assert(f->f_back == NULL);
             f->f_back = back;
             back = f;
         }
