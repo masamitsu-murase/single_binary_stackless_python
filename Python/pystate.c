@@ -3,10 +3,9 @@
 
 #include "Python.h"
 #ifdef STACKLESS
-/* XXX this should vanish! */
-#include "compile.h"
 #include "frameobject.h"
 #endif
+#include "core/stackless_impl.h"
 
 /* --------------------------------------------------------------------------
 CAUTION
@@ -171,7 +170,7 @@ threadstate_getframe(PyThreadState *self)
 {
 #ifdef STACKLESS
     /* make sure to return a real frame */
-    struct _frame *f = self->frame;
+    struct _frame *f = SLP_CURRENT_FRAME(self);
     while (f != NULL && !PyFrame_Check(f))
         f = f->f_back;
     return f;
@@ -645,7 +644,7 @@ _PyThread_CurrentFrames(void)
         for (t = i->tstate_head; t != NULL; t = t->next) {
             PyObject *id;
             int stat;
-            struct _frame *frame = t->frame;
+            struct _frame *frame = SLP_PEEK_NEXT_FRAME(t);
             if (frame == NULL)
                 continue;
             id = PyLong_FromLong(t->thread_id);

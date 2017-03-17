@@ -6356,8 +6356,7 @@ slp_tp_init_callback(PyFrameObject *f, int exc, PyObject *retval)
             cf->ob1 = NULL;
         }
     }
-    ts->frame = f;
-    Py_DECREF(cf);
+    SLP_STORE_NEXT_FRAME(ts, f);
     return STACKLESS_PACK(ts, retval);
 }
 #endif
@@ -6369,17 +6368,23 @@ slot_tp_init(PyObject *self, PyObject *args, PyObject *kwds)
     _Py_IDENTIFIER(__init__);
     PyObject *meth = lookup_method(self, &PyId___init__);
     PyObject *res;
+#ifdef STACKLESS
+    PyCFrameObject *f = NULL;
+#endif
 
     if (meth == NULL)
         return -1;
 #ifdef STACKLESS
     if (stackless) {
-        PyCFrameObject *f = slp_cframe_new(slp_tp_init_callback, 1);
+        f = slp_cframe_new(slp_tp_init_callback, 1);
         if (f == NULL)
             return -1;
         Py_INCREF(self);
         f->ob1 = self;
-        PyThreadState_GET()->frame = (PyFrameObject *) f;
+        SLP_SET_CURRENT_FRAME(PyThreadState_GET(), (PyFrameObject *) f);
+        /* f contains the only counted reference to current frame. This reference
+         * keeps the fame alive during the following PyObject_Call().
+         */
     }
 #endif
     STACKLESS_PROMOTE_ALL();
@@ -6388,10 +6393,16 @@ slot_tp_init(PyObject *self, PyObject *args, PyObject *kwds)
     Py_DECREF(meth);
 #ifdef STACKLESS
     if (stackless && !STACKLESS_UNWINDING(res)) {
-        /* required, because added a C-frame */
-        STACKLESS_PACK(PyThreadState_GET(), res);
+        /* required, because we added a C-frame */
+        PyThreadState *ts = PyThreadState_GET();
+        STACKLESS_PACK(ts, res);
+        assert(f);
+        assert((PyFrameObject *)f == SLP_CURRENT_FRAME(ts));
+        SLP_STORE_NEXT_FRAME(ts, (PyFrameObject *)f);
+        Py_DECREF(f);
         return STACKLESS_UNWINDING_MAGIC;
     }
+    Py_XDECREF(f);
     if (STACKLESS_UNWINDING(res)) {
         return STACKLESS_UNWINDING_MAGIC;
     }

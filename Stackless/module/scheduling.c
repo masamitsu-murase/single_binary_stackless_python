@@ -533,7 +533,7 @@ kill_wrap_bad_guy(PyTaskletObject *prev, PyTaskletObject *bad_guy)
     /* restore last tasklet */
     if (prev->next == NULL)
         slp_current_insert(prev);
-    ts->frame = prev->f.frame;
+    SLP_STORE_NEXT_FRAME(ts, prev->f.frame);
     ts->st.current = prev;
     if (newval != NULL) {
         /* merge bad guy into exception */
@@ -563,7 +563,6 @@ slp_restore_exception(PyFrameObject *f, int exc, PyObject *retval)
         assert(cf->ob3 == NULL);
     }
 
-    f = cf->f_back;
     /* Set new exception for this thread.
      * This code is follows suit the code of set_exc_info() in ceval.c */
     tmp_type = ts->exc_type;
@@ -578,8 +577,7 @@ slp_restore_exception(PyFrameObject *f, int exc, PyObject *retval)
     Py_XDECREF(tmp_value);
     Py_XDECREF(tmp_tb);
 
-    Py_DECREF(cf);
-    ts->frame = f;
+    SLP_STORE_NEXT_FRAME(ts, cf->f_back);
     return STACKLESS_PACK(ts, retval);
 }
 
@@ -589,7 +587,6 @@ slp_restore_tracing(PyFrameObject *f, int exc, PyObject *retval)
     PyThreadState *ts = PyThreadState_GET();
     PyCFrameObject *cf = (PyCFrameObject *) f;
 
-    f = cf->f_back;
     if (NULL == cf->any1 && NULL == cf->any2) {
         /* frame was created by unpickling */
         if (cf->n & 1) {
@@ -608,8 +605,7 @@ slp_restore_tracing(PyFrameObject *f, int exc, PyObject *retval)
     ts->tracing = cf->i;
     PyEval_SetTrace((Py_tracefunc)cf->any1, cf->ob1);
     PyEval_SetProfile((Py_tracefunc)cf->any2, cf->ob2);
-    Py_DECREF(cf);
-    ts->frame = f;
+    SLP_STORE_NEXT_FRAME(ts, cf->f_back);
     return STACKLESS_PACK(ts, retval);
 }
 
@@ -639,18 +635,19 @@ jump_soft_to_hard(PyFrameObject *f, int exc, PyObject *retval)
 {
     PyThreadState *ts = PyThreadState_GET();
 
-    ts->frame = f->f_back;
+    SLP_STORE_NEXT_FRAME(ts, f->f_back);
 
     /* reinstate the del_post_switch */
     assert(ts->st.del_post_switch == NULL);
     ts->st.del_post_switch = ((PyCFrameObject*)f)->ob1;
     ((PyCFrameObject*)f)->ob1 = NULL;
 
-    Py_DECREF(f);
     /* ignore retval. everything is in the tasklet. */
     Py_DECREF(retval); /* consume ref according to protocol */
+    SLP_FRAME_EXECFUNC_DECREF(f);
     slp_transfer_return(ts->st.current->cstate);
     /* we either have an error or don't come back, so: */
+    assert(0);
     return NULL;
 }
 
@@ -810,8 +807,9 @@ schedule_task_block(PyObject **result, PyTaskletObject *prev, int stackless, int
          */
         if (prev->f.frame == 0) {
             prev->f.frame = ts->frame;
+            Py_XINCREF(prev->f.frame);
             fail = schedule_thread_block(ts);
-            prev->f.frame = 0;
+            Py_CLEAR(prev->f.frame);
         } else
             fail = schedule_thread_block(ts);
         if (fail)
@@ -1043,6 +1041,7 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
 
     PyObject *retval;
     int (*transfer)(PyCStackObject **, PyCStackObject *, PyTaskletObject *);
+    int transfer_result;
 
     /* remove the no-soft-irq flag from the runflags */
     int no_soft_irq = ts->st.runflags & PY_WATCHDOG_NO_SOFT_IRQ;
@@ -1063,7 +1062,10 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
     if (!(ts->st.runflags & PY_WATCHDOG_TOTALTIMEOUT))
         ts->st.tick_watermark = ts->st.tick_counter + ts->st.interval; /* reset timeslice */
     prev->recursion_depth = ts->recursion_depth;
-    prev->f.frame = ts->frame;
+    /* avoid a ref leak of the old value of prev->f.frame */
+    assert(prev->f.frame == NULL);
+    prev->f.frame = SLP_CURRENT_FRAME(ts);
+    Py_XINCREF(prev->f.frame);
 
     if (!stackless || ts->st.nesting_level != 0)
         goto hard_switching;
@@ -1087,12 +1089,16 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
         ts->exc_type = NULL;
     }
     if (ts->exc_type != NULL) {
-        /* build a shadow frame if we are returning here*/
+        /* build a shadow frame if we are returning here */
+        assert(ts->frame != NULL);  /* XXX: Anselm, why ? */
         /* The following code follows suit the code of sys.exc_clear() and
          * ceval.c set_exc_info()
          */
-        if (ts->frame != NULL) {
-            PyCFrameObject *f = slp_cframe_new(slp_restore_exception, 1);
+        if (prev->f.frame != NULL) {
+            PyCFrameObject *f;
+            /* the following assert justifies the slp_cframe_new(..., 1) to link the frames */
+            assert(prev->f.frame == SLP_CURRENT_FRAME(ts));
+            f = slp_cframe_new(slp_restore_exception, 1);
             if (f == NULL)
                 return -1;
             f->ob1 = ts->exc_type;
@@ -1101,7 +1107,7 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
             ts->exc_type = NULL;
             ts->exc_value = NULL;
             ts->exc_traceback = NULL;
-            prev->f.frame = (PyFrameObject *) f;
+            Py_SETREF(prev->f.frame, (PyFrameObject *) f);
         } else {
             PyObject *tmp_type, *tmp_value, *tmp_tb;
             tmp_type = ts->exc_type;
@@ -1122,8 +1128,6 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
             int c_functions = slp_encode_ctrace_functions(ts->c_tracefunc, ts->c_profilefunc);
             if (f == NULL || c_functions == -1)
                 return -1;
-            f->f_back = prev->f.frame;
-            Py_XINCREF(f->f_back);
             f->any1 = ts->c_tracefunc;
             f->any2 = ts->c_profilefunc;
             f->i = ts->tracing;
@@ -1134,6 +1138,8 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
             f->ob2 = ts->c_profileobj;
             Py_XINCREF(f->ob1);
             Py_XINCREF(f->ob2);
+            assert(f->f_back == NULL);
+            f->f_back = prev->f.frame;  /* steal the reference */
             prev->f.frame = (PyFrameObject *) f;
         }
         PyEval_SetTrace(NULL, NULL);
@@ -1147,21 +1153,29 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
          * was in a hard switched state, so we need a helper frame to
          * jump to the destination stack
          */
-        PyFrameObject *tmp1 = ts->frame, *tmp2 = next->f.frame;
-        ts->frame = next->f.frame;
+        PyFrameObject *f, *tmp1, *tmp2;
+        tmp1 = SLP_CURRENT_FRAME(ts); /* just a borrowed ref */
+        tmp2 = next->f.frame; /* a counted ref */
         next->f.frame = NULL;
-        ts->frame = (PyFrameObject *)
+        SLP_SET_CURRENT_FRAME(ts, tmp2);
+        f = (PyFrameObject *)
                     slp_cframe_new(jump_soft_to_hard, 1);
-        if (ts->frame == NULL) {
-            ts->frame = tmp1;
+        if (f == NULL) {
+            SLP_SET_CURRENT_FRAME(ts, tmp1);
             next->f.frame = tmp2;
             return -1;
         }
+        Py_XDECREF(tmp2);
+        SLP_STORE_NEXT_FRAME(ts, f);
+
          /* Move the del_post_switch into the cframe for it to resurrect it.
          * switching isn't complete until after it has run
          */
-        ((PyCFrameObject*)ts->frame)->ob1 = ts->st.del_post_switch;
+        assert(PyCFrame_Check(f));
+        ((PyCFrameObject*)f)->ob1 = ts->st.del_post_switch;
         ts->st.del_post_switch = NULL;
+
+        Py_DECREF(f);
 
         /* note that we don't explode any bomb now and leave it in next->tempval */
         /* retval will be ignored eventually */
@@ -1170,8 +1184,8 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
     } else {
         /* regular soft switching */
         assert(next->f.frame);
-        ts->frame = next->f.frame;
-        next->f.frame = NULL;
+        SLP_STORE_NEXT_FRAME(ts, next->f.frame);
+        Py_CLEAR(next->f.frame);
         TASKLET_CLAIMVAL(next, &retval);
         if (PyBomb_Check(retval))
             retval = slp_bomb_explode(retval);
@@ -1198,8 +1212,8 @@ hard_switching:
         ts->exc_type = NULL;
     }
     ts->recursion_depth = next->recursion_depth;
-    ts->frame = next->f.frame;
-    next->f.frame = NULL;
+    SLP_STORE_NEXT_FRAME(ts, next->f.frame);
+    Py_CLEAR(next->f.frame);
 
     ++ts->st.nesting_level;
     if (ts->exc_type != NULL || ts->use_tracing || ts->tracing)
@@ -1207,8 +1221,11 @@ hard_switching:
     else
         transfer = slp_transfer;
 
-    if (transfer(cstprev, next->cstate, prev) >= 0) {
-        --ts->st.nesting_level;
+    transfer_result = transfer(cstprev, next->cstate, prev);
+    --ts->st.nesting_level;
+    if (transfer_result >= 0) {
+        PyFrameObject *f = SLP_CLAIM_NEXT_FRAME(ts);
+
         TASKLET_CLAIMVAL(prev, &retval);
         if (PyBomb_Check(retval))
             retval = slp_bomb_explode(retval);
@@ -1216,30 +1233,36 @@ hard_switching:
             *did_switch = 1;
         *result = retval;
 
-        /* Now evaluate any pending pending slp_restore_tracing cframes.
-           They were inserted by tasklet_set_trace_function or
-           tasklet_set_profile_function */
-        if (prev->cstate->nesting_level > 0) {
-            PyCFrameObject *f = (PyCFrameObject *)(ts->frame);
-            if (f && PyCFrame_Check(f) && f->f_execute == slp_restore_tracing) {
-                PyObject *retval;
+        /* Now evaluate any pending (slp_restore_tracing) cframes.
+         * They were inserted by tasklet_set_trace_function or
+         * tasklet_set_profile_function. We must process them here, because the
+         * restored cstack doesn't contain them.
+         * (For now there is at most a single pending cframe.)
+         */
+        if (prev->cstate->nesting_level > 0 && f && PyCFrame_Check(f) &&
+            f->f_execute == slp_restore_tracing) {
+            PyObject *retval;
+            PyFrameObject *f2;
 
-                /* the next frame must be a real frame */
-                assert(f->f_back && PyFrame_Check(f->f_back));
+            /* the next frame must be a real frame */
+            assert(f->f_back && PyFrame_Check(f->f_back));
 
-                /* Hack: call the eval frame function directly */
-                retval = slp_restore_tracing((PyFrameObject *)f, 0, Py_None);
-                STACKLESS_UNPACK(ts, retval);
-                if (NULL == retval)
-                    return -1;
-                assert(PyFrame_Check(ts->frame));
-            }
+            retval = CALL_FRAME_FUNCTION(f, 0, Py_None);
+            STACKLESS_UNPACK(ts, retval);
+            assert(retval == Py_None);
+            f2 = SLP_CLAIM_NEXT_FRAME(ts);
+            assert(f2 == f->f_back);
+            Py_DECREF(f);
+            f = f2;
+            assert(PyFrame_Check(SLP_CURRENT_FRAME(ts)));
         }
-
+        assert(f == NULL || Py_REFCNT(f) >= 2);
+        Py_XDECREF(f);
         return 0;
     }
     else {
-        --ts->st.nesting_level;
+        PyFrameObject *f = SLP_CLAIM_NEXT_FRAME(ts);
+        Py_XDECREF(f);
         kill_wrap_bad_guy(prev, next);
         return -1;
     }
@@ -1560,4 +1583,52 @@ slp_scheduling_fini(void)
     assert(numfree == 0);
 }
 
+#ifdef SLP_WITH_FRAME_REF_DEBUG
+
+void
+slp_store_next_frame(PyThreadState *tstate, PyFrameObject *frame)
+{
+    assert(tstate->st.next_frame == NULL);
+    assert(SLP_CURRENT_FRAME_IS_VALID(tstate));
+    tstate->st.next_frame = frame;
+    assert(tstate->st.next_frame != (PyFrameObject *)((Py_uintptr_t) 1));
+    if (tstate->st.next_frame)
+        assert(Py_REFCNT(tstate->st.next_frame) > 0);
+    Py_XINCREF(tstate->st.next_frame);
+    tstate->st.frame_refcnt++;
+    tstate->frame = (PyFrameObject *)((Py_uintptr_t) 1);
+}
+
+PyFrameObject *
+slp_claim_next_frame(PyThreadState *tstate)
+{
+    assert(tstate->frame == (PyFrameObject *)((Py_uintptr_t) 1));
+    assert(tstate->st.frame_refcnt > 0);
+    if (tstate->st.next_frame)
+        assert(Py_REFCNT(tstate->st.next_frame) > 0);
+    tstate->frame = tstate->st.next_frame;
+    tstate->st.next_frame = NULL;
+    tstate->st.frame_refcnt--;
+    return tstate->frame;
+}
+
+#if (SLP_WITH_FRAME_REF_DEBUG == 2)
+
+PyObject *
+slp_wrap_call_frame(PyFrameObject *frame, int exc, PyObject *retval) {
+    PyThreadState *ts = PyThreadState_GET();
+    PyObject *res;
+    assert(frame);
+    assert(SLP_CURRENT_FRAME_IS_VALID(ts));
+    Py_INCREF(frame);
+    assert(frame->f_execute != NULL);
+    res = frame->f_execute(frame, exc, retval);
+    assert(Py_REFCNT(frame) >= 2);
+    Py_DECREF(frame);
+    SLP_ASSERT_FRAME_IN_TRANSFER(ts);
+    return res;
+}
+
+#endif
+#endif
 #endif

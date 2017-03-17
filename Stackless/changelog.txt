@@ -30,8 +30,12 @@ What's New in Stackless 3.X.X?
   - Leak to an object, if a Python profile or trace function fails.
   - Various leaks, if stackless._wrap.frame.__setstate__() fails, because its
     state argument is invalid.
+  - Leak of references to Python stack frames or Stackless C-frames, if
+    a tasklet didn't run to its end or various other conditions. This part
+    of the fix changes the Stackless reference counting for frames to follow
+    the general rules for Python objects.
 
-  Additionally this change brings the handling of caught exceptions more in
+  Additionally, this change brings the handling of caught exceptions more in
   line with C-Python.
 
 - https://bitbucket.org/stackless-dev/stackless/issues/112
