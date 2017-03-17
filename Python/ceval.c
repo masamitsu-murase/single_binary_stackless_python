@@ -1216,6 +1216,7 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
     f->f_execute = slp_eval_frame_noval;
     return slp_eval_frame_value(f, throwflag, retval);
 exit_eval_frame:
+    Py_XDECREF(retval);
     Py_LeaveRecursiveCall();
     f->f_executing = 0;
     tstate->frame = f->f_back;
