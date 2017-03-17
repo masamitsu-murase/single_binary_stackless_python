@@ -20,7 +20,7 @@ except:
     withThreads = False
 
 from support import test_main  # @UnusedImport
-from support import StacklessTestCase, AsTaskletTestCase, require_one_thread
+from support import StacklessTestCase, AsTaskletTestCase, require_one_thread, testcase_leaks_references
 
 
 def is_soft():
@@ -613,18 +613,22 @@ class TestKill(StacklessTestCase):
             tlet.kill()
 
     @unittest.skipUnless(withThreads, "requires thread support")
+    @testcase_leaks_references("chatches TaskletExit and does not die in its own thread", soft_switching=False)
     def test_kill_without_thread_state_nl0(self):
         return self._test_kill_without_thread_state(0, False)
 
     @unittest.skipUnless(withThreads, "requires thread support")
+    @testcase_leaks_references("chatches TaskletExit and does not die in its own thread")
     def test_kill_without_thread_state_nl1(self):
         return self._test_kill_without_thread_state(1, False)
 
     @unittest.skipUnless(withThreads, "requires thread support")
+    @testcase_leaks_references("chatches TaskletExit and does not die in its own thread", soft_switching=False)
     def test_kill_without_thread_state_blocked_nl0(self):
         return self._test_kill_without_thread_state(0, True)
 
     @unittest.skipUnless(withThreads, "requires thread support")
+    @testcase_leaks_references("chatches TaskletExit and does not die in its own thread")
     def test_kill_without_thread_state_blocked_nl1(self):
         return self._test_kill_without_thread_state(1, True)
 
@@ -1098,6 +1102,7 @@ class TestBind(StacklessTestCase):
         self.assertEqual(self.recursion_depth_in_test, 1)
 
     @unittest.skipUnless(withThreads, "requires thread support")
+    @testcase_leaks_references("Tasklet chatches TaskletExit and refuses to die in its thread")
     def test_unbind_fail_cstate_no_thread(self):
         # https://bitbucket.org/stackless-dev/stackless/issues/92
         loop = True
@@ -1257,6 +1262,10 @@ class TestCstate(StacklessTestCase):
         self.assertIsInstance(l1, int)
 
     def test_chain(self):
+        # create at least one additional C-stack
+        t = stackless.tasklet(apply_not_stackless)(stackless.main.switch,)
+        t.run()
+        self.addCleanup(t.run)
         start = stackless.main.cstate
         c = start.next
         self.assertIsNot(c, start)

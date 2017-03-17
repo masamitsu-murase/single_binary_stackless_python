@@ -8,7 +8,7 @@ import time
 from stackless import _test_nostacklesscall as apply_not_stackless
 
 from support import test_main  # @UnusedImport
-from support import StacklessTestCase, AsTaskletTestCase
+from support import StacklessTestCase, AsTaskletTestCase, testcase_leaks_references
 try:
     import threading
     try:
@@ -18,6 +18,7 @@ try:
     withThreads = True
 except:
     withThreads = False
+
     class threading(object):
         Thread = object
 
@@ -400,6 +401,7 @@ class DeadThreadTest(RemoteTaskletTests):
         t.bind_thread()
         self.assertEqual(t.thread_id, stackless.getcurrent().thread_id)
 
+    @testcase_leaks_references("test catches TaskletExit and refuses to die in its own thread")
     def test_rebind_from_dead_fail_cstate(self):
         # A test for https://bitbucket.org/stackless-dev/stackless/issues/92
         loop = True
