@@ -291,8 +291,7 @@ slp_cannot_execute(PyFrameObject *f, char *exec_name, PyObject *retval)
     PyErr_SetObject(PyExc_RuntimeError, message);
     Py_DECREF(message);
 err_exit:
-    tstate->frame = f->f_back;
-    Py_DECREF(f);
+    SLP_STORE_NEXT_FRAME(tstate, f->f_back);
     --tstate->recursion_depth;
     Py_XDECREF(retval);
     return NULL;
@@ -863,8 +862,8 @@ frame_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     if (is_wrong_type(type)) return NULL;
     if (!PyArg_ParseTuple(args, frametuplenewfmt, &PyCode_Type, &f_code))
         return NULL;
-    if (ts->frame != NULL && PyFrame_Check(ts->frame)) {
-        globals = ts->frame->f_globals;
+    if (SLP_CURRENT_FRAME(ts) != NULL && PyFrame_Check(SLP_CURRENT_FRAME(ts))) {
+        globals = SLP_CURRENT_FRAME(ts)->f_globals;
         Py_INCREF(globals);
     }
     else
@@ -2282,7 +2281,7 @@ gen_setstate(PyObject *self, PyObject *args)
     PyFrameObject *f;
     int gi_running;
 
-    if (is_wrong_type(self->ob_type)) return NULL;
+    if (is_wrong_type(Py_TYPE(self))) return NULL;
     if (!PyArg_ParseTuple(args, "O!i:generator",
                           &PyFrame_Type, &f, &gi_running))
         return NULL;

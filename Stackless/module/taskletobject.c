@@ -105,18 +105,13 @@ tasklet_has_c_stack_and_thread(PyTaskletObject *t)
 static int
 tasklet_traverse(PyTaskletObject *t, visitproc visit, void *arg)
 {
-    PyFrameObject *f;
-
     /* tasklets that need to be switched to for the kill, can't be collected.
      * Only trivial decrefs are allowed during GC collect
      */
     if (tasklet_has_c_stack_and_thread(t))
         PyObject_GC_Collectable((PyObject *)t, visit, arg, 0);
 
-    /* we own the "execute reference" of all the frames */
-    for (f = t->f.frame; f != NULL; f = f->f_back) {
-        Py_VISIT(f);
-    }
+    Py_VISIT(t->f.frame);
     Py_VISIT(t->tempval);
     Py_VISIT(t->cstate);
     return 0;
@@ -125,16 +120,8 @@ tasklet_traverse(PyTaskletObject *t, visitproc visit, void *arg)
 static void
 tasklet_clear_frames(PyTaskletObject *t)
 {
-    /* release frame chain, we own the "execute reference" of all the frames */
-    PyFrameObject *f;
-    f = t->f.frame;
-    t->f.frame = NULL;
-    while (f != NULL) {
-        PyFrameObject *tmp = f->f_back;
-        f->f_back = NULL;
-        Py_DECREF(f);
-        f = tmp;
-    }
+    /* release frame chain */
+    Py_CLEAR(t->f.frame);
 }
 
 static void
@@ -1033,6 +1020,7 @@ impl_tasklet_setup(PyTaskletObject *task, PyObject *args, PyObject *kwds, int in
         return -1;
     }
     if (bind_tasklet_to_frame(task, frame)) {
+        /* bind_tasklet_to_frame steals one ref to frame on success */
         Py_DECREF(frame);
         return -1;
     }
@@ -1826,7 +1814,7 @@ tasklet_set_trace_function(PyTaskletObject *task, PyObject *value)
         /* nothing to do */
         return 0;
 
-    /* here we must add an restore tracing cframe */
+    /* here we must add a restore tracing cframe */
     f = task->f.cframe;
     if (NULL != f) {
         /* Insert a new cframe */
@@ -1839,7 +1827,6 @@ tasklet_set_trace_function(PyTaskletObject *task, PyObject *value)
             return -1;
         Py_INCREF(f);
         cf->f_back = (PyFrameObject *)f;
-        task->f.cframe = cf;
         Py_INCREF(value);
         assert(NULL == cf->ob1);
         cf->ob1 = value;
@@ -1848,6 +1835,7 @@ tasklet_set_trace_function(PyTaskletObject *task, PyObject *value)
         assert(0 == cf->i);        /* ts->tracing */
         assert(NULL == cf->any2);  /* ts->c_profilefunc */
         assert(NULL == cf->ob2);   /* ts->c_profileobj */
+        Py_SETREF(task->f.cframe, cf);
         return 0;
     }
 
@@ -1973,7 +1961,6 @@ tasklet_set_profile_function(PyTaskletObject *task, PyObject *value)
             return -1;
         Py_INCREF(f);
         cf->f_back = (PyFrameObject *)f;
-        task->f.cframe = cf;
         Py_INCREF(value);
         assert(NULL == cf->ob2);
         cf->ob2 = value;
@@ -1982,6 +1969,7 @@ tasklet_set_profile_function(PyTaskletObject *task, PyObject *value)
         assert(0 == cf->i);        /* ts->tracing */
         assert(NULL == cf->any1);  /* ts->c_tracefunc */
         assert(NULL == cf->ob1);   /* ts->c_traceobj */
+        Py_SETREF(task->f.cframe, cf);
         return 0;
     }
 

@@ -904,7 +904,7 @@ test_outside(PyObject *self)
     PyThreadState *ts = PyThreadState_GET();
     PyTaskletObject *stmain = ts->st.main;
     PyCStackObject *cst = ts->st.initial_stub;
-    PyFrameObject *f = ts->frame;
+    PyFrameObject *f = SLP_CURRENT_FRAME(ts);
     int recursion_depth = ts->recursion_depth;
     int nesting_level = ts->st.nesting_level;
     PyObject *ret = Py_None;
@@ -914,7 +914,7 @@ test_outside(PyObject *self)
     ts->st.main = NULL;
     ts->st.initial_stub = NULL;
     ts->st.nesting_level = 0;
-    ts->frame = NULL;
+    SLP_SET_CURRENT_FRAME(ts, NULL);
     ts->recursion_depth = 0;
     slp_current_remove();
     while (ts->st.runcount > 0) {
@@ -927,7 +927,7 @@ test_outside(PyObject *self)
     ts->st.main = stmain;
     Py_CLEAR(ts->st.initial_stub);
     ts->st.initial_stub = cst;
-    ts->frame = f;
+    SLP_SET_CURRENT_FRAME(ts, f);
     slp_current_insert(stmain);
     ts->recursion_depth = recursion_depth;
     ts->st.nesting_level = nesting_level;
@@ -955,7 +955,7 @@ test_cframe_nr_loop(PyFrameObject *f, int exc, PyObject *retval)
         Py_DECREF(retval);
         retval = PyStackless_Schedule_nr(Py_None, 0);
         if (retval == NULL) {
-            ts->frame = cf->f_back;
+            SLP_STORE_NEXT_FRAME(ts, cf->f_back);
             return NULL;
         }
         if (STACKLESS_UNWINDING(retval)) {
@@ -964,7 +964,7 @@ test_cframe_nr_loop(PyFrameObject *f, int exc, PyObject *retval)
         /* was a hard switch */
     }
 exit_test_cframe_nr_loop:
-    ts->frame = cf->f_back;
+    SLP_STORE_NEXT_FRAME(ts, cf->f_back);
     Py_DECREF(cf);
     return retval;
 }
@@ -985,7 +985,7 @@ test_cframe_nr(PyObject *self, PyObject *args, PyObject *kwds)
     if (cf == NULL)
         return NULL;
     cf->n = switches;
-    ts->frame = (PyFrameObject *) cf;
+    SLP_STORE_NEXT_FRAME(ts, (PyFrameObject *) cf);
     Py_INCREF(Py_None);
     return STACKLESS_PACK(ts, Py_None);
 }
@@ -1135,19 +1135,17 @@ PyObject *
 PyStackless_Call_Main(PyObject *func, PyObject *args, PyObject *kwds)
 {
     PyThreadState *ts = PyThreadState_GET();
-    PyCFrameObject *c;
+    PyCFrameObject *cf;
     PyObject *retval;
 
     if (ts->st.main != NULL)
         RUNTIME_ERROR(
             "Call_Main cannot run within a main tasklet", NULL);
-    c = slp_cframe_newfunc(func, args, kwds, 0);
-    if (c == NULL)
+    cf = slp_cframe_newfunc(func, args, kwds, 0);
+    if (cf == NULL)
         return NULL;
-    /* frames eat their own reference when returning */
-    Py_INCREF((PyObject *)c);
-    retval = slp_eval_frame((PyFrameObject *) c);
-    Py_DECREF((PyObject *)c);
+    retval = slp_eval_frame((PyFrameObject *) cf);
+    Py_DECREF((PyObject *)cf);
     return retval;
 }
 

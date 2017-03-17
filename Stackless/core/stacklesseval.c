@@ -289,16 +289,28 @@ climb_stack_and_eval_frame(PyFrameObject *f)
 static PyObject * slp_frame_dispatch_top(PyObject *retval);
 
 static PyObject *
-slp_run_tasklet(PyFrameObject *f)
+slp_run_tasklet(void)
 {
+    /* Note: this function does not return, if a sub-function
+     * (slp_frame_dispatch_top or slp_tasklet_end) calls
+     * slp_transfer_return(). Therefore, this function must not hold
+     * any reference during the execution of these sub-functions.
+     */
     PyThreadState *ts = PyThreadState_GET();
     PyObject *retval;
 
-    if ( (ts->st.main == NULL) && slp_initialize_main_and_current()) {
-        ts->frame = NULL;
-        return NULL;
+    SLP_ASSERT_FRAME_IN_TRANSFER(ts);
+    if (ts->st.main == NULL) {
+        PyFrameObject * f = SLP_CLAIM_NEXT_FRAME(ts);
+        if (slp_initialize_main_and_current()) {
+            Py_XDECREF(f);
+            SLP_SET_CURRENT_FRAME(ts, NULL);
+            return NULL;
+        }
+        SLP_STORE_NEXT_FRAME(ts, f);
+        Py_XDECREF(f);
     }
-    ts->frame = f;
+    SLP_ASSERT_FRAME_IN_TRANSFER(ts);
 
     TASKLET_CLAIMVAL(ts->st.current, &retval);
 
@@ -322,6 +334,7 @@ slp_eval_frame(PyFrameObject *f)
     PyThreadState *ts = PyThreadState_GET();
     PyFrameObject *fprev = f->f_back;
     intptr_t * stackref;
+    PyObject *retval;
 
     if (fprev == NULL && ts->st.main == NULL) {
         int returning;
@@ -343,6 +356,8 @@ slp_eval_frame(PyFrameObject *f)
         if (stackref > ts->st.cstack_base)
             return climb_stack_and_eval_frame(f);
 
+        assert(SLP_CURRENT_FRAME(ts) == NULL);  /* else we would change the current frame */
+        SLP_STORE_NEXT_FRAME(ts, f);
         returning = make_initial_stub();
         if (returning < 0)
             return NULL;
@@ -351,14 +366,17 @@ slp_eval_frame(PyFrameObject *f)
          * If the stub is being reused, the argument, i.e. the frame,
          * is in ts->frame
          */
-        if (returning == 1) {
-            f = ts->frame;
-            ts->frame = NULL;
+        SLP_ASSERT_FRAME_IN_TRANSFER(ts);
+        if (returning != 1) {
+            assert(f == SLP_PEEK_NEXT_FRAME(ts));
         }
-        return slp_run_tasklet(f);
+        return slp_run_tasklet();
     }
     Py_INCREF(Py_None);
-    return slp_frame_dispatch(f, fprev, 0, Py_None);
+    Py_XINCREF(fprev);
+    retval = slp_frame_dispatch(f, fprev, 0, Py_None);
+    Py_XDECREF(fprev);
+    return retval;
 }
 
 static void
@@ -775,13 +793,14 @@ eval_frame_callback(PyFrameObject *f, int exc, PyObject *retval)
     PyCStackObject *cst;
     PyCFrameObject *cf = (PyCFrameObject *) f;
     intptr_t *saved_base;
+    Py_ssize_t tmp;
+    int in_transfer;
 
-    //make sure we don't try softswitching out of this callstack
+    /* make sure we don't try softswitching out of this callstack */
     ts->st.nesting_level = cf->n + 1;
-    ts->frame = f->f_back;
 
-    //this tasklet now runs in this tstate.
-    cst = cur->cstate; //The calling cstate
+    /* this tasklet now runs in this tstate. */
+    cst = cur->cstate; /* The calling cstate */
     cur->cstate = ts->st.initial_stub;
     Py_INCREF(cur->cstate);
 
@@ -792,29 +811,49 @@ eval_frame_callback(PyFrameObject *f, int exc, PyObject *retval)
     ts->st.cstack_root = STACK_REFPLUS + (intptr_t *) &f;
 
     /* pull in the right retval and tempval from the arguments */
-    Py_DECREF(retval);
-    retval = cf->ob1;
+    Py_SETREF(retval, cf->ob1);
     cf->ob1 = NULL;
     TASKLET_SETVAL_OWN(cur, cf->ob2);
     cf->ob2 = NULL;
 
-    retval = PyEval_EvalFrameEx_slp(ts->frame, exc, retval);
+    f = f->f_back;
+    SLP_SET_CURRENT_FRAME(ts, f);
+    Py_XINCREF(f);
+    /* 'f' is now a counted reference to 'cf->f_back'.
+     * This keeps 'cf->f_back' alive during the following call to
+     * PyEval_EvalFrameEx_slp(...).
+     */
+    in_transfer = SLP_IS_FRAME_IN_TRANSFER_AFTER_EXPR(ts, tmp,
+        retval = PyEval_EvalFrameEx_slp(f, exc, retval));
     ts->st.cstack_root = saved_base;
+    if (in_transfer) {
+        Py_XDECREF(f);
+        f = SLP_CLAIM_NEXT_FRAME(ts);  /* returns a new reference */
+    }
+    else {
+        assert(f == SLP_CURRENT_FRAME(ts));
+    }
 
     /* store retval back into the cstate object */
     if (retval == NULL)
         retval = slp_curexc_to_bomb();
-    if (retval == NULL)
+    if (retval == NULL) {
+        Py_XDECREF(f);
         goto fatal;
+    }
     cf->ob1 = retval;
 
     /* jump back */
-    Py_DECREF(cur->cstate);
-    cur->cstate = cst;
+    Py_SETREF(cur->cstate, cst);
+    SLP_STORE_NEXT_FRAME(ts, f);
+    Py_XDECREF(f);
+
+    SLP_FRAME_EXECFUNC_DECREF(cf);
     slp_transfer_return(cst);
     /* should never come here */
+    assert(0);
 fatal:
-    Py_DECREF(cf); /* since the caller won't do it */
+    SLP_STORE_NEXT_FRAME(ts, cf->f_back);
     return NULL;
 }
 
@@ -833,7 +872,7 @@ slp_eval_frame_newstack(PyFrameObject *f, int exc, PyObject *retval)
          */
         intptr_t *old = ts->st.cstack_root;
         ts->st.cstack_root = STACK_REFPLUS + (intptr_t *) &f;
-        retval = PyEval_EvalFrameEx_slp(f,exc, retval);
+        retval = PyEval_EvalFrameEx_slp(f, exc, retval);
         ts->st.cstack_root = old;
         return retval;
     }
@@ -848,7 +887,7 @@ slp_eval_frame_newstack(PyFrameObject *f, int exc, PyObject *retval)
         return retval;
     }
 
-    ts->frame = f;
+    SLP_SET_CURRENT_FRAME(ts, f);
     cf = slp_cframe_new(eval_frame_callback, 1);
     if (cf == NULL)
         return NULL;
@@ -858,11 +897,12 @@ slp_eval_frame_newstack(PyFrameObject *f, int exc, PyObject *retval)
      * by slp_run_tasklet()
      */
     TASKLET_CLAIMVAL(cur, &(cf->ob2));
-    ts->frame = (PyFrameObject *) cf;
+    SLP_STORE_NEXT_FRAME(ts, (PyFrameObject *) cf);
     cst = cur->cstate;
     cur->cstate = NULL;
     if (slp_transfer(&cur->cstate, NULL, cur) < 0)
         goto finally; /* fatal */
+    SLP_ASSERT_FRAME_IN_TRANSFER(ts);
     Py_XDECREF(cur->cstate);
 
     retval = cf->ob1;
@@ -897,7 +937,7 @@ slp_gen_send_ex(PyGenObject *gen, PyObject *arg, int exc)
     STACKLESS_GETARG();
     PyThreadState *ts = PyThreadState_GET();
     PyFrameObject *f = gen->gi_frame;
-    PyFrameObject *stopframe = ts->frame;
+    PyFrameObject *stopframe;
     PyObject *retval;
 
     if (gen->gi_running) {
@@ -912,11 +952,6 @@ slp_gen_send_ex(PyGenObject *gen, PyObject *arg, int exc)
         return NULL;
     }
 
-    if (f->f_back == NULL &&
-        (f->f_back = (PyFrameObject *)
-                 slp_cframe_new(gen_iternext_callback, 0)) == NULL)
-        return NULL;
-
     if (f->f_lasti == -1) {
         if (arg && arg != Py_None) {
             PyErr_SetString(PyExc_TypeError,
@@ -924,33 +959,48 @@ slp_gen_send_ex(PyGenObject *gen, PyObject *arg, int exc)
                             "just-started generator");
             return NULL;
         }
+    }
+
+    if (f->f_back == NULL) {
+        /* It is the first call of slp_gen_send_ex for this generator */
+        f->f_back = (PyFrameObject *) slp_cframe_new(gen_iternext_callback, 0);
+        if (f->f_back == NULL)
+            return NULL;
     } else {
+        /* The generator already has a gen_iternext_callback cframe */
+        assert(PyCFrame_Check(f->f_back));
+        assert(((PyCFrameObject *)f->f_back)->f_execute == gen_iternext_callback);
+    }
+
+    if (f->f_lasti != -1) {
         /* Push arg onto the frame's value stack */
         retval = arg ? arg : Py_None;
         Py_INCREF(retval);
         *(f->f_stacktop++) = retval;
     }
 
+    /* The if(gen->gi_running)... guard at the beginning of this function
+     * and the code in gen_iternext_callback guarantee that the
+     * cframe f->f_back is clean.
+     */
+    assert(f->f_back->f_back == NULL);
+    assert(((PyCFrameObject *)f->f_back)->ob1 == NULL);
+    assert(((PyCFrameObject *)f->f_back)->ob2 == NULL);
+
     /* Generators always return to their most recent caller, not
      * necessarily their creator. */
-    Py_XINCREF(ts->frame);
-    assert(f->f_back != NULL);
-    assert(f->f_back->f_back == NULL);
-    f->f_back->f_back = ts->frame;
+    stopframe = SLP_CURRENT_FRAME(ts);
+    Py_XINCREF(stopframe);
+    f->f_back->f_back = stopframe;
 
     gen->gi_running = 1;
 
     f->f_execute = PyEval_EvalFrameEx_slp;
 
-    /* make refcount compatible to frames for tasklet unpickling */
-    Py_INCREF(f->f_back);
-
     Py_INCREF(gen);
     Py_XINCREF(arg);
     ((PyCFrameObject *) f->f_back)->ob1 = (PyObject *) gen;
     ((PyCFrameObject *) f->f_back)->ob2 = arg;
-    Py_INCREF(f);
-    ts->frame = f;
 
     if (exc)
         retval = NULL;
@@ -961,9 +1011,16 @@ slp_gen_send_ex(PyGenObject *gen, PyObject *arg, int exc)
 
     if (stackless) {
         assert(exc == 0);
+        SLP_STORE_NEXT_FRAME(ts, f);
         return STACKLESS_PACK(ts, retval);
     }
-    return slp_frame_dispatch(f, stopframe, exc, retval);
+    SLP_SET_CURRENT_FRAME(ts, f);
+    Py_INCREF(f);  /* f is a borrowed ref */
+    Py_XINCREF(stopframe);  /* f is a borrowed ref */
+    retval = slp_frame_dispatch(f, stopframe, exc, retval);
+    Py_XDECREF(stopframe);
+    Py_DECREF(f);
+    return retval;
 }
 
 PyObject*
@@ -974,18 +1031,16 @@ gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result)
     PyGenObject *gen = (PyGenObject *) cf->ob1;
     PyObject *arg = cf->ob2;
 
-    gen->gi_running = 0;
-    /* make refcount compatible to frames for tasklet unpickling */
-    Py_DECREF(f);
-
-    /* Don't keep the reference to f_back any longer than necessary.  It
-     * may keep a chain of frames alive or it could create a reference
-     * cycle. */
-    ts->frame = f->f_back;
-    Py_XDECREF(f->f_back);
-    f->f_back = NULL;
+    /* We hold references to things in the cframe, if we release it
+       before we clear the references, they get incorrectly and
+       prematurely freed. */
+    cf->ob1 = NULL;
+    cf->ob2 = NULL;
 
     f = gen->gi_frame;
+    /* Check, that this cframe belongs to gen */
+    assert(f->f_back == (PyFrameObject *)cf);
+
     /* If the generator just returned (as opposed to yielding), signal
      * that the generator is exhausted. */
 	if (result && f->f_stacktop == NULL) {
@@ -1003,11 +1058,13 @@ gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result)
         Py_CLEAR(result);
     }
 
-    /* We hold references to things in the cframe, if we release it
-       before we clear the references, they get incorrectly and
-       prematurely free. */
-    cf->ob1 = NULL;
-    cf->ob2 = NULL;
+    gen->gi_running = 0;
+
+    /* Don't keep the reference to f_back any longer than necessary.  It
+     * may keep a chain of frames alive or it could create a reference
+     * cycle. */
+    SLP_STORE_NEXT_FRAME(ts, cf->f_back);
+    Py_CLEAR(cf->f_back);
 
     if (!result || f->f_stacktop == NULL) {
         /* generator can't be rerun, so release the frame */
@@ -1023,12 +1080,13 @@ gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result)
         Py_XDECREF(v);
         Py_XDECREF(tb);
         f->f_gen = NULL;
+        assert(f == gen->gi_frame);
         gen->gi_frame = NULL;
         Py_DECREF(f);
     }
-
     Py_DECREF(gen);
     Py_XDECREF(arg);
+
     return result;
 }
 
@@ -1044,7 +1102,7 @@ unwind_repr(PyObject *op)
 {
     return PyUnicode_FromString(
         "The invisible unwind token. If you ever should see this,\n"
-        "please report the error to tismer@tismer.com"
+        "please report the error to https://bitbucket.org/stackless-dev/stackless/issues"
     );
 }
 
@@ -1086,7 +1144,7 @@ PyObject *
 slp_frame_dispatch(PyFrameObject *f, PyFrameObject *stopframe, int exc, PyObject *retval)
 {
     PyThreadState *ts = PyThreadState_GET();
-
+    PyFrameObject *first_frame = f;
     ++ts->st.nesting_level;
 
 /*
@@ -1099,16 +1157,22 @@ slp_frame_dispatch(PyFrameObject *f, PyFrameObject *stopframe, int exc, PyObject
     out when we see the frame that issued the
     originating dispatcher call (which may be a NULL frame).
  */
-
     while (1) {
-        retval = f->f_execute(f, exc, retval);
+        retval = CALL_FRAME_FUNCTION(f, exc, retval);
         if (STACKLESS_UNWINDING(retval))
             STACKLESS_UNPACK(ts, retval);
         /* A soft switch is only complete here */
         Py_CLEAR(ts->st.del_post_switch);
-        f = ts->frame;
-        if (f == stopframe)
+        if (f == first_frame) {
+            first_frame = NULL;
+        } else {
+            Py_DECREF(f);
+        }
+        f = SLP_CLAIM_NEXT_FRAME(ts);
+        if (f == stopframe) {
+            Py_XDECREF(f);
             break;
+        }
         exc = 0;
     }
     --ts->st.nesting_level;
@@ -1124,18 +1188,17 @@ static PyObject *
 slp_frame_dispatch_top(PyObject *retval)
 {
     PyThreadState *ts = PyThreadState_GET();
-    PyFrameObject *f = ts->frame;
+    PyFrameObject *f = SLP_CLAIM_NEXT_FRAME(ts);
 
     if (f==NULL) return retval;
 
     while (1) {
-
-        retval = f->f_execute(f, 0, retval);
+        retval = CALL_FRAME_FUNCTION(f, 0, retval);
         if (STACKLESS_UNWINDING(retval))
             STACKLESS_UNPACK(ts, retval);
+        Py_SETREF(f, SLP_CLAIM_NEXT_FRAME(ts));
         /* A soft switch is only complete here */
         Py_CLEAR(ts->st.del_post_switch);
-        f = ts->frame;
         if (f == NULL)
             break;
     }
