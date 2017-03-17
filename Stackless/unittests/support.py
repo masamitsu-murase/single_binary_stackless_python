@@ -65,6 +65,33 @@ def require_one_thread(testcase):
     return testcase
 
 
+def get_current_watchdog_list():
+    # The second argument of get_thread_info() is intentionally undocumented.
+    # See C source.
+    watchdog_list = stackless.get_thread_info(-1, 1 << 31)[3]
+    if isinstance(watchdog_list, list):
+        return watchdog_list
+    # The watchdog list has not been created. Force its creation.
+    # First clear the scheduler. We do not want to run any tasklets
+    scheduled = []
+    t = stackless.current.next
+    while t not in (None, stackless.current):
+        scheduled.append(t)
+        t = t.next
+    for t in scheduled:
+        t.remove()
+    try:
+        stackless.run()  # creates the watchdog list
+    finally:
+        for t in scheduled:
+            t.insert()
+        if scheduled:
+            assert stackless.current.next == scheduled[0]
+    watchdog_list = stackless.get_thread_info(-1, 1 << 31)[3]
+    assert isinstance(watchdog_list, list)
+    return watchdog_list
+
+
 class StacklessTestCaseMixin(object):
     def skipUnlessSoftswitching(self):
         if not stackless.enable_softswitch(None):
