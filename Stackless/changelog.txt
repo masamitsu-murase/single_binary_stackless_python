@@ -20,8 +20,16 @@ What's New in Stackless 3.X.X?
 
 - https://bitbucket.org/stackless-dev/stackless/issues/117
   Fix various reference leaks:
-  - Leak of a reference to Py_None in generator.throw()
-  - Leak of a reference to the thread-id of every thread returned by stackless.threads
+  - Leak of a reference to None in generator.throw()
+  - Leak of a reference to the thread-id of every thread returned by
+    stackless.threads
+  - Leak of a reference to None (usually) in the C-implementations of
+    channel.send_throw() and channel.send_exception()
+  - Leak of a reference to the caught exception (type and value) and traceback,
+    if Stackless invokes an user defined error-handler.
+  - Leak to an object, if a Python profile or trace function fails.
+  - Various leaks, if stackless._wrap.frame.__setstate__() fails, because its
+    state argument is invalid.
 
   Additionally this change brings the handling of caught exceptions more in
   line with C-Python.

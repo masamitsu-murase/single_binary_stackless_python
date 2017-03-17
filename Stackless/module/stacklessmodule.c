@@ -807,12 +807,20 @@ PyStackless_CallErrorHandler(void)
     if (slp_error_handler != NULL) {
         PyObject *exc, *val, *tb;
         PyObject *result;
-        PyErr_Fetch(&exc, &val, &tb);
-        if (!val)
+        PyErr_Fetch(&exc, &val, &tb); /* we own the refs in exc, val and tb */
+        assert(exc != NULL);
+        if (!val) {
+            Py_INCREF(Py_None);
             val = Py_None;
-        if (!tb)
+        }
+        if (!tb) {
+            Py_INCREF(Py_None);
             tb = Py_None;
+        }
         result = PyObject_CallFunction(slp_error_handler, "OOO", exc, val, tb);
+        Py_DECREF(exc);
+        Py_DECREF(val);
+        Py_DECREF(tb);
         Py_XDECREF(result);
         if (!result)
             return -1; /* an error in the handler! */
