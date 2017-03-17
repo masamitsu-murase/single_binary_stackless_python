@@ -1224,6 +1224,9 @@ exit_eval_frame:
     return NULL;
 }
 
+/* a global write only dummy variable */
+char _dont_optimise_away_slp_eval_frame_functions;
+
 PyObject *
 slp_eval_frame_noval(PyFrameObject *f, int throwflag, PyObject *retval)
 {
@@ -1233,9 +1236,8 @@ slp_eval_frame_noval(PyFrameObject *f, int throwflag, PyObject *retval)
      * it serves as a marker whether we expect a value or
      * not, and it makes debugging a little easier.
      */
-    Py_XINCREF(f); /* fool the link optimizer */
+    _dont_optimise_away_slp_eval_frame_functions = 1;
     r = slp_eval_frame_value(f, throwflag, retval);
-    Py_XDECREF(f);
     return r;
 }
 
@@ -1249,9 +1251,8 @@ slp_eval_frame_iter(PyFrameObject *f, int throwflag, PyObject *retval)
      * for_iter operation. In this case we need to handle
      * null without error as valid result.
      */
-    Py_XINCREF(retval); /* fool the link optimizer */
+    _dont_optimise_away_slp_eval_frame_functions = 2;
     r = slp_eval_frame_value(f, throwflag, retval);
-    Py_XDECREF(retval);
     return r;
 }
 
@@ -1265,11 +1266,8 @@ slp_eval_frame_setup_with(PyFrameObject *f, int throwflag, PyObject *retval)
      * SETUP_WITH operation.
      * NOTE / XXX: see above.
      */
-    Py_XINCREF(f);      /* fool the link optimizer */
-    Py_XINCREF(retval); /* fool the link optimizer */
+    _dont_optimise_away_slp_eval_frame_functions = 3;
     r = slp_eval_frame_value(f, throwflag, retval);
-    Py_XDECREF(retval);
-    Py_XDECREF(f);
     return r;
 }
 
@@ -1283,11 +1281,8 @@ slp_eval_frame_with_cleanup(PyFrameObject *f, int throwflag, PyObject *retval)
      * WITH_CLEANUP operation.
      * NOTE / XXX: see above.
      */
-    Py_XINCREF(f);      /* fool the link optimizer */
-    Py_XINCREF(f);      /* fool the link optimizer */
+    _dont_optimise_away_slp_eval_frame_functions = 4;
     r = slp_eval_frame_value(f, throwflag, retval);
-    Py_XDECREF(f);
-    Py_XDECREF(f);
     return r;
 }
 
