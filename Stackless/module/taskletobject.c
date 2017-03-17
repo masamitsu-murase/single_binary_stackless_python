@@ -46,8 +46,12 @@ slp_current_remove(void)
     PyThreadState *ts = PyThreadState_GET();
     PyTaskletObject **chain = &ts->st.current, *ret;
 
-    /* make sure tasklet belongs to this thread */
-    assert((*chain)->cstate->tstate == ts);
+    /* Make sure that the tasklet belongs to this thread.
+     * During interpreter shutdown '(*chain)->cstate->tstate' may be already NULL.
+     * See function slp_kill_tasks_with_stacks() in stacklesseval.c
+     */
+    assert((*chain)->cstate->tstate == ts ||
+           (*chain)->cstate->tstate == NULL);
 
     --ts->st.runcount;
     assert(ts->st.runcount >= 0);
