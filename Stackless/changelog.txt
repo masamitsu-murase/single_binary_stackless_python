@@ -21,6 +21,9 @@ What's New in Stackless 3.X.X?
 - https://bitbucket.org/stackless-dev/stackless/issues/117
   Fix various reference leaks:
   - Leak of a reference to Py_None in generator.throw()
+  
+  Additionally this change brings the handling of caught exceptions more in
+  line with C-Python.
 
 - https://bitbucket.org/stackless-dev/stackless/issues/111
   Restore the Python ABI function PyGen_New(). Previously Stackless named this
