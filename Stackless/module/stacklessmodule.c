@@ -719,20 +719,31 @@ get_thread_info(PyObject *self, PyObject *args)
     PyThreadState *ts = PyThreadState_GET();
     PyInterpreterState *interp = ts->interp;
     long id = 0;
+    /* The additional optional argument flags is currently intentionally
+     * undocumented. The lower order flag bits are reserved for future public
+     * applications. If the flag bit 31 is set, the returned tuple contains
+     * the watchdog list as an additional item. The Stackless test suite uses
+     * this feature to ensure that the list is empty at start and end of each
+     * test.
+     */
+    unsigned long flags=0;
 
-    if (!PyArg_ParseTuple(args, "|l:get_thread_info", &id))
+    if (!PyArg_ParseTuple(args, "|lk:get_thread_info", &id, &flags))
         return NULL;
-    for (ts = interp->tstate_head; id && ts != NULL; ts = ts->next) {
-        if (ts->thread_id == id)
-            break;
+    if (id != -1) {
+        for (ts = interp->tstate_head; id && ts != NULL; ts = ts->next) {
+            if (ts->thread_id == id)
+                break;
+        }
+        if (ts == NULL)
+            RUNTIME_ERROR("Thread id not found", NULL);
     }
-    if (ts == NULL)
-        RUNTIME_ERROR("Thread id not found", NULL);
 
-    return Py_BuildValue("(OOi)",
+    return Py_BuildValue((flags & (1ul<<31)) ? "(OOiO)": "(OOi)",
         ts->st.main ? (PyObject *) ts->st.main : Py_None,
         ts->st.runcount ? (PyObject *) ts->st.current : Py_None,
-        ts->st.runcount);
+        ts->st.runcount,
+        ts->st.watchdogs ? ts->st.watchdogs : Py_None);
 }
 
 static PyObject *

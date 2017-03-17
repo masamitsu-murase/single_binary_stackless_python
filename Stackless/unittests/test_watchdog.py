@@ -5,7 +5,7 @@ import stackless
 import random
 
 from support import test_main  # @UnusedImport
-from support import StacklessTestCase, require_one_thread
+from support import StacklessTestCase, require_one_thread, get_current_watchdog_list
 
 
 # Helpers
@@ -21,40 +21,6 @@ def is_soft():
     softswitch = stackless.enable_softswitch(0)
     stackless.enable_softswitch(softswitch)
     return softswitch and not in_psyco()
-
-
-def get_current_watchdog_list():
-    import gc
-    result = []
-
-    def _tasklet(tlet):
-        if tlet is not None:
-            assert tlet.paused
-            gc.collect()
-            referrers = gc.get_referrers(tlet)
-            for obj in referrers:
-                if isinstance(obj, list):
-                    result.append(obj)
-            assert len(result) == 1, "found %d list references, expected 1" % len(result)
-        else:
-            stackless.tasklet(_tasklet)(stackless.current)
-            stackless.run()
-    scheduled = []
-    t = stackless.current.next
-    while t not in (None, stackless.current):
-        scheduled.append(t)
-        t = t.next
-    for t in scheduled:
-        t.remove()
-    stackless.tasklet(_tasklet)(None)
-    try:
-        stackless.run()
-    finally:
-        for t in scheduled:
-            t.insert()
-        if scheduled:
-            assert stackless.current.next == scheduled[0]
-    return result[0]
 
 
 class SimpleScheduler(object):
