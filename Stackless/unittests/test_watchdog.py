@@ -528,7 +528,8 @@ class TestNewWatchdog(StacklessTestCase):
 
     def _test_watchdog_on_tasklet(self, soft):
         def runner_func():
-            stackless.run(2, soft=soft, totaltimeout=True, ignore_nesting=True)
+            # run the watchdog long enough to start t1 and t2
+            stackless.run(150, soft=soft, totaltimeout=True, ignore_nesting=True)
             if stackless.getruncount():
                 self.done += 1  # we were interrupted
             t1.kill()
