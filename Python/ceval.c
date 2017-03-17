@@ -1167,8 +1167,7 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
     /* push frame */
     if (Py_EnterRecursiveCall("")) {
         Py_XDECREF(retval);
-        tstate->frame = f->f_back;
-        Py_DECREF(f);
+        SLP_STORE_NEXT_FRAME(tstate, f->f_back);
         return NULL;
     }
 #else
@@ -1220,7 +1219,7 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
 exit_eval_frame:
     Py_XDECREF(retval);
     Py_LeaveRecursiveCall();
-    tstate->frame = f->f_back;
+    SLP_STORE_NEXT_FRAME(tstate, f->f_back);
     return NULL;
 }
 
@@ -3738,8 +3737,7 @@ exit_eval_frame:
 
 #else
     Py_LeaveRecursiveCall();
-    tstate->frame = f->f_back;
-    Py_DECREF(f);
+    SLP_STORE_NEXT_FRAME(tstate, f->f_back);
     return retval;
 
 stackless_setup_with:
@@ -3766,16 +3764,23 @@ stackless_call:
     /* the -1 is to adjust for the f_lasti change.
        (look for the word 'Promise' above) */
     f->f_lasti = INSTR_OFFSET() - 1;
-    if (tstate->frame->f_back != f)
+    if (SLP_PEEK_NEXT_FRAME(tstate)->f_back != f)
         return retval;
     STACKLESS_UNPACK(tstate, retval);
-    retval = tstate->frame->f_execute(tstate->frame, 0, retval);
-    if (tstate->frame != f) {
-        assert(f->f_execute == slp_eval_frame_value || f->f_execute == slp_eval_frame_noval ||
-            f->f_execute == slp_eval_frame_setup_with || f->f_execute == slp_eval_frame_with_cleanup);
-        if (f->f_execute == slp_eval_frame_noval)
-            f->f_execute = slp_eval_frame_value;
-        return retval;
+    {
+        PyFrameObject *f2 = SLP_CLAIM_NEXT_FRAME(tstate);
+        retval = CALL_FRAME_FUNCTION(f2, 0, retval);
+        Py_DECREF(f2);
+        if (SLP_PEEK_NEXT_FRAME(tstate) != f) {
+            assert(f->f_execute == slp_eval_frame_value || f->f_execute == slp_eval_frame_noval ||
+                f->f_execute == slp_eval_frame_setup_with || f->f_execute == slp_eval_frame_with_cleanup);
+            if (f->f_execute == slp_eval_frame_noval)
+                f->f_execute = slp_eval_frame_value;
+            return retval;
+        }
+        f2 = SLP_CLAIM_NEXT_FRAME(tstate);
+        assert(f == f2);
+        Py_DECREF(f2);
     }
     if (STACKLESS_UNWINDING(retval))
         STACKLESS_UNPACK(tstate, retval);
@@ -3800,6 +3805,7 @@ stackless_call:
     goto stackless_call_return;
 
 stackless_interrupt_call:
+    /* interrupted during unwinding */
 
     f->f_execute = slp_eval_frame_noval;
     f->f_stacktop = stack_pointer;
@@ -3807,7 +3813,6 @@ stackless_interrupt_call:
     /* the -1 is to adjust for the f_lasti change.
        (look for the word 'Promise' above) */
     f->f_lasti = INSTR_OFFSET() - 1;
-    f = tstate->frame;
     return (PyObject *) Py_UnwindToken;
 #endif
 }
@@ -4172,17 +4177,23 @@ PyEval_EvalCodeEx(PyObject *_co, PyObject *globals, PyObject *locals,
     Py_INCREF(Py_None);
     retval = Py_None;
     if (stackless) {
-        tstate->frame = f;
+        SLP_STORE_NEXT_FRAME(tstate, f);
+        Py_DECREF(f);
         return STACKLESS_PACK(tstate, retval);
     }
     else {
-        if (f->f_back != NULL)
+        if (f->f_back != NULL) {
             /* use the faster path */
-            retval = slp_frame_dispatch(f, f->f_back, 0, retval);
-            else {
+            PyFrameObject *back = f->f_back;
+            Py_INCREF(back);
+            retval = slp_frame_dispatch(f, back, 0, retval);
+            Py_DECREF(back);
+        }
+        else {
             Py_DECREF(retval);
             retval = slp_eval_frame(f);
         }
+        Py_DECREF(f);
         return retval;
     }
 #else
@@ -4898,7 +4909,7 @@ fast_function(PyObject *func, PyObject ***pp_stack, int n, int na, int nk)
     PCALL(PCALL_FAST_FUNCTION);
     if (argdefs == NULL && co->co_argcount == n &&
         co->co_kwonlyargcount == 0 && nk==0 &&
-        co->co_flags == (CO_OPTIMIZED | CO_NEWLOCALS | CO_NOFREE)) {
+        (co->co_flags & (~PyCF_MASK)) == (CO_OPTIMIZED | CO_NEWLOCALS | CO_NOFREE)) {
         PyFrameObject *f;
         PyObject *retval = NULL;
         PyThreadState *tstate = PyThreadState_GET();
@@ -4928,10 +4939,21 @@ fast_function(PyObject *func, PyObject ***pp_stack, int n, int na, int nk)
         if (STACKLESS_POSSIBLE()) {
             Py_INCREF(Py_None);
             retval = Py_None;
-            tstate->frame = f;
+            SLP_STORE_NEXT_FRAME(tstate, f);
+            Py_DECREF(f);
             return STACKLESS_PACK(tstate, retval);
         }
-        return slp_eval_frame(f);
+        if (f->f_back != NULL) {
+            /* use the faster path */
+            PyFrameObject *back = f->f_back;
+            Py_INCREF(Py_None);
+            Py_INCREF(back);
+            retval = slp_frame_dispatch(f, back, 0, Py_None);
+            Py_DECREF(back);
+        }
+        else {
+            retval = slp_eval_frame(f);
+        }
 #else
         retval = PyEval_EvalFrameEx(f,0);
 #endif

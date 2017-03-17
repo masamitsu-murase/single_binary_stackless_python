@@ -3,6 +3,9 @@
 
 #include "Python.h"
 #include "frameobject.h"
+#ifdef STACKLESS
+#include "core/stackless_impl.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -1785,7 +1788,11 @@ _Py_Dealloc(PyObject *op)
 {
     destructor dealloc = Py_TYPE(op)->tp_dealloc;
     _Py_ForgetReference(op);
+#ifdef STACKLESS
+    SLP_WITH_VALID_CURRENT_FRAME((*dealloc)(op));
+#else
     (*dealloc)(op);
+#endif
 }
 
 /* Print all live objects.  Because PyObject_Print is called, the
