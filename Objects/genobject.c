@@ -543,7 +543,7 @@ gen_get_iter(PyGenObject *gen)
     }
 
     Py_INCREF(gen);
-    return gen;
+    return (PyObject *)gen;
 }
 
 static int

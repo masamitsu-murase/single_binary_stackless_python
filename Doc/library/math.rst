@@ -100,6 +100,16 @@ Number-theoretic and representation functions
    <http://code.activestate.com/recipes/393090/>`_\.
 
 
+.. function:: gcd(a, b)
+
+   Return the greatest common divisor of the integers *a* and *b*.  If either
+   *a* or *b* is nonzero, then the value of ``gcd(a, b)`` is the largest
+   positive integer that divides both *a* and *b*.  ``gcd(0, 0)`` returns
+   ``0``.
+
+   .. versionadded:: 3.5
+
+
 .. function:: isfinite(x)
 
    Return ``True`` if *x* is neither an infinity nor a NaN, and
@@ -280,12 +290,12 @@ Angular conversion
 
 .. function:: degrees(x)
 
-   Converts angle *x* from radians to degrees.
+   Convert angle *x* from radians to degrees.
 
 
 .. function:: radians(x)
 
-   Converts angle *x* from degrees to radians.
+   Convert angle *x* from degrees to radians.
 
 Hyperbolic functions
 --------------------

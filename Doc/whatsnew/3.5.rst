@@ -70,6 +70,7 @@ Summary -- Release highlights
 New syntax features:
 
 *  :pep:`465`, a new matrix multiplication operator: ``a @ b``.
+*  :pep:`492`, coroutines with async and await syntax.
 
 New library modules:
 
@@ -229,6 +230,12 @@ Some smaller changes made to the core Python language are:
 
 * The :option:`-b` option now affects comparisons of :class:`bytes` with
   :class:`int`.  (Contributed by Serhiy Storchaka in :issue:`23681`)
+
+* New Kazakh :ref:`codec <standard-encodings>` ``kz1048``.  (Contributed by
+  Serhiy Storchaka in :issue:`22682`.)
+
+* New Tajik :ref:`codec <standard-encodings>` ``koi8_t``.  (Contributed by
+  Serhiy Storchaka in :issue:`22681`.)
 
 
 New Modules
@@ -628,6 +635,9 @@ The following performance enhancements have been added:
   versions 0--2 on typical data, and up to 5x in best cases).
   (Contributed by Serhiy Storchaka in :issue:`20416` and :issue:`23344`.)
 
+* The UTF-32 encoder is now 3x to 7x faster.  (Contributed by Serhiy Storchaka
+  in :issue:`15027`.)
+
 
 Build and C API Changes
 =======================
@@ -878,3 +888,6 @@ Changes in the C API
   introspection, a deprecation warning now is raised for builtin type without
   the :attr:`__module__` attribute.  Would be an AttributeError in future.
   (:issue:`20204`)
+
+* As part of PEP 492 implementation, ``tp_reserved`` slot of
+  ``PyTypeObject`` was replaced with ``tp_as_async`` slot.

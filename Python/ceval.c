@@ -5184,7 +5184,7 @@ PyEval_SetCoroutineWrapper(PyObject *wrapper)
 }
 
 PyObject *
-PyEval_GetCoroutineWrapper()
+PyEval_GetCoroutineWrapper(void)
 {
     PyThreadState *tstate = PyThreadState_GET();
     return tstate->coroutine_wrapper;

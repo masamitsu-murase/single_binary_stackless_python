@@ -10,6 +10,8 @@ Release date: 2015-04-24
 Core and Builtins
 -----------------
 
+- Issue #15027: The UTF-32 encoder is now 3x to 7x faster.
+
 - Issue #20274: When calling a _sqlite.Connection, it now complains if passed
   any keyword arguments.  Previously it silently ignored them.
 
@@ -35,8 +37,20 @@ Core and Builtins
 
 - Issue #22906: PEP 479: Change StopIteration handling inside generators.
 
+- Issue #24017: PEP 492: Coroutines with async and await syntax.
+
 Library
 -------
+
+- Issue #22486: Added the math.gcd() function.  The fractions.gcd() function now is
+  deprecated.  Based on patch by Mark Dickinson.
+
+- Issue #22681: Added support for the koi8_t encoding.
+
+- Issue #22682: Added support for the kz1048 encoding.
+
+- Issue #23796: peak and read1 methods of BufferedReader now raise ValueError
+  if they called on a closed object. Patch by John Hergenroeder.
 
 - Issue #21795: smtpd now supports the 8BITMIME extension whenever
   the new *decode_data* constructor argument is set to False.
