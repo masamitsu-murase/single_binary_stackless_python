@@ -14,6 +14,10 @@ What's New in Stackless 3.X.X?
   weakref-callback runs Python code, Python used to leak a reference to a
   C-stack object.
 
+- https://bitbucket.org/stackless-dev/stackless/issues/120
+  Stackless now correctly grabs the head_mutex, when it iterates over the list
+  of thread states.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/119
   Fix a rare bug in the stack unwinding mechanism, that caused a SystemError
   exception or an assertion violation, if a __del__()-method or a weakref

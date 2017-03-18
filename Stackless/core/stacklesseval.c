@@ -380,31 +380,31 @@ slp_eval_frame(PyFrameObject *f)
 }
 
 static void
-kill_pending_current_main_and_watchdogs(PyThreadState *ts)
+get_current_main_and_watchdogs(PyThreadState *ts, PyObject *list)
 {
     PyTaskletObject *t;
 
     assert(ts != PyThreadState_GET());  /* don't kill ourself */
+    assert(PyList_CheckExact(list));
 
     /* kill watchdogs */
     if (ts->st.watchdogs && PyList_CheckExact(ts->st.watchdogs)) {
         Py_ssize_t i;
         /* we don't kill the "intterupt" slot, number 0 */
         for(i = PyList_GET_SIZE(ts->st.watchdogs) - 1; i > 0; i--) {
-            PyObject * item = PyList_GET_ITEM(ts->st.watchdogs, i);
+            PyObject *item = PyList_GET_ITEM(ts->st.watchdogs, i);
             assert(item && PyTasklet_Check(item));
-            t = (PyTaskletObject *) item;
-            Py_INCREF(t);  /* it is a borrowed ref */
-            PyTasklet_KillEx(t, 1);
+            Py_INCREF(item);  /* it is a borrowed ref */
+            PyList_Append(list, item);
             PyErr_Clear();
-            Py_DECREF(t);
+            Py_DECREF(item);
         }
     }
     /* kill main */
     t = ts->st.main;
     if (t != NULL) {
         Py_INCREF(t);  /* it is a borrowed ref */
-        PyTasklet_KillEx(t, 1);
+        PyList_Append(list, (PyObject *)t);
         PyErr_Clear();
         Py_DECREF(t);
     }
@@ -412,9 +412,26 @@ kill_pending_current_main_and_watchdogs(PyThreadState *ts)
     t = ts->st.current;
     if (t != NULL) {
         Py_INCREF(t);  /* it is a borrowed ref */
-        PyTasklet_KillEx(t, 1);
+        PyList_Append(list, (PyObject *)t);
         PyErr_Clear();
         Py_DECREF(t);
+    }
+}
+
+static void
+kill_pending(PyObject *list)
+{
+    Py_ssize_t i, len;
+
+    assert(list && PyList_CheckExact(list));
+
+    len = PyList_GET_SIZE(list);
+    for (i=0; i < len; i++) {
+        PyTaskletObject *t = (PyTaskletObject *) PyList_GET_ITEM(list, i);
+        assert(PyTasklet_Check(t));
+        PyTasklet_KillEx(t, 1);
+        PyErr_Clear();
+        assert(len == PyList_GET_SIZE(list));
     }
 }
 
@@ -580,7 +597,7 @@ void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
 other_threads:
     /* Step II of III
      *
-     * A separate simple loop to kill tasklets on foreign threads.
+     * Kill tasklets on foreign threads:.
      * Since foreign tasklets are scheduled in their own good time,
      * there is no guarantee that they are actually dead when we
      * exit this function.  Therefore, we also can't clear their thread
@@ -591,11 +608,22 @@ other_threads:
         PyTaskletObject *t;
         PyObject *sleepfunc = NULL;
         Py_ssize_t count;
+        PyObject *tasklet_list = PyList_New(0);
+        if (tasklet_list == NULL) {
+            PyErr_Clear();
+        }
 
-        /* other threads, first pass: kill (pending) current, main and watchdog tasklets */
-        if (target_ts == NULL) {
+        /* Other threads, first pass: kill (pending) current, main and watchdog tasklets
+         * Iterating over the threads requires the HEAD lock. In order to prevent dead locks,
+         * we try to avoid interpreter recursions (= no Py_DECREF), while we hold the lock.
+         */
+        if (target_ts == NULL && tasklet_list) {
             PyThreadState *ts;
+            PyObject *threadid_list = NULL;
             count = 0;
+
+            /* build a list of tasklets to be killed */
+            SLP_HEAD_LOCK();
             for (ts = cts->interp->tstate_head; ts != NULL; ts = ts->next) {
                 if (ts != cts) {
                     /* Inactivate thread ts. In case the thread is active,
@@ -603,8 +631,34 @@ other_threads:
                      * continues to sleep.
                      */
                     count++;
-                    kill_pending_current_main_and_watchdogs(ts);
+                    get_current_main_and_watchdogs(ts, tasklet_list);
                 }
+            }
+            SLP_HEAD_UNLOCK();
+
+            /* get the list of thread ids */
+            if (PyExc_TaskletExit)
+                threadid_list = slp_getthreads(Py_None); /* requires the HEAD lock */
+
+            /* kill the tasklets */
+            kill_pending(tasklet_list);
+            /* kill the threads */
+            if (threadid_list != NULL) {
+                Py_ssize_t i, len;
+                assert(PyList_CheckExact(threadid_list));
+                len = PyList_GET_SIZE(threadid_list);
+                for (i=0; i < len; i++) {
+                    long thread_id;
+                    PyObject *item = PyList_GET_ITEM(threadid_list, i);
+                    assert(PyLong_CheckExact(item));
+                    thread_id = PyLong_AsLong(item);
+                    if (thread_id != cts->thread_id) {
+                        /* requires the HEAD lock */
+                        PyThreadState_SetAsyncExc(thread_id, PyExc_TaskletExit);
+                        PyErr_Clear();
+                    }
+                }
+                Py_DECREF(threadid_list);
             }
             /* We must not release the GIL while we might hold the HEAD-lock.
              * Otherwise another thread (usually the thread of the killed tasklet)
@@ -615,10 +669,12 @@ other_threads:
             /* The other threads might have modified the thread state chain, but fortunately we
              * are done with it.
              */
-        } else if (target_ts != cts) {
-            kill_pending_current_main_and_watchdogs(target_ts);
+        } else if (target_ts != cts && tasklet_list) {
+            get_current_main_and_watchdogs(target_ts, tasklet_list);
+            kill_pending(tasklet_list);
             /* Here it is not safe to release the GIL. */
         }
+        Py_XDECREF(tasklet_list);
 
         /* other threads, second pass: kill tasklets with nesting-level > 0 and
          * clear tstate if target_ts != NULL && target_ts != cts. */
