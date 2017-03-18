@@ -687,10 +687,14 @@ check_for_deadlock(void)
     PyInterpreterState *interp = ts->interp;
 
     /* see if anybody else will be able to run */
-
-    for (ts = interp->tstate_head; ts != NULL; ts = ts->next)
-        if (is_thread_runnable(ts))
+    SLP_HEAD_LOCK();
+    for (ts = interp->tstate_head; ts != NULL; ts = ts->next) {
+        if (is_thread_runnable(ts)) {
+            SLP_HEAD_UNLOCK();
             return 0;
+        }
+    }
+    SLP_HEAD_UNLOCK();
     return 1;
 }
 
