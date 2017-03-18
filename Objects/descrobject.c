@@ -1342,7 +1342,7 @@ static PyMemberDef property_members[] = {
     {"fget", T_OBJECT, offsetof(propertyobject, prop_get), READONLY},
     {"fset", T_OBJECT, offsetof(propertyobject, prop_set), READONLY},
     {"fdel", T_OBJECT, offsetof(propertyobject, prop_del), READONLY},
-    {"__doc__",  T_OBJECT, offsetof(propertyobject, prop_doc), READONLY},
+    {"__doc__",  T_OBJECT, offsetof(propertyobject, prop_doc), 0},
     {0}
 };
 
@@ -1621,6 +1621,14 @@ property_traverse(PyObject *self, visitproc visit, void *arg)
     return 0;
 }
 
+static int
+property_clear(PyObject *self)
+{
+    propertyobject *pp = (propertyobject *)self;
+    Py_CLEAR(pp->prop_doc);
+    return 0;
+}
+
 PyTypeObject PyProperty_Type = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "property",                                 /* tp_name */
@@ -1646,7 +1654,7 @@ PyTypeObject PyProperty_Type = {
         Py_TPFLAGS_BASETYPE,                    /* tp_flags */
     property_doc,                               /* tp_doc */
     property_traverse,                          /* tp_traverse */
-    0,                                          /* tp_clear */
+    (inquiry)property_clear,                    /* tp_clear */
     0,                                          /* tp_richcompare */
     0,                                          /* tp_weaklistoffset */
     0,                                          /* tp_iter */

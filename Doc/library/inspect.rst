@@ -266,6 +266,45 @@ attributes:
    Return true if the object is a generator.
 
 
+.. function:: iscoroutinefunction(object)
+
+   Return true if the object is a :term:`coroutine function`.
+
+   Coroutine functions are defined with an ``async def`` syntax,
+   or are generators decorated with :func:`types.coroutine`
+   or :func:`asyncio.coroutine`.
+
+   The function will return false for plain Python generator
+   functions.
+
+   .. versionadded:: 3.5
+
+
+.. function:: iscoroutine(object)
+
+   Return true if the object is a :term:`coroutine`.
+
+   Coroutines are results of calls of coroutine functions or
+   generator functions decorated with :func:`types.coroutine`
+   or :func:`asyncio.coroutine`.
+
+   The function will return false for plain python generators.
+
+   See also :class:`collections.abc.Coroutine`.
+
+   .. versionadded:: 3.5
+
+
+.. function:: isawaitable(object)
+
+   Return true if the object can be used in :keyword:`await`
+   expression.
+
+   See also :class:`collections.abc.Awaitable`.
+
+   .. versionadded:: 3.5
+
+
 .. function:: istraceback(object)
 
    Return true if the object is a traceback.
@@ -431,7 +470,7 @@ The Signature object represents the call signature of a callable object and its
 return annotation.  To retrieve a Signature object, use the :func:`signature`
 function.
 
-.. function:: signature(callable)
+.. function:: signature(callable, \*, follow_wrapped=True)
 
    Return a :class:`Signature` object for the given ``callable``::
 
@@ -455,6 +494,11 @@ function.
 
    Raises :exc:`ValueError` if no signature can be provided, and
    :exc:`TypeError` if that type of object is not supported.
+
+   .. versionadded:: 3.5
+      ``follow_wrapped`` parameter. Pass ``False`` to get a signature of
+      ``callable`` specifically (``callable.__wrapped__`` will not be used to
+      unwrap decorated callables.)
 
    .. note::
 
@@ -528,12 +572,13 @@ function.
          >>> str(new_sig)
          "(a, b) -> 'new return anno'"
 
-   .. classmethod:: Signature.from_callable(obj)
+   .. classmethod:: Signature.from_callable(obj, \*, follow_wrapped=True)
 
        Return a :class:`Signature` (or its subclass) object for a given callable
-       ``obj``. This method simplifies subclassing of :class:`Signature`:
+       ``obj``.  Pass ``follow_wrapped=False`` to get a signature of ``obj``
+       without unwrapping its ``__wrapped__`` chain.
 
-       ::
+       This method simplifies subclassing of :class:`Signature`::
 
          class MySignature(Signature):
              pass
@@ -667,27 +712,8 @@ function.
 
          Arguments for which :meth:`Signature.bind` or
          :meth:`Signature.bind_partial` relied on a default value are skipped.
-         However, if needed, it is easy to include them.
-
-      ::
-
-        >>> def foo(a, b=10):
-        ...     pass
-
-        >>> sig = signature(foo)
-        >>> ba = sig.bind(5)
-
-        >>> ba.args, ba.kwargs
-        ((5,), {})
-
-        >>> for param in sig.parameters.values():
-        ...     if (param.name not in ba.arguments
-        ...             and param.default is not param.empty):
-        ...         ba.arguments[param.name] = param.default
-
-        >>> ba.args, ba.kwargs
-        ((5, 10), {})
-
+         However, if needed, use :meth:`BoundArguments.apply_defaults` to add
+         them.
 
    .. attribute:: BoundArguments.args
 
@@ -698,6 +724,30 @@ function.
 
       A dict of keyword arguments values.  Dynamically computed from the
       :attr:`arguments` attribute.
+
+   .. attribute:: BoundArguments.signature
+
+      A reference to the parent :class:`Signature` object.
+
+   .. method:: BoundArguments.apply_defaults()
+
+      Set default values for missing arguments.
+
+      For variable-positional arguments (``*args``) the default is an
+      empty tuple.
+
+      For variable-keyword arguments (``**kwargs``) the default is an
+      empty dict.
+
+      ::
+
+        >>> def foo(a, b='ham', *args): pass
+        >>> ba = inspect.signature(foo).bind('spam')
+        >>> ba.apply_defaults()
+        >>> ba.arguments
+        OrderedDict([('a', 'spam'), ('b', 'ham'), ('args', ())])
+
+      .. versionadded:: 3.5
 
    The :attr:`args` and :attr:`kwargs` properties can be used to invoke
    functions::

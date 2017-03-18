@@ -268,9 +268,9 @@ For example::
     .. method:: most_common([n])
 
         Return a list of the *n* most common elements and their counts from the
-        most common to the least.  If *n* is not specified, :func:`most_common`
-        returns *all* elements in the counter.  Elements with equal counts are
-        ordered arbitrarily:
+        most common to the least.  If *n* is omitted or ``None``,
+        :func:`most_common` returns *all* elements in the counter.
+        Elements with equal counts are ordered arbitrarily:
 
             >>> Counter('abracadabra').most_common(3)
             [('a', 5), ('r', 2), ('b', 2)]
@@ -333,7 +333,7 @@ counts, but the output will exclude results with counts of zero or less.
     >>> c | d                       # union:  max(c[x], d[x])
     Counter({'a': 3, 'b': 2})
 
-Unary addition and substraction are shortcuts for adding an empty counter
+Unary addition and subtraction are shortcuts for adding an empty counter
 or subtracting from an empty counter.
 
     >>> c = Counter(a=2, b=-4)
@@ -923,6 +923,15 @@ Subclassing is not useful for adding new, stored fields.  Instead, simply
 create a new named tuple type from the :attr:`_fields` attribute:
 
     >>> Point3D = namedtuple('Point3D', Point._fields + ('z',))
+
+Docstrings can be customized by making direct assignments to the ``__doc__``
+fields:
+
+   >>> Book = namedtuple('Book', ['id', 'title', 'authors'])
+   >>> Book.__doc__ = 'Hardcover book in active collection'
+   >>> Book.id.__doc__ = '13-digit ISBN'
+   >>> Book.title.__doc__ = 'Title of first printing'
+   >>> Book.author.__doc__ = 'List of authors sorted by last name'
 
 Default values can be implemented by using :meth:`_replace` to
 customize a prototype instance:

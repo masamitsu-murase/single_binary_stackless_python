@@ -826,6 +826,7 @@ on the right is the text you'd replace it with.
 ``'I'``     ``unsigned_int(bitwise=True)``
 ``'k'``     ``unsigned_long(bitwise=True)``
 ``'K'``     ``unsigned_PY_LONG_LONG(bitwise=True)``
+``'l'``     ``long``
 ``'L'``     ``PY_LONG_LONG``
 ``'n'``     ``Py_ssize_t``
 ``'O'``     ``object``
@@ -1494,7 +1495,7 @@ preset configurations, as follows:
     the ``buffer`` preset.
 
     Suppresses the ``impl_prototype``, write the ``docstring_definition``
-    and ``parser_defintion`` to ``buffer``, write everything else to ``block``.
+    and ``parser_definition`` to ``buffer``, write everything else to ``block``.
 
 The third new directive is ``destination``::
 

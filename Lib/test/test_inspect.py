@@ -288,9 +288,7 @@ class GetSourceBase(unittest.TestCase):
     # Subclasses must override.
     fodderModule = None
 
-    def __init__(self, *args, **kwargs):
-        unittest.TestCase.__init__(self, *args, **kwargs)
-
+    def setUp(self):
         with open(inspect.getsourcefile(self.fodderModule)) as fp:
             self.source = fp.read()
 
@@ -571,7 +569,7 @@ class TestBuggyCases(GetSourceBase):
         self.assertSourceEqual(mod2.ClassWithMethod.method, 118, 119)
 
 class TestNoEOL(GetSourceBase):
-    def __init__(self, *args, **kwargs):
+    def setUp(self):
         self.tempdir = TESTFN + '_dir'
         os.mkdir(self.tempdir)
         with open(os.path.join(self.tempdir,
@@ -580,7 +578,7 @@ class TestNoEOL(GetSourceBase):
         with DirsOnSysPath(self.tempdir):
             import inspect_fodder3 as mod3
         self.fodderModule = mod3
-        GetSourceBase.__init__(self, *args, **kwargs)
+        super().setUp()
 
     def tearDown(self):
         shutil.rmtree(self.tempdir)
@@ -889,6 +887,21 @@ class TestClassesAndFunctions(unittest.TestCase):
         self.assertIn(should_find_dca, inspect.classify_class_attrs(VA))
         should_find_ga = inspect.Attribute('ham', 'data', Meta, 'spam')
         self.assertIn(should_find_ga, inspect.classify_class_attrs(VA))
+
+    def test_classify_overrides_bool(self):
+        class NoBool(object):
+            def __eq__(self, other):
+                return NoBool()
+
+            def __bool__(self):
+                raise NotImplementedError(
+                    "This object does not specify a boolean value")
+
+        class HasNB(object):
+            dd = NoBool()
+
+        should_find_attr = inspect.Attribute('dd', 'data', HasNB, HasNB.dd)
+        self.assertIn(should_find_attr, inspect.classify_class_attrs(HasNB))
 
     def test_classify_metaclass_class_attribute(self):
         class Meta(type):
@@ -1737,8 +1750,8 @@ class MyParameter(inspect.Parameter):
 
 class TestSignatureObject(unittest.TestCase):
     @staticmethod
-    def signature(func):
-        sig = inspect.signature(func)
+    def signature(func, **kw):
+        sig = inspect.signature(func, **kw)
         return (tuple((param.name,
                        (... if param.default is param.empty else param.default),
                        (... if param.annotation is param.empty
@@ -1793,7 +1806,7 @@ class TestSignatureObject(unittest.TestCase):
             S((pkd, pk))
 
         self.assertTrue(repr(sig).startswith('<Signature'))
-        self.assertTrue('"(po, pk' in repr(sig))
+        self.assertTrue('(po, pk' in repr(sig))
 
     def test_signature_object_pickle(self):
         def foo(a, b, *, c:1={}, **kw) -> {42:'ham'}: pass
@@ -1958,6 +1971,11 @@ class TestSignatureObject(unittest.TestCase):
         self.assertEqual(inspect.signature(func),
                          inspect.signature(decorated_func))
 
+        def wrapper_like(*args, **kwargs) -> int: pass
+        self.assertEqual(inspect.signature(decorated_func,
+                                           follow_wrapped=False),
+                         inspect.signature(wrapper_like))
+
     @cpython_only
     def test_signature_on_builtins_no_signature(self):
         import _testcapi
@@ -1967,13 +1985,6 @@ class TestSignatureObject(unittest.TestCase):
     def test_signature_on_non_function(self):
         with self.assertRaisesRegex(TypeError, 'is not a callable object'):
             inspect.signature(42)
-
-        with self.assertRaisesRegex(TypeError, 'is not a Python function'):
-            inspect.Signature.from_function(42)
-
-    def test_signature_from_builtin_errors(self):
-        with self.assertRaisesRegex(TypeError, 'is not a Python builtin'):
-            inspect.Signature.from_builtin(42)
 
     def test_signature_from_functionlike_object(self):
         def func(a,b, *args, kwonly=True, kwonlyreq, **kwargs):
@@ -1995,9 +2006,9 @@ class TestSignatureObject(unittest.TestCase):
             def __call__(self, *args, **kwargs):
                 return self.func(*args, **kwargs)
 
-        sig_func = inspect.Signature.from_function(func)
+        sig_func = inspect.Signature.from_callable(func)
 
-        sig_funclike = inspect.Signature.from_function(funclike(func))
+        sig_funclike = inspect.Signature.from_callable(funclike(func))
         self.assertEqual(sig_funclike, sig_func)
 
         sig_funclike = inspect.signature(funclike(func))
@@ -2044,9 +2055,6 @@ class TestSignatureObject(unittest.TestCase):
             __annotations__ = func.__annotations__
             __defaults__ = func.__defaults__
             __kwdefaults__ = func.__kwdefaults__
-
-        with self.assertRaisesRegex(TypeError, 'is not a Python function'):
-            inspect.Signature.from_function(funclike)
 
         self.assertEqual(str(inspect.signature(funclike)), '(marker)')
 
@@ -2385,6 +2393,13 @@ class TestSignatureObject(unittest.TestCase):
                          ((('a', ..., ..., "positional_or_keyword"),
                            ('b', ..., ..., "positional_or_keyword")),
                           ...))
+
+        self.assertEqual(self.signature(Foo.bar, follow_wrapped=False),
+                         ((('args', ..., ..., "var_positional"),
+                           ('kwargs', ..., ..., "var_keyword")),
+                          ...)) # functools.wraps will copy __annotations__
+                                # from "func" to "wrapper", hence no
+                                # return_annotation
 
         # Test that we handle method wrappers correctly
         def decorator(func):
@@ -2893,7 +2908,9 @@ class TestSignatureBind(unittest.TestCase):
             self.call(test, 1)
         with self.assertRaisesRegex(TypeError, 'too many positional arguments'):
             self.call(test, 1, spam=10)
-        with self.assertRaisesRegex(TypeError, 'too many keyword arguments'):
+        with self.assertRaisesRegex(
+            TypeError, "got an unexpected keyword argument 'spam'"):
+
             self.call(test, spam=1)
 
     def test_signature_bind_var(self):
@@ -2918,10 +2935,12 @@ class TestSignatureBind(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, 'too many positional arguments'):
             self.call(test, 1, 2, 3, 4)
 
-        with self.assertRaisesRegex(TypeError, "'b' parameter lacking default"):
+        with self.assertRaisesRegex(TypeError,
+                                    "missing a required argument: 'b'"):
             self.call(test, 1)
 
-        with self.assertRaisesRegex(TypeError, "'a' parameter lacking default"):
+        with self.assertRaisesRegex(TypeError,
+                                    "missing a required argument: 'a'"):
             self.call(test)
 
         def test(a, b, c=10):
@@ -2994,7 +3013,7 @@ class TestSignatureBind(unittest.TestCase):
         def test(a, *, foo=1, bar):
             return foo
         with self.assertRaisesRegex(TypeError,
-                                     "'bar' parameter lacking default value"):
+                                     "missing a required argument: 'bar'"):
             self.call(test, 1)
 
         def test(foo, *, bar):
@@ -3002,8 +3021,9 @@ class TestSignatureBind(unittest.TestCase):
         self.assertEqual(self.call(test, 1, bar=2), (1, 2))
         self.assertEqual(self.call(test, bar=2, foo=1), (1, 2))
 
-        with self.assertRaisesRegex(TypeError,
-                                     'too many keyword arguments'):
+        with self.assertRaisesRegex(
+            TypeError, "got an unexpected keyword argument 'spam'"):
+
             self.call(test, bar=2, foo=1, spam=10)
 
         with self.assertRaisesRegex(TypeError,
@@ -3014,12 +3034,13 @@ class TestSignatureBind(unittest.TestCase):
                                      'too many positional arguments'):
             self.call(test, 1, 2, bar=2)
 
-        with self.assertRaisesRegex(TypeError,
-                                     'too many keyword arguments'):
+        with self.assertRaisesRegex(
+            TypeError, "got an unexpected keyword argument 'spam'"):
+
             self.call(test, 1, bar=2, spam='ham')
 
         with self.assertRaisesRegex(TypeError,
-                                     "'bar' parameter lacking default value"):
+                                     "missing a required argument: 'bar'"):
             self.call(test, 1)
 
         def test(foo, *, bar, **bin):
@@ -3031,7 +3052,7 @@ class TestSignatureBind(unittest.TestCase):
         self.assertEqual(self.call(test, spam='ham', foo=1, bar=2),
                          (1, 2, {'spam': 'ham'}))
         with self.assertRaisesRegex(TypeError,
-                                     "'foo' parameter lacking default value"):
+                                    "missing a required argument: 'foo'"):
             self.call(test, spam='ham', bar=2)
         self.assertEqual(self.call(test, 1, bar=2, bin=1, spam=10),
                          (1, 2, {'bin': 1, 'spam': 10}))
@@ -3096,7 +3117,9 @@ class TestSignatureBind(unittest.TestCase):
             return a, args
         sig = inspect.signature(test)
 
-        with self.assertRaisesRegex(TypeError, "too many keyword arguments"):
+        with self.assertRaisesRegex(
+            TypeError, "got an unexpected keyword argument 'args'"):
+
             sig.bind(a=0, args=1)
 
         def test(*args, **kwargs):
@@ -3133,6 +3156,12 @@ class TestBoundArguments(unittest.TestCase):
         ba4 = inspect.signature(bar).bind(1)
         self.assertNotEqual(ba, ba4)
 
+        def foo(*, a, b): pass
+        sig = inspect.signature(foo)
+        ba1 = sig.bind(a=1, b=2)
+        ba2 = sig.bind(b=2, a=1)
+        self.assertEqual(ba1, ba2)
+
     def test_signature_bound_arguments_pickle(self):
         def foo(a, b, *, c:1={}, **kw) -> {42:'ham'}: pass
         sig = inspect.signature(foo)
@@ -3142,6 +3171,47 @@ class TestBoundArguments(unittest.TestCase):
             with self.subTest(pickle_ver=ver):
                 ba_pickled = pickle.loads(pickle.dumps(ba, ver))
                 self.assertEqual(ba, ba_pickled)
+
+    def test_signature_bound_arguments_repr(self):
+        def foo(a, b, *, c:1={}, **kw) -> {42:'ham'}: pass
+        sig = inspect.signature(foo)
+        ba = sig.bind(20, 30, z={})
+        self.assertRegex(repr(ba), r'<BoundArguments \(a=20,.*\}\}\)>')
+
+    def test_signature_bound_arguments_apply_defaults(self):
+        def foo(a, b=1, *args, c:1={}, **kw): pass
+        sig = inspect.signature(foo)
+
+        ba = sig.bind(20)
+        ba.apply_defaults()
+        self.assertEqual(
+            list(ba.arguments.items()),
+            [('a', 20), ('b', 1), ('args', ()), ('c', {}), ('kw', {})])
+
+        # Make sure that we preserve the order:
+        # i.e. 'c' should be *before* 'kw'.
+        ba = sig.bind(10, 20, 30, d=1)
+        ba.apply_defaults()
+        self.assertEqual(
+            list(ba.arguments.items()),
+            [('a', 10), ('b', 20), ('args', (30,)), ('c', {}), ('kw', {'d':1})])
+
+        # Make sure that BoundArguments produced by bind_partial()
+        # are supported.
+        def foo(a, b): pass
+        sig = inspect.signature(foo)
+        ba = sig.bind_partial(20)
+        ba.apply_defaults()
+        self.assertEqual(
+            list(ba.arguments.items()),
+            [('a', 20)])
+
+        # Test no args
+        def foo(): pass
+        sig = inspect.signature(foo)
+        ba = sig.bind()
+        ba.apply_defaults()
+        self.assertEqual(list(ba.arguments.items()), [])
 
 
 class TestSignaturePrivateHelpers(unittest.TestCase):

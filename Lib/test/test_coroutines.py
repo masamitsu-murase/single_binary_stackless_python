@@ -1,5 +1,5 @@
 import contextlib
-import gc
+import inspect
 import sys
 import types
 import unittest
@@ -86,6 +86,28 @@ class AsyncBadSyntaxTest(unittest.TestCase):
     def test_badsyntax_9(self):
         with self.assertRaisesRegex(SyntaxError, 'invalid syntax'):
             import test.badsyntax_async9
+
+
+class TokenizerRegrTest(unittest.TestCase):
+
+    def test_oneline_defs(self):
+        buf = []
+        for i in range(500):
+            buf.append('def i{i}(): return {i}'.format(i=i))
+        buf = '\n'.join(buf)
+
+        # Test that 500 consequent, one-line defs is OK
+        ns = {}
+        exec(buf, ns, ns)
+        self.assertEqual(ns['i499'](), 499)
+
+        # Test that 500 consequent, one-line defs *and*
+        # one 'async def' following them is OK
+        buf += '\nasync def foo():\n    return'
+        ns = {}
+        exec(buf, ns, ns)
+        self.assertEqual(ns['i499'](), 499)
+        self.assertTrue(inspect.iscoroutinefunction(ns['foo']))
 
 
 class CoroutineTest(unittest.TestCase):
@@ -185,8 +207,8 @@ class CoroutineTest(unittest.TestCase):
             await bar()
 
         f = foo()
-        self.assertEquals(f.send(None), 1)
-        self.assertEquals(f.send(None), 2)
+        self.assertEqual(f.send(None), 1)
+        self.assertEqual(f.send(None), 2)
         with self.assertRaises(StopIteration):
             f.send(None)
 
@@ -624,6 +646,27 @@ class CoroutineTest(unittest.TestCase):
 
         run_async(foo())
 
+    def test_with_13(self):
+        CNT = 0
+
+        class CM:
+            async def __aenter__(self):
+                1/0
+
+            async def __aexit__(self, *e):
+                return True
+
+        async def foo():
+            nonlocal CNT
+            CNT += 1
+            async with CM():
+                CNT += 1000
+            CNT += 10000
+
+        with self.assertRaises(ZeroDivisionError):
+            run_async(foo())
+        self.assertEqual(CNT, 1)
+
     def test_for_1(self):
         aiter_calls = 0
 
@@ -860,6 +903,20 @@ class CoroutineTest(unittest.TestCase):
         run_async(main())
         self.assertEqual(I, 20555255)
 
+    def test_for_7(self):
+        CNT = 0
+        class AI:
+            async def __aiter__(self):
+                1/0
+        async def foo():
+            nonlocal CNT
+            async for i in AI():
+                CNT += 1
+            CNT += 10
+        with self.assertRaises(ZeroDivisionError):
+            run_async(foo())
+        self.assertEqual(CNT, 0)
+
 
 class CoroAsyncIOCompatTest(unittest.TestCase):
 
@@ -968,13 +1025,5 @@ class CAPITest(unittest.TestCase):
             self.assertEqual(foo().send(None), 1)
 
 
-def test_main():
-    support.run_unittest(AsyncBadSyntaxTest,
-                         CoroutineTest,
-                         CoroAsyncIOCompatTest,
-                         SysSetCoroWrapperTest,
-                         CAPITest)
-
-
 if __name__=="__main__":
-    test_main()
+    unittest.main()

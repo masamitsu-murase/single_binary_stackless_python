@@ -1193,6 +1193,9 @@ are always available.  They are listed here in alphabetical order.
    The returned property object also has the attributes ``fget``, ``fset``, and
    ``fdel`` corresponding to the constructor arguments.
 
+   .. versionchanged:: 3.5
+      The docstrings of property objects are now writeable.
+
 
 .. _func-range:
 .. function:: range(stop)
@@ -1492,7 +1495,9 @@ are always available.  They are listed here in alphabetical order.
 
    The left-to-right evaluation order of the iterables is guaranteed. This
    makes possible an idiom for clustering a data series into n-length groups
-   using ``zip(*[iter(s)]*n)``.
+   using ``zip(*[iter(s)]*n)``.  This repeats the *same* iterator ``n`` times
+   so that each output tuple has the result of ``n`` calls to the iterator.
+   This has the effect of dividing the input into n-length chunks.
 
    :func:`zip` should only be used with unequal length inputs when you don't
    care about trailing, unmatched values from the longer iterables.  If those
