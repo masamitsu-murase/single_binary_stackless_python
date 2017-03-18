@@ -788,6 +788,17 @@ PyObject * slp_get_channel_callback(void);
      (task)->flags.ignore_nesting || \
      (ts->st.runflags & PY_WATCHDOG_IGNORE_NESTING))
 
+/* Interpreter shutdown and thread state access */
+PyObject * slp_getthreads(PyObject *self);
+#ifdef WITH_THREAD
+void slp_head_lock(void);
+void slp_head_unlock(void);
+#define SLP_HEAD_LOCK() slp_head_lock()
+#define SLP_HEAD_UNLOCK() slp_head_unlock()
+#else
+#define SLP_HEAD_LOCK() assert(1)
+#define SLP_HEAD_UNLOCK() assert(1)
+#endif
 
 #include "stackless_api.h"
 

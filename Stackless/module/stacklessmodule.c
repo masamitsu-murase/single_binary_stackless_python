@@ -732,10 +732,12 @@ get_thread_info(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "|lk:get_thread_info", &id, &flags))
         return NULL;
     if (id != -1) {
+        SLP_HEAD_LOCK();
         for (ts = interp->tstate_head; id && ts != NULL; ts = ts->next) {
             if (ts->thread_id == id)
                 break;
         }
+        SLP_HEAD_UNLOCK();
         if (ts == NULL)
             RUNTIME_ERROR("Thread id not found", NULL);
     }
@@ -1529,8 +1531,8 @@ These might need to be killed manually in order to free memory,\n\
 since their C stack might prevent garbage collection.\n\
 Note that a tasklet is reported for every C stacks it has.");
 
-static PyObject *
-slpmodule_getthreads(PyObject *self)
+PyObject *
+slp_getthreads(PyObject *self)
 {
     PyObject *lis = PyList_New(0);
     PyThreadState *ts = PyThreadState_GET();
@@ -1539,20 +1541,27 @@ slpmodule_getthreads(PyObject *self)
     if (lis == NULL)
         return NULL;
 
+    SLP_HEAD_LOCK();
     for (ts = interp->tstate_head; ts != NULL; ts = ts->next) {
         PyObject *id = PyLong_FromLong(ts->thread_id);
         if (id == NULL) {
+            SLP_HEAD_UNLOCK();
             Py_DECREF(lis);
             return NULL;
         }
         if (PyList_Append(lis, id)) {
+            SLP_HEAD_UNLOCK();
             Py_DECREF(lis);
             Py_DECREF(id);
             return NULL;
         }
         Py_DECREF(id);
     }
-    PyList_Reverse(lis);
+    SLP_HEAD_UNLOCK();
+    if(PyList_Reverse(lis)) {
+        Py_DECREF(lis);
+        return NULL;
+    }
     return lis;
 }
 
@@ -1625,7 +1634,7 @@ static PyMethodDef stackless_methods[] = {
     slpmodule_getdebug__doc__},
     {"getuncollectables",          (PCF)slpmodule_getuncollectables,    METH_NOARGS,
     slpmodule_getuncollectables__doc__},
-    {"getthreads",                 (PCF)slpmodule_getthreads,    METH_NOARGS,
+    {"getthreads",                 (PCF)slp_getthreads,    METH_NOARGS,
     slpmodule_getthreads__doc__},
     {NULL,                          NULL}       /* sentinel */
 };
