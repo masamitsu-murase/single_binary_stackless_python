@@ -141,6 +141,8 @@ PyStacklessState st;
     void (*on_delete)(void *);
     void *on_delete_data;
 
+    PyObject *coroutine_wrapper;
+
     /* XXX signal handlers should also be here */
 
 } PyThreadState;

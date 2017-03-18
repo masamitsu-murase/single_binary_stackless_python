@@ -147,6 +147,7 @@ PyAPI_FUNC(void) _PyErr_ChainExceptions(PyObject *, PyObject *, PyObject *);
 
 PyAPI_DATA(PyObject *) PyExc_BaseException;
 PyAPI_DATA(PyObject *) PyExc_Exception;
+PyAPI_DATA(PyObject *) PyExc_StopAsyncIteration;
 PyAPI_DATA(PyObject *) PyExc_StopIteration;
 #ifdef STACKLESS
 PyAPI_DATA(PyObject *) PyExc_TaskletExit;

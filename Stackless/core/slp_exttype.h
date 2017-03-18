@@ -43,6 +43,9 @@ typedef struct _slp_methodflags {
     signed char nb_index;
     signed char nb_matrix_multiply;
     signed char nb_inplace_matrix_multiply;
+    signed char am_await;
+    signed char am_aiter;
+    signed char am_anext;
     signed char sq_length;
     signed char sq_concat;
     signed char sq_repeat;

@@ -198,6 +198,7 @@ frame_setlineno(PyFrameObject *f, PyObject* p_new_lineno)
         case SETUP_EXCEPT:
         case SETUP_FINALLY:
         case SETUP_WITH:
+        case SETUP_ASYNC_WITH:
             blockstack[blockstack_top++] = addr;
             in_finally[blockstack_top-1] = 0;
             break;
@@ -205,7 +206,8 @@ frame_setlineno(PyFrameObject *f, PyObject* p_new_lineno)
         case POP_BLOCK:
             assert(blockstack_top > 0);
             setup_op = code[blockstack[blockstack_top-1]];
-            if (setup_op == SETUP_FINALLY || setup_op == SETUP_WITH) {
+            if (setup_op == SETUP_FINALLY || setup_op == SETUP_WITH
+                                    || setup_op == SETUP_ASYNC_WITH) {
                 in_finally[blockstack_top-1] = 1;
             }
             else {
@@ -220,7 +222,8 @@ frame_setlineno(PyFrameObject *f, PyObject* p_new_lineno)
              * be seeing such an END_FINALLY.) */
             if (blockstack_top > 0) {
                 setup_op = code[blockstack[blockstack_top-1]];
-                if (setup_op == SETUP_FINALLY || setup_op == SETUP_WITH) {
+                if (setup_op == SETUP_FINALLY || setup_op == SETUP_WITH
+                                    || setup_op == SETUP_ASYNC_WITH) {
                     blockstack_top--;
                 }
             }
@@ -283,6 +286,7 @@ frame_setlineno(PyFrameObject *f, PyObject* p_new_lineno)
         case SETUP_EXCEPT:
         case SETUP_FINALLY:
         case SETUP_WITH:
+        case SETUP_ASYNC_WITH:
             delta_iblock++;
             break;
 
