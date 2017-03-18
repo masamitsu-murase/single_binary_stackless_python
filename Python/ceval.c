@@ -1778,6 +1778,7 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
                 PyObject *exc = TOP();
                 if (PyLong_Check(exc))
                     exc = Py_None;
+                Py_INCREF(exc); /* Duplicating the exception on the stack */
                 PUSH(exc);
                 PUSH(retval);
                 /* XXX: The main loop contains a PREDICT(WITH_CLEANUP_FINISH);
