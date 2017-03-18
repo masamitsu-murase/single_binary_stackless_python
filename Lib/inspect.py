@@ -1033,7 +1033,9 @@ def getargspec(func):
     and keyword arguments are supported. getargspec() will raise ValueError
     if the func has either annotations or keyword arguments.
     """
-
+    warnings.warn("inspect.getargspec() is deprecated, "
+                  "use inspect.signature() instead", DeprecationWarning,
+                  stacklevel=2)
     args, varargs, varkw, defaults, kwonlyargs, kwonlydefaults, ann = \
         getfullargspec(func)
     if kwonlyargs or ann:
@@ -1057,6 +1059,8 @@ def getfullargspec(func):
     'annotations' is a dictionary mapping argument names to annotations.
 
     The first four items in the tuple correspond to getargspec().
+
+    This function is deprecated, use inspect.signature() instead.
     """
 
     try:

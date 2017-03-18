@@ -12,7 +12,7 @@ import keyword
 import re
 import sys
 import types
-from collections import UserDict
+from collections import UserDict, UserString, UserList
 from collections import ChainMap
 from collections import deque
 from collections.abc import Awaitable, Coroutine, AsyncIterator, AsyncIterable
@@ -22,6 +22,26 @@ from collections.abc import Set, MutableSet
 from collections.abc import Mapping, MutableMapping, KeysView, ItemsView
 from collections.abc import Sequence, MutableSequence
 from collections.abc import ByteString
+
+
+class TestUserObjects(unittest.TestCase):
+    def _superset_test(self, a, b):
+        self.assertGreaterEqual(
+            set(dir(a)),
+            set(dir(b)),
+            '{a} should have all the methods of {b}'.format(
+                a=a.__name__,
+                b=b.__name__,
+            ),
+        )
+    def test_str_protocol(self):
+        self._superset_test(UserString, str)
+
+    def test_list_protocol(self):
+        self._superset_test(UserList, list)
+
+    def test_dict_protocol(self):
+        self._superset_test(UserDict, dict)
 
 
 ################################################################################
@@ -1207,6 +1227,41 @@ class TestCollectionABCs(ABCTestCase):
         self.validate_abstract_methods(Sequence, '__contains__', '__iter__', '__len__',
             '__getitem__')
 
+    def test_Sequence_mixins(self):
+        class SequenceSubclass(Sequence):
+            def __init__(self, seq=()):
+                self.seq = seq
+
+            def __getitem__(self, index):
+                return self.seq[index]
+
+            def __len__(self):
+                return len(self.seq)
+
+        # Compare Sequence.index() behavior to (list|str).index() behavior
+        def assert_index_same(seq1, seq2, index_args):
+            try:
+                expected = seq1.index(*index_args)
+            except ValueError:
+                with self.assertRaises(ValueError):
+                    seq2.index(*index_args)
+            else:
+                actual = seq2.index(*index_args)
+                self.assertEqual(
+                    actual, expected, '%r.index%s' % (seq1, index_args))
+
+        for ty in list, str:
+            nativeseq = ty('abracadabra')
+            indexes = [-10000, -9999] + list(range(-3, len(nativeseq) + 3))
+            seqseq = SequenceSubclass(nativeseq)
+            for letter in set(nativeseq) | {'z'}:
+                assert_index_same(nativeseq, seqseq, (letter,))
+                for start in range(-3, len(nativeseq) + 3):
+                    assert_index_same(nativeseq, seqseq, (letter, start))
+                    for stop in range(-3, len(nativeseq) + 3):
+                        assert_index_same(
+                            nativeseq, seqseq, (letter, start, stop))
+
     def test_ByteString(self):
         for sample in [bytes, bytearray]:
             self.assertIsInstance(sample(), ByteString)
@@ -1848,7 +1903,8 @@ def test_main(verbose=None):
     NamedTupleDocs = doctest.DocTestSuite(module=collections)
     test_classes = [TestNamedTuple, NamedTupleDocs, TestOneTrickPonyABCs,
                     TestCollectionABCs, TestCounter, TestChainMap,
-                    TestOrderedDict, GeneralMappingTests, SubclassMappingTests]
+                    TestOrderedDict, GeneralMappingTests, SubclassMappingTests,
+                    TestUserObjects]
     support.run_unittest(*test_classes)
     support.run_doctest(collections, verbose)
 

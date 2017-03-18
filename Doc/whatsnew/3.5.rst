@@ -93,10 +93,16 @@ Implementation improvements:
   (:issue:`19977`).
 
 * :pep:`488`, the elimination of ``.pyo`` files.
+* :pep:`489`, multi-phase initialization of extension modules.
 
 Significantly Improved Library Modules:
 
-* None yet.
+* You may now pass bytes to the :mod:`tempfile` module's APIs and it will
+  return the temporary pathname as bytes instead of str.  It also accepts
+  a value of ``None`` on parameters where only str was accepted in the past to
+  do the right thing based on the types of the other inputs.  Two functions,
+  :func:`gettempdirb` and :func:`gettempprefixb`, have been added to go along
+  with this.  This behavior matches that of the :mod:`os` APIs.
 
 Security improvements:
 
@@ -209,6 +215,27 @@ against asynchronous signal reception.
    :pep:`475` -- Retry system calls failing with EINTR
 
 
+PEP 479: Change StopIteration handling inside generators
+--------------------------------------------------------
+
+:pep:`479` changes the behavior of generators: when a :exc:`StopIteration`
+exception is raised inside a generator, it is replaced with a
+:exc:`RuntimeError`.  To enable the feature a ``__future__`` import should
+be used::
+
+    from __future__ import generator_stop
+
+Without a ``__future__`` import, a :exc:`PendingDeprecationWarning` will be
+raised.
+
+PEP written by Chris Angelico and Guido van Rossum. Implemented by
+Chris Angelico, Yury Selivanov and Nick Coghlan.
+
+.. seealso::
+
+   :pep:`479` -- Change StopIteration handling inside generators
+
+
 PEP 486: Make the Python Launcher aware of virtual environments
 ---------------------------------------------------------------
 
@@ -238,6 +265,21 @@ updated API to help with this change.
 
    :pep:`488` -- Elimination of PYO files
 
+
+PEP 489: Multi-phase extension module initialization
+----------------------------------------------------
+
+:pep:`489` updates extension module initialization to take advantage of the
+two step module loading mechanism introduced by :pep:`451` in Python 3.4.
+
+This change brings the import semantics of extension modules that opt-in to
+using the new mechanism much closer to those of Python source and bytecode
+modules, including the ability to any valid identifier as a module name,
+rather than being restricted to ASCII.
+
+.. seealso::
+
+   :pep:`488` -- Multi-phase extension module initialization
 
 Other Language Changes
 ======================
@@ -394,6 +436,15 @@ glob
 * :func:`~glob.iglob` and :func:`~glob.glob` now support recursive search in
   subdirectories using the "``**``" pattern.
   (Contributed by Serhiy Storchaka in :issue:`13968`.)
+
+idlelib and IDLE
+----------------
+
+Since idlelib implements the IDLE shell and editor and is not intended for
+import by other programs, it gets improvements with every release. See
+:file:`Lib/idlelib/NEWS.txt` for a cumulative list of changes since 3.4.0,
+as well as changes made in future 3.5.x releases. This file is also available
+from the IDLE Help -> About Idle dialog.
 
 imaplib
 -------
@@ -638,6 +689,14 @@ time
 * The :func:`time.monotonic` function is now always available.  (Contributed by
   Victor Stinner in :issue:`22043`.)
 
+tkinter
+-------
+
+* The :mod:`tkinter._fix` module used for setting up the Tcl/Tk environment
+  on Windows has been replaced by a private function in the :mod:`_tkinter`
+  module which makes no permanent changes to environment variables.
+  (Contributed by Zachary Ware in :issue:`20035`.)
+
 types
 -----
 
@@ -785,6 +844,16 @@ Deprecated Python modules, functions and methods
   :class:`inspect.Signature` are deprecated.  Use new
   :meth:`inspect.Signature.from_callable` instead. (Contributed by Yury
   Selivanov in :issue:`24248`.)
+
+* :func:`inspect.getargspec` is deprecated and scheduled to be removed in
+  Python 3.6.  (See :issue:`20438` for details.)
+
+* :func:`~inspect.getfullargspec`, :func:`~inspect.getargvalues`,
+  :func:`~inspect.getcallargs`, :func:`~inspect.getargvalues`,
+  :func:`~inspect.formatargspec`, and :func:`~inspect.formatargvalues` are
+  deprecated in favor of :func:`inspect.signature` API.  (See :issue:`20438`
+  for details.)
+
 
 Deprecated functions and types of the C API
 -------------------------------------------
@@ -967,7 +1036,6 @@ Changes in the Python API
   module level :data:`stderr` variable for debug output.  If your (test)
   program depends on patching the module level variable to capture the debug
   output, you will need to update it to capture sys.stderr instead.
-
 
 Changes in the C API
 --------------------

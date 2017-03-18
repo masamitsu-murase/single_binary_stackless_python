@@ -2,6 +2,18 @@
 Python News
 +++++++++++
 
+What's New in Python 3.5.0 beta 2?
+==================================
+
+Release date: 2015-07-05
+
+Core and Builtins
+-----------------
+
+Library
+-------
+
+
 What's New in Python 3.5.0 beta 1?
 ==================================
 
@@ -9,6 +21,13 @@ Release date: 2015-05-24
 
 Core and Builtins
 -----------------
+
+- Issue #24276: Fixed optimization of property descriptor getter.
+
+- Issue #24268: PEP 489: Multi-phase extension module initialization
+
+- Issue #23955: Add pyvenv.cfg option to suppress registry/environment
+  lookup for generating sys.path on Windows.
 
 - Issue #24257: Fixed system error in the comparison of faked
   types.SimpleNamespace.
@@ -57,6 +76,29 @@ Core and Builtins
 
 Library
 -------
+
+- Issue #14373: Added C implementation of functools.lru_cache().  Based on
+  patches by Matt Joiner and Alexey Kachayev.
+
+- Issue 24230: The tempfile module now accepts bytes for prefix, suffix and dir
+  parameters and returns bytes in such situations (matching the os module APIs).
+
+- Issue #22189: collections.UserString now supports __getnewargs__(),
+  __rmod__(), casefold(), format_map(), isprintable(), and maketrans().
+  Patch by Joe Jevnik.
+
+- Issue 24244: Prevents termination when an invalid format string is
+  encountered on Windows in strftime.
+
+- Issue #23973: PEP 484: Add the typing module.
+
+- Issue #23086: The collections.abc.Sequence() abstract base class added
+  *start* and *stop* parameters to the index() mixin.
+  Patch by Devin Jeanpierre.
+
+- Issue #20035: Replaced the ``tkinter._fix`` module used for setting up the
+  Tcl/Tk environment on Windows with a private function in the ``_tkinter``
+  module that makes no permanent changes to the environment.
 
 - Issue #24257: Fixed segmentation fault in sqlite3.Row constructor with faked
   cursor type.
@@ -202,6 +244,12 @@ Library
 - Issue #23898: Fix inspect.classify_class_attrs() to support attributes
   with overloaded __eq__ and __bool__.  Patch by Mike Bayer.
 
+IDLE
+----
+
+- Issue #23184: remove unused names and imports in idlelib.
+  Initial patch by Al Sweigart.
+
 Tests
 -----
 
@@ -299,6 +347,8 @@ Library
 - Issue #21217: inspect.getsourcelines() now tries to compute the start and end
   lines from the code object, fixing an issue when a lambda function is used as
   decorator argument. Patch by Thomas Ballinger and Allison Kaptur.
+
+- Issue #22931: Allow '[' and ']' in cookie values.
 
 - The keywords attribute of functools.partial is now always a dictionary.
 
