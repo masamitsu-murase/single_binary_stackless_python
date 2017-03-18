@@ -67,16 +67,20 @@ cstack_dealloc(PyCStackObject *cst)
     slp_cstack_chain = cst;
     SLP_CHAIN_REMOVE(PyCStackObject, &slp_cstack_chain, cst, next,
                      prev);
+#ifdef Py_REF_DEBUG
+    PyObject_Del(cst);
+#else
     if (Py_SIZE(cst) >= CSTACK_SLOTS) {
         PyObject_Del(cst);
     }
     else {
         if (cstack_cachecount >= CSTACK_MAXCACHE)
             slp_cstack_cacheclear();
-    cst->startaddr = (intptr_t *) cstack_cache[Py_SIZE(cst)];
+        cst->startaddr = (intptr_t *) cstack_cache[Py_SIZE(cst)];
         cstack_cache[Py_SIZE(cst)] = cst;
         ++cstack_cachecount;
     }
+#endif
 }
 
 
@@ -201,7 +205,7 @@ cstack_str(PyObject *o)
     PyCStackObject *cst = (PyCStackObject*)o;
     return PyUnicode_Decode((char*)&cst->stack,
         Py_SIZE(cst)*sizeof(cst->stack[0]),
-		"latin_1", "strict");
+        "latin_1", "strict");
 }
 
 PyTypeObject PyCStack_Type = {
@@ -1043,7 +1047,7 @@ gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result)
 
     /* If the generator just returned (as opposed to yielding), signal
      * that the generator is exhausted. */
-	if (result && f->f_stacktop == NULL) {
+    if (result && f->f_stacktop == NULL) {
         if (result == Py_None) {
             /* Delay exception instantiation if we can */
             PyErr_SetNone(PyExc_StopIteration);
