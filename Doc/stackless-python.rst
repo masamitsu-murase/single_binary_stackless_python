@@ -19,8 +19,8 @@ then you have installed |SLP| rather than |CPY|\ [#CPY]_.
 
 __ http://www.stackless.com
 
-Overview
-========
+Overview / API
+==============
 
 Unless actual use is made of the enhanced functionality that Stackless adds
 to |CPY|, Stackless will behave exactly the same as |CPY| would and is used
@@ -31,6 +31,7 @@ through the :mod:`stackless` module.
 .. toctree::
    :maxdepth: 3
 
+   whatsnew/stackless.rst
    library/stackless/stackless.rst
    c-api/stackless.rst
 
