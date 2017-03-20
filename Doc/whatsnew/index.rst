@@ -11,6 +11,7 @@ anyone wishing to stay up-to-date after a new release.
 .. toctree::
    :maxdepth: 2
 
+   stackless.rst
    2.7.rst
    2.6.rst
    2.5.rst
