@@ -31,7 +31,9 @@ Just follow the build instructions for regular Python. If you define
 the C-preprocessor symbol STACKLESS_OFF, you get a Python interpreter
 without Stackless. It should behave exactly like the corresponding
 version of regular Python. Any difference constitutes a bug.
-
+(Windows 64bit only: if you define STACKLESS_OFF, you also need
+to clear the content of the file Stackless\platf\switch_x64_masm.asm:
+  c:\> echo END > Stackless\platf\switch_x64_masm.asm )
 
 Contributing
 ------------
