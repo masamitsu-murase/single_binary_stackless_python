@@ -49,6 +49,7 @@ except:
     withThreads = False
 from support import test_main  # @UnusedImport
 from support import StacklessTestCase
+from textwrap import dedent
 
 
 @unittest.skipUnless(withThreads, "requires thread support")
@@ -134,7 +135,9 @@ class TestShutdown(StacklessTestCase):
         if not stackless.enable_softswitch(None):
             args.append("--hard")
 
-        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", """from __future__ import print_function, absolute_import\nif 1:
+        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", dedent("""
+            from __future__ import print_function, absolute_import
+
             import threading
             import stackless
             import time
@@ -162,7 +165,7 @@ class TestShutdown(StacklessTestCase):
             # print("end")
             sys.stdout.flush()
             sys.exit(42)
-            """] + args)
+            """)] + args)
         self.assertEqual(rc, 42)
 
     def test_deep_tasklets(self):
@@ -172,7 +175,9 @@ class TestShutdown(StacklessTestCase):
         if not stackless.enable_softswitch(None):
             args.append("--hard")
 
-        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", """from __future__ import print_function, absolute_import\nif 1:
+        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", dedent("""
+            from __future__ import print_function, absolute_import
+
             import stackless
             import sys
             from stackless import _test_nostacklesscall as apply
@@ -198,7 +203,7 @@ class TestShutdown(StacklessTestCase):
             # print("end")
             sys.stdout.flush()
             sys.exit(42)
-            """] + args)
+            """)] + args)
         self.assertEqual(rc, 42)
 
     def test_exit_in_deep_tasklet1(self):
@@ -208,7 +213,9 @@ class TestShutdown(StacklessTestCase):
         if not stackless.enable_softswitch(None):
             args.append("--hard")
 
-        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", """from __future__ import print_function, absolute_import\nif 1:
+        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", dedent("""
+            from __future__ import print_function, absolute_import
+
             import stackless
             import sys
             from stackless import _test_nostacklesscall as apply
@@ -240,7 +247,7 @@ class TestShutdown(StacklessTestCase):
             print("OOPS, must not be reached")
             sys.stdout.flush()
             sys.exit(44)
-            """] + args)
+            """)] + args)
         self.assertEqual(rc, 42)
 
     def test_exit_in_deep_tasklet2(self):
@@ -250,7 +257,9 @@ class TestShutdown(StacklessTestCase):
         if not stackless.enable_softswitch(None):
             args.append("--hard")
 
-        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", """from __future__ import print_function, absolute_import\nif 1:
+        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", dedent("""
+            from __future__ import print_function, absolute_import
+
             import stackless
             import sys
             from stackless import _test_nostacklesscall as apply
@@ -287,7 +296,7 @@ class TestShutdown(StacklessTestCase):
             print("OOPS, must not be reached")
             sys.stdout.flush()
             sys.exit(44)
-            """] + args)
+            """)] + args)
         self.assertEqual(rc, 42)
 
     def test_deep_Py_Exit(self):
@@ -301,7 +310,9 @@ class TestShutdown(StacklessTestCase):
         if not stackless.enable_softswitch(None):
             args.append("--hard")
 
-        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", """from __future__ import print_function, absolute_import\nif 1:
+        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", dedent("""
+            from __future__ import print_function, absolute_import
+
             import stackless
             import sys
             import ctypes
@@ -328,7 +339,7 @@ class TestShutdown(StacklessTestCase):
             print("OOPS, must not be reached")
             sys.stdout.flush()
             sys.exit(43)
-            """] + args)
+            """)] + args)
         self.assertEqual(rc, 42)
 
     @unittest.skipUnless(withThreads, "requires thread support")
@@ -343,7 +354,9 @@ class TestShutdown(StacklessTestCase):
         if not stackless.enable_softswitch(None):
             args.append("--hard")
 
-        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", """from __future__ import print_function, absolute_import\nif 1:
+        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", dedent("""
+            from __future__ import print_function, absolute_import
+
             import stackless
             import sys
             import ctypes
@@ -359,6 +372,7 @@ class TestShutdown(StacklessTestCase):
 
             def exit():
                 # print("Calling Py_Exit(42)")
+                time.sleep(0.01)
                 sys.stdout.flush()
                 Py_Exit(42)
 
@@ -370,7 +384,7 @@ class TestShutdown(StacklessTestCase):
             print("OOPS, must not be reached")
             sys.stdout.flush()
             sys.exit(43)
-            """] + args)
+            """)] + args)
         self.assertEqual(rc, 42)
 
     @unittest.skipUnless(withThreads, "requires thread support")
@@ -381,7 +395,9 @@ class TestShutdown(StacklessTestCase):
         if not stackless.enable_softswitch(None):
             args.append("--hard")
 
-        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", """from __future__ import print_function, absolute_import, division\nif 1:
+        rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", dedent("""
+            from __future__ import print_function, absolute_import, division
+
             import threading
             import stackless
             import time
@@ -445,7 +461,7 @@ class TestShutdown(StacklessTestCase):
             event.wait(5.0)
             print("end")
             sys.exit(42)
-        """] + args)
+        """)] + args)
         self.assertEqual(rc, 42)
 
 
