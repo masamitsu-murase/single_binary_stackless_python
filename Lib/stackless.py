@@ -73,7 +73,14 @@ def transmogrify():
     this function creates a subclass of the ModuleType with properties.
     Stackless has historically had module properties, something very unusual in Python.
     We need to do that by replacing the current module object as it is being created
+
+    Additionally this function performs a few initialisations.
     """
+    from copyreg import pickle
+    for name in dir(_wrap):
+        cls = getattr(_wrap, name, None)
+        if isinstance(cls, type):
+            pickle(cls.__bases__[0], cls.__reduce__)
 
     class StacklessModuleType(types.ModuleType):
 

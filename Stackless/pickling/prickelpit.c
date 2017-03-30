@@ -179,7 +179,6 @@ static struct _typeobject wrap_##type = { \
 };
 
 static PyObject *types_mod = NULL;
-static PyObject *pickle_reg = NULL;
 
 static struct PyMethodDef _new_methoddef[] = {
     {"__new__", (PyCFunction)_new_wrapper, METH_VARARGS | METH_KEYWORDS,
@@ -192,8 +191,7 @@ static int init_type(PyTypeObject *t, int (*initchain)(void))
 {
     PyMethodDescrObject *reduce;
     PyWrapperDescrObject *init;
-    PyObject *retval = NULL, *func;
-    int ret = 0;
+    PyObject *func;
     const char *name = strrchr(t->tp_name, '.')+1;
 
     /* we patch the type to use *our* name, which makes no difference */
@@ -216,15 +214,9 @@ static int init_type(PyTypeObject *t, int (*initchain)(void))
     func = PyCFunction_New(_new_methoddef, (PyObject *)t);
     if (func == NULL || PyDict_SetItemString(t->tp_dict, "__new__", func))
         return -1;
-    /* register with copy_reg */
-    if (pickle_reg != NULL &&
-        (retval = PyObject_CallFunction(pickle_reg, "OO",
-                                        t->tp_base, reduce)) == NULL)
-        ret = -1;
-    Py_XDECREF(retval);
-    if (ret == 0 && initchain != NULL)
-        ret = initchain();
-    return ret;
+    if (initchain != NULL)
+        return initchain();
+    return 0;
 }
 
 /* root of init function chain */
@@ -2491,29 +2483,15 @@ static struct PyModuleDef _wrapmodule = {
 PyObject*
 init_prickelpit(void)
 {
-    PyObject *copy_reg, *tmp;
+    PyObject *tmp;
 
     types_mod = PyModule_Create(&_wrapmodule);
     if (types_mod == NULL)
         return NULL;
-    copy_reg = PyImport_ImportModule("copyreg");
-    if (copy_reg == NULL) {
-        Py_CLEAR(types_mod);
-        return NULL;
-    }
-
-    pickle_reg = PyObject_GetAttrString(copy_reg, "pickle");
-    Py_DECREF(copy_reg);
-    if (pickle_reg == NULL) {
-        Py_CLEAR(types_mod);
-        return NULL;
-    }
     if (initchain()) {
-        Py_CLEAR(pickle_reg);
         Py_CLEAR(types_mod);
         return NULL;
     }
-    Py_CLEAR(pickle_reg);
     tmp = types_mod;
     types_mod = NULL;
     return tmp;
