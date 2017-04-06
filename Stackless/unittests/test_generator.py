@@ -90,7 +90,10 @@ class TestGeneratorPickling(StacklessTestCase):
         self.assertEqual(gen_new.__name__, "exhausted_generator")
         self.assertIs(type(gen_new), stackless._wrap.generator)
 
-        gen_new.__setstate__(r[2][:-2])
+        # build the pre 3.5 argument tuple for __setstate__
+        r = r[2][:-2]
+        r = (r[0].frame,) + r[1:]
+        gen_new.__setstate__(r)
 
         self.assertEqual(gen_new.__qualname__, "g")
         self.assertEqual(gen_new.__name__, "g")

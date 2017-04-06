@@ -179,7 +179,36 @@ static struct _typeobject wrap_##type = { \
 };
 
 static PyObject *types_mod = NULL;
-static PyObject *pickle_reg = NULL;
+static PyObject *reduce_frame_func = NULL;
+
+PyDoc_STRVAR(set_reduce_frame__doc__,
+"set_reduce_frame(func) -- set the function used to reduce frames during pickling.\n"
+"The function takes a frame as its sole argument and must return a pickleable object.\n");
+
+static PyObject *
+set_reduce_frame(PyObject *self, PyObject *func)
+{
+    if (func == Py_None) {
+        Py_CLEAR(reduce_frame_func);
+    } else {
+        if (!PyCallable_Check(func)) {
+            TYPE_ERROR("func must be callable", NULL);
+        }
+        Py_INCREF(func);
+        Py_XSETREF(reduce_frame_func, func);
+    }
+    Py_RETURN_NONE;
+}
+
+PyObject *
+slp_reduce_frame(PyFrameObject * frame) {
+    if (!PyFrame_Check(frame) || reduce_frame_func == NULL) {
+        Py_INCREF(frame);
+        return (PyObject *)frame;
+    }
+    return PyObject_CallFunctionObjArgs(reduce_frame_func, (PyObject *)frame, NULL);
+}
+
 
 static struct PyMethodDef _new_methoddef[] = {
     {"__new__", (PyCFunction)_new_wrapper, METH_VARARGS | METH_KEYWORDS,
@@ -192,8 +221,7 @@ static int init_type(PyTypeObject *t, int (*initchain)(void))
 {
     PyMethodDescrObject *reduce;
     PyWrapperDescrObject *init;
-    PyObject *retval = NULL, *func;
-    int ret = 0;
+    PyObject *func;
     const char *name = strrchr(t->tp_name, '.')+1;
 
     /* we patch the type to use *our* name, which makes no difference */
@@ -216,15 +244,9 @@ static int init_type(PyTypeObject *t, int (*initchain)(void))
     func = PyCFunction_New(_new_methoddef, (PyObject *)t);
     if (func == NULL || PyDict_SetItemString(t->tp_dict, "__new__", func))
         return -1;
-    /* register with copy_reg */
-    if (pickle_reg != NULL &&
-        (retval = PyObject_CallFunction(pickle_reg, "OO",
-                                        t->tp_base, reduce)) == NULL)
-        ret = -1;
-    Py_XDECREF(retval);
-    if (ret == 0 && initchain != NULL)
-        ret = initchain();
-    return ret;
+    if (initchain != NULL)
+        return initchain();
+    return 0;
 }
 
 /* root of init function chain */
@@ -1164,13 +1186,19 @@ static PyObject *
 tb_reduce(tracebackobject * tb)
 {
     PyObject *tup = NULL;
-    char *fmt = "(O()(OiiO))";
+    PyObject *frame_reducer;
+    const char *fmt = "(O()(OiiO))";
 
     if (tb->tb_next == NULL)
         fmt = "(O()(Oii))";
+    frame_reducer = slp_reduce_frame(tb->tb_frame);
+    if (frame_reducer == NULL)
+        return NULL;
+
     tup = Py_BuildValue(fmt,
                         &wrap_PyTraceBack_Type,
-                        tb->tb_frame, tb->tb_lasti, tb->tb_lineno, tb->tb_next);
+                        frame_reducer, tb->tb_lasti, tb->tb_lineno, tb->tb_next);
+    Py_DECREF(frame_reducer);
     return tup;
 }
 
@@ -2250,13 +2278,18 @@ static PyObject *
 gen_reduce(PyGenObject *gen)
 {
     PyObject *tup;
+    PyObject *frame_reducer;
+    frame_reducer = slp_reduce_frame(gen->gi_frame);
+    if (frame_reducer == NULL)
+        return NULL;
     tup = Py_BuildValue("(O()(OiOO))",
                         &wrap_PyGen_Type,
-                        gen->gi_frame,
+                        frame_reducer,
                         gen->gi_running,
                         gen->gi_name,
                         gen->gi_qualname
                         );
+    Py_DECREF(frame_reducer);
     return tup;
 }
 
@@ -2486,6 +2519,7 @@ static int
 _wrapmodule_traverse(PyObject *self, visitproc visit, void *arg)
 {
     Py_VISIT(gen_exhausted_frame);
+    Py_VISIT(reduce_frame_func);
     return 0;
 }
 
@@ -2493,15 +2527,21 @@ static int
 _wrapmodule_clear(PyObject *self)
 {
     Py_CLEAR(gen_exhausted_frame);
+    Py_CLEAR(reduce_frame_func);
     return 0;
 }
+
+static PyMethodDef _wrapmodule_methods[] = {
+    {"set_reduce_frame", set_reduce_frame, METH_O, set_reduce_frame__doc__},
+    {NULL,                          NULL}       /* sentinel */
+};
 
 static struct PyModuleDef _wrapmodule = {
     PyModuleDef_HEAD_INIT,
     "_stackless._wrap",
     NULL,
     -1,
-    NULL,
+    _wrapmodule_methods,
     NULL,
     _wrapmodule_traverse,
     _wrapmodule_clear,
@@ -2511,29 +2551,15 @@ static struct PyModuleDef _wrapmodule = {
 PyObject*
 init_prickelpit(void)
 {
-    PyObject *copy_reg, *tmp;
+    PyObject *tmp;
 
     types_mod = PyModule_Create(&_wrapmodule);
     if (types_mod == NULL)
         return NULL;
-    copy_reg = PyImport_ImportModule("copyreg");
-    if (copy_reg == NULL) {
-        Py_CLEAR(types_mod);
-        return NULL;
-    }
-
-    pickle_reg = PyObject_GetAttrString(copy_reg, "pickle");
-    Py_DECREF(copy_reg);
-    if (pickle_reg == NULL) {
-        Py_CLEAR(types_mod);
-        return NULL;
-    }
     if (initchain()) {
-        Py_CLEAR(pickle_reg);
         Py_CLEAR(types_mod);
         return NULL;
     }
-    Py_CLEAR(pickle_reg);
     tmp = types_mod;
     types_mod = NULL;
     return tmp;

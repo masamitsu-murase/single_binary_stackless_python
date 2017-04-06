@@ -442,7 +442,14 @@ tasklet_reduce(PyTaskletObject * t)
                 goto err_exit;
         }
         if (append_frame) {
-            if (PyList_Append(lis, (PyObject *) f)) goto err_exit;
+            int ret;
+            PyObject * frame_reducer = slp_reduce_frame(f);
+            if (frame_reducer == NULL)
+                goto err_exit;
+            ret = PyList_Append(lis, frame_reducer);
+            Py_DECREF(frame_reducer);
+            if (ret)
+                goto err_exit;
         }
         f = f->f_back;
     }
@@ -1486,8 +1493,8 @@ tasklet_get_frame(PyTaskletObject *task)
 {
     PyObject *ret = (PyObject*) PyTasklet_GetFrame(task);
     if (ret)
-		return ret;
-	Py_RETURN_NONE;
+        return ret;
+    Py_RETURN_NONE;
 }
 
 PyObject *

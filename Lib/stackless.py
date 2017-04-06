@@ -73,7 +73,53 @@ def transmogrify():
     this function creates a subclass of the ModuleType with properties.
     Stackless has historically had module properties, something very unusual in Python.
     We need to do that by replacing the current module object as it is being created
+
+    Additionally this function performs a few initialisations.
     """
+    from copyreg import pickle
+    for name in dir(_wrap):
+        cls = getattr(_wrap, name, None)
+        if isinstance(cls, type) and cls.__name__ != "frame":
+            pickle(cls.__bases__[0], cls.__reduce__)
+
+    try:
+        # in case of reload(stackless)
+        reduce_frame = _wrap.reduce_frame
+    except AttributeError:
+        from weakref import WeakValueDictionary
+
+        wrap_set_reduce_frame = _wrap.set_reduce_frame
+
+        def set_reduce_frame(func):
+            wrap_set_reduce_frame(func)
+            _wrap.reduce_frame = func
+
+        _wrap.set_reduce_frame = set_reduce_frame
+
+        wrap_frame__reduce = _wrap.frame.__reduce__
+        cache = WeakValueDictionary()
+
+        class _Frame_Wrapper(object):
+            """Wrapper for frames to be pickled"""
+            __slots__ = ('__weakref__', 'frame')
+
+            @classmethod
+            def reduce_frame(cls, frame):
+                oid = id(frame)
+                try:
+                    return cache[oid]
+                except KeyError:
+                    cache[oid] = reducer = cls(frame)
+                    return reducer
+
+            def __init__(self, frame):
+                self.frame = frame
+
+            def __reduce__(self):
+                return wrap_frame__reduce(self.frame)
+        reduce_frame = _Frame_Wrapper.reduce_frame
+    _wrap.set_reduce_frame(reduce_frame)
+
 
     class StacklessModuleType(types.ModuleType):
 

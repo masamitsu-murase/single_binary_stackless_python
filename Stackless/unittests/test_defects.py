@@ -14,7 +14,8 @@ except:
 
 from stackless import _test_nostacklesscall as apply_not_stackless
 from support import test_main  # @UnusedImport
-from support import StacklessTestCase, captured_stderr, require_one_thread
+from support import (StacklessTestCase, captured_stderr, require_one_thread,
+                     get_reduce_frame)
 
 
 """
@@ -236,6 +237,7 @@ class TestCrashUponFrameUnpickling(StacklessTestCase):
         frameType = type(frame)
         while frame and frame.f_back:
             frame = frame.f_back
+        frame = get_reduce_frame()(frame)
         p = pickle.dumps(frame, -1)
         frame = None
         frame = pickle.loads(p)

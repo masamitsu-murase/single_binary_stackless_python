@@ -7,7 +7,7 @@ import inspect
 from stackless import schedule, tasklet, stackless
 
 from support import test_main  # @UnusedImport
-from support import StacklessTestCase, StacklessPickleTestCase
+from support import StacklessTestCase, StacklessPickleTestCase, get_reduce_frame
 
 
 # because test runner instances in the testsuite contain copies of the old stdin/stdout thingies,
@@ -494,6 +494,14 @@ class TestPickledTasklets(StacklessPickleTestCase):
 
 
 class TestFramePickling(StacklessTestCase):
+    def test_get_set_reduce_frame(self):
+        # test setting / getting the reduce frame function
+        rf = get_reduce_frame()
+        self.assertTrue(callable(rf))
+        stackless._wrap.set_reduce_frame(None)
+        self.assertIsNone(get_reduce_frame())
+        stackless._wrap.set_reduce_frame(rf)
+        self.assertIs(get_reduce_frame(), rf)
 
     def testLocalplus(self):
         result = []
@@ -607,6 +615,7 @@ class TestTraceback(StacklessPickleTestCase):
         p = self.dumps(tb)
         tb2 = self.loads(p)
         # basics
+        innerframes_orig = inspect.getinnerframes(tb)
         self.assertIs(type(tb), type(tb2))
         self.assertIsNot(tb, tb2)
         innerframes = inspect.getinnerframes(tb2)

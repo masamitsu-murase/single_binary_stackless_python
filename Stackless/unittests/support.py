@@ -747,6 +747,14 @@ class AsTaskletTestCase(StacklessTestCase):
         return result
 
 
+def get_reduce_frame():
+    """counterpart to stackless._wrap.set_reduce_frame()
+
+    Only for testing!
+    """
+    return getattr(stackless._wrap, "reduce_frame", None)
+
+
 def test_main():
     """Main function for the CPython :mod:`test.regrtest` test driver.
 

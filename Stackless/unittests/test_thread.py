@@ -235,6 +235,9 @@ class TestRebindCrash(SkipMixin, StacklessTestCase):
                     frameList[i] = newFrame
         # rebind the task
         task = reducedTask[0](*reducedTask[1])
+        for i in range(len(reducedTask[2][3])):
+            if not isinstance(reducedTask[2][3][i], stackless.cframe):
+                reducedTask[2][3][i] = reducedTask[2][3][i].frame
         task.__setstate__(reducedTask[2])
         return task
 
