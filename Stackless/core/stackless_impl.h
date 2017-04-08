@@ -405,8 +405,6 @@ struct _frame * slp_clone_frame(struct _frame *f);
 struct _frame * slp_ensure_new_frame(struct _frame *f);
 
 /* exposing some hidden types */
-PyObject * slp_gen_send_ex(PyGenObject *gen, PyObject *arg, int exc);
-
 PyAPI_DATA(PyTypeObject) PyMethodDescr_Type;
 PyAPI_DATA(PyTypeObject) PyClassMethodDescr_Type;
 

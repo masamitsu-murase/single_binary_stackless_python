@@ -64,12 +64,24 @@ gen_dealloc(PyGenObject *gen)
 }
 
 #ifdef STACKLESS
-PyObject *slp_gen_send_ex(PyGenObject *gen, PyObject *arg, int exc);
-#define gen_send_ex slp_gen_send_ex
-#else
+/*
+ * Note:
+ * Generators are quite a bit slower in Stackless, because
+ * we are jumping in and out so much.
+ * I had an implementation with no extra cframe, but it
+ * was not faster, but considerably slower than this solution.
+ */
+
+static PyObject* gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result);
+#endif
+
 static PyObject *
 gen_send_ex(PyGenObject *gen, PyObject *arg, int exc)
 {
+#ifdef STACKLESS
+    STACKLESS_GETARG();
+    PyFrameObject *stopframe;
+#endif
     PyThreadState *tstate = PyThreadState_GET();
     PyFrameObject *f = gen->gi_frame;
     PyObject *result;
@@ -93,7 +105,32 @@ gen_send_ex(PyGenObject *gen, PyObject *arg, int exc)
                             "just-started generator");
             return NULL;
         }
+    }
+#ifdef STACKLESS
+    if (f->f_back == NULL) {
+        /* It is the first call of gen_send_ex for this generator */
+        f->f_back = (PyFrameObject *) slp_cframe_new(gen_iternext_callback, 0);
+        if (f->f_back == NULL)
+            return NULL;
     } else {
+        /* The generator already has a gen_iternext_callback cframe */
+        assert(PyCFrame_Check(f->f_back));
+        assert(((PyCFrameObject *)f->f_back)->f_execute == gen_iternext_callback);
+    }
+
+    /* The if(gen->gi_running)... guard at the beginning of this function
+     * and the code in gen_iternext_callback guarantee that the
+     * cframe f->f_back is clean.
+     */
+    assert(f->f_back->f_back == NULL);
+    assert(((PyCFrameObject *)f->f_back)->ob1 == NULL);
+    assert(((PyCFrameObject *)f->f_back)->ob2 == NULL);
+
+    if (f->f_lasti != -1)
+#else
+    else
+#endif
+    {
         /* Push arg onto the frame's value stack */
         result = arg ? arg : Py_None;
         Py_INCREF(result);
@@ -102,6 +139,7 @@ gen_send_ex(PyGenObject *gen, PyObject *arg, int exc)
 
     /* Generators always return to their most recent caller, not
      * necessarily their creator. */
+#ifndef STACKLESS
     Py_XINCREF(tstate->frame);
     assert(f->f_back == NULL);
     f->f_back = tstate->frame;
@@ -115,7 +153,60 @@ gen_send_ex(PyGenObject *gen, PyObject *arg, int exc)
      * cycle. */
     assert(f->f_back == tstate->frame);
     Py_CLEAR(f->f_back);
+#else
+    stopframe = SLP_CURRENT_FRAME(tstate);
+    Py_XINCREF(stopframe);
+    f->f_back->f_back = stopframe;
 
+    gen->gi_running = 1;
+
+    f->f_execute = PyEval_EvalFrameEx_slp;
+
+    Py_INCREF(gen);
+    Py_XINCREF(arg);
+    ((PyCFrameObject *) f->f_back)->ob1 = (PyObject *) gen;
+    ((PyCFrameObject *) f->f_back)->ob2 = arg;
+
+    if (exc)
+        result = NULL;
+    else {
+        result = Py_None;
+        Py_INCREF(result);
+    }
+
+    if (stackless) {
+        assert(exc == 0);
+        SLP_STORE_NEXT_FRAME(tstate, f);
+        return STACKLESS_PACK(tstate, result);
+    }
+    SLP_SET_CURRENT_FRAME(tstate, f);
+    Py_INCREF(f);  /* f is a borrowed ref */
+    Py_XINCREF(stopframe);  /* f is a borrowed ref */
+    result = slp_frame_dispatch(f, stopframe, exc, result);
+    Py_XDECREF(stopframe);
+    Py_DECREF(f);
+    return result;
+}
+
+static PyObject*
+gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result)
+{
+    PyThreadState *ts = PyThreadState_GET();
+    PyCFrameObject *cf = (PyCFrameObject *) f;
+    PyGenObject *gen = (PyGenObject *) cf->ob1;
+    PyObject *arg = cf->ob2;
+
+    /* We hold references to things in the cframe, if we release it
+       before we clear the references, they get incorrectly and
+       prematurely freed. */
+    cf->ob1 = NULL;
+    cf->ob2 = NULL;
+
+    f = gen->gi_frame;
+    /* Check, that this cframe belongs to gen */
+    assert(f->f_back == (PyFrameObject *)cf);
+
+#endif
     /* If the generator just returned (as opposed to yielding), signal
      * that the generator is exhausted. */
     if (result && f->f_stacktop == NULL) {
@@ -133,6 +224,16 @@ gen_send_ex(PyGenObject *gen, PyObject *arg, int exc)
         Py_CLEAR(result);
     }
 
+#ifdef STACKLESS
+    gen->gi_running = 0;
+
+    /* Don't keep the reference to f_back any longer than necessary.  It
+     * may keep a chain of frames alive or it could create a reference
+     * cycle. */
+    SLP_STORE_NEXT_FRAME(ts, cf->f_back);
+    Py_CLEAR(cf->f_back);
+#endif
+
     if (!result || f->f_stacktop == NULL) {
         /* generator can't be rerun, so release the frame */
         /* first clean reference cycle through stored exception traceback */
@@ -147,13 +248,16 @@ gen_send_ex(PyGenObject *gen, PyObject *arg, int exc)
         Py_XDECREF(v);
         Py_XDECREF(tb);
         gen->gi_frame->f_gen = NULL;
+        assert(f == gen->gi_frame);
         gen->gi_frame = NULL;
         Py_DECREF(f);
     }
-
+#ifdef STACKLESS
+    Py_DECREF(gen);
+    Py_XDECREF(arg);
+#endif
     return result;
 }
-#endif
 
 PyDoc_STRVAR(send_doc,
 "send(arg) -> send 'arg' into generator,\n\
