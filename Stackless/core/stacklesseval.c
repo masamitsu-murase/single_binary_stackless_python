@@ -619,7 +619,6 @@ other_threads:
          */
         if (target_ts == NULL && tasklet_list) {
             PyThreadState *ts;
-            PyObject *threadid_list = NULL;
             count = 0;
 
             /* build a list of tasklets to be killed */
@@ -636,30 +635,9 @@ other_threads:
             }
             SLP_HEAD_UNLOCK();
 
-            /* get the list of thread ids */
-            if (PyExc_TaskletExit)
-                threadid_list = slp_getthreads(Py_None); /* requires the HEAD lock */
-
             /* kill the tasklets */
             kill_pending(tasklet_list);
-            /* kill the threads */
-            if (threadid_list != NULL) {
-                Py_ssize_t i, len;
-                assert(PyList_CheckExact(threadid_list));
-                len = PyList_GET_SIZE(threadid_list);
-                for (i=0; i < len; i++) {
-                    long thread_id;
-                    PyObject *item = PyList_GET_ITEM(threadid_list, i);
-                    assert(PyLong_CheckExact(item));
-                    thread_id = PyLong_AsLong(item);
-                    if (thread_id != cts->thread_id) {
-                        /* requires the HEAD lock */
-                        PyThreadState_SetAsyncExc(thread_id, PyExc_TaskletExit);
-                        PyErr_Clear();
-                    }
-                }
-                Py_DECREF(threadid_list);
-            }
+
             /* We must not release the GIL while we might hold the HEAD-lock.
              * Otherwise another thread (usually the thread of the killed tasklet)
              * could try to get the HEAD lock. The result would be a wonderful dead lock.
