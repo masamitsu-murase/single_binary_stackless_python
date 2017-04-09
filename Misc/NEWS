@@ -2,6 +2,28 @@
 Python News
 +++++++++++
 
+What's New in Python 3.5.0 release candidate 2?
+===============================================
+
+Release date: 2015-08-25
+
+Core and Builtins
+-----------------
+
+- Issue #24769: Interpreter now starts properly when dynamic loading
+  is disabled.  Patch by Petr Viktorin.
+
+- Issue #21167: NAN operations are now handled correctly when python is
+  compiled with ICC even if -fp-model strict is not specified.
+
+Library
+-------
+
+- Issue #24847: Removes vcruntime140.dll dependency from Tcl/Tk.
+
+- Issue #24839: platform._syscmd_ver raises DeprecationWarning
+
+
 What's New in Python 3.5.0 release candidate 1?
 ===============================================
 
@@ -9,6 +31,10 @@ Release date: 2015-08-09
 
 Core and Builtins
 -----------------
+
+- Issue #24492: A "package" lacking a __name__ attribute when trying to perform
+  a ``from .. import ...`` statement will trigger an ImportError instead of an
+  AttributeError.
 
 - Issue #24667: Resize odict in all cases that the underlying dict resizes.
 
@@ -56,6 +82,8 @@ Library
   Patch by Gustavo J. A. M. Carneiro.
 
 - Issue #24791: Fix grammar regression for call syntax: 'g(*a or b)'.
+
+- Issue #24867: Fix Task.get_stack() for 'async def' coroutines
 
 Documentation
 -------------
