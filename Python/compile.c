@@ -1146,8 +1146,10 @@ compiler_add_o(struct compiler *c, PyObject *dict, PyObject *o)
 
     v = PyDict_GetItem(dict, t);
     if (!v) {
-        if (PyErr_Occurred())
+        if (PyErr_Occurred()) {
+            Py_DECREF(t);
             return -1;
+        }
         arg = PyDict_Size(dict);
         v = PyLong_FromSsize_t(arg);
         if (!v) {
@@ -1559,32 +1561,31 @@ compiler_visit_argannotation(struct compiler *c, identifier id,
         VISIT(c, expr, annotation);
         mangled = _Py_Mangle(c->u->u_private, id);
         if (!mangled)
-            return -1;
+            return 0;
         if (PyList_Append(names, mangled) < 0) {
             Py_DECREF(mangled);
-            return -1;
+            return 0;
         }
         Py_DECREF(mangled);
     }
-    return 0;
+    return 1;
 }
 
 static int
 compiler_visit_argannotations(struct compiler *c, asdl_seq* args,
                               PyObject *names)
 {
-    int i, error;
+    int i;
     for (i = 0; i < asdl_seq_LEN(args); i++) {
         arg_ty arg = (arg_ty)asdl_seq_GET(args, i);
-        error = compiler_visit_argannotation(
+        if (!compiler_visit_argannotation(
                         c,
                         arg->arg,
                         arg->annotation,
-                        names);
-        if (error)
-            return error;
+                        names))
+            return 0;
     }
-    return 0;
+    return 1;
 }
 
 static int
@@ -1604,16 +1605,16 @@ compiler_visit_annotations(struct compiler *c, arguments_ty args,
     if (!names)
         return -1;
 
-    if (compiler_visit_argannotations(c, args->args, names))
+    if (!compiler_visit_argannotations(c, args->args, names))
         goto error;
     if (args->vararg && args->vararg->annotation &&
-        compiler_visit_argannotation(c, args->vararg->arg,
+        !compiler_visit_argannotation(c, args->vararg->arg,
                                      args->vararg->annotation, names))
         goto error;
-    if (compiler_visit_argannotations(c, args->kwonlyargs, names))
+    if (!compiler_visit_argannotations(c, args->kwonlyargs, names))
         goto error;
     if (args->kwarg && args->kwarg->annotation &&
-        compiler_visit_argannotation(c, args->kwarg->arg,
+        !compiler_visit_argannotation(c, args->kwarg->arg,
                                      args->kwarg->annotation, names))
         goto error;
 
@@ -1622,7 +1623,7 @@ compiler_visit_annotations(struct compiler *c, arguments_ty args,
         if (!return_str)
             goto error;
     }
-    if (compiler_visit_argannotation(c, return_str, returns, names)) {
+    if (!compiler_visit_argannotation(c, return_str, returns, names)) {
         goto error;
     }
 
@@ -1749,12 +1750,11 @@ compiler_function(struct compiler *c, stmt_ty s, int is_async)
     arglength = asdl_seq_LEN(args->defaults);
     arglength |= kw_default_count << 8;
     arglength |= num_annotations << 16;
+    if (is_async)
+        co->co_flags |= CO_COROUTINE;
     compiler_make_closure(c, co, arglength, qualname);
     Py_DECREF(qualname);
     Py_DECREF(co);
-
-    if (is_async)
-        co->co_flags |= CO_COROUTINE;
 
     /* decorators */
     for (i = 0; i < asdl_seq_LEN(decos); i++) {
@@ -3856,7 +3856,10 @@ compiler_visit_expr(struct compiler *c, expr_ty e)
         if (c->u->u_ste->ste_type != FunctionBlock)
             return compiler_error(c, "'await' outside function");
 
-        /* this check won't be triggered while we have AWAIT token */
+        if (c->u->u_scope_type == COMPILER_SCOPE_COMPREHENSION)
+            return compiler_error(
+                c, "'await' expressions in comprehensions are not supported");
+
         if (c->u->u_scope_type != COMPILER_SCOPE_ASYNC_FUNCTION)
             return compiler_error(c, "'await' outside async function");
 

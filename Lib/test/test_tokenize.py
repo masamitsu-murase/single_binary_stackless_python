@@ -5,6 +5,8 @@ The tests can be really simple. Given a small fragment of source
 code, print out a table with tokens. The ENDMARKER is omitted for
 brevity.
 
+    >>> import glob
+
     >>> dump_tokens("1 + 1")
     ENCODING   'utf-8'       (0, 0) (0, 0)
     NUMBER     '1'           (1, 0) (1, 1)
@@ -784,12 +786,12 @@ Async/await extension:
     NAME       'def'         (2, 2) (2, 5)
     NAME       'foo'         (2, 6) (2, 9)
     OP         '('           (2, 9) (2, 10)
-    NAME       'await'       (2, 10) (2, 15)
+    AWAIT      'await'       (2, 10) (2, 15)
     OP         ')'           (2, 15) (2, 16)
     OP         ':'           (2, 16) (2, 17)
     NEWLINE    '\\n'          (2, 17) (2, 18)
     INDENT     '    '        (3, 0) (3, 4)
-    NAME       'await'       (3, 4) (3, 9)
+    AWAIT      'await'       (3, 4) (3, 9)
     OP         '='           (3, 10) (3, 11)
     NUMBER     '1'           (3, 12) (3, 13)
     NEWLINE    '\\n'          (3, 13) (3, 14)
@@ -827,6 +829,90 @@ Async/await extension:
     OP         ':'           (2, 18) (2, 19)
     NAME       'pass'        (2, 20) (2, 24)
     DEDENT     ''            (3, 0) (3, 0)
+
+    >>> dump_tokens('''async def foo(async): await''')
+    ENCODING   'utf-8'       (0, 0) (0, 0)
+    ASYNC      'async'       (1, 0) (1, 5)
+    NAME       'def'         (1, 6) (1, 9)
+    NAME       'foo'         (1, 10) (1, 13)
+    OP         '('           (1, 13) (1, 14)
+    ASYNC      'async'       (1, 14) (1, 19)
+    OP         ')'           (1, 19) (1, 20)
+    OP         ':'           (1, 20) (1, 21)
+    AWAIT      'await'       (1, 22) (1, 27)
+
+    >>> dump_tokens('''def f():
+    ...
+    ...   def baz(): pass
+    ...   async def bar(): pass
+    ...
+    ...   await = 2''')
+    ENCODING   'utf-8'       (0, 0) (0, 0)
+    NAME       'def'         (1, 0) (1, 3)
+    NAME       'f'           (1, 4) (1, 5)
+    OP         '('           (1, 5) (1, 6)
+    OP         ')'           (1, 6) (1, 7)
+    OP         ':'           (1, 7) (1, 8)
+    NEWLINE    '\\n'          (1, 8) (1, 9)
+    NL         '\\n'          (2, 0) (2, 1)
+    INDENT     '  '          (3, 0) (3, 2)
+    NAME       'def'         (3, 2) (3, 5)
+    NAME       'baz'         (3, 6) (3, 9)
+    OP         '('           (3, 9) (3, 10)
+    OP         ')'           (3, 10) (3, 11)
+    OP         ':'           (3, 11) (3, 12)
+    NAME       'pass'        (3, 13) (3, 17)
+    NEWLINE    '\\n'          (3, 17) (3, 18)
+    ASYNC      'async'       (4, 2) (4, 7)
+    NAME       'def'         (4, 8) (4, 11)
+    NAME       'bar'         (4, 12) (4, 15)
+    OP         '('           (4, 15) (4, 16)
+    OP         ')'           (4, 16) (4, 17)
+    OP         ':'           (4, 17) (4, 18)
+    NAME       'pass'        (4, 19) (4, 23)
+    NEWLINE    '\\n'          (4, 23) (4, 24)
+    NL         '\\n'          (5, 0) (5, 1)
+    NAME       'await'       (6, 2) (6, 7)
+    OP         '='           (6, 8) (6, 9)
+    NUMBER     '2'           (6, 10) (6, 11)
+    DEDENT     ''            (7, 0) (7, 0)
+
+    >>> dump_tokens('''async def f():
+    ...
+    ...   def baz(): pass
+    ...   async def bar(): pass
+    ...
+    ...   await = 2''')
+    ENCODING   'utf-8'       (0, 0) (0, 0)
+    ASYNC      'async'       (1, 0) (1, 5)
+    NAME       'def'         (1, 6) (1, 9)
+    NAME       'f'           (1, 10) (1, 11)
+    OP         '('           (1, 11) (1, 12)
+    OP         ')'           (1, 12) (1, 13)
+    OP         ':'           (1, 13) (1, 14)
+    NEWLINE    '\\n'          (1, 14) (1, 15)
+    NL         '\\n'          (2, 0) (2, 1)
+    INDENT     '  '          (3, 0) (3, 2)
+    NAME       'def'         (3, 2) (3, 5)
+    NAME       'baz'         (3, 6) (3, 9)
+    OP         '('           (3, 9) (3, 10)
+    OP         ')'           (3, 10) (3, 11)
+    OP         ':'           (3, 11) (3, 12)
+    NAME       'pass'        (3, 13) (3, 17)
+    NEWLINE    '\\n'          (3, 17) (3, 18)
+    ASYNC      'async'       (4, 2) (4, 7)
+    NAME       'def'         (4, 8) (4, 11)
+    NAME       'bar'         (4, 12) (4, 15)
+    OP         '('           (4, 15) (4, 16)
+    OP         ')'           (4, 16) (4, 17)
+    OP         ':'           (4, 17) (4, 18)
+    NAME       'pass'        (4, 19) (4, 23)
+    NEWLINE    '\\n'          (4, 23) (4, 24)
+    NL         '\\n'          (5, 0) (5, 1)
+    AWAIT      'await'       (6, 2) (6, 7)
+    OP         '='           (6, 8) (6, 9)
+    NUMBER     '2'           (6, 10) (6, 11)
+    DEDENT     ''            (7, 0) (7, 0)
 """
 
 from test import support
@@ -835,7 +921,7 @@ from tokenize import (tokenize, _tokenize, untokenize, NUMBER, NAME, OP,
                      open as tokenize_open, Untokenizer)
 from io import BytesIO
 from unittest import TestCase, mock
-import os, sys, glob
+import os
 import token
 
 def dump_tokens(s):
@@ -1427,6 +1513,22 @@ class UntokenizeTest(TestCase):
         self.assertEqual(untokenize(iter(tokens)), b'Hello ')
 
 
+class TestRoundtrip(TestCase):
+    def roundtrip(self, code):
+        if isinstance(code, str):
+            code = code.encode('utf-8')
+        return untokenize(tokenize(BytesIO(code).readline)).decode('utf-8')
+
+    def test_indentation_semantics_retained(self):
+        """
+        Ensure that although whitespace might be mutated in a roundtrip,
+        the semantic meaning of the indentation remains consistent.
+        """
+        code = "if False:\n\tx=3\n\tx=3\n"
+        codelines = self.roundtrip(code).split('\n')
+        self.assertEqual(codelines[1], codelines[2])
+
+
 __test__ = {"doctests" : doctests, 'decistmt': decistmt}
 
 def test_main():
@@ -1437,6 +1539,7 @@ def test_main():
     support.run_unittest(TestDetectEncoding)
     support.run_unittest(TestTokenize)
     support.run_unittest(UntokenizeTest)
+    support.run_unittest(TestRoundtrip)
 
 if __name__ == "__main__":
     test_main()

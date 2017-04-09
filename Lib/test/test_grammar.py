@@ -205,6 +205,8 @@ class GrammarTests(unittest.TestCase):
         d01()
         d01(1)
         d01(*(1,))
+        d01(*[] or [2])
+        d01(*() or (), *{} and (), **() or {})
         d01(**{'a':2})
         d01(**{'a':2} or {})
         def d11(a, b=1): pass
@@ -308,27 +310,27 @@ class GrammarTests(unittest.TestCase):
         # argument annotation tests
         def f(x) -> list: pass
         self.assertEqual(f.__annotations__, {'return': list})
-        def f(x:int): pass
+        def f(x: int): pass
         self.assertEqual(f.__annotations__, {'x': int})
-        def f(*x:str): pass
+        def f(*x: str): pass
         self.assertEqual(f.__annotations__, {'x': str})
-        def f(**x:float): pass
+        def f(**x: float): pass
         self.assertEqual(f.__annotations__, {'x': float})
-        def f(x, y:1+2): pass
+        def f(x, y: 1+2): pass
         self.assertEqual(f.__annotations__, {'y': 3})
-        def f(a, b:1, c:2, d): pass
+        def f(a, b: 1, c: 2, d): pass
         self.assertEqual(f.__annotations__, {'b': 1, 'c': 2})
-        def f(a, b:1, c:2, d, e:3=4, f=5, *g:6): pass
+        def f(a, b: 1, c: 2, d, e: 3 = 4, f=5, *g: 6): pass
         self.assertEqual(f.__annotations__,
-                          {'b': 1, 'c': 2, 'e': 3, 'g': 6})
-        def f(a, b:1, c:2, d, e:3=4, f=5, *g:6, h:7, i=8, j:9=10,
-              **k:11) -> 12: pass
+                         {'b': 1, 'c': 2, 'e': 3, 'g': 6})
+        def f(a, b: 1, c: 2, d, e: 3 = 4, f=5, *g: 6, h: 7, i=8, j: 9 = 10,
+              **k: 11) -> 12: pass
         self.assertEqual(f.__annotations__,
-                          {'b': 1, 'c': 2, 'e': 3, 'g': 6, 'h': 7, 'j': 9,
-                           'k': 11, 'return': 12})
+                         {'b': 1, 'c': 2, 'e': 3, 'g': 6, 'h': 7, 'j': 9,
+                          'k': 11, 'return': 12})
         # Check for issue #20625 -- annotations mangling
         class Spam:
-            def f(self, *, __kw:1):
+            def f(self, *, __kw: 1):
                 pass
         class Ham(Spam): pass
         self.assertEqual(Spam.f.__annotations__, {'_Spam__kw': 1})
@@ -534,7 +536,8 @@ class GrammarTests(unittest.TestCase):
         # Not allowed at class scope
         check_syntax_error(self, "class foo:yield 1")
         check_syntax_error(self, "class foo:yield from ()")
-
+        # Check annotation refleak on SyntaxError
+        check_syntax_error(self, "def g(a:(yield)): pass")
 
     def test_raise(self):
         # 'raise' test [',' test]
@@ -1051,10 +1054,7 @@ class GrammarTests(unittest.TestCase):
 
         async def test():
             def sum():
-                async = 1
-                await = 41
-                return async + await
-
+                pass
             if 1:
                 await someobj()
 

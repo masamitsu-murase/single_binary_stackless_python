@@ -89,16 +89,11 @@ def gen_coroutine_function_example(self):
     yield
     return 'spam'
 
+class EqualsToAll:
+    def __eq__(self, other):
+        return True
 
 class TestPredicates(IsTestBase):
-    def test_eightteen(self):
-        count = len([x for x in dir(inspect) if x.startswith('is')])
-        # This test is here for remember you to update Doc/library/inspect.rst
-        # which claims there are 16 such functions
-        expected = 19
-        err_msg = "There are %d (not %d) is* functions" % (count, expected)
-        self.assertEqual(count, expected, err_msg)
-
 
     def test_excluding_predicates(self):
         global tb
@@ -166,10 +161,8 @@ class TestPredicates(IsTestBase):
         coro = coroutine_function_example(1)
         gen_coro = gen_coroutine_function_example(1)
 
-        self.assertTrue(
-            inspect.isawaitable(coro))
-        self.assertTrue(
-            inspect.isawaitable(gen_coro))
+        self.assertTrue(inspect.isawaitable(coro))
+        self.assertTrue(inspect.isawaitable(gen_coro))
 
         class Future:
             def __await__():
@@ -343,6 +336,7 @@ class TestRetrievingSourceCode(GetSourceBase):
     def test_getfunctions(self):
         functions = inspect.getmembers(mod, inspect.isfunction)
         self.assertEqual(functions, [('eggs', mod.eggs),
+                                     ('lobbest', mod.lobbest),
                                      ('spam', mod.spam)])
 
     @unittest.skipIf(sys.flags.optimize >= 2,
@@ -400,6 +394,7 @@ class TestRetrievingSourceCode(GetSourceBase):
     def test_getsource(self):
         self.assertSourceEqual(git.abuse, 29, 39)
         self.assertSourceEqual(mod.StupidGit, 21, 50)
+        self.assertSourceEqual(mod.lobbest, 70, 71)
 
     def test_getsourcefile(self):
         self.assertEqual(normcase(inspect.getsourcefile(mod.spam)), modfile)
@@ -567,6 +562,10 @@ class TestBuggyCases(GetSourceBase):
 
     def test_getsource_on_method(self):
         self.assertSourceEqual(mod2.ClassWithMethod.method, 118, 119)
+
+    def test_nested_func(self):
+        self.assertSourceEqual(mod2.cls135.func136, 136, 139)
+
 
 class TestNoEOL(GetSourceBase):
     def setUp(self):
@@ -2682,69 +2681,84 @@ class TestSignatureObject(unittest.TestCase):
 
     def test_signature_equality(self):
         def foo(a, *, b:int) -> float: pass
-        self.assertNotEqual(inspect.signature(foo), 42)
+        self.assertFalse(inspect.signature(foo) == 42)
+        self.assertTrue(inspect.signature(foo) != 42)
+        self.assertTrue(inspect.signature(foo) == EqualsToAll())
+        self.assertFalse(inspect.signature(foo) != EqualsToAll())
 
         def bar(a, *, b:int) -> float: pass
-        self.assertEqual(inspect.signature(foo), inspect.signature(bar))
+        self.assertTrue(inspect.signature(foo) == inspect.signature(bar))
+        self.assertFalse(inspect.signature(foo) != inspect.signature(bar))
         self.assertEqual(
             hash(inspect.signature(foo)), hash(inspect.signature(bar)))
 
         def bar(a, *, b:int) -> int: pass
-        self.assertNotEqual(inspect.signature(foo), inspect.signature(bar))
+        self.assertFalse(inspect.signature(foo) == inspect.signature(bar))
+        self.assertTrue(inspect.signature(foo) != inspect.signature(bar))
         self.assertNotEqual(
             hash(inspect.signature(foo)), hash(inspect.signature(bar)))
 
         def bar(a, *, b:int): pass
-        self.assertNotEqual(inspect.signature(foo), inspect.signature(bar))
+        self.assertFalse(inspect.signature(foo) == inspect.signature(bar))
+        self.assertTrue(inspect.signature(foo) != inspect.signature(bar))
         self.assertNotEqual(
             hash(inspect.signature(foo)), hash(inspect.signature(bar)))
 
         def bar(a, *, b:int=42) -> float: pass
-        self.assertNotEqual(inspect.signature(foo), inspect.signature(bar))
+        self.assertFalse(inspect.signature(foo) == inspect.signature(bar))
+        self.assertTrue(inspect.signature(foo) != inspect.signature(bar))
         self.assertNotEqual(
             hash(inspect.signature(foo)), hash(inspect.signature(bar)))
 
         def bar(a, *, c) -> float: pass
-        self.assertNotEqual(inspect.signature(foo), inspect.signature(bar))
+        self.assertFalse(inspect.signature(foo) == inspect.signature(bar))
+        self.assertTrue(inspect.signature(foo) != inspect.signature(bar))
         self.assertNotEqual(
             hash(inspect.signature(foo)), hash(inspect.signature(bar)))
 
         def bar(a, b:int) -> float: pass
-        self.assertNotEqual(inspect.signature(foo), inspect.signature(bar))
+        self.assertFalse(inspect.signature(foo) == inspect.signature(bar))
+        self.assertTrue(inspect.signature(foo) != inspect.signature(bar))
         self.assertNotEqual(
             hash(inspect.signature(foo)), hash(inspect.signature(bar)))
         def spam(b:int, a) -> float: pass
-        self.assertNotEqual(inspect.signature(spam), inspect.signature(bar))
+        self.assertFalse(inspect.signature(spam) == inspect.signature(bar))
+        self.assertTrue(inspect.signature(spam) != inspect.signature(bar))
         self.assertNotEqual(
             hash(inspect.signature(spam)), hash(inspect.signature(bar)))
 
         def foo(*, a, b, c): pass
         def bar(*, c, b, a): pass
-        self.assertEqual(inspect.signature(foo), inspect.signature(bar))
+        self.assertTrue(inspect.signature(foo) == inspect.signature(bar))
+        self.assertFalse(inspect.signature(foo) != inspect.signature(bar))
         self.assertEqual(
             hash(inspect.signature(foo)), hash(inspect.signature(bar)))
 
         def foo(*, a=1, b, c): pass
         def bar(*, c, b, a=1): pass
-        self.assertEqual(inspect.signature(foo), inspect.signature(bar))
+        self.assertTrue(inspect.signature(foo) == inspect.signature(bar))
+        self.assertFalse(inspect.signature(foo) != inspect.signature(bar))
         self.assertEqual(
             hash(inspect.signature(foo)), hash(inspect.signature(bar)))
 
         def foo(pos, *, a=1, b, c): pass
         def bar(pos, *, c, b, a=1): pass
-        self.assertEqual(inspect.signature(foo), inspect.signature(bar))
+        self.assertTrue(inspect.signature(foo) == inspect.signature(bar))
+        self.assertFalse(inspect.signature(foo) != inspect.signature(bar))
         self.assertEqual(
             hash(inspect.signature(foo)), hash(inspect.signature(bar)))
 
         def foo(pos, *, a, b, c): pass
         def bar(pos, *, c, b, a=1): pass
-        self.assertNotEqual(inspect.signature(foo), inspect.signature(bar))
+        self.assertFalse(inspect.signature(foo) == inspect.signature(bar))
+        self.assertTrue(inspect.signature(foo) != inspect.signature(bar))
         self.assertNotEqual(
             hash(inspect.signature(foo)), hash(inspect.signature(bar)))
 
         def foo(pos, *args, a=42, b, c, **kwargs:int): pass
         def bar(pos, *args, c, b, a=42, **kwargs:int): pass
-        self.assertEqual(inspect.signature(foo), inspect.signature(bar))
+        self.assertTrue(inspect.signature(foo) == inspect.signature(bar))
+        self.assertFalse(inspect.signature(foo) != inspect.signature(bar))
         self.assertEqual(
             hash(inspect.signature(foo)), hash(inspect.signature(bar)))
 
@@ -2917,11 +2931,17 @@ class TestParameterObject(unittest.TestCase):
         P = inspect.Parameter
         p = P('foo', default=42, kind=inspect.Parameter.KEYWORD_ONLY)
 
-        self.assertEqual(p, p)
-        self.assertNotEqual(p, 42)
+        self.assertTrue(p == p)
+        self.assertFalse(p != p)
+        self.assertFalse(p == 42)
+        self.assertTrue(p != 42)
+        self.assertTrue(p == EqualsToAll())
+        self.assertFalse(p != EqualsToAll())
 
-        self.assertEqual(p, P('foo', default=42,
-                              kind=inspect.Parameter.KEYWORD_ONLY))
+        self.assertTrue(p == P('foo', default=42,
+                               kind=inspect.Parameter.KEYWORD_ONLY))
+        self.assertFalse(p != P('foo', default=42,
+                                kind=inspect.Parameter.KEYWORD_ONLY))
 
     def test_signature_parameter_replace(self):
         p = inspect.Parameter('foo', default=42,
@@ -3225,25 +3245,33 @@ class TestBoundArguments(unittest.TestCase):
     def test_signature_bound_arguments_equality(self):
         def foo(a): pass
         ba = inspect.signature(foo).bind(1)
-        self.assertEqual(ba, ba)
+        self.assertTrue(ba == ba)
+        self.assertFalse(ba != ba)
+        self.assertTrue(ba == EqualsToAll())
+        self.assertFalse(ba != EqualsToAll())
 
         ba2 = inspect.signature(foo).bind(1)
-        self.assertEqual(ba, ba2)
+        self.assertTrue(ba == ba2)
+        self.assertFalse(ba != ba2)
 
         ba3 = inspect.signature(foo).bind(2)
-        self.assertNotEqual(ba, ba3)
+        self.assertFalse(ba == ba3)
+        self.assertTrue(ba != ba3)
         ba3.arguments['a'] = 1
-        self.assertEqual(ba, ba3)
+        self.assertTrue(ba == ba3)
+        self.assertFalse(ba != ba3)
 
         def bar(b): pass
         ba4 = inspect.signature(bar).bind(1)
-        self.assertNotEqual(ba, ba4)
+        self.assertFalse(ba == ba4)
+        self.assertTrue(ba != ba4)
 
         def foo(*, a, b): pass
         sig = inspect.signature(foo)
         ba1 = sig.bind(a=1, b=2)
         ba2 = sig.bind(b=2, a=1)
-        self.assertEqual(ba1, ba2)
+        self.assertTrue(ba1 == ba2)
+        self.assertFalse(ba1 != ba2)
 
     def test_signature_bound_arguments_pickle(self):
         def foo(a, b, *, c:1={}, **kw) -> {42:'ham'}: pass

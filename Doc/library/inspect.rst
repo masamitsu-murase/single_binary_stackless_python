@@ -28,7 +28,7 @@ Types and members
 -----------------
 
 The :func:`getmembers` function retrieves the members of an object such as a
-class or module. The sixteen functions whose names begin with "is" are mainly
+class or module. The functions whose names begin with "is" are mainly
 provided as convenient choices for the second argument to :func:`getmembers`.
 They also help you determine when you can expect to find the following special
 attributes:
@@ -182,11 +182,18 @@ attributes:
 +-----------+-----------------+---------------------------+
 |           | __qualname__    | qualified name            |
 +-----------+-----------------+---------------------------+
+|           | cr_await        | object being awaited on,  |
+|           |                 | or ``None``               |
++-----------+-----------------+---------------------------+
 |           | cr_frame        | frame                     |
 +-----------+-----------------+---------------------------+
 |           | cr_running      | is the coroutine running? |
 +-----------+-----------------+---------------------------+
 |           | cr_code         | code                      |
++-----------+-----------------+---------------------------+
+|           | gi_yieldfrom    | object being iterated by  |
+|           |                 | ``yield from``, or        |
+|           |                 | ``None``                  |
 +-----------+-----------------+---------------------------+
 | builtin   | __doc__         | documentation string      |
 +-----------+-----------------+---------------------------+
@@ -305,10 +312,19 @@ attributes:
 
 .. function:: isawaitable(object)
 
-   Return true if the object can be used in :keyword:`await`
-   expression.
+   Return true if the object can be used in :keyword:`await` expression.
 
-   See also :class:`collections.abc.Awaitable`.
+   Can also be used to distinguish generator-based coroutines from regular
+   generators::
+
+      def gen():
+          yield
+      @types.coroutine
+      def gen_coro():
+          yield
+
+      assert not isawaitable(gen())
+      assert isawaitable(gen_coro())
 
    .. versionadded:: 3.5
 
@@ -406,6 +422,9 @@ Retrieving source code
    If the documentation string for an object is not provided and the object is
    a class, a method, a property or a descriptor, retrieve the documentation
    string from the inheritance hierarchy.
+
+   .. versionchanged:: 3.5
+      Documentation strings are now inherited if not overridden.
 
 
 .. function:: getcomments(object)

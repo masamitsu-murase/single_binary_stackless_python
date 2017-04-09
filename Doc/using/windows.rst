@@ -42,9 +42,11 @@ After starting the installer, one of two options may be selected:
 If you select "Install Now":
 
 * You will *not* need to be an administrator (unless a system update for the
-  C Runtime Library is required)
+  C Runtime Library is required or you install the :ref:`launcher` for all
+  users)
 * Python will be installed into your user directory
-* The :ref:`launcher` will *also* be installed into your user directory
+* The :ref:`launcher` will be installed according to the option at the bottom
+  of the first pace
 * The standard library, test suite, launcher and pip will be installed
 * If selected, the install directory will be added to your :envvar:`PATH`
 * Shortcuts will only be visible for the current user
@@ -60,7 +62,7 @@ installation". In this case:
 * Python will be installed into the Program Files directory
 * The :ref:`launcher` will be installed into the Windows directory
 * Optional features may be selected during installation
-* The standard library will be pre-compiled to bytecode
+* The standard library can be pre-compiled to bytecode
 * If selected, the install directory will be added to the system :envvar:`PATH`
 * Shortcuts are available for all users
 
@@ -130,6 +132,9 @@ of available options is shown below.
 +---------------------------+--------------------------------------+--------------------------+
 | Include_launcher          | Install :ref:`launcher`.             | 1                        |
 +---------------------------+--------------------------------------+--------------------------+
+| InstallLauncherAllUsers   | Installs :ref:`launcher` for all     | 1                        |
+|                           | users.                               |                          |
++---------------------------+--------------------------------------+--------------------------+
 | Include_lib               | Install standard library and         | 1                        |
 |                           | extension modules                    |                          |
 +---------------------------+--------------------------------------+--------------------------+
@@ -143,7 +148,13 @@ of available options is shown below.
 +---------------------------+--------------------------------------+--------------------------+
 | Include_tools             | Install utility scripts              | 1                        |
 +---------------------------+--------------------------------------+--------------------------+
+| LauncherOnly              | Only installs the launcher. This     | 0                        |
+|                           | will override most other options.    |                          |
++---------------------------+--------------------------------------+--------------------------+
 | SimpleInstall             | Disable most install UI              | 0                        |
++---------------------------+--------------------------------------+--------------------------+
+| SimpleInstallDescription  | A custom message to display when the | (empty)                  |
+|                           | simplified install UI is used.       |                          |
 +---------------------------+--------------------------------------+--------------------------+
 
 For example, to silently install a default, system-wide Python installation,
@@ -152,13 +163,29 @@ you could use the following command (from an elevated command prompt)::
     python-3.5.0.exe /quiet InstallAllUsers=1 PrependPath=1 Include_test=0
 
 To allow users to easily install a personal copy of Python without the test
-suite, you could provide a shortcut with the following command::
+suite, you could provide a shortcut with the following command. This will
+display a simplified initial page and disallow customization::
 
-    python-3.5.0.exe /passive InstallAllUsers=0 Include_launcher=0 Include_test=0 SimpleInstall=1
+    python-3.5.0.exe InstallAllUsers=0 Include_launcher=0 Include_test=0
+        SimpleInstall=1 SimpleInstallDescription="Just for me, no test suite."
 
 (Note that omitting the launcher also omits file associations, and is only
 recommended for per-user installs when there is also a system-wide installation
 that included the launcher.)
+
+The options listed above can also be provided in a file named ``unattend.xml``
+alongside the executable. This file specifies a list of options and values.
+When a value is provided as an attribute, it will be converted to a number if
+possible. Values provided as element text are always left as strings. This
+example file sets the same options and the previous example::
+
+    <Options>
+        <Option Name="InstallAllUsers" Value="no" />
+        <Option Name="Include_launcher" Value="0" />
+        <Option Name="Include_test" Value="no" />
+        <Option Name="SimpleInstall" Value="yes" />
+        <Option Name="SimpleInstallDescription">Just for me, no test suite</Option>
+    </Options>
 
 .. _install-layout-option:
 
@@ -624,6 +651,8 @@ target Python.
 
 
 
+.. finding_modules:
+
 Finding modules
 ===============
 
@@ -693,6 +722,8 @@ following advice will prevent conflicts with other installations:
 * Include a ``pyvenv.cfg`` file alongside your executable containing
   ``applocal = true``. This will ensure that your own directory will be used to
   resolve paths even if you have included the standard library in a ZIP file.
+  It will also ignore user site-packages and other paths listed in the
+  registry.
 
 * If you are loading :file:`python3.dll` or :file:`python35.dll` in your own
   executable, explicitly call :c:func:`Py_SetPath` or (at least)
@@ -708,7 +739,9 @@ following advice will prevent conflicts with other installations:
 
 These will ensure that the files in a system-wide installation will not take
 precedence over the copy of the standard library bundled with your application.
-Otherwise, your users may experience problems using your application.
+Otherwise, your users may experience problems using your application. Note that
+the first suggestion is the best, as the other may still be susceptible to
+non-standard paths in the registry and user site-packages.
 
 Additional modules
 ==================
@@ -796,6 +829,83 @@ For extension modules, consult :ref:`building-on-windows`.
    `MingW -- Python extensions <http://oldwiki.mingw.org/index.php/Python%20extensions>`_
       by Trent Apted et al, 2007
 
+
+Embedded Distribution
+=====================
+
+.. versionadded:: 3.5
+
+The embedded distribution is a ZIP file containing a minimal Python environment.
+It is intended for acting as part of another application, rather than being
+directly accessed by end-users.
+
+When extracted, the embedded distribution is (almost) fully isolated from the
+user's system, including environment variables, system registry settings, and
+installed packages. The standard library is included as pre-compiled and
+optimized ``.pyc`` files in a ZIP, and ``python3.dll``, ``python35.dll``,
+``python.exe`` and ``pythonw.exe`` are all provided. Tcl/tk (including all
+dependants, such as Idle), pip and the Python documentation are not included.
+
+.. note::
+
+    The embedded distribution does not include the `Microsoft C Runtime
+    <http://www.microsoft.com/en-us/download/details.aspx?id=48145>`_ and it is
+    the responsibility of the application installer to provide this. The
+    runtime may have already been installed on a user's system previously or
+    automatically via Windows Update, and can be detected by finding
+    ``ucrtbase.dll`` in the system directory.
+
+Third-party packages should be installed by the application installer alongside
+the embedded distribution. Using pip to manage dependencies as for a regular
+Python installation is not supported with this distribution, though with some
+care it may be possible to include and use pip for automatic updates. In
+general, third-party packages should be treated as part of the application
+("vendoring") so that the developer can ensure compatibility with newer
+versions before providing updates to users.
+
+The two recommended use cases for this distribution are described below.
+
+Python Application
+------------------
+
+An application written in Python does not necessarily require users to be aware
+of that fact. The embedded distribution may be used in this case to include a
+private version of Python in an install package. Depending on how transparent it
+should be (or conversely, how professional it should appear), there are two
+options.
+
+Using a specialized executable as a launcher requires some coding, but provides
+the most transparent experience for users. With a customized launcher, there are
+no obvious indications that the program is running on Python: icons can be
+customized, company and version information can be specified, and file
+associations behave properly. In most cases, a custom launcher should simply be
+able to call ``Py_Main`` with a hard-coded command line.
+
+The simpler approach is to provide a batch file or generated shortcut that
+directly calls the ``python.exe`` or ``pythonw.exe`` with the required
+command-line arguments. In this case, the application will appear to be Python
+and not its actual name, and users may have trouble distinguishing it from other
+running Python processes or file associations.
+
+With the latter approach, packages should be installed as directories alongside
+the Python executable to ensure they are available on the path. With the
+specialized launcher, packages can be located in other locations as there is an
+opportunity to specify the search path before launching the application.
+
+Embedding Python
+----------------
+
+Applications written in native code often require some form of scripting
+language, and the embedded Python distribution can be used for this purpose. In
+general, the majority of the application is in native code, and some part will
+either invoke ``python.exe`` or directly use ``python3.dll``. For either case,
+extracting the embedded distribution to a subdirectory of the application
+installation is sufficient to provide a loadable Python interpreter.
+
+As with the application use, packages can be installed to any location as there
+is an opportunity to specify search paths before initializing the interpreter.
+Otherwise, there is no fundamental differences between using the embedded
+distribution and a regular installation.
 
 Other resources
 ===============

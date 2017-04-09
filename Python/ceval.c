@@ -739,7 +739,7 @@ _Py_CheckRecursiveCall(const char *where)
     if (tstate->recursion_depth > recursion_limit) {
         --tstate->recursion_depth;
         tstate->overflowed = 1;
-        PyErr_Format(PyExc_RuntimeError,
+        PyErr_Format(PyExc_RecursionError,
                      "maximum recursion depth exceeded%s",
                      where);
         return -1;
@@ -3166,21 +3166,24 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
         }
 
         TARGET(BUILD_MAP) {
+            int i;
             PyObject *map = _PyDict_NewPresized((Py_ssize_t)oparg);
             if (map == NULL)
                 goto error;
-            while (--oparg >= 0) {
+            for (i = oparg; i > 0; i--) {
                 int err;
-                PyObject *value = TOP();
-                PyObject *key = SECOND();
-                STACKADJ(-2);
+                PyObject *key = PEEK(2*i);
+                PyObject *value = PEEK(2*i - 1);
                 err = PyDict_SetItem(map, key, value);
-                Py_DECREF(value);
-                Py_DECREF(key);
                 if (err != 0) {
                     Py_DECREF(map);
                     goto error;
                 }
+            }
+
+            while (oparg--) {
+                Py_DECREF(POP());
+                Py_DECREF(POP());
             }
             PUSH(map);
             DISPATCH();

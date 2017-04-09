@@ -154,22 +154,37 @@ ABC                        Inherits from          Abstract Methods        Mixin 
 
 .. class:: Awaitable
 
-   ABC for classes that provide ``__await__`` method.  Instances
-   of such classes can be used in ``await`` expression.
+   ABC for :term:`awaitable` objects, which can be used in :keyword:`await`
+   expressions.  Custom implementations must provide the :meth:`__await__`
+   method.
 
-   :term:`coroutine` objects and instances of
-   :class:`~collections.abc.Coroutine` are too instances of this ABC.
+   :term:`Coroutine` objects and instances of the
+   :class:`~collections.abc.Coroutine` ABC are all instances of this ABC.
+
+   .. note::
+      In CPython, generator-based coroutines (generators decorated with
+      :func:`types.coroutine` or :func:`asyncio.coroutine`) are
+      *awaitables*, even though they do not have an :meth:`__await__` method.
+      Using ``isinstance(gencoro, Awaitable)`` for them will return ``False``.
+      Use :func:`inspect.isawaitable` to detect them.
 
    .. versionadded:: 3.5
 
 .. class:: Coroutine
 
-   ABC for coroutine compatible classes that implement a subset of
-   generator methods defined in :pep:`342`, namely:
-   :meth:`~generator.send`, :meth:`~generator.throw`,
-   :meth:`~generator.close` methods.  :meth:`__await__` must also be
-   implemented.  All :class:`Coroutine` instances are also instances of
+   ABC for coroutine compatible classes.  These implement the
+   following methods, defined in :ref:`coroutine-objects`:
+   :meth:`~coroutine.send`, :meth:`~coroutine.throw`, and
+   :meth:`~coroutine.close`.  Custom implementations must also implement
+   :meth:`__await__`.  All :class:`Coroutine` instances are also instances of
    :class:`Awaitable`.  See also the definition of :term:`coroutine`.
+
+   .. note::
+      In CPython, generator-based coroutines (generators decorated with
+      :func:`types.coroutine` or :func:`asyncio.coroutine`) are
+      *awaitables*, even though they do not have an :meth:`__await__` method.
+      Using ``isinstance(gencoro, Coroutine)`` for them will return ``False``.
+      Use :func:`inspect.isawaitable` to detect them.
 
    .. versionadded:: 3.5
 

@@ -186,10 +186,6 @@ def iscoroutinefunction(object):
     return bool((isfunction(object) or ismethod(object)) and
                 object.__code__.co_flags & CO_COROUTINE)
 
-def isawaitable(object):
-    """Return true if the object can be used in "await" expression."""
-    return isinstance(object, collections.abc.Awaitable)
-
 def isgenerator(object):
     """Return true if the object is a generator.
 
@@ -210,6 +206,13 @@ def isgenerator(object):
 def iscoroutine(object):
     """Return true if the object is a coroutine."""
     return isinstance(object, types.CoroutineType)
+
+def isawaitable(object):
+    """Return true is object can be passed to an ``await`` expression."""
+    return (isinstance(object, types.CoroutineType) or
+            isinstance(object, types.GeneratorType) and
+                object.gi_code.co_flags & CO_ITERABLE_COROUTINE or
+            isinstance(object, collections.abc.Awaitable))
 
 def istraceback(object):
     """Return true if the object is a traceback.
@@ -795,7 +798,7 @@ def findsource(object):
         if not hasattr(object, 'co_firstlineno'):
             raise OSError('could not find function definition')
         lnum = object.co_firstlineno - 1
-        pat = re.compile(r'^(\s*def\s)|(.*(?<!\w)lambda(:|\s))|^(\s*@)')
+        pat = re.compile(r'^(\s*def\s)|(\s*async\s+def\s)|(.*(?<!\w)lambda(:|\s))|^(\s*@)')
         while lnum > 0:
             if pat.match(lines[lnum]): break
             lnum = lnum - 1
@@ -856,21 +859,37 @@ class BlockFinder:
         self.islambda = False
         self.started = False
         self.passline = False
+        self.indecorator = False
+        self.decoratorhasargs = False
         self.last = 1
 
     def tokeneater(self, type, token, srowcol, erowcol, line):
-        if not self.started:
+        if not self.started and not self.indecorator:
+            # skip any decorators
+            if token == "@":
+                self.indecorator = True
             # look for the first "def", "class" or "lambda"
-            if token in ("def", "class", "lambda"):
+            elif token in ("def", "class", "lambda"):
                 if token == "lambda":
                     self.islambda = True
                 self.started = True
             self.passline = True    # skip to the end of the line
+        elif token == "(":
+            if self.indecorator:
+                self.decoratorhasargs = True
+        elif token == ")":
+            if self.indecorator:
+                self.indecorator = False
+                self.decoratorhasargs = False
         elif type == tokenize.NEWLINE:
             self.passline = False   # stop skipping when a NEWLINE is seen
             self.last = srowcol[0]
             if self.islambda:       # lambdas always end at the first NEWLINE
                 raise EndOfBlock
+            # hitting a NEWLINE when in a decorator without args
+            # ends the decorator
+            if self.indecorator and not self.decoratorhasargs:
+                self.indecorator = False
         elif self.passline:
             pass
         elif type == tokenize.INDENT:
@@ -899,14 +918,6 @@ def getblock(lines):
         pass
     return lines[:blockfinder.last]
 
-def _line_number_helper(code_obj, lines, lnum):
-    """Return a list of source lines and starting line number for a code object.
-
-    The arguments must be a code object with lines and lnum from findsource.
-    """
-    _, end_line = list(dis.findlinestarts(code_obj))[-1]
-    return lines[lnum:end_line], lnum + 1
-
 def getsourcelines(object):
     """Return a list of source lines and starting line number for an object.
 
@@ -920,12 +931,6 @@ def getsourcelines(object):
 
     if ismodule(object):
         return lines, 0
-    elif iscode(object):
-        return _line_number_helper(object, lines, lnum)
-    elif isfunction(object):
-        return _line_number_helper(object.__code__, lines, lnum)
-    elif ismethod(object):
-        return _line_number_helper(object.__func__.__code__, lines, lnum)
     else:
         return getblock(lines[lnum:]), lnum + 1
 
@@ -2485,15 +2490,14 @@ class Parameter:
         return hash((self.name, self.kind, self.annotation, self.default))
 
     def __eq__(self, other):
-        return (self is other or
-                    (issubclass(other.__class__, Parameter) and
-                     self._name == other._name and
-                     self._kind == other._kind and
-                     self._default == other._default and
-                     self._annotation == other._annotation))
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
+        if self is other:
+            return True
+        if not isinstance(other, Parameter):
+            return NotImplemented
+        return (self._name == other._name and
+                self._kind == other._kind and
+                self._default == other._default and
+                self._annotation == other._annotation)
 
 
 class BoundArguments:
@@ -2607,13 +2611,12 @@ class BoundArguments:
         self.arguments = OrderedDict(new_arguments)
 
     def __eq__(self, other):
-        return (self is other or
-                    (issubclass(other.__class__, BoundArguments) and
-                     self.signature == other.signature and
-                     self.arguments == other.arguments))
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
+        if self is other:
+            return True
+        if not isinstance(other, BoundArguments):
+            return NotImplemented
+        return (self.signature == other.signature and
+                self.arguments == other.arguments)
 
     def __setstate__(self, state):
         self._signature = state['_signature']
@@ -2772,12 +2775,11 @@ class Signature:
         return hash((params, kwo_params, return_annotation))
 
     def __eq__(self, other):
-        return (self is other or
-                    (isinstance(other, Signature) and
-                     self._hash_basis() == other._hash_basis()))
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
+        if self is other:
+            return True
+        if not isinstance(other, Signature):
+            return NotImplemented
+        return self._hash_basis() == other._hash_basis()
 
     def _bind(self, args, kwargs, *, partial=False):
         """Private method. Don't use directly."""
