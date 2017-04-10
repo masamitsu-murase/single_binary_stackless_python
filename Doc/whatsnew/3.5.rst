@@ -276,7 +276,7 @@ instead of::
     S = dot((dot(H, beta) - r).T,
             dot(inv(dot(dot(H, V), H.T)), dot(H, beta) - r))
 
-An upcoming release of NumPy 1.10 will add support for the new operator::
+NumPy 1.10 has support for the new operator::
 
     >>> import numpy
 
@@ -465,7 +465,7 @@ not make an additional system call::
 PEP 475: Retry system calls failing with EINTR
 ----------------------------------------------
 
-A :py:data:`errno.EINTR` error code is returned whenever a system call, that
+An :py:data:`errno.EINTR` error code is returned whenever a system call, that
 is waiting for I/O, is interrupted by a signal.  Previously, Python would
 raise :exc:`InterruptedError` in such case.  This meant that, when writing a
 Python application, the developer had two choices:
@@ -860,7 +860,7 @@ The :class:`~collections.deque` class now defines
 :meth:`~collections.deque.copy`, as well as supports ``+`` and ``*`` operators.
 This allows deques to be recognized as a :class:`~collections.abc.MutableSequence`
 and improves their substitutability for lists.
-(Contributed by Raymond Hettinger :issue:`23704`.)
+(Contributed by Raymond Hettinger in :issue:`23704`.)
 
 Docstrings produced by :func:`~collections.namedtuple` can now be updated::
 
@@ -889,7 +889,7 @@ of :class:`tuple`, :class:`list`, etc.
 A new :class:`~collections.abc.Generator` abstract base class. (Contributed
 by Stefan Behnel in :issue:`24018`.)
 
-New :class:`~collections.abc.Awaitable` :class:`~collections.abc.Coroutine`,
+New :class:`~collections.abc.Awaitable`, :class:`~collections.abc.Coroutine`,
 :class:`~collections.abc.AsyncIterator`, and
 :class:`~collections.abc.AsyncIterable` abstract base classes.
 (Contributed by Yury Selivanov in :issue:`24184`.)
@@ -1477,8 +1477,8 @@ either an another :class:`~pathlib.Path` object, or a string::
 
 (Contributed by Vajrasky Kok and Antoine Pitrou in :issue:`19775`.)
 
-The :meth:`Path.mkdir() <pathlib.Path.mkdir>` method how accepts a new optional
-*exist_ok* argument to match ``mkdir -p`` and :func:`os.makrdirs`
+The :meth:`Path.mkdir() <pathlib.Path.mkdir>` method now accepts a new optional
+*exist_ok* argument to match ``mkdir -p`` and :func:`os.makedirs`
 functionality.  (Contributed by Berker Peksag in :issue:`21539`.)
 
 There is a new :meth:`Path.expanduser() <pathlib.Path.expanduser>` method to
@@ -1727,7 +1727,7 @@ the TLS handshake.
 The new
 :meth:`SSLSocket.selected_alpn_protocol() <ssl.SSLSocket.selected_alpn_protocol>`
 returns the protocol that was selected during the TLS handshake.
-:data:`~ssl.HAS_ALPN` flag indicates whether APLN support is present.
+:data:`~ssl.HAS_ALPN` flag indicates whether ALPN support is present.
 
 
 Other Changes
@@ -1782,7 +1782,7 @@ subprocess
 ----------
 
 The new :func:`~subprocess.run` function has been added.
-It runs the specified command and and returns a
+It runs the specified command and returns a
 :class:`~subprocess.CompletedProcess` object, which describes a finished
 process.  The new API is more consistent and is the recommended approach
 to invoking subprocesses in Python code that does not need to maintain

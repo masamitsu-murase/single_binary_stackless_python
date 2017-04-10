@@ -64,7 +64,7 @@ The module defines the following items:
    method.  At least one of *fileobj* and *filename* must be given a non-trivial
    value.
 
-   The new class instance is based on *fileobj*, which can be a regular file, a
+   The new class instance is based on *fileobj*, which can be a regular file, an
    :class:`io.BytesIO` object, or any other object which simulates a file.  It
    defaults to ``None``, in which case *filename* is opened to provide a file
    object.
@@ -96,7 +96,7 @@ The module defines the following items:
 
    Calling a :class:`GzipFile` object's :meth:`close` method does not close
    *fileobj*, since you might wish to append more material after the compressed
-   data.  This also allows you to pass a :class:`io.BytesIO` object opened for
+   data.  This also allows you to pass an :class:`io.BytesIO` object opened for
    writing as *fileobj*, and retrieve the resulting memory buffer using the
    :class:`io.BytesIO` object's :meth:`~io.BytesIO.getvalue` method.
 

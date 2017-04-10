@@ -93,15 +93,6 @@ _class_browser_spec = {
            "Double clicking on items prints a traceback for an exception "
            "that is ignored."
     }
-ConfigExtensionsDialog_spec = {
-    'file': 'configDialog',
-    'kwds': {'title': 'Test Extension Configuration',
-             '_htest': True,},
-    'msg': "IDLE extensions dialog.\n"
-           "\n[Ok] to close the dialog.[Apply] to apply the settings and "
-           "and [Cancel] to revert all changes.\nRe-run the test to ensure "
-           "changes made have persisted."
-    }
 
 _color_delegator_spec = {
     'file': 'ColorDelegator',
@@ -121,7 +112,8 @@ ConfigDialog_spec = {
            "font face of the text in the area below it.\nIn the "
            "'Highlighting' tab, try different color schemes. Clicking "
            "items in the sample program should update the choices above it."
-           "\nIn the 'Keys' and 'General' tab, test settings of interest."
+           "\nIn the 'Keys', 'General' and 'Extensions' tabs, test settings"
+           "of interest."
            "\n[Ok] to close the dialog.[Apply] to apply the settings and "
            "and [Cancel] to revert all changes.\nRe-run the test to ensure "
            "changes made have persisted."
@@ -197,9 +189,11 @@ _grep_dialog_spec = {
 _io_binding_spec = {
     'file': 'IOBinding',
     'kwds': {},
-    'msg': "Test the following bindings\n"
-           "<Control-o> to display open window from file dialog.\n"
-           "<Control-s> to save the file\n"
+    'msg': "Test the following bindings.\n"
+           "<Control-o> to open file from dialog.\n"
+           "Edit the file.\n"
+           "<Control-s> to save the file.\n"
+           "Check that changes were saved by opening the file elsewhere."
     }
 
 _multi_call_spec = {

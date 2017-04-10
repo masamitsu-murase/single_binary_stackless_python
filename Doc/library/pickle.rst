@@ -192,7 +192,7 @@ process more convenient:
    number is specified, :data:`HIGHEST_PROTOCOL` is selected.
 
    The *file* argument must have a write() method that accepts a single bytes
-   argument.  It can thus be an on-disk file opened for binary writing, a
+   argument.  It can thus be an on-disk file opened for binary writing, an
    :class:`io.BytesIO` instance, or any other custom object that meets this
    interface.
 
@@ -221,7 +221,7 @@ process more convenient:
    The argument *file* must have two methods, a read() method that takes an
    integer argument, and a readline() method that requires no arguments.  Both
    methods should return bytes.  Thus *file* can be an on-disk file opened for
-   binary reading, a :class:`io.BytesIO` object, or any other custom object
+   binary reading, an :class:`io.BytesIO` object, or any other custom object
    that meets this interface.
 
    Optional keyword arguments are *fix_imports*, *encoding* and *errors*,
@@ -288,7 +288,7 @@ The :mod:`pickle` module exports two classes, :class:`Pickler` and
    number is specified, :data:`HIGHEST_PROTOCOL` is selected.
 
    The *file* argument must have a write() method that accepts a single bytes
-   argument.  It can thus be an on-disk file opened for binary writing, a
+   argument.  It can thus be an on-disk file opened for binary writing, an
    :class:`io.BytesIO` instance, or any other custom object that meets this
    interface.
 
@@ -357,7 +357,7 @@ The :mod:`pickle` module exports two classes, :class:`Pickler` and
    The argument *file* must have two methods, a read() method that takes an
    integer argument, and a readline() method that requires no arguments.  Both
    methods should return bytes.  Thus *file* can be an on-disk file object
-   opened for binary reading, a :class:`io.BytesIO` object, or any other
+   opened for binary reading, an :class:`io.BytesIO` object, or any other
    custom object that meets this interface.
 
    Optional keyword arguments are *fix_imports*, *encoding* and *errors*,

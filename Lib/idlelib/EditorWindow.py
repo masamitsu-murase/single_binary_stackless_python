@@ -191,8 +191,6 @@ class EditorWindow(object):
         text.bind("<<python-docs>>", self.python_docs)
         text.bind("<<about-idle>>", self.about_dialog)
         text.bind("<<open-config-dialog>>", self.config_dialog)
-        text.bind("<<open-config-extensions-dialog>>",
-                  self.config_extensions_dialog)
         text.bind("<<open-module>>", self.open_module)
         text.bind("<<do-nothing>>", lambda event: "break")
         text.bind("<<select-all>>", self.select_all)
@@ -513,10 +511,6 @@ class EditorWindow(object):
         "Handle Options 'Configure IDLE' event."
         # Synchronize with macosxSupport.overrideRootMenu.config_dialog.
         configDialog.ConfigDialog(self.top,'Settings')
-
-    def config_extensions_dialog(self, event=None):
-        "Handle Options 'Configure Extensions' event."
-        configDialog.ConfigExtensionsDialog(self.top)
 
     def help_dialog(self, event=None):
         "Handle Help 'IDLE Help' event."
@@ -893,9 +887,11 @@ class EditorWindow(object):
         except OSError as err:
             if not getattr(self.root, "recentfilelist_error_displayed", False):
                 self.root.recentfilelist_error_displayed = True
-                tkMessageBox.showerror(title='IDLE Error',
-                    message='Unable to update Recent Files list:\n%s'
-                        % str(err),
+                tkMessageBox.showwarning(title='IDLE Warning',
+                    message="Cannot update File menu Recent Files list. "
+                            "Your operating system says:\n%s\n"
+                            "Select OK and IDLE will continue without updating."
+                        % self._filename_to_unicode(str(err)),
                     parent=self.text)
         # for each edit window instance, construct the recent files menu
         for instance in self.top.instance_dict:
@@ -1383,7 +1379,7 @@ class EditorWindow(object):
             text.see("insert")
             text.undo_block_stop()
 
-    # Our editwin provides a is_char_in_string function that works
+    # Our editwin provides an is_char_in_string function that works
     # with a Tk text index, but PyParse only knows about offsets into
     # a string. This builds a function for PyParse that accepts an
     # offset.
