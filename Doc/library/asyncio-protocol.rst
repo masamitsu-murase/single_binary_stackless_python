@@ -41,6 +41,11 @@ BaseTransport
       protocol's :meth:`connection_lost` method will be called with
       :const:`None` as its argument.
 
+   .. method:: is_closing(self)
+
+      Return ``True`` if the transport is closing or is closed.
+
+      .. versionadded:: 3.5.1
 
    .. method:: get_extra_info(name, default=None)
 
@@ -489,7 +494,7 @@ data and wait until the connection is closed::
 
         def connection_lost(self, exc):
             print('The server closed the connection')
-            print('Stop the event lop')
+            print('Stop the event loop')
             self.loop.stop()
 
     loop = asyncio.get_event_loop()

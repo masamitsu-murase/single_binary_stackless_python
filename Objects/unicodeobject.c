@@ -722,6 +722,11 @@ resize_compact(PyObject *unicode, Py_ssize_t length)
     }
     new_size = (struct_size + (length + 1) * char_size);
 
+    if (_PyUnicode_HAS_UTF8_MEMORY(unicode)) {
+        PyObject_DEL(_PyUnicode_UTF8(unicode));
+        _PyUnicode_UTF8(unicode) = NULL;
+        _PyUnicode_UTF8_LENGTH(unicode) = 0;
+    }
     _Py_DEC_REFTOTAL;
     _Py_ForgetReference(unicode);
 
@@ -3614,6 +3619,7 @@ PyUnicode_FSConverter(PyObject* arg, void* addr)
     void *data;
     if (arg == NULL) {
         Py_DECREF(*(PyObject**)addr);
+        *(PyObject**)addr = NULL;
         return 1;
     }
     if (PyBytes_Check(arg)) {
