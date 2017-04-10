@@ -1356,7 +1356,8 @@ def transient_internet(resource_name, *, timeout=30.0, errnos=()):
              500 <= err.code <= 599) or
             (isinstance(err, urllib.error.URLError) and
                  (("ConnectionRefusedError" in err.reason) or
-                  ("TimeoutError" in err.reason))) or
+                  ("TimeoutError" in err.reason) or
+                  ("EOFError" in err.reason))) or
             n in captured_errnos):
             if not verbose:
                 sys.stderr.write(denied.args[0] + "\n")
@@ -2074,6 +2075,9 @@ def strip_python_stderr(stderr):
     """
     stderr = re.sub(br"\[\d+ refs, \d+ blocks\]\r?\n?", b"", stderr).strip()
     return stderr
+
+requires_type_collecting = unittest.skipIf(hasattr(sys, 'getcounts'),
+                        'types are immortal if COUNT_ALLOCS is defined')
 
 def args_from_interpreter_flags():
     """Return a list of command-line arguments reproducing the current
