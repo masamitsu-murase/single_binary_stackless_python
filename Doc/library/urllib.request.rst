@@ -14,7 +14,7 @@ authentication, redirections, cookies and more.
 
 .. seealso::
 
-    The `Requests package <http://requests.readthedocs.org/>`_
+    The `Requests package <https://requests.readthedocs.org/>`_
     is recommended for a higher-level http client interface.
 
 
@@ -268,6 +268,11 @@ The following classes are provided:
    is retrieved from the OS X System Configuration Framework.
 
    To disable autodetected proxy pass an empty dictionary.
+
+   The :envvar:`no_proxy` environment variable can be used to specify hosts
+   which shouldn't be reached via proxy; if set, it should be a comma-separated
+   list of hostname suffixes, optionally with ``:port`` appended, for example
+   ``cern.ch,ncsa.uiuc.edu,some.host:8080``.
 
 
 .. class:: HTTPPasswordMgr()

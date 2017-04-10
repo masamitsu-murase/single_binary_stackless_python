@@ -857,7 +857,7 @@ PyMemoTable_Set(PyMemoTable *self, PyObject *key, Py_ssize_t value)
 static int
 _Pickler_ClearBuffer(PicklerObject *self)
 {
-    Py_SETREF(self->output_buffer,
+    Py_XSETREF(self->output_buffer,
               PyBytes_FromStringAndSize(NULL, self->max_output_len));
     if (self->output_buffer == NULL)
         return -1;
@@ -1110,7 +1110,7 @@ _Unpickler_SkipConsumed(UnpicklerObject *self)
         return 0;
 
     assert(self->peek);  /* otherwise we did something wrong */
-    /* This makes an useless copy... */
+    /* This makes a useless copy... */
     r = PyObject_CallFunction(self->read, "n", consumed);
     if (r == NULL)
         return -1;
@@ -3103,7 +3103,7 @@ fix_imports(PyObject **module_name, PyObject **global_name)
             return -1;
         }
         Py_INCREF(item);
-        Py_SETREF(*module_name, item);
+        Py_XSETREF(*module_name, item);
     }
     else if (PyErr_Occurred()) {
         return -1;
@@ -4721,7 +4721,7 @@ calc_binsize(char *bytes, int nbytes)
 
 /* s contains x bytes of a little-endian integer.  Return its value as a
  * C int.  Obscure:  when x is 1 or 2, this is an unsigned little-endian
- * int, but when x is 4 it's a signed one.  This is an historical source
+ * int, but when x is 4 it's a signed one.  This is a historical source
  * of x-platform bugs.
  */
 static long
@@ -5074,7 +5074,7 @@ load_counted_binunicode(UnpicklerObject *self, int nbytes)
 }
 
 static int
-load_counted_tuple(UnpicklerObject *self, int len)
+load_counted_tuple(UnpicklerObject *self, Py_ssize_t len)
 {
     PyObject *tuple;
 

@@ -978,7 +978,7 @@ QName Objects
    to get proper namespace handling on output.  *text_or_uri* is a string
    containing the QName value, in the form {uri}local, or, if the tag argument
    is given, the URI part of a QName.  If *tag* is given, the first argument is
-   interpreted as an URI, and this argument is interpreted as a local name.
+   interpreted as a URI, and this argument is interpreted as a local name.
    :class:`QName` instances are opaque.
 
 
@@ -1044,16 +1044,16 @@ XMLParser Objects
 
    This class is the low-level building block of the module.  It uses
    :mod:`xml.parsers.expat` for efficient, event-based parsing of XML.  It can
-   be fed XML data incrementall with the :meth:`feed` method, and parsing events
-   are translated to a push API - by invoking callbacks on the *target* object.
-   If *target* is omitted, the standard :class:`TreeBuilder` is used.  The
-   *html* argument was historically used for backwards compatibility and is now
-   deprecated.  If *encoding* [1]_ is given, the value overrides the encoding
-   specified in the XML file.
+   be fed XML data incrementally with the :meth:`feed` method, and parsing
+   events are translated to a push API - by invoking callbacks on the *target*
+   object.  If *target* is omitted, the standard :class:`TreeBuilder` is used.
+   The *html* argument was historically used for backwards compatibility and is
+   now deprecated.  If *encoding* [1]_ is given, the value overrides the
+   encoding specified in the XML file.
 
    .. deprecated:: 3.4
       The *html* argument.  The remaining arguments should be passed via
-      keywword to prepare for the removal of the *html* argument.
+      keyword to prepare for the removal of the *html* argument.
 
    .. method:: close()
 

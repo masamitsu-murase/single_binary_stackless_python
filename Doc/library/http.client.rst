@@ -21,7 +21,7 @@ HTTPS protocols.  It is normally not used directly --- the module
 
 .. seealso::
 
-    The `Requests package <http://requests.readthedocs.org/>`_
+    The `Requests package <https://requests.readthedocs.org/>`_
     is recommended for a higher-level http client interface.
 
 .. note::
@@ -361,6 +361,10 @@ An :class:`HTTPResponse` instance wraps the HTTP response from the
 server.  It provides access to the request headers and the entity
 body.  The response is an iterable object and can be used in a with
 statement.
+
+.. versionchanged:: 3.5
+   The :class:`io.BufferedIOBase` interface is now implemented and
+   all of its reader operations are supported.
 
 
 .. method:: HTTPResponse.read([amt])

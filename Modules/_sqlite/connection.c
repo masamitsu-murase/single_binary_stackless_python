@@ -319,7 +319,7 @@ PyObject* pysqlite_connection_cursor(pysqlite_Connection* self, PyObject* args, 
 
     if (cursor && self->row_factory != Py_None) {
         Py_INCREF(self->row_factory);
-        Py_SETREF(((pysqlite_Cursor *)cursor)->row_factory, self->row_factory);
+        Py_XSETREF(((pysqlite_Cursor *)cursor)->row_factory, self->row_factory);
     }
 
     return cursor;

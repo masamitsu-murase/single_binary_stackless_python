@@ -2188,7 +2188,7 @@ For more information on context managers, see :ref:`typecontextmanager`.
 
 .. seealso::
 
-   :pep:`0343` - The "with" statement
+   :pep:`343` - The "with" statement
       The specification, background, and examples for the Python :keyword:`with`
       statement.
 
@@ -2315,6 +2315,10 @@ should not directly raise unhandled :exc:`StopIteration` exceptions.
 Coroutines also have the methods listed below, which are analogous to
 those of generators (see :ref:`generator-methods`).  However, unlike
 generators, coroutines do not directly support iteration.
+
+.. versionchanged:: 3.5.2
+   It is a :exc:`RuntimeError` to await on a coroutine more than once.
+
 
 .. method:: coroutine.send(value)
 

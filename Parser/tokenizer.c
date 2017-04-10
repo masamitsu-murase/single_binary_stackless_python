@@ -275,6 +275,7 @@ get_coding_spec(const char *s, char **spec, Py_ssize_t size, struct tok_state *t
                         return 0;
                 }
                 *spec = r;
+                break;
             }
         }
     }
@@ -525,7 +526,7 @@ fp_setreadl(struct tok_state *tok, const char* enc)
         goto cleanup;
 
     readline = _PyObject_GetAttrId(stream, &PyId_readline);
-    Py_SETREF(tok->decoding_readline, readline);
+    Py_XSETREF(tok->decoding_readline, readline);
     if (pos > 0) {
         if (PyObject_CallObject(readline, NULL) == NULL) {
             readline = NULL;

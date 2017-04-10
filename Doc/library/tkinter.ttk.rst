@@ -299,7 +299,7 @@ Besides the methods inherited from :class:`Widget`: :meth:`Widget.cget`,
 :meth:`Widget.configure`, :meth:`Widget.identify`, :meth:`Widget.instate`
 and :meth:`Widget.state`, and the following inherited from :class:`Entry`:
 :meth:`Entry.bbox`, :meth:`Entry.delete`, :meth:`Entry.icursor`,
-:meth:`Entry.index`, :meth:`Entry.inset`, :meth:`Entry.selection`,
+:meth:`Entry.index`, :meth:`Entry.insert`, :meth:`Entry.selection`,
 :meth:`Entry.xview`, it has some other methods, described at
 :class:`ttk.Combobox`.
 
@@ -701,7 +701,7 @@ the widget option ``displaycolumns``. The tree widget can also display column
 headings. Columns may be accessed by number or symbolic names listed in the
 widget option columns. See `Column Identifiers`_.
 
-Each item is identified by an unique name. The widget will generate item IDs
+Each item is identified by a unique name. The widget will generate item IDs
 if they are not supplied by the caller. There is a distinguished root item,
 named ``{}``. The root item itself is not displayed; its children appear at the
 top level of the hierarchy.

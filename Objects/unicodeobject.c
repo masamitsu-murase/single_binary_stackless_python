@@ -675,7 +675,7 @@ Py_LOCAL_INLINE(Py_ssize_t) findchar(const void *s, int kind,
 }
 
 #ifdef Py_DEBUG
-/* Fill the data of an Unicode string with invalid characters to detect bugs
+/* Fill the data of a Unicode string with invalid characters to detect bugs
    earlier.
 
    _PyUnicode_CheckConsistency(str, 1) detects invalid characters, at least for
@@ -748,6 +748,8 @@ resize_compact(PyObject *unicode, Py_ssize_t length)
     else if (_PyUnicode_HAS_WSTR_MEMORY(unicode)) {
         PyObject_DEL(_PyUnicode_WSTR(unicode));
         _PyUnicode_WSTR(unicode) = NULL;
+        if (!PyUnicode_IS_ASCII(unicode))
+            _PyUnicode_WSTR_LENGTH(unicode) = 0;
     }
 #ifdef Py_DEBUG
     unicode_fill_invalid(unicode, old_length);
@@ -8572,17 +8574,14 @@ unicode_fast_translate_lookup(PyObject *mapping, Py_UCS1 ch,
    translated into writer, raise an exception and return -1 on error. */
 static int
 unicode_fast_translate(PyObject *input, PyObject *mapping,
-                       _PyUnicodeWriter *writer, int ignore)
+                       _PyUnicodeWriter *writer, int ignore,
+                       Py_ssize_t *input_pos)
 {
     Py_UCS1 ascii_table[128], ch, ch2;
     Py_ssize_t len;
     Py_UCS1 *in, *end, *out;
     int res = 0;
 
-    if (PyUnicode_READY(input) == -1)
-        return -1;
-    if (!PyUnicode_IS_ASCII(input))
-        return 0;
     len = PyUnicode_GET_LENGTH(input);
 
     memset(ascii_table, 0xff, 128);
@@ -8619,6 +8618,7 @@ unicode_fast_translate(PyObject *input, PyObject *mapping,
 
 exit:
     writer->pos = out - PyUnicode_1BYTE_DATA(writer->buffer);
+    *input_pos = in - PyUnicode_1BYTE_DATA(input);
     return res;
 }
 
@@ -8664,15 +8664,21 @@ _PyUnicode_TranslateCharmap(PyObject *input,
 
     ignore = (errors != NULL && strcmp(errors, "ignore") == 0);
 
-    res = unicode_fast_translate(input, mapping, &writer, ignore);
-    if (res < 0) {
-        _PyUnicodeWriter_Dealloc(&writer);
+    if (PyUnicode_READY(input) == -1)
         return NULL;
+    if (PyUnicode_IS_ASCII(input)) {
+        res = unicode_fast_translate(input, mapping, &writer, ignore, &i);
+        if (res < 0) {
+            _PyUnicodeWriter_Dealloc(&writer);
+            return NULL;
+        }
+        if (res == 1)
+            return _PyUnicodeWriter_Finish(&writer);
     }
-    if (res == 1)
-        return _PyUnicodeWriter_Finish(&writer);
+    else {
+        i = 0;
+    }
 
-    i = writer.pos;
     while (i<size) {
         /* try to encode it */
         int translate;
@@ -15143,8 +15149,8 @@ unicodeiter_next(unicodeiterobject *it)
         return item;
     }
 
-    Py_DECREF(seq);
     it->it_seq = NULL;
+    Py_DECREF(seq);
     return NULL;
 }
 

@@ -1065,6 +1065,8 @@ class Path(PurePath):
         """Iterate over this subtree and yield all existing files (of any
         kind, including directories) matching the given pattern.
         """
+        if not pattern:
+            raise ValueError("Unacceptable pattern: {!r}".format(pattern))
         pattern = self._flavour.casefold(pattern)
         drv, root, pattern_parts = self._flavour.parse_parts((pattern,))
         if drv or root:
@@ -1423,3 +1425,9 @@ class PosixPath(Path, PurePosixPath):
 
 class WindowsPath(Path, PureWindowsPath):
     __slots__ = ()
+
+    def owner(self):
+        raise NotImplementedError("Path.owner() is unsupported on this system")
+
+    def group(self):
+        raise NotImplementedError("Path.group() is unsupported on this system")

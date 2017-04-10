@@ -544,7 +544,7 @@ supports sending logging messages to a remote or local Unix syslog.
          (See: :issue:`12168`.) In earlier versions, the message sent to the
          syslog daemons was always terminated with a NUL byte, because early
          versions of these daemons expected a NUL terminated message - even
-         though it's not in the relevant specification (RF 5424). More recent
+         though it's not in the relevant specification (RFC 5424). More recent
          versions of these daemons don't expect the NUL byte but strip it off
          if it's there, and even more recent daemons (which adhere more closely
          to RFC 5424) pass the NUL byte on as part of the message.
@@ -866,7 +866,7 @@ supports sending logging messages to a Web server, using either ``GET`` or
 
    .. method:: emit(record)
 
-      Sends the record to the Web server as an URL-encoded dictionary. The
+      Sends the record to the Web server as a URL-encoded dictionary. The
       :meth:`mapLogRecord` method is used to convert the record to the
       dictionary to be sent.
 

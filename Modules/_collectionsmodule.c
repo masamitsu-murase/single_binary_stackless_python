@@ -977,6 +977,10 @@ deque_insert(dequeobject *deque, PyObject *args)
 
     if (!PyArg_ParseTuple(args, "nO:insert", &index, &value))
         return NULL;
+    if (deque->maxlen == Py_SIZE(deque)) {
+        PyErr_SetString(PyExc_IndexError, "deque already at its maximum size");
+        return NULL;
+    }
     if (index >= n)
         return deque_append(deque, value);
     if (index <= -n || index == 0)

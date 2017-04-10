@@ -1129,12 +1129,12 @@ class Transport:
         for i in (0, 1):
             try:
                 return self.single_request(host, handler, request_body, verbose)
+            except http.client.RemoteDisconnected:
+                if i:
+                    raise
             except OSError as e:
                 if i or e.errno not in (errno.ECONNRESET, errno.ECONNABORTED,
                                         errno.EPIPE):
-                    raise
-            except http.client.RemoteDisconnected:
-                if i:
                     raise
 
     def single_request(self, host, handler, request_body, verbose=False):
@@ -1446,7 +1446,7 @@ class ServerProxy:
         # magic method dispatcher
         return _Method(self.__request, name)
 
-    # note: to call a remote object with an non-standard name, use
+    # note: to call a remote object with a non-standard name, use
     # result getattr(server, "strange-python-name")(args)
 
     def __call__(self, attr):

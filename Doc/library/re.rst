@@ -12,7 +12,7 @@ those found in Perl.
 
 Both patterns and strings to be searched can be Unicode strings as well as
 8-bit strings. However, Unicode strings and 8-bit strings cannot be mixed:
-that is, you cannot match an Unicode string with a byte pattern or
+that is, you cannot match a Unicode string with a byte pattern or
 vice-versa; similarly, when asking for a substitution, the replacement
 string must be of the same type as both the pattern and the search string.
 
@@ -113,11 +113,11 @@ The special characters are:
 ``*?``, ``+?``, ``??``
    The ``'*'``, ``'+'``, and ``'?'`` qualifiers are all :dfn:`greedy`; they match
    as much text as possible.  Sometimes this behaviour isn't desired; if the RE
-   ``<.*>`` is matched against ``'<H1>title</H1>'``, it will match the entire
-   string, and not just ``'<H1>'``.  Adding ``'?'`` after the qualifier makes it
+   ``<.*>`` is matched against ``<a> b <c>``, it will match the entire
+   string, and not just ``<a>``.  Adding ``?`` after the qualifier makes it
    perform the match in :dfn:`non-greedy` or :dfn:`minimal` fashion; as *few*
-   characters as possible will be matched.  Using ``.*?`` in the previous
-   expression will match only ``'<H1>'``.
+   characters as possible will be matched.  Using the RE ``<.*?>`` will match
+   only ``<a>``.
 
 ``{m}``
    Specifies that exactly *m* copies of the previous RE should be matched; fewer
@@ -297,7 +297,7 @@ The special characters are:
       >>> m.group(0)
       'egg'
 
-   .. versionchanged: 3.5
+   .. versionchanged:: 3.5
       Added support for group references of fixed length.
 
 ``(?<!...)``
@@ -1389,7 +1389,7 @@ functionally identical:
 Writing a Tokenizer
 ^^^^^^^^^^^^^^^^^^^
 
-A `tokenizer or scanner <http://en.wikipedia.org/wiki/Lexical_analysis>`_
+A `tokenizer or scanner <https://en.wikipedia.org/wiki/Lexical_analysis>`_
 analyzes a string to categorize groups of characters.  This is a useful first
 step in writing a compiler or interpreter.
 

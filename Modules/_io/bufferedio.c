@@ -1196,7 +1196,7 @@ found:
         Py_CLEAR(res);
         goto end;
     }
-    Py_SETREF(res, _PyBytes_Join(_PyIO_empty_bytes, chunks));
+    Py_XSETREF(res, _PyBytes_Join(_PyIO_empty_bytes, chunks));
 
 end:
     LEAVE_BUFFERED(self)
@@ -1452,7 +1452,7 @@ _io_BufferedReader___init___impl(buffered *self, PyObject *raw,
         return -1;
 
     Py_INCREF(raw);
-    Py_SETREF(self->raw, raw);
+    Py_XSETREF(self->raw, raw);
     self->buffer_size = buffer_size;
     self->readable = 1;
     self->writable = 0;
@@ -1804,7 +1804,7 @@ _io_BufferedWriter___init___impl(buffered *self, PyObject *raw,
         return -1;
 
     Py_INCREF(raw);
-    Py_SETREF(self->raw, raw);
+    Py_XSETREF(self->raw, raw);
     self->readable = 0;
     self->writable = 1;
 
@@ -2307,7 +2307,7 @@ _io_BufferedRandom___init___impl(buffered *self, PyObject *raw,
         return -1;
 
     Py_INCREF(raw);
-    Py_SETREF(self->raw, raw);
+    Py_XSETREF(self->raw, raw);
     self->buffer_size = buffer_size;
     self->readable = 1;
     self->writable = 1;
@@ -2398,7 +2398,6 @@ static PyMethodDef bufferedreader_methods[] = {
     {"close", (PyCFunction)buffered_close, METH_NOARGS},
     {"seekable", (PyCFunction)buffered_seekable, METH_NOARGS},
     {"readable", (PyCFunction)buffered_readable, METH_NOARGS},
-    {"writable", (PyCFunction)buffered_writable, METH_NOARGS},
     {"fileno", (PyCFunction)buffered_fileno, METH_NOARGS},
     {"isatty", (PyCFunction)buffered_isatty, METH_NOARGS},
     {"_dealloc_warn", (PyCFunction)buffered_dealloc_warn, METH_O},
@@ -2489,7 +2488,6 @@ static PyMethodDef bufferedwriter_methods[] = {
     {"close", (PyCFunction)buffered_close, METH_NOARGS},
     {"detach", (PyCFunction)buffered_detach, METH_NOARGS},
     {"seekable", (PyCFunction)buffered_seekable, METH_NOARGS},
-    {"readable", (PyCFunction)buffered_readable, METH_NOARGS},
     {"writable", (PyCFunction)buffered_writable, METH_NOARGS},
     {"fileno", (PyCFunction)buffered_fileno, METH_NOARGS},
     {"isatty", (PyCFunction)buffered_isatty, METH_NOARGS},

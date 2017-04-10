@@ -64,7 +64,7 @@ you can do so via the :func:`~urllib.request.urlretrieve` function::
     html = open(local_filename)
 
 Many uses of urllib will be that simple (note that instead of an 'http:' URL we
-could have used an URL starting with 'ftp:', 'file:', etc.).  However, it's the
+could have used a URL starting with 'ftp:', 'file:', etc.).  However, it's the
 purpose of this tutorial to explain the more complicated cases, concentrating on
 HTTP.
 
@@ -514,7 +514,7 @@ component and the hostname and optionally the port number)
 e.g. "http://example.com/" *or* an "authority" (i.e. the hostname,
 optionally including the port number) e.g. "example.com" or "example.com:8080"
 (the latter example includes a port number).  The authority, if present, must
-NOT contain the "userinfo" component - for example "joe@password:example.com" is
+NOT contain the "userinfo" component - for example "joe:password@example.com" is
 not correct.
 
 

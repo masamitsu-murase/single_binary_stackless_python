@@ -1794,6 +1794,30 @@ class TaskTests(test_utils.TestCase):
 
         self.assertRegex(message, re.compile(regex, re.DOTALL))
 
+    def test_return_coroutine_from_coroutine(self):
+        """Return of @asyncio.coroutine()-wrapped function generator object
+        from @asyncio.coroutine()-wrapped function should have same effect as
+        returning generator object or Future."""
+        def check():
+            @asyncio.coroutine
+            def outer_coro():
+                @asyncio.coroutine
+                def inner_coro():
+                    return 1
+
+                return inner_coro()
+
+            result = self.loop.run_until_complete(outer_coro())
+            self.assertEqual(result, 1)
+
+        # Test with debug flag cleared.
+        with set_coroutine_debug(False):
+            check()
+
+        # Test with debug flag set.
+        with set_coroutine_debug(True):
+            check()
+
     def test_task_source_traceback(self):
         self.loop.set_debug(True)
 
@@ -2352,9 +2376,28 @@ class TimeoutTests(test_utils.TestCase):
                         foo_running = False
 
             dt = self.loop.time() - start
-            self.assertTrue(0.09 < dt < 0.11, dt)
+            # tolerate a small delta for slow delta or unstable clocks
+            self.assertTrue(0.09 < dt < 0.12, dt)
             self.assertFalse(foo_running)
 
+        self.loop.run_until_complete(go())
+
+    def test_timeout_disable(self):
+        @asyncio.coroutine
+        def long_running_task():
+            yield from asyncio.sleep(0.1, loop=self.loop)
+            return 'done'
+
+        @asyncio.coroutine
+        def go():
+            t0 = self.loop.time()
+            with asyncio.timeout(None, loop=self.loop):
+                resp = yield from long_running_task()
+            self.assertEqual(resp, 'done')
+            dt = self.loop.time() - t0
+            # tolerate a time delta for clocks with bad resolution
+            # and slow buildbots
+            self.assertTrue(0.09 < dt < 0.15, dt)
         self.loop.run_until_complete(go())
 
     def test_raise_runtimeerror_if_no_task(self):

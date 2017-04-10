@@ -644,7 +644,7 @@ class SysModuleTest(unittest.TestCase):
         self.assertEqual(os.path.abspath(sys.executable), sys.executable)
 
         # Issue #7774: Ensure that sys.executable is an empty string if argv[0]
-        # has been set to an non existent program name and Python is unable to
+        # has been set to a non existent program name and Python is unable to
         # retrieve the real program name
 
         # For a normal installation, it should work without 'cwd'
@@ -691,8 +691,10 @@ class SysModuleTest(unittest.TestCase):
         args = [sys.executable, "-c", code]
         if isolated:
             args.append("-I")
-        elif encoding:
+        if encoding is not None:
             env['PYTHONIOENCODING'] = encoding
+        else:
+            env.pop('PYTHONIOENCODING', None)
         p = subprocess.Popen(args,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT,
@@ -709,14 +711,31 @@ class SysModuleTest(unittest.TestCase):
                          'stderr: backslashreplace\n')
 
         # replace the default error handler
-        out = self.c_locale_get_error_handler(encoding=':strict')
+        out = self.c_locale_get_error_handler(encoding=':ignore')
+        self.assertEqual(out,
+                         'stdin: ignore\n'
+                         'stdout: ignore\n'
+                         'stderr: backslashreplace\n')
+
+        # force the encoding
+        out = self.c_locale_get_error_handler(encoding='iso8859-1')
+        self.assertEqual(out,
+                         'stdin: strict\n'
+                         'stdout: strict\n'
+                         'stderr: backslashreplace\n')
+        out = self.c_locale_get_error_handler(encoding='iso8859-1:')
         self.assertEqual(out,
                          'stdin: strict\n'
                          'stdout: strict\n'
                          'stderr: backslashreplace\n')
 
-        # force the encoding
-        out = self.c_locale_get_error_handler(encoding='iso8859-1')
+        # have no any effect
+        out = self.c_locale_get_error_handler(encoding=':')
+        self.assertEqual(out,
+                         'stdin: surrogateescape\n'
+                         'stdout: surrogateescape\n'
+                         'stderr: backslashreplace\n')
+        out = self.c_locale_get_error_handler(encoding='')
         self.assertEqual(out,
                          'stdin: surrogateescape\n'
                          'stdout: surrogateescape\n'

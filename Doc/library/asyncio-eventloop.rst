@@ -253,7 +253,7 @@ Creating connections
       a class.  For example, if you want to use a pre-created
       protocol instance, you can pass ``lambda: my_protocol``.
 
-   Options allowing to change how the connection is created:
+   Options that change how the connection is created:
 
    * *ssl*: if given and not false, a SSL/TLS transport is created
      (by default a plain TCP transport is created).  If *ssl* is
@@ -513,7 +513,7 @@ Low-level socket operations
 
    The *address* must be already resolved to avoid the trap of hanging the
    entire event loop when the address requires doing a DNS lookup.  For
-   example, it must be an IP address, not an hostname, for
+   example, it must be an IP address, not a hostname, for
    :py:data:`~socket.AF_INET` and :py:data:`~socket.AF_INET6` address families.
    Use :meth:`getaddrinfo` to resolve the hostname asynchronously.
 
@@ -654,7 +654,7 @@ pool of processes). By default, an event loop uses a thread pool executor
 Error Handling API
 ------------------
 
-Allows to customize how exceptions are handled in the event loop.
+Allows customizing how exceptions are handled in the event loop.
 
 .. method:: BaseEventLoop.set_exception_handler(handler)
 

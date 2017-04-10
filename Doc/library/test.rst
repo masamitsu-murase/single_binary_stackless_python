@@ -550,7 +550,7 @@ The :mod:`test.support` module defines the following functions:
    or passed to an external program (i.e. the ``-accept`` argument to
    openssl's s_server mode).  Always prefer :func:`bind_port` over
    :func:`find_unused_port` where possible.  Using a hard coded port is
-   discouraged since it can makes multiple instances of the test impossible to
+   discouraged since it can make multiple instances of the test impossible to
    run simultaneously, which is a problem for buildbots.
 
 
@@ -619,7 +619,7 @@ The :mod:`test.support` module defines the following classes:
    are expected to crash a subprocess.
 
    On Windows, it disables Windows Error Reporting dialogs using
-   `SetErrorMode <http://msdn.microsoft.com/en-us/library/windows/desktop/ms680621.aspx>`_.
+   `SetErrorMode <https://msdn.microsoft.com/en-us/library/windows/desktop/ms680621.aspx>`_.
 
    On UNIX, :func:`resource.setrlimit` is used to set
    :attr:`resource.RLIMIT_CORE`'s soft limit to 0 to prevent coredump file

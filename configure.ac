@@ -49,6 +49,7 @@ fi
 AC_CONFIG_SRCDIR([Include/object.h])
 AC_CONFIG_HEADER(pyconfig.h)
 
+AC_SUBST(cross_compiling)
 AC_CANONICAL_HOST
 AC_SUBST(build)
 AC_SUBST(host)
@@ -1252,6 +1253,39 @@ else AC_MSG_RESULT(no); Py_DEBUG='false'
 fi],
 [AC_MSG_RESULT(no)])
 
+# Enable LTO flags
+AC_SUBST(LTOFLAGS)
+AC_MSG_CHECKING(for --with-lto)
+AC_ARG_WITH(lto, AS_HELP_STRING([--with-lto], [Enable Link Time Optimization in PGO builds. Disabled by default.]),
+[
+if test "$withval" != no
+then
+  Py_LTO='true'
+  AC_MSG_RESULT(yes);
+else
+  Py_LTO='false'
+  AC_MSG_RESULT(no);
+fi],
+[AC_MSG_RESULT(no)])
+if test "$Py_LTO" = 'true' ; then
+  case $CC in
+    *clang*)
+      # Any changes made here should be reflected in the GCC+Darwin case below
+      LTOFLAGS="-flto"
+      ;;
+    *gcc*)
+      case $ac_sys_system in
+        Darwin*)
+          LTOFLAGS="-flto"
+          ;;
+        *)
+          LTOFLAGS="-flto -fuse-linker-plugin -ffat-lto-objects -flto-partition=none"
+          ;;
+      esac
+      ;;
+  esac
+fi
+
 # Enable PGO flags.
 AC_SUBST(PGO_PROF_GEN_FLAG)
 AC_SUBST(PGO_PROF_USE_FLAG)
@@ -1500,14 +1534,23 @@ yes)
 	 ]))
      CFLAGS="$save_CFLAGS"
      CC="$ac_save_cc"
-    AC_MSG_RESULT($ac_cv_enable_unreachable_code_warning)
 
     # Don't enable unreachable code warning in debug mode, since it usually
     # results in non-standard code paths.
-    if test $ac_cv_enable_unreachable_code_warning = yes && test "$Py_DEBUG" != "true"
+    # Issue #24324: Unfortunately, the unreachable code warning does not work
+    # correctly on gcc and has been silently removed from the compiler.
+    # It is supported on clang but on OS X systems gcc may be an alias
+    # for clang.  Try to determine if the compiler is not really gcc and,
+    # if so, only then enable the warning.
+    if test $ac_cv_enable_unreachable_code_warning = yes && \
+        test "$Py_DEBUG" != "true" && \
+        test -z "`$CC --version 2>/dev/null | grep 'Free Software Foundation'`"
     then
       BASECFLAGS="$BASECFLAGS -Wunreachable-code"
+    else
+      ac_cv_enable_unreachable_code_warning=no
     fi
+    AC_MSG_RESULT($ac_cv_enable_unreachable_code_warning)
 
     # if using gcc on alpha, use -mieee to get (near) full IEEE 754
     # support.  Without this, treatment of subnormals doesn't follow
@@ -3736,7 +3779,7 @@ AC_CHECK_MEMBERS([struct stat.st_blksize])
 AC_CHECK_MEMBERS([struct stat.st_flags])
 AC_CHECK_MEMBERS([struct stat.st_gen])
 AC_CHECK_MEMBERS([struct stat.st_birthtime])
-AC_STRUCT_ST_BLOCKS
+AC_CHECK_MEMBERS([struct stat.st_blocks])
 
 AC_MSG_CHECKING(for time.h that defines altzone)
 AC_CACHE_VAL(ac_cv_header_time_altzone,[
@@ -4536,6 +4579,11 @@ AC_CHECK_LIB(readline, rl_completion_display_matches_hook,
 	AC_DEFINE(HAVE_RL_COMPLETION_DISPLAY_MATCHES_HOOK, 1,
         [Define if you have readline 4.0]), ,$READLINE_LIBS)
 
+# also in 4.0, but not in editline
+AC_CHECK_LIB(readline, rl_resize_terminal,
+	AC_DEFINE(HAVE_RL_RESIZE_TERMINAL, 1,
+        [Define if you have readline 4.0]), ,$READLINE_LIBS)
+
 # check for readline 4.2
 AC_CHECK_LIB(readline, rl_completion_matches,
 	AC_DEFINE(HAVE_RL_COMPLETION_MATCHES, 1,
@@ -5208,6 +5256,7 @@ AC_MSG_CHECKING(for the Linux getrandom() syscall)
 AC_LINK_IFELSE(
 [
   AC_LANG_SOURCE([[
+    #include <unistd.h>
     #include <sys/syscall.h>
 
     int main() {

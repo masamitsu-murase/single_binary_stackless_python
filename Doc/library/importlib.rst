@@ -1113,7 +1113,7 @@ an :term:`importer`.
 
    .. versionadded:: 3.4
 
-   .. versionchanged ::3.5
+   .. versionchanged:: 3.5
       The *optimization* parameter was added and the *debug_override* parameter
       was deprecated.
 
@@ -1273,7 +1273,8 @@ an :term:`importer`.
    :meth:`~importlib.abc.Loader.exec_module` as control over what module type
    is used for the module is required. For those same reasons, the loader's
    :meth:`~importlib.abc.Loader.create_module` method will be ignored (i.e., the
-   loader's method should only return ``None``). Finally,
+   loader's method should only return ``None``; this excludes
+   :class:`BuiltinImporter` and :class:`ExtensionFileLoader`). Finally,
    modules which substitute the object placed into :attr:`sys.modules` will
    not work as there is no way to properly replace the module references
    throughout the interpreter safely; :exc:`ValueError` is raised if such a
@@ -1298,4 +1299,4 @@ an :term:`importer`.
         suffixes = importlib.machinery.SOURCE_SUFFIXES
         loader = importlib.machinery.SourceFileLoader
         lazy_loader = importlib.util.LazyLoader.factory(loader)
-        finder = importlib.machinery.FileFinder(path, [(lazy_loader, suffixes)])
+        finder = importlib.machinery.FileFinder(path, (lazy_loader, suffixes))

@@ -936,7 +936,7 @@ element_setstate_from_attributes(ElementObject *self,
     }
 
     Py_INCREF(tag);
-    Py_SETREF(self->tag, tag);
+    Py_XSETREF(self->tag, tag);
 
     _clear_joined_ptr(&self->text);
     self->text = text ? JOIN_SET(text, PyList_CheckExact(text)) : Py_None;
@@ -980,7 +980,7 @@ element_setstate_from_attributes(ElementObject *self,
     /* Stash attrib. */
     if (attrib) {
         Py_INCREF(attrib);
-        Py_SETREF(self->extra->attrib, attrib);
+        Py_XSETREF(self->extra->attrib, attrib);
     }
 
     Py_RETURN_NONE;
@@ -3604,7 +3604,7 @@ _elementtree_XMLParser__setevents_impl(XMLParserObject *self,
     target = (TreeBuilderObject*) self->target;
 
     Py_INCREF(events_queue);
-    Py_SETREF(target->events, events_queue);
+    Py_XSETREF(target->events, events_queue);
 
     /* clear out existing events */
     Py_CLEAR(target->start_event_obj);
@@ -3639,18 +3639,18 @@ _elementtree_XMLParser__setevents_impl(XMLParserObject *self,
 
         Py_INCREF(event_name_obj);
         if (strcmp(event_name, "start") == 0) {
-            Py_SETREF(target->start_event_obj, event_name_obj);
+            Py_XSETREF(target->start_event_obj, event_name_obj);
         } else if (strcmp(event_name, "end") == 0) {
-            Py_SETREF(target->end_event_obj, event_name_obj);
+            Py_XSETREF(target->end_event_obj, event_name_obj);
         } else if (strcmp(event_name, "start-ns") == 0) {
-            Py_SETREF(target->start_ns_event_obj, event_name_obj);
+            Py_XSETREF(target->start_ns_event_obj, event_name_obj);
             EXPAT(SetNamespaceDeclHandler)(
                 self->parser,
                 (XML_StartNamespaceDeclHandler) expat_start_ns_handler,
                 (XML_EndNamespaceDeclHandler) expat_end_ns_handler
                 );
         } else if (strcmp(event_name, "end-ns") == 0) {
-            Py_SETREF(target->end_ns_event_obj, event_name_obj);
+            Py_XSETREF(target->end_ns_event_obj, event_name_obj);
             EXPAT(SetNamespaceDeclHandler)(
                 self->parser,
                 (XML_StartNamespaceDeclHandler) expat_start_ns_handler,

@@ -12,6 +12,7 @@ import os
 import sys
 import re
 import base64
+import ntpath
 import shutil
 import urllib.parse
 import html
@@ -284,6 +285,7 @@ class SimpleHTTPServerTestCase(BaseTestCase):
         self.data = b'We are the knights who say Ni!'
         self.tempdir = tempfile.mkdtemp(dir=basetempdir)
         self.tempdir_name = os.path.basename(self.tempdir)
+        self.base_url = '/' + self.tempdir_name
         with open(os.path.join(self.tempdir, 'test'), 'wb') as temp:
             temp.write(self.data)
 
@@ -330,7 +332,7 @@ class SimpleHTTPServerTestCase(BaseTestCase):
         filename = os.fsdecode(support.TESTFN_UNDECODABLE) + '.txt'
         with open(os.path.join(self.tempdir, filename), 'wb') as f:
             f.write(support.TESTFN_UNDECODABLE)
-        response = self.request(self.tempdir_name + '/')
+        response = self.request(self.base_url + '/')
         if sys.platform == 'darwin':
             # On Mac OS the HFS+ filesystem replaces bytes that aren't valid
             # UTF-8 into a percent-encoded value.
@@ -344,27 +346,27 @@ class SimpleHTTPServerTestCase(BaseTestCase):
                       .encode(enc, 'surrogateescape'), body)
         self.assertIn(('>%s<' % html.escape(filename))
                       .encode(enc, 'surrogateescape'), body)
-        response = self.request(self.tempdir_name + '/' + quotedname)
+        response = self.request(self.base_url + '/' + quotedname)
         self.check_status_and_reason(response, HTTPStatus.OK,
                                      data=support.TESTFN_UNDECODABLE)
 
     def test_get(self):
         #constructs the path relative to the root directory of the HTTPServer
-        response = self.request(self.tempdir_name + '/test')
+        response = self.request(self.base_url + '/test')
         self.check_status_and_reason(response, HTTPStatus.OK, data=self.data)
         # check for trailing "/" which should return 404. See Issue17324
-        response = self.request(self.tempdir_name + '/test/')
+        response = self.request(self.base_url + '/test/')
         self.check_status_and_reason(response, HTTPStatus.NOT_FOUND)
-        response = self.request(self.tempdir_name + '/')
+        response = self.request(self.base_url + '/')
         self.check_status_and_reason(response, HTTPStatus.OK)
-        response = self.request(self.tempdir_name)
+        response = self.request(self.base_url)
         self.check_status_and_reason(response, HTTPStatus.MOVED_PERMANENTLY)
-        response = self.request(self.tempdir_name + '/?hi=2')
+        response = self.request(self.base_url + '/?hi=2')
         self.check_status_and_reason(response, HTTPStatus.OK)
-        response = self.request(self.tempdir_name + '?hi=1')
+        response = self.request(self.base_url + '?hi=1')
         self.check_status_and_reason(response, HTTPStatus.MOVED_PERMANENTLY)
         self.assertEqual(response.getheader("Location"),
-                         self.tempdir_name + "/?hi=1")
+                         self.base_url + "/?hi=1")
         response = self.request('/ThisDoesNotExist')
         self.check_status_and_reason(response, HTTPStatus.NOT_FOUND)
         response = self.request('/' + 'ThisDoesNotExist' + '/')
@@ -373,7 +375,7 @@ class SimpleHTTPServerTestCase(BaseTestCase):
         data = b"Dummy index file\r\n"
         with open(os.path.join(self.tempdir_name, 'index.html'), 'wb') as f:
             f.write(data)
-        response = self.request('/' + self.tempdir_name + '/')
+        response = self.request(self.base_url + '/')
         self.check_status_and_reason(response, HTTPStatus.OK, data)
 
         # chmod() doesn't work as expected on Windows, and filesystem
@@ -381,14 +383,14 @@ class SimpleHTTPServerTestCase(BaseTestCase):
         if os.name == 'posix' and os.geteuid() != 0:
             os.chmod(self.tempdir, 0)
             try:
-                response = self.request(self.tempdir_name + '/')
+                response = self.request(self.base_url + '/')
                 self.check_status_and_reason(response, HTTPStatus.NOT_FOUND)
             finally:
                 os.chmod(self.tempdir, 0o755)
 
     def test_head(self):
         response = self.request(
-            self.tempdir_name + '/test', method='HEAD')
+            self.base_url + '/test', method='HEAD')
         self.check_status_and_reason(response, HTTPStatus.OK)
         self.assertEqual(response.getheader('content-length'),
                          str(len(self.data)))
@@ -403,6 +405,22 @@ class SimpleHTTPServerTestCase(BaseTestCase):
         self.check_status_and_reason(response, HTTPStatus.NOT_IMPLEMENTED)
         response = self.request('/', method='GETs')
         self.check_status_and_reason(response, HTTPStatus.NOT_IMPLEMENTED)
+
+    def test_path_without_leading_slash(self):
+        response = self.request(self.tempdir_name + '/test')
+        self.check_status_and_reason(response, HTTPStatus.OK, data=self.data)
+        response = self.request(self.tempdir_name + '/test/')
+        self.check_status_and_reason(response, HTTPStatus.NOT_FOUND)
+        response = self.request(self.tempdir_name + '/')
+        self.check_status_and_reason(response, HTTPStatus.OK)
+        response = self.request(self.tempdir_name)
+        self.check_status_and_reason(response, HTTPStatus.MOVED_PERMANENTLY)
+        response = self.request(self.tempdir_name + '/?hi=2')
+        self.check_status_and_reason(response, HTTPStatus.OK)
+        response = self.request(self.tempdir_name + '?hi=1')
+        self.check_status_and_reason(response, HTTPStatus.MOVED_PERMANENTLY)
+        self.assertEqual(response.getheader("Location"),
+                         self.tempdir_name + "/?hi=1")
 
 
 cgi_file1 = """\
@@ -858,6 +876,13 @@ class BaseHTTPRequestHandlerTestCase(unittest.TestCase):
         self.assertFalse(self.handler.get_called)
         self.assertEqual(self.handler.requestline, 'GET / HTTP/1.1')
 
+    def test_too_many_headers(self):
+        result = self.send_typical_request(
+            b'GET / HTTP/1.1\r\n' + b'X-Foo: bar\r\n' * 101 + b'\r\n')
+        self.assertEqual(result[0], b'HTTP/1.1 431 Too many headers\r\n')
+        self.assertFalse(self.handler.get_called)
+        self.assertEqual(self.handler.requestline, 'GET / HTTP/1.1')
+
     def test_close_connection(self):
         # handle_one_request() should be repeatedly called until
         # it sets close_connection
@@ -893,6 +918,24 @@ class SimpleHTTPRequestHandlerTestCase(unittest.TestCase):
         self.assertEqual(path, self.translated)
         path = self.handler.translate_path('//filename?foo=bar')
         self.assertEqual(path, self.translated)
+
+    def test_windows_colon(self):
+        with support.swap_attr(server.os, 'path', ntpath):
+            path = self.handler.translate_path('c:c:c:foo/filename')
+            path = path.replace(ntpath.sep, os.sep)
+            self.assertEqual(path, self.translated)
+
+            path = self.handler.translate_path('\\c:../filename')
+            path = path.replace(ntpath.sep, os.sep)
+            self.assertEqual(path, self.translated)
+
+            path = self.handler.translate_path('c:\\c:..\\foo/filename')
+            path = path.replace(ntpath.sep, os.sep)
+            self.assertEqual(path, self.translated)
+
+            path = self.handler.translate_path('c:c:foo\\c:c:bar/filename')
+            path = path.replace(ntpath.sep, os.sep)
+            self.assertEqual(path, self.translated)
 
 
 class MiscTestCase(unittest.TestCase):
