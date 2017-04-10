@@ -2,13 +2,40 @@
 Python News
 +++++++++++
 
+What's New in Python 3.5.3?
+===========================
+
+Release date: 2017-01-16
+
+There were no code changes between 3.5.3rc1 and 3.5.3 final.
+
+
 What's New in Python 3.5.3 release candidate 1?
 ===============================================
 
-Release date: TBA
+Release date: 2017-01-02
 
 Core and Builtins
 -----------------
+
+- Issue #29073: bytearray formatting no longer truncates on first null byte.
+
+- Issue #28932: Do not include <sys/random.h> if it does not exist.
+
+- Issue #28147: Fix a memory leak in split-table dictionaries: setattr()
+  must not convert combined table into split table.
+
+- Issue #25677: Correct the positioning of the syntax error caret for
+  indented blocks.  Based on patch by Michael Layzell.
+
+- Issue #29000: Fixed bytes formatting of octals with zero padding in alternate
+  form.
+
+- Issue #28512: Fixed setting the offset attribute of SyntaxError by
+  PyErr_SyntaxLocationEx() and PyErr_SyntaxLocationObject().
+
+- Issue #28991:  functools.lru_cache() was susceptible to an obscure reentrancy
+  bug caused by a monkey-patched len() function.
 
 - Issue #28648: Fixed crash in Py_DecodeLocale() in debug build on Mac OS X
   when decode astral characters.  Patch by Xiang Zhang.
@@ -120,6 +147,40 @@ Core and Builtins
 
 Library
 -------
+
+- Issue #15812: inspect.getframeinfo() now correctly shows the first line of
+  a context.  Patch by Sam Breese.
+
+- Issue #29094: Offsets in a ZIP file created with extern file object and modes
+  "w" and "x" now are relative to the start of the file.
+
+- Issue #13051: Fixed recursion errors in large or resized
+  curses.textpad.Textbox.  Based on patch by Tycho Andersen.
+
+- Issue #29119: Fix weakrefs in the pure python version of
+  collections.OrderedDict move_to_end() method.
+  Contributed by Andra Bogildea.
+
+- Issue #9770: curses.ascii predicates now work correctly with negative
+  integers.
+
+- Issue #28427: old keys should not remove new values from
+  WeakValueDictionary when collecting from another thread.
+
+- Issue 28923: Remove editor artifacts from Tix.py.
+
+- Issue #28871: Fixed a crash when deallocate deep ElementTree.
+
+- Issue #19542: Fix bugs in WeakValueDictionary.setdefault() and
+  WeakValueDictionary.pop() when a GC collection happens in another
+  thread.
+
+- Issue #20191: Fixed a crash in resource.prlimit() when pass a sequence that
+  doesn't own its elements as limits.
+
+- Issue #28779: multiprocessing.set_forkserver_preload() would crash the
+  forkserver process if a preloaded module instantiated some
+  multiprocessing objects such as locks.
 
 - Issue #28847: dbm.dumb now supports reading read-only files and no longer
   writes the index file when it is not changed.
@@ -478,6 +539,10 @@ Library
 - Issue #24142: Reading a corrupt config file left the parser in an
   invalid state.  Original patch by Florian Höch.
 
+- Issue #28990: Fix SSL hanging if connection is closed before handshake 
+  completed.
+  (Patch by HoHo-Ho)
+
 IDLE
 ----
 
@@ -522,6 +587,9 @@ Documentation
 Tests
 -----
 
+- Issue #28950: Disallow -j0 to be combined with -T/-l/-M in regrtest
+  command line arguments.
+
 - Issue #28666: Now test.support.rmtree is able to remove unwritable or
   unreadable directories.
 
@@ -565,6 +633,10 @@ Windows
 
 Build
 -----
+
+- Issue #29080: Removes hard dependency on hg.exe from PCBuild/build.bat
+
+- Issue #23903: Added missed names to PC/python3.def.
 
 - Issue #10656: Fix out-of-tree building on AIX.  Patch by Tristan Carel and
   Michael Haubenwallner.

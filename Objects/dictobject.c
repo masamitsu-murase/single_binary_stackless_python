@@ -985,8 +985,10 @@ make_keys_shared(PyObject *op)
             return NULL;
         }
         else if (mp->ma_keys->dk_lookup == lookdict_unicode) {
-            /* Remove dummy keys */
-            if (dictresize(mp, DK_SIZE(mp->ma_keys)))
+            /* Remove dummy keys
+             * -1 is required since dictresize() uses key size > minused
+             */
+            if (dictresize(mp, DK_SIZE(mp->ma_keys) - 1))
                 return NULL;
         }
         assert(mp->ma_keys->dk_lookup == lookdict_unicode_nodummy);
@@ -1244,13 +1246,31 @@ _PyDict_SetItem_KnownHash(PyObject *op, PyObject *key, PyObject *value,
     return insertdict(mp, key, hash, value);
 }
 
+static int
+delitem_common(PyDictObject *mp, PyDictKeyEntry *ep, PyObject **value_addr)
+{
+    PyObject *old_key, *old_value;
+
+    old_value = *value_addr;
+    *value_addr = NULL;
+    mp->ma_used--;
+    if (!_PyDict_HasSplitTable(mp)) {
+        ENSURE_ALLOWS_DELETIONS(mp);
+        old_key = ep->me_key;
+        Py_INCREF(dummy);
+        ep->me_key = dummy;
+        Py_DECREF(old_key);
+    }
+    Py_DECREF(old_value);
+    return 0;
+}
+
 int
 PyDict_DelItem(PyObject *op, PyObject *key)
 {
     PyDictObject *mp;
     Py_hash_t hash;
     PyDictKeyEntry *ep;
-    PyObject *old_key, *old_value;
     PyObject **value_addr;
 
     if (!PyDict_Check(op)) {
@@ -1272,18 +1292,7 @@ PyDict_DelItem(PyObject *op, PyObject *key)
         _PyErr_SetKeyError(key);
         return -1;
     }
-    old_value = *value_addr;
-    *value_addr = NULL;
-    mp->ma_used--;
-    if (!_PyDict_HasSplitTable(mp)) {
-        ENSURE_ALLOWS_DELETIONS(mp);
-        old_key = ep->me_key;
-        Py_INCREF(dummy);
-        ep->me_key = dummy;
-        Py_DECREF(old_key);
-    }
-    Py_DECREF(old_value);
-    return 0;
+    return delitem_common(mp, ep, value_addr);
 }
 
 int
@@ -1291,7 +1300,6 @@ _PyDict_DelItem_KnownHash(PyObject *op, PyObject *key, Py_hash_t hash)
 {
     PyDictObject *mp;
     PyDictKeyEntry *ep;
-    PyObject *old_key, *old_value;
     PyObject **value_addr;
 
     if (!PyDict_Check(op)) {
@@ -1308,19 +1316,44 @@ _PyDict_DelItem_KnownHash(PyObject *op, PyObject *key, Py_hash_t hash)
         _PyErr_SetKeyError(key);
         return -1;
     }
-    old_value = *value_addr;
-    *value_addr = NULL;
-    mp->ma_used--;
-    if (!_PyDict_HasSplitTable(mp)) {
-        ENSURE_ALLOWS_DELETIONS(mp);
-        old_key = ep->me_key;
-        Py_INCREF(dummy);
-        ep->me_key = dummy;
-        Py_DECREF(old_key);
-    }
-    Py_DECREF(old_value);
-    return 0;
+    return delitem_common(mp, ep, value_addr);
 }
+
+int
+_PyDict_DelItemIf(PyObject *op, PyObject *key,
+                  int (*predicate)(PyObject *value))
+{
+    PyDictObject *mp;
+    Py_hash_t hash;
+    PyDictKeyEntry *ep;
+    PyObject **value_addr;
+    int res;
+
+    if (!PyDict_Check(op)) {
+        PyErr_BadInternalCall();
+        return -1;
+    }
+    assert(key);
+    hash = PyObject_Hash(key);
+    if (hash == -1)
+        return -1;
+    mp = (PyDictObject *)op;
+    ep = (mp->ma_keys->dk_lookup)(mp, key, hash, &value_addr);
+    if (ep == NULL)
+        return -1;
+    if (*value_addr == NULL) {
+        _PyErr_SetKeyError(key);
+        return -1;
+    }
+    res = predicate(*value_addr);
+    if (res == -1)
+        return -1;
+    if (res > 0)
+        return delitem_common(mp, ep, value_addr);
+    else
+        return 0;
+}
+
 
 void
 PyDict_Clear(PyObject *op)
@@ -2473,7 +2506,8 @@ dict_popitem(PyDictObject *mp)
     }
     /* Convert split table to combined table */
     if (mp->ma_keys->dk_lookup == lookdict_split) {
-        if (dictresize(mp, DK_SIZE(mp->ma_keys))) {
+        /* -1 is required since dictresize() uses key size > minused */
+        if (dictresize(mp, DK_SIZE(mp->ma_keys) - 1)) {
             Py_DECREF(res);
             return NULL;
         }
@@ -3848,10 +3882,16 @@ _PyObjectDict_SetItem(PyTypeObject *tp, PyObject **dictptr,
                 CACHED_KEYS(tp) = NULL;
                 DK_DECREF(cached);
             }
-        } else {
+        }
+        else {
+            int was_shared = cached == ((PyDictObject *)dict)->ma_keys;
             res = PyDict_SetItem(dict, key, value);
-            if (cached != ((PyDictObject *)dict)->ma_keys) {
-                /* Either update tp->ht_cached_keys or delete it */
+            /* PyDict_SetItem() may call dictresize() and convert split table
+             * into combined table.  In such case, convert it to split
+             * table again and update type's shared key only when this is
+             * the only dict sharing key with the type.
+             */
+            if (was_shared && cached != ((PyDictObject *)dict)->ma_keys) {
                 if (cached->dk_refcnt == 1) {
                     CACHED_KEYS(tp) = make_keys_shared(dict);
                 } else {

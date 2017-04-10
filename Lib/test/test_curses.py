@@ -27,6 +27,7 @@ requires('curses')
 curses = import_module('curses')
 import_module('curses.panel')
 import_module('curses.ascii')
+import_module('curses.textpad')
 
 def requires_curses_func(name):
     return unittest.skipUnless(hasattr(curses, name),
@@ -392,6 +393,14 @@ class TestCurses(unittest.TestCase):
         human_readable_signature = stdscr.addch.__doc__.split("\n")[0]
         self.assertIn("[y, x,]", human_readable_signature)
 
+    def test_issue13051(self):
+        stdscr = self.stdscr
+        box = curses.textpad.Textbox(stdscr, insert_mode=True)
+        lines, cols = stdscr.getmaxyx()
+        stdscr.resize(lines-2, cols-2)
+        # this may cause infinite recursion, leading to a RuntimeError
+        box._insert_printable_char('a')
+
 
 class MiscTests(unittest.TestCase):
 
@@ -435,6 +444,25 @@ class TestAscii(unittest.TestCase):
             check(curses.ascii.isprint, 32 <= i <= 126)
             check(curses.ascii.ispunct, c in string.punctuation)
             check(curses.ascii.isxdigit, c in string.hexdigits)
+
+        for i in (-2, -1, 256, sys.maxunicode, sys.maxunicode+1):
+            self.assertFalse(curses.ascii.isalnum(i))
+            self.assertFalse(curses.ascii.isalpha(i))
+            self.assertFalse(curses.ascii.isdigit(i))
+            self.assertFalse(curses.ascii.islower(i))
+            self.assertFalse(curses.ascii.isspace(i))
+            self.assertFalse(curses.ascii.isupper(i))
+
+            self.assertFalse(curses.ascii.isascii(i))
+            self.assertFalse(curses.ascii.isctrl(i))
+            self.assertFalse(curses.ascii.iscntrl(i))
+            self.assertFalse(curses.ascii.isblank(i))
+            self.assertFalse(curses.ascii.isgraph(i))
+            self.assertFalse(curses.ascii.isprint(i))
+            self.assertFalse(curses.ascii.ispunct(i))
+            self.assertFalse(curses.ascii.isxdigit(i))
+
+        self.assertFalse(curses.ascii.ismeta(-1))
 
     def test_ascii(self):
         ascii = curses.ascii.ascii
