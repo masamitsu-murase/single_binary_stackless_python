@@ -365,7 +365,7 @@ def namedtuple(typename, field_names, verbose=False, rename=False):
     >>> x, y = p                        # unpack like a regular tuple
     >>> x, y
     (11, 22)
-    >>> p.x + p.y                       # fields also accessable by name
+    >>> p.x + p.y                       # fields also accessible by name
     33
     >>> d = p._asdict()                 # convert to a dictionary
     >>> d['x']
@@ -850,7 +850,8 @@ class ChainMap(MutableMapping):
     to create a single, updateable view.
 
     The underlying mappings are stored in a list.  That list is public and can
-    accessed or updated using the *maps* attribute.  There is no other state.
+    be accessed or updated using the *maps* attribute.  There is no other
+    state.
 
     Lookups search the underlying mappings successively until a key is found.
     In contrast, writes, updates, and deletions only operate on the first

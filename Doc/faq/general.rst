@@ -146,10 +146,9 @@ labeled 2.0aN precede the versions labeled 2.0bN, which precede versions labeled
 2.0cN, and *those* precede 2.0.
 
 You may also find version numbers with a "+" suffix, e.g. "2.2+".  These are
-unreleased versions, built directly from the Subversion trunk.  In practice,
-after a final minor release is made, the Subversion trunk is incremented to the
-next minor version, which becomes the "a0" version,
-e.g. "2.4a0".
+unreleased versions, built directly from the CPython development repository.  In
+practice, after a final minor release is made, the version is incremented to the
+next minor version, which becomes the "a0" version, e.g. "2.4a0".
 
 See also the documentation for :data:`sys.version`, :data:`sys.hexversion`, and
 :data:`sys.version_info`.
@@ -271,7 +270,7 @@ Where in the world is www.python.org located?
 
 The Python project's infrastructure is located all over the world.
 `www.python.org <https://www.python.org>`_ is graciously hosted by `Rackspace
-<http://www.rackspace.com>`_, with CDN caching provided by `Fastly
+<https://www.rackspace.com>`_, with CDN caching provided by `Fastly
 <https://www.fastly.com>`_.  `Upfront Systems
 <http://www.upfrontsystems.co.za/>`_ hosts `bugs.python.org
 <https://bugs.python.org>`_.  Many other Python services like `the Wiki

@@ -19,9 +19,10 @@ __all__ = [
     'Callable',
     'Generic',
     'Optional',
+    'Tuple',
+    'Type',
     'TypeVar',
     'Union',
-    'Tuple',
 
     # ABCs (from collections.abc).
     'AbstractSet',  # collections.abc.Set.
@@ -447,6 +448,7 @@ class TypeVar(TypingMeta, metaclass=TypingMeta, _root=True):
 
 
 # Some unconstrained type variables.  These are used by the container types.
+# (These are not for export.)
 T = TypeVar('T')  # Any type.
 KT = TypeVar('KT')  # Key type.
 VT = TypeVar('VT')  # Value type.
@@ -456,6 +458,7 @@ VT_co = TypeVar('VT_co', covariant=True)  # Value type covariant containers.
 T_contra = TypeVar('T_contra', contravariant=True)  # Ditto contravariant.
 
 # A useful type variable with constraints.  This represents string types.
+# (This one *is* for export!)
 AnyStr = TypeVar('AnyStr', bytes, str)
 
 
@@ -894,8 +897,6 @@ def _next_in_mro(cls):
 class GenericMeta(TypingMeta, abc.ABCMeta):
     """Metaclass for generic types."""
 
-    __extra__ = None
-
     def __new__(cls, name, bases, namespace,
                 tvars=None, args=None, origin=None, extra=None):
         self = super().__new__(cls, name, bases, namespace, _root=True)
@@ -943,10 +944,7 @@ class GenericMeta(TypingMeta, abc.ABCMeta):
         self.__parameters__ = tvars
         self.__args__ = args
         self.__origin__ = origin
-        if extra is not None:
-            self.__extra__ = extra
-        # Else __extra__ is inherited, eventually from the
-        # (meta-)class default above.
+        self.__extra__ = extra
         # Speed hack (https://github.com/python/typing/issues/196).
         self.__next_in_mro__ = _next_in_mro(self)
         return self
@@ -1307,6 +1305,7 @@ class _ProtocolMeta(GenericMeta):
                             attr != '__next_in_mro__' and
                             attr != '__parameters__' and
                             attr != '__origin__' and
+                            attr != '__extra__' and
                             attr != '__module__'):
                         attrs.add(attr)
 
@@ -1470,7 +1469,7 @@ class ByteString(Sequence[int], extra=collections_abc.ByteString):
 ByteString.register(type(memoryview(b'')))
 
 
-class List(list, MutableSequence[T]):
+class List(list, MutableSequence[T], extra=list):
 
     def __new__(cls, *args, **kwds):
         if _geqv(cls, List):
@@ -1479,7 +1478,7 @@ class List(list, MutableSequence[T]):
         return list.__new__(cls, *args, **kwds)
 
 
-class Set(set, MutableSet[T]):
+class Set(set, MutableSet[T], extra=set):
 
     def __new__(cls, *args, **kwds):
         if _geqv(cls, Set):
@@ -1502,7 +1501,8 @@ class _FrozenSetMeta(GenericMeta):
         return super().__subclasscheck__(cls)
 
 
-class FrozenSet(frozenset, AbstractSet[T_co], metaclass=_FrozenSetMeta):
+class FrozenSet(frozenset, AbstractSet[T_co], metaclass=_FrozenSetMeta,
+                extra=frozenset):
     __slots__ = ()
 
     def __new__(cls, *args, **kwds):
@@ -1538,7 +1538,7 @@ if hasattr(contextlib, 'AbstractContextManager'):
     __all__.append('ContextManager')
 
 
-class Dict(dict, MutableMapping[KT, VT]):
+class Dict(dict, MutableMapping[KT, VT], extra=dict):
 
     def __new__(cls, *args, **kwds):
         if _geqv(cls, Dict):
@@ -1546,7 +1546,8 @@ class Dict(dict, MutableMapping[KT, VT]):
                             "use dict() instead")
         return dict.__new__(cls, *args, **kwds)
 
-class DefaultDict(collections.defaultdict, MutableMapping[KT, VT]):
+class DefaultDict(collections.defaultdict, MutableMapping[KT, VT],
+                  extra=collections.defaultdict):
 
     def __new__(cls, *args, **kwds):
         if _geqv(cls, DefaultDict):
@@ -1572,6 +1573,36 @@ class Generator(Iterator[T_co], Generic[T_co, T_contra, V_co],
             raise TypeError("Type Generator cannot be instantiated; "
                             "create a subclass instead")
         return super().__new__(cls, *args, **kwds)
+
+
+# Internal type variable used for Type[].
+CT = TypeVar('CT', covariant=True, bound=type)
+
+
+# This is not a real generic class.  Don't use outside annotations.
+class Type(type, Generic[CT], extra=type):
+    """A special construct usable to annotate class objects.
+
+    For example, suppose we have the following classes::
+
+      class User: ...  # Abstract base for User classes
+      class BasicUser(User): ...
+      class ProUser(User): ...
+      class TeamUser(User): ...
+
+    And a function that takes a class argument that's a subclass of
+    User and returns an instance of the corresponding class::
+
+      U = TypeVar('U', bound=User)
+      def new_user(user_class: Type[U]) -> U:
+          user = user_class()
+          # (Here we could write the user object to a database)
+          return user
+
+      joe = new_user(BasicUser)
+
+    At this point the type checker knows that joe has type BasicUser.
+    """
 
 
 def NamedTuple(typename, fields):

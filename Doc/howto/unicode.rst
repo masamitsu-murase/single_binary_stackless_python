@@ -214,7 +214,7 @@ difficult reading.  `A chronology <http://www.unicode.org/history/>`_ of the
 origin and development of Unicode is also available on the site.
 
 To help understand the standard, Jukka Korpela has written `an introductory
-guide <http://www.cs.tut.fi/~jkorpela/unicode/guide.html>`_ to reading the
+guide <https://www.cs.tut.fi/~jkorpela/unicode/guide.html>`_ to reading the
 Unicode character tables.
 
 Another `good introductory article <http://www.joelonsoftware.com/articles/Unicode.html>`_
@@ -687,7 +687,7 @@ with the ``surrogateescape`` error handler::
    # make changes to the string 'data'
 
    with open(fname + '.new', 'w',
-              encoding="ascii", errors="surrogateescape") as f:
+             encoding="ascii", errors="surrogateescape") as f:
        f.write(data)
 
 The ``surrogateescape`` error handler will decode any non-ASCII bytes

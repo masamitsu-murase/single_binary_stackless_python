@@ -2607,8 +2607,10 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
         tmp = PyStaticMethod_New(tmp);
         if (tmp == NULL)
             goto error;
-        if (_PyDict_SetItemId(dict, &PyId___new__, tmp) < 0)
+        if (_PyDict_SetItemId(dict, &PyId___new__, tmp) < 0) {
+            Py_DECREF(tmp);
             goto error;
+        }
         Py_DECREF(tmp);
     }
 
@@ -7044,7 +7046,7 @@ update_one_slot(PyTypeObject *type, slotdef *p)
                sanity checks and constructing a new argument
                list.  Cut all that nonsense short -- this speeds
                up instance creation tremendously. */
-            specific = (void *)((PyTypeObject *)PyCFunction_GET_SELF(descr))->tp_new;
+            specific = (void *)type->tp_new;
             /* XXX I'm not 100% sure that there isn't a hole
                in this reasoning that requires additional
                sanity checks.  I'll buy the first person to

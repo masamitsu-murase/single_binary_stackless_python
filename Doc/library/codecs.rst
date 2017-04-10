@@ -137,16 +137,16 @@ these additional functions which use :func:`lookup` for the codec lookup:
 
 .. function:: getreader(encoding)
 
-   Look up the codec for the given encoding and return its StreamReader class or
-   factory function.
+   Look up the codec for the given encoding and return its :class:`StreamReader`
+   class or factory function.
 
    Raises a :exc:`LookupError` in case the encoding cannot be found.
 
 
 .. function:: getwriter(encoding)
 
-   Look up the codec for the given encoding and return its StreamWriter class or
-   factory function.
+   Look up the codec for the given encoding and return its :class:`StreamWriter`
+   class or factory function.
 
    Raises a :exc:`LookupError` in case the encoding cannot be found.
 
@@ -977,7 +977,7 @@ particular, the following variants typically exist:
 
 * an ISO 8859 codeset
 
-* a Microsoft Windows code page, which is typically derived from a 8859 codeset,
+* a Microsoft Windows code page, which is typically derived from an 8859 codeset,
   but replaces control characters with additional graphic characters
 
 * an IBM EBCDIC code page
@@ -1414,7 +1414,7 @@ parameters, such as :mod:`http.client` and :mod:`ftplib`, accept Unicode host
 names (:mod:`http.client` then also transparently sends an IDNA hostname in the
 :mailheader:`Host` field if it sends that field at all).
 
-.. _section 3.1: http://tools.ietf.org/html/rfc3490#section-3.1
+.. _section 3.1: https://tools.ietf.org/html/rfc3490#section-3.1
 
 When receiving host names from the wire (such as in reverse name lookup), no
 automatic conversion to Unicode is performed: Applications wishing to present

@@ -22,7 +22,7 @@ HTTPS protocols.  It is normally not used directly --- the module
 .. seealso::
 
     The `Requests package <https://requests.readthedocs.org/>`_
-    is recommended for a higher-level http client interface.
+    is recommended for a higher-level HTTP client interface.
 
 .. note::
 
@@ -441,7 +441,7 @@ Here is an example session that uses the ``GET`` method::
    >>> conn.request("GET", "/")
    >>> r1 = conn.getresponse()
    >>> while not r1.closed:
-   ...     print(r1.read(200)) # 200 bytes
+   ...     print(r1.read(200))  # 200 bytes
    b'<!doctype html>\n<!--[if"...
    ...
    >>> # Example of an invalid request

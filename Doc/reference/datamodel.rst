@@ -1734,6 +1734,11 @@ After the class object is created, it is passed to the class decorators
 included in the class definition (if any) and the resulting object is bound
 in the local namespace as the defined class.
 
+When a new class is created by ``type.__new__``, the object provided as the
+namespace parameter is copied to a standard Python dictionary and the original
+object is discarded. The new copy becomes the :attr:`~object.__dict__` attribute
+of the class object.
+
 .. seealso::
 
    :pep:`3135` - New super
@@ -1753,11 +1758,11 @@ to remember the order that class variables are defined::
 
     class OrderedClass(type):
 
-         @classmethod
-         def __prepare__(metacls, name, bases, **kwds):
+        @classmethod
+        def __prepare__(metacls, name, bases, **kwds):
             return collections.OrderedDict()
 
-         def __new__(cls, name, bases, namespace, **kwds):
+        def __new__(cls, name, bases, namespace, **kwds):
             result = type.__new__(cls, name, bases, dict(namespace))
             result.members = tuple(namespace)
             return result

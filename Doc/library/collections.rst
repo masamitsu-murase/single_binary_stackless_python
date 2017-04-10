@@ -56,7 +56,7 @@ The class can be used to simulate nested scopes and is useful in templating.
     dictionary is provided so that a new chain always has at least one mapping.
 
     The underlying mappings are stored in a list.  That list is public and can
-    accessed or updated using the *maps* attribute.  There is no other state.
+    be accessed or updated using the *maps* attribute.  There is no other state.
 
     Lookups search the underlying mappings successively until a key is found.  In
     contrast, writes, updates, and deletions only operate on the first mapping.
@@ -116,12 +116,12 @@ The class can be used to simulate nested scopes and is useful in templating.
       :meth:`~collections.ChainMap.parents` property.
 
     * The `Nested Contexts recipe
-      <http://code.activestate.com/recipes/577434/>`_ has options to control
+      <https://code.activestate.com/recipes/577434/>`_ has options to control
       whether writes and other mutations apply only to the first mapping or to
       any mapping in the chain.
 
     * A `greatly simplified read-only version of Chainmap
-      <http://code.activestate.com/recipes/305268/>`_.
+      <https://code.activestate.com/recipes/305268/>`_.
 
 
 :class:`ChainMap` Examples and Recipes
@@ -957,7 +957,7 @@ customize a prototype instance:
 .. seealso::
 
     * `Recipe for named tuple abstract base class with a metaclass mix-in
-      <http://code.activestate.com/recipes/577629-namedtupleabc-abstract-base-class-mix-in-for-named/>`_
+      <https://code.activestate.com/recipes/577629-namedtupleabc-abstract-base-class-mix-in-for-named/>`_
       by Jan Kaliszewski.  Besides providing an :term:`abstract base class` for
       named tuples, it also supports an alternate :term:`metaclass`-based
       constructor that is convenient for use cases where named tuples are being
@@ -1029,7 +1029,7 @@ Since an ordered dictionary remembers its insertion order, it can be used
 in conjunction with sorting to make a sorted dictionary::
 
     >>> # regular unsorted dictionary
-    >>> d = {'banana': 3, 'apple':4, 'pear': 1, 'orange': 2}
+    >>> d = {'banana': 3, 'apple': 4, 'pear': 1, 'orange': 2}
 
     >>> # dictionary sorted by key
     >>> OrderedDict(sorted(d.items(), key=lambda t: t[0]))

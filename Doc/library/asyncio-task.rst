@@ -620,7 +620,7 @@ Task functions
 
       Unlike other functions from the module,
       :func:`run_coroutine_threadsafe` requires the *loop* argument to
-      be passed explicitely.
+      be passed explicitly.
 
    .. versionadded:: 3.5.1
 
@@ -676,6 +676,8 @@ Task functions
       context manager scope.
 
    Passing ``None`` as *timeout* argument disables the manager logic.
+
+   .. versionadded:: 3.5.2
 
 .. coroutinefunction:: wait(futures, \*, loop=None, timeout=None,\
                             return_when=ALL_COMPLETED)

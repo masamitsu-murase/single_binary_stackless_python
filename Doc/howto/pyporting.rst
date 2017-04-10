@@ -390,7 +390,7 @@ your tests under multiple Python interpreters is tox_. You can then integrate
 tox with your continuous integration system so that you never accidentally break
 Python 2 or 3 support.
 
-You may also want to use use the ``-bb`` flag with the Python 3 interpreter to
+You may also want to use the ``-bb`` flag with the Python 3 interpreter to
 trigger an exception when you are comparing bytes to strings or bytes to an int
 (the latter is available starting in Python 3.5). By default type-differing
 comparisons simply return ``False``, but if you made a mistake in your
@@ -427,10 +427,10 @@ supported by Python 2. You should also update the classifiers in your
 .. _Futurize: http://python-future.org/automatic_conversion.html
 .. _importlib: https://docs.python.org/3/library/importlib.html#module-importlib
 .. _importlib2: https://pypi.python.org/pypi/importlib2
-.. _Modernize: http://python-modernize.readthedocs.org/en/latest/
+.. _Modernize: https://python-modernize.readthedocs.org/en/latest/
 .. _Porting to Python 3: http://python3porting.com/
 .. _Pylint: https://pypi.python.org/pypi/pylint
-.. _Python 3 Q & A: http://ncoghlan-devs-python-notes.readthedocs.org/en/latest/python3/questions_and_answers.html
+.. _Python 3 Q & A: https://ncoghlan-devs-python-notes.readthedocs.org/en/latest/python3/questions_and_answers.html
 
 .. _python-future: http://python-future.org/
 .. _python-porting: https://mail.python.org/mailman/listinfo/python-porting

@@ -3489,7 +3489,7 @@ order (MRO) for bases """
         b.a = a
         z = deepcopy(a) # This blew up before
 
-    def test_unintialized_modules(self):
+    def test_uninitialized_modules(self):
         # Testing uninitialized module objects...
         from types import ModuleType as M
         m = M.__new__(M)
@@ -4563,14 +4563,6 @@ order (MRO) for bases """
         func.__qualname__ = "qualname"
         self.assertRegex(repr(method),
             r"<bound method qualname of <object object at .*>>")
-
-    def test_deleting_new_in_subclasses(self):
-        class X:
-            def __init__(self, a):
-                pass
-        X.__new__ = None
-        del X.__new__
-        X(1) # should work
 
 
 class DictProxyTests(unittest.TestCase):

@@ -674,7 +674,7 @@ class PurePath(object):
             return cls._flavour.join(parts)
 
     def _init(self):
-        # Overriden in concrete Path
+        # Overridden in concrete Path
         pass
 
     def _make_child(self, args):
@@ -692,13 +692,6 @@ class PurePath(object):
             self._str = self._format_parsed_parts(self._drv, self._root,
                                                   self._parts) or '.'
             return self._str
-
-    @property
-    def path(self):
-        try:
-            return self._str
-        except AttributeError:
-            return str(self)
 
     def as_posix(self):
         """Return the string representation of the path with forward (/)

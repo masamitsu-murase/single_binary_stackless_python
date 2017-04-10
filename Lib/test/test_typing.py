@@ -1,4 +1,5 @@
 import contextlib
+import collections
 import pickle
 import re
 import sys
@@ -14,6 +15,7 @@ from typing import Generic
 from typing import cast
 from typing import get_type_hints
 from typing import no_type_check, no_type_check_decorator
+from typing import Type
 from typing import NamedTuple
 from typing import IO, TextIO, BinaryIO
 from typing import Pattern, Match
@@ -1218,13 +1220,17 @@ class CollectionsAbcTests(BaseTestCase):
         with self.assertRaises(TypeError):
             typing.List[int]()
 
-    def test_list_subclass_instantiation(self):
+    def test_list_subclass(self):
 
         class MyList(typing.List[int]):
             pass
 
         a = MyList()
         self.assertIsInstance(a, MyList)
+        self.assertIsInstance(a, typing.Sequence)
+
+        self.assertIsSubclass(MyList, list)
+        self.assertNotIsSubclass(list, MyList)
 
     def test_no_dict_instantiation(self):
         with self.assertRaises(TypeError):
@@ -1234,13 +1240,17 @@ class CollectionsAbcTests(BaseTestCase):
         with self.assertRaises(TypeError):
             typing.Dict[str, int]()
 
-    def test_dict_subclass_instantiation(self):
+    def test_dict_subclass(self):
 
         class MyDict(typing.Dict[str, int]):
             pass
 
         d = MyDict()
         self.assertIsInstance(d, MyDict)
+        self.assertIsInstance(d, typing.MutableMapping)
+
+        self.assertIsSubclass(MyDict, dict)
+        self.assertNotIsSubclass(dict, MyDict)
 
     def test_no_defaultdict_instantiation(self):
         with self.assertRaises(TypeError):
@@ -1250,13 +1260,16 @@ class CollectionsAbcTests(BaseTestCase):
         with self.assertRaises(TypeError):
             typing.DefaultDict[str, int]()
 
-    def test_defaultdict_subclass_instantiation(self):
+    def test_defaultdict_subclass(self):
 
         class MyDefDict(typing.DefaultDict[str, int]):
             pass
 
         dd = MyDefDict()
         self.assertIsInstance(dd, MyDefDict)
+
+        self.assertIsSubclass(MyDefDict, collections.defaultdict)
+        self.assertNotIsSubclass(collections.defaultdict, MyDefDict)
 
     def test_no_set_instantiation(self):
         with self.assertRaises(TypeError):
@@ -1338,6 +1351,13 @@ class CollectionsAbcTests(BaseTestCase):
         self.assertEqual(len(MMB[str, str]()), 0)
         self.assertEqual(len(MMB[KT, VT]()), 0)
 
+        self.assertNotIsSubclass(dict, MMA)
+        self.assertNotIsSubclass(dict, MMB)
+
+        self.assertIsSubclass(MMA, typing.Mapping)
+        self.assertIsSubclass(MMB, typing.Mapping)
+        self.assertIsSubclass(MMC, typing.Mapping)
+
 
 class OtherABCTests(BaseTestCase):
 
@@ -1352,6 +1372,33 @@ class OtherABCTests(BaseTestCase):
         self.assertIsInstance(cm, typing.ContextManager)
         self.assertIsInstance(cm, typing.ContextManager[int])
         self.assertNotIsInstance(42, typing.ContextManager)
+
+
+class TypeTests(BaseTestCase):
+
+    def test_type_basic(self):
+
+        class User: pass
+        class BasicUser(User): pass
+        class ProUser(User): pass
+
+        def new_user(user_class: Type[User]) -> User:
+            return user_class()
+
+        joe = new_user(BasicUser)
+
+    def test_type_typevar(self):
+
+        class User: pass
+        class BasicUser(User): pass
+        class ProUser(User): pass
+
+        U = TypeVar('U', bound=User)
+
+        def new_user(user_class: Type[U]) -> U:
+            return user_class()
+
+        joe = new_user(BasicUser)
 
 
 class NamedTupleTests(BaseTestCase):

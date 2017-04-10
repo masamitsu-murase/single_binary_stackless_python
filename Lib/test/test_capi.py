@@ -236,6 +236,9 @@ class CAPITest(unittest.TestCase):
                              'return_result_with_error.* '
                              'returned a result with an error set')
 
+    def test_buildvalue_N(self):
+        _testcapi.test_buildvalue_N()
+
 
 @unittest.skipUnless(threading, 'Threading required for this test.')
 class TestPendingCalls(unittest.TestCase):
@@ -458,7 +461,7 @@ class SkipitemTest(unittest.TestCase):
         test and not for the other, there's a mismatch, and the test fails.
 
            ** Some format units have special funny semantics and it would
-              be difficult to accomodate them here.  Since these are all
+              be difficult to accommodate them here.  Since these are all
               well-established and properly skipped in skipitem() we can
               get away with not testing them--this test is really intended
               to catch *new* format units.
