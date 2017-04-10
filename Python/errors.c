@@ -152,13 +152,7 @@ PyErr_SetString(PyObject *exception, const char *string)
 PyObject *
 PyErr_Occurred(void)
 {
-    /* If there is no thread state, PyThreadState_GET calls
-       Py_FatalError, which calls PyErr_Occurred.  To avoid the
-       resulting infinite loop, we inline PyThreadState_GET here and
-       treat no thread as no error. */
-    PyThreadState *tstate =
-        ((PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current));
-
+    PyThreadState *tstate = _PyThreadState_UncheckedGet();
     return tstate == NULL ? NULL : tstate->curexc_type;
 }
 
@@ -315,14 +309,11 @@ finally:
     tstate = PyThreadState_GET();
     if (++tstate->recursion_depth > Py_GetRecursionLimit()) {
         --tstate->recursion_depth;
-        /* throw away the old exception... */
-        Py_DECREF(*exc);
-        Py_DECREF(*val);
-        /* ... and use the recursion error instead */
-        *exc = PyExc_RecursionError;
-        *val = PyExc_RecursionErrorInst;
-        Py_INCREF(*exc);
-        Py_INCREF(*val);
+        /* throw away the old exception and use the recursion error instead */
+        Py_INCREF(PyExc_RecursionError);
+        Py_SETREF(*exc, PyExc_RecursionError);
+        Py_INCREF(PyExc_RecursionErrorInst);
+        Py_SETREF(*val, PyExc_RecursionErrorInst);
         /* just keeping the old traceback */
         return;
     }

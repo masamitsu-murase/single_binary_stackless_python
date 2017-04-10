@@ -114,7 +114,7 @@ static wchar_t * get_env(wchar_t * key)
     if (result >= BUFSIZE) {
         /* Large environment variable. Accept some leakage */
         wchar_t *buf2 = (wchar_t*)malloc(sizeof(wchar_t) * (result+1));
-        if (buf2 = NULL) {
+        if (buf2 == NULL) {
             error(RC_NO_MEMORY, L"Could not allocate environment buffer");
         }
         GetEnvironmentVariableW(key, buf2, result);
@@ -171,6 +171,9 @@ static wchar_t * location_checks[] = {
     L"\\",
     L"\\PCBuild\\win32\\",
     L"\\PCBuild\\amd64\\",
+    // To support early 32bit versions of Python that stuck the build binaries
+    // directly in PCBuild...
+    L"\\PCBuild\\",
     NULL
 };
 
@@ -965,10 +968,12 @@ typedef struct {
  */
 static BOM BOMs[] = {
     { 3, { 0xEF, 0xBB, 0xBF }, CP_UTF8 },           /* UTF-8 - keep first */
-    { 2, { 0xFF, 0xFE }, CP_UTF16LE },              /* UTF-16LE */
-    { 2, { 0xFE, 0xFF }, CP_UTF16BE },              /* UTF-16BE */
+    /* Test UTF-32LE before UTF-16LE since UTF-16LE BOM is a prefix
+     * of UTF-32LE BOM. */
     { 4, { 0xFF, 0xFE, 0x00, 0x00 }, CP_UTF32LE },  /* UTF-32LE */
     { 4, { 0x00, 0x00, 0xFE, 0xFF }, CP_UTF32BE },  /* UTF-32BE */
+    { 2, { 0xFF, 0xFE }, CP_UTF16LE },              /* UTF-16LE */
+    { 2, { 0xFE, 0xFF }, CP_UTF16BE },              /* UTF-16BE */
     { 0 }                                           /* sentinel */
 };
 
@@ -1074,7 +1079,10 @@ static PYC_MAGIC magic_values[] = {
     { 0x0bb8, 0x0c3b, L"3.0" },
     { 0x0c45, 0x0c4f, L"3.1" },
     { 0x0c58, 0x0c6c, L"3.2" },
-    { 0x0c76, 0x0c76, L"3.3" },
+    { 0x0c76, 0x0c9e, L"3.3" },
+    { 0x0cb2, 0x0cee, L"3.4" },
+    { 0x0cf8, 0x0d16, L"3.5" },
+    { 0x0d20, 0x0d20, L"3.6" },
     { 0 }
 };
 
@@ -1252,7 +1260,7 @@ path '%ls'", command);
                              * is no version specification.
                              */
                             debug(L"searching PATH for python executable\n");
-                            cmd = find_on_path(L"python");
+                            cmd = find_on_path(PYTHON_EXECUTABLE);
                             debug(L"Python on path: %ls\n", cmd ? cmd->value : L"<not found>");
                             if (cmd) {
                                 debug(L"located python on PATH: %ls\n", cmd->value);

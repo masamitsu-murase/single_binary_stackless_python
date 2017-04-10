@@ -779,6 +779,20 @@ class BytesTest(BaseBytesTest, unittest.TestCase):
             def __index__(self):
                 return 42
         self.assertEqual(bytes(A()), b'a')
+        # Issue #25766
+        class A(str):
+            def __bytes__(self):
+                return b'abc'
+        self.assertEqual(bytes(A('\u20ac')), b'abc')
+        self.assertEqual(bytes(A('\u20ac'), 'iso8859-15'), b'\xa4')
+        # Issue #24731
+        class A:
+            def __bytes__(self):
+                return OtherBytesSubclass(b'abc')
+        self.assertEqual(bytes(A()), b'abc')
+        self.assertIs(type(bytes(A())), OtherBytesSubclass)
+        self.assertEqual(BytesSubclass(A()), b'abc')
+        self.assertIs(type(BytesSubclass(A())), BytesSubclass)
 
     # Test PyBytes_FromFormat()
     def test_from_format(self):
@@ -1550,6 +1564,9 @@ class ByteArraySubclass(bytearray):
     pass
 
 class BytesSubclass(bytes):
+    pass
+
+class OtherBytesSubclass(bytes):
     pass
 
 class ByteArraySubclassTest(SubclassTest, unittest.TestCase):

@@ -2,6 +2,213 @@
 Python News
 +++++++++++
 
+What's New in Python 3.5.2 release candidate 1?
+===============================================
+
+Release date: tba
+
+Core and Builtins
+-----------------
+
+- Issue #26154: Add a new private _PyThreadState_UncheckedGet() function to get
+  the current Python thread state, but don't issue a fatal error if it is NULL.
+  This new function must be used instead of accessing directly the
+  _PyThreadState_Current variable.  The variable is no more exposed since
+  Python 3.5.1 to hide the exact implementation of atomic C types, to avoid
+  compiler issues.
+
+- Issue #25843: When compiling code, don't merge constants if they are equal
+  but have a different types. For example, ``f1, f2 = lambda: 1, lambda: 1.0``
+  is now correctly compiled to two different functions: ``f1()`` returns ``1``
+  (``int``) and ``f2()`` returns ``1.0`` (``int``), even if ``1`` and ``1.0``
+  are equal.
+
+- Issue #25731: Fix set and deleting __new__ on a class.
+
+- Issue #22995: [UPDATE] Comment out the one of the pickleability tests in
+  _PyObject_GetState() due to regressions observed in Cython-based projects.
+
+- Issue #25961: Disallowed null characters in the type name.
+
+- Issue #25973: Fix segfault when an invalid nonlocal statement binds a name
+  starting with two underscores.
+
+- Issue #22995: Instances of extension types with a state that aren't
+  subclasses of list or dict and haven't implemented any pickle-related
+  methods (__reduce__, __reduce_ex__, __getnewargs__, __getnewargs_ex__,
+  or __getstate__), can no longer be pickled.  Including memoryview.
+
+- Issue #20440: Massive replacing unsafe attribute setting code with special
+  macro Py_SETREF.
+
+- Issue #25766: Special method __bytes__() now works in str subclasses.
+
+- Issue #25421: __sizeof__ methods of builtin types now use dynamic basic size.
+  This allows sys.getsize() to work correctly with their subclasses with
+  __slots__ defined.
+
+- Issue #25709: Fixed problem with in-place string concatenation and utf-8 cache.
+
+- Issue #24097: Fixed crash in object.__reduce__() if slot name is freed inside
+  __getattr__.
+
+- Issue #24731: Fixed crash on converting objects with special methods
+  __bytes__, __trunc__, and __float__ returning instances of subclasses of
+  bytes, int, and float to subclasses of bytes, int, and float correspondingly.
+
+- Issue #26171: Fix possible integer overflow and heap corruption in
+  zipimporter.get_data().
+
+Library
+-------
+
+- Issue #26147: xmlrpc now works with strings not encodable with used
+  non-UTF-8 encoding.
+
+- Issue #25935: Garbage collector now breaks reference loops with OrderedDict.
+
+- Issue #16620: Fixed AttributeError in msilib.Directory.glob().
+
+- Issue #26013: Added compatibility with broken protocol 2 pickles created
+  in old Python 3 versions (3.4.3 and lower).
+
+- Issue #25850: Use cross-compilation by default for 64-bit Windows.
+
+- Issue #17633: Improve zipimport's support for namespace packages.
+
+- Issue #24705: Fix sysconfig._parse_makefile not expanding ${} vars
+  appearing before $() vars.
+
+- Issue #22138: Fix mock.patch behavior when patching descriptors. Restore
+  original values after patching. Patch contributed by Sean McCully.
+
+- Issue #25672: In the ssl module, enable the SSL_MODE_RELEASE_BUFFERS mode
+  option if it is safe to do so.
+
+- Issue #22570: Add 'path' attribute to pathlib.Path objects,
+  returning the same as str(), to make it more similar to DirEntry.
+  Library code can now write getattr(p, 'path', p) to get the path as
+  a string from a Path, a DirEntry, or a plain string.  This is
+  essentially a small one-off protocol.
+
+- Issue #26012: Don't traverse into symlinks for ** pattern in
+  pathlib.Path.[r]glob().
+
+- Issue #24120: Ignore PermissionError when traversing a tree with
+  pathlib.Path.[r]glob().  Patch by Ulrich Petri.
+
+- Issue #25447: fileinput now uses sys.stdin as-is if it does not have a
+  buffer attribute (restores backward compatibility).
+
+- Issue #25447: Copying the lru_cache() wrapper object now always works,
+  independedly from the type of the wrapped object (by returning the original
+  object unchanged).
+
+- Issue #24103: Fixed possible use after free in ElementTree.XMLPullParser.
+
+- Issue #25860: os.fwalk() no longer skips remaining directories when error
+  occurs.  Original patch by Samson Lee.
+
+- Issue #25914: Fixed and simplified OrderedDict.__sizeof__.
+
+- Issue #25902: Fixed various refcount issues in ElementTree iteration.
+
+- Issue #25717: Restore the previous behaviour of tolerating most fstat()
+  errors when opening files.  This was a regression in 3.5a1, and stopped
+  anonymous temporary files from working in special cases.
+
+- Issue #24903: Fix regression in number of arguments compileall accepts when
+  '-d' is specified.  The check on the number of arguments has been dropped
+  completely as it never worked correctly anyway.
+
+- Issue #25764: In the subprocess module, preserve any exception caused by
+  fork() failure when preexec_fn is used.
+
+- Issue #6478: _strptime's regexp cache now is reset after changing timezone
+  with time.tzset().
+
+- Issue #14285: When executing a package with the "python -m package" option,
+  and package initialization fails, a proper traceback is now reported.  The
+  "runpy" module now lets exceptions from package initialization pass back to
+  the caller, rather than raising ImportError.
+
+- Issue #19771: Also in runpy and the "-m" option, omit the irrelevant
+  message ". . . is a package and cannot be directly executed" if the package
+  could not even be initialized (e.g. due to a bad ``*.pyc`` file).
+
+- Issue #25177: Fixed problem with the mean of very small and very large
+  numbers. As a side effect, statistics.mean and statistics.variance should
+  be significantly faster.
+
+- Issue #25718: Fixed copying object with state with boolean value is false.
+
+- Issue #10131: Fixed deep copying of minidom documents.  Based on patch
+  by Marian Ganisin.
+
+- Issue #25725: Fixed a reference leak in pickle.loads() when unpickling
+  invalid data including tuple instructions.
+
+- Issue #25663: In the Readline completer, avoid listing duplicate global
+  names, and search the global namespace before searching builtins.
+
+- Issue #25688: Fixed file leak in ElementTree.iterparse() raising an error.
+
+- Issue #23914: Fixed SystemError raised by unpickler on broken pickle data.
+
+- Issue #25691: Fixed crash on deleting ElementTree.Element attributes.
+
+- Issue #25624: ZipFile now always writes a ZIP_STORED header for directory
+  entries.  Patch by Dingyuan Wang.
+
+- Skip getaddrinfo if host is already resolved.
+  Patch by A. Jesse Jiryu Davis.
+
+- Add asyncio.timeout() context manager.
+
+- Issue #26050: Add asyncio.StreamReader.readuntil() method.
+  Patch by Марк Коренберг.
+
+Documentation
+-------------
+
+- Issue #25500: Fix documentation to not claim that __import__ is searched for
+  in the global scope.
+
+Tests
+-----
+
+- Issue #25940: Changed test_ssl to use self-signed.pythontest.net.  This
+  avoids relying on svn.python.org, which recently changed root certificate.
+
+- Issue #25616: Tests for OrderedDict are extracted from test_collections
+  into separate file test_ordered_dict.
+
+Build
+-----
+
+- Issue #25348: Added ``--pgo`` and ``--pgo-job`` arguments to
+  ``PCbuild\build.bat`` for building with Profile-Guided Optimization.  The
+  old ``PCbuild\build_pgo.bat`` script is now deprecated, and simply calls
+  ``PCbuild\build.bat --pgo %*``.
+
+- Issue #25827: Add support for building with ICC to ``configure``, including
+  a new ``--with-icc`` flag.
+
+- Issue #25696: Fix installation of Python on UNIX with make -j9.
+
+- Issue #25798: Update OS X 10.5 installer to use OpenSSL 1.0.2e.
+
+Windows
+-------
+
+- Issue #26071: bdist_wininst created binaries fail to start and find
+  32bit Python
+
+- Issue #26073: Update the list of magic numbers in launcher
+
+- Issue #26065: Excludes venv from library when generating embeddable
+  distro.
+
 What's New in Python 3.5.1 final?
 =================================
 
@@ -348,7 +555,7 @@ IDLE
   Consistently use the revised idleConf.CurrentTheme everywhere in idlelib.
 
 - Issue #24782: Extension configuration is now a tab in the IDLE Preferences
-  dialog rather than a separate dialog.   The former tabs are now a sorted
+  dialog rather than a separate dialog.  The former tabs are now a sorted
   list.  Patch by Mark Roseman.
 
 - Issue #22726: Re-activate the config dialog help button with some content
@@ -2991,8 +3198,9 @@ Library
 - Issue #20968: unittest.mock.MagicMock now supports division.
   Patch by Johannes Baiter.
 
-- Fix arbitrary memory access in JSONDecoder.raw_decode with a negative second
-  parameter. Bug reported by Guido Vranken.
+- Issue #21529 (CVE-2014-4616): Fix arbitrary memory access in
+  JSONDecoder.raw_decode with a negative second parameter. Bug reported by Guido
+  Vranken.
 
 - Issue #21169: getpass now handles non-ascii characters that the
   input stream encoding cannot encode by re-encoding using the

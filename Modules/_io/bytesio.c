@@ -969,8 +969,7 @@ _io_BytesIO___init___impl(bytesio *self, PyObject *initvalue)
     if (initvalue && initvalue != Py_None) {
         if (PyBytes_CheckExact(initvalue)) {
             Py_INCREF(initvalue);
-            Py_XDECREF(self->buf);
-            self->buf = initvalue;
+            Py_SETREF(self->buf, initvalue);
             self->string_size = PyBytes_GET_SIZE(initvalue);
         }
         else {
@@ -991,7 +990,7 @@ bytesio_sizeof(bytesio *self, void *unused)
 {
     Py_ssize_t res;
 
-    res = sizeof(bytesio);
+    res = _PyObject_SIZE(Py_TYPE(self));
     if (self->buf && !SHARED_BUF(self))
         res += _PySys_GetSizeOf(self->buf);
     return PyLong_FromSsize_t(res);

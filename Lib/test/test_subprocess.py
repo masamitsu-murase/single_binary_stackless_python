@@ -1512,6 +1512,28 @@ class POSIXProcessTestCase(BaseTestCase):
             if not enabled:
                 gc.disable()
 
+    @unittest.skipIf(
+        sys.platform == 'darwin', 'setrlimit() seems to fail on OS X')
+    def test_preexec_fork_failure(self):
+        # The internal code did not preserve the previous exception when
+        # re-enabling garbage collection
+        try:
+            from resource import getrlimit, setrlimit, RLIMIT_NPROC
+        except ImportError as err:
+            self.skipTest(err)  # RLIMIT_NPROC is specific to Linux and BSD
+        limits = getrlimit(RLIMIT_NPROC)
+        [_, hard] = limits
+        setrlimit(RLIMIT_NPROC, (0, hard))
+        self.addCleanup(setrlimit, RLIMIT_NPROC, limits)
+        try:
+            subprocess.call([sys.executable, '-c', ''],
+                            preexec_fn=lambda: None)
+        except BlockingIOError:
+            # Forking should raise EAGAIN, translated to BlockingIOError
+            pass
+        else:
+            self.skipTest('RLIMIT_NPROC had no effect; probably superuser')
+
     def test_args_string(self):
         # args is a string
         fd, fname = tempfile.mkstemp()

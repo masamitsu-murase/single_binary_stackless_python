@@ -4564,6 +4564,14 @@ order (MRO) for bases """
         self.assertRegex(repr(method),
             r"<bound method qualname of <object object at .*>>")
 
+    def test_deleting_new_in_subclasses(self):
+        class X:
+            def __init__(self, a):
+                pass
+        X.__new__ = None
+        del X.__new__
+        X(1) # should work
+
 
 class DictProxyTests(unittest.TestCase):
     def setUp(self):
@@ -5091,6 +5099,23 @@ class PicklingTests(unittest.TestCase):
                     objcopy.__dict__.clear()
                     objcopy2 = deepcopy(objcopy)
                     self._assert_is_copy(obj, objcopy2)
+
+    def test_issue24097(self):
+        # Slot name is freed inside __getattr__ and is later used.
+        class S(str):  # Not interned
+            pass
+        class A:
+            __slotnames__ = [S('spam')]
+            def __getattr__(self, attr):
+                if attr == 'spam':
+                    A.__slotnames__[:] = [S('spam')]
+                    return 42
+                else:
+                    raise AttributeError
+
+        import copyreg
+        expected = (copyreg.__newobj__, (A,), (None, {'spam': 42}), None, None)
+        self.assertEqual(A().__reduce__(2), expected)  # Shouldn't crash
 
 
 class SharedKeyTests(unittest.TestCase):
