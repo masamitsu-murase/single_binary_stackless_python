@@ -10,11 +10,31 @@ Release date: TBA
 Core and Builtins
 -----------------
 
-- Issue #27443: __length_hint__() of bytearray itearator no longer return
-  negative integer for resized bytearray.
+- Issue #27083: Respect the PYTHONCASEOK environment variable under Windows.
+
+- Issue #27514: Make having too many statically nested blocks a SyntaxError
+  instead of SystemError.
+
+- Issue #27473: Fixed possible integer overflow in bytes and bytearray
+  concatenations.  Patch by Xiang Zhang.
+
+- Issue #27443: __length_hint__() of bytearray iterators no longer return a
+  negative integer for a resized bytearray.
 
 Library
 -------
+
+- Issue #27522: Avoid an unintentional reference cycle in email.feedparser.
+
+- Issue #26844: Fix error message for imp.find_module() to refer to 'path'
+  instead of 'name'. Patch by Lev Maximov.
+
+- Issue #23804: Fix SSL zero-length recv() calls to not block and not raise
+  an error about unclean EOF.
+
+- Issue #27466: Change time format returned by http.cookie.time2netscape,
+  confirming the netscape cookie format and making it consistent with
+  documentation.
 
 - Issue #26664: Fix activate.fish by removing mis-use of ``$``.
 
@@ -62,6 +82,9 @@ Library
 
 - Issue #26930: Update Windows builds to use OpenSSL 1.0.2h.
 
+- Issue #27392: Add loop.connect_accepted_socket().
+  Patch by Jim Fulton.
+
 IDLE
 ----
 
@@ -76,6 +99,12 @@ C API
 
 - Issue #26754: PyUnicode_FSDecoder() accepted a filename argument encoded as
   an iterable of integers. Now only strings and bytes-like objects are accepted.
+
+Tests
+-----
+
+- Issue #27369: In test_pyexpat, avoid testing an error message detail that
+  changed in Expat 2.2.0.
 
 Tools/Demos
 -----------
@@ -1955,7 +1984,7 @@ Library
   JoinableQueue was merged with Queue).
 
 - Issue #23908: os functions now reject paths with embedded null character
-  on Windows instead of silently truncate them.
+  on Windows instead of silently truncating them.
 
 - Issue #23728: binascii.crc_hqx() could return an integer outside of the range
   0-0xffff for empty data.
@@ -3208,6 +3237,12 @@ Library
 - Issue #20218: Added convenience methods read_text/write_text and read_bytes/
   write_bytes to pathlib.Path objects.
 
+- Issue #22396: On 32-bit AIX platform, don't expose os.posix_fadvise() nor
+  os.posix_fallocate() because their prototypes in system headers are wrong.
+
+- Issue #22517: When an io.BufferedRWPair object is deallocated, clear its
+  weakrefs.
+
 - Issue #22437: Number of capturing groups in regular expression is no longer
   limited by 100.
 
@@ -3285,7 +3320,7 @@ Library
 - Issue #22168: Prevent turtle AttributeError with non-default Canvas on OS X.
 
 - Issue #21147: sqlite3 now raises an exception if the request contains a null
-  character instead of truncate it.  Based on patch by Victor Stinner.
+  character instead of truncating it.  Based on patch by Victor Stinner.
 
 - Issue #13968: The glob module now supports recursive search in
   subdirectories using the "**" pattern.
@@ -4137,7 +4172,7 @@ Build
   an explicit runtime library dependency.
 
 - Issue #17861: Tools/scripts/generate_opcode_h.py automatically regenerates
-  Include/opcode.h from Lib/opcode.py if the later gets any change.
+  Include/opcode.h from Lib/opcode.py if the latter gets any change.
 
 - Issue #20644: OS X installer build support for documentation build changes
   in 3.4.1: assume externally supplied sphinx-build is available in /usr/bin.
