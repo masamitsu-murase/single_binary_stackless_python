@@ -20,8 +20,9 @@ The function below takes and returns a string and is annotated as follows::
    def greeting(name: str) -> str:
        return 'Hello ' + name
 
-In the function `greeting`, the argument `name` is expected to by of type `str`
-and the return type `str`. Subtypes are accepted as arguments.
+In the function ``greeting``, the argument ``name`` is expected to by of type
+:class:`str` and the return type :class:`str`. Subtypes are accepted as
+arguments.
 
 Type aliases
 ------------
@@ -49,8 +50,8 @@ For example::
 
 It is possible to declare the return type of a callable without specifying
 the call signature by substituting a literal ellipsis
-for the list of arguments in the type hint: `Callable[..., ReturnType]`.
-`None` as a type hint is a special case and is replaced by `type(None)`.
+for the list of arguments in the type hint: ``Callable[..., ReturnType]``.
+``None`` as a type hint is a special case and is replaced by ``type(None)``.
 
 Generics
 --------
@@ -67,7 +68,7 @@ subscription to denote expected types for container elements.
                        overrides: Mapping[str, str]) -> None: ...
 
 Generics can be parametrized by using a new factory available in typing
-called TypeVar.
+called :class:`TypeVar`.
 
 .. code-block:: python
 
@@ -108,11 +109,12 @@ A user-defined class can be defined as a generic class.
        def log(self, message: str) -> None:
            self.logger.info('{}: {}'.format(self.name, message))
 
-`Generic[T]` as a base class defines that the class `LoggedVar` takes a single
-type parameter `T` . This also makes `T` valid as a type within the class body.
+``Generic[T]`` as a base class defines that the class ``LoggedVar`` takes a
+single type parameter ``T`` . This also makes ``T`` valid as a type within the
+class body.
 
-The `Generic` base class uses a metaclass that defines `__getitem__` so that
-`LoggedVar[t]` is valid as a type::
+The :class:`Generic` base class uses a metaclass that defines
+:meth:`__getitem__` so that ``LoggedVar[t]`` is valid as a type::
 
    from typing import Iterable
 
@@ -132,7 +134,7 @@ be constrained::
    class StrangePair(Generic[T, S]):
        ...
 
-Each type variable argument to `Generic` must be distinct.
+Each type variable argument to :class:`Generic` must be distinct.
 This is thus invalid::
 
    from typing import TypeVar, Generic
@@ -143,7 +145,7 @@ This is thus invalid::
    class Pair(Generic[T, T]):   # INVALID
        ...
 
-You can use multiple inheritance with `Generic`::
+You can use multiple inheritance with :class:`Generic`::
 
    from typing import TypeVar, Generic, Sized
 
@@ -152,38 +154,44 @@ You can use multiple inheritance with `Generic`::
    class LinkedList(Sized, Generic[T]):
        ...
 
-Subclassing a generic class without specifying type parameters assumes `Any`
-for each position. In the following example, `MyIterable` is not generic but
-implicitly inherits from `Iterable[Any]`::
+When inheriting from generic classes, some type variables could fixed::
+
+    from typing import TypeVar, Mapping
+
+    T = TypeVar('T')
+
+    class MyDict(Mapping[str, T]):
+        ...
+
+In this case ``MyDict`` has a single parameter, ``T``.
+
+Subclassing a generic class without specifying type parameters assumes
+:class:`Any` for each position. In the following example, ``MyIterable`` is
+not generic but implicitly inherits from ``Iterable[Any]``::
 
    from typing import Iterable
 
    class MyIterable(Iterable): # Same as Iterable[Any]
 
-Generic metaclasses are not supported.
+The metaclass used by :class:`Generic` is a subclass of :class:`abc.ABCMeta`.
+A generic class can be an ABC by including abstract methods or properties,
+and generic classes can also have ABCs as base classes without a metaclass
+conflict.  Generic metaclasses are not supported.
 
-The `Any` type
---------------
 
-A special kind of type is `Any`. Every type is a subtype of `Any`.
-This is also true for the builtin type object. However, to the static type
-checker these are completely different.
+The :class:`Any` type
+---------------------
 
-When the type of a value is `object`, the type checker will reject almost all
-operations on it, and assigning it to a variable (or using it as a return value)
-of a more specialized type is a type error. On the other hand, when a value has
-type `Any`, the type checker will allow all operations on it, and a value of
-type `Any` can be assigned to a variable (or used as a return value) of a more
-constrained type.
+A special kind of type is :class:`Any`. Every type is a subtype of
+:class:`Any`. This is also true for the builtin type object. However, to the
+static type checker these are completely different.
 
-Default argument values
------------------------
-
-Use a literal ellipsis `...` to declare an argument as having a default value::
-
-   from typing import AnyStr
-
-   def foo(x: AnyStr, y: AnyStr = ...) -> AnyStr: ...
+When the type of a value is :class:`object`, the type checker will reject
+almost all operations on it, and assigning it to a variable (or using it as a
+return value) of a more specialized type is a type error. On the other hand,
+when a value has type :class:`Any`, the type checker will allow all operations
+on it, and a value of type :class:`Any` can be assigned to a variable (or used
+as a return value) of a more constrained type.
 
 
 Classes, functions, and decorators
@@ -195,9 +203,10 @@ The module defines the following classes, functions and decorators:
 
    Special type indicating an unconstrained type.
 
-   * Any object is an instance of `Any`.
-   * Any class is a subclass of `Any`.
-   * As a special case, `Any` and `object` are subclasses of each other.
+   * Any object is an instance of :class:`Any`.
+   * Any class is a subclass of :class:`Any`.
+   * As a special case, :class:`Any` and :class:`object` are subclasses of
+     each other.
 
 .. class:: TypeVar
 
@@ -224,22 +233,26 @@ The module defines the following classes, functions and decorators:
            return x if len(x) >= len(y) else y
 
     The latter example's signature is essentially the overloading
-    of `(str, str) -> str` and `(bytes, bytes) -> bytes`.  Also note
-    that if the arguments are instances of some subclass of `str`,
-    the return type is still plain `str`.
+    of ``(str, str) -> str`` and ``(bytes, bytes) -> bytes``.  Also note
+    that if the arguments are instances of some subclass of :class:`str`,
+    the return type is still plain :class:`str`.
 
-    At runtime, `isinstance(x, T)` will raise `TypeError`.  In general,
-    `isinstance` and `issublass` should not be used with types.
+    At runtime, ``isinstance(x, T)`` will raise :exc:`TypeError`.  In general,
+    :func:`isinstance` and :func:`issublass` should not be used with types.
 
     Type variables may be marked covariant or contravariant by passing
-    `covariant=True` or `contravariant=True`.  See :pep:`484` for more
-    details.  By default type variables are invariant.
+    ``covariant=True`` or ``contravariant=True``.  See :pep:`484` for more
+    details.  By default type variables are invariant.  Alternatively,
+    a type variable may specify an upper bound using ``bound=<type>``.
+    This means that an actual type substituted (explicitly or implictly)
+    for the type variable must be a subclass of the boundary type,
+    see :pep:`484`.
 
 .. class:: Union
 
-   Union type; `Union[X, Y]` means either X or Y.
+   Union type; ``Union[X, Y]`` means either X or Y.
 
-   To define a union, use e.g. `Union[int, str]`.  Details:
+   To define a union, use e.g. ``Union[int, str]``.  Details:
 
    * The arguments must be types and there must be at least one.
 
@@ -259,37 +272,37 @@ The module defines the following classes, functions and decorators:
 
        Union[int, str] == Union[str, int]
 
-   * If `Any` is present it is the sole survivor, e.g.::
+   * If :class:`Any` is present it is the sole survivor, e.g.::
 
        Union[int, Any] == Any
 
    * You cannot subclass or instantiate a union.
 
-   * You cannot write `Union[X][Y]`
+   * You cannot write ``Union[X][Y]``
 
-   * You can use `Optional[X]` as a shorthand for `Union[X, None]`.
+   * You can use ``Optional[X]`` as a shorthand for ``Union[X, None]``.
 
 .. class:: Optional
 
    Optional type.
 
-   `Optional[X]` is equivalent to `Union[X, type(None)]`.
+   ``Optional[X]`` is equivalent to ``Union[X, type(None)]``.
 
 .. class:: Tuple
 
-  Tuple type; `Tuple[X, Y]` is the is the type of a tuple of two items
+  Tuple type; ``Tuple[X, Y]`` is the is the type of a tuple of two items
   with the first item of type X and the second of type Y.
 
-  Example: `Tuple[T1, T2]` is a tuple of two elements corresponding
-  to type variables T1 and T2.  `Tuple[int, float, str]` is a tuple
+  Example: ``Tuple[T1, T2]`` is a tuple of two elements corresponding
+  to type variables T1 and T2.  ``Tuple[int, float, str]`` is a tuple
   of an int, a float and a string.
 
   To specify a variable-length tuple of homogeneous type,
-  use literal ellipsis, e.g. `Tuple[int, ...]`.
+  use literal ellipsis, e.g. ``Tuple[int, ...]``.
 
 .. class:: Callable
 
-   Callable type; `Callable[[int], str]` is a function of (int) -> str.
+   Callable type; ``Callable[[int], str]`` is a function of (int) -> str.
 
    The subscription syntax must always be used with exactly two
    values: the argument list and the return type.  The argument list
@@ -297,9 +310,9 @@ The module defines the following classes, functions and decorators:
 
    There is no syntax to indicate optional or keyword arguments,
    such function types are rarely used as callback types.
-   `Callable[..., ReturnType]` could be used to type hint a callable
-   taking any number of arguments and returning `ReturnType`.
-   A plain `Callable` is equivalent to `Callable[..., Any]`.
+   ``Callable[..., ReturnType]`` could be used to type hint a callable
+   taking any number of arguments and returning ``ReturnType``.
+   A plain :class:`Callable` is equivalent to ``Callable[..., Any]``.
 
 .. class:: Generic
 
@@ -326,57 +339,139 @@ The module defines the following classes, functions and decorators:
 
 .. class:: Iterable(Generic[T_co])
 
+    A generic version of the :class:`collections.abc.Iterable`.
+
 .. class:: Iterator(Iterable[T_co])
+
+    A generic version of the :class:`collections.abc.Iterator`.
 
 .. class:: SupportsInt
 
+    An ABC with one abstract method `__int__`.
+
 .. class:: SupportsFloat
+
+    An ABC with one abstract method `__float__`.
 
 .. class:: SupportsAbs
 
+    An ABC with one abstract method `__abs__` that is covariant
+    in its return type.
+
 .. class:: SupportsRound
+
+    An ABC with one abstract method `__round__`
+    that is covariant in its return type.
 
 .. class:: Reversible
 
+    An ABC with one abstract method `__reversed__` returning
+    an `Iterator[T_co]`.
+
 .. class:: Container(Generic[T_co])
+
+    A generic version of :class:`collections.abc.Container`.
 
 .. class:: AbstractSet(Sized, Iterable[T_co], Container[T_co])
 
+    A generic version of :class:`collections.abc.Set`.
+
 .. class:: MutableSet(AbstractSet[T])
 
-.. class:: Mapping(Sized, Iterable[KT_co], Container[KT_co], Generic[KT_co, VT_co])
+    A generic version of :class:`collections.abc.MutableSet`.
+
+.. class:: Mapping(Sized, Iterable[KT], Container[KT], Generic[VT_co])
+
+    A generic version of :class:`collections.abc.Mapping`.
 
 .. class:: MutableMapping(Mapping[KT, VT])
 
+    A generic version of :class:`collections.abc.MutableMapping`.
+
 .. class:: Sequence(Sized, Iterable[T_co], Container[T_co])
+
+    A generic version of :class:`collections.abc.Sequence`.
 
 .. class:: MutableSequence(Sequence[T])
 
+   A generic version of :class:`collections.abc.MutableSequence`.
+
 .. class:: ByteString(Sequence[int])
+
+   A generic version of :class:`collections.abc.ByteString`.
+
+   This type represents the types :class:`bytes`, :class:`bytearray`,
+   and :class:`memoryview`.
+
+   As a shorthand for this type, :class:`bytes` can be used to
+   annotate arguments of any of the types mentioned above.
 
 .. class:: List(list, MutableSequence[T])
 
-.. class:: Set(set, MutableSet[T])
+   Generic version of :class:`list`.
+   Useful for annotating return types. To annotate arguments it is preferred
+   to use abstract collection types such as :class:`Mapping`, :class:`Sequence`,
+   or :class:`AbstractSet`.
+
+   This type may be used as follows::
+
+      T = TypeVar('T', int, float)
+
+      def vec2(x: T, y: T) -> List[T]:
+          return [x, y]
+
+      def slice__to_4(vector: Sequence[T]) -> List[T]:
+          return vector[0:4]
+
+.. class:: AbstractSet(set, MutableSet[T])
+
+   A generic version of :class:`collections.abc.Set`.
 
 .. class:: MappingView(Sized, Iterable[T_co])
 
+   A generic version of :class:`collections.abc.MappingView`.
+
 .. class:: KeysView(MappingView[KT_co], AbstractSet[KT_co])
+
+   A generic version of :class:`collections.abc.KeysView`.
 
 .. class:: ItemsView(MappingView, Generic[KT_co, VT_co])
 
+   A generic version of :class:`collections.abc.ItemsView`.
+
 .. class:: ValuesView(MappingView[VT_co])
 
+   A generic version of :class:`collections.abc.ValuesView`.
+
 .. class:: Dict(dict, MutableMapping[KT, VT])
+
+   A generic version of :class:`dict`.
+   The usage of this type is as follows::
+
+      def get_position_in_index(word_list: Dict[str, int], word: str) -> int:
+          return word_list[word]
 
 .. class:: Generator(Iterator[T_co], Generic[T_co, T_contra, V_co])
 
 .. class:: io
 
-   Wrapper namespace for IO generic classes.
+   Wrapper namespace for I/O stream types.
+
+   This defines the generic type ``IO[AnyStr]`` and aliases ``TextIO``
+   and ``BinaryIO`` for respectively ``IO[str]`` and ``IO[bytes]``.
+   These representing the types of I/O streams such as returned by
+   :func:`open`.
 
 .. class:: re
 
-   Wrapper namespace for re type classes.
+   Wrapper namespace for regular expression matching types.
+
+   This defines the type aliases ``Pattern`` and ``Match`` which
+   correspond to the return types from :func:`re.compile` and
+   :func:`re.match`.  These types (and the corresponding functions)
+   are generic in ``AnyStr`` and can be made specific by writing
+   ``Pattern[str]``, ``Pattern[bytes]``, ``Match[str]``, or
+   ``Match[bytes]``.
 
 .. function:: NamedTuple(typename, fields)
 
