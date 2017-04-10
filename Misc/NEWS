@@ -5,7 +5,7 @@ Python News
 What's New in Python 3.5.0 release candidate 3?
 ===============================================
 
-Release date: 2015-09-06
+Release date: 2015-09-07
 
 Core and Builtins
 -----------------
@@ -19,6 +19,8 @@ Core and Builtins
 
 Library
 -------
+
+- Issue #24917: time_strftime() buffer over-read.
 
 - Issue #24748: To resolve a compatibility problem found with py2exe and
   pywin32, imp.load_dynamic() once again ignores previously loaded modules
@@ -311,9 +313,6 @@ Library
 
 - Issue #14373: C implementation of functools.lru_cache() now can be used with
   methods.
-
-- Issue #8232: webbrowser support incomplete on Windows. Patch by Brandon
-  Milam
 
 - Issue #24347: Set KeyError if PyDict_GetItemWithError returns NULL.
 
