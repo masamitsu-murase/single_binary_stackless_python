@@ -305,17 +305,22 @@ _PyTime_AsNanosecondsObject(_PyTime_t t)
 }
 
 static _PyTime_t
-_PyTime_Divide(_PyTime_t t, _PyTime_t k, _PyTime_round_t round)
+_PyTime_Divide(const _PyTime_t t, const _PyTime_t k,
+               const _PyTime_round_t round)
 {
     assert(k > 1);
     if (round == _PyTime_ROUND_CEILING) {
         if (t >= 0)
             return (t + k - 1) / k;
         else
+            return t / k;
+    }
+    else {
+        if (t >= 0)
+            return t / k;
+        else
             return (t - (k - 1)) / k;
     }
-    else
-        return t / k;
 }
 
 _PyTime_t
@@ -331,69 +336,92 @@ _PyTime_AsMicroseconds(_PyTime_t t, _PyTime_round_t round)
 }
 
 static int
-_PyTime_AsTimeval_impl(_PyTime_t t, struct timeval *tv, _PyTime_round_t round,
-                       int raise)
+_PyTime_AsTimeval_impl(_PyTime_t t, _PyTime_t *p_secs, int *p_us,
+                       _PyTime_round_t round)
 {
     _PyTime_t secs, ns;
+    int usec;
     int res = 0;
 
     secs = t / SEC_TO_NS;
     ns = t % SEC_TO_NS;
-    if (ns < 0) {
-        ns += SEC_TO_NS;
-        secs -= 1;
+
+    usec = (int)_PyTime_Divide(ns, US_TO_NS, round);
+    if (usec < 0) {
+        usec += SEC_TO_US;
+        if (secs != _PyTime_MIN)
+            secs -= 1;
+        else
+            res = -1;
     }
+    else if (usec >= SEC_TO_US) {
+        usec -= SEC_TO_US;
+        if (secs != _PyTime_MAX)
+            secs += 1;
+        else
+            res = -1;
+    }
+    assert(0 <= usec && usec < SEC_TO_US);
+
+    *p_secs = secs;
+    *p_us = usec;
+
+    return res;
+}
+
+static int
+_PyTime_AsTimevalStruct_impl(_PyTime_t t, struct timeval *tv,
+                             _PyTime_round_t round, int raise)
+{
+    _PyTime_t secs;
+    int us;
+    int res;
+
+    res = _PyTime_AsTimeval_impl(t, &secs, &us, round);
 
 #ifdef MS_WINDOWS
-    /* On Windows, timeval.tv_sec is a long (32 bit),
-       whereas time_t can be 64-bit. */
-    assert(sizeof(tv->tv_sec) == sizeof(long));
-#if SIZEOF_TIME_T > SIZEOF_LONG
-    if (secs > LONG_MAX) {
-        secs = LONG_MAX;
-        res = -1;
-    }
-    else if (secs < LONG_MIN) {
-        secs = LONG_MIN;
-        res = -1;
-    }
-#endif
     tv->tv_sec = (long)secs;
 #else
-    /* On OpenBSD 5.4, timeval.tv_sec is a long.
-       Example: long is 64-bit, whereas time_t is 32-bit. */
     tv->tv_sec = secs;
-    if ((_PyTime_t)tv->tv_sec != secs)
-        res = -1;
 #endif
+    tv->tv_usec = us;
 
-    if (round == _PyTime_ROUND_CEILING)
-        tv->tv_usec = (int)((ns + US_TO_NS - 1) / US_TO_NS);
-    else
-        tv->tv_usec = (int)(ns / US_TO_NS);
-
-    if (tv->tv_usec >= SEC_TO_US) {
-        tv->tv_usec -= SEC_TO_US;
-        tv->tv_sec += 1;
+    if (res < 0 || (_PyTime_t)tv->tv_sec != secs) {
+        if (raise)
+            error_time_t_overflow();
+        return -1;
     }
-
-    if (res && raise)
-        _PyTime_overflow();
-
-    assert(0 <= tv->tv_usec && tv->tv_usec <= 999999);
-    return res;
+    return 0;
 }
 
 int
 _PyTime_AsTimeval(_PyTime_t t, struct timeval *tv, _PyTime_round_t round)
 {
-    return _PyTime_AsTimeval_impl(t, tv, round, 1);
+    return _PyTime_AsTimevalStruct_impl(t, tv, round, 1);
 }
 
 int
 _PyTime_AsTimeval_noraise(_PyTime_t t, struct timeval *tv, _PyTime_round_t round)
 {
-    return _PyTime_AsTimeval_impl(t, tv, round, 0);
+    return _PyTime_AsTimevalStruct_impl(t, tv, round, 0);
+}
+
+int
+_PyTime_AsTimevalTime_t(_PyTime_t t, time_t *p_secs, int *us,
+                        _PyTime_round_t round)
+{
+    _PyTime_t secs;
+    int res;
+
+    res = _PyTime_AsTimeval_impl(t, &secs, us, round);
+
+    *p_secs = secs;
+
+    if (res < 0 || (_PyTime_t)*p_secs != secs) {
+        error_time_t_overflow();
+        return -1;
+    }
+    return 0;
 }
 
 #if defined(HAVE_CLOCK_GETTIME) || defined(HAVE_KQUEUE)
@@ -531,12 +559,8 @@ _PyTime_GetSystemClockWithInfo(_PyTime_t *t, _Py_clock_info_t *info)
 
 
 static int
-pymonotonic_new(_PyTime_t *tp, _Py_clock_info_t *info, int raise)
+pymonotonic(_PyTime_t *tp, _Py_clock_info_t *info, int raise)
 {
-#ifdef Py_DEBUG
-    static int last_set = 0;
-    static _PyTime_t last = 0;
-#endif
 #if defined(MS_WINDOWS)
     ULONGLONG result;
 
@@ -628,12 +652,6 @@ pymonotonic_new(_PyTime_t *tp, _Py_clock_info_t *info, int raise)
     if (_PyTime_FromTimespec(tp, &ts, raise) < 0)
         return -1;
 #endif
-#ifdef Py_DEBUG
-    /* monotonic clock cannot go backward */
-    assert(!last_set || last <= *tp);
-    last = *tp;
-    last_set = 1;
-#endif
     return 0;
 }
 
@@ -641,7 +659,7 @@ _PyTime_t
 _PyTime_GetMonotonicClock(void)
 {
     _PyTime_t t;
-    if (pymonotonic_new(&t, NULL, 0) < 0) {
+    if (pymonotonic(&t, NULL, 0) < 0) {
         /* should not happen, _PyTime_Init() checked that monotonic clock at
            startup */
         assert(0);
@@ -655,7 +673,7 @@ _PyTime_GetMonotonicClock(void)
 int
 _PyTime_GetMonotonicClockWithInfo(_PyTime_t *tp, _Py_clock_info_t *info)
 {
-    return pymonotonic_new(tp, info, 1);
+    return pymonotonic(tp, info, 1);
 }
 
 int

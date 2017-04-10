@@ -178,6 +178,10 @@ attributes:
 +-----------+-----------------+---------------------------+
 |           | gi_code         | code                      |
 +-----------+-----------------+---------------------------+
+|           | gi_yieldfrom    | object being iterated by  |
+|           |                 | ``yield from``, or        |
+|           |                 | ``None``                  |
++-----------+-----------------+---------------------------+
 | coroutine | __name__        | name                      |
 +-----------+-----------------+---------------------------+
 |           | __qualname__    | qualified name            |
@@ -190,10 +194,6 @@ attributes:
 |           | cr_running      | is the coroutine running? |
 +-----------+-----------------+---------------------------+
 |           | cr_code         | code                      |
-+-----------+-----------------+---------------------------+
-|           | gi_yieldfrom    | object being iterated by  |
-|           |                 | ``yield from``, or        |
-|           |                 | ``None``                  |
 +-----------+-----------------+---------------------------+
 | builtin   | __doc__         | documentation string      |
 +-----------+-----------------+---------------------------+
@@ -209,9 +209,10 @@ attributes:
 
 .. versionchanged:: 3.5
 
-   Add ``__qualname__`` attribute to generators. The ``__name__`` attribute of
-   generators is now set from the function name, instead of the code name, and
-   it can now be modified.
+   Add ``__qualname__`` and ``gi_yieldfrom`` attributes to generators.
+
+   The ``__name__`` attribute of generators is now set from the function
+   name, instead of the code name, and it can now be modified.
 
 
 .. function:: getmembers(object[, predicate])
@@ -1038,6 +1039,11 @@ line.
    returned list represents *frame*; the last entry represents the outermost call
    on *frame*'s stack.
 
+   .. versionchanged:: 3.5
+      A list of :term:`named tuples <named tuple>`
+      ``FrameInfo(frame, filename, lineno, function, code_context, index)``
+      is returned.
+
 
 .. function:: getinnerframes(traceback, context=1)
 
@@ -1045,6 +1051,11 @@ line.
    frames represent calls made as a consequence of *frame*.  The first entry in the
    list represents *traceback*; the last entry represents where the exception was
    raised.
+
+   .. versionchanged:: 3.5
+      A list of :term:`named tuples <named tuple>`
+      ``FrameInfo(frame, filename, lineno, function, code_context, index)``
+      is returned.
 
 
 .. function:: currentframe()
@@ -1065,6 +1076,11 @@ line.
    returned list represents the caller; the last entry represents the outermost
    call on the stack.
 
+   .. versionchanged:: 3.5
+      A list of :term:`named tuples <named tuple>`
+      ``FrameInfo(frame, filename, lineno, function, code_context, index)``
+      is returned.
+
 
 .. function:: trace(context=1)
 
@@ -1072,6 +1088,11 @@ line.
    frame in which an exception currently being handled was raised in.  The first
    entry in the list represents the caller; the last entry represents where the
    exception was raised.
+
+   .. versionchanged:: 3.5
+      A list of :term:`named tuples <named tuple>`
+      ``FrameInfo(frame, filename, lineno, function, code_context, index)``
+      is returned.
 
 
 Fetching attributes statically

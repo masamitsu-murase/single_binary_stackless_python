@@ -3,6 +3,7 @@ import py_compile
 import re
 import sys
 import shutil
+import stat
 import os
 import tempfile
 
@@ -13,6 +14,20 @@ import subprocess
 TKTCL_RE = re.compile(r'^(_?tk|tcl).+\.(pyd|dll)', re.IGNORECASE)
 DEBUG_RE = re.compile(r'_d\.(pyd|dll|exe)$', re.IGNORECASE)
 PYTHON_DLL_RE = re.compile(r'python\d\d?\.dll$', re.IGNORECASE)
+
+EXCLUDE_FROM_LIBRARY = {
+    '__pycache__',
+    'ensurepip',
+    'idlelib',
+    'pydoc_data',
+    'site-packages',
+    'tkinter',
+    'turtledemo',
+}
+
+EXCLUDE_FILE_FROM_LIBRARY = {
+    'bdist_wininst.py',
+}
 
 def is_not_debug(p):
     if DEBUG_RE.search(p.name):
@@ -36,16 +51,21 @@ def is_not_debug_or_python(p):
 def include_in_lib(p):
     name = p.name.lower()
     if p.is_dir():
-        if name in {'__pycache__', 'ensurepip', 'idlelib', 'pydoc_data', 'tkinter', 'turtledemo'}:
+        if name in EXCLUDE_FROM_LIBRARY:
             return False
         if name.startswith('plat-'):
             return False
         if name == 'test' and p.parts[-2].lower() == 'lib':
             return False
+        if name in {'test', 'tests'} and p.parts[-3].lower() == 'lib':
+            return False
         return True
 
+    if name in EXCLUDE_FILE_FROM_LIBRARY:
+        return False
+
     suffix = p.suffix.lower()
-    return suffix not in {'.pyc', '.pyo'}
+    return suffix not in {'.pyc', '.pyo', '.exe'}
 
 def include_in_tools(p):
     if p.is_dir() and p.name.lower() in {'scripts', 'i18n', 'pynche', 'demo', 'parser'}:
@@ -101,11 +121,16 @@ def copy_to_layout(target, rel_sources):
 
     else:
         for s, rel in rel_sources:
+            dest = target / rel
             try:
-                (target / rel).parent.mkdir(parents=True)
+                dest.parent.mkdir(parents=True)
             except FileExistsError:
                 pass
-            shutil.copy(str(s), str(target / rel))
+            if dest.is_file():
+                dest.chmod(stat.S_IWRITE)
+            shutil.copy(str(s), str(dest))
+            if dest.is_file():
+                dest.chmod(stat.S_IWRITE)
             count += 1
 
     return count

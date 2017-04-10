@@ -103,6 +103,7 @@ Mike Bayer
 Samuel L. Bayer
 Donald Beaudry
 David Beazley
+John Beck
 Ingolf Becker
 Neal Becker
 Robin Becker
@@ -589,6 +590,7 @@ Richie Hindle
 Konrad Hinsen
 David Hobley
 Tim Hochberg
+Benjamin Hodgson
 Joerg-Cyril Hoehle
 Gregor Hoffleit
 Chris Hoffman
@@ -622,6 +624,7 @@ Ken Howard
 Brad Howes
 Mike Hoy
 Ben Hoyt
+Chiu-Hsiang Hsu
 Chih-Hao Huang
 Christian Hudon
 Lawrence Hudson
@@ -785,6 +788,7 @@ Andrew Kuchling
 Dave Kuhlman
 Jon Kuhn
 Toshio Kuratomi
+Ilia Kurenkov
 Vladimir Kushnir
 Erno Kuusela
 Ross Lagerwall
@@ -794,6 +798,7 @@ Thomas Lamb
 Valerie Lambert
 Jean-Baptiste "Jiba" Lamy
 Ronan Lamy
+Peter Landry
 Torsten Landschoff
 Łukasz Langa
 Tino Lange
@@ -827,6 +832,7 @@ Joerg Lehmann
 Robert Lehmann
 Petri Lehtinen
 Luke Kenneth Casson Leighton
+John Leitch
 Tshepang Lekhonkhobe
 Marc-André Lemburg
 Mateusz Lenik
@@ -911,12 +917,14 @@ Nick Mathewson
 Simon Mathieu
 Laura Matson
 Graham Matthews
+mattip
 Martin Matusiak
 Dieter Maurer
 Daniel May
 Madison May
 Lucas Maystre
 Arnaud Mazin
+Pam McA'Nulty
 Matt McClure
 Jack McCracken
 Rebecca McCreary
@@ -1061,6 +1069,7 @@ Jan Palus
 Yongzhi Pan
 Martin Panter
 Mathias Panzenböck
+Marco Paolini
 M. Papillon
 Peter Parente
 Alexandre Parenteau
@@ -1071,6 +1080,7 @@ Heikki Partanen
 Harri Pasanen
 Gaël Pasgrimaud
 Ashish Nitin Patil
+Alecsandru Patrascu
 Randy Pausch
 Samuele Pedroni
 Justin Peel
@@ -1121,6 +1131,7 @@ Martin Pool
 Iustin Pop
 Claudiu Popa
 John Popplewell
+Matheus Vieira Portela
 Davin Potts
 Guillaume Pratte
 Florian Preinstorfer
@@ -1182,6 +1193,7 @@ Vlad Riscutia
 Wes Rishel
 Daniel Riti
 Juan M. Bello Rivas
+Mohd Sanad Zaki Rizvi
 Davide Rizzo
 Anthony Roach
 Carl Robben
@@ -1302,6 +1314,7 @@ Alexander Shigin
 Pete Shinners
 Michael Shiplett
 John W. Shipman
+Shiyao Ma
 Alex Shkop
 Joel Shprentz
 Yue Shuaijie
@@ -1319,9 +1332,11 @@ Adam Simpkins
 Ravi Sinha
 Janne Sinkkonen
 Ng Pheng Siong
+Yann Sionneau
 George Sipe
 J. Sipprell
 Kragen Sitaker
+Ville Skyttä
 Michael Sloan
 Nick Sloan
 Václav Šmilauer
@@ -1414,6 +1429,7 @@ Eric Tiedemann
 July Tikhonov
 Tracy Tims
 Oren Tirosh
+Tim Tisdall
 Jason Tishler
 Christian Tismer
 Jim Tittsler
@@ -1514,6 +1530,7 @@ Bob Weiner
 Edward Welbourne
 Cliff Wells
 Rickard Westman
+Joseph Weston
 Jeff Wheeler
 Christopher White
 David White

@@ -228,8 +228,8 @@ StreamReaderProtocol
 
     (This is a helper class instead of making :class:`StreamReader` itself a
     :class:`Protocol` subclass, because the :class:`StreamReader` has other
-    potential uses, and to prevent the user of the :class:`StreamReader` to
-    accidentally call inappropriate methods of the protocol.)
+    potential uses, and to prevent the user of the :class:`StreamReader` from
+    accidentally calling inappropriate methods of the protocol.)
 
 
 IncompleteReadError
@@ -312,7 +312,7 @@ TCP echo server using the :func:`asyncio.start_server` function::
     coro = asyncio.start_server(handle_echo, '127.0.0.1', 8888, loop=loop)
     server = loop.run_until_complete(coro)
 
-    # Serve requests until CTRL+c is pressed
+    # Serve requests until Ctrl+C is pressed
     print('Serving on {}'.format(server.sockets[0].getsockname()))
     try:
         loop.run_forever()

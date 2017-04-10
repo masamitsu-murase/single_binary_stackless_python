@@ -139,13 +139,22 @@ class TestPartial:
 
     def test_nested_optimization(self):
         partial = self.partial
-        # Only "true" partial is optimized
-        if partial.__name__ != 'partial':
-            return
         inner = partial(signature, 'asdf')
         nested = partial(inner, bar=True)
         flat = partial(signature, 'asdf', bar=True)
         self.assertEqual(signature(nested), signature(flat))
+
+    def test_nested_partial_with_attribute(self):
+        # see issue 25137
+        partial = self.partial
+
+        def foo(bar):
+            return bar
+
+        p = partial(foo, 'first')
+        p2 = partial(p, 'second')
+        p2.new_attr = 'spam'
+        self.assertEqual(p2.new_attr, 'spam')
 
 
 @unittest.skipUnless(c_functools, 'requires the C _functools module')
@@ -237,6 +246,9 @@ if c_functools:
 class TestPartialCSubclass(TestPartialC):
     if c_functools:
         partial = PartialSubclass
+
+    # partial subclasses are not optimized for nested calls
+    test_nested_optimization = None
 
 
 class TestPartialMethod(unittest.TestCase):
@@ -1490,6 +1502,24 @@ class TestSingleDispatch(unittest.TestCase):
         # unrelated ABCs don't appear in the resulting MRO
         many_abcs = [c.Mapping, c.Sized, c.Callable, c.Container, c.Iterable]
         self.assertEqual(mro(X, abcs=many_abcs), expected)
+
+    def test_false_meta(self):
+        # see issue23572
+        class MetaA(type):
+            def __len__(self):
+                return 0
+        class A(metaclass=MetaA):
+            pass
+        class AA(A):
+            pass
+        @functools.singledispatch
+        def fun(a):
+            return 'base A'
+        @fun.register(A)
+        def _(a):
+            return 'fun A'
+        aa = AA()
+        self.assertEqual(fun(aa), 'fun A')
 
     def test_mro_conflicts(self):
         c = collections

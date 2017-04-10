@@ -2,6 +2,238 @@
 Python News
 +++++++++++
 
+
+What's New in Python 3.5.1 release candidate 1?
+===============================================
+
+Release date: TBA
+
+Core and Builtins
+-----------------
+
+- Issue #25131: Make the line number and column offset of set/dict literals and
+  comprehensions correspond to the opening brace.
+
+- Issue #25150: Hide the private _Py_atomic_xxx symbols from the public
+  Python.h header to fix a compilation error with OpenMP. PyThreadState_GET()
+  becomes an alias to PyThreadState_Get() to avoid ABI incompatibilies.
+
+Library
+-------
+
+- Issue #25233: Rewrite the guts of asyncio.Queue to be more understandable and correct.
+
+- Issue #25203: Failed readline.set_completer_delims() no longer left the
+  module in inconsistent state.
+
+- Issue #23600: Default implementation of tzinfo.fromutc() was returning
+  wrong results in some cases.
+
+- Issue #23329: Allow the ssl module to be built with older versions of
+  LibreSSL.
+
+- Prevent overflow in _Unpickler_Read.
+
+- Issue #25047: The XML encoding declaration written by Element Tree now
+  respects the letter case given by the user. This restores the ability to
+  write encoding names in uppercase like "UTF-8", which worked in Python 2.
+
+- Issue #25135: Make deque_clear() safer by emptying the deque before clearing.
+  This helps avoid possible reentrancy issues.
+
+- Issue #19143: platform module now reads Windows version from kernel32.dll to
+  avoid compatibility shims.
+
+- Issue #25092: Fix datetime.strftime() failure when errno was already set to
+  EINVAL.
+
+- Issue #23517: Fix rounding in fromtimestamp() and utcfromtimestamp() methods
+  of datetime.datetime: microseconds are now rounded to nearest with ties
+  going to nearest even integer (ROUND_HALF_EVEN), instead of being rounding
+  towards minus infinity (ROUND_FLOOR). It's important that these methods use
+  the same rounding mode than datetime.timedelta to keep the property:
+  (datetime(1970,1,1) + timedelta(seconds=t)) == datetime.utcfromtimestamp(t).
+  It also the rounding mode used by round(float) for example.
+
+- Issue #25155: Fix datetime.datetime.now() and datetime.datetime.utcnow() on
+  Windows to support date after year 2038. It was a regression introduced in
+  Python 3.5.0.
+
+- Issue #25108: Omitted internal frames in traceback functions print_stack(),
+  format_stack(), and extract_stack() called without arguments.
+
+- Issue #25118: Fix a regression of Python 3.5.0 in os.waitpid() on Windows.
+
+- Issue #24684: socket.socket.getaddrinfo() now calls
+  PyUnicode_AsEncodedString() instead of calling the encode() method of the
+  host, to handle correctly custom string with an encode() method which doesn't
+  return a byte string. The encoder of the IDNA codec is now called directly
+  instead of calling the encode() method of the string.
+
+- Issue #25060: Correctly compute stack usage of the BUILD_MAP opcode.
+
+- Issue #24857: Comparing call_args to a long sequence now correctly returns a
+  boolean result instead of raising an exception.  Patch by A Kaptur.
+
+- Issue #23144: Make sure that HTMLParser.feed() returns all the data, even
+  when convert_charrefs is True.
+
+- Issue #24982: shutil.make_archive() with the "zip" format now adds entries
+  for directories (including empty directories) in ZIP file.
+
+- Issue #25019: Fixed a crash caused by setting non-string key of expat parser.
+  Based on patch by John Leitch.
+
+- Issue #16180: Exit pdb if file has syntax error, instead of trapping user
+  in an infinite loop.  Patch by Xavier de Gaye.
+
+- Issue #24891: Fix a race condition at Python startup if the file descriptor
+  of stdin (0), stdout (1) or stderr (2) is closed while Python is creating
+  sys.stdin, sys.stdout and sys.stderr objects. These attributes are now set
+  to None if the creation of the object failed, instead of raising an OSError
+  exception. Initial patch written by Marco Paolini.
+
+- Issue #24992: Fix error handling and a race condition (related to garbage
+  collection) in collections.OrderedDict constructor.
+
+- Issue #24881: Fixed setting binary mode in Python implementation of FileIO
+  on Windows and Cygwin.  Patch from Akira Li.
+
+- Issue #21112: Fix regression in unittest.expectedFailure on subclasses.
+  Patch from Berker Peksag.
+
+- Issue #24764: cgi.FieldStorage.read_multi() now ignores the Content-Length
+  header in part headers. Patch written by Peter Landry and reviewed by Pierre
+  Quentel.
+
+- Issue #24913: Fix overrun error in deque.index().
+  Found by John Leitch and Bryce Darling.
+
+- Issue #24774: Fix docstring in http.server.test. Patch from Chiu-Hsiang Hsu.
+
+- Issue #21159: Improve message in configparser.InterpolationMissingOptionError.
+  Patch from Łukasz Langa.
+
+- Issue #20362: Honour TestCase.longMessage correctly in assertRegex.
+  Patch from Ilia Kurenkov.
+
+- Issue #23572: Fixed functools.singledispatch on classes with falsy
+  metaclasses.  Patch by Ethan Furman.
+
+IDLE
+----
+
+- Issue #24972: Inactive selection background now matches active selection
+  background, as configured by user, on all systems.  Found items are now
+  always highlighted on Windows.  Initial patch by Mark Roseman.
+
+- Issue #24570: Idle: make calltip and completion boxes appear on Macs
+  affected by a tk regression.  Initial patch by Mark Roseman.
+
+- Issue #24988: Idle ScrolledList context menus (used in debugger)
+  now work on Mac Aqua.  Patch by Mark Roseman.
+
+- Issue #24801: Make right-click for context menu work on Mac Aqua.
+  Patch by Mark Roseman.
+
+- Issue #25173: Associate tkinter messageboxes with a specific widget.
+  For Mac OSX, make them a 'sheet'.  Patch by Mark Roseman.
+
+- Issue #25198: Enhance the initial html viewer now used for Idle Help.
+  * Properly indent fixed-pitch text (patch by Mark Roseman).
+  * Give code snippet a very Sphinx-like light blueish-gray background.
+  * Re-use initial width and height set by users for shell and editor.
+  * When the Table of Contents (TOC) menu is used, put the section header
+  at the top of the screen.
+
+- Issue #25225: Condense and rewrite Idle doc section on text colors.
+
+- Issue #21995: Explain some differences between IDLE and console Python.
+
+- Issue #22820: Explain need for *print* when running file from Idle editor.
+
+- Issue #25224: Doc: augment Idle feature list and no-subprocess section.
+
+- Issue #25219: Update doc for Idle command line options.
+  Some were missing and notes were not correct.
+
+- Issue #24861: Most of idlelib is private and subject to change.
+  Use idleib.idle.* to start Idle. See idlelib.__init__.__doc__.
+
+- Issue #25199: Idle: add synchronization comments for future maintainers.
+
+- Issue #16893: Replace help.txt with help.html for Idle doc display.
+  The new idlelib/help.html is rstripped Doc/build/html/library/idle.html.
+  It looks better than help.txt and will better document Idle as released.
+  The tkinter html viewer that works for this file was written by Mark Roseman.
+  The now unused EditorWindow.HelpDialog class and helt.txt file are deprecated.
+
+- Issue #24199: Deprecate unused idlelib.idlever with possible removal in 3.6.
+
+- Issue #24782: In Idle extension config dialog, replace tabs with sorted list.
+  Patch by Mark Roseman.
+
+- Issue #24790: Remove extraneous code (which also create 2 & 3 conflicts).
+
+Documentation
+-------------
+
+- Issue #12067: Rewrite Comparisons section in the Expressions chapter of the
+  language reference. Some of the details of comparing mixed types were
+  incorrect or ambiguous. NotImplemented is only relevant at a lower level
+  than the Expressions chapter. Added details of comparing range() objects,
+  and default behaviour and consistency suggestions for user-defined classes.
+  Patch from Andy Maier.
+
+- Issue #24952: Clarify the default size argument of stack_size() in
+  the "threading" and "_thread" modules. Patch from Mattip.
+
+- Issue #23725: Overhaul tempfile docs. Note deprecated status of mktemp.
+  Patch from Zbigniew Jędrzejewski-Szmek.
+
+- Issue #24808: Update the types of some PyTypeObject fields.  Patch by
+  Joseph Weston.
+
+- Issue #22812: Fix unittest discovery examples.
+  Patch from Pam McA'Nulty.
+
+Tests
+-----
+
+- PCbuild\rt.bat now accepts an unlimited number of arguments to pass along
+  to regrtest.py.  Previously there was a limit of 9.
+
+Build
+-----
+
+- Issue #24915: Add LLVM support for PGO builds and use the test suite to
+  generate the profile data. Initiial patch by Alecsandru Patrascu of Intel.
+
+- Issue #24910: Windows MSIs now have unique display names.
+
+- Issue #24986: It is now possible to build Python on Windows without errors
+  when external libraries are not available.
+
+Windows
+-------
+
+- Issues #25112: py.exe launcher is missing icons
+
+- Issue #25102: Windows installer does not precompile for -O or -OO.
+
+- Issue #25081: Makes Back button in installer go back to upgrade page when
+  upgrading.
+
+- Issue #25091: Increases font size of the installer.
+
+- Issue #25126: Clarifies that the non-web installer will download some
+  components.
+
+- Issue #25213: Restores requestedExecutionLevel to manifest to disable
+  UAC virtualization.
+
+- Issue #25022: Removed very outdated PC/example_nt/ directory.
+
 What's New in Python 3.5.0 final?
 =================================
 
@@ -144,10 +376,7 @@ Library
 
 - Issue #17527: Add PATCH to wsgiref.validator. Patch from Luca Sbardella.
 
-- Issue #23812: Fix asyncio.Queue.get() to avoid loosing items on cancellation.
-  Patch by Gustavo J. A. M. Carneiro.
-
-- Issue #24791: Fix grammar regression for call syntax: ``g(*a or b)``.
+- Issue #24791: Fix grammar regression for call syntax: 'g(*a or b)'.
 
 IDLE
 ----
