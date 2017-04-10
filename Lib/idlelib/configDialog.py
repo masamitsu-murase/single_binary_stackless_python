@@ -43,19 +43,20 @@ class ConfigDialog(Toplevel):
         #The first value of the tuple is the sample area tag name.
         #The second value is the display name list sort index.
         self.themeElements={
-            'Normal Text':('normal', '00'),
-            'Python Keywords':('keyword', '01'),
-            'Python Definitions':('definition', '02'),
-            'Python Builtins':('builtin', '03'),
-            'Python Comments':('comment', '04'),
-            'Python Strings':('string', '05'),
-            'Selected Text':('hilite', '06'),
-            'Found Text':('hit', '07'),
-            'Cursor':('cursor', '08'),
-            'Error Text':('error', '09'),
-            'Shell Normal Text':('console', '10'),
-            'Shell Stdout Text':('stdout', '11'),
-            'Shell Stderr Text':('stderr', '12'),
+            'Normal Text': ('normal', '00'),
+            'Python Keywords': ('keyword', '01'),
+            'Python Definitions': ('definition', '02'),
+            'Python Builtins': ('builtin', '03'),
+            'Python Comments': ('comment', '04'),
+            'Python Strings': ('string', '05'),
+            'Selected Text': ('hilite', '06'),
+            'Found Text': ('hit', '07'),
+            'Cursor': ('cursor', '08'),
+            'Editor Breakpoint': ('break', '09'),
+            'Shell Normal Text': ('console', '10'),
+            'Shell Error Text': ('error', '11'),
+            'Shell Stdout Text': ('stdout', '12'),
+            'Shell Stderr Text': ('stderr', '13'),
             }
         self.ResetChangedItems() #load initial values in changed items dict
         self.CreateWidgets()
@@ -219,7 +220,8 @@ class ConfigDialog(Toplevel):
             ("'selected'", 'hilite'), ('\n  var2 = ', 'normal'),
             ("'found'", 'hit'), ('\n  var3 = ', 'normal'),
             ('list', 'builtin'), ('(', 'normal'),
-            ('None', 'keyword'), (')\n\n', 'normal'),
+            ('None', 'keyword'), (')\n', 'normal'),
+            ('  breakpoint("line")', 'break'), ('\n\n', 'normal'),
             (' error ', 'error'), (' ', 'normal'),
             ('cursor |', 'cursor'), ('\n ', 'normal'),
             ('shell', 'console'), (' ', 'normal'),
@@ -505,6 +507,20 @@ class ConfigDialog(Toplevel):
 
     def VarChanged_builtinTheme(self, *params):
         value = self.builtinTheme.get()
+        if value == 'IDLE Dark':
+            tkMessageBox.showwarning(
+                title="The 'IDLE Dark' Text Color Theme",
+                message="IDLE Dark is new in October, 2015.  Trying to "
+                        "run earlier versions of IDLE with it selected "
+                        "will disable colorizing, or worse.\n\n"
+                        "If you might ever run an earlier release of IDLE, "
+                        "then before exiting this version, "
+                        "either switch to another theme or "
+                        "hit the 'Save as New Custom Theme' button.  "
+                        "The latter requires a new name, such as "
+                        "'Custom Dark', but the custom theme will work "
+                        "with any IDLE release, and can be modified.",
+                parent=self)
         self.AddChangedItem('main', 'Theme', 'name', value)
         self.PaintThemeSample()
 

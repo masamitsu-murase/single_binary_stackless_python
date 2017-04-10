@@ -3,7 +3,7 @@
 __all__ = ['Task',
            'FIRST_COMPLETED', 'FIRST_EXCEPTION', 'ALL_COMPLETED',
            'wait', 'wait_for', 'as_completed', 'sleep', 'async',
-           'gather', 'shield', 'ensure_future',
+           'gather', 'shield', 'ensure_future', 'run_coroutine_threadsafe',
            ]
 
 import concurrent.futures
@@ -512,7 +512,7 @@ def async(coro_or_future, *, loop=None):
 
 
 def ensure_future(coro_or_future, *, loop=None):
-    """Wrap a coroutine in a future.
+    """Wrap a coroutine or an awaitable in a future.
 
     If the argument is a Future, it is returned directly.
     """
@@ -527,8 +527,20 @@ def ensure_future(coro_or_future, *, loop=None):
         if task._source_traceback:
             del task._source_traceback[-1]
         return task
+    elif compat.PY35 and inspect.isawaitable(coro_or_future):
+        return ensure_future(_wrap_awaitable(coro_or_future), loop=loop)
     else:
-        raise TypeError('A Future or coroutine is required')
+        raise TypeError('A Future, a coroutine or an awaitable is required')
+
+
+@coroutine
+def _wrap_awaitable(awaitable):
+    """Helper for asyncio.ensure_future().
+
+    Wraps awaitable (an object with __await__) into a coroutine
+    that will later be wrapped in a Task by ensure_future().
+    """
+    return (yield from awaitable.__await__())
 
 
 class _GatheringFuture(futures.Future):
@@ -680,3 +692,24 @@ def shield(arg, *, loop=None):
 
     inner.add_done_callback(_done_callback)
     return outer
+
+
+def run_coroutine_threadsafe(coro, loop):
+    """Submit a coroutine object to a given event loop.
+
+    Return a concurrent.futures.Future to access the result.
+    """
+    if not coroutines.iscoroutine(coro):
+        raise TypeError('A coroutine object is required')
+    future = concurrent.futures.Future()
+
+    def callback():
+        try:
+            futures._chain_future(ensure_future(coro, loop=loop), future)
+        except Exception as exc:
+            if future.set_running_or_notify_cancel():
+                future.set_exception(exc)
+            raise
+
+    loop.call_soon_threadsafe(callback)
+    return future

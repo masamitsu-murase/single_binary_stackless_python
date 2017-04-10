@@ -1806,7 +1806,7 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
 #ifdef Py_DEBUG
     /* PyEval_EvalFrameEx() must not be called with an exception set,
        because it may clear it (directly or indirectly) and so the
-       caller looses its exception */
+       caller loses its exception */
     assert(!PyErr_Occurred());
 #endif
 
