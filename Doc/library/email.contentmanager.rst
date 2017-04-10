@@ -347,7 +347,7 @@ Currently the email package provides only one concrete content manager,
 
    .. method:: get_content(msg, errors='replace')
 
-      Return the payload of the part as either a string (for ``text`` parts), a
+      Return the payload of the part as either a string (for ``text`` parts), an
       :class:`~email.message.EmailMessage` object (for ``message/rfc822``
       parts), or a ``bytes`` object (for all other non-multipart types).  Raise
       a :exc:`KeyError` if called on a ``multipart``.  If the part is a
@@ -433,5 +433,5 @@ Currently the email package provides only one concrete content manager,
 
        If *headers* is specified and is a list of strings of the form
        ``headername: headervalue`` or a list of ``header`` objects
-       (distinguised from strings by having a ``name`` attribute), add the
+       (distinguished from strings by having a ``name`` attribute), add the
        headers to *msg*.

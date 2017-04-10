@@ -332,7 +332,7 @@ _ctypes_alloc_format_string_with_shape(int ndim, const Py_ssize_t *shape,
 
 /*
   PyCStructType_Type - a meta type/class.  Creating a new class using this one as
-  __metaclass__ will call the contructor StructUnionType_new.  It replaces the
+  __metaclass__ will call the constructor StructUnionType_new.  It replaces the
   tp_dict member with a new instance of StgDict, and initializes the C
   accessible fields somehow.
 */
@@ -1381,8 +1381,10 @@ PyCArrayType_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
         goto error;
     }
     stgdict->shape[0] = length;
-    memmove(&stgdict->shape[1], itemdict->shape,
-        sizeof(Py_ssize_t) * (stgdict->ndim - 1));
+    if (stgdict->ndim > 1) {
+        memmove(&stgdict->shape[1], itemdict->shape,
+            sizeof(Py_ssize_t) * (stgdict->ndim - 1));
+    }
 
     itemsize = itemdict->size;
     if (length * itemsize < 0) {

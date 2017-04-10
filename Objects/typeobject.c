@@ -1455,8 +1455,10 @@ call_method(PyObject *o, _Py_Identifier *nameid, char *format, ...)
 
     va_end(va);
 
-    if (args == NULL)
+    if (args == NULL) {
+        Py_DECREF(func);
         return NULL;
+    }
 
     assert(PyTuple_Check(args));
     STACKLESS_PROMOTE_ALL();
@@ -1494,8 +1496,10 @@ call_maybe(PyObject *o, _Py_Identifier *nameid, char *format, ...)
 
     va_end(va);
 
-    if (args == NULL)
+    if (args == NULL) {
+        Py_DECREF(func);
         return NULL;
+    }
 
     assert(PyTuple_Check(args));
     STACKLESS_PROMOTE_ALL();
@@ -1522,7 +1526,7 @@ call_maybe(PyObject *o, _Py_Identifier *nameid, char *format, ...)
 
     The next three properties are the 3 constraints in "C3".
 
-    Local precendece order.
+    Local precedence order.
     If A precedes B in C's MRO, then A will precede B in the MRO of all
     subclasses of C.
 
@@ -3802,7 +3806,7 @@ import_copyreg(void)
     /* Try to fetch cached copy of copyreg from sys.modules first in an
        attempt to avoid the import overhead. Previously this was implemented
        by storing a reference to the cached module in a static variable, but
-       this broke when multiple embeded interpreters were in use (see issue
+       this broke when multiple embedded interpreters were in use (see issue
        #17408 and #19088). */
     copyreg_module = PyDict_GetItemWithError(interp->modules, copyreg_str);
     if (copyreg_module != NULL) {

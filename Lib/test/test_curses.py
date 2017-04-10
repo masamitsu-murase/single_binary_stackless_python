@@ -188,6 +188,11 @@ class TestCurses(unittest.TestCase):
         if hasattr(curses, 'enclose'):
             stdscr.enclose()
 
+        self.assertRaises(ValueError, stdscr.getstr, -400)
+        self.assertRaises(ValueError, stdscr.getstr, 2, 3, -400)
+        self.assertRaises(ValueError, stdscr.instr, -2)
+        self.assertRaises(ValueError, stdscr.instr, 2, 3, -2)
+
 
     def test_module_funcs(self):
         "Test module-level functions"
@@ -390,6 +395,7 @@ class TestCurses(unittest.TestCase):
 
 class MiscTests(unittest.TestCase):
 
+    @requires_curses_func('update_lines_cols')
     def test_update_lines_cols(self):
         # this doesn't actually test that LINES and COLS are updated,
         # because we can't automate changing them. See Issue #4254 for

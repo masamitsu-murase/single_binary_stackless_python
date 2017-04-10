@@ -183,7 +183,7 @@ Module functions and constants
    parameter is 5.0 (five seconds).
 
    For the *isolation_level* parameter, please see the
-   :attr:`Connection.isolation_level` property of :class:`Connection` objects.
+   :attr:`~Connection.isolation_level` property of :class:`Connection` objects.
 
    SQLite natively supports only the types TEXT, INTEGER, REAL, BLOB and NULL. If
    you want to use other types you must add support for them yourself. The
@@ -285,11 +285,11 @@ Connection Objects
 
       .. versionadded:: 3.2
 
-   .. method:: cursor([cursorClass])
+   .. method:: cursor(factory=Cursor)
 
-      The cursor method accepts a single optional parameter *cursorClass*. If
-      supplied, this must be a custom cursor class that extends
-      :class:`sqlite3.Cursor`.
+      The cursor method accepts a single optional parameter *factory*. If
+      supplied, this must be a callable returning an instance of :class:`Cursor`
+      or its subclasses.
 
    .. method:: commit()
 
@@ -542,7 +542,7 @@ Cursor Objects
       .. literalinclude:: ../includes/sqlite3/execute_1.py
 
       :meth:`execute` will only execute a single SQL statement. If you try to execute
-      more than one statement with it, it will raise an ``sqlite3.Warning``. Use
+      more than one statement with it, it will raise a :exc:`.Warning`. Use
       :meth:`executescript` if you want to execute multiple SQL statements with one
       call.
 
@@ -605,7 +605,7 @@ Cursor Objects
 
       Close the cursor now (rather than whenever ``__del__`` is called).
 
-      The cursor will be unusable from this point forward; a ``ProgrammingError``
+      The cursor will be unusable from this point forward; a :exc:`ProgrammingError`
       exception will be raised if any operation is attempted with the cursor.
 
    .. attribute:: rowcount
@@ -717,6 +717,36 @@ Now we plug :class:`Row` in::
    RHAT
    100.0
    35.14
+
+
+.. _sqlite3-exceptions:
+
+Exceptions
+----------
+
+.. exception:: Warning
+
+   A subclass of :exc:`Exception`.
+
+.. exception:: Error
+
+   The base class of the other exceptions in this module.  It is a subclass
+   of :exc:`Exception`.
+
+.. exception:: DatabaseError
+
+   Exception raised for errors that are related to the database.
+
+.. exception:: IntegrityError
+
+   Exception raised when the relational integrity of the database is affected,
+   e.g. a foreign key check fails.  It is a subclass of :exc:`DatabaseError`.
+
+.. exception:: ProgrammingError
+
+   Exception raised for programming errors, e.g. table not found or already
+   exists, syntax error in the SQL statement, wrong number of parameters
+   specified, etc.  It is a subclass of :exc:`DatabaseError`.
 
 
 .. _sqlite3-types:

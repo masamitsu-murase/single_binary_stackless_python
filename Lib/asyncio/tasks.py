@@ -249,7 +249,8 @@ class Task(futures.Future):
             self.set_exception(exc)
             raise
         else:
-            if isinstance(result, futures.Future):
+            blocking = getattr(result, '_asyncio_future_blocking', None)
+            if blocking is not None:
                 # Yielded Future must come from Future.__iter__().
                 if result._loop is not self._loop:
                     self._loop.call_soon(
@@ -257,8 +258,8 @@ class Task(futures.Future):
                         RuntimeError(
                             'Task {!r} got Future {!r} attached to a '
                             'different loop'.format(self, result)))
-                elif result._blocking:
-                    result._blocking = False
+                elif blocking:
+                    result._asyncio_future_blocking = False
                     result.add_done_callback(self._wakeup)
                     self._fut_waiter = result
                     if self._must_cancel:
@@ -332,7 +333,7 @@ def wait(fs, *, loop=None, timeout=None, return_when=ALL_COMPLETED):
     Note: This does not raise TimeoutError! Futures that aren't done
     when the timeout occurs are returned in the second set.
     """
-    if isinstance(fs, futures.Future) or coroutines.iscoroutine(fs):
+    if futures.isfuture(fs) or coroutines.iscoroutine(fs):
         raise TypeError("expect a list of futures, not %s" % type(fs).__name__)
     if not fs:
         raise ValueError('Set of coroutines/Futures is empty.')
@@ -461,7 +462,7 @@ def as_completed(fs, *, loop=None, timeout=None):
 
     Note: The futures 'f' are not necessarily members of fs.
     """
-    if isinstance(fs, futures.Future) or coroutines.iscoroutine(fs):
+    if futures.isfuture(fs) or coroutines.iscoroutine(fs):
         raise TypeError("expect a list of futures, not %s" % type(fs).__name__)
     loop = loop if loop is not None else events.get_event_loop()
     todo = {ensure_future(f, loop=loop) for f in set(fs)}
@@ -537,7 +538,7 @@ def ensure_future(coro_or_future, *, loop=None):
 
     If the argument is a Future, it is returned directly.
     """
-    if isinstance(coro_or_future, futures.Future):
+    if futures.isfuture(coro_or_future):
         if loop is not None and loop is not coro_or_future._loop:
             raise ValueError('loop argument must agree with Future')
         return coro_or_future
@@ -613,7 +614,7 @@ def gather(*coros_or_futures, loop=None, return_exceptions=False):
 
     arg_to_fut = {}
     for arg in set(coros_or_futures):
-        if not isinstance(arg, futures.Future):
+        if not futures.isfuture(arg):
             fut = ensure_future(arg, loop=loop)
             if loop is None:
                 loop = fut._loop

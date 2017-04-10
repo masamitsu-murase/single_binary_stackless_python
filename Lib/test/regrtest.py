@@ -325,7 +325,7 @@ def _create_parser():
     group.add_argument('-P', '--pgo', dest='pgo', action='store_true',
                        help='enable Profile Guided Optimization training')
 
-    parser.add_argument('args', nargs=argparse.REMAINDER,
+    parser.add_argument('args', nargs='*',
                         help=argparse.SUPPRESS)
 
     return parser
@@ -1258,6 +1258,7 @@ class saved_test_environment:
     def __exit__(self, exc_type, exc_val, exc_tb):
         saved_values = self.saved_values
         del self.saved_values
+        support.gc_collect()  # Some resources use weak references
         for name, get, restore in self.resource_info():
             current = get()
             original = saved_values.pop(name)

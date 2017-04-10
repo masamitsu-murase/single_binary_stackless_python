@@ -2517,8 +2517,8 @@ os_lstat_impl(PyObject *module, path_t *path, int dir_fd)
 /*[clinic input]
 os.access -> bool
 
-    path: path_t(allow_fd=True)
-        Path to be tested; can be string, bytes, or open-file-descriptor int.
+    path: path_t
+        Path to be tested; can be string or bytes
 
     mode: int
         Operating-system mode bitfield.  Can be F_OK to test existence,
@@ -2556,7 +2556,7 @@ Note that most operations will use the effective uid/gid, therefore this
 static int
 os_access_impl(PyObject *module, path_t *path, int mode, int dir_fd,
                int effective_ids, int follow_symlinks)
-/*[clinic end generated code: output=cf84158bc90b1a77 input=b75a756797af45ec]*/
+/*[clinic end generated code: output=cf84158bc90b1a77 input=8e8c3a6ba791fee3]*/
 {
     int return_value;
 
@@ -3878,10 +3878,12 @@ os__isdir_impl(PyObject *module, path_t *path)
 {
     DWORD attributes;
 
+    Py_BEGIN_ALLOW_THREADS
     if (!path->narrow)
         attributes = GetFileAttributesW(path->wide);
     else
         attributes = GetFileAttributesA(path->narrow);
+    Py_END_ALLOW_THREADS
 
     if (attributes == INVALID_FILE_ATTRIBUTES)
         Py_RETURN_FALSE;
@@ -12748,9 +12750,15 @@ all_ins(PyObject *m)
 #endif
 
 #ifdef HAVE_SCHED_H
+#ifdef SCHED_OTHER
     if (PyModule_AddIntMacro(m, SCHED_OTHER)) return -1;
+#endif
+#ifdef SCHED_FIFO
     if (PyModule_AddIntMacro(m, SCHED_FIFO)) return -1;
+#endif
+#ifdef SCHED_RR
     if (PyModule_AddIntMacro(m, SCHED_RR)) return -1;
+#endif
 #ifdef SCHED_SPORADIC
     if (PyModule_AddIntMacro(m, SCHED_SPORADIC) return -1;
 #endif

@@ -32,9 +32,10 @@ SMTPServer Objects
                       map=None, enable_SMTPUTF8=False, decode_data=True)
 
    Create a new :class:`SMTPServer` object, which binds to local address
-   *localaddr*.  It will treat *remoteaddr* as an upstream SMTP relayer.  It
-   inherits from :class:`asyncore.dispatcher`, and so will insert itself into
-   :mod:`asyncore`'s event loop on instantiation.
+   *localaddr*.  It will treat *remoteaddr* as an upstream SMTP relayer.  Both
+   *localaddr* and *remoteaddr* should be a :ref:`(host, port) <host_port>`
+   tuple.  The object inherits from :class:`asyncore.dispatcher`, and so will
+   insert itself into :mod:`asyncore`'s event loop on instantiation.
 
    *data_size_limit* specifies the maximum number of bytes that will be
    accepted in a ``DATA`` command.  A value of ``None`` or ``0`` means no
@@ -44,7 +45,7 @@ SMTPServer Objects
    dictionary is a suitable value).  If not specified the :mod:`asyncore`
    global socket map is used.
 
-   *enable_SMTPUTF8* determins whether the ``SMTPUTF8`` extension (as defined
+   *enable_SMTPUTF8* determines whether the ``SMTPUTF8`` extension (as defined
    in :RFC:`6531`) should be enabled.  The default is ``False``.  If set to
    ``True``, *decode_data* must be ``False`` (otherwise an error is raised).
    When ``True``, ``SMTPUTF8`` is accepted as a parameter to the ``MAIL``
@@ -161,7 +162,7 @@ SMTPChannel Objects
    accepted in a ``DATA`` command.  A value of ``None`` or ``0`` means no
    limit.
 
-   *enable_SMTPUTF8* determins whether the ``SMTPUTF8`` extension (as defined
+   *enable_SMTPUTF8* determines whether the ``SMTPUTF8`` extension (as defined
    in :RFC:`6531`) should be enabled.  The default is ``False``.  A
    :exc:`ValueError` is raised if both *enable_SMTPUTF8* and *decode_data* are
    set to ``True`` at the same time.

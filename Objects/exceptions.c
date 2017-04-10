@@ -1272,7 +1272,7 @@ SimpleExtendsException(PyExc_Exception, AttributeError,
  *    SyntaxError extends Exception
  */
 
-/* Helper function to customise error message for some syntax errors */
+/* Helper function to customize error message for some syntax errors */
 static int _report_missing_parentheses(PySyntaxErrorObject *self);
 
 static int
@@ -1864,7 +1864,7 @@ UnicodeEncodeError_str(PyObject *self)
         return PyUnicode_FromString("");
 
     /* Get reason and encoding as strings, which they might not be if
-       they've been modified after we were contructed. */
+       they've been modified after we were constructed. */
     reason_str = PyObject_Str(uself->reason);
     if (reason_str == NULL)
         goto done;
@@ -1989,7 +1989,7 @@ UnicodeDecodeError_str(PyObject *self)
         return PyUnicode_FromString("");
 
     /* Get reason and encoding as strings, which they might not be if
-       they've been modified after we were contructed. */
+       they've been modified after we were constructed. */
     reason_str = PyObject_Str(uself->reason);
     if (reason_str == NULL)
         goto done;
@@ -2087,7 +2087,7 @@ UnicodeTranslateError_str(PyObject *self)
         return PyUnicode_FromString("");
 
     /* Get reason as a string, which it might not be if it's been
-       modified after we were contructed. */
+       modified after we were constructed. */
     reason_str = PyObject_Str(uself->reason);
     if (reason_str == NULL)
         goto done;

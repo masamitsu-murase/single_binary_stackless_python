@@ -692,16 +692,16 @@ number, :class:`float`, or :class:`complex`::
            m, n = m // P, n // P
 
        if n % P == 0:
-           hash_ = sys.hash_info.inf
+           hash_value = sys.hash_info.inf
        else:
            # Fermat's Little Theorem: pow(n, P-1, P) is 1, so
            # pow(n, P-2, P) gives the inverse of n modulo P.
-           hash_ = (abs(m) % P) * pow(n, P - 2, P) % P
+           hash_value = (abs(m) % P) * pow(n, P - 2, P) % P
        if m < 0:
-           hash_ = -hash_
-       if hash_ == -1:
-           hash_ = -2
-       return hash_
+           hash_value = -hash_value
+       if hash_value == -1:
+           hash_value = -2
+       return hash_value
 
    def hash_float(x):
        """Compute the hash of a float x."""
@@ -716,13 +716,13 @@ number, :class:`float`, or :class:`complex`::
    def hash_complex(z):
        """Compute the hash of a complex number z."""
 
-       hash_ = hash_float(z.real) + sys.hash_info.imag * hash_float(z.imag)
+       hash_value = hash_float(z.real) + sys.hash_info.imag * hash_float(z.imag)
        # do a signed reduction modulo 2**sys.hash_info.width
        M = 2**(sys.hash_info.width - 1)
-       hash_ = (hash_ & (M - 1)) - (hash & M)
-       if hash_ == -1:
-           hash_ == -2
-       return hash_
+       hash_value = (hash_value & (M - 1)) - (hash_value & M)
+       if hash_value == -1:
+           hash_value = -2
+       return hash_value
 
 .. _typeiter:
 
@@ -3866,17 +3866,17 @@ The constructors for both classes work the same:
       Test whether the set is a proper superset of *other*, that is, ``set >=
       other and set != other``.
 
-   .. method:: union(other, ...)
+   .. method:: union(*others)
                set | other | ...
 
       Return a new set with elements from the set and all others.
 
-   .. method:: intersection(other, ...)
+   .. method:: intersection(*others)
                set & other & ...
 
       Return a new set with elements common to the set and all others.
 
-   .. method:: difference(other, ...)
+   .. method:: difference(*others)
                set - other - ...
 
       Return a new set with elements in the set that are not in the others.
@@ -3926,17 +3926,17 @@ The constructors for both classes work the same:
    The following table lists operations available for :class:`set` that do not
    apply to immutable instances of :class:`frozenset`:
 
-   .. method:: update(other, ...)
+   .. method:: update(*others)
                set |= other | ...
 
       Update the set, adding elements from all others.
 
-   .. method:: intersection_update(other, ...)
+   .. method:: intersection_update(*others)
                set &= other & ...
 
       Update the set, keeping only elements found in it and all others.
 
-   .. method:: difference_update(other, ...)
+   .. method:: difference_update(*others)
                set -= other | ...
 
       Update the set, removing elements found in others.

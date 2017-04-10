@@ -64,6 +64,8 @@ class _slotted(object):
     __slots__ = ['a']
 
 
+# Do not use this tuple.  It was never documented as a public API.
+# It will be removed.  It has no obvious signs of users on github.
 DescriptorTypes = (
     type(_slotted.a),
     property,
@@ -2130,7 +2132,7 @@ def create_autospec(spec, spec_set=False, instance=False, _parent=None,
     _kwargs.update(kwargs)
 
     Klass = MagicMock
-    if type(spec) in DescriptorTypes:
+    if inspect.isdatadescriptor(spec):
         # descriptors don't have a spec
         # because we don't know what type they return
         _kwargs = {}

@@ -234,7 +234,7 @@ PyLong_FromLong(long ival)
     unsigned long abs_ival;
     unsigned long t;  /* unsigned so >> doesn't propagate sign bit */
     int ndigits = 0;
-    int sign = 1;
+    int sign;
 
     CHECK_SMALL_INT(ival);
 
@@ -246,6 +246,7 @@ PyLong_FromLong(long ival)
     }
     else {
         abs_ival = (unsigned long)ival;
+        sign = ival == 0 ? 0 : 1;
     }
 
     /* Fast path for single-digit ints */
@@ -368,7 +369,7 @@ PyLong_FromDouble(double dval)
 /* Checking for overflow in PyLong_AsLong is a PITA since C doesn't define
  * anything about what happens when a signed integer operation overflows,
  * and some compilers think they're doing you a favor by being "clever"
- * then.  The bit pattern for the largest postive signed long is
+ * then.  The bit pattern for the largest positive signed long is
  * (unsigned long)LONG_MAX, and for the smallest negative signed long
  * it is abs(LONG_MIN), which we could write -(unsigned long)LONG_MIN.
  * However, some other compilers warn about applying unary minus to an
@@ -775,10 +776,10 @@ _PyLong_FromByteArray(const unsigned char* bytes, size_t n,
         size_t i;
         const unsigned char* p = pendbyte;
         const int pincr = -incr;  /* search MSB to LSB */
-        const unsigned char insignficant = is_signed ? 0xff : 0x00;
+        const unsigned char insignificant = is_signed ? 0xff : 0x00;
 
         for (i = 0; i < n; ++i, p += pincr) {
-            if (*p != insignficant)
+            if (*p != insignificant)
                 break;
         }
         numsignificantbytes = n - i;

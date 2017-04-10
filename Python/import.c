@@ -960,12 +960,13 @@ is_builtin(PyObject *name)
 }
 
 
-/* Return an importer object for a sys.path/pkg.__path__ item 'p',
+/* Return a finder object for a sys.path/pkg.__path__ item 'p',
    possibly by fetching it from the path_importer_cache dict. If it
    wasn't yet cached, traverse path_hooks until a hook is found
    that can handle the path item. Return None if no hook could;
-   this tells our caller it should fall back to the builtin
-   import mechanism. Cache the result in path_importer_cache.
+   this tells our caller that the path based finder could not find
+   a finder for this path item. Cache the result in
+   path_importer_cache.
    Returns a borrowed reference. */
 
 static PyObject *
@@ -1056,7 +1057,7 @@ _imp_create_builtin(PyObject *module, PyObject *spec)
     mod = _PyImport_FindExtensionObject(name, name);
     if (mod || PyErr_Occurred()) {
         Py_DECREF(name);
-        Py_INCREF(mod);
+        Py_XINCREF(mod);
         return mod;
     }
 
@@ -1438,6 +1439,7 @@ PyImport_ImportModuleLevelObject(PyObject *name, PyObject *given_globals,
             }
             else if (!PyUnicode_Check(package)) {
                 PyErr_SetString(PyExc_TypeError, "__name__ must be a string");
+                goto error;
             }
             Py_INCREF(package);
 
@@ -1525,15 +1527,13 @@ PyImport_ImportModuleLevelObject(PyObject *name, PyObject *given_globals,
     _PyImport_AcquireLock();
 #endif
    /* From this point forward, goto error_with_unlock! */
-    if (PyDict_Check(globals)) {
-        builtins_import = _PyDict_GetItemId(globals, &PyId___import__);
-    }
+    /* XXX interp->builtins_copy is NULL in subinterpreter! */
+    builtins_import = _PyDict_GetItemId(interp->builtins_copy ?
+                                        interp->builtins_copy :
+                                        interp->builtins, &PyId___import__);
     if (builtins_import == NULL) {
-        builtins_import = _PyDict_GetItemId(interp->builtins, &PyId___import__);
-        if (builtins_import == NULL) {
-            PyErr_SetString(PyExc_ImportError, "__import__ not found");
-            goto error_with_unlock;
-        }
+        PyErr_SetString(PyExc_ImportError, "__import__ not found");
+        goto error_with_unlock;
     }
     Py_INCREF(builtins_import);
 

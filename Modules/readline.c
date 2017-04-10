@@ -1063,7 +1063,7 @@ done:
     Py_XDECREF(readlinestate_global->endidx);
     readlinestate_global->begidx = PyLong_FromLong((long) start);
     readlinestate_global->endidx = PyLong_FromLong((long) end);
-    result = completion_matches(text, *on_completion);
+    result = completion_matches((char *)text, *on_completion);
 #ifdef WITH_THREAD
     PyGILState_Release(gilstate);
 #endif
@@ -1129,19 +1129,22 @@ setup_readline(readlinestate *mod_state)
     mod_state->begidx = PyLong_FromLong(0L);
     mod_state->endidx = PyLong_FromLong(0L);
 
-#ifndef __APPLE__
-    if (!isatty(STDOUT_FILENO)) {
-        /* Issue #19884: stdout is not a terminal. Disable meta modifier
-           keys to not write the ANSI sequence "\033[1034h" into stdout. On
-           terminals supporting 8 bit characters like TERM=xterm-256color
-           (which is now the default Fedora since Fedora 18), the meta key is
-           used to enable support of 8 bit characters (ANSI sequence
-           "\033[1034h").
-
-           With libedit, this call makes readline() crash. */
-        rl_variable_bind ("enable-meta-key", "off");
-    }
+#ifdef __APPLE__
+    if (!using_libedit_emulation)
 #endif
+    {
+        if (!isatty(STDOUT_FILENO)) {
+            /* Issue #19884: stdout is not a terminal. Disable meta modifier
+               keys to not write the ANSI sequence "\033[1034h" into stdout. On
+               terminals supporting 8 bit characters like TERM=xterm-256color
+               (which is now the default Fedora since Fedora 18), the meta key is
+               used to enable support of 8 bit characters (ANSI sequence
+               "\033[1034h").
+
+               With libedit, this call makes readline() crash. */
+            rl_variable_bind ("enable-meta-key", "off");
+        }
+    }
 
     /* Initialize (allows .inputrc to override)
      *

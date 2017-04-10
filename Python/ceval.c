@@ -2168,7 +2168,7 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
             if (PyUnicode_CheckExact(left) &&
                      PyUnicode_CheckExact(right)) {
                 sum = unicode_concatenate(left, right, f, next_instr);
-                /* unicode_concatenate consumed the ref to v */
+                /* unicode_concatenate consumed the ref to left */
             }
             else {
                 sum = PyNumber_Add(left, right);
@@ -2367,7 +2367,7 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
             PyObject *sum;
             if (PyUnicode_CheckExact(left) && PyUnicode_CheckExact(right)) {
                 sum = unicode_concatenate(left, right, f, next_instr);
-                /* unicode_concatenate consumed the ref to v */
+                /* unicode_concatenate consumed the ref to left */
             }
             else {
                 sum = PyNumber_InPlaceAdd(left, right);
@@ -2458,7 +2458,7 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
             PyObject *v = THIRD();
             int err;
             STACKADJ(-3);
-            /* v[w] = u */
+            /* container[sub] = v */
             err = PyObject_SetItem(container, sub, v);
             Py_DECREF(v);
             Py_DECREF(container);
@@ -2473,7 +2473,7 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
             PyObject *container = SECOND();
             int err;
             STACKADJ(-2);
-            /* del v[w] */
+            /* del container[sub] */
             err = PyObject_DelItem(container, sub);
             Py_DECREF(container);
             Py_DECREF(sub);
@@ -2712,7 +2712,7 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
                 SET_TOP(val);
                 DISPATCH();
             }
-            /* x remains on stack, retval is value to be yielded */
+            /* receiver remains on stack, retval is value to be yielded */
             f->f_stacktop = stack_pointer;
             why = WHY_YIELD;
             /* and repeat... */
@@ -3185,14 +3185,16 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
         TARGET(BUILD_SET) {
             PyObject *set = PySet_New(NULL);
             int err = 0;
+            int i;
             if (set == NULL)
                 goto error;
-            while (--oparg >= 0) {
-                PyObject *item = POP();
+            for (i = oparg; i > 0; i--) {
+                PyObject *item = PEEK(i);
                 if (err == 0)
                     err = PySet_Add(set, item);
                 Py_DECREF(item);
             }
+            STACKADJ(-oparg);
             if (err != 0) {
                 Py_DECREF(set);
                 goto error;
@@ -3333,7 +3335,7 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
             STACKADJ(-2);
             map = stack_pointer[-oparg];  /* dict */
             assert(PyDict_CheckExact(map));
-            err = PyDict_SetItem(map, key, value);  /* v[w] = u */
+            err = PyDict_SetItem(map, key, value);  /* map[key] = value */
             Py_DECREF(value);
             Py_DECREF(key);
             if (err != 0)
@@ -4894,7 +4896,7 @@ do_raise(PyObject *exc, PyObject *cause)
         type = tstate->exc_type;
         value = tstate->exc_value;
         tb = tstate->exc_traceback;
-        if (type == Py_None) {
+        if (type == Py_None || type == NULL) {
             PyErr_SetString(PyExc_RuntimeError,
                             "No active exception to reraise");
             return 0;

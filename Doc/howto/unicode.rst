@@ -192,7 +192,7 @@ frequently used than UTF-8.)  UTF-8 uses the following rules:
 UTF-8 has several convenient properties:
 
 1. It can handle any Unicode code point.
-2. A Unicode string is turned into a string of bytes containing no embedded zero
+2. A Unicode string is turned into a sequence of bytes containing no embedded zero
    bytes.  This avoids byte-ordering issues, and means UTF-8 strings can be
    processed by C functions such as ``strcpy()`` and sent through protocols that
    can't handle zero bytes.
@@ -613,7 +613,9 @@ program::
    print(os.listdir(b'.'))
    print(os.listdir('.'))
 
-will produce the following output::
+will produce the following output:
+
+.. code-block:: shell-session
 
    amk:~$ python t.py
    [b'filename\xe4\x94\x80abc', ...]

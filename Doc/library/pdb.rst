@@ -158,7 +158,7 @@ access further features, you have to do this yourself:
    By default, Pdb sets a handler for the SIGINT signal (which is sent when the
    user presses :kbd:`Ctrl-C` on the console) when you give a ``continue`` command.
    This allows you to break into the debugger again by pressing :kbd:`Ctrl-C`.  If you
-   want Pdb not to touch the SIGINT handler, set *nosigint* tot true.
+   want Pdb not to touch the SIGINT handler, set *nosigint* to true.
 
    Example call to enable tracing with *skip*::
 
@@ -449,7 +449,7 @@ by the local file.
 
 .. pdbcommand:: interact
 
-   Start an interative interpreter (using the :mod:`code` module) whose global
+   Start an interactive interpreter (using the :mod:`code` module) whose global
    namespace contains all the (global and local) names found in the current
    scope.
 

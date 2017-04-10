@@ -1315,8 +1315,9 @@ Identity comparisons
 --------------------
 
 The operators :keyword:`is` and :keyword:`is not` test for object identity: ``x
-is y`` is true if and only if *x* and *y* are the same object.  ``x is not y``
-yields the inverse truth value. [#]_
+is y`` is true if and only if *x* and *y* are the same object.  Object identity
+is determined using the :meth:`id` function.  ``x is not y`` yields the inverse
+truth value. [#]_
 
 
 .. _booleans:
@@ -1406,7 +1407,9 @@ Lambdas
 
 Lambda expressions (sometimes called lambda forms) are used to create anonymous
 functions. The expression ``lambda arguments: expression`` yields a function
-object.  The unnamed object behaves like a function object defined with ::
+object.  The unnamed object behaves like a function object defined with:
+
+.. code-block:: none
 
    def <lambda>(arguments):
        return expression

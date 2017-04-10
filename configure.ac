@@ -7,10 +7,10 @@ m4_define(PYTHON_VERSION, 3.5)
 
 AC_PREREQ(2.65)
 
-AC_INIT(python, PYTHON_VERSION, http://bugs.python.org/)
+AC_INIT(python, PYTHON_VERSION, https://bugs.python.org/)
 
 AC_SUBST(BASECPPFLAGS)
-if test "$abs_srcdir" != "$abs_builddir"; then
+if test "$srcdir" != . -a "$srcdir" != "$(pwd)"; then
     # If we're building out-of-tree, we need to make sure the following
     # resources get picked up before their $srcdir counterparts.
     #   Objects/ -> typeslots.inc
@@ -49,13 +49,20 @@ fi
 AC_CONFIG_SRCDIR([Include/object.h])
 AC_CONFIG_HEADER(pyconfig.h)
 
-AC_SUBST(cross_compiling)
 AC_CANONICAL_HOST
 AC_SUBST(build)
 AC_SUBST(host)
 
 # pybuilddir.txt will be created by --generate-posix-vars in the Makefile
 rm -f pybuilddir.txt
+
+AC_CHECK_PROGS(PYTHON_FOR_GEN, python$PACKAGE_VERSION python3 python, not-found)
+if test "$PYTHON_FOR_GEN" = not-found; then
+    PYTHON_FOR_GEN='@echo "Cannot generate $@, python not found !" && \
+    echo "To skip re-generation of $@ run <make touch> or <make -t $@>." && \
+    echo "Otherwise, set python in PATH and run configure or run <make PYTHON_FOR_GEN=python>." && false &&'
+fi
+AC_SUBST(PYTHON_FOR_GEN)
 
 if test "$cross_compiling" = yes; then
     AC_MSG_CHECKING([for python interpreter for cross build])
@@ -73,12 +80,16 @@ if test "$cross_compiling" = yes; then
         AC_MSG_RESULT($interp)
 	PYTHON_FOR_BUILD='_PYTHON_PROJECT_BASE=$(abs_builddir) _PYTHON_HOST_PLATFORM=$(_PYTHON_HOST_PLATFORM) PYTHONPATH=$(shell test -f pybuilddir.txt && echo $(abs_builddir)/`cat pybuilddir.txt`:)$(srcdir)/Lib:$(srcdir)/Lib/$(PLATDIR) '$interp
     fi
+    # Used to comment out stuff for rebuilding generated files
+    GENERATED_COMMENT='#'
 elif test "$cross_compiling" = maybe; then
     AC_MSG_ERROR([Cross compiling required --host=HOST-TUPLE and --build=ARCH])
 else
     PYTHON_FOR_BUILD='./$(BUILDPYTHON) -E'
+    GENERATED_COMMENT=''
 fi
 AC_SUBST(PYTHON_FOR_BUILD)
+AC_SUBST(GENERATED_COMMENT)
 
 dnl Ensure that if prefix is specified, it does not end in a slash. If
 dnl it does, we get path names containing '//' which is both ugly and
@@ -876,7 +887,7 @@ cat >> conftest.c <<EOF
 
 EOF
 
-if $CPP conftest.c >conftest.out 2>/dev/null; then
+if $CPP $CPPFLAGS conftest.c >conftest.out 2>/dev/null; then
   PLATFORM_TRIPLET=`grep -v '^#' conftest.out | grep -v '^ *$' | tr -d ' 	'`
   AC_MSG_RESULT([$PLATFORM_TRIPLET])
 else
@@ -1195,23 +1206,6 @@ if test "$cross_compiling" = yes; then
 fi
 AC_SUBST(READELF)
 
-AC_SUBST(ASDLGEN)
-AC_CHECK_PROGS(PYTHON, python$PACKAGE_VERSION python3 python, not-found)
-if test "$PYTHON" = not-found; then
-    ASDLGEN="@echo python: $PYTHON! cannot run \$(srcdir)/Parser/asdl_c.py #"
-else
-    ASDLGEN="$PYTHON"
-fi
-
-AC_SUBST(OPCODEHGEN)
-AC_CHECK_PROGS(PYTHON, python$PACKAGE_VERSION python3 python, not-found)
-if test "$PYTHON" = not-found; then
-    OPCODEHGEN="@echo python: $PYTHON! cannot run Tools/scripts/generate_opcode_h.py"
-else
-    OPCODEHGEN="$PYTHON"
-fi
-
-
 
 case $MACHDEP in
 bsdos*|hp*|HP*)
@@ -1253,6 +1247,36 @@ else AC_MSG_RESULT(no); Py_DEBUG='false'
 fi],
 [AC_MSG_RESULT(no)])
 
+# Enable optimization flags
+AC_SUBST(DEF_MAKE_ALL_RULE)
+AC_SUBST(DEF_MAKE_RULE)
+Py_OPT='false'
+AC_MSG_CHECKING(for --with-optimizations)
+AC_ARG_WITH(optimizations, AS_HELP_STRING([--with-optimizations], [Enable expensive optimizations (PGO, maybe LTO, etc).  Disabled by default.]),
+[
+if test "$withval" != no
+then
+  Py_OPT='true'
+  AC_MSG_RESULT(yes);
+else
+  Py_OPT='false'
+  AC_MSG_RESULT(no);
+fi],
+[AC_MSG_RESULT(no)])
+if test "$Py_OPT" = 'true' ; then
+  # Intentionally not forcing Py_LTO='true' here.  Too many toolchains do not
+  # compile working code using it and both test_distutils and test_gdb are
+  # broken when you do managed to get a toolchain that works with it.  People
+  # who want LTO need to use --with-lto themselves.
+  DEF_MAKE_ALL_RULE="profile-opt"
+  REQUIRE_PGO="yes"
+  DEF_MAKE_RULE="build_all"
+else
+  DEF_MAKE_ALL_RULE="build_all"
+  REQUIRE_PGO="no"
+  DEF_MAKE_RULE="all"
+fi
+
 # Enable LTO flags
 AC_SUBST(LTOFLAGS)
 AC_MSG_CHECKING(for --with-lto)
@@ -1292,19 +1316,60 @@ AC_SUBST(PGO_PROF_USE_FLAG)
 AC_SUBST(LLVM_PROF_MERGER)
 AC_SUBST(LLVM_PROF_FILE)
 AC_SUBST(LLVM_PROF_ERR)
+# Make this work on systems where llvm tools are not installed with their
+# normal names in the default $PATH (ie: Ubuntu).  They exist under the
+# non-suffixed name in their versioned llvm directory.
+llvm_bin_dir=''
+llvm_path="${PATH}"
+if test "${CC}" = "clang"
+then
+  clang_bin=`which clang`
+  # Some systems install clang elsewhere as a symlink to the real path
+  # which is where the related llvm tools are located.
+  if test -L "${clang_bin}"
+  then
+    clang_dir=`dirname "${clang_bin}"`
+    clang_bin=`readlink "${clang_bin}"`
+    llvm_bin_dir="${clang_dir}/"`dirname "${clang_bin}"`
+    llvm_path="${llvm_path}${PATH_SEPARATOR}${llvm_bin_dir}"
+  fi
+fi
+AC_SUBST(LLVM_PROFDATA)
+AC_PATH_TARGET_TOOL(LLVM_PROFDATA, llvm-profdata, '', ${llvm_path})
 AC_SUBST(LLVM_PROF_FOUND)
-AC_CHECK_PROG(LLVM_PROF_FOUND, llvm-profdata, found, not-found)
+if test -n "${LLVM_PROFDATA}" -a -x "${LLVM_PROFDATA}"
+then
+  LLVM_PROF_FOUND="found"
+else
+  LLVM_PROF_FOUND="not-found"
+fi
+if test "$ac_sys_system" = "Darwin" -a "${LLVM_PROF_FOUND}" = "not-found"
+then
+  found_llvm_profdata=`/usr/bin/xcrun -find llvm-profdata 2>/dev/null`
+  if test -n "${found_llvm_profdata}"
+  then
+    # llvm-profdata isn't directly in $PATH in some cases.
+    # https://apple.stackexchange.com/questions/197053/
+    LLVM_PROFDATA='/usr/bin/xcrun llvm-profdata'
+    LLVM_PROF_FOUND=found
+    AC_MSG_NOTICE([llvm-profdata found via xcrun: ${LLVM_PROFDATA}])
+  fi
+fi
 LLVM_PROF_ERR=no
 case $CC in
   *clang*)
     # Any changes made here should be reflected in the GCC+Darwin case below
     PGO_PROF_GEN_FLAG="-fprofile-instr-generate"
     PGO_PROF_USE_FLAG="-fprofile-instr-use=code.profclangd"
-    LLVM_PROF_MERGER="llvm-profdata merge -output=code.profclangd *.profclangr"
+    LLVM_PROF_MERGER="${LLVM_PROFDATA} merge -output=code.profclangd *.profclangr"
     LLVM_PROF_FILE="LLVM_PROFILE_FILE=\"code-%p.profclangr\""
     if test $LLVM_PROF_FOUND = not-found
     then
       LLVM_PROF_ERR=yes
+      if test "${REQUIRE_PGO}" = "yes"
+      then
+        AC_MSG_ERROR([llvm-profdata is required for a --with-optimizations build but could not be found.])
+      fi
     fi
     ;;
   *gcc*)
@@ -1312,11 +1377,15 @@ case $CC in
       Darwin*)
         PGO_PROF_GEN_FLAG="-fprofile-instr-generate"
         PGO_PROF_USE_FLAG="-fprofile-instr-use=code.profclangd"
-        LLVM_PROF_MERGER="llvm-profdata merge -output=code.profclangd *.profclangr"
+        LLVM_PROF_MERGER="${LLVM_PROFDATA} merge -output=code.profclangd *.profclangr"
         LLVM_PROF_FILE="LLVM_PROFILE_FILE=\"code-%p.profclangr\""
-        if test $LLVM_PROF_FOUND = not-found
+        if test "${LLVM_PROF_FOUND}" = "not-found"
         then
           LLVM_PROF_ERR=yes
+          if test "${REQUIRE_PGO}" = "yes"
+	  then
+	    AC_MSG_ERROR([llvm-profdata is required for a --with-optimizations build but could not be found.])
+	  fi
         fi
         ;;
       *)
@@ -1635,7 +1704,7 @@ yes)
         # Calculate an appropriate deployment target for this build:
         # The deployment target value is used explicitly to enable certain
         # features are enabled (such as builtin libedit support for readline)
-        # through the use of Apple's Availabiliy Macros and is used as a
+        # through the use of Apple's Availability Macros and is used as a
         # component of the string returned by distutils.get_platform().
         #
         # Use the value from:
@@ -2308,7 +2377,7 @@ then
 	case $ac_sys_system/$ac_sys_release in
 	AIX*)
 		BLDSHARED="\$(srcdir)/Modules/ld_so_aix \$(CC) -bI:\$(srcdir)/Modules/python.exp"
-		LDSHARED="\$(BINLIBDEST)/config/ld_so_aix \$(CC) -bI:\$(BINLIBDEST)/config/python.exp"
+		LDSHARED="\$(LIBPL)/ld_so_aix \$(CC) -bI:\$(LIBPL)/python.exp"
 		;;
 	IRIX/5*) LDSHARED="ld -shared";;
 	IRIX*/6*) LDSHARED="ld ${SGI_ABI} -shared -all";;
@@ -3724,6 +3793,8 @@ int main()
         break;
       }
     }
+    freeaddrinfo(aitop);
+    aitop = NULL;
   }
 
   if (!(inet4 == 0 || inet4 == 2))
@@ -5321,3 +5392,13 @@ $SHELL $srcdir/Modules/makesetup -c $srcdir/Modules/config.c.in \
 			-s Modules Modules/Setup.config \
 			Modules/Setup.local Modules/Setup
 mv config.c Modules
+
+if test "$Py_OPT" = 'false' -a "$Py_DEBUG" != 'true'; then
+    echo "" >&AS_MESSAGE_FD
+    echo "" >&AS_MESSAGE_FD
+    echo "If you want a release build with all optimizations active (LTO, PGO, etc),"
+    echo "please run ./configure --with-optimizations" >&AS_MESSAGE_FD
+    echo "" >&AS_MESSAGE_FD
+    echo "" >&AS_MESSAGE_FD
+fi
+

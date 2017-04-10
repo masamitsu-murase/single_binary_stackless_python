@@ -1315,7 +1315,7 @@ unmarshal_code(PyObject *pathname, PyObject *data, time_t mtime)
     return code;
 }
 
-/* Replace any occurances of "\r\n?" in the input string with "\n".
+/* Replace any occurrences of "\r\n?" in the input string with "\n".
    This converts DOS and Mac line endings to Unix line endings.
    Also append a trailing "\n" to be compatible with
    PyParser_SimpleParseFile(). Returns a new reference. */
@@ -1362,22 +1362,16 @@ normalize_line_endings(PyObject *source)
 static PyObject *
 compile_source(PyObject *pathname, PyObject *source)
 {
-    PyObject *code, *fixed_source, *pathbytes;
-
-    pathbytes = PyUnicode_EncodeFSDefault(pathname);
-    if (pathbytes == NULL)
-        return NULL;
+    PyObject *code, *fixed_source;
 
     fixed_source = normalize_line_endings(source);
     if (fixed_source == NULL) {
-        Py_DECREF(pathbytes);
         return NULL;
     }
 
-    code = Py_CompileString(PyBytes_AsString(fixed_source),
-                            PyBytes_AsString(pathbytes),
-                            Py_file_input);
-    Py_DECREF(pathbytes);
+    code = Py_CompileStringObject(PyBytes_AsString(fixed_source),
+                                  pathname, Py_file_input, NULL, 1);
+
     Py_DECREF(fixed_source);
     return code;
 }

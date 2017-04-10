@@ -871,7 +871,9 @@ signal. Call :func:`faulthandler.enable` to install fault handlers for the
 :envvar:`PYTHONFAULTHANDLER` environment variable or by using :option:`-X`
 ``faulthandler`` command line option.
 
-Example of a segmentation fault on Linux: ::
+Example of a segmentation fault on Linux:
+
+.. code-block:: shell-session
 
     $ python -q -X faulthandler
     >>> import ctypes
@@ -999,7 +1001,6 @@ byte of an invalid byte sequence. For example, ``b'\xff\n'.decode('gb2312',
 Incremental CJK codec encoders are no longer reset at each call to their
 encode() methods. For example::
 
-    $ ./python -q
     >>> import codecs
     >>> encoder = codecs.getincrementalencoder('hz')('strict')
     >>> b''.join(encoder.encode(x) for x in '\u52ff\u65bd\u65bc\u4eba\u3002 Bye.')
@@ -1953,7 +1954,7 @@ ssl
   :attr:`~ssl.OP_NO_COMPRESSION` can be used to disable compression.
   (Contributed by Antoine Pitrou in :issue:`13634`.)
 
-* Support has been added for the Next Procotol Negotiation extension using
+* Support has been added for the Next Protocol Negotiation extension using
   the :meth:`ssl.SSLContext.set_npn_protocols` method.
   (Contributed by Colin Marc in :issue:`14204`.)
 

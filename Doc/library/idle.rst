@@ -226,6 +226,9 @@ View Last Restart
 Restart Shell
   Restart the shell to clean the environment.
 
+Interrupt Execution
+  Stop a running program.
+
 Debug menu (Shell window only)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -524,14 +527,14 @@ functions to be used from IDLE's Python shell.
 Command line usage
 ^^^^^^^^^^^^^^^^^^
 
-::
+.. code-block:: none
 
    idle.py [-c command] [-d] [-e] [-h] [-i] [-r file] [-s] [-t title] [-] [arg] ...
 
    -c command  run command in the shell window
    -d          enable debugger and open shell window
    -e          open editor window
-   -h          print help message with legal combinatios and exit
+   -h          print help message with legal combinations and exit
    -i          open shell window
    -r file     run file in shell window
    -s          run $IDLESTARTUP or $PYTHONSTARTUP first, in shell window
@@ -562,11 +565,13 @@ objects that get input from and send output to the Shell window.
 When this window has the focus, it controls the keyboard and screen.
 This is normally transparent, but functions that directly access the keyboard
 and screen will not work.  If ``sys`` is reset with ``importlib.reload(sys)``,
-IDLE's changes are lost and things li ke ``input``, ``raw_input``, and
+IDLE's changes are lost and things like ``input``, ``raw_input``, and
 ``print`` will not work correctly.
 
 With IDLE's Shell, one enters, edits, and recalls complete statements.
-Some consoles only work with a single physical line at a time.
+Some consoles only work with a single physical line at a time.  IDLE uses
+``exec`` to run each statement.  As a result, ``'__builtins__'`` is always
+defined for each statement.
 
 Running without a subprocess
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -506,7 +506,7 @@ bytearray_setslice_linear(PyByteArrayObject *self,
 
                If growth < 0 and lo != 0, the operation is completed, but a
                MemoryError is still raised and the memory block is not
-               shrinked. Otherwise, the bytearray is restored in its previous
+               shrunk. Otherwise, the bytearray is restored in its previous
                state and a MemoryError is raised. */
             if (lo == 0) {
                 self->ob_start += growth;
@@ -2474,7 +2474,17 @@ bytearray_extend(PyByteArrayObject *self, PyObject *iterable_of_ints)
         Py_DECREF(item);
 
         if (len >= buf_size) {
-            buf_size = len + (len >> 1) + 1;
+            Py_ssize_t addition;
+            if (len == PY_SSIZE_T_MAX) {
+                Py_DECREF(it);
+                Py_DECREF(bytearray_obj);
+                return PyErr_NoMemory();
+            }
+            addition = len >> 1;
+            if (addition > PY_SSIZE_T_MAX - len - 1)
+                buf_size = PY_SSIZE_T_MAX;
+            else
+                buf_size = len + addition + 1;
             if (PyByteArray_Resize((PyObject *)bytearray_obj, buf_size) < 0) {
                 Py_DECREF(it);
                 Py_DECREF(bytearray_obj);
