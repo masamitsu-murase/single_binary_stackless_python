@@ -2,6 +2,29 @@
 Python News
 +++++++++++
 
+What's New in Python 3.5.0 final?
+=================================
+
+Release date: 2015-09-13
+
+
+What's New in Python 3.5.0 release candidate 4?
+===============================================
+
+Release date: 2015-09-09
+
+Library
+-------
+
+- Issue #25029: Fixes MemoryError in test_strptime.
+
+Build
+-----
+
+- Issue #25027: Reverts partial-static build options and adds
+  vcruntime140.dll to Windows installation.
+
+
 What's New in Python 3.5.0 release candidate 3?
 ===============================================
 
