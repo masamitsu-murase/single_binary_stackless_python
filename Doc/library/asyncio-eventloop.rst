@@ -346,7 +346,7 @@ Creating connections
 
    * *reuse_address* tells the kernel to reuse a local socket in
      TIME_WAIT state, without waiting for its natural timeout to
-     expire. If not specified will automatically be set to True on
+     expire. If not specified will automatically be set to ``True`` on
      UNIX.
 
    * *reuse_port* tells the kernel to allow this endpoint to be bound to the
@@ -379,6 +379,10 @@ Creating connections
    This method is a :ref:`coroutine <coroutine>` which will try to
    establish the connection in the background.  When successful, the
    coroutine returns a ``(transport, protocol)`` pair.
+
+   *path* is the name of a UNIX domain socket, and is required unless a *sock*
+   parameter is specified.  Abstract UNIX sockets, :class:`str`, and
+   :class:`bytes` paths are supported.
 
    See the :meth:`AbstractEventLoop.create_connection` method for parameters.
 
@@ -424,7 +428,7 @@ Creating listening connections
 
    * *reuse_address* tells the kernel to reuse a local socket in
      TIME_WAIT state, without waiting for its natural timeout to
-     expire. If not specified will automatically be set to True on
+     expire. If not specified will automatically be set to ``True`` on
      UNIX.
 
    * *reuse_port* tells the kernel to allow this endpoint to be bound to the
@@ -457,6 +461,23 @@ Creating listening connections
 
    Availability: UNIX.
 
+.. coroutinemethod:: BaseEventLoop.connect_accepted_socket(protocol_factory, sock, \*, ssl=None)
+
+   Handle an accepted connection.
+
+   This is used by servers that accept connections outside of
+   asyncio but that use asyncio to handle them.
+
+   Parameters:
+
+   * *sock* is a preexisting socket object returned from an ``accept``
+     call.
+
+   * *ssl* can be set to an :class:`~ssl.SSLContext` to enable SSL over the
+     accepted connections.
+
+   This method is a :ref:`coroutine <coroutine>`.  When completed, the
+   coroutine returns a ``(transport, protocol)`` pair.
 
 Watch file descriptors
 ----------------------
@@ -669,6 +690,13 @@ pool of processes). By default, an event loop uses a thread pool executor
    <asyncio-pass-keywords>`.
 
    This method is a :ref:`coroutine <coroutine>`.
+
+   .. versionchanged:: 3.5.3
+      :meth:`BaseEventLoop.run_in_executor` no longer configures the
+      ``max_workers`` of the thread pool executor it creates, instead
+      leaving it up to the thread pool executor
+      (:class:`~concurrent.futures.ThreadPoolExecutor`) to set the
+      default.
 
 .. method:: AbstractEventLoop.set_default_executor(executor)
 

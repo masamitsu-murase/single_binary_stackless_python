@@ -332,13 +332,13 @@ Encoders and Decoders
    (e.g. :class:`float`).
 
    *parse_constant*, if specified, will be called with one of the following
-   strings: ``'-Infinity'``, ``'Infinity'``, ``'NaN'``, ``'null'``, ``'true'``,
-   ``'false'``.  This can be used to raise an exception if invalid JSON numbers
+   strings: ``'-Infinity'``, ``'Infinity'``, ``'NaN'``.
+   This can be used to raise an exception if invalid JSON numbers
    are encountered.
 
    If *strict* is false (``True`` is the default), then control characters
    will be allowed inside strings.  Control characters in this context are
-   those with character codes in the 0-31 range, including ``'\t'`` (tab),
+   those with character codes in the 0--31 range, including ``'\t'`` (tab),
    ``'\n'``, ``'\r'`` and ``'\0'``.
 
    If the data being deserialized is not a valid JSON document, a
@@ -397,8 +397,9 @@ Encoders and Decoders
    (to raise :exc:`TypeError`).
 
    If *skipkeys* is false (the default), then it is a :exc:`TypeError` to
-   attempt encoding of keys that are not str, int, float or None.  If
-   *skipkeys* is true, such items are simply skipped.
+   attempt encoding of keys that are not :class:`str`, :class:`int`,
+   :class:`float` or ``None``.  If *skipkeys* is true, such items are simply
+   skipped.
 
    If *ensure_ascii* is true (the default), the output is guaranteed to
    have all incoming non-ASCII characters escaped.  If *ensure_ascii* is

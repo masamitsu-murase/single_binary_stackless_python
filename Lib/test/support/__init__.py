@@ -94,6 +94,7 @@ __all__ = [
     "bigmemtest", "bigaddrspacetest", "cpython_only", "get_attribute",
     "requires_IEEE_754", "skip_unless_xattr", "requires_zlib",
     "anticipate_failure", "load_package_tests", "detect_api_mismatch",
+     "requires_multiprocessing_queue",
     # sys
     "is_jython", "check_impl_detail",
     # network
@@ -301,6 +302,16 @@ def unload(name):
     except KeyError:
         pass
 
+def _force_run(path, func, *args):
+    try:
+        return func(*args)
+    except OSError as err:
+        if verbose >= 2:
+            print('%s: %s' % (err.__class__.__name__, err))
+            print('re-run %s%r' % (func.__name__, args))
+        os.chmod(path, stat.S_IRWXU)
+        return func(*args)
+
 if sys.platform.startswith("win"):
     def _waitfor(func, pathname, waitall=False):
         # Perform the operation
@@ -343,7 +354,7 @@ if sys.platform.startswith("win"):
 
     def _rmtree(path):
         def _rmtree_inner(path):
-            for name in os.listdir(path):
+            for name in _force_run(path, os.listdir, path):
                 fullname = os.path.join(path, name)
                 try:
                     mode = os.lstat(fullname).st_mode
@@ -353,15 +364,36 @@ if sys.platform.startswith("win"):
                     mode = 0
                 if stat.S_ISDIR(mode):
                     _waitfor(_rmtree_inner, fullname, waitall=True)
-                    os.rmdir(fullname)
+                    _force_run(path, os.rmdir, fullname)
                 else:
-                    os.unlink(fullname)
+                    _force_run(path, os.unlink, fullname)
         _waitfor(_rmtree_inner, path, waitall=True)
-        _waitfor(os.rmdir, path)
+        _waitfor(lambda p: _force_run(p, os.rmdir, p), path)
 else:
     _unlink = os.unlink
     _rmdir = os.rmdir
-    _rmtree = shutil.rmtree
+
+    def _rmtree(path):
+        try:
+            shutil.rmtree(path)
+            return
+        except OSError:
+            pass
+
+        def _rmtree_inner(path):
+            for name in _force_run(path, os.listdir, path):
+                fullname = os.path.join(path, name)
+                try:
+                    mode = os.lstat(fullname).st_mode
+                except OSError:
+                    mode = 0
+                if stat.S_ISDIR(mode):
+                    _rmtree_inner(fullname)
+                    _force_run(path, os.rmdir, fullname)
+                else:
+                    _force_run(path, os.unlink, fullname)
+        _rmtree_inner(path)
+        os.rmdir(path)
 
 def unlink(filename):
     try:
@@ -1737,6 +1769,22 @@ def impl_detail(msg=None, **guards):
         guardnames = sorted(guardnames.keys())
         msg = msg.format(' or '.join(guardnames))
     return unittest.skip(msg)
+
+_have_mp_queue = None
+def requires_multiprocessing_queue(test):
+    """Skip decorator for tests that use multiprocessing.Queue."""
+    global _have_mp_queue
+    if _have_mp_queue is None:
+        import multiprocessing
+        # Without a functioning shared semaphore implementation attempts to
+        # instantiate a Queue will result in an ImportError (issue #3770).
+        try:
+            multiprocessing.Queue()
+            _have_mp_queue = True
+        except ImportError:
+            _have_mp_queue = False
+    msg = "requires a functioning shared semaphore implementation"
+    return test if _have_mp_queue else unittest.skip(msg)(test)
 
 def _parse_guards(guards):
     # Returns a tuple ({platform_name: run_me}, default_value)

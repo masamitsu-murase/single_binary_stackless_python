@@ -876,14 +876,14 @@ forbidden_name(struct compiling *c, identifier name, const node *n,
                int full_checks)
 {
     assert(PyUnicode_Check(name));
-    if (PyUnicode_CompareWithASCIIString(name, "__debug__") == 0) {
+    if (_PyUnicode_EqualToASCIIString(name, "__debug__")) {
         ast_error(c, n, "assignment to keyword");
         return 1;
     }
     if (full_checks) {
         const char **p;
         for (p = FORBIDDEN; *p; p++) {
-            if (PyUnicode_CompareWithASCIIString(name, *p) == 0) {
+            if (_PyUnicode_EqualToASCIIString(name, *p)) {
                 ast_error(c, n, "assignment to keyword");
                 return 1;
             }
@@ -2024,16 +2024,18 @@ ast_for_atom(struct compiling *c, const node *n)
                 errtype = "value error";
             if (errtype) {
                 char buf[128];
+                const char *s = NULL;
                 PyObject *type, *value, *tback, *errstr;
                 PyErr_Fetch(&type, &value, &tback);
                 errstr = PyObject_Str(value);
-                if (errstr) {
-                    char *s = _PyUnicode_AsString(errstr);
+                if (errstr)
+                    s = PyUnicode_AsUTF8(errstr);
+                if (s) {
                     PyOS_snprintf(buf, sizeof(buf), "(%s) %s", errtype, s);
-                    Py_DECREF(errstr);
                 } else {
                     PyOS_snprintf(buf, sizeof(buf), "(%s) unknown error", errtype);
                 }
+                Py_XDECREF(errstr);
                 ast_error(c, n, buf);
                 Py_DECREF(type);
                 Py_XDECREF(value);

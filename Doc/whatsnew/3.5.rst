@@ -46,8 +46,7 @@
 
 This article explains the new features in Python 3.5, compared to 3.4.
 Python 3.5 was released on September 13, 2015.  See the
-`changelog <https://docs.python.org/3.5/whatsnew/changelog.html>`_ for a full
-list of changes.
+:ref:`changelog <changelog>` for a full list of changes.
 
 .. seealso::
 
@@ -1892,7 +1891,7 @@ to request exclusive creation.  (Contributed by Berker Peksag in :issue:`21717`.
 
 The :meth:`TarFile.extractall() <tarfile.TarFile.extractall>` and
 :meth:`TarFile.extract() <tarfile.TarFile.extract>` methods now take a keyword
-argument *numeric_only*.  If set to ``True``, the extracted files and
+argument *numeric_owner*.  If set to ``True``, the extracted files and
 directories will be owned by the numeric ``uid`` and ``gid`` from the tarfile.
 If set to ``False`` (the default, and the behavior in versions prior to 3.5),
 they will be owned by the named user and group in the tarfile.
@@ -2130,8 +2129,8 @@ Many operations on :class:`io.BytesIO` are now 50% to 100% faster.
 (Contributed by Serhiy Storchaka in :issue:`15381` and David Wilson in
 :issue:`22003`.)
 
-The :func:`marshal.dumps` function is now faster: 65-85% with versions 3
-and 4, 20-25% with versions 0 to 2 on typical data, and up to 5 times in
+The :func:`marshal.dumps` function is now faster: 65--85% with versions 3
+and 4, 20--25% with versions 0 to 2 on typical data, and up to 5 times in
 best cases.
 (Contributed by Serhiy Storchaka in :issue:`20416` and :issue:`23344`.)
 

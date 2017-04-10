@@ -1,5 +1,6 @@
 """Tests for events.py."""
 
+import collections.abc
 import functools
 import gc
 import io
@@ -25,6 +26,7 @@ if sys.platform != 'win32':
     import tty
 
 import asyncio
+from asyncio import coroutines
 from asyncio import proactor_events
 from asyncio import selector_events
 from asyncio import sslproto
@@ -789,9 +791,9 @@ class EventLoopTestsMixin:
         conn, _ = lsock.accept()
         proto = MyProto(loop=loop)
         proto.loop = loop
-        f = loop.create_task(
+        loop.run_until_complete(
             loop.connect_accepted_socket(
-                (lambda : proto), conn, ssl=server_ssl))
+                (lambda: proto), conn, ssl=server_ssl))
         loop.run_forever()
         proto.transport.close()
         lsock.close()
@@ -1375,6 +1377,11 @@ class EventLoopTestsMixin:
         server.transport.close()
 
     def test_create_datagram_endpoint_sock(self):
+        if (sys.platform == 'win32' and
+                isinstance(self.loop, proactor_events.BaseProactorEventLoop)):
+            raise unittest.SkipTest(
+                'UDP is not supported with proactor event loops')
+
         sock = None
         local_address = ('127.0.0.1', 0)
         infos = self.loop.run_until_complete(
@@ -1392,7 +1399,7 @@ class EventLoopTestsMixin:
         else:
             assert False, 'Can not create socket.'
 
-        f = self.loop.create_connection(
+        f = self.loop.create_datagram_endpoint(
             lambda: MyDatagramProto(loop=self.loop), sock=sock)
         tr, pr = self.loop.run_until_complete(f)
         self.assertIsInstance(tr, asyncio.Transport)
@@ -2224,13 +2231,14 @@ else:
             return asyncio.SelectorEventLoop(selectors.SelectSelector())
 
 
-def noop(*args):
+def noop(*args, **kwargs):
     pass
 
 
 class HandleTests(test_utils.TestCase):
 
     def setUp(self):
+        super().setUp()
         self.loop = mock.Mock()
         self.loop.get_debug.return_value = True
 
@@ -2246,13 +2254,6 @@ class HandleTests(test_utils.TestCase):
 
         h.cancel()
         self.assertTrue(h._cancelled)
-
-    def test_handle_from_handle(self):
-        def callback(*args):
-            return args
-        h1 = asyncio.Handle(callback, (), loop=self.loop)
-        self.assertRaises(
-            AssertionError, asyncio.Handle, h1, (), self.loop)
 
     def test_callback_with_exception(self):
         def callback():
@@ -2302,6 +2303,13 @@ class HandleTests(test_utils.TestCase):
         cb = functools.partial(noop, 1, 2)
         h = asyncio.Handle(cb, (3,), self.loop)
         regex = (r'^<Handle noop\(1, 2\)\(3\) at %s:%s>$'
+                 % (re.escape(filename), lineno))
+        self.assertRegex(repr(h), regex)
+
+        # partial function with keyword args
+        cb = functools.partial(noop, x=1)
+        h = asyncio.Handle(cb, (2, 3), self.loop)
+        regex = (r'^<Handle noop\(x=1\)\(2, 3\) at %s:%s>$'
                  % (re.escape(filename), lineno))
         self.assertRegex(repr(h), regex)
 
@@ -2373,10 +2381,47 @@ class HandleTests(test_utils.TestCase):
         h = loop.call_later(0, noop)
         check_source_traceback(h)
 
+    @unittest.skipUnless(hasattr(collections.abc, 'Coroutine'),
+                         'No collections.abc.Coroutine')
+    def test_coroutine_like_object_debug_formatting(self):
+        # Test that asyncio can format coroutines that are instances of
+        # collections.abc.Coroutine, but lack cr_core or gi_code attributes
+        # (such as ones compiled with Cython).
+
+        class Coro:
+            def send(self, v):
+                pass
+
+            def throw(self, *exc):
+                pass
+
+            def close(self):
+                pass
+
+            def __await__(self):
+                pass
+
+        coro = Coro()
+        coro.__name__ = 'AAA'
+        self.assertTrue(asyncio.iscoroutine(coro))
+        self.assertEqual(coroutines._format_coroutine(coro), 'AAA()')
+
+        coro.__qualname__ = 'BBB'
+        self.assertEqual(coroutines._format_coroutine(coro), 'BBB()')
+
+        coro.cr_running = True
+        self.assertEqual(coroutines._format_coroutine(coro), 'BBB() running')
+
+        coro = Coro()
+        # Some coroutines might not have '__name__', such as
+        # built-in async_gen.asend().
+        self.assertEqual(coroutines._format_coroutine(coro), 'Coro()')
+
 
 class TimerTests(unittest.TestCase):
 
     def setUp(self):
+        super().setUp()
         self.loop = mock.Mock()
 
     def test_hash(self):
@@ -2684,6 +2729,31 @@ class PolicyTests(unittest.TestCase):
         asyncio.set_event_loop_policy(policy)
         self.assertIs(policy, asyncio.get_event_loop_policy())
         self.assertIsNot(policy, old_policy)
+
+    def test_get_event_loop_returns_running_loop(self):
+        class Policy(asyncio.DefaultEventLoopPolicy):
+            def get_event_loop(self):
+                raise NotImplementedError
+
+        loop = None
+
+        old_policy = asyncio.get_event_loop_policy()
+        try:
+            asyncio.set_event_loop_policy(Policy())
+            loop = asyncio.new_event_loop()
+            self.assertIs(asyncio._get_running_loop(), None)
+
+            async def func():
+                self.assertIs(asyncio.get_event_loop(), loop)
+                self.assertIs(asyncio._get_running_loop(), loop)
+
+            loop.run_until_complete(func())
+        finally:
+            asyncio.set_event_loop_policy(old_policy)
+            if loop is not None:
+                loop.close()
+
+        self.assertIs(asyncio._get_running_loop(), None)
 
 
 if __name__ == '__main__':

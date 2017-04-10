@@ -469,7 +469,10 @@ CDataType_from_buffer(PyObject *type, PyObject *args)
     Py_ssize_t offset = 0;
 
     StgDictObject *dict = PyType_stgdict(type);
-    assert (dict);
+    if (!dict) {
+        PyErr_SetString(PyExc_TypeError, "abstract class");
+        return NULL;
+    }
 
     if (!PyArg_ParseTuple(args, "O|n:from_buffer", &obj, &offset))
         return NULL;
@@ -537,9 +540,12 @@ CDataType_from_buffer_copy(PyObject *type, PyObject *args)
     Py_ssize_t offset = 0;
     PyObject *result;
     StgDictObject *dict = PyType_stgdict(type);
-    assert (dict);
+    if (!dict) {
+        PyErr_SetString(PyExc_TypeError, "abstract class");
+        return NULL;
+    }
 
-    if (!PyArg_ParseTuple(args, "y*|n:from_buffer", &buffer, &offset))
+    if (!PyArg_ParseTuple(args, "y*|n:from_buffer_copy", &buffer, &offset))
         return NULL;
 
     if (offset < 0) {
@@ -734,8 +740,7 @@ PyCStructType_setattro(PyObject *self, PyObject *key, PyObject *value)
         return -1;
 
     if (value && PyUnicode_Check(key) &&
-        /* XXX struni _PyUnicode_AsString can fail (also in other places)! */
-        0 == strcmp(_PyUnicode_AsString(key), "_fields_"))
+        _PyUnicode_EqualToASCIIString(key, "_fields_"))
         return PyCStructUnionType_update_stgdict(self, value, 1);
     return 0;
 }
@@ -749,7 +754,7 @@ UnionType_setattro(PyObject *self, PyObject *key, PyObject *value)
         return -1;
 
     if (PyUnicode_Check(key) &&
-        0 == strcmp(_PyUnicode_AsString(key), "_fields_"))
+        _PyUnicode_EqualToASCIIString(key, "_fields_"))
         return PyCStructUnionType_update_stgdict(self, value, 0);
     return 0;
 }
@@ -5138,18 +5143,18 @@ comerror_init(PyObject *self, PyObject *args, PyObject *kwds)
     int status;
 
     if (!_PyArg_NoKeywords(Py_TYPE(self)->tp_name, kwds))
-    return -1;
+        return -1;
 
     if (!PyArg_ParseTuple(args, "OOO:COMError", &hresult, &text, &details))
         return -1;
 
     a = PySequence_GetSlice(args, 1, PySequence_Size(args));
     if (!a)
-    return -1;
+        return -1;
     status = PyObject_SetAttrString(self, "args", a);
     Py_DECREF(a);
     if (status < 0)
-    return -1;
+        return -1;
 
     if (PyObject_SetAttrString(self, "hresult", hresult) < 0)
         return -1;

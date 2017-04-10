@@ -20,6 +20,7 @@
 
 # === Variables set by makesetup ===
 
+MODNAMES=       _MODNAMES_
 MODOBJS=        _MODOBJS_
 MODLIBS=        _MODLIBS_
 
@@ -1382,7 +1383,7 @@ python-config: $(srcdir)/Misc/python-config.in Misc/python-config.sh
 	# is not available in configure
 	sed -e "s,@EXENAME@,$(BINDIR)/python$(LDVERSION)$(EXE)," < $(srcdir)/Misc/python-config.in >python-config.py
 	# Replace makefile compat. variable references with shell script compat. ones; $(VAR) -> ${VAR}
-	sed -e 's,\$$(\([A-Za-z0-9_]*\)),\$$\{\1\},g' < Misc/python-config.sh >python-config
+	LC_ALL=C sed -e 's,\$$(\([A-Za-z0-9_]*\)),\$$\{\1\},g' < Misc/python-config.sh >python-config
 	# On Darwin, always use the python version of the script, the shell
 	# version doesn't use the compiler customizations that are provided
 	# in python (_osx_support.py).
@@ -1471,7 +1472,7 @@ libainstall:	all python-config
 		$(INSTALL_SCRIPT) $(srcdir)/Modules/makexp_aix	\
 				$(DESTDIR)$(LIBPL)/makexp_aix;		\
 		echo "$(LIBPL)/makexp_aix";			\
-		$(INSTALL_SCRIPT) $(srcdir)/Modules/ld_so_aix	\
+		$(INSTALL_SCRIPT) Modules/ld_so_aix	\
 				$(DESTDIR)$(LIBPL)/ld_so_aix;		\
 		echo "$(LIBPL)/ld_so_aix";			\
 		echo; echo "See Misc/AIX-NOTES for details.";	\
@@ -1677,7 +1678,11 @@ distclean: clobber
 		Modules/Setup Modules/Setup.local Modules/Setup.config \
 		Modules/ld_so_aix Modules/python.exp Misc/python.pc
 	-rm -f python*-gdb.py
-	find $(srcdir)/[a-zA-Z]* '(' -name '*.fdc' -o -name '*~' \
+	# Issue #28258: set LC_ALL to avoid issues with Estonian locale.
+	# Expansion is performed here by shell (spawned by make) itself before
+	# arguments are passed to find. So LC_ALL=C must be set as a separate
+	# command.
+	LC_ALL=C; find $(srcdir)/[a-zA-Z]* '(' -name '*.fdc' -o -name '*~' \
 				     -o -name '[@,#]*' -o -name '*.old' \
 				     -o -name '*.orig' -o -name '*.rej' \
 				     -o -name '*.bak' ')' \

@@ -388,8 +388,11 @@ _PyErr_ChainExceptions(PyObject *exc, PyObject *val, PyObject *tb)
         PyObject *exc2, *val2, *tb2;
         PyErr_Fetch(&exc2, &val2, &tb2);
         PyErr_NormalizeException(&exc, &val, &tb);
+        if (tb != NULL) {
+            PyException_SetTraceback(val, tb);
+            Py_DECREF(tb);
+        }
         Py_DECREF(exc);
-        Py_XDECREF(tb);
         PyErr_NormalizeException(&exc2, &val2, &tb2);
         PyException_SetContext(val2, val);
         PyErr_Restore(exc2, val2, tb2);
@@ -931,7 +934,7 @@ PyErr_WriteUnraisable(PyObject *obj)
             goto done;
     }
     else {
-        if (_PyUnicode_CompareWithId(moduleName, &PyId_builtins) != 0) {
+        if (!_PyUnicode_EqualToASCIIId(moduleName, &PyId_builtins)) {
             if (PyFile_WriteObject(moduleName, f, Py_PRINT_RAW) < 0)
                 goto done;
             if (PyFile_WriteString(".", f) < 0)

@@ -251,12 +251,7 @@ gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result)
             /* Delay exception instantiation if we can */
             PyErr_SetNone(PyExc_StopIteration);
         } else {
-            PyObject *e = PyObject_CallFunctionObjArgs(
-                               PyExc_StopIteration, result, NULL);
-            if (e != NULL) {
-                PyErr_SetObject(PyExc_StopIteration, e);
-                Py_DECREF(e);
-            }
+            _PyGen_SetStopIterationValue(result);
         }
         Py_CLEAR(result);
     }
@@ -571,6 +566,43 @@ gen_iternext(PyGenObject *gen)
 }
 
 /*
+ * Set StopIteration with specified value.  Value can be arbitrary object
+ * or NULL.
+ *
+ * Returns 0 if StopIteration is set and -1 if any other exception is set.
+ */
+int
+_PyGen_SetStopIterationValue(PyObject *value)
+{
+    PyObject *e;
+
+    if (value == NULL ||
+        (!PyTuple_Check(value) &&
+         !PyObject_TypeCheck(value, (PyTypeObject *) PyExc_StopIteration)))
+    {
+        /* Delay exception instantiation if we can */
+        PyErr_SetObject(PyExc_StopIteration, value);
+        return 0;
+    }
+    /* Construct an exception instance manually with
+     * PyObject_CallFunctionObjArgs and pass it to PyErr_SetObject.
+     *
+     * We do this to handle a situation when "value" is a tuple, in which
+     * case PyErr_SetObject would set the value of StopIteration to
+     * the first element of the tuple.
+     *
+     * (See PyErr_SetObject/_PyErr_CreateException code for details.)
+     */
+    e = PyObject_CallFunctionObjArgs(PyExc_StopIteration, value, NULL);
+    if (e == NULL) {
+        return -1;
+    }
+    PyErr_SetObject(PyExc_StopIteration, e);
+    Py_DECREF(e);
+    return 0;
+}
+
+/*
  *   If StopIteration exception is set, fetches its 'value'
  *   attribute if any, otherwise sets pvalue to None.
  *
@@ -580,7 +612,8 @@ gen_iternext(PyGenObject *gen)
  */
 
 int
-_PyGen_FetchStopIterationValue(PyObject **pvalue) {
+_PyGen_FetchStopIterationValue(PyObject **pvalue)
+{
     PyObject *et, *ev, *tb;
     PyObject *value = NULL;
 
@@ -592,8 +625,15 @@ _PyGen_FetchStopIterationValue(PyObject **pvalue) {
                 value = ((PyStopIterationObject *)ev)->value;
                 Py_INCREF(value);
                 Py_DECREF(ev);
-            } else if (et == PyExc_StopIteration) {
-                /* avoid normalisation and take ev as value */
+            } else if (et == PyExc_StopIteration && !PyTuple_Check(ev)) {
+                /* Avoid normalisation and take ev as value.
+                 *
+                 * Normalization is required if the value is a tuple, in
+                 * that case the value of StopIteration would be set to
+                 * the first element of the tuple.
+                 *
+                 * (See _PyErr_CreateException code for details.)
+                 */
                 value = ev;
             } else {
                 /* normalisation required */
@@ -1104,7 +1144,7 @@ PyTypeObject _PyCoroWrapper_Type = {
     0,                                          /* tp_init */
     0,                                          /* tp_alloc */
     0,                                          /* tp_new */
-    PyObject_Del,                               /* tp_free */
+    0,                                          /* tp_free */
 };
 
 PyObject *
@@ -1125,7 +1165,7 @@ typedef struct {
 static PyObject *
 aiter_wrapper_iternext(PyAIterWrapper *aw)
 {
-    PyErr_SetObject(PyExc_StopIteration, aw->aw_aiter);
+    _PyGen_SetStopIterationValue(aw->aw_aiter);
     return NULL;
 }
 
@@ -1189,7 +1229,7 @@ PyTypeObject _PyAIterWrapper_Type = {
     0,                                          /* tp_init */
     0,                                          /* tp_alloc */
     0,                                          /* tp_new */
-    PyObject_Del,                               /* tp_free */
+    0,                                          /* tp_free */
 };
 
 

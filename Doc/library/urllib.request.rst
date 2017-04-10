@@ -18,7 +18,7 @@ authentication, redirections, cookies and more.
 
 .. seealso::
 
-    The `Requests package <https://requests.readthedocs.org/>`_
+    The `Requests package <http://docs.python-requests.org/>`_
     is recommended for a higher-level HTTP client interface.
 
 
@@ -476,7 +476,7 @@ request.
 
 .. attribute:: Request.data
 
-   The entity body for the request, or None if not specified.
+   The entity body for the request, or ``None`` if not specified.
 
    .. versionchanged:: 3.4
       Changing value of :attr:`Request.data` now deletes "Content-Length"

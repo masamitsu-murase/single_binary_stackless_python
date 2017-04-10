@@ -129,7 +129,9 @@ our objects and in some error messages, for example::
 
 Note that the name is a dotted name that includes both the module name and the
 name of the type within the module. The module in this case is :mod:`noddy` and
-the type is :class:`Noddy`, so we set the type name to :class:`noddy.Noddy`. ::
+the type is :class:`Noddy`, so we set the type name to :class:`noddy.Noddy`.
+One side effect of using an undotted name is that the pydoc documentation tool
+will not list the new type in the module documentation. ::
 
    sizeof(noddy_NoddyObject),  /* tp_basicsize */
 
@@ -1120,10 +1122,10 @@ If :c:member:`~PyTypeObject.tp_methods` is not *NULL*, it must refer to an array
 structure::
 
    typedef struct PyMethodDef {
-       char        *ml_name;       /* method name */
+       const char  *ml_name;       /* method name */
        PyCFunction  ml_meth;       /* implementation function */
        int          ml_flags;      /* flags */
-       char        *ml_doc;        /* docstring */
+       const char  *ml_doc;        /* docstring */
    } PyMethodDef;
 
 One entry should be defined for each method provided by the type; no entries are

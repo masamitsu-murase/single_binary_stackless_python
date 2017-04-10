@@ -2801,7 +2801,7 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
             else {
                 PyObject *build_class_str = _PyUnicode_FromId(&PyId___build_class__);
                 if (build_class_str == NULL)
-                    break;
+                    goto error;
                 bc = PyObject_GetItem(f->f_builtins, build_class_str);
                 if (bc == NULL) {
                     if (PyErr_ExceptionMatches(PyExc_KeyError))
@@ -3251,14 +3251,12 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
         _build_map_unpack: {
             int with_call = opcode == BUILD_MAP_UNPACK_WITH_CALL;
             int num_maps;
-            int function_location;
             int i;
             PyObject *sum = PyDict_New();
             if (sum == NULL)
                 goto error;
             if (with_call) {
                 num_maps = oparg & 0xff;
-                function_location = (oparg>>8) & 0xff;
             }
             else {
                 num_maps = oparg;
@@ -3270,7 +3268,9 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
                     PyObject *intersection = _PyDictView_Intersect(sum, arg);
 
                     if (intersection == NULL) {
-                        if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+                        if (PyErr_ExceptionMatches(PyExc_AttributeError) ||
+                            !PyMapping_Check(arg)) {
+                            int function_location = (oparg>>8) & 0xff;
                             PyObject *func = (
                                     PEEK(function_location + num_maps));
                             PyErr_Format(PyExc_TypeError,
@@ -3287,6 +3287,7 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
                     if (PySet_GET_SIZE(intersection)) {
                         Py_ssize_t idx = 0;
                         PyObject *key;
+                        int function_location = (oparg>>8) & 0xff;
                         PyObject *func = PEEK(function_location + num_maps);
                         Py_hash_t hash;
                         _PySet_NextEntry(intersection, &idx, &key, &hash);
@@ -3312,9 +3313,21 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
 
                 if (PyDict_Update(sum, arg) < 0) {
                     if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
-                        PyErr_Format(PyExc_TypeError,
-                                "'%.200s' object is not a mapping",
-                                arg->ob_type->tp_name);
+                        if (with_call) {
+                            int function_location = (oparg>>8) & 0xff;
+                            PyObject *func = PEEK(function_location + num_maps);
+                            PyErr_Format(PyExc_TypeError,
+                                    "%.200s%.200s argument after ** "
+                                    "must be a mapping, not %.200s",
+                                    PyEval_GetFuncName(func),
+                                    PyEval_GetFuncDesc(func),
+                                    arg->ob_type->tp_name);
+                        }
+                        else {
+                            PyErr_Format(PyExc_TypeError,
+                                    "'%.200s' object is not a mapping",
+                                    arg->ob_type->tp_name);
+                        }
                     }
                     Py_DECREF(sum);
                     goto error;

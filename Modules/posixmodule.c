@@ -1515,7 +1515,9 @@ win32_xstat_impl(const char *path, struct _Py_stat_struct *result,
         /* Either the target doesn't exist, or we don't have access to
            get a handle to it. If the former, we need to return an error.
            If the latter, we can use attributes_from_dir. */
-        if (GetLastError() != ERROR_SHARING_VIOLATION)
+        DWORD lastError = GetLastError();
+        if (lastError != ERROR_ACCESS_DENIED &&
+            lastError != ERROR_SHARING_VIOLATION)
             return -1;
         /* Could not get attributes on open file. Fall back to
            reading the directory. */
@@ -1525,7 +1527,7 @@ win32_xstat_impl(const char *path, struct _Py_stat_struct *result,
         if (info.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
             if (traverse) {
                 /* Should traverse, but could not open reparse point handle */
-                SetLastError(ERROR_SHARING_VIOLATION);
+                SetLastError(lastError);
                 return -1;
             }
         }
@@ -1605,7 +1607,9 @@ win32_xstat_impl_w(const wchar_t *path, struct _Py_stat_struct *result,
         /* Either the target doesn't exist, or we don't have access to
            get a handle to it. If the former, we need to return an error.
            If the latter, we can use attributes_from_dir. */
-        if (GetLastError() != ERROR_SHARING_VIOLATION)
+        DWORD lastError = GetLastError();
+        if (lastError != ERROR_ACCESS_DENIED &&
+            lastError != ERROR_SHARING_VIOLATION)
             return -1;
         /* Could not get attributes on open file. Fall back to
            reading the directory. */
@@ -1615,7 +1619,7 @@ win32_xstat_impl_w(const wchar_t *path, struct _Py_stat_struct *result,
         if (info.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
             if (traverse) {
                 /* Should traverse, but could not open reparse point handle */
-                SetLastError(ERROR_SHARING_VIOLATION);
+                SetLastError(lastError);
                 return -1;
             }
         }
@@ -3861,20 +3865,18 @@ os__getfinalpathname_impl(PyObject *module, PyObject *path)
     return result;
 }
 
-PyDoc_STRVAR(posix__isdir__doc__,
-"Return true if the pathname refers to an existing directory.");
-
 /*[clinic input]
 os._isdir
 
     path: path_t
     /
 
+Return true if the pathname refers to an existing directory.
 [clinic start generated code]*/
 
 static PyObject *
 os__isdir_impl(PyObject *module, path_t *path)
-/*[clinic end generated code: output=75f56f32720836cb input=e794f12faab62a2a]*/
+/*[clinic end generated code: output=75f56f32720836cb input=5e0800149c0ad95f]*/
 {
     DWORD attributes;
 
@@ -5184,6 +5186,16 @@ os_spawnv_impl(PyObject *module, int mode, PyObject *path, PyObject *argv)
                         "spawnv() arg 2 must be a tuple or list");
         return NULL;
     }
+#ifdef MS_WINDOWS
+    /* Avoid changing behavior in maintenance release, but
+       the previous Windows behavior was to crash, so this
+       is a "compatible" improvement. */
+    if (argc == 0) {
+        PyErr_SetString(PyExc_ValueError,
+                        "spawnv() arg 2 cannot be empty");
+        return NULL;
+    }
+#endif
 
     argvlist = PyMem_NEW(char *, argc+1);
     if (argvlist == NULL) {
@@ -5198,6 +5210,15 @@ os_spawnv_impl(PyObject *module, int mode, PyObject *path, PyObject *argv)
                 "spawnv() arg 2 must contain only strings");
             return NULL;
         }
+#ifdef MS_WINDOWS
+        if (i == 0 && !argvlist[0][0]) {
+            free_string_array(argvlist, i);
+            PyErr_SetString(
+                PyExc_ValueError,
+                "spawnv() arg 2 first element cannot be empty");
+            return NULL;
+        }
+#endif
     }
     argvlist[argc] = NULL;
 
@@ -5205,7 +5226,9 @@ os_spawnv_impl(PyObject *module, int mode, PyObject *path, PyObject *argv)
         mode = _P_OVERLAY;
 
     Py_BEGIN_ALLOW_THREADS
+    _Py_BEGIN_SUPPRESS_IPH
     spawnval = _spawnv(mode, path_char, argvlist);
+    _Py_END_SUPPRESS_IPH
     Py_END_ALLOW_THREADS
 
     free_string_array(argvlist, argc);
@@ -5295,7 +5318,9 @@ os_spawnve_impl(PyObject *module, int mode, PyObject *path, PyObject *argv,
         mode = _P_OVERLAY;
 
     Py_BEGIN_ALLOW_THREADS
+    _Py_BEGIN_SUPPRESS_IPH
     spawnval = _spawnve(mode, path_char, argvlist, envlist);
+    _Py_END_SUPPRESS_IPH
     Py_END_ALLOW_THREADS
 
     if (spawnval == -1)
@@ -7020,7 +7045,9 @@ os_waitpid_impl(PyObject *module, Py_intptr_t pid, int options)
 
     do {
         Py_BEGIN_ALLOW_THREADS
+        _Py_BEGIN_SUPPRESS_IPH
         res = _cwait(&status, pid, options);
+        _Py_END_SUPPRESS_IPH
         Py_END_ALLOW_THREADS
     } while (res < 0 && errno == EINTR && !(async_err = PyErr_CheckSignals()));
     if (res < 0)
@@ -7083,7 +7110,7 @@ posix_readlink(PyObject *self, PyObject *args, PyObject *kwargs)
 {
     path_t path;
     int dir_fd = DEFAULT_DIR_FD;
-    char buffer[MAXPATHLEN];
+    char buffer[MAXPATHLEN+1];
     ssize_t length;
     PyObject *return_value = NULL;
     static char *keywords[] = {"path", "dir_fd", NULL};
@@ -7098,16 +7125,17 @@ posix_readlink(PyObject *self, PyObject *args, PyObject *kwargs)
     Py_BEGIN_ALLOW_THREADS
 #ifdef HAVE_READLINKAT
     if (dir_fd != DEFAULT_DIR_FD)
-        length = readlinkat(dir_fd, path.narrow, buffer, sizeof(buffer));
+        length = readlinkat(dir_fd, path.narrow, buffer, MAXPATHLEN);
     else
 #endif
-        length = readlink(path.narrow, buffer, sizeof(buffer));
+        length = readlink(path.narrow, buffer, MAXPATHLEN);
     Py_END_ALLOW_THREADS
 
     if (length < 0) {
         return_value = path_error(&path);
         goto exit;
     }
+    buffer[length] = '\0';
 
     if (PyUnicode_Check(path.object))
         return_value = PyUnicode_DecodeFSDefaultAndSize(buffer, length);

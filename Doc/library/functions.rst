@@ -686,7 +686,7 @@ are always available.  They are listed here in alphabetical order.
    preceded by ``+`` or ``-`` (with no space in between) and surrounded by
    whitespace.  A base-n literal consists of the digits 0 to n-1, with ``a``
    to ``z`` (or ``A`` to ``Z``) having
-   values 10 to 35.  The default *base* is 10. The allowed values are 0 and 2-36.
+   values 10 to 35.  The default *base* is 10. The allowed values are 0 and 2--36.
    Base-2, -8, and -16 literals can be optionally prefixed with ``0b``/``0B``,
    ``0o``/``0O``, or ``0x``/``0X``, as with integer literals in code.  Base 0
    means to interpret exactly as a code literal, so that the actual base is 2,
@@ -949,7 +949,7 @@ are always available.  They are listed here in alphabetical order.
    the list of supported encodings.
 
    *errors* is an optional string that specifies how encoding and decoding
-   errors are to be handled--this cannot be used in binary mode.
+   errors are to be handled—this cannot be used in binary mode.
    A variety of standard error handlers are available
    (listed under :ref:`error-handlers`), though any
    error handling name that has been registered with

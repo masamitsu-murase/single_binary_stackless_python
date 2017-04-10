@@ -266,17 +266,17 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*/
      PyAPI_FUNC(PyObject *) PyObject_Call(PyObject *callable_object,
                                           PyObject *args, PyObject *kw);
 
-#ifndef Py_LIMITED_API
-     PyAPI_FUNC(PyObject *) _Py_CheckFunctionResult(PyObject *func,
-                                                    PyObject *result,
-                                                    const char *where);
-#endif
-
        /*
      Call a callable Python object, callable_object, with
      arguments and keywords arguments.  The 'args' argument can not be
      NULL, but the 'kw' argument can be NULL.
        */
+
+#ifndef Py_LIMITED_API
+     PyAPI_FUNC(PyObject *) _Py_CheckFunctionResult(PyObject *func,
+                                                    PyObject *result,
+                                                    const char *where);
+#endif
 
      PyAPI_FUNC(PyObject *) PyObject_CallObject(PyObject *callable_object,
                                                 PyObject *args);
@@ -1216,23 +1216,23 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*/
      PyAPI_FUNC(PyObject *) PyMapping_Keys(PyObject *o);
 
        /*
-     On success, return a list, a tuple or a dictionary view in case of a dict,
-     of the keys in object o. On failure, return NULL.
+     On success, return a list or tuple of the keys in object o.
+     On failure, return NULL.
        */
 
      PyAPI_FUNC(PyObject *) PyMapping_Values(PyObject *o);
 
        /*
-     On success, return a list, a tuple or a dictionary view in case of a dict,
-     of the values in object o. On failure, return NULL.
+     On success, return a list or tuple of the values in object o.
+     On failure, return NULL.
        */
 
      PyAPI_FUNC(PyObject *) PyMapping_Items(PyObject *o);
 
        /*
-     On success, return a list, a tuple or a dictionary view in case of a dict,
-     of the items in object o, where each item is a tuple containing a key-value
-     pair. On failure, return NULL.
+     On success, return a list or tuple of the items in object o,
+     where each item is a tuple containing a key-value pair.
+     On failure, return NULL.
 
        */
 

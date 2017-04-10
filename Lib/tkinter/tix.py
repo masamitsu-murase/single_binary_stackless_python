@@ -477,10 +477,15 @@ class DisplayStyle:
     (multiple) Display Items"""
 
     def __init__(self, itemtype, cnf={}, **kw):
-        master = tkinter._default_root              # global from Tkinter
-        if not master and 'refwindow' in cnf: master=cnf['refwindow']
-        elif not master and 'refwindow' in kw:  master= kw['refwindow']
-        elif not master: raise RuntimeError("Too early to create display style: no root window")
+        if 'refwindow' in kw:
+            master = kw['refwindow']
+        elif 'refwindow' in cnf:
+            master = cnf['refwindow']
+        else:
+            master = tkinter._default_root
+            if not master:
+                raise RuntimeError("Too early to create display style: "
+                                   "no root window")
         self.tk = master.tk
         self.stylename = self.tk.call('tixDisplayStyle', itemtype,
                             *self._options(cnf,kw) )
@@ -924,7 +929,11 @@ class HList(TixWidget, XView, YView):
         return self.tk.call(self._w, 'header', 'cget', col, opt)
 
     def header_exists(self,  col):
-        return self.tk.call(self._w, 'header', 'exists', col)
+        # A workaround to Tix library bug (issue #25464).
+        # The documented command is "exists", but only erroneous "exist" is
+        # accepted.
+        return self.tk.getboolean(self.tk.call(self._w, 'header', 'exist', col))
+    header_exist = header_exists
 
     def header_delete(self, col):
         self.tk.call(self._w, 'header', 'delete', col)

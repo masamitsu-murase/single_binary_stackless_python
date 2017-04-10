@@ -245,7 +245,7 @@ Future
 
    .. method:: done()
 
-      Return True if the future is done.
+      Return ``True`` if the future is done.
 
       Done means either that a result / exception are available, or that the
       future was cancelled.
@@ -374,7 +374,7 @@ Task
 
    A task is responsible for executing a coroutine object in an event loop.  If
    the wrapped coroutine yields from a future, the task suspends the execution
-   of the wrapped coroutine and waits for the completition of the future. When
+   of the wrapped coroutine and waits for the completion of the future. When
    the future is done, the execution of the wrapped coroutine restarts with the
    result or the exception of the future.
 
@@ -562,7 +562,7 @@ Task functions
    All futures must share the same event loop.  If all the tasks are done
    successfully, the returned future's result is the list of results (in the
    order of the original sequence, not necessarily the order of results
-   arrival).  If *return_exceptions* is True, exceptions in the tasks are
+   arrival).  If *return_exceptions* is true, exceptions in the tasks are
    treated the same as successful results, and gathered in the result list;
    otherwise, the first raised exception will be immediately propagated to the
    returned future.

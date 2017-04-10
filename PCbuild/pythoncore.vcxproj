@@ -69,7 +69,7 @@
       <PreprocessorDefinitions>_USRDLL;Py_BUILD_CORE;Py_ENABLE_SHARED;MS_DLL_ID="$(SysWinVer)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>version.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <BaseAddress>0x1e000000</BaseAddress>
     </Link>
   </ItemDefinitionGroup>
@@ -446,9 +446,16 @@
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
   <Target Name="_GetBuildInfo" BeforeTargets="PrepareForBuild">
-    <Exec Command="hg id -b &gt; &quot;$(IntDir)hgbranch.txt&quot;" ContinueOnError="true" />
-    <Exec Command="hg id -i &gt; &quot;$(IntDir)hgversion.txt&quot;" ContinueOnError="true" />
-    <Exec Command="hg id -t &gt; &quot;$(IntDir)hgtag.txt&quot;" ContinueOnError="true" />
+    <PropertyGroup>
+      <HG Condition="$(HG) == ''">hg</HG>
+      <_HG>$(HG)</_HG>
+      <_HG Condition="$(HG.Contains(` `))">"$(HG)"</_HG>
+    </PropertyGroup>
+    <Message Text="Getting build info from $(_HG)" Importance="high" />
+    <MakeDir Directories="$(IntDir)" Condition="!Exists($(IntDir))" />
+    <Exec Command="$(_HG) id -b &gt; &quot;$(IntDir)hgbranch.txt&quot;" ContinueOnError="true" />
+    <Exec Command="$(_HG) id -i &gt; &quot;$(IntDir)hgversion.txt&quot;" ContinueOnError="true" />
+    <Exec Command="$(_HG) id -t &gt; &quot;$(IntDir)hgtag.txt&quot;" ContinueOnError="true" />
     <PropertyGroup>
       <HgBranch Condition="Exists('$(IntDir)hgbranch.txt')">$([System.IO.File]::ReadAllText('$(IntDir)hgbranch.txt').Trim())</HgBranch>
       <HgVersion Condition="Exists('$(IntDir)hgversion.txt')">$([System.IO.File]::ReadAllText('$(IntDir)hgversion.txt').Trim())</HgVersion>

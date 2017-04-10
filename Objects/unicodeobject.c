@@ -1366,15 +1366,19 @@ PyUnicode_CopyCharacters(PyObject *to, Py_ssize_t to_start,
     if (PyUnicode_READY(to) == -1)
         return -1;
 
-    if (from_start < 0) {
+    if ((size_t)from_start > (size_t)PyUnicode_GET_LENGTH(from)) {
         PyErr_SetString(PyExc_IndexError, "string index out of range");
         return -1;
     }
-    if (to_start < 0) {
+    if ((size_t)to_start > (size_t)PyUnicode_GET_LENGTH(to)) {
         PyErr_SetString(PyExc_IndexError, "string index out of range");
         return -1;
     }
-    how_many = Py_MIN(PyUnicode_GET_LENGTH(from), how_many);
+    if (how_many < 0) {
+        PyErr_SetString(PyExc_SystemError, "how_many cannot be negative");
+        return -1;
+    }
+    how_many = Py_MIN(PyUnicode_GET_LENGTH(from)-from_start, how_many);
     if (to_start + how_many > PyUnicode_GET_LENGTH(to)) {
         PyErr_Format(PyExc_SystemError,
                      "Cannot write %zi characters at %zi "
@@ -2719,7 +2723,7 @@ PyUnicode_FromFormatV(const char *format, va_list vargs)
                         "PyUnicode_FromFormatV() expects an ASCII-encoded format "
                         "string, got a non-ASCII byte: 0x%02x",
                         (unsigned char)*p);
-                    return NULL;
+                    goto fail;
                 }
                 p++;
             }
@@ -3005,7 +3009,7 @@ PyUnicode_Decode(const char *s,
                      "'%.400s' decoder returned '%.400s' instead of 'str'; "
                      "use codecs.decode() to decode to arbitrary types",
                      encoding,
-                     Py_TYPE(unicode)->tp_name, Py_TYPE(unicode)->tp_name);
+                     Py_TYPE(unicode)->tp_name);
         Py_DECREF(unicode);
         goto onError;
     }
@@ -3022,24 +3026,16 @@ PyUnicode_AsDecodedObject(PyObject *unicode,
                           const char *encoding,
                           const char *errors)
 {
-    PyObject *v;
-
     if (!PyUnicode_Check(unicode)) {
         PyErr_BadArgument();
-        goto onError;
+        return NULL;
     }
 
     if (encoding == NULL)
         encoding = PyUnicode_GetDefaultEncoding();
 
     /* Decode via the codec registry */
-    v = PyCodec_Decode(unicode, encoding, errors);
-    if (v == NULL)
-        goto onError;
-    return unicode_result(v);
-
-  onError:
-    return NULL;
+    return PyCodec_Decode(unicode, encoding, errors);
 }
 
 PyObject *
@@ -3066,7 +3062,7 @@ PyUnicode_AsDecodedUnicode(PyObject *unicode,
                      "'%.400s' decoder returned '%.400s' instead of 'str'; "
                      "use codecs.decode() to decode to arbitrary types",
                      encoding,
-                     Py_TYPE(unicode)->tp_name, Py_TYPE(unicode)->tp_name);
+                     Py_TYPE(unicode)->tp_name);
         Py_DECREF(v);
         goto onError;
     }
@@ -3394,7 +3390,7 @@ PyUnicode_AsEncodedString(PyObject *unicode,
                  "'%.400s' encoder returned '%.400s' instead of 'bytes'; "
                  "use codecs.encode() to encode to arbitrary types",
                  encoding,
-                 Py_TYPE(v)->tp_name, Py_TYPE(v)->tp_name);
+                 Py_TYPE(v)->tp_name);
     Py_DECREF(v);
     return NULL;
 }
@@ -3423,7 +3419,7 @@ PyUnicode_AsEncodedUnicode(PyObject *unicode,
                      "'%.400s' encoder returned '%.400s' instead of 'str'; "
                      "use codecs.encode() to encode to arbitrary types",
                      encoding,
-                     Py_TYPE(v)->tp_name, Py_TYPE(v)->tp_name);
+                     Py_TYPE(v)->tp_name);
         Py_DECREF(v);
         goto onError;
     }
@@ -4820,7 +4816,7 @@ _Py_DecodeUTF8_surrogateescape(const char *s, Py_ssize_t size)
 #if SIZEOF_WCHAR_T == 4
             assert(0);
 #else
-            assert(Py_UNICODE_IS_SURROGATE(ch));
+            assert(ch > 0xFFFF && ch <= MAX_UNICODE);
             /*  compute and append the two surrogates: */
             unicode[outpos++] = (wchar_t)Py_UNICODE_HIGH_SURROGATE(ch);
             unicode[outpos++] = (wchar_t)Py_UNICODE_LOW_SURROGATE(ch);
@@ -10797,10 +10793,24 @@ PyUnicode_CompareWithASCIIString(PyObject* uni, const char* str)
     Py_ssize_t i;
     int kind;
     Py_UCS4 chr;
+    const unsigned char *ustr = (const unsigned char *)str;
 
     assert(_PyUnicode_CHECK(uni));
-    if (PyUnicode_READY(uni) == -1)
-        return -1;
+    if (!PyUnicode_IS_READY(uni)) {
+        const wchar_t *ws = _PyUnicode_WSTR(uni);
+        /* Compare Unicode string and source character set string */
+        for (i = 0; (chr = ws[i]) && ustr[i]; i++) {
+            if (chr != ustr[i])
+                return (chr < ustr[i]) ? -1 : 1;
+        }
+        /* This check keeps Python strings that end in '\0' from comparing equal
+         to C strings identical up to that point. */
+        if (_PyUnicode_WSTR_LENGTH(uni) != i || chr)
+            return 1; /* uni is longer */
+        if (ustr[i])
+            return -1; /* str is longer */
+        return 0;
+    }
     kind = PyUnicode_KIND(uni);
     if (kind == PyUnicode_1BYTE_KIND) {
         const void *data = PyUnicode_1BYTE_DATA(uni);
@@ -10838,6 +10848,79 @@ PyUnicode_CompareWithASCIIString(PyObject* uni, const char* str)
     }
 }
 
+static int
+non_ready_unicode_equal_to_ascii_string(PyObject *unicode, const char *str)
+{
+    size_t i, len;
+    const wchar_t *p;
+    len = (size_t)_PyUnicode_WSTR_LENGTH(unicode);
+    if (strlen(str) != len)
+        return 0;
+    p = _PyUnicode_WSTR(unicode);
+    assert(p);
+    for (i = 0; i < len; i++) {
+        unsigned char c = (unsigned char)str[i];
+        if (c >= 128 || p[i] != (wchar_t)c)
+            return 0;
+    }
+    return 1;
+}
+
+int
+_PyUnicode_EqualToASCIIString(PyObject *unicode, const char *str)
+{
+    size_t len;
+    assert(_PyUnicode_CHECK(unicode));
+    if (PyUnicode_READY(unicode) == -1) {
+        /* Memory error or bad data */
+        PyErr_Clear();
+        return non_ready_unicode_equal_to_ascii_string(unicode, str);
+    }
+    if (!PyUnicode_IS_ASCII(unicode))
+        return 0;
+    len = (size_t)PyUnicode_GET_LENGTH(unicode);
+    return strlen(str) == len &&
+           memcmp(PyUnicode_1BYTE_DATA(unicode), str, len) == 0;
+}
+
+int
+_PyUnicode_EqualToASCIIId(PyObject *left, _Py_Identifier *right)
+{
+    PyObject *right_uni;
+    Py_hash_t hash;
+
+    assert(_PyUnicode_CHECK(left));
+    assert(right->string);
+
+    if (PyUnicode_READY(left) == -1) {
+        /* memory error or bad data */
+        PyErr_Clear();
+        return non_ready_unicode_equal_to_ascii_string(left, right->string);
+    }
+
+    if (!PyUnicode_IS_ASCII(left))
+        return 0;
+
+    right_uni = _PyUnicode_FromId(right);       /* borrowed */
+    if (right_uni == NULL) {
+        /* memory error or bad data */
+        PyErr_Clear();
+        return _PyUnicode_EqualToASCIIString(left, right->string);
+    }
+
+    if (left == right_uni)
+        return 1;
+
+    if (PyUnicode_CHECK_INTERNED(left))
+        return 0;
+
+    assert(_PyUnicode_HASH(right_uni) != 1);
+    hash = _PyUnicode_HASH(left);
+    if (hash != -1 && hash != _PyUnicode_HASH(right_uni))
+        return 0;
+
+    return unicode_compare_eq(left, right_uni);
+}
 
 #define TEST_COND(cond)                         \
     ((cond) ? Py_True : Py_False)

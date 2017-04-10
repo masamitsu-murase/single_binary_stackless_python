@@ -1054,7 +1054,7 @@ class TestTotalOrdering(unittest.TestCase):
                 a <= b
 
     def test_pickle(self):
-        for proto in range(4, pickle.HIGHEST_PROTOCOL + 1):
+        for proto in range(pickle.HIGHEST_PROTOCOL + 1):
             for name in '__lt__', '__gt__', '__le__', '__ge__':
                 with self.subTest(method=name, proto=proto):
                     method = getattr(Orderable_LT, name)
@@ -1161,6 +1161,25 @@ class TestLRU:
         self.assertEqual(hits, 12)
         self.assertEqual(misses, 4)
         self.assertEqual(currsize, 2)
+
+    def test_lru_type_error(self):
+        # Regression test for issue #28653.
+        # lru_cache was leaking when one of the arguments
+        # wasn't cacheable.
+
+        @functools.lru_cache(maxsize=None)
+        def infinite_cache(o):
+            pass
+
+        @functools.lru_cache(maxsize=10)
+        def limited_cache(o):
+            pass
+
+        with self.assertRaises(TypeError):
+            infinite_cache([])
+
+        with self.assertRaises(TypeError):
+            limited_cache([])
 
     def test_lru_with_maxsize_none(self):
         @self.module.lru_cache(maxsize=None)

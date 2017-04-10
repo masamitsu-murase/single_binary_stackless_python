@@ -2661,7 +2661,7 @@ else:
                     s.close()
 
         def test_socketserver(self):
-            """Using a SocketServer to create and manage SSL connections."""
+            """Using socketserver to create and manage SSL connections."""
             server = make_https_server(self, certfile=CERTFILE)
             # try to connect
             if support.verbose:
@@ -2688,8 +2688,6 @@ else:
 
         def test_asyncore_server(self):
             """Check the example asyncore integration."""
-            indata = "TEST MESSAGE of mixed case\n"
-
             if support.verbose:
                 sys.stdout.write("\n")
 
