@@ -601,20 +601,37 @@ builtin_chr_impl(PyModuleDef *module, int i)
 
 
 static const char *
-source_as_string(PyObject *cmd, const char *funcname, const char *what, PyCompilerFlags *cf, Py_buffer *view)
+source_as_string(PyObject *cmd, const char *funcname, const char *what, PyCompilerFlags *cf, PyObject **cmd_copy)
 {
     const char *str;
     Py_ssize_t size;
+    Py_buffer view;
 
+    *cmd_copy = NULL;
     if (PyUnicode_Check(cmd)) {
         cf->cf_flags |= PyCF_IGNORE_COOKIE;
         str = PyUnicode_AsUTF8AndSize(cmd, &size);
         if (str == NULL)
             return NULL;
     }
-    else if (PyObject_GetBuffer(cmd, view, PyBUF_SIMPLE) == 0) {
-        str = (const char *)view->buf;
-        size = view->len;
+    else if (PyBytes_Check(cmd)) {
+        str = PyBytes_AS_STRING(cmd);
+        size = PyBytes_GET_SIZE(cmd);
+    }
+    else if (PyByteArray_Check(cmd)) {
+        str = PyByteArray_AS_STRING(cmd);
+        size = PyByteArray_GET_SIZE(cmd);
+    }
+    else if (PyObject_GetBuffer(cmd, &view, PyBUF_SIMPLE) == 0) {
+        /* Copy to NUL-terminated buffer. */
+        *cmd_copy = PyBytes_FromStringAndSize(
+            (const char *)view.buf, view.len);
+        PyBuffer_Release(&view);
+        if (*cmd_copy == NULL) {
+            return NULL;
+        }
+        str = PyBytes_AS_STRING(*cmd_copy);
+        size = PyBytes_GET_SIZE(*cmd_copy);
     }
     else {
         PyErr_Format(PyExc_TypeError,
@@ -626,7 +643,7 @@ source_as_string(PyObject *cmd, const char *funcname, const char *what, PyCompil
     if (strlen(str) != (size_t)size) {
         PyErr_SetString(PyExc_ValueError,
                         "source code string cannot contain null bytes");
-        PyBuffer_Release(view);
+        Py_CLEAR(*cmd_copy);
         return NULL;
     }
     return str;
@@ -662,7 +679,7 @@ builtin_compile_impl(PyModuleDef *module, PyObject *source,
                      int dont_inherit, int optimize)
 /*[clinic end generated code: output=31881762c1bb90c4 input=9d53e8cfb3c86414]*/
 {
-    Py_buffer view = {NULL, NULL};
+    PyObject *source_copy;
     const char *str;
     int compile_mode = -1;
     int is_ast;
@@ -734,12 +751,12 @@ builtin_compile_impl(PyModuleDef *module, PyObject *source,
         goto finally;
     }
 
-    str = source_as_string(source, "compile", "string, bytes or AST", &cf, &view);
+    str = source_as_string(source, "compile", "string, bytes or AST", &cf, &source_copy);
     if (str == NULL)
         goto error;
 
     result = Py_CompileStringObject(str, filename, start[compile_mode], &cf, optimize);
-    PyBuffer_Release(&view);
+    Py_XDECREF(source_copy);
     goto finally;
 
 error:
@@ -816,8 +833,7 @@ builtin_eval_impl(PyModuleDef *module, PyObject *source, PyObject *globals,
 /*[clinic end generated code: output=7284501fb7b4d666 input=89d323839395e49d]*/
 {
     STACKLESS_GETARG();
-    PyObject *result, *tmp = NULL;
-    Py_buffer view = {NULL, NULL};
+    PyObject *result, *source_copy;
     const char *str;
     PyCompilerFlags cf;
 
@@ -866,7 +882,7 @@ builtin_eval_impl(PyModuleDef *module, PyObject *source, PyObject *globals,
     }
 
     cf.cf_flags = PyCF_SOURCE_IS_UTF8;
-    str = source_as_string(source, "eval", "string, bytes or code", &cf, &view);
+    str = source_as_string(source, "eval", "string, bytes or code", &cf, &source_copy);
     if (str == NULL)
         return NULL;
 
@@ -877,8 +893,7 @@ builtin_eval_impl(PyModuleDef *module, PyObject *source, PyObject *globals,
     STACKLESS_PROMOTE_ALL();
     result = PyRun_StringFlags(str, Py_eval_input, globals, locals, &cf);
     STACKLESS_ASSERT();
-    PyBuffer_Release(&view);
-    Py_XDECREF(tmp);
+    Py_XDECREF(source_copy);
     return result;
 }
 
@@ -953,12 +968,13 @@ builtin_exec_impl(PyModuleDef *module, PyObject *source, PyObject *globals,
         STACKLESS_ASSERT();
     }
     else {
-        Py_buffer view = {NULL, NULL};
+        PyObject *source_copy;
         const char *str;
         PyCompilerFlags cf;
         cf.cf_flags = PyCF_SOURCE_IS_UTF8;
         str = source_as_string(source, "exec",
-                                       "string, bytes or code", &cf, &view);
+                                       "string, bytes or code", &cf,
+                                       &source_copy);
         if (str == NULL)
             return NULL;
         STACKLESS_PROMOTE_ALL();
@@ -968,7 +984,7 @@ builtin_exec_impl(PyModuleDef *module, PyObject *source, PyObject *globals,
         else
             v = PyRun_String(str, Py_file_input, globals, locals);
         STACKLESS_ASSERT();
-        PyBuffer_Release(&view);
+        Py_XDECREF(source_copy);
     }
     if (v == NULL)
         return NULL;
