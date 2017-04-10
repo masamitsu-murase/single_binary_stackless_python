@@ -4,10 +4,8 @@
     <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
     <OutDir>$(BuildPath)</OutDir>
-    <OutDir Condition="'$(Py_OutDir)' != ''">$(Py_OutDir)</OutDir>
     <OutDir Condition="!HasTrailingSlash($(OutDir))">$(OutDir)\</OutDir>
-    <Py_IntDir Condition="'$(Py_IntDir)' == ''">$(SolutionDir)obj\</Py_IntDir>
-    <IntDir Condition="!HasTrailingSlash($(IntDir))">$(IntDir)\</IntDir>
+    <Py_IntDir Condition="'$(PyIntDir)' == ''">$(SolutionDir)obj\</Py_IntDir>
     <IntDir>$(Py_IntDir)\$(ArchName)_$(Configuration)\$(ProjectName)\</IntDir>
     <IntDir Condition="$(Configuration) == 'PGInstrument' or $(Configuration) == 'PGUpdate'">$(Py_IntDir)\$(ArchName)_PGO\$(ProjectName)\</IntDir>
     <TargetName Condition="'$(TargetName)' == ''">$(ProjectName)</TargetName>
@@ -29,9 +27,9 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(PySourcePath)Include;$(PySourcePath)PC;$(PySourcePath)Stackless;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(PySourcePath)Include;$(PySourcePath)PC;$(PySourcePath)Stackless;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;$(_PlatformPreprocessorDefinition)$(_DebugPreprocessorDefinition)$(_PydPreprocessorDefinition)%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      
+
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <StringPooling>true</StringPooling>
@@ -85,9 +83,8 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <TargetEnvironment>Win32</TargetEnvironment>
       <TargetEnvironment Condition="'$(Platform)' == 'x64'">X64</TargetEnvironment>
-      <TypeLibraryName>$(OutDir)wininst.tlb</TypeLibraryName>
-      <HeaderFileName>
-      </HeaderFileName>
+      <TypeLibraryName>$(OutDir)%(Filename).tlb</TypeLibraryName>
+      <HeaderFileName>$(IntDir)%(Filename)_h.h</HeaderFileName>
     </Midl>
   </ItemDefinitionGroup>
 
@@ -129,15 +126,15 @@ foreach (System.Diagnostics.Process p in System.Diagnostics.Process.GetProcesses
       </Code>
     </Task>
   </UsingTask>
-  
+
   <Target Name="KillPython" BeforeTargets="PrepareForBuild" Condition="'$(KillPython)' == 'true'">
     <Message Text="Killing any running python$(PyDebugExt)$(PyTestExt).exe instances..." Importance="high" />
     <KillPython FileName="$(OutDir)python$(PyDebugExt)$(PyTestExt).exe" />
   </Target>
-  
+
   <!--
   A default target to handle msbuild pcbuild.proj /t:CleanAll.
-  
+
   Some externals projects don't respond to /t:Clean, so we invoke
   CleanAll on them when we really want to clean up.
   -->
@@ -156,7 +153,7 @@ foreach (System.Diagnostics.Process p in System.Diagnostics.Process.GetProcesses
     <SignToolPath Condition="!Exists($(SignToolPath))">$(registry:HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SDKs\Windows\v7.1A@InstallationFolder)\Bin\signtool.exe</SignToolPath>
     <_SignCommand Condition="Exists($(SignToolPath))">"$(SignToolPath)" sign /q /n "$(SigningCertificate)" /fd sha256 /t http://timestamp.verisign.com/scripts/timestamp.dll /d "Python $(PythonVersion)"</_SignCommand>
   </PropertyGroup>
-  
+
   <Target Name="_SignBuild" AfterTargets="AfterBuild" Condition="'$(SigningCertificate)' != '' and $(SupportSigning)">
     <Error Text="Unable to locate signtool.exe. Set /p:SignToolPath and rebuild" Condition="'$(_SignCommand)' == ''" />
     <Exec Command='$(_SignCommand) "$(TargetPath)" || $(_SignCommand) "$(TargetPath)" || $(_SignCommand) "$(TargetPath)"' ContinueOnError="false" />
