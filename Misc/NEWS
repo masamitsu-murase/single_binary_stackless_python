@@ -2,13 +2,37 @@
 Python News
 +++++++++++
 
-What's New in Python 3.5.2 release candidate 1?
-===============================================
+What's New in Python 3.5.2 final?
+=================================
 
-Release date: tba
+Release date: 2016-06-26
 
 Core and Builtins
 -----------------
+
+- Issue #26930: Update Windows builds to use OpenSSL 1.0.2h.
+
+Tests
+-----
+
+- Issue #26867: Ubuntu's openssl OP_NO_SSLv3 is forced on by default; fix test.
+
+IDLE
+----
+
+- Issue #27365: Allow non-ascii in idlelib/NEWS.txt - minimal part for 3.5.2.
+
+
+What's New in Python 3.5.2 release candidate 1?
+===============================================
+
+Release date: 2016-06-12
+
+Core and Builtins
+-----------------
+
+- Issue #27066: Fixed SystemError if a custom opener (for open()) returns a
+  negative number without setting an exception.
 
 - Issue #20041: Fixed TypeError when frame.f_trace is set to None.
   Patch by Xavier de Gaye.
@@ -127,9 +151,38 @@ Core and Builtins
 - Issue #25887: Raise a RuntimeError when a coroutine object is awaited
   more than once.
 
+- Issue #27243: Update the __aiter__ protocol: instead of returning
+  an awaitable that resolves to an asynchronous iterator, the asynchronous
+  iterator should be returned directly.  Doing the former will trigger a
+  PendingDeprecationWarning.
+
 
 Library
 -------
+
+- Issue #26556: Update expat to 2.1.1, fixes CVE-2015-1283.
+
+- Fix TLS stripping vulnerability in smptlib, CVE-2016-0772.  Reported by Team
+  Oststrom
+
+- Issue #21386: Implement missing IPv4Address.is_global property.  It was
+  documented since 07a5610bae9d.  Initial patch by Roger Luethi.
+
+- Issue #20900: distutils register command now decodes HTTP responses
+  correctly.  Initial patch by ingrid.
+
+- A new version of typing.py provides several new classes and
+  features: @overload outside stubs, Reversible, DefaultDict, Text,
+  ContextManager, Type[], NewType(), TYPE_CHECKING, and numerous bug
+  fixes (note that some of the new features are not yet implemented in
+  mypy or other static analyzers).  Also classes for PEP 492
+  (Awaitable, AsyncIterable, AsyncIterator) have been added (in fact
+  they made it into 3.5.1 but were never mentioned).
+
+- Issue #25738: Stop http.server.BaseHTTPRequestHandler.send_error() from
+  sending a message body for 205 Reset Content.  Also, don't send Content
+  header fields in responses that don't have a body.  Patch by Susumu
+  Koshiba.
 
 - Issue #21313: Fix the "platform" module to tolerate when sys.version
   contains truncated build information.
@@ -480,8 +533,6 @@ Library
 - Skip getaddrinfo if host is already resolved.
   Patch by A. Jesse Jiryu Davis.
 
-- Add asyncio.timeout() context manager.
-
 - Issue #26050: Add asyncio.StreamReader.readuntil() method.
   Patch by Марк Коренберг.
 
@@ -498,8 +549,19 @@ Library
 
 - Issue #27041: asyncio: Add loop.create_future method
 
+- Issue #27223: asyncio: Fix _read_ready and _write_ready to respect
+  _conn_lost.
+  Patch by Łukasz Langa.
+
+- Issue #22970: asyncio: Fix inconsistency cancelling Condition.wait.
+  Patch by David Coles.
+
 IDLE
 ----
+
+- Issue #5124: Paste with text selected now replaces the selection on X11.
+  This matches how paste works on Windows, Mac, most modern Linux apps,
+  and ttk widgets.  Original patch by Serhiy Storchaka.
 
 - Issue #24759: Make clear in idlelib.idle_test.__init__ that the directory
   is a private implementation of test.test_idle and tool for maintainers.
@@ -549,6 +611,8 @@ IDLE
 
 Documentation
 -------------
+
+- Issue #24136: Document the new PEP 448 unpacking syntax of 3.5.
 
 - Issue #26736: Used HTTPS for external links in the documentation if possible.
 
@@ -679,6 +743,12 @@ Tools/Demos
   Patch by Guo Ci Teo.
 
 - Issue #26316: Fix variable name typo in Argument Clinic.
+
+Misc
+----
+
+- Issue #17500, and https://github.com/python/pythondotorg/issues/945: Remove
+  unused and outdated icons.
 
 
 What's New in Python 3.5.1 final?
@@ -1099,6 +1169,9 @@ IDLE
 
 Documentation
 -------------
+
+- Issue #22558: Add remaining doc links to source code for Python-coded modules.
+  Patch by Yoni Lavi.
 
 - Issue #12067: Rewrite Comparisons section in the Expressions chapter of the
   language reference. Some of the details of comparing mixed types were

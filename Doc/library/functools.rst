@@ -3,6 +3,7 @@
 
 .. module:: functools
    :synopsis: Higher-order functions and operations on callable objects.
+
 .. moduleauthor:: Peter Harris <scav@blueyonder.co.uk>
 .. moduleauthor:: Raymond Hettinger <python@rcn.com>
 .. moduleauthor:: Nick Coghlan <ncoghlan@gmail.com>
@@ -176,7 +177,7 @@ The :mod:`functools` module defines the following functions:
           def newfunc(*fargs, **fkeywords):
               newkeywords = keywords.copy()
               newkeywords.update(fkeywords)
-              return func(*(args + fargs), **newkeywords)
+              return func(*args, *fargs, **newkeywords)
           newfunc.func = func
           newfunc.args = args
           newfunc.keywords = keywords
