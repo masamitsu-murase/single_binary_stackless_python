@@ -364,9 +364,9 @@ if sys.platform.startswith("win"):
                     mode = 0
                 if stat.S_ISDIR(mode):
                     _waitfor(_rmtree_inner, fullname, waitall=True)
-                    _force_run(path, os.rmdir, fullname)
+                    _force_run(fullname, os.rmdir, fullname)
                 else:
-                    _force_run(path, os.unlink, fullname)
+                    _force_run(fullname, os.unlink, fullname)
         _waitfor(_rmtree_inner, path, waitall=True)
         _waitfor(lambda p: _force_run(p, os.rmdir, p), path)
 else:
@@ -940,7 +940,7 @@ def temp_dir(path=None, quiet=False):
         yield path
     finally:
         if dir_created and pid == os.getpid():
-            shutil.rmtree(path)
+            rmtree(path)
 
 @contextlib.contextmanager
 def change_cwd(path, quiet=False):
