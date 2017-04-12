@@ -11,7 +11,7 @@ from http.cookies import SimpleCookie
 
 from test.support import (
     TestFailed, TESTFN, run_with_locale, no_tracing,
-    _2G, _4G, bigmemtest,
+    _2G, _4G, bigmemtest, stackless,
     )
 
 from pickle import bytes_types
@@ -400,12 +400,11 @@ DATA3 = b'\x80\x02c__builtin__\nset\nq\x00]q\x01(K\x01K\x02e\x85q\x02Rq\x03.'
 
 # xrange(5) pickled from 2.x with protocol 2
 DATA4 = b'\x80\x02c__builtin__\nxrange\nq\x00K\x00K\x05K\x01\x87q\x01Rq\x02.'
-try:
-    import stackless
+if stackless:
     DATA4_SLP = b'\x80\x02cstackless._wrap\nrange\nq\x00K\x00K\x05K\x01\x87q\x01Rq\x02)b.'
-except:
+else:
     DATA4_SLP = DATA4
-    
+
 
 # a SimpleCookie() object pickled from 2.x with protocol 2
 DATA5 = (b'\x80\x02cCookie\nSimpleCookie\nq\x00)\x81q\x01U\x03key'
@@ -1285,9 +1284,7 @@ class AbstractPickleTests(unittest.TestCase):
         loaded = self.loads(DATA3)
         self.assertEqual(loaded, set([1, 2]))
         loaded = self.loads(DATA4_SLP)
-        try:
-            import stackless
-        except ImportError:
+        if not stackless:
             self.assertEqual(type(loaded), type(range(0)))
         else:
             pass # stackless provides a fake range for unpickling

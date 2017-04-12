@@ -21,12 +21,6 @@ import operator
 import test.support
 import test.script_helper
 
-try:
-    import stackless
-    usingStackless = True
-except ImportError:
-    usingStackless = False
-
 
 # Skip tests if _multiprocessing wasn't built.
 _multiprocessing = test.support.import_module('_multiprocessing')
@@ -1858,7 +1852,7 @@ class _TestPoolWorkerErrors(BaseTestCase):
         p.close()
         p.join()
 
-    @unittest.skipIf(usingStackless, "Stackless can pickle lambdas")
+    @unittest.skipIf(test.support.stackless, "Stackless can pickle lambdas")
     def test_unpickleable_result(self):
         from multiprocessing.pool import MaybeEncodingError
         p = multiprocessing.Pool(2)

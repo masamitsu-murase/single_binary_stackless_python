@@ -3,6 +3,7 @@ import builtins
 import warnings
 import os
 from platform import system as platform_system
+from test.support import stackless
 
 
 class ExceptionClassTests(unittest.TestCase):
@@ -32,11 +33,6 @@ class ExceptionClassTests(unittest.TestCase):
         inheritance_tree = open(os.path.join(os.path.split(__file__)[0],
                                                 'exception_hierarchy.txt'))
         try:
-            import stackless
-            haveStackless = True
-        except:
-            haveStackless = False
-        try:
             superclass_name = inheritance_tree.readline().rstrip()
             try:
                 last_exc = getattr(builtins, superclass_name)
@@ -61,7 +57,7 @@ class ExceptionClassTests(unittest.TestCase):
                 if '[' in exc_name:
                     left_bracket = exc_name.index('[')
                     exc_name = exc_name[:left_bracket-1]  # cover space
-                if not haveStackless and exc_name == "TaskletExit":
+                if stackless is None and exc_name == "TaskletExit":
                     exc_set.discard(exc_name)
                     continue
                 try:
