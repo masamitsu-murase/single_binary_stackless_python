@@ -31,6 +31,11 @@ import urllib.error
 import warnings
 
 try:
+    import stackless
+except ImportError:
+    stackless = None
+
+try:
     import _thread, threading
 except ImportError:
     _thread = None

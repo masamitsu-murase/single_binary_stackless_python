@@ -13,7 +13,7 @@ from http.cookies import SimpleCookie
 
 from test.support import (
     TestFailed, TESTFN, run_with_locale, no_tracing,
-    _2G, _4G, bigmemtest,
+    _2G, _4G, bigmemtest, stackless,
     )
 
 from pickle import bytes_types
@@ -403,12 +403,9 @@ DATA3 = b'\x80\x02c__builtin__\nset\nq\x00]q\x01(K\x01K\x02e\x85q\x02Rq\x03.'
 
 # xrange(5) pickled from 2.x with protocol 2
 DATA4 = b'\x80\x02c__builtin__\nxrange\nq\x00K\x00K\x05K\x01\x87q\x01Rq\x02.'
-try:
-    import stackless
-    has_stackless = True
+if stackless:
     DATA4_SLP = b'\x80\x02cstackless._wrap\nrange\nq\x00K\x00K\x05K\x01\x87q\x01Rq\x02)b.'
-except ImportError:
-    has_stackless = False
+else:
     DATA4_SLP = DATA4
 
 
@@ -1348,7 +1345,7 @@ class AbstractPickleTests(unittest.TestCase):
         loaded = self.loads(DATA3)
         self.assertEqual(loaded, set([1, 2]))
         loaded = self.loads(DATA4_SLP)
-        if not has_stackless:
+        if not stackless:
             # stackless provides a fake range for unpickling
             self.assertEqual(type(loaded), type(range(0)))
         self.assertEqual(list(loaded), list(range(5)))
@@ -1774,7 +1771,7 @@ class AbstractPickleTests(unittest.TestCase):
     def test_local_lookup_error(self):
         # Test that whichmodule() errors out cleanly when looking up
         # an assumed globally-reachable object fails.
-        if has_stackless:
+        if stackless:
             self.skipTest("Stackless can pickle functions by value")
         def f():
             pass
