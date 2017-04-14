@@ -209,6 +209,64 @@ slp_reduce_frame(PyFrameObject * frame) {
     return PyObject_CallFunctionObjArgs(reduce_frame_func, (PyObject *)frame, NULL);
 }
 
+/* Helper function for gen_setstate and tb_setstate.
+ * It unwraps the first argument of the args tuple, if it is a _Frame_Wrapper.
+ * Returns a new reference to an argument tuple.
+ *
+ * This functionality is required, to adhere to the __reduce__/__setstate__ protocol.
+ * It requires, that __setstate__ accepts the state returned by __reduce__. (copy.copy()
+ * depends on it.)
+ */
+static PyObject *
+unwrap_frame_arg(PyObject * args) {
+    PyObject *wrapper_type, *arg0, *result;
+    int is_instance;
+    Py_ssize_t len, i;
+
+    if (!PyTuple_Check(args) || (len = PyTuple_Size(args)) < 1) {
+        if (len < 0)
+            return NULL;
+        Py_INCREF(args);
+        return args;
+    }
+    if ((arg0 = PyTuple_GetItem(args, 0)) == NULL) /* arg0 is a borrowed reference */
+        return NULL;
+    if ((wrapper_type = PyObject_GetAttrString(reduce_frame_func, "__self__")) == NULL)
+        return NULL;
+    is_instance = PyObject_IsInstance(arg0, wrapper_type);
+    Py_DECREF(wrapper_type);
+    if (is_instance == 0) {
+        Py_INCREF(args);
+        return args;
+    } else if (is_instance == -1) {
+        return NULL;
+    }
+    if ((arg0 = PyObject_GetAttrString(arg0, "frame")) == NULL)
+        return NULL;
+    if ((result = PyTuple_New(len)) == NULL) {
+        Py_DECREF(arg0);
+        return NULL;
+    }
+    if (PyTuple_SetItem(result, 0, arg0)) { /* steals ref to arg0 */
+        Py_DECREF(arg0);
+        Py_DECREF(result);
+        return NULL;
+    }
+    for (i=1; i<len; i++) {
+        if ((arg0 = PyTuple_GetItem(args, i)) == NULL) {
+            Py_DECREF(result);
+            return NULL;
+        }
+        /* arg0 is a borrowed reference */
+        Py_INCREF(arg0);
+        if (PyTuple_SetItem(result, i, arg0)) { /* steals ref to arg0 */
+            Py_DECREF(arg0);
+            Py_DECREF(result);
+            return NULL;
+        }
+    }
+    return result;
+}
 
 static struct PyMethodDef _new_methoddef[] = {
     {"__new__", (PyCFunction)_new_wrapper, METH_VARARGS | METH_KEYWORDS,
@@ -1230,11 +1288,17 @@ tb_setstate(PyObject *self, PyObject *args)
 
     if (is_wrong_type(Py_TYPE(tb))) return NULL;
 
+    if ((args = unwrap_frame_arg(args)) == NULL)  /* now args is a counted ref! */
+        return NULL;
+
     if (!PyArg_ParseTuple(args,
                           "O!ii|O!:traceback",
                           &PyFrame_Type, &frame,
-                          &lasti, &lineno,&PyTraceBack_Type, &next))
+                          &lasti, &lineno,&PyTraceBack_Type, &next)) {
+        Py_DECREF(args);
         return NULL;
+    }
+    Py_DECREF(args);
 
     Py_XINCREF(next);
     tb->tb_next = next;
@@ -2319,9 +2383,16 @@ gen_setstate(PyObject *self, PyObject *args)
     PyObject *qualname = NULL;
 
     if (is_wrong_type(Py_TYPE(self))) return NULL;
-    if (!PyArg_ParseTuple(args, "O!i|OO:generator",
-                          &PyFrame_Type, &f, &gi_running, &name, &qualname))
+
+    if ((args = unwrap_frame_arg(args)) == NULL)  /* now args is a counted ref! */
         return NULL;
+
+    if (!PyArg_ParseTuple(args, "O!i|OO:generator",
+                          &PyFrame_Type, &f, &gi_running, &name, &qualname)) {
+        Py_DECREF(args);
+        return NULL;
+    }
+    Py_DECREF(args);
 
     if (name == NULL) {
         name = f->f_code->co_name;
