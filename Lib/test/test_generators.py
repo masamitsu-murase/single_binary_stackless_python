@@ -113,6 +113,7 @@ class GeneratorTest(unittest.TestCase):
         self.assertEqual(gen.__qualname__,
                          "GeneratorTest.test_name.<locals>.<genexpr>")
 
+    @unittest.skipIf(support.stackless, "Stackless can copy generators")
     def test_copy(self):
         def f():
             yield 1
@@ -120,6 +121,7 @@ class GeneratorTest(unittest.TestCase):
         with self.assertRaises(TypeError):
             copy.copy(g)
 
+    @unittest.skipIf(support.stackless, "Stackless can pickle generators")
     def test_pickle(self):
         def f():
             yield 1
