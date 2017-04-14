@@ -9,6 +9,9 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/128
+  Fix pickling of the module 'stackless'.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/127
   Disable the Stackless specific code for pickling 'iterator' and
   'callable_iterator' objects. C-Python 3.3 already pickles them. Stackless-3.5
