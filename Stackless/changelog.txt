@@ -10,6 +10,9 @@ What's New in Stackless 2.7.XX?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/127
+  Fix pickling of 'callable-iterator' objects.
+
 
 What's New in Stackless 2.7.13?
 ===============================

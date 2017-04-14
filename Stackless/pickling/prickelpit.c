@@ -1387,7 +1387,7 @@ calliter_reduce(calliterobject *iterator)
 {
     PyObject *tup;
 
-    tup = Py_BuildValue("(O(OO))",
+    tup = Py_BuildValue("(O(OO)())",
                         &wrap_PyCallIter_Type,
                         iterator->it_callable,
                         iterator->it_sentinel);

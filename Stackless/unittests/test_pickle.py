@@ -9,6 +9,7 @@ import types
 import unittest
 import gc
 import inspect
+import copy
 
 from stackless import schedule, tasklet, stackless
 
@@ -653,6 +654,120 @@ class TestOldStackless_WrapFactories(StacklessPickleTestCase):
         self.assertIs(type(x), xrange)
         self.assertEqual(repr(x), repr(xrange(123, 798, 45)))
 
+
+class TestCopy(StacklessTestCase):
+    ITERATOR_TYPE = type(iter("abc"))
+
+    def _test(self, obj, *attributes, **kw):
+        expected_type = kw.get("expected_type", type(obj))
+        c = copy.copy(obj)
+        try:
+            obj_hash = hash(obj)
+        except TypeError:
+            obj_hash = None
+        if obj_hash is None:
+            self.assertIsNot(c, obj)
+        if c is obj:
+            return
+        self.assertIs(type(c), expected_type)
+        for name in attributes:
+            value_obj = getattr(obj, name)
+            value_c = getattr(c, name)
+            # it is a shallow copy, therefore the attributes should
+            # refer to the same objects
+            self.assertIs(value_c, value_obj)
+
+    def test_code(self):
+        def f():
+            pass
+        obj = f.__code__
+        self._test(obj, "co_argcount", "co_nlocals", "co_stacksize", "co_flags",
+                   "co_code", "co_consts", "co_names", "co_varnames", "co_filename",
+                   "co_name", "co_firstlineno", "co_lnotab", "co_freevars", "co_cellvars")
+
+    def test_cell(self):
+        def create_cell(obj):
+            return (lambda: obj).__closure__[0]
+        obj = create_cell(None)
+        self._test(obj, 'cell_contents')
+
+    def test_function(self):
+        def obj():
+            pass
+        self._test(obj, '__code__', '__globals__', '__name__', '__defaults__', '__closure__')
+
+    def test_frame(self):
+        obj = sys._getframe()
+        self._test(obj, 'f_code', 'f_globals')
+
+    def test_traceback(self):
+        try:
+            1 // 0
+        except ZeroDivisionError:
+            obj = sys.exc_info()[2]
+        self._test(obj, 'tb_frame', 'tb_next')
+
+    def test_module(self):
+        import tabnanny as obj
+        self._test(obj, '__name__', '__dict__')
+
+    def test_iterator(self):
+        obj = iter("abc")
+        self._test(obj)
+
+    def test_callable_iterator(self):
+        obj = iter(lambda: None, None)
+        self._test(obj)
+
+    def test_method(self):
+        obj = self.id
+        self._test(obj, '__func__', '__self__')
+
+    def test_dict_iterkey(self):
+        obj = {1: 10, "a": "ABC"}.iterkeys()
+        self._test(obj, expected_type=self.ITERATOR_TYPE)
+
+    def test_dict_itervalues(self):
+        obj = {1: 10, "a": "ABC"}.itervalues()
+        self._test(obj, expected_type=self.ITERATOR_TYPE)
+
+    def test_dict_iteritems(self):
+        obj = {1: 10, "a": "ABC"}.iteritems()
+        self._test(obj, expected_type=self.ITERATOR_TYPE)
+
+    def test_set_iter(self):
+        obj = iter(set([1, 2, 3]))
+        self._test(obj, expected_type=self.ITERATOR_TYPE)
+
+    def test_enumerate(self):
+        obj = enumerate([1, 2, 3])
+        self._test(obj)
+
+    def test_list_iter(self):
+        obj = iter([1, 2, 3])
+        self._test(obj, expected_type=self.ITERATOR_TYPE)
+
+    def test_range_iter(self):
+        obj = iter(xrange(10))
+        self._test(obj)
+
+    def test_tuple_iter(self):
+        obj = iter(("a", 2, 3))
+        self._test(obj, expected_type=self.ITERATOR_TYPE)
+
+    def test_range(self):
+        obj = xrange(10)
+        self._test(obj)
+
+    def test_method_wrapper(self):
+        obj = [].__len__
+        self._test(obj, '__objclass__', '__self__')
+
+    def test_generator(self):
+        def g():
+            yield 1
+        obj = g()
+        self._test(obj, 'gi_running', 'gi_code')
 
 if __name__ == '__main__':
     if not sys.argv[1:]:
