@@ -10,6 +10,9 @@ What's New in Stackless 2.7.XX?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/128
+  Fix pickling of the module 'stackless'.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/127
   Fix pickling of 'callable-iterator' objects.
 

@@ -22,7 +22,7 @@ sys.modules["stackless._wrap"] = _wrap
 
 def __reduce__():
     return "stackless"
-def __reduce_ex_(*args):
+def __reduce_ex__(*args):
     return "stackless"
 
 __all__ = ['atomic',
