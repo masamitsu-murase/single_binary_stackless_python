@@ -201,7 +201,8 @@ static struct PyMethodDef _new_methoddef[] = {
     {0}
 };
 
-static int init_type(PyTypeObject *t, int (*initchain)(void))
+static int 
+init_type_ex(PyTypeObject *t, int (*initchain)(void), int register_reduce)
 {
     PyMethodDescrObject *reduce;
     PyWrapperDescrObject *init;
@@ -230,15 +231,18 @@ static int init_type(PyTypeObject *t, int (*initchain)(void))
     if (func == NULL || PyDict_SetItemString(t->tp_dict, "__new__", func))
         return -1;
     /* register with copy_reg */
-    if (pickle_reg != NULL &&
-        (retval = PyObject_CallFunction(pickle_reg, "OO",
-                                        t->tp_base, reduce)) == NULL)
-        ret = -1;
+    if (register_reduce) {
+        if (pickle_reg != NULL &&
+            (retval = PyObject_CallFunction(pickle_reg, "OO",
+                                            t->tp_base, reduce)) == NULL)
+            ret = -1;
+    }
     Py_XDECREF(retval);
     if (ret == 0 && initchain != NULL)
         ret = initchain();
     return ret;
 }
+#define init_type(t_, initchain_) init_type_ex((t_), (initchain_), 1)
 
 /* root of init function chain */
 
@@ -1427,8 +1431,8 @@ MAKE_WRAPPERTYPE(PyCallIter_Type, calliter, "callable_iterator",
 
 static int init_itertype(void)
 {
-    return init_type(&wrap_PySeqIter_Type, NULL)
-        || init_type(&wrap_PyCallIter_Type, initchain);
+    return init_type_ex(&wrap_PySeqIter_Type, NULL, 0)
+        || init_type_ex(&wrap_PyCallIter_Type, initchain, 0);
 }
 #undef initchain
 #define initchain init_itertype
