@@ -690,14 +690,6 @@ class TestCopy(StacklessTestCase):
         import tabnanny as obj
         self._test(obj, '__name__', '__dict__')
 
-    def test_iterator(self):
-        obj = iter("abc")
-        self._test(obj)
-
-    def test_callable_iterator(self):
-        obj = iter(lambda: None, None)
-        self._test(obj)
-
     def test_method(self):
         obj = self.id
         self._test(obj, '__func__', '__self__')

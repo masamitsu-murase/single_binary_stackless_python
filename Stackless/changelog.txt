@@ -10,9 +10,13 @@ What's New in Stackless 3.X.X?
 *Release date: 20XX-XX-XX*
 
 - https://bitbucket.org/stackless-dev/stackless/issues/127
-  Fix pickling of 'callable-iterator' and 'method-wrapper' objects.
-  Fix copy.copy() for 'callable-iterator', 'method', 'dict_keys', 'dict_values'
-  and 'dict_items' objects.
+  Disable the Stackless specific code for pickling 'iterator' and
+  'callable_iterator' objects. C-Python 3.3 already pickles them. Stackless-3.5
+  can't read pickles of 'iterator' or 'callable_iterator' objects created with
+  Stackless 3.4.2 or older versions.
+  Fix pickling of 'method-wrapper' objects.
+  Fix copy.copy() for 'method', 'dict_keys', 'dict_values' and 'dict_items'
+  objects.
 
 - https://bitbucket.org/stackless-dev/stackless/issues/126
   Load the module stackless early in all C-Python tests. This ensures a defined
