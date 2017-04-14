@@ -79,7 +79,8 @@ def transmogrify():
     from copyreg import pickle
     for name in dir(_wrap):
         cls = getattr(_wrap, name, None)
-        if isinstance(cls, type) and cls.__name__ != "frame":
+        if (isinstance(cls, type) and 
+            cls.__name__ not in ("frame", "iterator", "callable_iterator")):
             pickle(cls.__bases__[0], cls.__reduce__)
 
     try:

@@ -727,6 +727,77 @@ class TestCopy(StacklessTestCase):
         obj = d.items()
         self._test(obj)
 
+
+class SimpleSequence:
+    def __getitem__(self, n):
+        if n < 3:
+            return n
+        raise IndexError
+
+
+class TestOldStackless_WrapFactories(StacklessPickleTestCase):
+    def test_iterator(self):
+        # Stackless prior to version 3.3.7 used to register its own __reduce__
+        # method for 'iterator' with copy_reg. This method returned the function
+        # stackless._wrap.iterator as iterator factory.
+        #
+        # This test case ensures that stackless can still unpickle old pickles:
+
+        # an old pickle, protocol 0 of iter(SimpleSequence())
+        p = b'c_stackless._wrap\niterator\n(ccopy_reg\n_reconstructor\n(ctest_pickle\nSimpleSequence\nc__builtin__\nobject\nNtRL0L\ntR(tb.'
+
+        # Output of
+        # from pickletools import dis; dis(p)
+        #    0: c    GLOBAL     '_stackless._wrap iterator'
+        #   27: (    MARK
+        #   28: c        GLOBAL     'copy_reg _reconstructor'
+        #   53: (        MARK
+        #   54: c            GLOBAL     'test_pickle SimpleSequence'
+        #   82: c            GLOBAL     '__builtin__ object'
+        #  102: N            NONE
+        #  103: t            TUPLE      (MARK at 53)
+        #  104: R        REDUCE
+        #  105: L        LONG       0
+        #  109: t        TUPLE      (MARK at 27)
+        #  110: R    REDUCE
+        #  111: (    MARK
+        #  112: t        TUPLE      (MARK at 111)
+        #  113: b    BUILD
+        #  114: .    STOP
+        # highest protocol among opcodes = 0
+
+        x = self.loads(p)
+        self.assertIs(type(x), type(iter(SimpleSequence())))
+        self.assertListEqual(list(x), [0, 1, 2])
+
+    def test_callable_iterator(self):
+        # Stackless prior to version 3.3.7 used to register its own __reduce__
+        # method for 'callable_iterator' with copy_reg. This method returned the function
+        # stackless._wrap.callable_iterator as callable_iterator factory.
+        #
+        # This test case ensures that stackless can still unpickle old pickles:
+
+        # an old pickle, protocol 0 of iter(bool, False)
+        p = b'c_stackless._wrap\ncallable_iterator\n(c__builtin__\nbool\nI00\ntR.'
+
+        # Output of
+        # from pickletools import dis; dis(p)
+        #    0: c    GLOBAL     '_stackless._wrap callable_iterator'
+        #   36: (    MARK
+        #   37: c        GLOBAL     '__builtin__ bool'
+        #   55: I        INT        False
+        #   59: t        TUPLE      (MARK at 36)
+        #   60: R    REDUCE
+        #   61: .    STOP
+        # highest protocol among opcodes = 0
+
+        x = self.loads(p)
+        # Use assertIsInstance, because x may be a subclass of i.
+        # See bug https://bitbucket.org/stackless-dev/stackless/issues/127
+        self.assertIsInstance(x, type(iter(bool, False)))
+        self.assertListEqual(list(x), [])
+
+
 if __name__ == '__main__':
     if not sys.argv[1:]:
         sys.argv.append('-v')
