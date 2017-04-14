@@ -74,6 +74,7 @@ What's New in Stackless 3.X.X?
 - https://bitbucket.org/stackless-dev/stackless/issues/107
   Improve unpickling of traceback objects. Stackless now reconstructs the
   frame.f_back linkage in frames directly referenced by traceback objects.
+  Stackless no longer pretends to be able to pickle arbitrary frame objects.
 
 - https://bitbucket.org/stackless-dev/stackless/issues/110
   Remove the already non functional remains of psyco support.
