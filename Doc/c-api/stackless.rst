@@ -10,9 +10,9 @@ Tasklets
 
 .. c:function:: PyTaskletObject *PyTasklet_New(PyTypeObject *type, PyObject *func)
 
-  Return a new tasklet object.  *type* must be derived from :c:type:`PyTasklet_Type`
-  or *NULL*.  *func* must be a callable object (normal use-case) or *NULL*, if the
-  tasklet is being used via capture().
+  Return a new tasklet object. *type* must be derived from :c:type:`PyTasklet_Type`
+  or ``NULL``. *func* must be a callable object or ``NULL`` or :c:macro:`Py_None`. If *func*
+  is ``NULL`` or :c:macro:`Py_None` you must set it later with :c:func:`PyTasklet_BindEx`.
 
 .. todo: in the case where NULL is returned and slp_ensure_linkage fails no
    exception is set, which is in contrast elsewhere in the function.
@@ -87,7 +87,7 @@ Tasklets
 .. c:function:: int PyTasklet_Kill(PyTaskletObject *self)
 
   Raises :exc:`TaskletExit` on tasklet *self*.  This should result in *task* being
-  silently killed. (This exception is ignored by tasklet_end and 
+  silently killed. (This exception is ignored by tasklet_end and
   does not invoke main as exception handler.)
   Returns ``1`` if the call soft switched, ``0`` if the call hard
   switched and ``-1`` in the case of failure.
@@ -211,7 +211,7 @@ Channels
 
 .. c:function:: int PyChannel_SendThrow(PyChannelObject *self, PyObject *exc, PyObject *val, PyObject *tb)
 
-  Returns ``0`` if successful or ``-1`` in the case of failure.  
+  Returns ``0`` if successful or ``-1`` in the case of failure.
   (*exc*, *val*, *tb*) is raised on the first tasklet blocked on channel *self*.
 
 .. c:function:: PyObject *PyChannel_GetQueue(PyChannelObject *self)
@@ -288,20 +288,20 @@ stackless module
 .. c:function:: long PyStackless_GetCurrentId()
 
   Get a unique integer ID for the current tasklet
-  
+
   Threadsafe.
-  
+
   This is useful for benchmarking code that
   needs to get some sort of a stack identifier and must
   not worry about the GIL being present and so on.
- 
+
   .. note::
-  
-     1. the "main" tasklet on each thread will have the same id, 
+
+     1. the "main" tasklet on each thread will have the same id,
         even if a proper tasklet has not been initialized.
-        
+
      2. IDs may get recycled for new tasklets.
- 
+
 .. c:function:: PyObject *PyStackless_RunWatchdog(long timeout)
 
   Runs the scheduler until there are no tasklets remaining within it, or until
