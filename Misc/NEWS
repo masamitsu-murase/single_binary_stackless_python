@@ -1,6 +1,18 @@
-﻿+++++++++++
++++++++++++
 Python News
 +++++++++++
+
+What's New in Python 3.6.0 alpha 1?
+===================================
+
+Release date: XXXX-XX-XX
+
+Core and Builtins
+-----------------
+
+Library
+-------
+
 
 What's New in Python 3.5.0 beta 2?
 ==================================
@@ -10,8 +22,20 @@ Release date: 2015-07-05
 Core and Builtins
 -----------------
 
+- Issue #24328: Fix importing one character extension modules.
+
+- Issue #11205: In dictionary displays, evaluate the key before the value.
+
+- Issue #24285: Fixed regression that prevented importing extension modules
+  from inside packages. Patch by Petr Viktorin.
+
 Library
 -------
+
+- Issue #24326: Fixed audioop.ratecv() with non-default weightB argument.
+  Original patch by David Moore.
+
+- Issue #16991: Add a C implementation of OrderedDict.
 
 
 What's New in Python 3.5.0 beta 1?
@@ -24,7 +48,11 @@ Core and Builtins
 
 - Issue #24276: Fixed optimization of property descriptor getter.
 
-- Issue #24268: PEP 489: Multi-phase extension module initialization
+- Issue #24268: PEP 489: Multi-phase extension module initialization.
+  Patch by Petr Viktorin.
+
+- Issue #23359: Optimize set object internals by specializing the
+  hash table search into a lookup function and an insert function.
 
 - Issue #23955: Add pyvenv.cfg option to suppress registry/environment
   lookup for generating sys.path on Windows.
@@ -44,12 +72,6 @@ Core and Builtins
 
 - Issue #23290:  Optimize set_merge() for cases where the target is empty.
   (Contributed by Serhiy Storchaka.)
-
-- Issue #20274: When calling a _sqlite.Connection, it now complains if passed
-  any keyword arguments.  Previously it silently ignored them.
-
-- Issue #20274: Remove ignored and erroneous "kwargs" parameters from three
-  METH_VARARGS methods on _sqlite.Connection.
 
 - Issue #2292: PEP 448: Additional Unpacking Generalizations.
 
@@ -175,6 +197,12 @@ Library
   (utf8/internationalized email) and automatically encodes non-ASCII
   usernames and passwords to UTF8.
 
+- Issue #20274: When calling a _sqlite.Connection, it now complains if passed
+  any keyword arguments.  Previously it silently ignored them.
+
+- Issue #20274: Remove ignored and erroneous "kwargs" parameters from three
+  METH_VARARGS methods on _sqlite.Connection.
+
 - Issue #24134: assertRaises(), assertRaisesRegex(), assertWarns() and
   assertWarnsRegex() checks now emits a deprecation warning when callable is
   None or keyword arguments except msg is passed in the context manager mode.
@@ -243,6 +271,9 @@ Library
 
 - Issue #23898: Fix inspect.classify_class_attrs() to support attributes
   with overloaded __eq__ and __bool__.  Patch by Mike Bayer.
+
+- Issue #24298: Fix inspect.signature() to correctly unwrap wrappers
+  around bound methods.
 
 IDLE
 ----
@@ -322,6 +353,9 @@ Core and Builtins
 
 Library
 -------
+
+- Issue #23840: tokenize.open() now closes the temporary binary file on error
+  to fix a resource warning.
 
 - Issue #16914: new debuglevel 2 in smtplib adds timestamps to debug output.
 
@@ -3512,7 +3546,7 @@ Library
 - Issue #19782: imaplib now supports SSLContext.check_hostname and server name
   indication for TLS/SSL connections.
 
-- Issue 20123: Fix pydoc.synopsis() for "binary" modules.
+- Issue #20123: Fix pydoc.synopsis() for "binary" modules.
 
 - Issue #19834: Support unpickling of exceptions pickled by Python 2.
 
@@ -6782,7 +6816,7 @@ Documentation
 
 - Issue #15940: Specify effect of locale on time functions.
 
-- Issue 17538: Document XML vulnerabilties
+- Issue #17538: Document XML vulnerabilties
 
 - Issue #16642: sched.scheduler timefunc initial default is time.monotonic.
   Patch by Ramchandra Apte

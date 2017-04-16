@@ -2532,7 +2532,7 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
         }
 
         TARGET(GET_AITER) {
-            getaiterfunc getter = NULL;
+            unaryfunc getter = NULL;
             PyObject *iter = NULL;
             PyObject *awaitable = NULL;
             PyObject *obj = TOP();
@@ -2579,7 +2579,7 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
         }
 
         TARGET(GET_ANEXT) {
-            aiternextfunc getter = NULL;
+            unaryfunc getter = NULL;
             PyObject *next_iter = NULL;
             PyObject *awaitable = NULL;
             PyObject *aiter = TOP();
@@ -3189,8 +3189,8 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
                 goto error;
             while (--oparg >= 0) {
                 int err;
-                PyObject *key = TOP();
-                PyObject *value = SECOND();
+                PyObject *value = TOP();
+                PyObject *key = SECOND();
                 STACKADJ(-2);
                 err = PyDict_SetItem(map, key, value);
                 Py_DECREF(value);
@@ -3282,21 +3282,6 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
             while (num_maps--)
                 Py_DECREF(POP());
             PUSH(sum);
-            DISPATCH();
-        }
-
-        TARGET(STORE_MAP) {
-            PyObject *key = TOP();
-            PyObject *value = SECOND();
-            PyObject *map = THIRD();
-            int err;
-            STACKADJ(-2);
-            assert(PyDict_CheckExact(map));
-            err = PyDict_SetItem(map, key, value);
-            Py_DECREF(value);
-            Py_DECREF(key);
-            if (err != 0)
-                goto error;
             DISPATCH();
         }
 
