@@ -1,0 +1,10 @@
+
+ProjectDir = ..
+externalsDir = $(ProjectDir)\externals
+opensslDir = $(externalsDir)\openssl-1.0.2k
+
+all:
+    MSBuild $(ProjectDir)\PCbuild\libeay.vcxproj /t:build /p:Configuration=Release;Platform=Win32
+
+clean:
+    MSBuild $(ProjectDir)\PCbuild\libeay.vcxproj /t:clean

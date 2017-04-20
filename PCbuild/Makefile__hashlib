@@ -6,7 +6,7 @@ externalsDir = $(ProjectDir)\externals
 
 !include common_arch.mak
 
-INCLUDES = /I "$(ProjectDir)\externals\openssl-1.0.2j\include64" /I "$(ProjectDir)\Include" /I "$(ProjectDir)\PC" /I "$(ProjectDir)\Stackless"
+INCLUDES = /I "$(ProjectDir)\externals\openssl-1.0.2k\include32" /I "$(ProjectDir)\Include" /I "$(ProjectDir)\PC" /I "$(ProjectDir)\Stackless"
 DEFINES = /D "Py_BUILD_CORE" /D "Py_ENABLE_SHARED" /D "WIN32" /D "NDEBUG"
 CFLAGS = /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi
 LFLAGS = /NOLOGO /LTCG

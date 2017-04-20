@@ -10,15 +10,15 @@ LINK = link.exe
 INCLUDES = /I "$(ProjectDir)\Python" /I "$(ProjectDir)\Modules\zlib" /I "$(ProjectDir)\Include" /I "$(ProjectDir)\PC" /I "$(ProjectDir)\Stackless" 
 DEFINES = /D "Py_BUILD_CORE" /D "Py_ENABLE_SHARED" /D "WIN32" /D "_CONSOLE" /D "NDEBUG" 
 CFLAGS = /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi
-LFLAGS = /NOLOGO /LTCG /NODEFAULTLIB:"libc" /IMPLIB:"python27.lib" /DEBUG /SUBSYSTEM:CONSOLE /STACK:2000000 /MACHINE:X64
-#LFLAGS = /NOLOGO /LTCG /NODEFAULTLIB:"libc" /IMPLIB:"python27.lib" /DEBUG /SUBSYSTEM:CONSOLE /STACK:2000000 /MACHINE:X86
+#LFLAGS = /NOLOGO /LTCG /NODEFAULTLIB:"libc" /IMPLIB:"python27.lib" /DEBUG /SUBSYSTEM:CONSOLE /STACK:2000000 /MACHINE:X64
+LFLAGS = /NOLOGO /LTCG /NODEFAULTLIB:"libc" /IMPLIB:"python27.lib" /DEBUG /SUBSYSTEM:CONSOLE /STACK:2000000 /MACHINE:X86
 
 # LIBS = _bsddb.lib _ctypes.lib _elementtree.lib _hashlib.lib _msi.lib _multiprocessing.lib _socket.lib _sqlite3.lib \
 #       _ssl.lib bz2.lib pyexpat.lib pythoncore.lib select.lib sqlite3.lib unicodedata.lib winsound.lib pythoncore.lib
 LIBS = _bsddb.lib _ctypes.lib _elementtree.lib _hashlib.lib _msi.lib _multiprocessing.lib _socket.lib _sqlite3.lib \
        _ssl.lib bz2.lib pyexpat.lib pythoncore.lib select.lib sqlite3.lib unicodedata.lib winsound.lib pythoncore.lib
 EXTERNAL_LIBS = shell32.lib user32.lib advapi32.lib ws2_32.lib ole32.lib oleaut32.lib gdi32.lib crypt32.lib msi.lib cabinet.lib rpcrt4.lib winmm.lib \
-          $(ProjectDir)\PCbuild\amd64\libeay.lib $(ProjectDir)\PCbuild\amd64\ssleay.lib
+          $(ProjectDir)\PCbuild\libeay.lib $(ProjectDir)\PCbuild\ssleay.lib
 #EXTERNAL_LIBS = shell32.lib user32.lib advapi32.lib ws2_32.lib ole32.lib oleaut32.lib gdi32.lib crypt32.lib msi.lib cabinet.lib rpcrt4.lib winmm.lib \
 #          $(externalsDir)\openssl-1.0.1l\out32\libeay32.lib $(externalsDir)\openssl-1.0.1l\out32\ssleay32.lib
 TARGET = python.exe
@@ -33,6 +33,8 @@ $(TARGET): $(ProjectDir)\Modules\python.obj lib
 	$(LINK) /OUT:$(TARGET) $(LFLAGS) $(ProjectDir)\Modules\python.obj $(LIBS) $(EXTERNAL_LIBS)
 
 lib:
+	$(MAKE) /$(MAKEFLAGS) /f Makefile_ssleay
+	$(MAKE) /$(MAKEFLAGS) /f Makefile_libeay
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__bsddb
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__ctypes
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__elementtree
@@ -51,6 +53,8 @@ lib:
 	$(MAKE) /$(MAKEFLAGS) /f Makefile_pythoncore
 
 clean:
+	-$(MAKE) /$(MAKEFLAGS) /f Makefile_ssleay clean
+	-$(MAKE) /$(MAKEFLAGS) /f Makefile_libeay clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__bsddb clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__ctypes clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__elementtree clean

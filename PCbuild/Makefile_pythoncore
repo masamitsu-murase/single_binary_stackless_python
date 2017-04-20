@@ -200,7 +200,6 @@ OBJS = $(ProjectDir)\Modules\_bisectmodule.obj \
           $(ProjectDir)\Stackless\core\stacklesseval.obj \
           $(ProjectDir)\Stackless\pickling\prickelpit.obj \
           $(ProjectDir)\Stackless\pickling\safe_pickle.obj \
-          $(ProjectDir)\Stackless\platf\switch_x64_masm.obj \
           $(ProjectDir)\Modules\getbuildinfo.obj
 
 !include common.mak

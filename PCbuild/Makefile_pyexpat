@@ -12,6 +12,7 @@ TARGET = pyexpat.lib
 
 
 OBJS = $(ProjectDir)\Modules\pyexpat.obj \
+          $(ProjectDir)\Modules\expat\loadlibrary.obj \
           $(ProjectDir)\Modules\expat\xmlparse.obj \
           $(ProjectDir)\Modules\expat\xmlrole.obj \
           $(ProjectDir)\Modules\expat\xmltok.obj

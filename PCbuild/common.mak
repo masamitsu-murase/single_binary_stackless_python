@@ -1,7 +1,7 @@
 
 CC = cl.exe
 LIB = lib.exe
-ASM = ml64.exe
+ASM = ml.exe
 
 !include common_arch.mak
 

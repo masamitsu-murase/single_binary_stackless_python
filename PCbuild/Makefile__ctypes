@@ -19,7 +19,6 @@ OBJS = $(ProjectDir)\Modules\_ctypes\_ctypes.obj \
           $(ProjectDir)\Modules\_ctypes\malloc_closure.obj \
           $(ProjectDir)\Modules\_ctypes\libffi_msvc\prep_cif.obj \
           $(ProjectDir)\Modules\_ctypes\stgdict.obj \
-          $(ProjectDir)\Modules\_ctypes\libffi_msvc\win64.obj
-#          $(ProjectDir)\Modules\_ctypes\libffi_msvc\win32.obj
+          $(ProjectDir)\Modules\_ctypes\libffi_msvc\win32.obj
 
 !include common.mak
