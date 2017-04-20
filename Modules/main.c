@@ -278,7 +278,7 @@ Py_Main(int argc, char **argv)
         }
         switch (c) {
         case 'E':
-            Py_IgnoreEnvironmentFlag++;
+            Py_IgnoreEnvironmentFlag--;
             break;
         case 'R':
             Py_HashRandomizationFlag++;
@@ -376,7 +376,7 @@ Py_Main(int argc, char **argv)
             break;
 
         case 'B':
-            Py_DontWriteBytecodeFlag++;
+            Py_DontWriteBytecodeFlag--;
             break;
 
         case 's':
