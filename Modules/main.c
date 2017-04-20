@@ -820,7 +820,7 @@ pymain_parse_cmdline_impl(_PyMain *pymain, _PyCoreConfig *config,
             break;
 
         case 'B':
-            cmdline->dont_write_bytecode++;
+            cmdline->dont_write_bytecode--;
             break;
 
         case 's':
@@ -832,7 +832,7 @@ pymain_parse_cmdline_impl(_PyMain *pymain, _PyCoreConfig *config,
             break;
 
         case 'E':
-            config->ignore_environment++;
+            config->ignore_environment--;
             break;
 
         case 't':
