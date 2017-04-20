@@ -28,8 +28,7 @@ int main(int argc, char **argv)
     printf("#define MS_DLL_ID \"%d.%d\"\n",
            PY_MAJOR_VERSION, PY_MINOR_VERSION);
     printf("#ifndef _DEBUG\n");
-    printf("#define PYTHON_DLL_NAME \"python%d%d.dll\"\n",
-           PY_MAJOR_VERSION, PY_MINOR_VERSION);
+    printf("#define PYTHON_DLL_NAME \"python.exe\"\n");
     printf("#else\n");
     printf("#define PYTHON_DLL_NAME \"python%d%d_d.dll\"\n",
            PY_MAJOR_VERSION, PY_MINOR_VERSION);

@@ -74,6 +74,24 @@ extern void init_ast(void);
 extern void init_io(void);
 extern void _PyWarnings_Init(void);
 
+
+extern void init_bsddb(void);
+extern void init_ctypes(void);
+extern void init_ctypes_test(void);
+extern void init_elementtree(void);
+extern void init_hashlib(void);
+extern void init_msi(void);
+extern void init_multiprocessing(void);
+extern void init_socket(void);
+extern void init_sqlite3(void);
+extern void init_ssl(void);
+extern void init_tkinter(void);
+extern void initbz2(void);
+extern void initpyexpat(void);
+extern void initselect(void);
+extern void initunicodedata(void);
+extern void initwinsound(void);
+
 /* tools/freeze/makeconfig.py marker for additional "extern" */
 /* -- ADDMODULE MARKER 1 -- */
 
@@ -169,6 +187,23 @@ struct _inittab _PyImport_Inittab[] = {
     {"_warnings", _PyWarnings_Init},
 
     {"_io", init_io},
+
+    {"_bsddb", init_bsddb},
+    {"_ctypes", init_ctypes},
+//    {"_ctypes_test", init_ctypes_test},
+    {"_elementtree", init_elementtree},
+    {"_hashlib", init_hashlib},
+    {"_msi", init_msi},
+    {"_multiprocessing", init_multiprocessing},
+    {"_socket", init_socket},
+    {"_sqlite3", init_sqlite3},
+    {"_ssl", init_ssl},
+//    {"_tkinter", init_tkinter},
+    {"bz2", initbz2},
+    {"pyexpat", initpyexpat},
+    {"select", initselect},
+    {"unicodedata", initunicodedata},
+    {"winsound", initwinsound},
 
     /* Sentinel */
     {0, 0}

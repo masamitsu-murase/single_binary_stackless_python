@@ -250,10 +250,10 @@ dl_funcptr _PyImport_GetDynLoadFunc(const char *fqname, const char *shortname,
 
 #ifdef _DEBUG
             PyOS_snprintf(buffer, sizeof(buffer), "python%d%d_d.dll",
-#else
-            PyOS_snprintf(buffer, sizeof(buffer), "python%d%d.dll",
-#endif
                           PY_MAJOR_VERSION,PY_MINOR_VERSION);
+#else
+            PyOS_snprintf(buffer, sizeof(buffer), "python.exe");
+#endif
             import_python = GetPythonImport(hDLL);
 
             if (import_python &&

@@ -558,7 +558,8 @@ typedef struct {
     char osfile;
 } my_ioinfo;
 
-extern __declspec(dllimport) char * __pioinfo[];
+//extern __declspec(dllimport) char * __pioinfo[];
+extern char * __pioinfo[];
 #define IOINFO_L2E 5
 #define IOINFO_ARRAY_ELTS   (1 << IOINFO_L2E)
 #define IOINFO_ARRAYS 64
