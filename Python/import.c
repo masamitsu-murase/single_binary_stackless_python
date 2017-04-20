@@ -199,7 +199,10 @@ _PyImport_Init(void)
 void
 _PyImportHooks_Init(void)
 {
-    PyObject *v, *path_hooks = NULL, *zimpimport;
+    PyObject *v, *path_hooks = NULL, *import;
+    const char *modules[] = { "zipimport", "embeddedimport" };
+    const char *importers[] = { "zipimporter", "embeddedimporter" };
+    size_t i;
     int err = 0;
 
     /* adding sys.path_hooks and sys.path_importer_cache, setting up
@@ -236,31 +239,32 @@ _PyImportHooks_Init(void)
                       );
     }
 
-    zimpimport = PyImport_ImportModule("zipimport");
-    if (zimpimport == NULL) {
-        PyErr_Clear(); /* No zip import module -- okay */
-        if (Py_VerboseFlag)
-            PySys_WriteStderr("# can't import zipimport\n");
-    }
-    else {
-        PyObject *zipimporter = PyObject_GetAttrString(zimpimport,
-                                                       "zipimporter");
-        Py_DECREF(zimpimport);
-        if (zipimporter == NULL) {
-            PyErr_Clear(); /* No zipimporter object -- okay */
+    for (i=0; i<sizeof(modules)/sizeof(modules[0]); i++) {
+        import = PyImport_ImportModule(modules[i]);
+        if (import == NULL) {
+            PyErr_Clear();
             if (Py_VerboseFlag)
-                PySys_WriteStderr(
-                    "# can't import zipimport.zipimporter\n");
+                PySys_WriteStderr("# can't import %s\n", modules[i]);
         }
         else {
-            /* sys.path_hooks.append(zipimporter) */
-            err = PyList_Append(path_hooks, zipimporter);
-            Py_DECREF(zipimporter);
-            if (err)
-                goto error;
-            if (Py_VerboseFlag)
-                PySys_WriteStderr(
-                    "# installed zipimport hook\n");
+            PyObject *importer = PyObject_GetAttrString(import, importers[i]);
+            Py_DECREF(import);
+            if (importer == NULL) {
+                PyErr_Clear(); /* No importer object -- okay */
+                if (Py_VerboseFlag)
+                    PySys_WriteStderr("# can't import %s.%s\n",
+                                      modules[i], importers[i]);
+            }
+            else {
+                /* sys.path_hooks.append(importer) */
+                err = PyList_Append(path_hooks, importer);
+                Py_DECREF(importer);
+                if (err)
+                    goto error;
+                if (Py_VerboseFlag)
+                    PySys_WriteStderr(
+                        "# installed %s hook\n", modules[i]);
+            }
         }
     }
     Py_DECREF(path_hooks);

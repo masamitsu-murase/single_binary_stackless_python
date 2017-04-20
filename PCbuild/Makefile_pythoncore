@@ -73,6 +73,8 @@ OBJS = $(ProjectDir)\Modules\_bisectmodule.obj \
           $(ProjectDir)\Modules\zlib\trees.obj \
           $(ProjectDir)\Modules\zlib\uncompr.obj \
           $(ProjectDir)\Modules\zlib\zutil.obj \
+          $(ProjectDir)\Modules\embeddedimport.obj \
+          $(ProjectDir)\Modules\embeddedimport_data.obj \
           $(ProjectDir)\Modules\cjkcodecs\_codecs_cn.obj \
           $(ProjectDir)\Modules\cjkcodecs\_codecs_hk.obj \
           $(ProjectDir)\Modules\cjkcodecs\_codecs_iso2022.obj \
