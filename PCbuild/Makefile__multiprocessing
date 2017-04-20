@@ -1,0 +1,20 @@
+
+ProjectDir = ..
+externalsDir = $(ProjectDir)\externals
+
+!include common_arch.mak
+
+INCLUDES = /I "$(ProjectDir)\Include" /I "$(ProjectDir)\PC" /I "$(ProjectDir)\Stackless"
+DEFINES = /D "Py_BUILD_CORE" /D "Py_ENABLE_SHARED" /D "WIN32" /D "NDEBUG"
+CFLAGS = /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi
+LFLAGS = /NOLOGO /LTCG
+TARGET = _multiprocessing.lib
+
+
+OBJS = $(ProjectDir)\Modules\_multiprocessing\multiprocessing.obj \
+          $(ProjectDir)\Modules\_multiprocessing\pipe_connection.obj \
+          $(ProjectDir)\Modules\_multiprocessing\semaphore.obj \
+          $(ProjectDir)\Modules\_multiprocessing\socket_connection.obj \
+          $(ProjectDir)\Modules\_multiprocessing\win32_functions.obj
+
+!include common.mak

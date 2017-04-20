@@ -1,0 +1,19 @@
+
+ProjectDir = ..
+externalsDir = $(ProjectDir)\externals
+
+!include common_arch.mak
+
+INCLUDES = /I "$(ProjectDir)\Modules\expat" /I "$(ProjectDir)\Modules\_ctypes\libffi_msvc" /I "$(ProjectDir)\Include" /I "$(ProjectDir)\PC" /I "$(ProjectDir)\Stackless"
+DEFINES = /D "XML_NS" /D "XML_DTD" /D "BYTEORDER=1234" /D "XML_CONTEXT_BYTES=1024" /D "USE_PYEXPAT_CAPI" /D "XML_STATIC" /D "HAVE_MEMMOVE" /D "Py_BUILD_CORE" /D "Py_ENABLE_SHARED" /D "WIN32" /D "NDEBUG"
+CFLAGS = /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi
+LFLAGS = /NOLOGO /LTCG
+TARGET = _elementtree.lib
+
+
+OBJS = $(ProjectDir)\Modules\_elementtree.obj \
+				$(ProjectDir)\Modules\expat\xmlparse.obj \
+				$(ProjectDir)\Modules\expat\xmlrole.obj \
+				$(ProjectDir)\Modules\expat\xmltok.obj
+
+!include common.mak

@@ -1,0 +1,19 @@
+
+ProjectDir = ..
+externalsDir = $(ProjectDir)\externals
+
+!include common_arch.mak
+
+INCLUDES = /I "$(ProjectDir)\Modules\expat" /I "$(ProjectDir)\Include" /I "$(ProjectDir)\PC" /I "$(ProjectDir)\Stackless"
+DEFINES = /D "PYEXPAT_EXPORTS" /D "HAVE_EXPAT_H" /D "XML_NS" /D "XML_DTD" /D "BYTEORDER=1234" /D "XML_CONTEXT_BYTES=1024" /D "XML_STATIC" /D "HAVE_MEMMOVE" /D "Py_BUILD_CORE" /D "Py_ENABLE_SHARED" /D "NDEBUG" /D "WIN32"
+CFLAGS = /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi
+LFLAGS = /NOLOGO /LTCG
+TARGET = pyexpat.lib
+
+
+OBJS = $(ProjectDir)\Modules\pyexpat.obj \
+          $(ProjectDir)\Modules\expat\xmlparse.obj \
+          $(ProjectDir)\Modules\expat\xmlrole.obj \
+          $(ProjectDir)\Modules\expat\xmltok.obj
+
+!include common.mak
