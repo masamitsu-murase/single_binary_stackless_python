@@ -382,7 +382,7 @@ Py_Main(int argc, wchar_t **argv)
             break;
         }
         if (c == 'E') {
-            Py_IgnoreEnvironmentFlag++;
+            Py_IgnoreEnvironmentFlag--;
             break;
         }
     }
@@ -453,7 +453,7 @@ Py_Main(int argc, wchar_t **argv)
             break;
 
         case 'B':
-            Py_DontWriteBytecodeFlag++;
+            Py_DontWriteBytecodeFlag--;
             break;
 
         case 's':
