@@ -102,6 +102,17 @@ class TestGeneratorPickling(StacklessTestCase):
         v = gen_new.__next__()
         self.assertEqual(v, 11)
 
+    def test_exhausted(self):
+        def g():
+            yield 1
+        gen_orig = g()
+        self.assertEqual(gen_orig.__next__(), 1)
+        self.assertRaises(StopIteration, gen_orig.__next__)
+        p = pickle.dumps(gen_orig)
+        self.assertRaises(StopIteration, gen_orig.__next__)
+        gen_new = pickle.loads(p)
+        self.assertRaises(StopIteration, gen_new.__next__)
+
 
 if __name__ == '__main__':
     unittest.main()

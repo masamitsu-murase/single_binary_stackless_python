@@ -1700,8 +1700,15 @@ static PyObject *
 gen_reduce(PyGenObject *gen)
 {
     PyObject *tup;
-    PyObject *frame_reducer;
-    frame_reducer = slp_reduce_frame(gen->gi_frame);
+    PyObject *frame_reducer = (PyObject *)gen->gi_frame;
+    if (frame_reducer == NULL) {
+        /* Pickle NULL as None. See gen_setstate() for the corresponding
+         * unpickling code. */
+        Py_INCREF(Py_None);
+        frame_reducer = Py_None;
+    } else {
+        frame_reducer = slp_reduce_frame(gen->gi_frame);
+    }
     if (frame_reducer == NULL)
         return NULL;
     tup = Py_BuildValue("(O()(OiOO))",
@@ -1736,6 +1743,7 @@ gen_setstate(PyObject *self, PyObject *args)
 {
     PyGenObject *gen = (PyGenObject *) self;
     PyFrameObject *f;
+    PyObject *obj;
     int gi_running;
     PyObject *name = NULL;
     PyObject *qualname = NULL;
@@ -1745,12 +1753,50 @@ gen_setstate(PyObject *self, PyObject *args)
     if ((args = unwrap_frame_arg(args)) == NULL)  /* now args is a counted ref! */
         return NULL;
 
-    if (!PyArg_ParseTuple(args, "O!i|OO:generator",
-                          &PyFrame_Type, &f, &gi_running, &name, &qualname)) {
+    if (!PyArg_ParseTuple(args, "Oi|OO:generator",
+                          &obj, &gi_running, &name, &qualname)) {
         Py_DECREF(args);
         return NULL;
     }
-    Py_DECREF(args);
+
+    if (obj == Py_None) {
+        /* No frame, generator is exhausted */
+        Py_CLEAR(gen->gi_frame);
+
+        /* Even if gi_frame is NULL, gi_code is still valid. Therefore
+         * I set it to the code of the exhausted frame singleton. 
+         */
+        assert(gen_exhausted_frame != NULL);
+        assert(PyFrame_Check(gen_exhausted_frame));
+        obj = (PyObject *)gen_exhausted_frame->f_code;
+        Py_INCREF(obj);
+        Py_SETREF(gen->gi_code, obj);
+
+        gen->gi_running = gi_running;
+        if (name == NULL) {
+            name = gen_exhausted_frame->f_code->co_name;
+            assert(name != NULL);
+        }
+        if (qualname == NULL) {
+            qualname = name;
+        }
+        Py_INCREF(name);
+        Py_SETREF(gen->gi_name, name);
+        Py_INCREF(qualname);
+        Py_SETREF(gen->gi_qualname, qualname);
+        Py_TYPE(gen) = Py_TYPE(gen)->tp_base;
+        Py_INCREF(gen);
+        Py_DECREF(args); /* holds the obj ref */
+        return (PyObject *)gen;
+    }
+    if (!PyFrame_Check(obj)) {
+        PyErr_SetString(PyExc_TypeError,
+                        "invalid frame object for gen_setstate");
+        Py_DECREF(args); /* holds the obj ref */
+        return NULL;
+    }
+    f = (PyFrameObject *)obj;
+    obj = NULL;
 
     if (name == NULL) {
         name = f->f_code->co_name;
@@ -1768,6 +1814,7 @@ gen_setstate(PyObject *self, PyObject *args)
             if ((tmpgen = (PyGenObject *)
                     PyGen_NewWithQualName(f, NULL, NULL)) == NULL) {
                 Py_DECREF(f);
+                Py_DECREF(args); /* holds the frame and name refs */
                 return NULL;
             }
             Py_INCREF(f);
@@ -1790,6 +1837,7 @@ gen_setstate(PyObject *self, PyObject *args)
         }
         else
             gen = NULL;
+        Py_DECREF(args); /* holds the frame and name refs */
         return (PyObject *) gen;
     }
 
@@ -1811,6 +1859,7 @@ gen_setstate(PyObject *self, PyObject *args)
     Py_SETREF(gen->gi_qualname, qualname);
     Py_TYPE(gen) = Py_TYPE(gen)->tp_base;
     Py_INCREF(gen);
+    Py_DECREF(args); /* holds the frame and name refs */
     return (PyObject *)gen;
 }
 
