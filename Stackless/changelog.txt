@@ -9,6 +9,9 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/130
+  Pickling exhausted generators no longer crashes.
+
 
 What's New in Stackless 3.4.3?
 ==============================
