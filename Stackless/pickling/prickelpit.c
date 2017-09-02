@@ -1707,9 +1707,15 @@ static PyObject *
 gen_reduce(PyGenObject *gen)
 {
     PyObject *tup;
+    PyObject *gi_frame = (PyObject *)gen->gi_frame;
+    if (gi_frame == NULL) {
+        /* Pickle NULL as None. See gen_setstate() for the corresponding
+         * unpickling code. */
+        gi_frame = Py_None;
+    }
     tup = Py_BuildValue("(O()(Oi))",
                         &wrap_PyGen_Type,
-                        gen->gi_frame,
+                        gi_frame,
                         gen->gi_running
                         );
     return tup;
@@ -1736,12 +1742,39 @@ gen_setstate(PyObject *self, PyObject *args)
 {
     PyGenObject *gen = (PyGenObject *) self;
     PyFrameObject *f;
+    PyObject *obj;
     int gi_running;
 
     if (is_wrong_type(Py_TYPE(self))) return NULL;
-    if (!PyArg_ParseTuple(args, "O!i:generator",
-                          &PyFrame_Type, &f, &gi_running))
+    if (!PyArg_ParseTuple(args, "Oi:generator",
+                          &obj, &gi_running))
         return NULL;
+
+    if (obj == Py_None) {
+        /* No frame, generator is exhausted */
+        Py_CLEAR(gen->gi_frame);
+
+        /* Even if gi_frame is NULL, gi_code is still valid. Therefore
+         * I set it to the code of the exhausted frame singleton. 
+         */
+        assert(gen_exhausted_frame != NULL);
+        assert(PyFrame_Check(gen_exhausted_frame));
+        obj = (PyObject *)gen_exhausted_frame->f_code;
+        Py_INCREF(obj);
+        Py_SETREF(gen->gi_code, obj);
+
+        gen->gi_running = gi_running;
+        Py_TYPE(gen) = Py_TYPE(gen)->tp_base;
+        Py_INCREF(gen);
+        return (PyObject *)gen;
+    }
+    if (!PyFrame_Check(obj)) {
+        PyErr_SetString(PyExc_TypeError,
+                        "invalid frame object for gen_setstate");
+        return NULL;
+    }
+    f = (PyFrameObject *)obj;
+    obj = NULL;
 
     if (!gi_running) {
         if ((f = slp_ensure_new_frame(f)) != NULL) {
