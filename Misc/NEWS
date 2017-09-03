@@ -2,6 +2,104 @@
 Python News
 +++++++++++
 
+What's New in Python 2.7.14?
+============================
+
+*Release date: XXXX-XX-XX*
+
+Core and Builtins
+-----------------
+
+- Issue #14376: Allow sys.exit to accept longs as well as ints. Patch
+  by Gareth Rees.
+
+- Issue #29028: Fixed possible use-after-free bugs in the subscription of the
+  buffer object with custom index object.
+
+- Issue #29145: Fix overflow checks in string, bytearray and unicode.
+  Patch by jan matejek and Xiang Zhang.
+
+- Issue #28932: Do not include <sys/random.h> if it does not exist.
+
+Extension Modules
+-----------------
+
+- Issue #29169: Update zlib to 1.2.11.
+
+Library
+-------
+
+- Issue #29354: Fixed inspect.getargs() for parameters which are cell
+  variables.
+
+- Issue #29335: Fix subprocess.Popen.wait() when the child process has
+  exited to a stopped instead of terminated state (ex: when under ptrace).
+
+- Issue #29219: Fixed infinite recursion in the repr of uninitialized
+  ctypes.CDLL instances.
+
+- Issue #29082: Fixed loading libraries in ctypes by unicode names on Windows.
+  Original patch by Chi Hsuan Yen.
+
+- Issue #29188: Support glibc 2.24 on Linux: don't use getentropy() function
+  but read from /dev/urandom to get random bytes, for example in os.urandom().
+  On Linux, getentropy() is implemented which getrandom() is blocking mode,
+  whereas os.urandom() should not block.
+
+- Issue #29142: In urllib, suffixes in no_proxy environment variable with
+  leading dots could match related hostnames again (e.g. .b.c matches a.b.c).
+  Patch by Milan Oberkirch.
+
+- Issue #29094: Offsets in a ZIP file created with extern file object and mode
+  "w" now are relative to the start of the file.
+
+- Issue #13051: Fixed recursion errors in large or resized
+  curses.textpad.Textbox.  Based on patch by Tycho Andersen.
+
+- Issue #9770: curses.ascii predicates now work correctly with negative
+  integers.
+
+- Issue #28427: old keys should not remove new values from
+  WeakValueDictionary when collecting from another thread.
+
+- Issue #28998: More APIs now support longs as well as ints.
+
+- Issue 28923: Remove editor artifacts from Tix.py,
+  including encoding not recognized by codecs.lookup.
+
+- Issue #29019: Fix dict.fromkeys(x) overallocates when x is sparce dict.
+  Original patch by Rasmus Villemoes.
+
+- Issue #19542: Fix bugs in WeakValueDictionary.setdefault() and
+  WeakValueDictionary.pop() when a GC collection happens in another
+  thread.
+
+- Issue #28925: cPickle now correctly propagates errors when unpickle instances
+  of old-style classes.
+
+C API
+-----
+
+- Issue #27867: Function PySlice_GetIndicesEx() is replaced with a macro.
+
+Documentation
+-------------
+
+- Issue #26355: Add canonical header link on each page to corresponding major
+  version of the documentation. Patch by Matthias Bussonnier.
+
+- Issue #12067: Rewrite Comparisons section in the Expressions chapter of the
+  language reference. Some of the details of comparing mixed types were
+  incorrect or ambiguous. Added default behaviour and consistency suggestions
+  for user-defined classes. Based on patch from Andy Maier.
+
+Build
+-----
+
+- Issue #28768: Fix implicit declaration of function _setmode. Patch by
+  Masayuki Yamamoto
+
+
 What's New in Python 2.7.13
 ===========================
 
@@ -20,6 +118,9 @@ What's New in Python 2.7.13 release candidate 1?
 
 Core and Builtins
 -----------------
+
+- Issue #5322: Fixed setting __new__ to a PyCFunction inside Python code.
+  Original patch by Andreas Stührk.
 
 - Issue #28847: dumbdbm no longer writes the index file in when it is not
   changed and supports reading read-only files.
