@@ -1598,6 +1598,7 @@ class CoroutineTest(unittest.TestCase):
             foo().send(None)
         self.assertEqual(result, [42])
 
+    @unittest.skipIf(support.stackless, "Stackless can copy coroutines")
     def test_copy(self):
         async def func(): pass
         coro = func()
@@ -1611,6 +1612,7 @@ class CoroutineTest(unittest.TestCase):
         finally:
             aw.close()
 
+    @unittest.skipIf(support.stackless, "Stackless can pickle coroutines")
     def test_pickle(self):
         async def func(): pass
         coro = func()
