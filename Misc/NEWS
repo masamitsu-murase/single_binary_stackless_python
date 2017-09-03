@@ -2,10 +2,87 @@
 Python News
 +++++++++++
 
+What's New in Python 3.5.4 release candidate 1?
+===============================================
+
+Release date: XXXX-XX-XX
+
+Core and Builtins
+-----------------
+
+- Issue #29319: Prevent RunMainFromImporter overwriting sys.path[0].
+
+- Issue #29337: Fixed possible BytesWarning when compare the code objects.
+  Warnings could be emitted at compile time.
+
+Extension Modules
+-----------------
+
+- Issue #29169: Update zlib to 1.2.11.
+
+Library
+-------
+
+- Issue #29519: Fix weakref spewing exceptions during interpreter shutdown
+  when used with a rare combination of multiprocessing and custom codecs.
+
+- Issue #29416: Prevent infinite loop in pathlib.Path.mkdir
+
+- Issue #29444: Fixed out-of-bounds buffer access in the group() method of
+  the match object.  Based on patch by WGH.
+
+- Issue #29335: Fix subprocess.Popen.wait() when the child process has
+  exited to a stopped instead of terminated state (ex: when under ptrace).
+
+- Issue #29290: Fix a regression in argparse that help messages would wrap at
+  non-breaking spaces.
+
+- Issue #28735: Fixed the comparison of mock.MagickMock with mock.ANY.
+
+- Issue #29011: Fix an important omission by adding Deque to the typing module.
+
+- Issue #29219: Fixed infinite recursion in the repr of uninitialized
+  ctypes.CDLL instances.
+
+- Issue #28969: Fixed race condition in C implementation of functools.lru_cache.
+  KeyError could be raised when cached function with full cache was
+  simultaneously called from differen threads with the same uncached arguments.
+
+- Issue #29142: In urllib.request, suffixes in no_proxy environment variable with
+  leading dots could match related hostnames again (e.g. .b.c matches a.b.c).
+  Patch by Milan Oberkirch.
+
+Windows
+-------
+
+- Issue #29392: Prevent crash when passing invalid arguments into msvcrt module.
+
+C API
+-----
+
+- Issue #27867: Function PySlice_GetIndicesEx() is replaced with a macro if
+  Py_LIMITED_API is not set or set to the value between 0x03050400
+  and 0x03060000 (not including) or 0x03060100 or higher.
+
+- Issue #29083: Fixed the declaration of some public API functions.
+  PyArg_VaParse() and PyArg_VaParseTupleAndKeywords() were not available in
+  limited API.  PyArg_ValidateKeywordArguments(), PyArg_UnpackTuple() and
+  Py_BuildValue() were not available in limited API of version < 3.3 when
+  PY_SSIZE_T_CLEAN is defined.
+
+Documentation
+-------------
+
+- Issue #26355: Add canonical header link on each page to corresponding major
+  version of the documentation. Patch by Matthias Bussonnier.
+
+- Issue #29349: Fix Python 2 syntax in code for building the documentation.
+
+
 What's New in Python 3.5.3?
 ===========================
 
-Release date: 2017-01-16
+Release date: 2017-01-17
 
 There were no code changes between 3.5.3rc1 and 3.5.3 final.
 
@@ -514,17 +591,17 @@ Library
 
 - Issue #27972: Prohibit Tasks to await on themselves.
 
-- Issue #26923: Fix asyncio.Gather to refuse being cancelled once all 
+- Issue #26923: Fix asyncio.Gather to refuse being cancelled once all
   children are done.
   Patch by Johannes Ebke.
 
-- Issue #26796: Don't configure the number of workers for default 
+- Issue #26796: Don't configure the number of workers for default
   threadpool executor.
   Initial patch by Hans Lawrenz.
 
 - Issue #28600: Optimize loop.call_soon().
 
-- Issue #28613: Fix get_event_loop() return the current loop if 
+- Issue #28613: Fix get_event_loop() return the current loop if
   called from coroutines/callbacks.
 
 - Issue #28639: Fix inspect.isawaitable to always return bool
@@ -539,7 +616,7 @@ Library
 - Issue #24142: Reading a corrupt config file left the parser in an
   invalid state.  Original patch by Florian Höch.
 
-- Issue #28990: Fix SSL hanging if connection is closed before handshake 
+- Issue #28990: Fix SSL hanging if connection is closed before handshake
   completed.
   (Patch by HoHo-Ho)
 
