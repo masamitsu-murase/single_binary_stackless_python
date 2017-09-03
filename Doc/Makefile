@@ -95,8 +95,8 @@ doctest:
 
 pydoc-topics: BUILDER = pydoc-topics
 pydoc-topics: build
-	@echo "Building finished; now copy build/pydoc-topics/topics.py" \
-	      "to ../Lib/pydoc_data/topics.py"
+	@echo "Building finished; now run this:" \
+	      "cp build/pydoc-topics/topics.py ../Lib/pydoc_data/topics.py"
 
 htmlview: html
 	 $(PYTHON) -c "import webbrowser; webbrowser.open('build/html/index.html')"
@@ -161,7 +161,7 @@ autobuild-dev:
 	-make suspicious
 
 # for quick rebuilds (HTML only)
-autobuild-html:
+autobuild-dev-html:
 	make html SPHINXOPTS='-A daily=1 -A versionswitcher=1'
 
 # for stable releases: only build if not in pre-release stage (alpha, beta)
@@ -173,3 +173,9 @@ autobuild-stable:
 	esac
 	@make autobuild-dev
 
+autobuild-stable-html:
+	@case $(DISTVERSION) in *[ab]*) \
+		echo "Not building; $(DISTVERSION) is not a release version."; \
+		exit 1;; \
+	esac
+	@make autobuild-dev-html
