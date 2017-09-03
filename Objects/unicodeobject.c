@@ -679,6 +679,11 @@ resize_compact(PyObject *unicode, Py_ssize_t length)
     }
     new_size = (struct_size + (length + 1) * char_size);
 
+    if (_PyUnicode_HAS_UTF8_MEMORY(unicode)) {
+        PyObject_DEL(_PyUnicode_UTF8(unicode));
+        _PyUnicode_UTF8(unicode) = NULL;
+        _PyUnicode_UTF8_LENGTH(unicode) = 0;
+    }
     _Py_DEC_REFTOTAL;
     _Py_ForgetReference(unicode);
 
@@ -4891,7 +4896,7 @@ _Py_DecodeUTF8_surrogateescape(const char *s, Py_ssize_t size)
 #if SIZEOF_WCHAR_T == 4
             assert(0);
 #else
-            assert(Py_UNICODE_IS_SURROGATE(ch));
+            assert(ch > 0xFFFF && ch <= MAX_UNICODE);
             /*  compute and append the two surrogates: */
             unicode[outpos++] = (wchar_t)Py_UNICODE_HIGH_SURROGATE(ch);
             unicode[outpos++] = (wchar_t)Py_UNICODE_LOW_SURROGATE(ch);
@@ -8501,7 +8506,7 @@ _PyUnicode_TranslateCharmap(PyObject *input,
     /* allocate enough for a simple 1:1 translation without
        replacements, if we need more, we'll resize */
     osize = size;
-    output = PyMem_Malloc(osize * sizeof(Py_UCS4));
+    output = PyMem_NEW(Py_UCS4, osize);
     opos = 0;
     if (output == NULL) {
         PyErr_NoMemory();

@@ -10,11 +10,58 @@ What's New in Python 3.3.7?
 Core and Builtins
 -----------------
 
+- Issue #28648: Fixed crash in Py_DecodeLocale() in debug build on Mac OS X
+  when decode astral characters.  Patch by Xiang Zhang.
+
+- Issue #26171: Fix possible integer overflow and heap corruption in
+  zipimporter.get_data().
+
+- Issue #25709: Fixed problem with in-place string concatenation and utf-8 cache.
+
+- Issue #24407: Fix crash when dict is mutated while being updated.
+
+- Issue #24097: Fixed crash in object.__reduce__() if slot name is freed inside
+  __getattr__.
+
+- Issue #24096: Make warnings.warn_explicit more robust against mutation of the
+  warnings.filters list.
+
+- Issue #24044: Fix possible null pointer dereference in list.sort in out of
+  memory conditions.
+
 - Issue #23055: Fixed a buffer overflow in PyUnicode_FromFormatV.  Analysis
   and fix by Guido Vranken.
 
 Library
 -------
+
+- Issue #28563: Fixed possible DoS and arbitrary code execution when handle
+  plural form selections in the gettext module.  The expression parser now
+  supports exact syntax supported by GNU gettext.
+
+- Issue #27783: Fix possible usage of uninitialized memory in operator.methodcaller.
+
+- Issue #27774: Fix possible Py_DECREF on unowned object in _sre.
+
+- Issue #27760: Fix possible integer overflow in binascii.b2a_qp.
+
+- Issue #27758: Fix possible integer overflow in the _csv module for large record
+  lengths.
+
+- Issue #27568: Prevent HTTPoxy attack (CVE-2016-1000110). Ignore the
+  HTTP_PROXY variable when REQUEST_METHOD environment is set, which indicates
+  that the script is in CGI mode.
+
+- Issue #24521: Fix possible integer overflows in the pickle module.
+
+- Issue #22931: Allow '[' and ']' in cookie values.
+
+- Issue #24094: Fix possible crash in json.encode with poorly behaved dict
+  subclasses.
+
+- Issue #23367: Fix possible overflows in the unicodedata module.
+
+- Issue #23361: Fix possible overflow in Windows subprocess creation code.
 
 - Issue #23363: Fix possible overflow in itertools.permutations.
 
@@ -27,6 +74,21 @@ Library
 
 - Issue #23365: Fixed possible integer overflow in
   itertools.combinations_with_replacement.
+
+C API
+-----
+
+- Issue #23998: PyImport_ReInitLock() now checks for lock allocation error
+
+Tests
+-----
+
+- Issue #27369: In test_pyexpat, avoid testing an error message detail that
+  changed in Expat 2.2.0.
+
+- Issue #25940: Changed test_ssl and test_httplib to use
+  self-signed.pythontest.net.  This avoids relying on svn.python.org, which
+  recently changed root certificate.
 
 
 What's New in Python 3.3.6?
@@ -73,9 +135,6 @@ Library
 - Issue #21766: Prevent a security hole in CGIHTTPServer by URL unquoting paths
   before checking for a CGI script at that path.
 
-- Fix arbitrary memory access in JSONDecoder.raw_decode with a negative second
-  parameter. Bug reported by Guido Vranken.
-
 - Issue #20633: Replace relative import by absolute import.
 
 - Issue #21082: In os.makedirs, do not set the process-wide umask. Note this
@@ -97,6 +156,10 @@ Library
 
 - Issue #21323: Fix http.server to again handle scripts in CGI subdirectories,
   broken by the fix for security issue #19435.  Patch by Zach Byrne.
+
+- Issue #21529 (CVE-2014-4616): Fix arbitrary memory access in
+  JSONDecoder.raw_decode with a negative second parameter. Bug reported by Guido
+  Vranken.
 
 Tests
 -----
