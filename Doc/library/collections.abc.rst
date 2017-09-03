@@ -122,7 +122,7 @@ ABC                        Inherits from          Abstract Methods        Mixin 
            KeysView
            ValuesView
 
-   ABCs for mapping, items, keys, and values :term:`views <view>`.
+   ABCs for mapping, items, keys, and values :term:`views <dictionary view>`.
 
 
 These ABCs allow us to ask classes or instances if they provide
@@ -179,7 +179,7 @@ Notes on using :class:`Set` and :class:`MutableSet` as a mixin:
 (3)
    The :class:`Set` mixin provides a :meth:`_hash` method to compute a hash value
    for the set; however, :meth:`__hash__` is not defined because not all sets
-   are hashable or immutable.  To add set hashabilty using mixins,
+   are hashable or immutable.  To add set hashability using mixins,
    inherit from both :meth:`Set` and :meth:`Hashable`, then define
    ``__hash__ = Set._hash``.
 

@@ -967,6 +967,16 @@ a ``-b/--bind`` option that causes the server to listen on a specific address.
 (Contributed by Malte Swart in :issue:`17764`.)
 
 
+idlelib and IDLE
+----------------
+
+Since idlelib implements the IDLE shell and editor and is not intended for
+import by other programs, it gets improvements with every release. See
+:file:`Lib/idlelib/NEWS.txt` for a cumulative list of changes since 3.3.0,
+as well as changes made in future 3.4.x releases. This file is also available
+from the IDLE :menuselection:`Help --> About IDLE` dialog.
+
+
 importlib
 ---------
 
@@ -1113,7 +1123,7 @@ multiprocessing
 .. _whatsnew-multiprocessing-no-fork:
 
 On Unix two new :ref:`start methods <multiprocessing-start-methods>`,
-(``spawn`` and ``forkserver``, have been added for starting processes using
+``spawn`` and ``forkserver``, have been added for starting processes using
 :mod:`multiprocessing`.  These make the mixing of processes with threads more
 robust, and the ``spawn`` method matches the semantics that multiprocessing has
 always used on Windows.  New function
@@ -2066,7 +2076,7 @@ using ``-Wd``).
 Deprecations in the Python API
 ------------------------------
 
-* As mentioned in :ref:`whatsnew-pep-451`, a number of :mod:`importilb`
+* As mentioned in :ref:`whatsnew-pep-451`, a number of :mod:`importlib`
   methods and functions are deprecated: :meth:`importlib.find_loader` is
   replaced by :func:`importlib.util.find_spec`;
   :meth:`importlib.machinery.PathFinder.find_module` is replaced by

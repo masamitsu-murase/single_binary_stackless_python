@@ -170,7 +170,11 @@ def main():
         make_flags = "-a"
     # perl should be on the path, but we also look in "\perl" and "c:\\perl"
     # as "well known" locations
-    perls = find_all_on_path("perl.exe", ["\\perl\\bin", "C:\\perl\\bin"])
+    perls = find_all_on_path("perl.exe", [r"\perl\bin",
+                                          r"C:\perl\bin",
+                                          r"\perl64\bin",
+                                          r"C:\perl64\bin",
+                                         ])
     perl = find_working_perl(perls)
     if perl:
         print("Found a working perl at '%s'" % (perl,))
@@ -187,7 +191,8 @@ def main():
         if dir.startswith('nasm'):
             nasm_dir = os.path.join(ssl_dir, os.pardir, dir)
             nasm_dir = os.path.abspath(nasm_dir)
-            os.environ['PATH'] += os.pathsep.join(['', nasm_dir])
+            old_path = os.environ['PATH']
+            os.environ['PATH'] = os.pathsep.join([nasm_dir, old_path])
             break
     else:
         print('NASM was not found, make sure it is on PATH')

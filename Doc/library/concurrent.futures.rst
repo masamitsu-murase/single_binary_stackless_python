@@ -75,13 +75,13 @@ Executor Objects
               e.submit(shutil.copy, 'src1.txt', 'dest1.txt')
               e.submit(shutil.copy, 'src2.txt', 'dest2.txt')
               e.submit(shutil.copy, 'src3.txt', 'dest3.txt')
-              e.submit(shutil.copy, 'src3.txt', 'dest4.txt')
+              e.submit(shutil.copy, 'src4.txt', 'dest4.txt')
 
 
 ThreadPoolExecutor
 ------------------
 
-:class:`ThreadPoolExecutor` is a :class:`Executor` subclass that uses a pool of
+:class:`ThreadPoolExecutor` is an :class:`Executor` subclass that uses a pool of
 threads to execute calls asynchronously.
 
 Deadlocks can occur when the callable associated with a :class:`Future` waits on
@@ -138,8 +138,8 @@ ThreadPoolExecutor Example
 
    # Retrieve a single page and report the url and contents
    def load_url(url, timeout):
-       conn = urllib.request.urlopen(url, timeout=timeout)
-       return conn.readall()
+       with urllib.request.urlopen(url, timeout=timeout) as conn:
+           return conn.read()
 
    # We can use a with statement to ensure threads are cleaned up promptly
    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
@@ -285,7 +285,7 @@ The :class:`Future` class encapsulates the asynchronous execution of a callable.
 
        Added callables are called in the order that they were added and are
        always called in a thread belonging to the process that added them.  If
-       the callable raises a :exc:`Exception` subclass, it will be logged and
+       the callable raises an :exc:`Exception` subclass, it will be logged and
        ignored.  If the callable raises a :exc:`BaseException` subclass, the
        behavior is undefined.
 

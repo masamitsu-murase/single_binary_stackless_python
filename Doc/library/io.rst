@@ -301,11 +301,11 @@ I/O Base Classes
       Note that it's already possible to iterate on file objects using ``for
       line in file: ...`` without calling ``file.readlines()``.
 
-   .. method:: seek(offset, whence=SEEK_SET)
+   .. method:: seek(offset[, whence])
 
       Change the stream position to the given byte *offset*.  *offset* is
-      interpreted relative to the position indicated by *whence*.  Values for
-      *whence* are:
+      interpreted relative to the position indicated by *whence*.  The default
+      value for *whence* is :data:`SEEK_SET`.  Values for *whence* are:
 
       * :data:`SEEK_SET` or ``0`` -- start of the stream (the default);
         *offset* should be zero or positive
@@ -760,10 +760,11 @@ Text I/O
 
       If *size* is specified, at most *size* characters will be read.
 
-   .. method:: seek(offset, whence=SEEK_SET)
+   .. method:: seek(offset[, whence])
 
-      Change the stream position to the given *offset*.  Behaviour depends
-      on the *whence* parameter:
+      Change the stream position to the given *offset*.  Behaviour depends on
+      the *whence* parameter.  The default value for *whence* is
+      :data:`SEEK_SET`.
 
       * :data:`SEEK_SET` or ``0``: seek from the start of the stream
         (the default); *offset* must either be a number returned by
@@ -863,10 +864,16 @@ Text I/O
    An in-memory stream for text I/O.  The text buffer is discarded when the
    :meth:`~IOBase.close` method is called.
 
-   The initial value of the buffer (an empty string by default) can be set by
-   providing *initial_value*.  The *newline* argument works like that of
-   :class:`TextIOWrapper`.  The default is to consider only ``\n`` characters
-   as end of lines and to do no newline translation.
+   The initial value of the buffer can be set by providing *initial_value*.
+   If newline translation is enabled, newlines will be encoded as if by
+   :meth:`~TextIOBase.write`.  The stream is positioned at the start of
+   the buffer.
+
+   The *newline* argument works like that of :class:`TextIOWrapper`.
+   The default is to consider only ``\n`` characters as ends of lines and
+   to do no newline translation.  If *newline* is set to ``None``,
+   newlines are written as ``\n`` on all platforms, but universal
+   newline decoding is still performed when reading.
 
    :class:`StringIO` provides this method in addition to those from
    :class:`TextIOBase` and its parents:
@@ -874,6 +881,8 @@ Text I/O
    .. method:: getvalue()
 
       Return a ``str`` containing the entire contents of the buffer.
+      Newlines are decoded as if by :meth:`~TextIOBase.read`, although
+      the stream position is not changed.
 
    Example usage::
 

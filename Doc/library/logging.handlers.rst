@@ -230,7 +230,7 @@ need to override.
       renamed to the destination.
 
       :param source: The source filename. This is normally the base
-                     filename, e.g. 'test.log'
+                     filename, e.g. 'test.log'.
       :param dest:   The destination filename. This is normally
                      what the source is rotated to, e.g. 'test.log.1'.
 
@@ -436,7 +436,7 @@ sends logging output to a network socket. The base class uses a TCP socket.
    .. method:: createSocket()
 
       Tries to create a socket; on failure, uses an exponential back-off
-      algorithm.  On intial failure, the handler will drop the message it was
+      algorithm.  On initial failure, the handler will drop the message it was
       trying to send.  When subsequent messages are handled by the same
       instance, it will not try connecting until some time has passed.  The
       default parameters are such that the initial delay is one second, and if

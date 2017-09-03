@@ -129,7 +129,7 @@ The following functions are deprecated:
    and binary) file object. Returns the unpacked root object (which usually
    is a dictionary).
 
-   This function calls :func:`load` to do the actual work, the the documentation
+   This function calls :func:`load` to do the actual work, see the documentation
    of :func:`that function <load>` for an explanation of the keyword arguments.
 
    .. note::
@@ -194,7 +194,7 @@ The following classes are available:
    It has one attribute, :attr:`data`, that can be used to retrieve the Python
    bytes object stored in it.
 
-   .. deprecated:: 3.4 Use a :class:`bytes` object instead
+   .. deprecated:: 3.4 Use a :class:`bytes` object instead.
 
 
 The following constants are available:

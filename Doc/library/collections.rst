@@ -268,9 +268,9 @@ For example::
     .. method:: most_common([n])
 
         Return a list of the *n* most common elements and their counts from the
-        most common to the least.  If *n* is not specified, :func:`most_common`
-        returns *all* elements in the counter.  Elements with equal counts are
-        ordered arbitrarily:
+        most common to the least.  If *n* is omitted or ``None``,
+        :func:`most_common` returns *all* elements in the counter.
+        Elements with equal counts are ordered arbitrarily:
 
             >>> Counter('abracadabra').most_common(3)
             [('a', 5), ('r', 2), ('b', 2)]
@@ -333,7 +333,7 @@ counts, but the output will exclude results with counts of zero or less.
     >>> c | d                       # union:  max(c[x], d[x])
     Counter({'a': 3, 'b': 2})
 
-Unary addition and substraction are shortcuts for adding an empty counter
+Unary addition and subtraction are shortcuts for adding an empty counter
 or subtracting from an empty counter.
 
     >>> c = Counter(a=2, b=-4)
@@ -816,10 +816,10 @@ field names, the method and attribute names start with an underscore.
 .. method:: somenamedtuple._asdict()
 
     Return a new :class:`OrderedDict` which maps field names to their corresponding
-    values.  Note, this method is no longer needed now that the same effect can
-    be achieved by using the built-in :func:`vars` function::
+    values::
 
-        >>> vars(p)
+        >>> p = Point(x=11, y=22)
+        >>> p._asdict()
         OrderedDict([('x', 11), ('y', 22)])
 
     .. versionchanged:: 3.1
@@ -980,14 +980,14 @@ anywhere a regular dictionary is used.
 
 The :class:`OrderedDict` constructor and :meth:`update` method both accept
 keyword arguments, but their order is lost because Python's function call
-semantics pass-in keyword arguments using a regular unordered dictionary.
+semantics pass in keyword arguments using a regular unordered dictionary.
 
 
 :class:`OrderedDict` Examples and Recipes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Since an ordered dictionary remembers its insertion order, it can be used
-in conjuction with sorting to make a sorted dictionary::
+in conjunction with sorting to make a sorted dictionary::
 
     >>> # regular unsorted dictionary
     >>> d = {'banana': 3, 'apple':4, 'pear': 1, 'orange': 2}

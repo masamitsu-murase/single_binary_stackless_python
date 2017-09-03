@@ -76,13 +76,15 @@ or on combining URL components into a URL string.
        ParseResult(scheme='', netloc='', path='help/Python.html', params='',
                   query='', fragment='')
 
-   If the *scheme* argument is specified, it gives the default addressing
-   scheme, to be used only if the URL does not specify one.  The default value for
-   this argument is the empty string.
+   The *scheme* argument gives the default addressing scheme, to be
+   used only if the URL does not specify one.  It should be the same type
+   (text or bytes) as *urlstring*, except that the default value ``''`` is
+   always allowed, and is automatically converted to ``b''`` if appropriate.
 
    If the *allow_fragments* argument is false, fragment identifiers are not
-   recognized and parsed as part of the preceding component.  The default value
-   for this argument is :const:`True`.
+   recognized.  Instead, they are parsed as part of the path, parameters
+   or query component, and :attr:`fragment` is set to the empty string in
+   the return value.
 
    The return value is actually an instance of a subclass of :class:`tuple`.  This
    class has the following additional read-only convenience attributes:
@@ -90,7 +92,7 @@ or on combining URL components into a URL string.
    +------------------+-------+--------------------------+----------------------+
    | Attribute        | Index | Value                    | Value if not present |
    +==================+=======+==========================+======================+
-   | :attr:`scheme`   | 0     | URL scheme specifier     | empty string         |
+   | :attr:`scheme`   | 0     | URL scheme specifier     | *scheme* parameter   |
    +------------------+-------+--------------------------+----------------------+
    | :attr:`netloc`   | 1     | Network location part    | empty string         |
    +------------------+-------+--------------------------+----------------------+
@@ -206,7 +208,7 @@ or on combining URL components into a URL string.
    +------------------+-------+-------------------------+----------------------+
    | Attribute        | Index | Value                   | Value if not present |
    +==================+=======+=========================+======================+
-   | :attr:`scheme`   | 0     | URL scheme specifier    | empty string         |
+   | :attr:`scheme`   | 0     | URL scheme specifier    | *scheme* parameter   |
    +------------------+-------+-------------------------+----------------------+
    | :attr:`netloc`   | 1     | Network location part   | empty string         |
    +------------------+-------+-------------------------+----------------------+
@@ -517,10 +519,11 @@ task isn't already covered by the URL parsing functions above.
 .. function:: urlencode(query, doseq=False, safe='', encoding=None, errors=None)
 
    Convert a mapping object or a sequence of two-element tuples, which may
-   contain :class:`str` or :class:`bytes` objects, to a "percent-encoded"
-   string.  If the resultant string is to be used as a *data* for POST
-   operation with :func:`~urllib.request.urlopen` function, then it should be
-   properly encoded to bytes, otherwise it would result in a :exc:`TypeError`.
+   contain :class:`str` or :class:`bytes` objects, to a percent-encoded ASCII
+   text string.  If the resultant string is to be used as a *data* for POST
+   operation with the :func:`~urllib.request.urlopen` function, then
+   it should be encoded to bytes, otherwise it would result in a
+   :exc:`TypeError`.
 
    The resulting string is a series of ``key=value`` pairs separated by ``'&'``
    characters, where both *key* and *value* are quoted using :func:`quote_plus`

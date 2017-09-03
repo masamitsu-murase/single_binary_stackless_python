@@ -115,8 +115,8 @@ call, a format string like that used with :c:func:`Py_BuildValue`, and the
 argument values::
 
    PyObject *
-   PyObject_CallMethod(PyObject *object, char *method_name,
-                       char *arg_format, ...);
+   PyObject_CallMethod(PyObject *object, const char *method_name,
+                       const char *arg_format, ...);
 
 This works for any object that has methods -- whether built-in or user-defined.
 You are responsible for eventually :c:func:`Py_DECREF`\ 'ing the return value.
@@ -348,7 +348,7 @@ complete example using the GNU readline library (you may want to ignore
      {
        line = readline (prompt);
 
-       if (NULL == line)                          /* CTRL-D pressed */
+       if (NULL == line)                          /* Ctrl-D pressed */
        {
          done = 1;
        }
@@ -443,8 +443,8 @@ extension module using g++ (e.g., ``g++ -shared -o mymodule.so mymodule.o``).
 Can I create an object class with some methods implemented in C and others in Python (e.g. through inheritance)?
 ----------------------------------------------------------------------------------------------------------------
 
-In Python 2.2, you can inherit from built-in classes such as :class:`int`,
-:class:`list`, :class:`dict`, etc.
+Yes, you can inherit from built-in classes such as :class:`int`, :class:`list`,
+:class:`dict`, etc.
 
 The Boost Python Library (BPL, http://www.boost.org/libs/python/doc/index.html)
 provides a way of doing this from C++ (i.e. you can inherit from an extension

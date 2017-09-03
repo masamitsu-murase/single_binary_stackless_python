@@ -103,7 +103,7 @@ write code that handles both IP versions correctly.
    1. A string in decimal-dot notation, consisting of four decimal integers in
       the inclusive range 0-255, separated by dots (e.g. ``192.168.0.1``). Each
       integer represents an octet (byte) in the address. Leading zeroes are
-      tolerated only for values less then 8 (as there is no ambiguity
+      tolerated only for values less than 8 (as there is no ambiguity
       between the decimal and octal interpretations of such strings).
    2. An integer that fits into 32 bits.
    3. An integer packed into a :class:`bytes` object of length 4 (most
@@ -550,7 +550,7 @@ so to avoid duplication they are only documented for :class:`IPv4Network`.
       single-address network, with the network address being *address* and
       the mask being ``/128``.
 
-   3. An integer packed into a :class:`bytes` object of length 16, bit-endian.
+   3. An integer packed into a :class:`bytes` object of length 16, big-endian.
       The interpretation is similar to an integer *address*.
 
    An :exc:`AddressValueError` is raised if *address* is not a valid IPv6

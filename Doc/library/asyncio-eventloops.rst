@@ -57,9 +57,9 @@ asyncio currently provides two implementations of event loops:
 
 Example to use a :class:`ProactorEventLoop` on Windows::
 
-    import asyncio, os
+    import asyncio, sys
 
-    if os.name == 'nt':
+    if sys.platform == 'win32':
         loop = asyncio.ProactorEventLoop()
         asyncio.set_event_loop(loop)
 
@@ -109,7 +109,7 @@ Common limits of Windows event loops:
 The resolution of the monotonic clock on Windows is usually around 15.6 msec.
 The best resolution is 0.5 msec. The resolution depends on the hardware
 (availability of `HPET
-<http://fr.wikipedia.org/wiki/High_Precision_Event_Timer>`_) and on the Windows
+<http://en.wikipedia.org/wiki/High_Precision_Event_Timer>`_) and on the Windows
 configuration. See :ref:`asyncio delayed calls <asyncio-delayed-calls>`.
 
 
@@ -196,4 +196,3 @@ Access to the global loop policy
 
    Set the current event loop policy. If *policy* is ``None``, the default
    policy is restored.
-

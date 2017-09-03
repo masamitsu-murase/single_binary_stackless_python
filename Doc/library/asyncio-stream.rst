@@ -9,7 +9,14 @@ Streams (high-level API)
 Stream functions
 ================
 
-.. function:: open_connection(host=None, port=None, \*, loop=None, limit=None, **kwds)
+.. note::
+
+   The top-level functions in this module are meant convenience wrappers
+   only; there's really nothing special there, and if they don't do
+   exactly what you want, feel free to copy their code.
+
+
+.. coroutinefunction:: open_connection(host=None, port=None, \*, loop=None, limit=None, \*\*kwds)
 
    A wrapper for :meth:`~BaseEventLoop.create_connection()` returning a (reader,
    writer) pair.
@@ -26,13 +33,9 @@ Stream functions
    instance to use) and *limit* (to set the buffer limit passed to the
    :class:`StreamReader`).
 
-   (If you want to customize the :class:`StreamReader` and/or
-   :class:`StreamReaderProtocol` classes, just copy the code -- there's really
-   nothing special here except some convenience.)
-
    This function is a :ref:`coroutine <coroutine>`.
 
-.. function:: start_server(client_connected_cb, host=None, port=None, \*, loop=None, limit=None, **kwds)
+.. coroutinefunction:: start_server(client_connected_cb, host=None, port=None, \*, loop=None, limit=None, \*\*kwds)
 
    Start a socket server, with a callback for each client connected. The return
    value is the same as :meth:`~BaseEventLoop.create_server()`.
@@ -56,7 +59,7 @@ Stream functions
 
    This function is a :ref:`coroutine <coroutine>`.
 
-.. function:: open_unix_connection(path=None, \*, loop=None, limit=None, **kwds)
+.. coroutinefunction:: open_unix_connection(path=None, \*, loop=None, limit=None, **kwds)
 
    A wrapper for :meth:`~BaseEventLoop.create_unix_connection()` returning
    a (reader, writer) pair.
@@ -68,7 +71,7 @@ Stream functions
 
    Availability: UNIX.
 
-.. function:: start_unix_server(client_connected_cb, path=None, \*, loop=None, limit=None, **kwds)
+.. coroutinefunction:: start_unix_server(client_connected_cb, path=None, \*, loop=None, limit=None, **kwds)
 
    Start a UNIX Domain Socket server, with a callback for each client connected.
 
@@ -84,6 +87,8 @@ StreamReader
 ============
 
 .. class:: StreamReader(limit=None, loop=None)
+
+   This class is :ref:`not thread safe <asyncio-multithreading>`.
 
    .. method:: exception()
 
@@ -106,7 +111,7 @@ StreamReader
 
       Set the transport.
 
-   .. method:: read(n=-1)
+   .. coroutinemethod:: read(n=-1)
 
       Read up to *n* bytes.  If *n* is not provided, or set to ``-1``,
       read until EOF and return all read bytes.
@@ -116,7 +121,7 @@ StreamReader
 
       This method is a :ref:`coroutine <coroutine>`.
 
-   .. method:: readline()
+   .. coroutinemethod:: readline()
 
       Read one line, where "line" is a sequence of bytes ending with ``\n``.
 
@@ -128,7 +133,7 @@ StreamReader
 
       This method is a :ref:`coroutine <coroutine>`.
 
-   .. method:: readexactly(n)
+   .. coroutinemethod:: readexactly(n)
 
       Read exactly *n* bytes. Raise an :exc:`IncompleteReadError` if the end of
       the stream is reached before *n* can be read, the
@@ -155,6 +160,8 @@ StreamWriter
    wait for flow control.  It also adds a transport attribute which references
    the :class:`Transport` directly.
 
+   This class is :ref:`not thread safe <asyncio-multithreading>`.
+
    .. attribute:: transport
 
       Transport.
@@ -168,7 +175,7 @@ StreamWriter
 
       Close the transport: see :meth:`BaseTransport.close`.
 
-   .. method:: drain()
+   .. coroutinemethod:: drain()
 
       Let the write buffer of the underlying transport a chance to be flushed.
 
@@ -224,8 +231,8 @@ StreamReaderProtocol
 
     (This is a helper class instead of making :class:`StreamReader` itself a
     :class:`Protocol` subclass, because the :class:`StreamReader` has other
-    potential uses, and to prevent the user of the :class:`StreamReader` to
-    accidentally call inappropriate methods of the protocol.)
+    potential uses, and to prevent the user of the :class:`StreamReader` from
+    accidentally calling inappropriate methods of the protocol.)
 
 
 IncompleteReadError
@@ -308,7 +315,7 @@ TCP echo server using the :func:`asyncio.start_server` function::
     coro = asyncio.start_server(handle_echo, '127.0.0.1', 8888, loop=loop)
     server = loop.run_until_complete(coro)
 
-    # Serve requests until CTRL+c is pressed
+    # Serve requests until Ctrl+C is pressed
     print('Serving on {}'.format(server.sockets[0].getsockname()))
     try:
         loop.run_forever()
@@ -360,7 +367,7 @@ Simple example querying HTTP headers of the URL passed on the command line::
 
     url = sys.argv[1]
     loop = asyncio.get_event_loop()
-    task = asyncio.async(print_http_headers(url))
+    task = asyncio.ensure_future(print_http_headers(url))
     loop.run_until_complete(task)
     loop.close()
 

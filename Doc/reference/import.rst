@@ -200,7 +200,7 @@ of the module to result in an :exc:`ImportError`.
 Beware though, as if you keep a reference to the module object,
 invalidate its cache entry in :data:`sys.modules`, and then re-import the
 named module, the two module objects will *not* be the same. By contrast,
-:func:`imp.reload` will reuse the *same* module object, and simply
+:func:`importlib.reload` will reuse the *same* module object, and simply
 reinitialise the module contents by rerunning the module's code.
 
 
@@ -460,6 +460,41 @@ import machinery will create the new module itself.
     * If loading fails, the loader must remove any modules it has inserted
       into :data:`sys.modules`, but it must remove **only** the failing
       module, and only if the loader itself has loaded it explicitly.
+
+Submodules
+----------
+
+When a submodule is loaded using any mechanism (e.g. ``importlib`` APIs, the
+``import`` or ``import-from`` statements, or built-in ``__import__()``) a
+binding is placed in the parent module's namespace to the submodule object.
+For example, if package ``spam`` has a submodule ``foo``, after importing
+``spam.foo``, ``spam`` will have an attribute ``foo`` which is bound to the
+submodule.  Let's say you have the following directory structure::
+
+    spam/
+        __init__.py
+        foo.py
+        bar.py
+
+and ``spam/__init__.py`` has the following lines in it::
+
+    from .foo import Foo
+    from .bar import Bar
+
+then executing the following puts a name binding to ``foo`` and ``bar`` in the
+``spam`` module::
+
+    >>> import spam
+    >>> spam.foo
+    <module 'spam.foo' from '/tmp/imports/spam/foo.py'>
+    >>> spam.bar
+    <module 'spam.bar' from '/tmp/imports/spam/bar.py'>
+
+Given Python's familiar name binding rules this might seem surprising, but
+it's actually a fundamental feature of the import system.  The invariant
+holding is that if you have ``sys.modules['spam']`` and
+``sys.modules['spam.foo']`` (as you would after the above import), the latter
+must appear as the ``foo`` attribute of the former.
 
 Module spec
 -----------

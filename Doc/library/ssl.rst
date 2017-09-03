@@ -245,8 +245,8 @@ purposes.
    :const:`None`, this function can choose to trust the system's default
    CA certificates instead.
 
-   The settings in Python 3.4 are: :data:`PROTOCOL_SSLv23`, :data:`OP_NO_SSLv2`,
-   and :data:`OP_NO_SSLv3` with high encryption cipher suites without RC4 and
+   The settings are: :data:`PROTOCOL_SSLv23`, :data:`OP_NO_SSLv2`, and
+   :data:`OP_NO_SSLv3` with high encryption cipher suites without RC4 and
    without unauthenticated cipher suites. Passing :data:`~Purpose.SERVER_AUTH`
    as *purpose* sets :data:`~SSLContext.verify_mode` to :data:`CERT_REQUIRED`
    and either loads CA certificates (when at least one of *cafile*, *capath* or
@@ -263,18 +263,22 @@ purposes.
 
    .. note::
       If you find that when certain older clients or servers attempt to connect
-      with a :class:`SSLContext` created by this function that they get an
-      error stating "Protocol or cipher suite mismatch", it may be that they
-      only support SSL3.0 which this function excludes using the
-      :data:`OP_NO_SSLv3`. SSL3.0 has problematic security due to a number of
-      poor implementations and it's reliance on MD5 within the protocol. If you
-      wish to continue to use this function but still allow SSL 3.0 connections
-      you can re-enable them using::
+      with a :class:`SSLContext` created by this function that they get an error
+      stating "Protocol or cipher suite mismatch", it may be that they only
+      support SSL3.0 which this function excludes using the
+      :data:`OP_NO_SSLv3`. SSL3.0 is widely considered to be `completely broken
+      <https://en.wikipedia.org/wiki/POODLE>`_. If you still wish to continue to
+      use this function but still allow SSL 3.0 connections you can re-enable
+      them using::
 
          ctx = ssl.create_default_context(Purpose.CLIENT_AUTH)
          ctx.options &= ~ssl.OP_NO_SSLv3
 
    .. versionadded:: 3.4
+
+   .. versionchanged:: 3.4.4
+
+     RC4 was dropped from the default cipher string.
 
 
 Random generation
@@ -282,11 +286,13 @@ Random generation
 
 .. function:: RAND_bytes(num)
 
-   Returns *num* cryptographically strong pseudo-random bytes. Raises an
+   Return *num* cryptographically strong pseudo-random bytes. Raises an
    :class:`SSLError` if the PRNG has not been seeded with enough data or if the
    operation is not supported by the current RAND method. :func:`RAND_status`
    can be used to check the status of the PRNG and :func:`RAND_add` can be used
    to seed the PRNG.
+
+   For almost all applications :func:`os.urandom` is preferable.
 
    Read the Wikipedia article, `Cryptographically secure pseudorandom number
    generator (CSPRNG)
@@ -297,7 +303,7 @@ Random generation
 
 .. function:: RAND_pseudo_bytes(num)
 
-   Returns (bytes, is_cryptographic): bytes are *num* pseudo-random bytes,
+   Return (bytes, is_cryptographic): bytes are *num* pseudo-random bytes,
    is_cryptographic is ``True`` if the bytes generated are cryptographically
    strong. Raises an :class:`SSLError` if the operation is not supported by the
    current RAND method.
@@ -307,14 +313,16 @@ Random generation
    for non-cryptographic purposes and for certain purposes in cryptographic
    protocols, but usually not for key generation etc.
 
+   For almost all applications :func:`os.urandom` is preferable.
+
    .. versionadded:: 3.3
 
 .. function:: RAND_status()
 
-   Returns ``True`` if the SSL pseudo-random number generator has been seeded with
-   'enough' randomness, and ``False`` otherwise.  You can use :func:`ssl.RAND_egd`
-   and :func:`ssl.RAND_add` to increase the randomness of the pseudo-random
-   number generator.
+   Return ``True`` if the SSL pseudo-random number generator has been seeded
+   with 'enough' randomness, and ``False`` otherwise.  You can use
+   :func:`ssl.RAND_egd` and :func:`ssl.RAND_add` to increase the randomness of
+   the pseudo-random number generator.
 
 .. function:: RAND_egd(path)
 
@@ -329,7 +337,7 @@ Random generation
 
 .. function:: RAND_add(bytes, entropy)
 
-   Mixes the given *bytes* into the SSL pseudo-random number generator.  The
+   Mix the given *bytes* into the SSL pseudo-random number generator.  The
    parameter *entropy* (a float) is a lower bound on the entropy contained in
    string (so you can always use :const:`0.0`).  See :rfc:`1750` for more
    information on sources of entropy.
@@ -499,9 +507,9 @@ Constants
 
 .. data:: VERIFY_DEFAULT
 
-   Possible value for :attr:`SSLContext.verify_flags`. In this mode,
-   certificate revocation lists (CRLs) are not checked. By default OpenSSL
-   does neither require nor verify CRLs.
+   Possible value for :attr:`SSLContext.verify_flags`. In this mode, certificate
+   revocation lists (CRLs) are not checked. By default OpenSSL does neither
+   require nor verify CRLs.
 
    .. versionadded:: 3.4
 
@@ -528,6 +536,14 @@ Constants
    for broken X.509 certificates.
 
    .. versionadded:: 3.4
+
+.. data:: VERIFY_X509_TRUSTED_FIRST
+
+   Possible value for :attr:`SSLContext.verify_flags`. It instructs OpenSSL to
+   prefer trusted certificates when building the trust chain to validate a
+   certificate. This flag is enabled by default.
+
+   .. versionadded:: 3.4.4
 
 .. data:: PROTOCOL_SSLv23
 
@@ -811,7 +827,7 @@ SSL sockets also have the following additional methods and attributes:
 
    The :meth:`~SSLSocket.read` and :meth:`~SSLSocket.write` methods are the
    low-level methods that read and write unencrypted, application-level data
-   and and decrypt/encrypt it to encrypted, wire-level data. These methods
+   and decrypt/encrypt it to encrypted, wire-level data. These methods
    require an active SSL connection, i.e. the handshake was completed and
    :meth:`SSLSocket.unwrap` was not called.
 
@@ -1091,6 +1107,10 @@ to speed up repeated connections from the same clients.
    does not contain certificates from *capath* unless a certificate was
    requested and loaded by a SSL connection.
 
+   .. note::
+      Certificates in a capath directory aren't loaded unless they have
+      been used at least once.
+
    .. versionadded:: 3.4
 
 .. method:: SSLContext.set_default_verify_paths()
@@ -1247,21 +1267,9 @@ to speed up repeated connections from the same clients.
       >>> stats['hits'], stats['misses']
       (0, 0)
 
-.. method:: SSLContext.get_ca_certs(binary_form=False)
-
-   Returns a list of dicts with information of loaded CA certs. If the
-   optional argument is true, returns a DER-encoded copy of the CA
-   certificate.
-
-   .. note::
-      Certificates in a capath directory aren't loaded unless they have
-      been used at least once.
-
-   .. versionadded:: 3.4
-
 .. attribute:: SSLContext.check_hostname
 
-   Wether to match the peer cert's hostname with :func:`match_hostname` in
+   Whether to match the peer cert's hostname with :func:`match_hostname` in
    :meth:`SSLSocket.do_handshake`. The context's
    :attr:`~SSLContext.verify_mode` must be set to :data:`CERT_OPTIONAL` or
    :data:`CERT_REQUIRED`, and you must pass *server_hostname* to

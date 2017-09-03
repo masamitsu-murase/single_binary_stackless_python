@@ -69,9 +69,9 @@ The module itself defines the following classes:
    connecting to an NNTP server on the local machine and intend to call
    reader-specific commands, such as ``group``.  If you get unexpected
    :exc:`NNTPPermanentError`\ s, you might need to set *readermode*.
-   :class:`NNTP` class supports the :keyword:`with` statement to
+   The :class:`NNTP` class supports the :keyword:`with` statement to
    unconditionally consume :exc:`OSError` exceptions and to close the NNTP
-   connection when done. Here is a sample on how using it:
+   connection when done, e.g.:
 
     >>> from nntplib import NNTP
     >>> with NNTP('news.gmane.org') as n:
@@ -341,7 +341,7 @@ tuples or objects that the method normally returns will be empty.
 
 .. method:: NNTP.over(message_spec, *, file=None)
 
-   Send a ``OVER`` command, or a ``XOVER`` command on legacy servers.
+   Send an ``OVER`` command, or an ``XOVER`` command on legacy servers.
    *message_spec* can be either a string representing a message id, or
    a ``(first, last)`` tuple of numbers indicating a range of articles in
    the current group, or a ``(first, None)`` tuple indicating a range of

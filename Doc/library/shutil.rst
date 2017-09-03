@@ -206,8 +206,8 @@ Directory and files operations
    and metadata of the linked files are copied to the new tree.
 
    When *symlinks* is false, if the file pointed by the symlink doesn't
-   exist, a exception will be added in the list of errors raised in
-   a :exc:`Error` exception at the end of the copy process.
+   exist, an exception will be added in the list of errors raised in
+   an :exc:`Error` exception at the end of the copy process.
    You can set the optional *ignore_dangling_symlinks* flag to true if you
    want to silence this exception. Notice that this option has no effect
    on platforms that don't support :func:`os.symlink`.
@@ -287,12 +287,9 @@ Directory and files operations
    Recursively move a file or directory (*src*) to another location (*dst*)
    and return the destination.
 
-   If the destination is a directory or a symlink to a directory, then *src* is
-   moved inside that directory.
-
-   The destination directory must not already exist.  If the destination already
-   exists but is not a directory, it may be overwritten depending on
-   :func:`os.rename` semantics.
+   If the destination is an existing directory, then *src* is moved inside that
+   directory. If the destination already exists but is not a directory, it may
+   be overwritten depending on :func:`os.rename` semantics.
 
    If the destination is on the current filesystem, then :func:`os.rename` is
    used.  Otherwise, *src* is copied (using :func:`shutil.copy2`) to *dst* and
@@ -341,7 +338,7 @@ Directory and files operations
 
    On Windows, the current directory is always prepended to the *path* whether
    or not you use the default or provide your own, which is the behavior the
-   command shell uses when finding executables.  Additionaly, when finding the
+   command shell uses when finding executables.  Additionally, when finding the
    *cmd* in the *path*, the ``PATHEXT`` environment variable is checked.  For
    example, if you call ``shutil.which("python")``, :func:`which` will search
    ``PATHEXT`` to know that it should look for ``python.exe`` within the *path*
@@ -464,7 +461,7 @@ provided.  They rely on the :mod:`zipfile` and :mod:`tarfile` modules.
 .. function:: get_archive_formats()
 
    Return a list of supported formats for archiving.
-   Each element of the returned sequence is a tuple ``(name, description)``
+   Each element of the returned sequence is a tuple ``(name, description)``.
 
    By default :mod:`shutil` provides these formats:
 

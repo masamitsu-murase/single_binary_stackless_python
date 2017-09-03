@@ -854,8 +854,8 @@ operations have the same priority as the corresponding numeric operations.
 | ``s + t``                | the concatenation of *s* and   | (6)(7)   |
 |                          | *t*                            |          |
 +--------------------------+--------------------------------+----------+
-| ``s * n`` or             | *n* shallow copies of *s*      | (2)(7)   |
-| ``n * s``                | concatenated                   |          |
+| ``s * n`` or             | equivalent to adding *s* to    | (2)(7)   |
+| ``n * s``                | itself *n* times               |          |
 +--------------------------+--------------------------------+----------+
 | ``s[i]``                 | *i*\ th item of *s*, origin 0  | \(3)     |
 +--------------------------+--------------------------------+----------+
@@ -897,9 +897,9 @@ Notes:
 
 (2)
    Values of *n* less than ``0`` are treated as ``0`` (which yields an empty
-   sequence of the same type as *s*).  Note also that the copies are shallow;
-   nested structures are not copied.  This often haunts new Python programmers;
-   consider::
+   sequence of the same type as *s*).  Note that items in the sequence *s*
+   are not copied; they are referenced multiple times.  This often haunts
+   new Python programmers; consider::
 
       >>> lists = [[]] * 3
       >>> lists
@@ -909,7 +909,7 @@ Notes:
       [[3], [3], [3]]
 
    What has happened is that ``[[]]`` is a one-element list containing an empty
-   list, so all three elements of ``[[]] * 3`` are (pointers to) this single empty
+   list, so all three elements of ``[[]] * 3`` are references to this single empty
    list.  Modifying any of the elements of ``lists`` modifies this single list.
    You can create a list of different lists this way::
 
@@ -919,6 +919,9 @@ Notes:
       >>> lists[2].append(7)
       >>> lists
       [[3], [5], [7]]
+
+   Further explanation is available in the FAQ entry
+   :ref:`faq-multidimensional-list`.
 
 (3)
    If *i* or *j* is negative, the index is relative to the end of the string:
@@ -948,7 +951,7 @@ Notes:
    runtime cost, you must switch to one of the alternatives below:
 
    * if concatenating :class:`str` objects, you can build a list and use
-     :meth:`str.join` at the end or else write to a :class:`io.StringIO`
+     :meth:`str.join` at the end or else write to an :class:`io.StringIO`
      instance and retrieve its value when complete
 
    * if concatenating :class:`bytes` objects, you can similarly use
@@ -1060,9 +1063,13 @@ accepts integers that meet the value restriction ``0 <= x <= 255``).
 | ``s.copy()``                 | creates a shallow copy of ``s``| \(5)                |
 |                              | (same as ``s[:]``)             |                     |
 +------------------------------+--------------------------------+---------------------+
-| ``s.extend(t)``              | extends *s* with the           |                     |
-|                              | contents of *t* (same as       |                     |
+| ``s.extend(t)`` or           | extends *s* with the           |                     |
+| ``s += t``                   | contents of *t* (for the       |                     |
+|                              | most part the same as          |                     |
 |                              | ``s[len(s):len(s)] = t``)      |                     |
++------------------------------+--------------------------------+---------------------+
+| ``s *= n``                   | updates *s* with its contents  | \(6)                |
+|                              | repeated *n* times             |                     |
 +------------------------------+--------------------------------+---------------------+
 | ``s.insert(i, x)``           | inserts *x* into *s* at the    |                     |
 |                              | index given by *i*             |                     |
@@ -1103,6 +1110,12 @@ Notes:
 
    .. versionadded:: 3.3
       :meth:`clear` and :meth:`!copy` methods.
+
+(6)
+   The value *n* is an integer, or an object implementing
+   :meth:`~object.__index__`.  Zero and negative values of *n* clear
+   the sequence.  Items in the sequence are not copied; they are referenced
+   multiple times, as explained for ``s * n`` under :ref:`typesseq-common`.
 
 
 .. _typesseq-list:
@@ -1855,10 +1868,42 @@ expression support in the :mod:`re` module).
 
 .. method:: str.splitlines([keepends])
 
-   Return a list of the lines in the string, breaking at line boundaries.
-   This method uses the :term:`universal newlines` approach to splitting lines.
-   Line breaks are not included in the resulting list unless *keepends* is
-   given and true.
+   Return a list of the lines in the string, breaking at line boundaries.  Line
+   breaks are not included in the resulting list unless *keepends* is given and
+   true.
+
+   This method splits on the following line boundaries.  In particular, the
+   boundaries are a superset of :term:`universal newlines`.
+
+   +-----------------------+-----------------------------+
+   | Representation        | Description                 |
+   +=======================+=============================+
+   | ``\n``                | Line Feed                   |
+   +-----------------------+-----------------------------+
+   | ``\r``                | Carriage Return             |
+   +-----------------------+-----------------------------+
+   | ``\r\n``              | Carriage Return + Line Feed |
+   +-----------------------+-----------------------------+
+   | ``\v`` or ``\x0b``    | Line Tabulation             |
+   +-----------------------+-----------------------------+
+   | ``\f`` or ``\x0c``    | Form Feed                   |
+   +-----------------------+-----------------------------+
+   | ``\x1c``              | File Separator              |
+   +-----------------------+-----------------------------+
+   | ``\x1d``              | Group Separator             |
+   +-----------------------+-----------------------------+
+   | ``\x1e``              | Record Separator            |
+   +-----------------------+-----------------------------+
+   | ``\x85``              | Next Line (C1 Control Code) |
+   +-----------------------+-----------------------------+
+   | ``\u2028``            | Line Separator              |
+   +-----------------------+-----------------------------+
+   | ``\u2029``            | Paragraph Separator         |
+   +-----------------------+-----------------------------+
+
+   .. versionchanged:: 3.2
+
+      ``\v`` and ``\f`` added to list of line boundaries.
 
    For example::
 
@@ -1944,21 +1989,22 @@ expression support in the :mod:`re` module).
         "They're Bill's Friends."
 
 
-.. method:: str.translate(map)
+.. method:: str.translate(table)
 
-   Return a copy of the *s* where all characters have been mapped through the
-   *map* which must be a dictionary of Unicode ordinals (integers) to Unicode
-   ordinals, strings or ``None``.  Unmapped characters are left untouched.
-   Characters mapped to ``None`` are deleted.
+   Return a copy of the string in which each character has been mapped through
+   the given translation table.  The table must be an object that implements
+   indexing via :meth:`__getitem__`, typically a :term:`mapping` or
+   :term:`sequence`.  When indexed by a Unicode ordinal (an integer), the
+   table object can do any of the following: return a Unicode ordinal or a
+   string, to map the character to one or more other characters; return
+   ``None``, to delete the character from the return string; or raise a
+   :exc:`LookupError` exception, to map the character to itself.
 
    You can use :meth:`str.maketrans` to create a translation map from
    character-to-character mappings in different formats.
 
-   .. note::
-
-      An even more flexible approach is to create a custom character mapping
-      codec using the :mod:`codecs` module (see :mod:`encodings.cp1251` for an
-      example).
+   See also the :mod:`codecs` module for a more flexible approach to custom
+   character mappings.
 
 
 .. method:: str.upper()
@@ -1976,7 +2022,7 @@ expression support in the :mod:`re` module).
 .. method:: str.zfill(width)
 
    Return a copy of the string left filled with ASCII ``'0'`` digits to
-   make a string of length *width*. A leading sign prefix (``'+'``/``'-'``
+   make a string of length *width*. A leading sign prefix (``'+'``/``'-'``)
    is handled by inserting the padding *after* the sign character rather
    than before. The original string is returned if *width* is less than
    or equal to ``len(s)``.
@@ -2451,7 +2497,7 @@ arbitrary binary data.
    Return a bytes or bytearray object which is the concatenation of the
    binary data sequences in the :term:`iterable` *iterable*.  A
    :exc:`TypeError` will be raised if there are any values in *iterable*
-   that are note :term:`bytes-like objects <bytes-like object>`, including
+   that are not :term:`bytes-like objects <bytes-like object>`, including
    :class:`str` objects.  The separator between elements is the contents
    of the bytes or bytearray object providing this method.
 
@@ -2858,7 +2904,7 @@ place, and instead produce new objects.
 
    Return true if all bytes in the sequence are ASCII whitespace and the
    sequence is not empty, false otherwise.  ASCII whitespace characters are
-   those byte values in the sequence b' \t\n\r\x0b\f' (space, tab, newline,
+   those byte values in the sequence ``b' \t\n\r\x0b\f'`` (space, tab, newline,
    carriage return, vertical tab, form feed).
 
 
@@ -2880,8 +2926,8 @@ place, and instead produce new objects.
 .. method:: bytes.isupper()
             bytearray.isupper()
 
-   Return true if there is at least one lowercase alphabetic ASCII character
-   in the sequence and no uppercase ASCII characters, false otherwise.
+   Return true if there is at least one uppercase alphabetic ASCII character
+   in the sequence and no lowercase ASCII characters, false otherwise.
 
    For example::
 
@@ -3872,6 +3918,10 @@ pairs within braces, for example: ``{'jack': 4098, 'sjoerd': 4127}`` or ``{4098:
 
       Return a new view of the dictionary's values.  See the
       :ref:`documentation of view objects <dict-views>`.
+
+   Dictionaries compare equal if and only if they have the same ``(key,
+   value)`` pairs. Order comparisons ('<', '<=', '>=', '>') raise
+   :exc:`TypeError`.
 
 .. seealso::
    :class:`types.MappingProxyType` can be used to create a read-only view

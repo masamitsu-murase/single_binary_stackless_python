@@ -23,6 +23,8 @@ then call the transport's methods for various purposes.
 subprocess pipes.  The methods available on a transport depend on
 the transport's kind.
 
+The transport classes are :ref:`not thread safe <asyncio-multithreading>`.
+
 
 BaseTransport
 -------------
@@ -39,6 +41,11 @@ BaseTransport
       protocol's :meth:`connection_lost` method will be called with
       :const:`None` as its argument.
 
+   .. method:: is_closing(self)
+
+      Return ``True`` if the transport is closing or is closed.
+
+      .. versionadded:: 3.4.4
 
    .. method:: get_extra_info(name, default=None)
 
@@ -69,6 +76,8 @@ BaseTransport
         - ``'peercert'``: peer certificate; result of
           :meth:`ssl.SSLSocket.getpeercert`
         - ``'sslcontext'``: :class:`ssl.SSLContext` instance
+        - ``'ssl_object'``: :class:`ssl.SSLObject` or :class:`ssl.SSLSocket`
+          instance
 
       * pipe:
 
@@ -77,6 +86,9 @@ BaseTransport
       * subprocess:
 
         - ``'subprocess'``: :class:`subprocess.Popen` instance
+
+   .. versionchanged:: 3.4.4
+      ``'ssl_object'`` info was added to SSL sockets.
 
 
 ReadTransport
@@ -141,7 +153,7 @@ WriteTransport
       high-water limit.  Neither *high* nor *low* can be negative.
 
       The defaults are implementation-specific.  If only the
-      high-water limit is given, the low-water limit defaults to a
+      high-water limit is given, the low-water limit defaults to an
       implementation-specific value less than or equal to the
       high-water limit.  Setting *high* to zero forces *low* to zero as
       well, and causes :meth:`pause_writing` to be called whenever the
@@ -225,7 +237,7 @@ BaseSubprocessTransport
 
    .. method:: kill(self)
 
-      Kill the subprocess, as in :meth:`subprocess.Popen.kill`
+      Kill the subprocess, as in :meth:`subprocess.Popen.kill`.
 
       On POSIX systems, the function sends SIGKILL to the subprocess.
       On Windows, this method is an alias for :meth:`terminate`.
@@ -482,7 +494,7 @@ data and wait until the connection is closed::
 
         def connection_lost(self, exc):
             print('The server closed the connection')
-            print('Stop the event lop')
+            print('Stop the event loop')
             self.loop.stop()
 
     loop = asyncio.get_event_loop()
@@ -537,7 +549,7 @@ received data and close the connection::
     coro = loop.create_server(EchoServerClientProtocol, '127.0.0.1', 8888)
     server = loop.run_until_complete(coro)
 
-    # Serve requests until CTRL+c is pressed
+    # Serve requests until Ctrl+C is pressed
     print('Serving on {}'.format(server.sockets[0].getsockname()))
     try:
         loop.run_forever()

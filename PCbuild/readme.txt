@@ -171,18 +171,18 @@ _lzma
     Homepage:
         http://tukaani.org/xz/
 _ssl
-    Python wrapper for version 1.0.1j of the OpenSSL secure sockets
+    Python wrapper for version 1.0.2d of the OpenSSL secure sockets
     library, which is built by ssl.vcxproj
     Homepage:
         http://www.openssl.org/
 
     Building OpenSSL requires nasm.exe (the Netwide Assembler), version
-    2.11.06 or newer from
+    2.10 or newer from
         http://www.nasm.us/
     to be somewhere on your PATH.  More recent versions of OpenSSL may
     need a later version of NASM. If OpenSSL's self tests don't pass,
     you should first try to update NASM and do a full rebuild of
-    OpenSSL.  If you use the Tools\buildbot\external(-amd64).bat method
+    OpenSSL.  If you use the PCbuild\get_externals.bat method
     for getting sources, it also downloads a version of NASM which the
     ssl build script will add to PATH.
 
@@ -214,7 +214,7 @@ _ssl
     The ssl sub-project does not have the ability to clean the OpenSSL
     build; if you need to rebuild, you'll have to clean it by hand.
 _sqlite3
-    Wraps SQLite 3.8.3.1, which is itself built by sqlite3.vcxproj
+    Wraps SQLite 3.8.11.0, which is itself built by sqlite3.vcxproj
     Homepage:
         http://www.sqlite.org/
 _tkinter
@@ -225,9 +225,15 @@ _tkinter
     Unlike the other external libraries listed above, Tk must be built
     separately before the _tkinter module can be built. This means that
     a pre-built Tcl/Tk installation is expected in ..\externals\tcltk
-    (tcltk64 for 64-bit) relative to this directory.  See "Getting
-    External Sources" below for the easiest method to ensure Tcl/Tk is
-    built.
+    (tcltk64 for 64-bit) relative to this directory; the easiest way to
+    do so is to build Python using `build.bat -e`, which will build
+    Tcl, Tk, and Tix and install them as expected.  Note that to
+    import and use tkinter, the Tcl and Tk DLLs must be somewhere that
+    python.exe can find them, which means that either
+    ..\externals\tcltk[64]\bin must be added to PATH, or the DLLs must
+    be copied from that folder to be alongside python.exe.  `build.bat`
+    takes care of it for you by copying the DLLs into the build
+    directory.
 
 
 Getting External Sources
@@ -236,45 +242,13 @@ Getting External Sources
 The last category of sub-projects listed above wrap external projects
 Python doesn't control, and as such a little more work is required in
 order to download the relevant source files for each project before they
-can be built.  The buildbots must ensure that all libraries are present
-before building, so the easiest approach is to run either external.bat
-or external-amd64.bat (depending on platform) in the ..\Tools\buildbot
-directory from ..\, i.e.:
-
-    C:\python\cpython\PCbuild>cd ..
-    C:\python\cpython>Tools\buildbot\external.bat
-
-This extracts all the external sub-projects from
-    http://svn.python.org/projects/external
-via Subversion (so you'll need an svn.exe on your PATH) and places them
-in ..\externals (relative to this directory).
-
-It is also possible to download sources from each project's homepage,
-though you may have to change the names of some folders in order to make
-things work.  For instance, if you were to download a version 5.0.7 of
-XZ Utils, you would need to extract the archive into ..\externals\xz-5.0.5
-anyway, since that is where the solution is set to look for xz.  The
-same is true for all other external projects.
-
-The external(-amd64).bat scripts will also build a debug build of
-Tcl/Tk, but there aren't any equivalent batch files for building release
-versions of Tcl/Tk currently available.  If you need to build a release
-version of Tcl/Tk, just take a look at the relevant external(-amd64).bat
-file and find the two nmake lines, then call each one without the
-'DEBUG=1' parameter, i.e.:
-
-The external-amd64.bat file contains this for tcl:
-    nmake -f makefile.vc DEBUG=1 MACHINE=AMD64 INSTALLDIR=..\..\tcltk64 clean all install
-
-So for a release build, you'd call it as:
-    nmake -f makefile.vc MACHINE=AMD64 INSTALLDIR=..\..\tcltk64 clean all install
-
-Note that the above command is called from within ..\externals\tcl-8.6.1.0\win
-(relative to this directory); don't forget to build Tk as well as Tcl!
-
-This will be cleaned up in the future; http://bugs.python.org/issue15968
-tracks adding a new tcltk.vcxproj file that will build Tcl/Tk and Tix
-the same way the other external projects listed above are built.
+can be built.  The easiest way to do this is to use the `build.bat`
+script in this directory to build Python, and pass the '-e' switch to
+tell it to use get_externals.bat to fetch external sources and build
+Tcl/Tk and Tix.  To use get_externals.bat, you'll need to have
+Subversion installed and svn.exe on your PATH.  The script will fetch
+external library sources from http://svn.python.org/external and place
+them in ..\externals (relative to this directory).
 
 
 Building for AMD64
@@ -344,11 +318,3 @@ The pyproject property file defines _WIN32 and x64 defines _WIN64 and
 _M_X64 although the macros are set by the compiler, too. The GUI doesn't
 always know about the macros and confuse the user with false
 information.
-
-
-Your Own Extension DLLs
------------------------
-
-If you want to create your own extension module DLL (.pyd), there's an
-example with easy-to-follow instructions in ..\PC\example\; read the
-file readme.txt there first.

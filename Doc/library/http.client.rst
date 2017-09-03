@@ -19,6 +19,11 @@ This module defines classes which implement the client side of the HTTP and
 HTTPS protocols.  It is normally not used directly --- the module
 :mod:`urllib.request` uses it to handle URLs that use HTTP and HTTPS.
 
+.. seealso::
+
+    The `Requests package <http://requests.readthedocs.org/>`_
+    is recommended for a higher-level http client interface.
+
 .. note::
 
    HTTPS support is only available if Python was compiled with SSL support
@@ -167,6 +172,12 @@ The following exceptions are raised as appropriate:
 
    A subclass of :exc:`HTTPException`.  Raised if a server responds with a HTTP
    status code that we don't understand.
+
+
+.. exception:: LineTooLong
+
+   A subclass of :exc:`HTTPException`.  Raised if an excessively long line
+   is received in the HTTP protocol from the server.
 
 
 The constants defined in this module are:
@@ -407,22 +418,32 @@ HTTPConnection Objects
 .. method:: HTTPConnection.request(method, url, body=None, headers={})
 
    This will send a request to the server using the HTTP request
-   method *method* and the selector *url*.  If the *body* argument is
-   present, it should be string or bytes object of data to send after
-   the headers are finished.  Strings are encoded as ISO-8859-1, the
-   default charset for HTTP.  To use other encodings, pass a bytes
-   object.  The Content-Length header is set to the length of the
-   string.
+   method *method* and the selector *url*.
 
-   The *body* may also be an open :term:`file object`, in which case the
-   contents of the file is sent; this file object should support ``fileno()``
-   and ``read()`` methods. The header Content-Length is automatically set to
-   the length of the file as reported by stat. The *body* argument may also be
-   an iterable and Content-Length header should be explicitly provided when the
-   body is an iterable.
+   If *body* is specified, the specified data is sent after the headers are
+   finished.  It may be a string, a :term:`bytes-like object`, an open
+   :term:`file object`, or an iterable of :term:`bytes-like object`\s.  If
+   *body* is a string, it is encoded as ISO-8851-1, the default for HTTP.  If
+   it is a bytes-like object the bytes are sent as is.  If it is a :term:`file
+   object`, the contents of the file is sent; this file object should support
+   at least the ``read()`` method.  If the file object has a ``mode``
+   attribute, the data returned by the ``read()`` method will be encoded as
+   ISO-8851-1 unless the ``mode`` attribute contains the substring ``b``,
+   otherwise the data returned by ``read()`` is sent as is.  If *body* is an
+   iterable, the elements of the iterable are sent as is until the iterable is
+   exhausted.
 
    The *headers* argument should be a mapping of extra HTTP
    headers to send with the request.
+
+   If *headers* does not contain a Content-Length item, one is added
+   automatically if possible.  If *body* is ``None``, the Content-Length header
+   is set to ``0`` for methods that expect a body (``PUT``, ``POST``, and
+   ``PATCH``).  If *body* is a string or bytes object, the Content-Length
+   header is set to its length.  If *body* is a :term:`file object` and it
+   works to call :func:`~os.fstat` on the result of its ``fileno()`` method,
+   then the Content-Length header is set to the ``st_size`` reported by the
+   ``fstat`` call.  Otherwise no Content-Length header is added.
 
    .. versionadded:: 3.2
       *body* can now be an iterable.
@@ -594,18 +615,18 @@ Examples
 Here is an example session that uses the ``GET`` method::
 
    >>> import http.client
-   >>> conn = http.client.HTTPConnection("www.python.org")
-   >>> conn.request("GET", "/index.html")
+   >>> conn = http.client.HTTPSConnection("www.python.org")
+   >>> conn.request("GET", "/")
    >>> r1 = conn.getresponse()
    >>> print(r1.status, r1.reason)
    200 OK
    >>> data1 = r1.read()  # This will return entire content.
    >>> # The following example demonstrates reading data in chunks.
-   >>> conn.request("GET", "/index.html")
+   >>> conn.request("GET", "/")
    >>> r1 = conn.getresponse()
    >>> while not r1.closed:
    ...     print(r1.read(200)) # 200 bytes
-   b'<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"...
+   b'<!doctype html>\n<!--[if"...
    ...
    >>> # Example of an invalid request
    >>> conn.request("GET", "/parrot.spam")
@@ -619,8 +640,8 @@ Here is an example session that uses the ``HEAD`` method.  Note that the
 ``HEAD`` method never returns any data. ::
 
    >>> import http.client
-   >>> conn = http.client.HTTPConnection("www.python.org")
-   >>> conn.request("HEAD","/index.html")
+   >>> conn = http.client.HTTPSConnection("www.python.org")
+   >>> conn.request("HEAD", "/")
    >>> res = conn.getresponse()
    >>> print(res.status, res.reason)
    200 OK

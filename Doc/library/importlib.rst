@@ -152,12 +152,6 @@ Functions
 
    There are a number of other caveats:
 
-   If a module is syntactically correct but its initialization fails, the first
-   :keyword:`import` statement for it does not bind its name locally, but does
-   store a (partially initialized) module object in ``sys.modules``.  To reload
-   the module you must first :keyword:`import` it again (this will bind the name
-   to the partially initialized module object) before you can :func:`reload` it.
-
    When a module is reloaded, its dictionary (containing the module's global
    variables) is retained.  Redefinitions of names will override the old
    definitions, so this is generally not a problem.  If the new version of a
@@ -172,11 +166,11 @@ Functions
       except NameError:
           cache = {}
 
-   It is legal though generally not very useful to reload built-in or
-   dynamically loaded modules (this is not true for e.g. :mod:`sys`,
-   :mod:`__main__`, :mod:`builtins` and other key modules where reloading is
-   frowned upon). In many cases, however, extension modules are not designed to
-   be initialized more than once, and may fail in arbitrary ways when reloaded.
+   It is generally not very useful to reload built-in or dynamically loaded
+   modules.  Reloading :mod:`sys`, :mod:`__main__`, :mod:`builtins` and other
+   key modules is not recommended.  In many cases extension modules are not
+   designed to be initialized more than once, and may fail in arbitrary ways
+   when reloaded.
 
    If a module imports objects from another module using :keyword:`from` ...
    :keyword:`import` ..., calling :func:`reload` for the other module does not
@@ -723,7 +717,7 @@ find and load modules.
    modules recognized by the standard import machinery. This is a
    helper for code which simply needs to know if a filesystem path
    potentially refers to a module without needing any details on the kind
-   of module (for example, :func:`inspect.getmodulename`)
+   of module (for example, :func:`inspect.getmodulename`).
 
    .. versionadded:: 3.3
 

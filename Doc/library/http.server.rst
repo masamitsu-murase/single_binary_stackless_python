@@ -64,6 +64,18 @@ of which this module provides three different variants:
 
       Contains the server instance.
 
+   .. attribute:: close_connection
+
+      Boolean that should be set before :meth:`handle_one_request` returns,
+      indicating if another request may be expected, or if the connection should
+      be shut down.
+
+   .. attribute:: requestline
+
+      Contains the string representation of the HTTP request line. The
+      terminating CRLF is stripped. This attribute should be set by
+      :meth:`handle_one_request`. If no valid request line was processed, it
+      should be set to the empty string.
 
    .. attribute:: command
 
@@ -164,7 +176,7 @@ of which this module provides three different variants:
 
    .. method:: handle_expect_100()
 
-      When a HTTP/1.1 compliant server receives a ``Expect: 100-continue``
+      When a HTTP/1.1 compliant server receives an ``Expect: 100-continue``
       request header it responds back with a ``100 Continue`` followed by ``200
       OK`` headers.
       This method can be overridden to raise an error if the server does not
@@ -198,7 +210,7 @@ of which this module provides three different variants:
       are picked up from the :meth:`version_string` and
       :meth:`date_time_string` methods, respectively. If the server does not
       intend to send any other headers using the :meth:`send_header` method,
-      then :meth:`send_response` should be followed by a :meth:`end_headers`
+      then :meth:`send_response` should be followed by an :meth:`end_headers`
       call.
 
       .. versionchanged:: 3.3
@@ -220,7 +232,7 @@ of which this module provides three different variants:
 
    .. method:: send_response_only(code, message=None)
 
-      Sends the reponse header only, used for the purposes when ``100
+      Sends the response header only, used for the purposes when ``100
       Continue`` response is sent by the server to the client. The headers not
       buffered and sent directly the output stream.If the *message* is not
       specified, the HTTP message corresponding the response *code*  is sent.

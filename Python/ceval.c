@@ -712,7 +712,7 @@ Py_SetRecursionLimit(int new_limit)
    to guarantee that _Py_CheckRecursiveCall() is regularly called.
    Without USE_STACKCHECK, there is no need for this. */
 int
-_Py_CheckRecursiveCall(char *where)
+_Py_CheckRecursiveCall(const char *where)
 {
     PyThreadState *tstate = PyThreadState_GET();
 
@@ -1811,7 +1811,7 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
 #ifdef Py_DEBUG
     /* PyEval_EvalFrameEx() must not be called with an exception set,
        because it may clear it (directly or indirectly) and so the
-       caller looses its exception */
+       caller loses its exception */
     assert(!PyErr_Occurred());
 #endif
 
@@ -4875,7 +4875,7 @@ PyEval_CallObjectWithKeywords(PyObject *func, PyObject *arg, PyObject *kw)
 #ifdef Py_DEBUG
     /* PyEval_CallObjectWithKeywords() must not be called with an exception
        set, because it may clear it (directly or indirectly)
-       and so the caller looses its exception */
+       and so the caller loses its exception */
     assert(!PyErr_Occurred());
 #endif
 

@@ -103,8 +103,30 @@ created.  Socket addresses are represented as follows:
 
   .. versionadded:: 3.3
 
-- Certain other address families (:const:`AF_BLUETOOTH`, :const:`AF_PACKET`,
-  :const:`AF_CAN`) support specific representations.
+- :const:`AF_BLUETOOTH` supports the following protocols and address
+  formats:
+
+  - :const:`BTPROTO_L2CAP` accepts ``(bdaddr, psm)`` where ``bdaddr`` is
+    the Bluetooth address as a string and ``psm`` is an integer.
+
+  - :const:`BTPROTO_RFCOMM` accepts ``(bdaddr, channel)`` where ``bdaddr``
+    is the Bluetooth address as a string and ``channel`` is an integer.
+
+  - :const:`BTPROTO_HCI` accepts ``(device_id,)`` where ``device_id`` is
+    either an integer or a string with the Bluetooth address of the
+    interface. (This depends on your OS; NetBSD and DragonFlyBSD expect
+    a Bluetooth address while everything else expects an integer.)
+
+    .. versionchanged:: 3.2
+       NetBSD and DragonFlyBSD support added.
+
+  - :const:`BTPROTO_SCO` accepts ``bdaddr`` where ``bdaddr`` is a
+    :class:`bytes` object containing the Bluetooth address in a
+    string format. (ex. ``b'12:23:34:45:56:67'``) This protocol is not
+    supported under FreeBSD.
+
+- Certain other address families (:const:`AF_PACKET`, :const:`AF_CAN`)
+  support specific representations.
 
   .. XXX document them!
 
@@ -312,6 +334,22 @@ Constants
    This constant contains a boolean value which indicates if IPv6 is supported on
    this platform.
 
+.. data:: BDADDR_ANY
+          BDADDR_LOCAL
+
+   These are string constants containing Bluetooth addresses with special
+   meanings. For example, :const:`BDADDR_ANY` can be used to indicate
+   any address when specifying the binding socket with
+   :const:`BTPROTO_RFCOMM`.
+
+.. data:: HCI_FILTER
+          HCI_TIME_STAMP
+          HCI_DATA_DIR
+
+   For use with :const:`BTPROTO_HCI`. :const:`HCI_FILTER` is not
+   available for NetBSD or DragonFlyBSD. :const:`HCI_TIME_STAMP` and
+   :const:`HCI_DATA_DIR` are not available for FreeBSD, NetBSD, or
+   DragonFlyBSD.
 
 Functions
 ^^^^^^^^^
@@ -331,7 +369,11 @@ The following functions all create :ref:`socket objects <socket-objects>`.
    :const:`SOCK_DGRAM`, :const:`SOCK_RAW` or perhaps one of the other ``SOCK_``
    constants. The protocol number is usually zero and may be omitted or in the
    case where the address family is :const:`AF_CAN` the protocol should be one
-   of :const:`CAN_RAW` or :const:`CAN_BCM`.
+   of :const:`CAN_RAW` or :const:`CAN_BCM`.  If *fileno* is specified, the other
+   arguments are ignored, causing the socket with the specified file descriptor
+   to return.  Unlike :func:`socket.fromfd`, *fileno* will return the same
+   socket and not a duplicate. This may help close a detached socket using
+   :meth:`socket.close()`.
 
    The newly created socket is :ref:`non-inheritable <fd_inheritance>`.
 
@@ -461,12 +503,14 @@ The :mod:`socket` module also offers various network-related services:
    method.
 
    The following example fetches address information for a hypothetical TCP
-   connection to ``www.python.org`` on port 80 (results may differ on your
+   connection to ``example.org`` on port 80 (results may differ on your
    system if IPv6 isn't enabled)::
 
-      >>> socket.getaddrinfo("www.python.org", 80, proto=socket.IPPROTO_TCP)
-      [(2, 1, 6, '', ('82.94.164.162', 80)),
-       (10, 1, 6, '', ('2001:888:2000:d::a2', 80, 0, 0))]
+      >>> socket.getaddrinfo("example.org", 80, proto=socket.IPPROTO_TCP)
+      [(<AddressFamily.AF_INET6: 10>, <SocketType.SOCK_STREAM: 1>,
+       6, '', ('2606:2800:220:1:248:1893:25c8:1946', 80, 0, 0)),
+       (<AddressFamily.AF_INET: 2>, <SocketType.SOCK_STREAM: 1>,
+       6, '', ('93.184.216.34', 80))]
 
    .. versionchanged:: 3.2
       parameters can now be passed using keyword arguments.
@@ -513,7 +557,7 @@ The :mod:`socket` module also offers various network-related services:
    always hold.
 
    Note: :func:`gethostname` doesn't always return the fully qualified domain
-   name; use ``getfqdn()`` (see above).
+   name; use :func:`getfqdn` for that.
 
 
 .. function:: gethostbyaddr(ip_address)
@@ -649,7 +693,7 @@ The :mod:`socket` module also offers various network-related services:
 
    Supported values for *address_family* are currently :const:`AF_INET` and
    :const:`AF_INET6`. If the string *packed_ip* is not the correct length for the
-   specified address family, :exc:`ValueError` will be raised.  A
+   specified address family, :exc:`ValueError` will be raised.
    :exc:`OSError` is raised for errors from the call to :func:`inet_ntop`.
 
    Availability: Unix (maybe not all platforms), Windows.
@@ -718,7 +762,7 @@ The :mod:`socket` module also offers various network-related services:
 
 .. function:: sethostname(name)
 
-   Set the machine's hostname to *name*.  This will raise a
+   Set the machine's hostname to *name*.  This will raise an
    :exc:`OSError` if you don't have enough rights.
 
    Availability: Unix.
@@ -750,7 +794,7 @@ The :mod:`socket` module also offers various network-related services:
 
 .. function:: if_indextoname(if_index)
 
-   Return a network interface name corresponding to a
+   Return a network interface name corresponding to an
    interface index number.
    :exc:`OSError` if no interface with the given index exists.
 
@@ -925,7 +969,7 @@ to sockets.
    interpreted the same way as by the built-in :func:`open` function.
 
    The socket must be in blocking mode; it can have a timeout, but the file
-   object's internal buffer may end up in a inconsistent state if a timeout
+   object's internal buffer may end up in an inconsistent state if a timeout
    occurs.
 
    Closing the file object returned by :meth:`makefile` won't close the
@@ -1447,7 +1491,7 @@ After binding (:const:`CAN_RAW`) or connecting (:const:`CAN_BCM`) the socket, yo
 can use the :meth:`socket.send`, and the :meth:`socket.recv` operations (and
 their counterparts) on the socket object as usual.
 
-This example might require special priviledge::
+This example might require special privileges::
 
    import socket
    import struct

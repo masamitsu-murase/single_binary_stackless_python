@@ -481,7 +481,9 @@ Formatter Objects
 responsible for converting a :class:`LogRecord` to (usually) a string which can
 be interpreted by either a human or an external system. The base
 :class:`Formatter` allows a formatting string to be specified. If none is
-supplied, the default value of ``'%(message)s'`` is used.
+supplied, the default value of ``'%(message)s'`` is used, which just includes
+the message in the logging call. To have additional items of information in the
+formatted output (such as a timestamp), keep reading.
 
 A Formatter can be initialized with a format string which makes use of knowledge
 of the :class:`LogRecord` attributes - such as the default value mentioned above
@@ -736,7 +738,9 @@ the options available to you.
 | Attribute name | Format                  | Description                                   |
 +================+=========================+===============================================+
 | args           | You shouldn't need to   | The tuple of arguments merged into ``msg`` to |
-|                | format this yourself.   | produce ``message``.                          |
+|                | format this yourself.   | produce ``message``, or a dict whose values   |
+|                |                         | are used for the merge (when there is only one|
+|                |                         | argument, and it is a dictionary).            |
 +----------------+-------------------------+-----------------------------------------------+
 | asctime        | ``%(asctime)s``         | Human-readable time when the                  |
 |                |                         | :class:`LogRecord` was created.  By default   |

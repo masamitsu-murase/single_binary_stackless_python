@@ -53,8 +53,8 @@ Fetching URLs
 The simplest way to use urllib.request is as follows::
 
     import urllib.request
-    response = urllib.request.urlopen('http://python.org/')
-    html = response.read()
+    with urllib.request.urlopen('http://python.org/') as response:
+       html = response.read()
 
 If you wish to retrieve a resource via URL and store it in a temporary location,
 you can do so via the :func:`~urllib.request.urlretrieve` function::
@@ -79,8 +79,8 @@ response::
     import urllib.request
 
     req = urllib.request.Request('http://www.voidspace.org.uk')
-    response = urllib.request.urlopen(req)
-    the_page = response.read()
+    with urllib.request.urlopen(req) as response:
+       the_page = response.read()
 
 Note that urllib.request makes use of the same Request interface to handle all URL
 schemes.  For example, you can make an FTP request like so::
@@ -115,10 +115,10 @@ library. ::
               'language' : 'Python' }
 
     data = urllib.parse.urlencode(values)
-    data = data.encode('utf-8') # data should be bytes
+    data = data.encode('ascii') # data should be bytes
     req = urllib.request.Request(url, data)
-    response = urllib.request.urlopen(req)
-    the_page = response.read()
+    with urllib.request.urlopen(req) as response:
+       the_page = response.read()
 
 Note that other encodings are sometimes required (e.g. for file upload from HTML
 forms - see `HTML Specification, Form Submission
@@ -174,17 +174,17 @@ Explorer [#]_. ::
     import urllib.request
 
     url = 'http://www.someserver.com/cgi-bin/register.cgi'
-    user_agent = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
+    user_agent = 'Mozilla/5.0 (Windows NT 6.1; Win64; x64)'
     values = {'name' : 'Michael Foord',
               'location' : 'Northampton',
               'language' : 'Python' }
     headers = { 'User-Agent' : user_agent }
 
-    data  = urllib.parse.urlencode(values)
-    data = data.encode('utf-8')
+    data = urllib.parse.urlencode(values)
+    data = data.encode('ascii')
     req = urllib.request.Request(url, data, headers)
-    response = urllib.request.urlopen(req)
-    the_page = response.read()
+    with urllib.request.urlopen(req) as response:
+       the_page = response.read()
 
 The response also has two useful methods. See the section on `info and geturl`_
 which comes after we have a look at what happens when things go wrong.
@@ -572,8 +572,7 @@ Footnotes
 
 This document was reviewed and revised by John Lee.
 
-.. [#] Like Google for example. The *proper* way to use google from a program
-       is to use `PyGoogle <http://pygoogle.sourceforge.net>`_ of course.
+.. [#] Google for example.
 .. [#] Browser sniffing is a very bad practise for website design - building
        sites using web standards is much more sensible. Unfortunately a lot of
        sites still send different versions to different browsers.

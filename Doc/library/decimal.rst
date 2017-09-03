@@ -261,7 +261,7 @@ For more advanced work, it may be useful to create alternate contexts using the
 Context() constructor.  To make an alternate active, use the :func:`setcontext`
 function.
 
-In accordance with the standard, the :mod:`Decimal` module provides two ready to
+In accordance with the standard, the :mod:`decimal` module provides two ready to
 use standard contexts, :const:`BasicContext` and :const:`ExtendedContext`. The
 former is especially useful for debugging because many of the traps are
 enabled:
@@ -845,7 +845,7 @@ Decimal objects
 
       Engineering notation has an exponent which is a multiple of 3, so there
       are up to 3 digits left of the decimal place.  For example, converts
-      ``Decimal('123E+1')`` to ``Decimal('1.23E+3')``
+      ``Decimal('123E+1')`` to ``Decimal('1.23E+3')``.
 
    .. method:: to_integral(rounding=None, context=None)
 

@@ -284,6 +284,72 @@ sub-elements for a given element::
    >>> ET.dump(a)
    <a><b /><c><d /></c></a>
 
+Parsing XML with Namespaces
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If the XML input has `namespaces
+<https://en.wikipedia.org/wiki/XML_namespace>`__, tags and attributes
+with prefixes in the form ``prefix:sometag`` get expanded to
+``{uri}sometag`` where the *prefix* is replaced by the full *URI*.
+Also, if there is a `default namespace
+<http://www.w3.org/TR/2006/REC-xml-names-20060816/#defaulting>`__,
+that full URI gets prepended to all of the non-prefixed tags.
+
+Here is an XML example that incorporates two namespaces, one with the
+prefix "fictional" and the other serving as the default namespace:
+
+.. code-block:: xml
+
+    <?xml version="1.0"?>
+    <actors xmlns:fictional="http://characters.example.com"
+            xmlns="http://people.example.com">
+        <actor>
+            <name>John Cleese</name>
+            <fictional:character>Lancelot</fictional:character>
+            <fictional:character>Archie Leach</fictional:character>
+        </actor>
+        <actor>
+            <name>Eric Idle</name>
+            <fictional:character>Sir Robin</fictional:character>
+            <fictional:character>Gunther</fictional:character>
+            <fictional:character>Commander Clement</fictional:character>
+        </actor>
+    </actors>
+
+One way to search and explore this XML example is to manually add the
+URI to every tag or attribute in the xpath of a
+:meth:`~Element.find` or :meth:`~Element.findall`::
+
+    root = fromstring(xml_text)
+    for actor in root.findall('{http://people.example.com}actor'):
+        name = actor.find('{http://people.example.com}name')
+        print(name.text)
+        for char in actor.findall('{http://characters.example.com}character'):
+            print(' |-->', char.text)
+
+A better way to search the namespaced XML example is to create a
+dictionary with your own prefixes and use those in the search functions::
+
+    ns = {'real_person': 'http://people.example.com',
+          'role': 'http://characters.example.com'}
+
+    for actor in root.findall('real_person:actor', ns):
+        name = actor.find('real_person:name', ns)
+        print(name.text)
+        for char in actor.findall('role:character', ns):
+            print(' |-->', char.text)
+
+These two approaches both output::
+
+    John Cleese
+     |--> Lancelot
+     |--> Archie Leach
+    Eric Idle
+     |--> Sir Robin
+     |--> Gunther
+     |--> Commander Clement
+
+
 Additional resources
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -365,6 +431,10 @@ Supported XPath syntax
 +-----------------------+------------------------------------------------------+
 | ``[tag]``             | Selects all elements that have a child named         |
 |                       | ``tag``.  Only immediate children are supported.     |
++-----------------------+------------------------------------------------------+
+| ``[tag='text']``      | Selects all elements that have a child named         |
+|                       | ``tag`` whose complete text content, including       |
+|                       | descendants, equals the given ``text``.              |
 +-----------------------+------------------------------------------------------+
 | ``[position]``        | Selects all elements that are located at the given   |
 |                       | position.  The position can be either an integer     |
@@ -581,21 +651,29 @@ Element Objects
 
 
    .. attribute:: text
+                  tail
 
-      The *text* attribute can be used to hold additional data associated with
-      the element.  As the name implies this attribute is usually a string but
-      may be any application-specific object.  If the element is created from
-      an XML file the attribute will contain any text found between the element
-      tags.
+      These attributes can be used to hold additional data associated with
+      the element.  Their values are usually strings but may be any
+      application-specific object.  If the element is created from
+      an XML file, the *text* attribute holds either the text between
+      the element's start tag and its first child or end tag, or ``None``, and
+      the *tail* attribute holds either the text between the element's
+      end tag and the next tag, or ``None``.  For the XML data
 
+      .. code-block:: xml
 
-   .. attribute:: tail
+         <a><b>1<c>2<d/>3</c></b>4</a>
 
-      The *tail* attribute can be used to hold additional data associated with
-      the element.  This attribute is usually a string but may be any
-      application-specific object.  If the element is created from an XML file
-      the attribute will contain any text found after the element's end tag and
-      before the next tag.
+      the *a* element has ``None`` for both *text* and *tail* attributes,
+      the *b* element has *text* ``"1"`` and *tail* ``"4"``,
+      the *c* element has *text* ``"2"`` and *tail* ``None``,
+      and the *d* element has *text* ``None`` and *tail* ``"3"``.
+
+      To collect the inner text of an element, see :meth:`itertext`, for
+      example ``"".join(element.itertext())``.
+
+      Applications may store arbitrary objects in these attributes.
 
 
    .. attribute:: attrib
@@ -813,7 +891,7 @@ ElementTree Objects
 
       Creates and returns a tree iterator for the root element.  The iterator
       loops over all elements in this tree, in section order.  *tag* is the tag
-      to look for (default is to return all elements)
+      to look for (default is to return all elements).
 
 
    .. method:: iterfind(match, namespaces=None)

@@ -772,7 +772,7 @@ as internal buffering of data.
 
    .. seealso::
 
-      The :func:`stat` function.
+      The :func:`.stat` function.
 
    Availability: Unix, Windows.
 
@@ -863,9 +863,9 @@ as internal buffering of data.
       :data:`os.SEEK_HOLE` or :data:`os.SEEK_DATA`.
 
 
-.. function:: open(file, flags, mode=0o777, *, dir_fd=None)
+.. function:: open(path, flags, mode=0o777, *, dir_fd=None)
 
-   Open the file *file* and set various flags according to *flags* and possibly
+   Open the file *path* and set various flags according to *flags* and possibly
    its mode according to *mode*.  When computing *mode*, the current umask value
    is first masked out.  Return the file descriptor for the newly opened file.
    The new file descriptor is :ref:`non-inheritable <fd_inheritance>`.
@@ -1071,10 +1071,10 @@ or `the MSDN <http://msdn.microsoft.com/en-us/library/z0kc8e3z.aspx>`_ on Window
       :meth:`~file.read` or :meth:`~file.readline` methods.
 
 
-.. function:: sendfile(out, in, offset, nbytes)
-              sendfile(out, in, offset, nbytes, headers=None, trailers=None, flags=0)
+.. function:: sendfile(out, in, offset, count)
+              sendfile(out, in, offset, count, [headers], [trailers], flags=0)
 
-   Copy *nbytes* bytes from file descriptor *in* to file descriptor *out*
+   Copy *count* bytes from file descriptor *in* to file descriptor *out*
    starting at *offset*.
    Return the number of bytes sent. When EOF is reached return 0.
 
@@ -1088,7 +1088,7 @@ or `the MSDN <http://msdn.microsoft.com/en-us/library/z0kc8e3z.aspx>`_ on Window
    *trailers* are arbitrary sequences of buffers that are written before and
    after the data from *in* is written. It returns the same as the first case.
 
-   On Mac OS X and FreeBSD, a value of 0 for *nbytes* specifies to send until
+   On Mac OS X and FreeBSD, a value of 0 for *count* specifies to send until
    the end of *in* is reached.
 
    All platforms support sockets as *out* file descriptor, and some platforms
@@ -1098,11 +1098,6 @@ or `the MSDN <http://msdn.microsoft.com/en-us/library/z0kc8e3z.aspx>`_ on Window
    arguments.
 
    Availability: Unix.
-
-   .. note::
-
-      For a higher-level wrapper of :func:`sendfile`, see
-      :mod:`socket.socket.sendfile`.
 
    .. versionadded:: 3.3
 
@@ -1601,7 +1596,7 @@ features:
 
    .. seealso::
 
-      The :func:`stat` function.
+      The :func:`.stat` function.
 
    .. versionchanged:: 3.2
       Added support for Windows 6.0 (Vista) symbolic links.
@@ -1683,10 +1678,10 @@ features:
       The *dir_fd* argument.
 
 
-.. function:: mknod(filename, mode=0o600, device=0, *, dir_fd=None)
+.. function:: mknod(path, mode=0o600, device=0, *, dir_fd=None)
 
    Create a filesystem node (file, device special file or named pipe) named
-   *filename*. *mode* specifies both the permissions to use and the type of node
+   *path*. *mode* specifies both the permissions to use and the type of node
    to be created, being combined (bitwise OR) with one of ``stat.S_IFREG``,
    ``stat.S_IFCHR``, ``stat.S_IFBLK``, and ``stat.S_IFIFO`` (those constants are
    available in :mod:`stat`).  For ``stat.S_IFCHR`` and ``stat.S_IFBLK``,
@@ -2159,7 +2154,8 @@ features:
    contain :func:`os.access`, otherwise it will be empty.
 
    To check whether you can use the *effective_ids* parameter for
-   :func:`os.access`, use the ``in`` operator on ``supports_dir_fd``, like so::
+   :func:`os.access`, use the ``in`` operator on ``supports_effective_ids``,
+   like so::
 
        os.access in os.supports_effective_ids
 
@@ -2209,9 +2205,9 @@ features:
    .. versionadded:: 3.3
 
 
-.. function:: symlink(source, link_name, target_is_directory=False, *, dir_fd=None)
+.. function:: symlink(src, dst, target_is_directory=False, *, dir_fd=None)
 
-   Create a symbolic link pointing to *source* named *link_name*.
+   Create a symbolic link pointing to *src* named *dst*.
 
    On Windows, a symlink represents either a file or a directory, and does not
    morph to the target dynamically.  If the target is present, the type of the
@@ -2281,20 +2277,20 @@ features:
       The *dir_fd* parameter.
 
 
-.. function:: utime(path, times=None, *, ns=None, dir_fd=None, follow_symlinks=True)
+.. function:: utime(path, times=None, *[, ns], dir_fd=None, follow_symlinks=True)
 
    Set the access and modified times of the file specified by *path*.
 
    :func:`utime` takes two optional parameters, *times* and *ns*.
    These specify the times set on *path* and are used as follows:
 
-   - If *ns* is not ``None``,
+   - If *ns* is specified,
      it must be a 2-tuple of the form ``(atime_ns, mtime_ns)``
      where each member is an int expressing nanoseconds.
    - If *times* is not ``None``,
      it must be a 2-tuple of the form ``(atime, mtime)``
      where each member is an int or float expressing seconds.
-   - If *times* and *ns* are both ``None``,
+   - If *times* is ``None`` and *ns* is unspecified,
      this is equivalent to specifying ``ns=(atime_ns, mtime_ns)``
      where both times are the current time.
 
@@ -2351,9 +2347,9 @@ features:
    recurse into the subdirectories whose names remain in *dirnames*; this can be
    used to prune the search, impose a specific order of visiting, or even to inform
    :func:`walk` about directories the caller creates or renames before it resumes
-   :func:`walk` again.  Modifying *dirnames* when *topdown* is ``False`` is
-   ineffective, because in bottom-up mode the directories in *dirnames* are
-   generated before *dirpath* itself is generated.
+   :func:`walk` again.  Modifying *dirnames* when *topdown* is ``False`` has
+   no effect on the behavior of the walk, because in bottom-up mode the directories
+   in *dirnames* are generated before *dirpath* itself is generated.
 
    By default, errors from the :func:`listdir` call are ignored.  If optional
    argument *onerror* is specified, it should be a function; it will be called with
@@ -2390,8 +2386,9 @@ features:
           if 'CVS' in dirs:
               dirs.remove('CVS')  # don't visit CVS directories
 
-   In the next example, walking the tree bottom-up is essential: :func:`rmdir`
-   doesn't allow deleting a directory before the directory is empty::
+   In the next example (simple implementation of :func:`shutil.rmtree`),
+   walking the tree bottom-up is essential, :func:`rmdir` doesn't allow
+   deleting a directory before the directory is empty::
 
       # Delete everything reachable from the directory named in "top",
       # assuming there are no symbolic links.
@@ -2844,9 +2841,10 @@ written in Python, such as a mail server's external command delivery program.
    Availability: Unix.
 
 
-.. function:: popen(command, mode='r', buffering=-1)
+.. function:: popen(cmd, mode='r', buffering=-1)
 
-   Open a pipe to or from *command*.  The return value is an open file object
+   Open a pipe to or from command *cmd*.
+   The return value is an open file object
    connected to the pipe, which can be read or written depending on whether *mode*
    is ``'r'`` (default) or ``'w'``. The *buffering* argument has the same meaning as
    the corresponding argument to the built-in :func:`open` function. The

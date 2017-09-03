@@ -59,14 +59,11 @@ The :mod:`binascii` module defines the following functions:
    should be at most 57 to adhere to the base64 standard.
 
 
-.. function:: a2b_qp(string, header=False)
+.. function:: a2b_qp(data, header=False)
 
    Convert a block of quoted-printable data back to binary and return the binary
    data. More than one line may be passed at a time. If the optional argument
    *header* is present and true, underscores will be decoded as spaces.
-
-   .. versionchanged:: 3.2
-      Accept only bytestring or bytearray objects as input.
 
 
 .. function:: b2a_qp(data, quotetabs=False, istext=True, header=False)
@@ -155,9 +152,6 @@ The :mod:`binascii` module defines the following functions:
    function is the inverse of :func:`b2a_hex`. *hexstr* must contain an even number
    of hexadecimal digits (which can be upper or lower case), otherwise a
    :exc:`TypeError` is raised.
-
-   .. versionchanged:: 3.2
-      Accept only bytestring or bytearray objects as input.
 
 
 .. exception:: Error

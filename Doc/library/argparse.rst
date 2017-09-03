@@ -1910,7 +1910,7 @@ Customizing file parsing
 
    Arguments that are read from a file (see the *fromfile_prefix_chars*
    keyword argument to the :class:`ArgumentParser` constructor) are read one
-   argument per line. :meth:`convert_arg_line_to_args` can be overriden for
+   argument per line. :meth:`convert_arg_line_to_args` can be overridden for
    fancier reading.
 
    This method takes a single argument *arg_line* which is a string read from
@@ -1921,10 +1921,7 @@ Customizing file parsing
    as an argument::
 
     def convert_arg_line_to_args(self, arg_line):
-        for arg in arg_line.split():
-            if not arg.strip():
-                continue
-            yield arg
+        return arg_line.split()
 
 
 Exiting methods
@@ -1987,4 +1984,4 @@ A partial upgrade path from :mod:`optparse` to :mod:`argparse`:
   ``%(default)s`` and ``%(prog)s``.
 
 * Replace the OptionParser constructor ``version`` argument with a call to
-  ``parser.add_argument('--version', action='version', version='<the version>')``
+  ``parser.add_argument('--version', action='version', version='<the version>')``.
