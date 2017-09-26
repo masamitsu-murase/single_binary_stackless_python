@@ -5,10 +5,44 @@ Python News
 What's New in Python 2.7.14?
 ============================
 
-*Release date: XXXX-XX-XX*
+*Release date: 2017-09-16*
+
+Extension Modules
+-----------------
+
+- bpo-31170: Update vendorized expat to 2.2.4.
+
+
+What's New in Python 2.7.14 release candidate 1?
+================================================
+
+*Release date: 2017-08-26*
 
 Core and Builtins
 -----------------
+
+- bpo-30657: Fixed possible integer overflow in PyString_DecodeEscape.
+  Patch by Jay Bosamiya.
+
+- bpo-27945: Fixed various segfaults with dict when input collections are
+  mutated during searching, inserting or comparing.  Based on patches by
+  Duane Griffin and Tim Mitchell.
+
+- bpo-25794: Fixed type.__setattr__() and type.__delattr__() for
+  non-interned or unicode attribute names.  Based on patch by Eryk Sun.
+
+- bpo-29935: Fixed error messages in the index() method of tuple and list
+  when pass indices of wrong type.
+
+- bpo-28598: Support __rmod__ for subclasses of str being called before
+  str.__mod__.  Patch by Martijn Pieters.
+
+- bpo-29602: Fix incorrect handling of signed zeros in complex constructor for
+  complex subclasses and for inputs having a __complex__ method. Patch
+  by Serhiy Storchaka.
+
+- bpo-29347: Fixed possibly dereferencing undefined pointers
+  when creating weakref objects.
 
 - Issue #14376: Allow sys.exit to accept longs as well as ints. Patch
   by Gareth Rees.
@@ -28,6 +62,110 @@ Extension Modules
 
 Library
 -------
+
+- bpo-30746: Prohibited the '=' character in environment variable names in
+  ``os.putenv()`` and ``os.spawn*()``.
+
+- [Security] bpo-30730: Prevent environment variables injection in subprocess on
+  Windows.  Prevent passing other environment variables and command arguments.
+
+- [Security] bpo-30694: Upgrade expat copy from 2.2.0 to 2.2.1 to get fixes
+  of multiple security vulnerabilities including: CVE-2017-9233 (External
+  entity infinite loop DoS), CVE-2016-9063 (Integer overflow, re-fix),
+  CVE-2016-0718 (Fix regression bugs from 2.2.0's fix to CVE-2016-0718)
+  and CVE-2012-0876 (Counter hash flooding with SipHash).
+  Note: the CVE-2016-5300 (Use os-specific entropy sources like getrandom)
+  doesn't impact Python, since Python already gets entropy from the OS to set
+  the expat secret using ``XML_SetHashSalt()``.
+
+- [Security] bpo-30500: Fix urllib.splithost() to correctly parse
+  fragments. For example, ``splithost('//127.0.0.1#@evil.com/')`` now
+  correctly returns the ``127.0.0.1`` host, instead of treating ``@evil.com``
+  as the host in an authentification (``login@host``).
+
+- [Security] bpo-29591: Update expat copy from 2.1.1 to 2.2.0 to get fixes
+  of CVE-2016-0718 and CVE-2016-4472. See
+  https://sourceforge.net/p/expat/bugs/537/ for more information.
+
+- bpo-28994: The traceback no longer displayed for SystemExit raised in
+  a callback registered by atexit.
+
+- bpo-30418: On Windows, subprocess.Popen.communicate() now also ignore EINVAL
+  on stdin.write() if the child process is still running but closed the pipe.
+
+- bpo-30378: Fix the problem that logging.handlers.SysLogHandler cannot
+  handle IPv6 addresses.
+
+- bpo-29960: Preserve generator state when _random.Random.setstate()
+  raises an exception.  Patch by Bryan Olson.
+
+- bpo-30310: tkFont now supports unicode options (e.g. font family).
+
+- bpo-30414: multiprocessing.Queue._feed background running
+  thread do not break from main loop on exception.
+
+- bpo-30003: Fix handling escape characters in HZ codec.  Based on patch
+  by Ma Lin.
+
+- bpo-30375: Warnings emitted when compile a regular expression now always
+  point to the line in the user code.  Previously they could point into inners
+  of the re module if emitted from inside of groups or conditionals.
+
+- bpo-30363: Running Python with the -3 option now warns about regular
+  expression syntax that is invalid or has different semantic in Python 3
+  or will change the behavior in future Python versions.
+
+- bpo-30365: Running Python with the -3 option now emits deprecation warnings
+  for getchildren() and getiterator() methods of the Element class in the
+  xml.etree.cElementTree module and when pass the html argument to
+  xml.etree.ElementTree.XMLParser().
+
+- bpo-30365: Fixed a deprecation warning about the doctype() method of the
+  xml.etree.ElementTree.XMLParser class.  Now it is emitted only when define
+  the doctype() method in the subclass of XMLParser.
+
+- bpo-30329: imaplib now catchs the Windows socket WSAEINVAL error
+  (code 10022) on shutdown(SHUT_RDWR): An invalid operation was attempted.
+  This error occurs sometimes on SSL connections.
+
+- bpo-30342: Fix sysconfig.is_python_build() if Python is built with Visual
+  Studio 2008 (VS 9.0).
+
+- bpo-29990: Fix range checking in GB18030 decoder.  Original patch by Ma Lin.
+
+- bpo-30243: Removed the __init__ methods of _json's scanner and encoder.
+  Misusing them could cause memory leaks or crashes.  Now scanner and encoder
+  objects are completely initialized in the __new__ methods.
+
+- Revert bpo-26293 for zipfile breakage. See also bpo-29094.
+
+- bpo-30070: Fixed leaks and crashes in errors handling in the parser module.
+
+- bpo-30061: Fixed crashes in IOBase methods next() and readlines() when
+  readline() or next() respectively return non-sizeable object.
+  Fixed possible other errors caused by not checking results of PyObject_Size(),
+  PySequence_Size(), or PyMapping_Size().
+
+- bpo-30011: Fixed race condition in HTMLParser.unescape().
+
+- bpo-30068: _io._IOBase.readlines will check if it's closed first when
+  hint is present.
+
+- bpo-27863: Fixed multiple crashes in ElementTree caused by race conditions
+  and wrong types.
+
+- bpo-29942: Fix a crash in itertools.chain.from_iterable when encountering
+  long runs of empty iterables.
+
+- bpo-29861: Release references to tasks, their arguments and their results
+  as soon as they are finished in multiprocessing.Pool.
+
+- bpo-27880: Fixed integer overflow in cPickle when pickle large strings or
+  too many objects.
+
+- bpo-29110: Fix file object leak in aifc.open() when file is given as a
+  filesystem path and is not in valid AIFF format.
+  Original patch by Anthony Zhang.
 
 - Issue #29354: Fixed inspect.getargs() for parameters which are cell
   variables.
@@ -49,9 +187,6 @@ Library
 - Issue #29142: In urllib, suffixes in no_proxy environment variable with
   leading dots could match related hostnames again (e.g. .b.c matches a.b.c).
   Patch by Milan Oberkirch.
-
-- Issue #29094: Offsets in a ZIP file created with extern file object and mode
-  "w" now are relative to the start of the file.
 
 - Issue #13051: Fixed recursion errors in large or resized
   curses.textpad.Textbox.  Based on patch by Tycho Andersen.
@@ -77,13 +212,12 @@ Library
 - Issue #28925: cPickle now correctly propagates errors when unpickle instances
   of old-style classes.
 
-C API
------
-
-- Issue #27867: Function PySlice_GetIndicesEx() is replaced with a macro.
-
 Documentation
 -------------
+
+- bpo-30176: Add missing attribute related constants in curses documentation.
+
+- bpo-28929: Link the documentation to its source file on GitHub.
 
 - Issue #26355: Add canonical header link on each page to corresponding major
   version of the documentation. Patch by Matthias Bussonnier.
@@ -96,8 +230,55 @@ Documentation
 Build
 -----
 
+ bpo-29243: Prevent unnecessary rebuilding of Python during ``make test``,
+  ``make install`` and some other make targets when configured with
+  ``--enable-optimizations``.
+
+- bpo-23404: Don't regenerate generated files based on file modification time
+  anymore: the action is now explicit. Replace ``make touch`` with
+  ``make regen-all``.
+
+- bpo-27593: sys.version and the platform module python_build(),
+  python_branch(), and python_revision() functions now use
+  git information rather than hg when building from a repo.
+
+- bpo-29643: Fix ``--enable-optimization`` configure option didn't work.
+
+- bpo-29572: Update Windows build and OS X installers to use OpenSSL 1.0.2k.
+
 - Issue #28768: Fix implicit declaration of function _setmode. Patch by
   Masayuki Yamamoto
+
+Tests
+-----
+
+- bpo-11790: Fix sporadic failures in
+  test_multiprocessing.WithProcessesTestCondition.
+
+- bpo-30236: Backported test.regrtest options -m/--match and -G/--failfast
+  from Python 3.
+
+- bpo-30223: To unify running tests in Python 2.7 and Python 3, the test
+  package can be run as a script.  This is equivalent to running the
+  test.regrtest module as a script.
+
+- bpo-30207: To simplify backports from Python 3, the test.test_support
+  module was converted into a package and renamed to test.support.  The
+  test.script_helper module was moved into the test.support package.
+  Names test.test_support and test.script_helper are left as aliases to
+  test.support and test.support.script_helper.
+
+- bpo-30197: Enhanced function swap_attr() in the test.test_support module.
+  It now works when delete replaced attribute inside the with statement.  The
+  old value of the attribute (or None if it doesn't exist) now will be
+  assigned to the target of the "as" clause, if there is one.
+  Also backported function swap_item().
+
+- bpo-28087: Skip test_asyncore and test_eintr poll failures on macOS.
+  Skip some tests of select.poll when running on macOS due to unresolved
+  issues with the underlying system poll function on some macOS versions.
+
+- bpo-15083: Convert ElementTree doctests to unittests.
 
 
 What's New in Python 2.7.13
@@ -861,6 +1042,11 @@ Tools/Demos
 C API
 -----
 
+- bpo-30255: PySlice_GetIndicesEx now clips the step to
+  [-PY_SSIZE_T_MAX, PY_SSIZE_T_MAX] instead of
+  [-PY_SSIZE_T_MAX-1, PY_SSIZE_T_MAX].  This makes it safe to do "step = -step"
+  when reversing a slice.
+
 - Issue #26476: Fixed compilation error when use PyErr_BadInternalCall() in C++.
   Patch by Jeroen Demeyer.
 
@@ -1096,15 +1282,15 @@ Library
 
 - Issue #24091: Fixed various crashes in corner cases in cElementTree.
 
-- Issue #15267: HTTPConnection.request() now is compatibile with old-style
+- Issue #15267: HTTPConnection.request() now is compatible with old-style
   classes (such as TemporaryFile).  Original patch by Atsuo Ishimoto.
 
 - Issue #20014: array.array() now accepts unicode typecodes.  Based on patch by
   Vajrasky Kok.
 
-- Issue #23637: Showing a warning no longer fails with UnicodeErrror.
+- Issue #23637: Showing a warning no longer fails with UnicodeError.
   Formatting unicode warning in the file with the path containing non-ascii
-  characters no longer fails with UnicodeErrror.
+  characters no longer fails with UnicodeError.
 
 - Issue #24134: Reverted issue #24134 changes.
 
@@ -1845,7 +2031,7 @@ Library
   sequence is used on some terminal (ex: TERM=xterm-256color") to enable
   support of 8 bit characters.
 
-- Issue #22017: Correct reference counting errror in the initialization of the
+- Issue #22017: Correct reference counting error in the initialization of the
   _warnings module.
 
 - Issue #21868: Prevent turtle crash when undo buffer set to a value less
@@ -2778,7 +2964,7 @@ Library
 - Issue #11973: Fix a problem in kevent. The flags and fflags fields are now
   properly handled as unsigned.
 
-- Issue #16809: Fixed some tkinter incompabilities with Tcl/Tk 8.6.
+- Issue #16809: Fixed some tkinter incompatibilities with Tcl/Tk 8.6.
 
 - Issue #16809: Tkinter's splitlist() and split() methods now accept Tcl_Obj
   argument.
@@ -12011,6 +12197,10 @@ IDLE
 
 Tests
 -----
+- bpo-30357: test_thread: setUp() now uses support.threading_setup() and
+  support.threading_cleanup() to wait until threads complete to avoid
+  random side effects on following tests. Initial patch written by Grzegorz
+  Grzywacz.
 
 - Refactor test_logging to use unittest.
 
@@ -12305,4 +12495,3 @@ Mac
 ----
 
 **(For information about older versions, consult the HISTORY file.)**
-

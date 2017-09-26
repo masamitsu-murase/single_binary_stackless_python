@@ -113,11 +113,11 @@ Notes:
 
 (1)
    This is a short-circuit operator, so it only evaluates the second
-   argument if the first one is :const:`False`.
+   argument if the first one is false.
 
 (2)
    This is a short-circuit operator, so it only evaluates the second
-   argument if the first one is :const:`True`.
+   argument if the first one is true.
 
 (3)
    ``not`` has a lower priority than non-Boolean operators, so ``not a == b`` is
@@ -423,10 +423,12 @@ Bitwise Operations on Integer Types
    pair: bitwise; operations
    pair: shifting; operations
    pair: masking; operations
+   operator: |
    operator: ^
    operator: &
    operator: <<
    operator: >>
+   operator: ~
 
 Bitwise operations only make sense for integers.  Negative numbers are treated
 as their 2's complement value (this assumes a sufficiently large number of bits
@@ -1068,9 +1070,10 @@ string functions based on regular expressions.
 
 .. method:: str.join(iterable)
 
-   Return a string which is the concatenation of the strings in the
-   :term:`iterable` *iterable*.  The separator between elements is the string
-   providing this method.
+   Return a string which is the concatenation of the strings in *iterable*.
+   A :exc:`TypeError` will be raised if there are any non-string values in
+   *iterable*, including :class:`bytes` objects.  The separator between
+   elements is the string providing this method.
 
 
 .. method:: str.ljust(width[, fillchar])
@@ -2003,9 +2006,7 @@ The constructors for both classes work the same:
 
    Note, the *elem* argument to the :meth:`__contains__`, :meth:`remove`, and
    :meth:`discard` methods may be a set.  To support searching for an equivalent
-   frozenset, the *elem* set is temporarily mutated during the search and then
-   restored.  During the search, the *elem* set should not be read or mutated
-   since it does not have a meaningful value.
+   frozenset, a temporary one is created from *elem*.
 
 
 .. seealso::

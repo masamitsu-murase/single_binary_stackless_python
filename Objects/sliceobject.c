@@ -137,6 +137,8 @@ _PySlice_Unpack(PyObject *_r,
     PySliceObject *r = (PySliceObject *)_r;
     /* this is harder to get right than you might think */
 
+    assert(PY_SSIZE_T_MIN + 1 <= -PY_SSIZE_T_MAX);
+
     if (r->step == Py_None) {
         *step = 1;
     }
@@ -147,17 +149,24 @@ _PySlice_Unpack(PyObject *_r,
                             "slice step cannot be zero");
             return -1;
         }
+        /* Here *step might be -PY_SSIZE_T_MAX-1; in this case we replace it
+         * with -PY_SSIZE_T_MAX.  This doesn't affect the semantics, and it
+         * guards against later undefined behaviour resulting from code that
+         * does "step = -step" as part of a slice reversal.
+         */
+        if (*step < -PY_SSIZE_T_MAX)
+            *step = -PY_SSIZE_T_MAX;
     }
 
     if (r->start == Py_None) {
-        *start = *step < 0 ? PY_SSIZE_T_MAX-1 : 0;;
+        *start = *step < 0 ? PY_SSIZE_T_MAX : 0;
     }
     else {
         if (!_PyEval_SliceIndex(r->start, start)) return -1;
     }
 
     if (r->stop == Py_None) {
-        *stop = *step < 0 ? -PY_SSIZE_T_MAX : PY_SSIZE_T_MAX;
+        *stop = *step < 0 ? PY_SSIZE_T_MIN : PY_SSIZE_T_MAX;
     }
     else {
         if (!_PyEval_SliceIndex(r->stop, stop)) return -1;
@@ -191,7 +200,7 @@ _PySlice_AdjustIndices(Py_ssize_t length,
             *stop = (step < 0) ? -1 : 0;
         }
     }
-    else  if (*stop >= length) {
+    else if (*stop >= length) {
         *stop = (step < 0) ? length - 1 : length;
     }
 
@@ -286,7 +295,7 @@ static PyMemberDef slice_members[] = {
 static PyObject*
 slice_indices(PySliceObject* self, PyObject* len)
 {
-    Py_ssize_t ilen, start, stop, step, slicelength;
+    Py_ssize_t ilen, start, stop, step;
 
     ilen = PyNumber_AsSsize_t(len, PyExc_OverflowError);
 
@@ -294,10 +303,10 @@ slice_indices(PySliceObject* self, PyObject* len)
         return NULL;
     }
 
-    if (PySlice_GetIndicesEx(self, ilen, &start, &stop,
-                             &step, &slicelength) < 0) {
+    if (_PySlice_Unpack((PyObject *)self, &start, &stop, &step) < 0) {
         return NULL;
     }
+    _PySlice_AdjustIndices(ilen, &start, &stop, step);
 
     return Py_BuildValue("(nnn)", start, stop, step);
 }
