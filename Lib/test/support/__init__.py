@@ -25,6 +25,11 @@ import sysconfig
 import types
 
 try:
+    import stackless
+except ImportError:
+    stackless = None
+
+try:
     import thread
 except ImportError:
     thread = None

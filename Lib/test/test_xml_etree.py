@@ -2081,12 +2081,14 @@ class ElementIterTest(unittest.TestCase):
         self.assertEqual(summarize_list(doc.getiterator(None)), all_tags)
         self.assertEqual(summarize_list(doc.getiterator('*')), all_tags)
 
+    @unittest.skipIf(support.stackless, "Stackless can copy iterators")
     def test_copy(self):
         a = ET.Element('a')
         it = a.iter()
         with self.assertRaises(TypeError):
             copy.copy(it)
 
+    @unittest.skipIf(support.stackless, "Stackless can pickle iterators")
     def test_pickle(self):
         a = ET.Element('a')
         it = a.iter()
