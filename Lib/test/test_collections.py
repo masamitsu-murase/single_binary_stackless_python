@@ -1746,10 +1746,6 @@ class OrderedDictTests:
         self.assertEqual(list(reversed(od.items())), list(reversed(pairs)))
 
     def test_detect_deletion_during_iteration(self):
-        # XXX This test should also work under cOrderedDict.
-        if self.module is c_coll:
-            raise unittest.SkipTest("only valid for pure Python OrderedDict")
-
         OrderedDict = self.module.OrderedDict
         od = OrderedDict.fromkeys('abc')
         it = iter(od)
@@ -1772,6 +1768,19 @@ class OrderedDictTests:
         self.assertEqual(sorted(od.items()), pairs)
         self.assertEqual(sorted(reversed(od)),
                          sorted([t[0] for t in reversed(pairs)]))
+
+    def test_iterators_empty(self):
+        OrderedDict = self.module.OrderedDict
+        od = OrderedDict()
+        empty = []
+        self.assertEqual(list(od), empty)
+        self.assertEqual(list(od.keys()), empty)
+        self.assertEqual(list(od.values()), empty)
+        self.assertEqual(list(od.items()), empty)
+        self.assertEqual(list(reversed(od)), empty)
+        self.assertEqual(list(reversed(od.keys())), empty)
+        self.assertEqual(list(reversed(od.values())), empty)
+        self.assertEqual(list(reversed(od.items())), empty)
 
     def test_popitem(self):
         OrderedDict = self.module.OrderedDict
@@ -2031,6 +2040,36 @@ class CPythonOrderedDictTests(OrderedDictTests, unittest.TestCase):
         del od[blocking]
         del od[colliding]
         self.assertEqual(list(od.items()), [(key, ...), ('after', ...)])
+
+    def test_issue24347(self):
+        OrderedDict = self.module.OrderedDict
+
+        class Key:
+            def __hash__(self):
+                return randrange(100000)
+
+        od = OrderedDict()
+        for i in range(100):
+            key = Key()
+            od[key] = i
+
+        # These should not crash.
+        with self.assertRaises(KeyError):
+            repr(od)
+        with self.assertRaises(KeyError):
+            od.copy()
+
+    def test_issue24348(self):
+        OrderedDict = self.module.OrderedDict
+
+        class Key:
+            def __hash__(self):
+                return 1
+
+        od = OrderedDict()
+        od[Key()] = 0
+        # This should not crash.
+        od.popitem()
 
 
 class PurePythonGeneralMappingTests(mapping_tests.BasicTestMappingProtocol):

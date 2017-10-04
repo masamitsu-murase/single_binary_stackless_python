@@ -97,6 +97,10 @@ Implementation improvements:
 
 Significantly Improved Library Modules:
 
+* :class:`collections.OrderedDict` is now implemented in C, which improves
+  its performance between 4x to 100x times.  Contributed by Eric Snow in
+  :issue:`16991`.
+
 * You may now pass bytes to the :mod:`tempfile` module's APIs and it will
   return the temporary pathname as bytes instead of str.  It also accepts
   a value of ``None`` on parameters where only str was accepted in the past to
@@ -147,8 +151,8 @@ PEP written and implemented by Yury Selivanov.
    :pep:`492` -- Coroutines with async and await syntax
 
 
-PEP 461 - Adding formatting to bytes and bytearray
---------------------------------------------------
+PEP 461 - Formatting support for bytes and bytearray
+----------------------------------------------------
 
 This PEP proposes adding % formatting operations similar to Python 2's ``str``
 type to :class:`bytes` and :class:`bytearray`.
@@ -281,6 +285,18 @@ rather than being restricted to ASCII.
 
    :pep:`488` -- Multi-phase extension module initialization
 
+PEP 485: A function for testing approximate equality
+----------------------------------------------------
+
+:pep:`485` adds the :func:`math.isclose` and :func:`cmath.isclose`
+functions which tell whether two values are approximately equal or
+"close" to each other.  Whether or not two values are considered
+close is determined according to given absolute and relative tolerances.
+
+.. seealso::
+
+   :pep:`485` -- A function for testing approximate equality
+
 Other Language Changes
 ======================
 
@@ -341,6 +357,13 @@ cgi
 
 * :class:`~cgi.FieldStorage` now supports the context management protocol.
   (Contributed by Berker Peksag in :issue:`20289`.)
+
+cmath
+-----
+
+* :func:`cmath.isclose` function added.
+  (Contributed by Chris Barker and Tal Einat in :issue:`24270`.)
+
 
 code
 ----
@@ -527,6 +550,14 @@ json
 * JSON decoder now raises :exc:`json.JSONDecodeError` instead of
   :exc:`ValueError`.   (Contributed by Serhiy Storchaka in :issue:`19361`.)
 
+math
+----
+
+* :data:`math.inf` and :data:`math.nan` constants added.  (Contributed by Mark
+  Dickinson in :issue:`23185`.)
+* :func:`math.isclose` function added.
+  (Contributed by Chris Barker and Tal Einat in :issue:`24270`.)
+
 os
 --
 
@@ -568,12 +599,6 @@ re
 
 * Now unmatched groups are replaced with empty strings in :func:`re.sub`
   and :func:`re.subn`.  (Contributed by Serhiy Storchaka in :issue:`1519638`.)
-
-math
-----
-
-* :data:`math.inf` and :data:`math.nan` constants added.  (Contributed by Mark
-  Dickinson in :issue:`23185`.)
 
 shutil
 ------
@@ -663,6 +688,12 @@ subprocess
   :class:`subprocess.CompletedProcess` object.  It Provides a more consistent
   API than :func:`~subprocess.call`, :func:`~subprocess.check_call` and
   :func:`~subprocess.check_output`.
+
+sys
+---
+
+* New :func:`~sys.set_coroutine_wrapper` and :func:`~sys.get_coroutine_wrapper`
+  functions.  (Contributed by Yury Selivanov in :issue:`24017`.)
 
 sysconfig
 ---------
@@ -1044,6 +1075,10 @@ Changes in the Python API
   module level :data:`stderr` variable for debug output.  If your (test)
   program depends on patching the module level variable to capture the debug
   output, you will need to update it to capture sys.stderr instead.
+
+* The :meth:`str.startswith` and :meth:`str.endswith` methods no longer return
+  ``True`` when finding the empty string and the indexes are completely out of
+  range.  See :issue:`24284`.
 
 Changes in the C API
 --------------------

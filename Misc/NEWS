@@ -14,13 +14,41 @@ Library
 -------
 
 
-What's New in Python 3.5.0 beta 2?
+What's New in Python 3.5.0 beta 3?
 ==================================
 
 Release date: 2015-07-05
 
 Core and Builtins
 -----------------
+
+- Issue #24345: Add Py_tp_finalize slot for the stable ABI.
+
+Library
+-------
+
+- Issue #24347: Set KeyError if PyDict_GetItemWithError returns NULL.
+
+- Issue #24348: Drop superfluous incref/decref.
+
+- Issue #24359: Check for changed OrderedDict size during iteration.
+
+
+What's New in Python 3.5.0 beta 2?
+==================================
+
+Release date: 2015-05-31
+
+Core and Builtins
+-----------------
+
+- Issue #24284: The startswith and endswith methods of the str class no longer
+  return True when finding the empty string and the indexes are completely out
+  of range.
+
+- Issue #24115: Update uses of PyObject_IsTrue(), PyObject_Not(),
+  PyObject_IsInstance(), PyObject_RichCompareBool() and _PyDict_Contains()
+  to check for and handle errors correctly.
 
 - Issue #24328: Fix importing one character extension modules.
 
@@ -32,10 +60,18 @@ Core and Builtins
 Library
 -------
 
+- Issue #24270: Add math.isclose() and cmath.isclose() functions as per PEP 485.
+  Contributed by Chris Barker and Tal Einat.
+
+- Issue #5633: Fixed timeit when the statement is a string and the setup is not.
+
 - Issue #24326: Fixed audioop.ratecv() with non-default weightB argument.
   Original patch by David Moore.
 
 - Issue #16991: Add a C implementation of OrderedDict.
+
+- Issue #23934: Fix inspect.signature to fail correctly for builtin types
+  lacking signature information.  Initial patch by James Powell.
 
 
 What's New in Python 3.5.0 beta 1?
