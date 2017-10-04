@@ -239,6 +239,7 @@ new_threadstate(PyInterpreterState *interp, int init)
         tstate->on_delete_data = NULL;
 
         tstate->coroutine_wrapper = NULL;
+        tstate->in_coroutine_wrapper = 0;
 #ifdef STACKLESS
         STACKLESS_PYSTATE_NEW;
 #endif
