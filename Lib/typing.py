@@ -176,6 +176,9 @@ class _ForwardRef(TypingMeta):
             self.__forward_evaluated__ = True
         return self.__forward_value__
 
+    def __instancecheck__(self, obj):
+        raise TypeError("Forward references cannot be used with isinstance().")
+
     def __subclasscheck__(self, cls):
         if not self.__forward_evaluated__:
             globalns = self.__forward_frame__.f_globals
@@ -185,16 +188,6 @@ class _ForwardRef(TypingMeta):
             except NameError:
                 return False  # Too early.
         return issubclass(cls, self.__forward_value__)
-
-    def __instancecheck__(self, obj):
-        if not self.__forward_evaluated__:
-            globalns = self.__forward_frame__.f_globals
-            localns = self.__forward_frame__.f_locals
-            try:
-                self._eval_type(globalns, localns)
-            except NameError:
-                return False  # Too early.
-        return isinstance(obj, self.__forward_value__)
 
     def __repr__(self):
         return '_ForwardRef(%r)' % (self.__forward_arg__,)
@@ -259,8 +252,7 @@ class _TypeAlias:
                               self.impl_type, self.type_checker)
 
     def __instancecheck__(self, obj):
-        return (isinstance(obj, self.impl_type) and
-                isinstance(self.type_checker(obj), self.type_var))
+        raise TypeError("Type aliases cannot be used with isinstance().")
 
     def __subclasscheck__(self, cls):
         if cls is Any:
@@ -332,8 +324,8 @@ class AnyMeta(TypingMeta):
         self = super().__new__(cls, name, bases, namespace, _root=_root)
         return self
 
-    def __instancecheck__(self, instance):
-        return True
+    def __instancecheck__(self, obj):
+        raise TypeError("Any cannot be used with isinstance().")
 
     def __subclasscheck__(self, cls):
         if not isinstance(cls, type):
@@ -447,7 +439,6 @@ KT = TypeVar('KT')  # Key type.
 VT = TypeVar('VT')  # Value type.
 T_co = TypeVar('T_co', covariant=True)  # Any type covariant containers.
 V_co = TypeVar('V_co', covariant=True)  # Any type covariant containers.
-KT_co = TypeVar('KT_co', covariant=True)  # Key type covariant containers.
 VT_co = TypeVar('VT_co', covariant=True)  # Value type covariant containers.
 T_contra = TypeVar('T_contra', contravariant=True)  # Ditto contravariant.
 
@@ -548,9 +539,8 @@ class UnionMeta(TypingMeta):
     def __hash__(self):
         return hash(self.__union_set_params__)
 
-    def __instancecheck__(self, instance):
-        return (self.__union_set_params__ is not None and
-                any(isinstance(instance, t) for t in self.__union_params__))
+    def __instancecheck__(self, obj):
+        raise TypeError("Unions cannot be used with isinstance().")
 
     def __subclasscheck__(self, cls):
         if cls is Any:
@@ -709,18 +699,8 @@ class TupleMeta(TypingMeta):
     def __hash__(self):
         return hash(self.__tuple_params__)
 
-    def __instancecheck__(self, t):
-        if not isinstance(t, tuple):
-            return False
-        if self.__tuple_params__ is None:
-            return True
-        if self.__tuple_use_ellipsis__:
-            p = self.__tuple_params__[0]
-            return all(isinstance(x, p) for x in t)
-        else:
-            return (len(t) == len(self.__tuple_params__) and
-                    all(isinstance(x, p)
-                        for x, p in zip(t, self.__tuple_params__)))
+    def __instancecheck__(self, obj):
+        raise TypeError("Tuples cannot be used with isinstance().")
 
     def __subclasscheck__(self, cls):
         if cls is Any:
@@ -826,57 +806,14 @@ class CallableMeta(TypingMeta):
     def __hash__(self):
         return hash(self.__args__) ^ hash(self.__result__)
 
-    def __instancecheck__(self, instance):
-        if not callable(instance):
-            return False
+    def __instancecheck__(self, obj):
+        # For unparametrized Callable we allow this, because
+        # typing.Callable should be equivalent to
+        # collections.abc.Callable.
         if self.__args__ is None and self.__result__ is None:
-            return True
-        assert self.__args__ is not None
-        assert self.__result__ is not None
-        my_args, my_result = self.__args__, self.__result__
-        import inspect  # TODO: Avoid this import.
-        # Would it be better to use Signature objects?
-        try:
-            (args, varargs, varkw, defaults, kwonlyargs, kwonlydefaults,
-             annotations) = inspect.getfullargspec(instance)
-        except TypeError:
-            return False  # We can't find the signature.  Give up.
-        msg = ("When testing isinstance(<callable>, Callable[...], "
-               "<calleble>'s annotations must be types.")
-        if my_args is not Ellipsis:
-            if kwonlyargs and (not kwonlydefaults or
-                               len(kwonlydefaults) < len(kwonlyargs)):
-                return False
-            if isinstance(instance, types.MethodType):
-                # For methods, getfullargspec() includes self/cls,
-                # but it's not part of the call signature, so drop it.
-                del args[0]
-            min_call_args = len(args)
-            if defaults:
-                min_call_args -= len(defaults)
-            if varargs:
-                max_call_args = 999999999
-                if len(args) < len(my_args):
-                    args += [varargs] * (len(my_args) - len(args))
-            else:
-                max_call_args = len(args)
-            if not min_call_args <= len(my_args) <= max_call_args:
-                return False
-            for my_arg_type, name in zip(my_args, args):
-                if name in annotations:
-                    annot_type = _type_check(annotations[name], msg)
-                else:
-                    annot_type = Any
-                if not issubclass(my_arg_type, annot_type):
-                    return False
-                # TODO: If mutable type, check invariance?
-        if 'return' in annotations:
-            annot_return_type = _type_check(annotations['return'], msg)
-            # Note contravariance here!
-            if not issubclass(annot_return_type, my_result):
-                return False
-        # Can't find anything wrong...
-        return True
+            return isinstance(obj, collections_abc.Callable)
+        else:
+            raise TypeError("Callable[] cannot be used with isinstance().")
 
     def __subclasscheck__(self, cls):
         if cls is Any:
@@ -1073,13 +1010,6 @@ class GenericMeta(TypingMeta, abc.ABCMeta):
             return False
         return issubclass(cls, self.__extra__)
 
-    def __instancecheck__(self, obj):
-        if super().__instancecheck__(obj):
-            return True
-        if self.__extra__ is None:
-            return False
-        return isinstance(obj, self.__extra__)
-
 
 class Generic(metaclass=GenericMeta):
     """Abstract base class for generic types.
@@ -1234,6 +1164,9 @@ class _ProtocolMeta(GenericMeta):
     from Generic.
     """
 
+    def __instancecheck__(self, obj):
+        raise TypeError("Protocols cannot be used with isinstance().")
+
     def __subclasscheck__(self, cls):
         if not self._is_protocol:
             # No structural checks since this isn't a protocol.
@@ -1374,7 +1307,8 @@ class MutableSet(AbstractSet[T], extra=collections_abc.MutableSet):
     pass
 
 
-class Mapping(Sized, Iterable[KT_co], Container[KT_co], Generic[KT_co, VT_co],
+# NOTE: Only the value type is covariant.
+class Mapping(Sized, Iterable[KT], Container[KT], Generic[KT, VT_co],
               extra=collections_abc.Mapping):
     pass
 
@@ -1399,19 +1333,7 @@ class ByteString(Sequence[int], extra=collections_abc.ByteString):
 ByteString.register(type(memoryview(b'')))
 
 
-class _ListMeta(GenericMeta):
-
-    def __instancecheck__(self, obj):
-        if not super().__instancecheck__(obj):
-            return False
-        itemtype = self.__parameters__[0]
-        for x in obj:
-            if not isinstance(x, itemtype):
-                return False
-        return True
-
-
-class List(list, MutableSequence[T], metaclass=_ListMeta):
+class List(list, MutableSequence[T]):
 
     def __new__(cls, *args, **kwds):
         if _geqv(cls, List):
@@ -1420,19 +1342,7 @@ class List(list, MutableSequence[T], metaclass=_ListMeta):
         return list.__new__(cls, *args, **kwds)
 
 
-class _SetMeta(GenericMeta):
-
-    def __instancecheck__(self, obj):
-        if not super().__instancecheck__(obj):
-            return False
-        itemtype = self.__parameters__[0]
-        for x in obj:
-            if not isinstance(x, itemtype):
-                return False
-        return True
-
-
-class Set(set, MutableSet[T], metaclass=_SetMeta):
+class Set(set, MutableSet[T]):
 
     def __new__(cls, *args, **kwds):
         if _geqv(cls, Set):
@@ -1441,7 +1351,7 @@ class Set(set, MutableSet[T], metaclass=_SetMeta):
         return set.__new__(cls, *args, **kwds)
 
 
-class _FrozenSetMeta(_SetMeta):
+class _FrozenSetMeta(GenericMeta):
     """This metaclass ensures set is not a subclass of FrozenSet.
 
     Without this metaclass, set would be considered a subclass of
@@ -1453,11 +1363,6 @@ class _FrozenSetMeta(_SetMeta):
         if issubclass(cls, Set):
             return False
         return super().__subclasscheck__(cls)
-
-    def __instancecheck__(self, obj):
-        if issubclass(obj.__class__, Set):
-            return False
-        return super().__instancecheck__(obj)
 
 
 class FrozenSet(frozenset, AbstractSet[T_co], metaclass=_FrozenSetMeta):
@@ -1473,13 +1378,13 @@ class MappingView(Sized, Iterable[T_co], extra=collections_abc.MappingView):
     pass
 
 
-class KeysView(MappingView[KT_co], AbstractSet[KT_co],
+class KeysView(MappingView[KT], AbstractSet[KT],
                extra=collections_abc.KeysView):
     pass
 
 
-# TODO: Enable Set[Tuple[KT_co, VT_co]] instead of Generic[KT_co, VT_co].
-class ItemsView(MappingView, Generic[KT_co, VT_co],
+# TODO: Enable Set[Tuple[KT, VT_co]] instead of Generic[KT, VT_co].
+class ItemsView(MappingView, Generic[KT, VT_co],
                 extra=collections_abc.ItemsView):
     pass
 
@@ -1488,20 +1393,7 @@ class ValuesView(MappingView[VT_co], extra=collections_abc.ValuesView):
     pass
 
 
-class _DictMeta(GenericMeta):
-
-    def __instancecheck__(self, obj):
-        if not super().__instancecheck__(obj):
-            return False
-        keytype, valuetype = self.__parameters__
-        for key, value in obj.items():
-            if not (isinstance(key, keytype) and
-                    isinstance(value, valuetype)):
-                return False
-        return True
-
-
-class Dict(dict, MutableMapping[KT, VT], metaclass=_DictMeta):
+class Dict(dict, MutableMapping[KT, VT]):
 
     def __new__(cls, *args, **kwds):
         if _geqv(cls, Dict):

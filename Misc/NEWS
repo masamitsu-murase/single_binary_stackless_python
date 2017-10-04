@@ -13,6 +13,16 @@ Core and Builtins
 Library
 -------
 
+- Issue #24426: Fast searching optimization in regular expressions now works
+  for patterns that starts with capturing groups.  Fast searching optimization
+  now can't be disabled at compile time.
+
+Documentation
+-------------
+
+- Issue #24351: Clarify what is meant by "identifier" in the context of
+  string.Template instances.
+
 
 What's New in Python 3.5.0 beta 3?
 ==================================
@@ -27,11 +37,35 @@ Core and Builtins
 Library
 -------
 
+- Issue #24408: Fixed AttributeError in measure() and metrics() methods of
+  tkinter.Font.
+
+- Issue #14373: C implementation of functools.lru_cache() now can be used with
+  methods.
+
+- Issue #8232: webbrowser support incomplete on Windows. Patch by Brandon
+  Milam
+
 - Issue #24347: Set KeyError if PyDict_GetItemWithError returns NULL.
 
 - Issue #24348: Drop superfluous incref/decref.
 
 - Issue #24359: Check for changed OrderedDict size during iteration.
+
+- Issue #24368: Support keyword arguments in OrderedDict methods.
+
+- Issue #24362: Simplify the C OrderedDict fast nodes resize logic.
+
+- Issue #24377: Fix a ref leak in OrderedDict.__repr__.
+
+- Issue #24369: Defend against key-changes during iteration.
+
+Tests
+-----
+
+- Issue #24373: _testmultiphase and xxlimited now use tp_traverse and
+  tp_finalize to avoid reference leaks encountered when combining tp_dealloc
+  with PyType_FromSpec (see issue #16690 for details)
 
 
 What's New in Python 3.5.0 beta 2?
