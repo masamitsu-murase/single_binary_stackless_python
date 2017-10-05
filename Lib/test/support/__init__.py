@@ -895,10 +895,12 @@ def temp_dir(path=None, quiet=False):
                 raise
             warnings.warn('tests may fail, unable to create temp dir: ' + path,
                           RuntimeWarning, stacklevel=3)
+    if dir_created:
+        pid = os.getpid()
     try:
         yield path
     finally:
-        if dir_created:
+        if dir_created and pid == os.getpid():
             shutil.rmtree(path)
 
 @contextlib.contextmanager
