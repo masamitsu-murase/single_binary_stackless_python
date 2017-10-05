@@ -9,6 +9,10 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/126
+  Load the module stackless early in all C-Python tests. This ensures a defined
+  behaviour of the tests even, if the execution order gets randomised.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/125
   This document (changelog.txt) is included in the documentation as
   "What’s New in Stackless-Python ..."

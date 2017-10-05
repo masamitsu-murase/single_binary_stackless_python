@@ -877,11 +877,7 @@ class SizeofTest(unittest.TestCase):
         import collections
         check(collections.defaultdict.default_factory, size('3PP'))
         # wrapper_descriptor (descriptor object)
-        try:
-           import stackless
-           slxtra = 'i'
-        except:
-           slxtra = ''
+        slxtra = 'i' if test.support.stackless else ''
         check(int.__add__, size('3P2P' + slxtra))
         # method-wrapper (descriptor object)
         check({}.__iter__, size('2P'))
@@ -930,11 +926,7 @@ class SizeofTest(unittest.TestCase):
         nfrees = len(x.f_code.co_freevars)
         extras = x.f_code.co_stacksize + x.f_code.co_nlocals +\
                   ncells + nfrees - 1
-        try:
-            import stackless
-            slextra = 'P'
-        except:
-            slextra = ''
+        slextra = 'P' if test.support.stackless else ''
         check(x, vsize('12P3ic' + CO_MAXBLOCKS*'3i' + slextra + 'P' + extras*'P'))
         # function
         def func(): pass

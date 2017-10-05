@@ -23,12 +23,6 @@ try:
 except ImportError:
     has_c_implementation = False
 
-try:
-    import stackless
-    has_stackless = True
-except ImportError:
-    has_stackless = False
-
 
 class PickleTests(AbstractPickleModuleTests):
     pass
@@ -156,7 +150,7 @@ if has_c_implementation:
 
         def test_pickler(self):
             basesize = support.calcobjsize('5P2n3i2n3iP' +
-                                           ('P' if has_stackless else ''))
+                                           ('P' if support.stackless else ''))
             p = _pickle.Pickler(io.BytesIO())
             self.assertEqual(object.__sizeof__(p), basesize)
             MT_size = struct.calcsize('3nP0n')

@@ -537,6 +537,11 @@ is_internal_frame(PyFrameObject *frame)
         Py_INCREF(bootstrap_string);
     }
 
+#ifdef STACKLESS
+    /* ignore any CFrame objects */
+    while (frame != NULL && !PyFrame_Check(frame))
+        frame = frame->f_back;
+#endif
     if (frame == NULL || frame->f_code == NULL ||
             frame->f_code->co_filename == NULL) {
         return 0;
@@ -567,6 +572,11 @@ next_external_frame(PyFrameObject *frame)
 {
     do {
         frame = frame->f_back;
+#ifdef STACKLESS
+        /* ignore any CFrame objects */
+        while (frame != NULL && !PyFrame_Check(frame))
+            frame = frame->f_back;
+#endif
     } while (frame != NULL && is_internal_frame(frame));
 
     return frame;
