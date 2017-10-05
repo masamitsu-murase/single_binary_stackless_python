@@ -1,4 +1,4 @@
-+++++++++++
+﻿+++++++++++
 Python News
 +++++++++++
 
@@ -16,6 +16,8 @@ Core and Builtins
 
 Library
 -------
+
+- Issue #22241: timezone.utc name is now plain 'UTC', not 'UTC-00:00'. 
 
 - Issue #23517: fromtimestamp() and utcfromtimestamp() methods of
   datetime.datetime now round microseconds to nearest with ties going away from
@@ -80,6 +82,15 @@ Documentation
 Tests
 -----
 
+- PCbuild\rt.bat now accepts an unlimited number of arguments to pass along
+  to regrtest.py.  Previously there was a limit of 9.
+
+Build
+-----
+
+- Issue #24986: It is now possible to build Python on Windows without errors
+  when external libraries are not available.
+
 
 What's New in Python 3.5.1
 ==========================
@@ -91,6 +102,18 @@ Core and Builtins
 
 Library
 -------
+
+- Issue #16180: Exit pdb if file has syntax error, instead of trapping user
+  in an infinite loop.  Patch by Xavier de Gaye.
+
+- Issue #24891: Fix a race condition at Python startup if the file descriptor
+  of stdin (0), stdout (1) or stderr (2) is closed while Python is creating
+  sys.stdin, sys.stdout and sys.stderr objects. These attributes are now set
+  to None if the creation of the object failed, instead of raising an OSError
+  exception. Initial patch written by Marco Paolini.
+
+- Issue #24992: Fix error handling and a race condition (related to garbage
+  collection) in collections.OrderedDict constructor.
 
 - Issue #24881: Fixed setting binary mode in Python implementation of FileIO
   on Windows and Cygwin.  Patch from Akira Li.
@@ -128,6 +151,20 @@ Documentation
 - Issue #22812: Fix unittest discovery examples.
   Patch from Pam McA'Nulty.
 
+Tests
+-----
+
+- PCbuild\rt.bat now accepts an unlimited number of arguments to pass along
+  to regrtest.py.  Previously there was a limit of 9.
+
+Build
+-----
+
+- Issue #24910: Windows MSIs now have unique display names.
+
+- Issue #24986: It is now possible to build Python on Windows without errors
+  when external libraries are not available.
+
 
 What's New in Python 3.5.0 release candidate 3?
 ===============================================
@@ -137,10 +174,25 @@ Release date: 2015-09-06
 Core and Builtins
 -----------------
 
+- Issue #24912: Prevent __class__ assignment to immutable built-in objects.
+
 - Issue #24975: Fix AST compilation for PEP 448 syntax.
 
 Library
 -------
+
+- Issue #23144: Make sure that HTMLParser.feed() returns all the data, even
+  when convert_charrefs is True.
+
+- Issue #24635: Fixed a bug in typing.py where isinstance([], typing.Iterable)
+  would return True once, then False on subsequent calls.
+
+
+- Issue #24989: Fixed buffer overread in BytesIO.readline() if a position is
+  set beyond size.  Based on patch by John Leitch.
+
+- Issue #24913: Fix overrun error in deque.index().
+  Found by John Leitch and Bryce Darling.
 
 
 What's New in Python 3.5.0 release candidate 2?

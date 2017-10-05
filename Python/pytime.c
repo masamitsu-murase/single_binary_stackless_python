@@ -82,10 +82,6 @@ _PyTime_DoubleToDenominator(double d, time_t *sec, long *numerator,
     volatile double floatpart;
 
     floatpart = modf(d, &intpart);
-    if (floatpart < 0) {
-        floatpart += 1.0;
-        intpart -= 1.0;
-    }
 
     floatpart *= denominator;
     if (round == _PyTime_ROUND_HALF_UP)
@@ -97,6 +93,10 @@ _PyTime_DoubleToDenominator(double d, time_t *sec, long *numerator,
     if (floatpart >= denominator) {
         floatpart -= denominator;
         intpart += 1.0;
+    }
+    else if (floatpart < 0) {
+        floatpart += denominator;
+        intpart -= 1.0;
     }
     assert(0.0 <= floatpart && floatpart < denominator);
 
@@ -135,8 +135,9 @@ int
 _PyTime_ObjectToTime_t(PyObject *obj, time_t *sec, _PyTime_round_t round)
 {
     if (PyFloat_Check(obj)) {
+        double intpart, err;
         /* volatile avoids optimization changing how numbers are rounded */
-        volatile double d, intpart, err;
+        volatile double d;
 
         d = PyFloat_AsDouble(obj);
         if (round == _PyTime_ROUND_HALF_UP)
@@ -257,8 +258,9 @@ static int
 _PyTime_FromFloatObject(_PyTime_t *t, double value, _PyTime_round_t round,
                         long to_nanoseconds)
 {
+    double err;
     /* volatile avoids optimization changing how numbers are rounded */
-    volatile double d, err;
+    volatile double d;
 
     /* convert to a number of nanoseconds */
     d = value;
@@ -479,13 +481,13 @@ _PyTime_AsTimespec(_PyTime_t t, struct timespec *ts)
         secs -= 1;
     }
     ts->tv_sec = (time_t)secs;
+    assert(0 <= nsec && nsec < SEC_TO_NS);
+    ts->tv_nsec = nsec;
+
     if ((_PyTime_t)ts->tv_sec != secs) {
         _PyTime_overflow();
         return -1;
     }
-    ts->tv_nsec = nsec;
-
-    assert(0 <= ts->tv_nsec && ts->tv_nsec < SEC_TO_NS);
     return 0;
 }
 #endif

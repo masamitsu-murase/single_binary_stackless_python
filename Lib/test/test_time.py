@@ -606,65 +606,115 @@ class TestPytime(unittest.TestCase):
     @support.cpython_only
     def test_time_t(self):
         from _testcapi import pytime_object_to_time_t
+
+        # Conversion giving the same result for all rounding methods
+        for rnd in ALL_ROUNDING_METHODS:
+            for obj, seconds in (
+                # int
+                (-1, -1),
+                (0, 0),
+                (1, 1),
+
+                # float
+                (-1.0, -1),
+                (1.0, 1),
+            ):
+                with self.subTest(obj=obj, round=rnd, seconds=seconds):
+                    self.assertEqual(pytime_object_to_time_t(obj, rnd),
+                                     seconds)
+
+        # Conversion giving different results depending on the rounding method
+        FLOOR = _PyTime.ROUND_FLOOR
+        CEILING = _PyTime.ROUND_CEILING
+        HALF_UP =  _PyTime.ROUND_HALF_UP
         for obj, time_t, rnd in (
-            # Round towards minus infinity (-inf)
-            (0, 0, _PyTime.ROUND_FLOOR),
-            (-1, -1, _PyTime.ROUND_FLOOR),
-            (-1.0, -1, _PyTime.ROUND_FLOOR),
-            (-1.9, -2, _PyTime.ROUND_FLOOR),
-            (1.0, 1, _PyTime.ROUND_FLOOR),
-            (1.9, 1, _PyTime.ROUND_FLOOR),
-            # Round towards infinity (+inf)
-            (0, 0, _PyTime.ROUND_CEILING),
-            (-1, -1, _PyTime.ROUND_CEILING),
-            (-1.0, -1, _PyTime.ROUND_CEILING),
-            (-1.9, -1, _PyTime.ROUND_CEILING),
-            (1.0, 1, _PyTime.ROUND_CEILING),
-            (1.9, 2, _PyTime.ROUND_CEILING),
+            (-1.9, -2, FLOOR),
+            (-1.9, -1, CEILING),
+            (-1.9, -2, HALF_UP),
+
+            (1.9, 1, FLOOR),
+            (1.9, 2, CEILING),
+            (1.9, 2, HALF_UP),
+
+            # half up
+            (-0.999, -1, HALF_UP),
+            (-0.510, -1, HALF_UP),
+            (-0.500, -1, HALF_UP),
+            (-0.490, 0, HALF_UP),
+            ( 0.490, 0, HALF_UP),
+            ( 0.500, 1, HALF_UP),
+            ( 0.510, 1, HALF_UP),
+            ( 0.999, 1, HALF_UP),
         ):
             self.assertEqual(pytime_object_to_time_t(obj, rnd), time_t)
 
+        # Test OverflowError
         rnd = _PyTime.ROUND_FLOOR
         for invalid in self.invalid_values:
             self.assertRaises(OverflowError,
                               pytime_object_to_time_t, invalid, rnd)
 
     @support.cpython_only
-    def test_timespec(self):
+    def test_object_to_timespec(self):
         from _testcapi import pytime_object_to_timespec
+
+        # Conversion giving the same result for all rounding methods
+        for rnd in ALL_ROUNDING_METHODS:
+            for obj, timespec in (
+                # int
+                (0, (0, 0)),
+                (-1, (-1, 0)),
+
+                # float
+                (-1/2**7, (-1, 992187500)),
+                (-1.0, (-1, 0)),
+                (-1e-9, (-1, 999999999)),
+                (1e-9, (0, 1)),
+                (1.0, (1, 0)),
+            ):
+                with self.subTest(obj=obj, round=rnd, timespec=timespec):
+                    self.assertEqual(pytime_object_to_timespec(obj, rnd), timespec)
+
+        # Conversion giving different results depending on the rounding method
+        FLOOR = _PyTime.ROUND_FLOOR
+        CEILING = _PyTime.ROUND_CEILING
+        HALF_UP =  _PyTime.ROUND_HALF_UP
         for obj, timespec, rnd in (
             # Round towards minus infinity (-inf)
-            (0, (0, 0), _PyTime.ROUND_FLOOR),
-            (-1, (-1, 0), _PyTime.ROUND_FLOOR),
-            (-1.0, (-1, 0), _PyTime.ROUND_FLOOR),
-            (1e-9, (0, 1), _PyTime.ROUND_FLOOR),
-            (1e-10, (0, 0), _PyTime.ROUND_FLOOR),
-            (-1e-9, (-1, 999999999), _PyTime.ROUND_FLOOR),
-            (-1e-10, (-1, 999999999), _PyTime.ROUND_FLOOR),
-            (-1.2, (-2, 800000000), _PyTime.ROUND_FLOOR),
-            (0.9999999999, (0, 999999999), _PyTime.ROUND_FLOOR),
-            (1.1234567890, (1, 123456789), _PyTime.ROUND_FLOOR),
-            (1.1234567899, (1, 123456789), _PyTime.ROUND_FLOOR),
-            (-1.1234567890, (-2, 876543211), _PyTime.ROUND_FLOOR),
-            (-1.1234567891, (-2, 876543210), _PyTime.ROUND_FLOOR),
+            (-1e-10, (0, 0), CEILING),
+            (-1e-10, (-1, 999999999), FLOOR),
+            (-1e-10, (0, 0), HALF_UP),
+            (1e-10, (0, 0), FLOOR),
+            (1e-10, (0, 1), CEILING),
+            (1e-10, (0, 0), HALF_UP),
+
+            (0.9999999999, (0, 999999999), FLOOR),
+            (0.9999999999, (1, 0), CEILING),
+
+            (1.1234567890, (1, 123456789), FLOOR),
+            (1.1234567899, (1, 123456789), FLOOR),
+            (-1.1234567890, (-2, 876543210), FLOOR),
+            (-1.1234567891, (-2, 876543210), FLOOR),
             # Round towards infinity (+inf)
-            (0, (0, 0), _PyTime.ROUND_CEILING),
-            (-1, (-1, 0), _PyTime.ROUND_CEILING),
-            (-1.0, (-1, 0), _PyTime.ROUND_CEILING),
-            (1e-9, (0, 1), _PyTime.ROUND_CEILING),
-            (1e-10, (0, 1), _PyTime.ROUND_CEILING),
-            (-1e-9, (-1, 999999999), _PyTime.ROUND_CEILING),
-            (-1e-10, (0, 0), _PyTime.ROUND_CEILING),
-            (-1.2, (-2, 800000000), _PyTime.ROUND_CEILING),
-            (0.9999999999, (1, 0), _PyTime.ROUND_CEILING),
-            (1.1234567890, (1, 123456790), _PyTime.ROUND_CEILING),
-            (1.1234567899, (1, 123456790), _PyTime.ROUND_CEILING),
-            (-1.1234567890, (-2, 876543211), _PyTime.ROUND_CEILING),
-            (-1.1234567891, (-2, 876543211), _PyTime.ROUND_CEILING),
+            (1.1234567890, (1, 123456790), CEILING),
+            (1.1234567899, (1, 123456790), CEILING),
+            (-1.1234567890, (-2, 876543211), CEILING),
+            (-1.1234567891, (-2, 876543211), CEILING),
+
+            # half up
+            (-0.6e-9, (-1, 999999999), HALF_UP),
+            # skipped, 0.5e-6 is inexact in base 2
+            #(-0.5e-9, (-1, 999999999), HALF_UP),
+            (-0.4e-9, (0, 0), HALF_UP),
+
+            (0.4e-9, (0, 0), HALF_UP),
+            (0.5e-9, (0, 1), HALF_UP),
+            (0.6e-9, (0, 1), HALF_UP),
         ):
             with self.subTest(obj=obj, round=rnd, timespec=timespec):
                 self.assertEqual(pytime_object_to_timespec(obj, rnd), timespec)
 
+        # Test OverflowError
         rnd = _PyTime.ROUND_FLOOR
         for invalid in self.invalid_values:
             self.assertRaises(OverflowError,
@@ -1105,7 +1155,7 @@ class TestOldPyTime(unittest.TestCase):
             self.assertRaises(OverflowError,
                               pytime_object_to_time_t, invalid, rnd)
 
-    def test_timeval(self):
+    def test_object_to_timeval(self):
         from _testcapi import pytime_object_to_timeval
 
         # Conversion giving the same result for all rounding methods
@@ -1117,7 +1167,8 @@ class TestOldPyTime(unittest.TestCase):
 
                 # float
                 (-1.0, (-1, 0)),
-                (-1.2, (-2, 800000)),
+                (1/2**6, (0, 15625)),
+                (-1/2**6, (-1, 984375)),
                 (-1e-6, (-1, 999999)),
                 (1e-6, (0, 1)),
             ):
@@ -1175,7 +1226,7 @@ class TestOldPyTime(unittest.TestCase):
                 (-1.0, (-1, 0)),
                 (-1e-9, (-1, 999999999)),
                 (1e-9, (0, 1)),
-                (-1.2, (-2, 800000000)),
+                (-1/2**9, (-1, 998046875)),
             ):
                 with self.subTest(obj=obj, round=rnd, timespec=timespec):
                     self.assertEqual(pytime_object_to_timespec(obj, rnd),

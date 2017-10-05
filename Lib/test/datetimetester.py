@@ -258,7 +258,8 @@ class TestTimeZone(unittest.TestCase):
         with self.assertRaises(TypeError): self.EST.dst(5)
 
     def test_tzname(self):
-        self.assertEqual('UTC+00:00', timezone(ZERO).tzname(None))
+        self.assertEqual('UTC', timezone.utc.tzname(None))
+        self.assertEqual('UTC', timezone(ZERO).tzname(None))
         self.assertEqual('UTC-05:00', timezone(-5 * HOUR).tzname(None))
         self.assertEqual('UTC+09:30', timezone(9.5 * HOUR).tzname(None))
         self.assertEqual('UTC-00:01', timezone(timedelta(minutes=-1)).tzname(None))
@@ -668,6 +669,8 @@ class TestTimeDelta(HarmlessMixedComparison, unittest.TestCase):
         eq(td(milliseconds=-0.6/1000), td(microseconds=-1))
         eq(td(seconds=0.5/10**6), td(microseconds=1))
         eq(td(seconds=-0.5/10**6), td(microseconds=-1))
+        eq(td(seconds=1/2**7), td(microseconds=7813))
+        eq(td(seconds=-1/2**7), td(microseconds=-7813))
 
         # Rounding due to contributions from more than one field.
         us_per_hour = 3600e6
@@ -1842,8 +1845,8 @@ class TestDateTime(TestDate):
                          18000 + 3600 + 2*60 + 3 + 4*1e-6)
 
     def test_microsecond_rounding(self):
-        for fts in [self.theclass.fromtimestamp,
-                    self.theclass.utcfromtimestamp]:
+        for fts in (datetime.fromtimestamp,
+                    self.theclass.utcfromtimestamp):
             zero = fts(0)
             self.assertEqual(zero.second, 0)
             self.assertEqual(zero.microsecond, 0)
@@ -1863,6 +1866,9 @@ class TestDateTime(TestDate):
                 self.assertEqual(t, minus_one)
                 t = fts(-1e-7)
                 self.assertEqual(t, zero)
+                t = fts(-1/2**7)
+                self.assertEqual(t.second, 59)
+                self.assertEqual(t.microsecond, 992187)
 
             t = fts(1e-7)
             self.assertEqual(t, zero)
@@ -1874,6 +1880,9 @@ class TestDateTime(TestDate):
             t = fts(0.9999999)
             self.assertEqual(t.second, 1)
             self.assertEqual(t.microsecond, 0)
+            t = fts(1/2**7)
+            self.assertEqual(t.second, 0)
+            self.assertEqual(t.microsecond, 7813)
 
     def test_insane_fromtimestamp(self):
         # It's possible that some platform maps time_t to double,
