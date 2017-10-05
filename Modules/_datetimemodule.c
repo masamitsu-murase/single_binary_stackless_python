@@ -2149,9 +2149,29 @@ delta_new(PyTypeObject *type, PyObject *args, PyObject *kw)
     if (leftover_us) {
         /* Round to nearest whole # of us, and add into x. */
         double whole_us = round(leftover_us);
+        int x_is_odd;
         PyObject *temp;
 
-        whole_us = _PyTime_RoundHalfUp(leftover_us);
+        whole_us = round(leftover_us);
+        if (fabs(whole_us - leftover_us) == 0.5) {
+            /* We're exactly halfway between two integers.  In order
+             * to do round-half-to-even, we must determine whether x
+             * is odd. Note that x is odd when it's last bit is 1. The
+             * code below uses bitwise and operation to check the last
+             * bit. */
+            temp = PyNumber_And(x, one);  /* temp <- x & 1 */
+            if (temp == NULL) {
+                Py_DECREF(x);
+                goto Done;
+            }
+            x_is_odd = PyObject_IsTrue(temp);
+            Py_DECREF(temp);
+            if (x_is_odd == -1) {
+                Py_DECREF(x);
+                goto Done;
+            }
+            whole_us = 2.0 * round((leftover_us + x_is_odd) * 0.5) - x_is_odd;
+        }
 
         temp = PyLong_FromLong((long)whole_us);
 
@@ -3267,7 +3287,7 @@ timezone_str(PyDateTime_TimeZone *self)
         Py_INCREF(self->name);
         return self->name;
     }
-    if (self == PyDateTime_TimeZone_UTC ||
+    if ((PyObject *)self == PyDateTime_TimeZone_UTC ||
            (GET_TD_DAYS(self->offset) == 0 &&
             GET_TD_SECONDS(self->offset) == 0 &&
             GET_TD_MICROSECONDS(self->offset) == 0))
@@ -4083,7 +4103,7 @@ datetime_from_timestamp(PyObject *cls, TM_FUNC f, PyObject *timestamp,
     long us;
 
     if (_PyTime_ObjectToTimeval(timestamp,
-                                &timet, &us, _PyTime_ROUND_HALF_UP) == -1)
+                                &timet, &us, _PyTime_ROUND_HALF_EVEN) == -1)
         return NULL;
 
     return datetime_from_timet_and_us(cls, f, timet, (int)us, tzinfo);

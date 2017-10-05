@@ -539,32 +539,6 @@ deque_concat(dequeobject *deque, PyObject *other)
 static void deque_clear(dequeobject *deque);
 
 static PyObject *
-deque_repeat(dequeobject *deque, Py_ssize_t n)
-{
-    dequeobject *new_deque;
-    PyObject *result;
-
-    /* XXX add a special case for when maxlen is defined */
-    if (n < 0)
-        n = 0;
-    else if (n > 0 && Py_SIZE(deque) > MAX_DEQUE_LEN / n)
-        return PyErr_NoMemory();
-
-    new_deque = (dequeobject *)deque_new(&deque_type, (PyObject *)NULL, (PyObject *)NULL);
-    new_deque->maxlen = deque->maxlen;
-
-    for ( ; n ; n--) {
-        result = deque_extend(new_deque, (PyObject *)deque);
-        if (result == NULL) {
-            Py_DECREF(new_deque);
-            return NULL;
-        }
-        Py_DECREF(result);
-    }
-    return (PyObject *)new_deque;
-}
-
-static PyObject *
 deque_inplace_repeat(dequeobject *deque, Py_ssize_t n)
 {
     Py_ssize_t i, size;
@@ -583,10 +557,6 @@ deque_inplace_repeat(dequeobject *deque, Py_ssize_t n)
         return (PyObject *)deque;
     }
 
-    if (size > MAX_DEQUE_LEN / n) {
-        return PyErr_NoMemory();
-    }
-
     if (size == 1) {
         /* common case, repeating a single element */
         PyObject *item = deque->leftblock->data[deque->leftindex];
@@ -594,14 +564,35 @@ deque_inplace_repeat(dequeobject *deque, Py_ssize_t n)
         if (deque->maxlen != -1 && n > deque->maxlen)
             n = deque->maxlen;
 
+        if (n > MAX_DEQUE_LEN)
+            return PyErr_NoMemory();
+
+        deque->state++;
         for (i = 0 ; i < n-1 ; i++) {
-            rv = deque_append(deque, item);
-            if (rv == NULL)
-                return NULL;
-            Py_DECREF(rv);
+            if (deque->rightindex == BLOCKLEN - 1) {
+                block *b = newblock(Py_SIZE(deque) + i);
+                if (b == NULL) {
+                    Py_SIZE(deque) += i;
+                    return NULL;
+                }
+                b->leftlink = deque->rightblock;
+                CHECK_END(deque->rightblock->rightlink);
+                deque->rightblock->rightlink = b;
+                deque->rightblock = b;
+                MARK_END(b->rightlink);
+                deque->rightindex = -1;
+            }
+            deque->rightindex++;
+            Py_INCREF(item);
+            deque->rightblock->data[deque->rightindex] = item;
         }
+        Py_SIZE(deque) += i;
         Py_INCREF(deque);
         return (PyObject *)deque;
+    }
+
+    if ((size_t)size > MAX_DEQUE_LEN / (size_t)n) {
+        return PyErr_NoMemory();
     }
 
     seq = PySequence_List((PyObject *)deque);
@@ -619,6 +610,20 @@ deque_inplace_repeat(dequeobject *deque, Py_ssize_t n)
     Py_INCREF(deque);
     Py_DECREF(seq);
     return (PyObject *)deque;
+}
+
+static PyObject *
+deque_repeat(dequeobject *deque, Py_ssize_t n)
+{
+    dequeobject *new_deque;
+    PyObject *rv;
+
+    new_deque = (dequeobject *)deque_copy((PyObject *) deque);
+    if (new_deque == NULL)
+        return NULL;
+    rv = deque_inplace_repeat(new_deque, n);
+    Py_DECREF(new_deque);
+    return rv;
 }
 
 /* The rotate() method is part of the public API and is used internally
