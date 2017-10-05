@@ -1235,6 +1235,49 @@ else AC_MSG_RESULT(no); Py_DEBUG='false'
 fi],
 [AC_MSG_RESULT(no)])
 
+# Enable PGO flags.
+AC_SUBST(PGO_PROF_GEN_FLAG)
+AC_SUBST(PGO_PROF_USE_FLAG)
+AC_SUBST(LLVM_PROF_MERGER)
+AC_SUBST(LLVM_PROF_FILE)
+AC_SUBST(LLVM_PROF_ERR)
+AC_SUBST(LLVM_PROF_FOUND)
+AC_CHECK_PROG(LLVM_PROF_FOUND, llvm-profdata, found, not-found)
+LLVM_PROF_ERR=no
+case $CC in
+  *clang*)
+    # Any changes made here should be reflected in the GCC+Darwin case below
+    PGO_PROF_GEN_FLAG="-fprofile-instr-generate"
+    PGO_PROF_USE_FLAG="-fprofile-instr-use=code.profclangd"
+    LLVM_PROF_MERGER="llvm-profdata merge -output=code.profclangd *.profclangr"
+    LLVM_PROF_FILE="LLVM_PROFILE_FILE=\"code-%p.profclangr\""
+    if test $LLVM_PROF_FOUND = not-found
+    then
+      LLVM_PROF_ERR=yes
+    fi
+    ;;
+  *gcc*)
+    case $ac_sys_system in
+      Darwin*)
+        PGO_PROF_GEN_FLAG="-fprofile-instr-generate"
+        PGO_PROF_USE_FLAG="-fprofile-instr-use=code.profclangd"
+        LLVM_PROF_MERGER="llvm-profdata merge -output=code.profclangd *.profclangr"
+        LLVM_PROF_FILE="LLVM_PROFILE_FILE=\"code-%p.profclangr\""
+        if test $LLVM_PROF_FOUND = not-found
+        then
+          LLVM_PROF_ERR=yes
+        fi
+        ;;
+      *)
+        PGO_PROF_GEN_FLAG="-fprofile-generate"
+        PGO_PROF_USE_FLAG="-fprofile-use -fprofile-correction"
+        LLVM_PROF_MERGER="true"
+        LLVM_PROF_FILE=""
+        ;;
+    esac
+    ;;
+esac
+
 # XXX Shouldn't the code above that fiddles with BASECFLAGS and OPT be
 # merged with this chunk of code?
 
@@ -5129,11 +5172,11 @@ AC_LINK_IFELSE(
     #include <sys/syscall.h>
 
     int main() {
-        const int flags = 0;
         char buffer[1];
-        int n;
+        const size_t buflen = sizeof(buffer);
+        const int flags = 0;
         /* ignore the result, Python checks for ENOSYS at runtime */
-        (void)syscall(SYS_getrandom, buffer, sizeof(buffer), flags);
+        (void)syscall(SYS_getrandom, buffer, buflen, flags);
         return 0;
     }
   ]])
@@ -5143,6 +5186,31 @@ AC_MSG_RESULT($have_getrandom_syscall)
 if test "$have_getrandom_syscall" = yes; then
     AC_DEFINE(HAVE_GETRANDOM_SYSCALL, 1,
               [Define to 1 if the Linux getrandom() syscall is available])
+fi
+
+# check if the getrandom() function is available
+# the test was written for the Solaris function of <sys/random.h>
+AC_MSG_CHECKING(for the getrandom() function)
+AC_LINK_IFELSE(
+[
+  AC_LANG_SOURCE([[
+    #include <sys/random.h>
+
+    int main() {
+        char buffer[1];
+        const size_t buflen = sizeof(buffer);
+        const int flags = 0;
+        /* ignore the result, Python checks for ENOSYS at runtime */
+        (void)getrandom(buffer, buflen, flags);
+        return 0;
+    }
+  ]])
+],[have_getrandom=yes],[have_getrandom=no])
+AC_MSG_RESULT($have_getrandom)
+
+if test "$have_getrandom" = yes; then
+    AC_DEFINE(HAVE_GETRANDOM, 1,
+              [Define to 1 if the getrandom() function is available])
 fi
 
 # generate output files

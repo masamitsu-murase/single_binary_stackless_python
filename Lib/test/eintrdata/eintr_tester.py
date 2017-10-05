@@ -8,6 +8,7 @@ Signals are generated in-process using setitimer(ITIMER_REAL), which allows
 sub-second periodicity (contrarily to signal()).
 """
 
+import contextlib
 import io
 import os
 import select
@@ -19,6 +20,16 @@ import time
 import unittest
 
 from test import support
+
+@contextlib.contextmanager
+def kill_on_error(proc):
+    """Context manager killing the subprocess if a Python exception is raised."""
+    with proc:
+        try:
+            yield proc
+        except:
+            proc.kill()
+            raise
 
 
 @unittest.skipUnless(hasattr(signal, "setitimer"), "requires setitimer()")
@@ -112,7 +123,8 @@ class OSEINTRTest(EINTRBaseTest):
             '    os.write(wr, data)',
         ))
 
-        with self.subprocess(code, str(wr), pass_fds=[wr]) as proc:
+        proc = self.subprocess(code, str(wr), pass_fds=[wr])
+        with kill_on_error(proc):
             os.close(wr)
             for data in datas:
                 self.assertEqual(data, os.read(rd, len(data)))
@@ -124,14 +136,14 @@ class OSEINTRTest(EINTRBaseTest):
         # rd closed explicitly by parent
 
         # we must write enough data for the write() to block
-        data = b"xyz" * support.PIPE_MAX_SIZE
+        data = b"x" * support.PIPE_MAX_SIZE
 
         code = '\n'.join((
             'import io, os, sys, time',
             '',
             'rd = int(sys.argv[1])',
             'sleep_time = %r' % self.sleep_time,
-            'data = b"xyz" * %s' % support.PIPE_MAX_SIZE,
+            'data = b"x" * %s' % support.PIPE_MAX_SIZE,
             'data_len = len(data)',
             '',
             '# let the parent block on write()',
@@ -148,7 +160,8 @@ class OSEINTRTest(EINTRBaseTest):
             '                    % (len(value), data_len))',
         ))
 
-        with self.subprocess(code, str(rd), pass_fds=[rd]) as proc:
+        proc = self.subprocess(code, str(rd), pass_fds=[rd])
+        with kill_on_error(proc):
             os.close(rd)
             written = 0
             while written < len(data):
@@ -190,7 +203,7 @@ class SocketEINTRTest(EINTRBaseTest):
 
         fd = wr.fileno()
         proc = self.subprocess(code, str(fd), pass_fds=[fd])
-        with proc:
+        with kill_on_error(proc):
             wr.close()
             for data in datas:
                 self.assertEqual(data, recv_func(rd, len(data)))
@@ -240,7 +253,7 @@ class SocketEINTRTest(EINTRBaseTest):
 
         fd = rd.fileno()
         proc = self.subprocess(code, str(fd), pass_fds=[fd])
-        with proc:
+        with kill_on_error(proc):
             rd.close()
             written = 0
             while written < len(data):
@@ -280,11 +293,17 @@ class SocketEINTRTest(EINTRBaseTest):
             '    time.sleep(sleep_time)',
         ))
 
-        with self.subprocess(code) as proc:
+        proc = self.subprocess(code)
+        with kill_on_error(proc):
             client_sock, _ = sock.accept()
             client_sock.close()
             self.assertEqual(proc.wait(), 0)
 
+    # Issue #25122: There is a race condition in the FreeBSD kernel on
+    # handling signals in the FIFO device. Skip the test until the bug is
+    # fixed in the kernel.
+    # https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=203162
+    @support.requires_freebsd_version(10, 3)
     @unittest.skipUnless(hasattr(os, 'mkfifo'), 'needs mkfifo()')
     def _test_open(self, do_open_close_reader, do_open_close_writer):
         filename = support.TESTFN
@@ -307,18 +326,26 @@ class SocketEINTRTest(EINTRBaseTest):
             do_open_close_reader,
         ))
 
-        with self.subprocess(code) as proc:
+        proc = self.subprocess(code)
+        with kill_on_error(proc):
             do_open_close_writer(filename)
-
             self.assertEqual(proc.wait(), 0)
 
+    def python_open(self, path):
+        fp = open(path, 'w')
+        fp.close()
+
     def test_open(self):
-        self._test_open("open(path, 'r').close()",
-                        lambda path: open(path, 'w').close())
+        self._test_open("fp = open(path, 'r')\nfp.close()",
+                        self.python_open)
+
+    def os_open(self, path):
+        fd = os.open(path, os.O_WRONLY)
+        os.close(fd)
 
     def test_os_open(self):
-        self._test_open("os.close(os.open(path, os.O_RDONLY))",
-                        lambda path: os.close(os.open(path, os.O_WRONLY)))
+        self._test_open("fd = os.open(path, os.O_RDONLY)\nos.close(fd)",
+                        self.os_open)
 
 
 @unittest.skipUnless(hasattr(signal, "setitimer"), "requires setitimer()")
@@ -364,7 +391,8 @@ class SignalEINTRTest(EINTRBaseTest):
         ))
 
         t0 = time.monotonic()
-        with self.subprocess(code) as proc:
+        proc = self.subprocess(code)
+        with kill_on_error(proc):
             # parent
             signal.sigwaitinfo([signum])
             dt = time.monotonic() - t0

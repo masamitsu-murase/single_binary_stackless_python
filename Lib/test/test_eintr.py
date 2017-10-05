@@ -1,5 +1,7 @@
 import os
 import signal
+import subprocess
+import sys
 import unittest
 
 from test import support

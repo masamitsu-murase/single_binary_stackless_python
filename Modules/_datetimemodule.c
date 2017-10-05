@@ -3046,7 +3046,7 @@ tzinfo_fromutc(PyDateTime_TZInfo *self, PyObject *dt)
         goto Fail;
     if (dst == Py_None)
         goto Inconsistent;
-    if (delta_bool(delta) != 0) {
+    if (delta_bool((PyDateTime_Delta *)dst) != 0) {
         PyObject *temp = result;
         result = add_datetime_timedelta((PyDateTime_DateTime *)result,
                                         (PyDateTime_Delta *)dst, 1);
@@ -4117,13 +4117,14 @@ static PyObject *
 datetime_best_possible(PyObject *cls, TM_FUNC f, PyObject *tzinfo)
 {
     _PyTime_t ts = _PyTime_GetSystemClock();
-    struct timeval tv;
+    time_t secs;
+    int us;
 
-    if (_PyTime_AsTimeval(ts, &tv, _PyTime_ROUND_FLOOR) < 0)
+    if (_PyTime_AsTimevalTime_t(ts, &secs, &us, _PyTime_ROUND_FLOOR) < 0)
         return NULL;
-    assert(0 <= tv.tv_usec && tv.tv_usec <= 999999);
+    assert(0 <= us && us <= 999999);
 
-    return datetime_from_timet_and_us(cls, f, tv.tv_sec, tv.tv_usec, tzinfo);
+    return datetime_from_timet_and_us(cls, f, secs, us, tzinfo);
 }
 
 /*[clinic input]

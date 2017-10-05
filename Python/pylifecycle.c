@@ -254,13 +254,13 @@ import_init(PyInterpreterState *interp, PyObject *sysmod)
     interp->importlib = importlib;
     Py_INCREF(interp->importlib);
 
-    /* Install _importlib as __import__ */
+    /* Import the _imp module */
     impmod = PyInit_imp();
     if (impmod == NULL) {
-        Py_FatalError("Py_Initialize: can't import imp");
+        Py_FatalError("Py_Initialize: can't import _imp");
     }
     else if (Py_VerboseFlag) {
-        PySys_FormatStderr("import imp # builtin\n");
+        PySys_FormatStderr("import _imp # builtin\n");
     }
     sys_modules = PyImport_GetModuleDict();
     if (Py_VerboseFlag) {
@@ -270,6 +270,7 @@ import_init(PyInterpreterState *interp, PyObject *sysmod)
         Py_FatalError("Py_Initialize: can't save _imp to sys.modules");
     }
 
+    /* Install importlib as the implementation of import */
     value = PyObject_CallMethod(importlib, "_install", "OO", sysmod, impmod);
     if (value == NULL) {
         PyErr_Print();
@@ -986,6 +987,9 @@ is_valid_fd(int fd)
     if (fd < 0 || !_PyVerify_fd(fd))
         return 0;
     _Py_BEGIN_SUPPRESS_IPH
+    /* Prefer dup() over fstat(). fstat() can require input/output whereas
+       dup() doesn't, there is a low risk of EMFILE/ENFILE at Python
+       startup. */
     fd2 = dup(fd);
     if (fd2 >= 0)
         close(fd2);

@@ -1,6 +1,12 @@
 import sys
-from collections import OrderedDict
 from types import MappingProxyType, DynamicClassAttribute
+
+# try _collections first to reduce startup cost
+try:
+    from _collections import OrderedDict
+except ImportError:
+    from collections import OrderedDict
+
 
 __all__ = ['Enum', 'IntEnum', 'unique']
 
@@ -475,6 +481,9 @@ class Enum(metaclass=EnumMeta):
 
     def __str__(self):
         return "%s.%s" % (self.__class__.__name__, self._name_)
+
+    def __bool__(self):
+        return bool(self._value_)
 
     def __dir__(self):
         added_behavior = [

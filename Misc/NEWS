@@ -10,12 +10,37 @@ Release date: XXXX-XX-XX
 Core and Builtins
 -----------------
 
+- Issue #25227: Optimize ASCII and latin1 encoders with the ``surrogateescape``
+  error handler: the encoders are now up to 3 times as fast. Initial patch
+  written by Serhiy Storchaka.
+
+- Issue #25003: On Solaris 11.3 or newer, os.urandom() now uses the
+  getrandom() function instead of the getentropy() function. The getentropy()
+  function is blocking to generate very good quality entropy, os.urandom()
+  doesn't need such high-quality entropy.
+
 - Issue #9232: Modify Python's grammar to allow trailing commas in the
   argument list of a function declaration.  For example, "def f(*, a =
   3,): pass" is now legal. Patch from Mark Dickinson.
 
+- Issue #24965: Implement PEP 498 "Literal String Interpolation". This
+  allows you to embed expressions inside f-strings, which are
+  converted to normal strings at run time. Given x=3, then
+  f'value={x}' == 'value=3'. Patch by Eric V. Smith.
+
 Library
 -------
+
+- Issue #23600: Default implementation of tzinfo.fromutc() was returning
+  wrong results in some cases.
+
+- Issue #25203: Failed readline.set_completer_delims() no longer left the
+  module in inconsistent state.
+
+- Issue #25011: rlcomplete now omits private and special attribute names unless
+  the prefix starts with underscores.
+
+- Issue #25209: rlcomplete now can add a space or a colon after completed keyword.
 
 - Issue #22241: timezone.utc name is now plain 'UTC', not 'UTC-00:00'.
 
@@ -68,6 +93,61 @@ Library
 - Issue #13248: Remove deprecated inspect.getargspec and inspect.getmoduleinfo
   functions.
 
+IDLE
+----
+
+- Issue #24972: Inactive selection background now matches active selection
+  background, as configured by user, on all systems.  Found items are now
+  always highlighted on Windows.  Initial patch by Mark Roseman.
+
+- Issue #24570: Idle: make calltip and completion boxes appear on Macs
+  affected by a tk regression.  Initial patch by Mark Roseman.
+
+- Issue #24988: Idle ScrolledList context menus (used in debugger)
+  now work on Mac Aqua.  Patch by Mark Roseman.
+
+- Issue #24801: Make right-click for context menu work on Mac Aqua.
+  Patch by Mark Roseman.
+
+- Issue #25173: Associate tkinter messageboxes with a specific widget.
+  For Mac OSX, make them a 'sheet'.  Patch by Mark Roseman.
+
+- Issue #25198: Enhance the initial html viewer now used for Idle Help.
+  * Properly indent fixed-pitch text (patch by Mark Roseman).
+  * Give code snippet a very Sphinx-like light blueish-gray background.
+  * Re-use initial width and height set by users for shell and editor.
+  * When the Table of Contents (TOC) menu is used, put the section header
+  at the top of the screen.
+
+- Issue #25225: Condense and rewrite Idle doc section on text colors.
+
+- Issue #21995: Explain some differences between IDLE and console Python.
+
+- Issue #22820: Explain need for *print* when running file from Idle editor.
+
+- Issue #25224: Doc: augment Idle feature list and no-subprocess section.
+
+- Issue #25219: Update doc for Idle command line options.
+  Some were missing and notes were not correct.
+
+- Issue #24861: Most of idlelib is private and subject to change.
+  Use idleib.idle.* to start Idle. See idlelib.__init__.__doc__.
+
+- Issue #25199: Idle: add synchronization comments for future maintainers.
+
+- Issue #16893: Replace help.txt with help.html for Idle doc display.
+  The new idlelib/help.html is rstripped Doc/build/html/library/idle.html.
+  It looks better than help.txt and will better document Idle as released.
+  The tkinter html viewer that works for this file was written by Rose Roseman.
+  The now unused EditorWindow.HelpDialog class and helt.txt file are deprecated.
+
+- Issue #24199: Deprecate unused idlelib.idlever with possible removal in 3.6.
+
+- Issue #24782: In Idle extension config dialog, replace tabs with sorted list.
+  Patch by Mark Roseman.
+
+- Issue #24790: Remove extraneous code (which also create 2 & 3 conflicts).
+
 Documentation
 -------------
 
@@ -100,8 +180,55 @@ Release date: TBA
 Core and Builtins
 -----------------
 
+- Issue #25131: Make the line number and column offset of set/dict literals and
+  comprehensions correspond to the opening brace.
+
+- Issue #25150: Hide the private _Py_atomic_xxx symbols from the public
+  Python.h header to fix a compilation error with OpenMP. PyThreadState_GET()
+  becomes an alias to PyThreadState_Get() to avoid ABI incompatibilies.
+
 Library
 -------
+
+- Issue #25233: Rewrite the guts of asyncio.Queue to be more understandable and correct.
+
+- Issue #23600: Default implementation of tzinfo.fromutc() was returning
+  wrong results in some cases.
+
+- Issue #23329: Allow the ssl module to be built with older versions of
+  LibreSSL.
+
+- Prevent overflow in _Unpickler_Read.
+
+- Issue #25047: The XML encoding declaration written by Element Tree now
+  respects the letter case given by the user. This restores the ability to
+  write encoding names in uppercase like "UTF-8", which worked in Python 2.
+
+- Issue #25135: Make deque_clear() safer by emptying the deque before clearing.
+  This helps avoid possible reentrancy issues.
+
+- Issue #19143: platform module now reads Windows version from kernel32.dll to
+  avoid compatibility shims.
+
+- Issue #25092: Fix datetime.strftime() failure when errno was already set to
+  EINVAL.
+
+- Issue #23517: Fix rounding in fromtimestamp() and utcfromtimestamp() methods
+  of datetime.datetime: microseconds are now rounded to nearest with ties
+  going to nearest even integer (ROUND_HALF_EVEN), instead of being rounding
+  towards minus infinity (ROUND_FLOOR). It's important that these methods use
+  the same rounding mode than datetime.timedelta to keep the property:
+  (datetime(1970,1,1) + timedelta(seconds=t)) == datetime.utcfromtimestamp(t).
+  It also the rounding mode used by round(float) for example.
+
+- Issue #25155: Fix datetime.datetime.now() and datetime.datetime.utcnow() on
+  Windows to support date after year 2038. It was a regression introduced in
+  Python 3.5.0.
+
+- Issue #25108: Omitted internal frames in traceback functions print_stack(),
+  format_stack(), and extract_stack() called without arguments.
+
+- Issue #25118: Fix a regression of Python 3.5.0 in os.waitpid() on Windows.
 
 - Issue #24684: socket.socket.getaddrinfo() now calls
   PyUnicode_AsEncodedString() instead of calling the encode() method of the
@@ -162,6 +289,13 @@ Library
 Documentation
 -------------
 
+- Issue #12067: Rewrite Comparisons section in the Expressions chapter of the
+  language reference. Some of the details of comparing mixed types were
+  incorrect or ambiguous. NotImplemented is only relevant at a lower level
+  than the Expressions chapter. Added details of comparing range() objects,
+  and default behaviour and consistency suggestions for user-defined classes.
+  Patch from Andy Maier.
+
 - Issue #24952: Clarify the default size argument of stack_size() in
   the "threading" and "_thread" modules. Patch from Mattip.
 
@@ -183,6 +317,9 @@ Tests
 Build
 -----
 
+- Issue #24915: Add LLVM support for PGO builds and use the test suite to
+  generate the profile data. Initiial patch by Alecsandru Patrascu of Intel.
+
 - Issue #24910: Windows MSIs now have unique display names.
 
 - Issue #24986: It is now possible to build Python on Windows without errors
@@ -191,6 +328,21 @@ Build
 
 Windows
 -------
+
+- Issues #25112: py.exe launcher is missing icons
+
+- Issue #25102: Windows installer does not precompile for -O or -OO.
+
+- Issue #25081: Makes Back button in installer go back to upgrade page when
+  upgrading.
+
+- Issue #25091: Increases font size of the installer.
+
+- Issue #25126: Clarifies that the non-web installer will download some
+  components.
+
+- Issue #25213: Restores requestedExecutionLevel to manifest to disable
+  UAC virtualization.
 
 - Issue #25022: Removed very outdated PC/example_nt/ directory.
 
@@ -336,9 +488,6 @@ Library
 - Issue #19450: Update Windows and OS X installer builds to use SQLite 3.8.11.
 
 - Issue #17527: Add PATCH to wsgiref.validator. Patch from Luca Sbardella.
-
-- Issue #23812: Fix asyncio.Queue.get() to avoid loosing items on cancellation.
-  Patch by Gustavo J. A. M. Carneiro.
 
 - Issue #24791: Fix grammar regression for call syntax: 'g(*a or b)'.
 

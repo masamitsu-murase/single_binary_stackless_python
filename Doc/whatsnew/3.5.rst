@@ -76,9 +76,8 @@ New built-in features:
 * ``bytes % args``, ``bytearray % args``: :ref:`PEP 461 <whatsnew-pep-461>` --
   Adding ``%`` formatting to bytes and bytearray.
 
-* ``b'\xf0\x9f\x90\x8d'.hex()``, ``bytearray(b'\xf0\x9f\x90\x8d').hex()``,
-  ``memoryview(b'\xf0\x9f\x90\x8d').hex()``: :issue:`9951` - A ``hex`` method
-  has been added to bytes, bytearray, and memoryview.
+* New :meth:`bytes.hex`, :meth:`bytearray.hex` and :meth:`memoryview.hex`
+  methods. (Contributed by Arnon Yaari in :issue:`9951`.)
 
 * :class:`memoryview` now supports tuple indexing (including multi-dimensional).
   (Contributed by Antoine Pitrou in :issue:`23632`.)
@@ -1940,7 +1939,7 @@ tracebacks.  (Contributed by Robert Collins in :issue:`22936`.)
 unittest.mock
 -------------
 
-The :class:`~unittest.mock.Mock` has the following improvements:
+The :class:`~unittest.mock.Mock` class has the following improvements:
 
 * Class constructor has a new *unsafe* parameter, which causes mock
   objects to raise :exc:`AttributeError` on attribute names starting
@@ -2441,6 +2440,12 @@ Changes in the Python API
   may be filled in).  This change affects the output of the :mod:`pydoc`
   module and the :func:`help` function.
   (Contributed by Serhiy Storchaka in :issue:`15582`.)
+
+* Nested :func:`functools.partial` calls are now flattened.  If you were
+  relying on the previous behavior, you can now either add an attribute to a
+  :func:`functools.partial` object or you can create a subclass of
+  :func:`functools.partial`.
+  (Contributed by Alexander Belopolsky in :issue:`7830`.)
 
 Changes in the C API
 --------------------
