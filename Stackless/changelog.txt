@@ -9,6 +9,9 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/129
+  C-API: Calling PyTasklet_New( NULL, ...) no longer crashes.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/128
   Fix pickling of the module 'stackless'.
 

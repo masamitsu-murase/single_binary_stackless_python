@@ -216,11 +216,14 @@ tasklet_dealloc(PyTaskletObject *t)
 PyTaskletObject *
 PyTasklet_New(PyTypeObject *type, PyObject *func)
 {
+    if (type == NULL) {
+        type = &PyTasklet_Type;
+    }
     if (!PyType_IsSubtype(type, &PyTasklet_Type)) {
         PyErr_SetNone(PyExc_TypeError);
         return NULL;
     }
-    if (func)
+    if (func && func != Py_None)
         return (PyTaskletObject*)PyObject_CallFunctionObjArgs((PyObject*)type, func, NULL);
     else
         return (PyTaskletObject*)PyObject_CallFunction((PyObject*)type, NULL);

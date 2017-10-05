@@ -10,9 +10,9 @@ Tasklets
 
 .. c:function:: PyTaskletObject *PyTasklet_New(PyTypeObject *type, PyObject *func)
 
-  Return a new tasklet object.  *type* must be derived from :c:type:`PyTasklet_Type`
-  or *NULL*.  *func* must be a callable object (normal use-case) or *NULL*, if the
-  tasklet is being used via capture().
+  Return a new tasklet object. *type* must be derived from :c:type:`PyTasklet_Type`
+  or ``NULL``. *func* must be a callable object or ``NULL`` or :c:macro:`Py_None`. If *func*
+  is ``NULL`` or :c:macro:`Py_None` you must set it later with :c:func:`PyTasklet_BindEx`.
 
 .. todo: in the case where NULL is returned and slp_ensure_linkage fails no
    exception is set, which is in contrast elsewhere in the function.
