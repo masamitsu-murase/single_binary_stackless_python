@@ -911,42 +911,50 @@ type_call(PyTypeObject *type, PyObject *args, PyObject *kwds)
 #endif
 
     obj = type->tp_new(type, args, kwds);
-    if (obj != NULL) {
-        /* Ugly exception: when the call was type(something),
-           don't call tp_init on the result. */
-        if (type == &PyType_Type &&
-            PyTuple_Check(args) && PyTuple_GET_SIZE(args) == 1 &&
-            (kwds == NULL ||
-             (PyDict_Check(kwds) && PyDict_Size(kwds) == 0)))
-            return obj;
-        /* If the returned object is not an instance of type,
-           it won't be initialized. */
-        if (!PyType_IsSubtype(Py_TYPE(obj), type))
-            return obj;
-        type = Py_TYPE(obj);
-        if (type->tp_init != NULL) {
-            initproc tp_init = type->tp_init;
-            int res;
+    obj = _Py_CheckFunctionResult((PyObject*)type, obj, NULL);
+    if (obj == NULL)
+        return NULL;
+
+    /* Ugly exception: when the call was type(something),
+       don't call tp_init on the result. */
+    if (type == &PyType_Type &&
+        PyTuple_Check(args) && PyTuple_GET_SIZE(args) == 1 &&
+        (kwds == NULL ||
+         (PyDict_Check(kwds) && PyDict_Size(kwds) == 0)))
+        return obj;
+
+    /* If the returned object is not an instance of type,
+       it won't be initialized. */
+    if (!PyType_IsSubtype(Py_TYPE(obj), type))
+        return obj;
+
+    type = Py_TYPE(obj);
+    if (type->tp_init != NULL) {
+        initproc tp_init = type->tp_init;
+        int res;
 #ifdef STACKLESS
-            int is_stackless;
-            if (tp_init == slot_tp_init)
-                STACKLESS_PROMOTE_ALL();
-            is_stackless = slp_try_stackless;
+        int is_stackless;
+        if (tp_init == slot_tp_init)
+            STACKLESS_PROMOTE_ALL();
+        is_stackless = slp_try_stackless;
 #endif
-            res = tp_init(obj, args, kwds);
+        res = tp_init(obj, args, kwds);
 #ifdef STACKLESS
-            STACKLESS_ASSERT();
-            if (is_stackless && res == STACKLESS_UNWINDING_MAGIC) {
-                /* It is a stackless call and it is unwinding.
-                 * the real result is in Py_UnwindToken */
-                Py_DECREF(obj);
-                return (PyObject *)Py_UnwindToken;
-            }
+        STACKLESS_ASSERT();
+        if (is_stackless && res == STACKLESS_UNWINDING_MAGIC) {
+            /* It is a stackless call and it is unwinding.
+             * the real result is in Py_UnwindToken */
+            Py_DECREF(obj);
+            return (PyObject *)Py_UnwindToken;
+        }
 #endif
-            if (res < 0) {
-                Py_DECREF(obj);
-                obj = NULL;
-            }
+        if (res < 0) {
+            assert(PyErr_Occurred());
+            Py_DECREF(obj);
+            obj = NULL;
+        }
+        else {
+            assert(!PyErr_Occurred());
         }
     }
     return obj;
