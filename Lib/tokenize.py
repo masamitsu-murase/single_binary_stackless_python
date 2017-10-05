@@ -244,6 +244,8 @@ class Untokenizer:
 
     def untokenize(self, iterable):
         it = iter(iterable)
+        indents = []
+        startline = False
         for t in it:
             if len(t) == 2:
                 self.compat(t, it)
@@ -254,6 +256,21 @@ class Untokenizer:
                 continue
             if tok_type == ENDMARKER:
                 break
+            if tok_type == INDENT:
+                indents.append(token)
+                continue
+            elif tok_type == DEDENT:
+                indents.pop()
+                self.prev_row, self.prev_col = end
+                continue
+            elif tok_type in (NEWLINE, NL):
+                startline = True
+            elif startline and indents:
+                indent = indents[-1]
+                if start[1] >= len(indent):
+                    self.tokens.append(indent)
+                    self.prev_col = len(indent)
+                startline = False
             self.add_whitespace(start)
             self.tokens.append(token)
             self.prev_row, self.prev_col = end
@@ -481,9 +498,11 @@ def _tokenize(readline, encoding):
     contline = None
     indents = [0]
 
-    # 'stashed' and 'ctx' are used for async/await parsing
+    # 'stashed' and 'async_*' are used for async/await parsing
     stashed = None
-    ctx = [('sync', 0)]
+    async_def = False
+    async_def_indent = 0
+    async_def_nl = False
 
     if encoding is not None:
         if encoding == "utf-8-sig":
@@ -561,11 +580,17 @@ def _tokenize(readline, encoding):
                         ("<tokenize>", lnum, pos, line))
                 indents = indents[:-1]
 
-                cur_indent = indents[-1]
-                while len(ctx) > 1 and ctx[-1][1] >= cur_indent:
-                    ctx.pop()
+                if async_def and async_def_indent >= indents[-1]:
+                    async_def = False
+                    async_def_nl = False
+                    async_def_indent = 0
 
                 yield TokenInfo(DEDENT, '', (lnum, pos), (lnum, pos), line)
+
+            if async_def and async_def_nl and async_def_indent >= indents[-1]:
+                async_def = False
+                async_def_nl = False
+                async_def_indent = 0
 
         else:                                  # continued statement
             if not line:
@@ -588,8 +613,13 @@ def _tokenize(readline, encoding):
                     if stashed:
                         yield stashed
                         stashed = None
-                    yield TokenInfo(NL if parenlev > 0 else NEWLINE,
-                           token, spos, epos, line)
+                    if parenlev > 0:
+                        yield TokenInfo(NL, token, spos, epos, line)
+                    else:
+                        yield TokenInfo(NEWLINE, token, spos, epos, line)
+                        if async_def:
+                            async_def_nl = True
+
                 elif initial == '#':
                     assert not token.endswith("\n")
                     if stashed:
@@ -623,7 +653,7 @@ def _tokenize(readline, encoding):
                         yield TokenInfo(STRING, token, spos, epos, line)
                 elif initial.isidentifier():               # ordinary name
                     if token in ('async', 'await'):
-                        if ctx[-1][0] == 'async' and ctx[-1][1] < indents[-1]:
+                        if async_def:
                             yield TokenInfo(
                                 ASYNC if token == 'async' else AWAIT,
                                 token, spos, epos, line)
@@ -639,14 +669,13 @@ def _tokenize(readline, encoding):
                                 and stashed.type == NAME
                                 and stashed.string == 'async'):
 
-                            ctx.append(('async', indents[-1]))
+                            async_def = True
+                            async_def_indent = indents[-1]
 
                             yield TokenInfo(ASYNC, stashed.string,
                                             stashed.start, stashed.end,
                                             stashed.line)
                             stashed = None
-                        else:
-                            ctx.append(('sync', indents[-1]))
 
                     if stashed:
                         yield stashed

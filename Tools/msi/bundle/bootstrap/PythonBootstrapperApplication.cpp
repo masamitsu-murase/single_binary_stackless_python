@@ -47,6 +47,7 @@ enum PAGE {
     PAGE_LOADING,
     PAGE_HELP,
     PAGE_INSTALL,
+    PAGE_UPGRADE,
     PAGE_SIMPLE_INSTALL,
     PAGE_CUSTOM1,
     PAGE_CUSTOM2,
@@ -63,6 +64,7 @@ static LPCWSTR PAGE_NAMES[] = {
     L"Loading",
     L"Help",
     L"Install",
+    L"Upgrade",
     L"SimpleInstall",
     L"Custom1",
     L"Custom2",
@@ -79,16 +81,19 @@ enum CONTROL_ID {
     ID_MINIMIZE_BUTTON,
 
     // Welcome page
-    ID_INSTALL_ALL_USERS_BUTTON,
-    ID_INSTALL_JUST_FOR_ME_BUTTON,
+    ID_INSTALL_BUTTON,
     ID_INSTALL_CUSTOM_BUTTON,
     ID_INSTALL_SIMPLE_BUTTON,
+    ID_INSTALL_UPGRADE_BUTTON,
+    ID_INSTALL_UPGRADE_CUSTOM_BUTTON,
     ID_INSTALL_CANCEL_BUTTON,
-    
+    ID_INSTALL_LAUNCHER_ALL_USERS_CHECKBOX,
+
     // Customize Page
     ID_TARGETDIR_EDITBOX,
     ID_CUSTOM_ASSOCIATE_FILES_CHECKBOX,
     ID_CUSTOM_INSTALL_ALL_USERS_CHECKBOX,
+    ID_CUSTOM_INSTALL_LAUNCHER_ALL_USERS_CHECKBOX,
     ID_CUSTOM_COMPILE_ALL_CHECKBOX,
     ID_CUSTOM_BROWSE_BUTTON,
     ID_CUSTOM_BROWSE_BUTTON_LABEL,
@@ -141,15 +146,18 @@ static THEME_ASSIGN_CONTROL_ID CONTROL_ID_NAMES[] = {
     { ID_CLOSE_BUTTON, L"CloseButton" },
     { ID_MINIMIZE_BUTTON, L"MinimizeButton" },
 
-    { ID_INSTALL_ALL_USERS_BUTTON, L"InstallAllUsersButton" },
-    { ID_INSTALL_JUST_FOR_ME_BUTTON, L"InstallJustForMeButton" },
+    { ID_INSTALL_BUTTON, L"InstallButton" },
     { ID_INSTALL_CUSTOM_BUTTON, L"InstallCustomButton" },
     { ID_INSTALL_SIMPLE_BUTTON, L"InstallSimpleButton" },
+    { ID_INSTALL_UPGRADE_BUTTON, L"InstallUpgradeButton" },
+    { ID_INSTALL_UPGRADE_CUSTOM_BUTTON, L"InstallUpgradeCustomButton" },
     { ID_INSTALL_CANCEL_BUTTON, L"InstallCancelButton" },
+    { ID_INSTALL_LAUNCHER_ALL_USERS_CHECKBOX, L"InstallLauncherAllUsers" },
 
     { ID_TARGETDIR_EDITBOX, L"TargetDir" },
     { ID_CUSTOM_ASSOCIATE_FILES_CHECKBOX, L"AssociateFiles" },
     { ID_CUSTOM_INSTALL_ALL_USERS_CHECKBOX, L"InstallAllUsers" },
+    { ID_CUSTOM_INSTALL_LAUNCHER_ALL_USERS_CHECKBOX, L"CustomInstallLauncherAllUsers" },
     { ID_CUSTOM_COMPILE_ALL_CHECKBOX, L"CompileAll" },
     { ID_CUSTOM_BROWSE_BUTTON, L"CustomBrowseButton" },
     { ID_CUSTOM_BROWSE_BUTTON_LABEL, L"CustomBrowseButtonLabel" },
@@ -191,13 +199,35 @@ static THEME_ASSIGN_CONTROL_ID CONTROL_ID_NAMES[] = {
     { ID_FAILURE_CANCEL_BUTTON, L"FailureCancelButton" },
 };
 
+static struct { LPCWSTR regName; LPCWSTR variableName; } OPTIONAL_FEATURES[] = {
+    { L"core_d", L"Include_debug" },
+    { L"core_pdb", L"Include_symbols" },
+    { L"dev", L"Include_dev" },
+    { L"doc", L"Include_doc" },
+    { L"exe", L"Include_exe" },
+    { L"lib", L"Include_lib" },
+    { L"path", L"PrependPath" },
+    { L"pip", L"Include_pip" },
+    { L"tcltk", L"Include_tcltk" },
+    { L"test", L"Include_test" },
+    { L"tools", L"Include_tools" },
+    { L"Shortcuts", L"Shortcuts" },
+    // Include_launcher and AssociateFiles are handled separately and so do
+    // not need to be included in this list.
+    { nullptr, nullptr }
+};
+
+
+
 class PythonBootstrapperApplication : public CBalBaseBootstrapperApplication {
     void ShowPage(DWORD newPageId) {
         // Process each control for special handling in the new page.
         ProcessPageControls(ThemeGetPage(_theme, newPageId));
 
         // Enable disable controls per-page.
-        if (_pageIds[PAGE_INSTALL] == newPageId || _pageIds[PAGE_SIMPLE_INSTALL] == newPageId) {
+        if (_pageIds[PAGE_INSTALL] == newPageId ||
+            _pageIds[PAGE_SIMPLE_INSTALL] == newPageId ||
+            _pageIds[PAGE_UPGRADE] == newPageId) {
             InstallPage_Show();
         } else if (_pageIds[PAGE_CUSTOM1] == newPageId) {
             Custom1Page_Show();
@@ -222,7 +252,7 @@ class PythonBootstrapperApplication : public CBalBaseBootstrapperApplication {
         // On the install page set the focus to the install button or
         // the next enabled control if install is disabled
         if (_pageIds[PAGE_INSTALL] == newPageId) {
-            ThemeSetFocus(_theme, ID_INSTALL_ALL_USERS_BUTTON);
+            ThemeSetFocus(_theme, ID_INSTALL_BUTTON);
         } else if (_pageIds[PAGE_SIMPLE_INSTALL] == newPageId) {
             ThemeSetFocus(_theme, ID_INSTALL_SIMPLE_BUTTON);
         }
@@ -234,11 +264,12 @@ class PythonBootstrapperApplication : public CBalBaseBootstrapperApplication {
     void OnCommand(CONTROL_ID id) {
         LPWSTR defaultDir = nullptr;
         LPWSTR targetDir = nullptr;
-        LONGLONG elevated, crtInstalled;
-        BOOL checked;
+        LONGLONG elevated, crtInstalled, installAllUsers;
+        BOOL checked, launcherChecked;
         WCHAR wzPath[MAX_PATH] = { };
         BROWSEINFOW browseInfo = { };
         PIDLIST_ABSOLUTE pidl = nullptr;
+        DWORD pageId;
         HRESULT hr = S_OK;
 
         switch(id) {
@@ -247,19 +278,33 @@ class PythonBootstrapperApplication : public CBalBaseBootstrapperApplication {
             break;
 
         // Install commands
-        case ID_INSTALL_SIMPLE_BUTTON:
-            hr = BalGetStringVariable(L"TargetDir", &targetDir);
-            if (FAILED(hr) || !targetDir || !*targetDir) {
-                LONGLONG installAll;
-                if (SUCCEEDED(BalGetNumericVariable(L"InstallAllUsers", &installAll)) && installAll) {
-                    hr = BalGetStringVariable(L"DefaultAllUsersTargetDir", &defaultDir);
-                    BalExitOnFailure(hr, "Failed to get the default all users install directory");
-                } else {
-                    hr = BalGetStringVariable(L"DefaultJustForMeTargetDir", &defaultDir);
-                    BalExitOnFailure(hr, "Failed to get the default per-user install directory");
-                }
+        case ID_INSTALL_SIMPLE_BUTTON: __fallthrough;
+        case ID_INSTALL_UPGRADE_BUTTON: __fallthrough;
+        case ID_INSTALL_BUTTON:
+            SavePageSettings();
 
-                if (!defaultDir || !*defaultDir) {
+            if (!WillElevate() && !QueryElevateForCrtInstall()) {
+                break;
+            }
+
+            hr = BalGetNumericVariable(L"InstallAllUsers", &installAllUsers);
+            ExitOnFailure(hr, L"Failed to get install scope");
+
+            hr = _engine->SetVariableNumeric(L"CompileAll", installAllUsers);
+            ExitOnFailure(hr, L"Failed to update CompileAll");
+
+            hr = BalGetStringVariable(L"TargetDir", &targetDir);
+            if (FAILED(hr) || !targetDir || !targetDir[0]) {
+                ReleaseStr(targetDir);
+                targetDir = nullptr;
+
+                hr = BalGetStringVariable(
+                    installAllUsers ? L"DefaultAllUsersTargetDir" : L"DefaultJustForMeTargetDir",
+                    &defaultDir
+                );
+                BalExitOnFailure(hr, "Failed to get the default install directory");
+
+                if (!defaultDir || !defaultDir[0]) {
                     BalLogError(E_INVALIDARG, "Default install directory is blank");
                 }
 
@@ -267,67 +312,9 @@ class PythonBootstrapperApplication : public CBalBaseBootstrapperApplication {
                 BalExitOnFailure1(hr, "Failed to format '%ls'", defaultDir);
 
                 hr = _engine->SetVariableString(L"TargetDir", targetDir);
-                ReleaseStr(targetDir);
                 BalExitOnFailure(hr, "Failed to set install target directory");
-            } else {
-                ReleaseStr(targetDir);
             }
-
-            OnPlan(BOOTSTRAPPER_ACTION_INSTALL);
-            break;
-
-        case ID_INSTALL_ALL_USERS_BUTTON:
-            SavePageSettings();
-            
-            hr = _engine->SetVariableNumeric(L"InstallAllUsers", 1);
-            ExitOnFailure(hr, L"Failed to set install scope");
-
-            hr = _engine->SetVariableNumeric(L"CompileAll", 1);
-            ExitOnFailure(hr, L"Failed to set compile all setting");
-
-            hr = BalGetStringVariable(L"DefaultAllUsersTargetDir", &defaultDir);
-            BalExitOnFailure(hr, "Failed to get the default all users install directory");
-
-            if (!defaultDir || !*defaultDir) {
-                BalLogError(E_INVALIDARG, "Default install directory is blank");
-            }
-
-            hr = BalFormatString(defaultDir, &targetDir);
-            BalExitOnFailure1(hr, "Failed to format '%ls'", defaultDir);
-
-            hr = _engine->SetVariableString(L"TargetDir", targetDir);
             ReleaseStr(targetDir);
-            BalExitOnFailure(hr, "Failed to set install target directory");
-
-            OnPlan(BOOTSTRAPPER_ACTION_INSTALL);
-            break;
-
-        case ID_INSTALL_JUST_FOR_ME_BUTTON:
-            SavePageSettings();
-
-            if (!QueryElevateForCrtInstall()) {
-                break;
-            }
-
-            hr = _engine->SetVariableNumeric(L"InstallAllUsers", 0);
-            ExitOnFailure(hr, L"Failed to set install scope");
-
-            hr = _engine->SetVariableNumeric(L"CompileAll", 0);
-            ExitOnFailure(hr, L"Failed to unset CompileAll");
-
-            hr = BalGetStringVariable(L"DefaultJustForMeTargetDir", &defaultDir);
-            BalExitOnFailure(hr, "Failed to get the default per-user install directory");
-
-            if (!defaultDir || !*defaultDir) {
-                BalLogError(E_INVALIDARG, "Default install directory is blank");
-            }
-
-            hr = BalFormatString(defaultDir, &targetDir);
-            BalExitOnFailure1(hr, "Failed to format '%ls'", defaultDir);
-
-            hr = _engine->SetVariableString(L"TargetDir", targetDir);
-            ReleaseStr(targetDir);
-            BalExitOnFailure(hr, "Failed to set install target directory");
 
             OnPlan(BOOTSTRAPPER_ACTION_INSTALL);
             break;
@@ -342,6 +329,7 @@ class PythonBootstrapperApplication : public CBalBaseBootstrapperApplication {
             break;
 
         case ID_INSTALL_CUSTOM_BUTTON: __fallthrough;
+        case ID_INSTALL_UPGRADE_CUSTOM_BUTTON: __fallthrough;
         case ID_CUSTOM2_BACK_BUTTON:
             SavePageSettings();
             GoToPage(PAGE_CUSTOM1);
@@ -361,18 +349,32 @@ class PythonBootstrapperApplication : public CBalBaseBootstrapperApplication {
                 ReleaseStr(targetDir);
             }
 
-            checked = ThemeIsControlChecked(_theme, ID_CUSTOM_INSTALL_ALL_USERS_CHECKBOX);
-            if (!checked && !QueryElevateForCrtInstall()) {
+            if (!WillElevate() && !QueryElevateForCrtInstall()) {
                 break;
             }
 
             OnPlan(_command.action);
             break;
 
+        case ID_INSTALL_LAUNCHER_ALL_USERS_CHECKBOX:
+            checked = ThemeIsControlChecked(_theme, ID_INSTALL_LAUNCHER_ALL_USERS_CHECKBOX);
+            _engine->SetVariableNumeric(L"InstallLauncherAllUsers", checked);
+
+            ThemeControlElevates(_theme, ID_INSTALL_BUTTON, WillElevate());
+            break;
+
+        case ID_CUSTOM_INSTALL_LAUNCHER_ALL_USERS_CHECKBOX:
+            checked = ThemeIsControlChecked(_theme, ID_CUSTOM_INSTALL_LAUNCHER_ALL_USERS_CHECKBOX);
+            _engine->SetVariableNumeric(L"InstallLauncherAllUsers", checked);
+
+            ThemeControlElevates(_theme, ID_CUSTOM_INSTALL_BUTTON, WillElevate());
+            break;
+
         case ID_CUSTOM_INSTALL_ALL_USERS_CHECKBOX:
-            hr = BalGetNumericVariable(L"WixBundleElevated", &elevated);
             checked = ThemeIsControlChecked(_theme, ID_CUSTOM_INSTALL_ALL_USERS_CHECKBOX);
-            ThemeControlElevates(_theme, ID_CUSTOM_INSTALL_BUTTON, checked && (FAILED(hr) || !elevated));
+            _engine->SetVariableNumeric(L"InstallAllUsers", checked);
+
+            ThemeControlElevates(_theme, ID_CUSTOM_INSTALL_BUTTON, WillElevate());
             ThemeControlEnable(_theme, ID_CUSTOM_BROWSE_BUTTON_LABEL, !checked);
             if (checked) {
                 _engine->SetVariableNumeric(L"CompileAll", 1);
@@ -433,6 +435,7 @@ class PythonBootstrapperApplication : public CBalBaseBootstrapperApplication {
         case ID_MODIFY_BUTTON:
             // Some variables cannot be modified
             _engine->SetVariableString(L"InstallAllUsersState", L"disable");
+            _engine->SetVariableString(L"InstallLauncherAllUsersState", L"disable");
             _engine->SetVariableString(L"TargetDirState", L"disable");
             _engine->SetVariableString(L"CustomBrowseButtonState", L"disable");
             _modifying = TRUE;
@@ -454,34 +457,36 @@ class PythonBootstrapperApplication : public CBalBaseBootstrapperApplication {
 
     void InstallPage_Show() {
         // Ensure the All Users install button has a UAC shield
-        LONGLONG elevated, installAll;
-
-        if (FAILED(BalGetNumericVariable(L"WixBundleElevated", &elevated))) {
-            elevated = 0;
-        }
-
-        ThemeControlElevates(_theme, ID_INSTALL_ALL_USERS_BUTTON, !elevated);
-
-        if (SUCCEEDED(BalGetNumericVariable(L"InstallAllUsers", &installAll)) && installAll) {
-            ThemeControlElevates(_theme, ID_INSTALL_SIMPLE_BUTTON, !elevated);
-        }
+        BOOL elevated = WillElevate();
+        ThemeControlElevates(_theme, ID_INSTALL_BUTTON, elevated);
+        ThemeControlElevates(_theme, ID_INSTALL_SIMPLE_BUTTON, elevated);
+        ThemeControlElevates(_theme, ID_INSTALL_UPGRADE_BUTTON, elevated);
     }
 
     void Custom1Page_Show() {
+        LONGLONG installLauncherAllUsers;
+
+        if (FAILED(BalGetNumericVariable(L"InstallLauncherAllUsers", &installLauncherAllUsers))) {
+            installLauncherAllUsers = 0;
+        }
+
+        ThemeSendControlMessage(_theme, ID_CUSTOM_INSTALL_LAUNCHER_ALL_USERS_CHECKBOX, BM_SETCHECK,
+            installLauncherAllUsers ? BST_CHECKED : BST_UNCHECKED, 0);
     }
 
     void Custom2Page_Show() {
         HRESULT hr;
-        LONGLONG installAll, elevated, includeLauncher;
+        LONGLONG installAll, includeLauncher;
         
-        if (FAILED(BalGetNumericVariable(L"WixBundleElevated", &elevated))) {
-            elevated = 0;
+        if (FAILED(BalGetNumericVariable(L"InstallAllUsers", &installAll))) {
+            installAll = 0;
         }
-        if (SUCCEEDED(BalGetNumericVariable(L"InstallAllUsers", &installAll))) {
-            ThemeControlElevates(_theme, ID_CUSTOM_INSTALL_BUTTON, installAll && !elevated);
+
+        if (WillElevate()) {
+            ThemeControlElevates(_theme, ID_CUSTOM_INSTALL_BUTTON, TRUE);
             ThemeShowControl(_theme, ID_CUSTOM_BROWSE_BUTTON_LABEL, SW_HIDE);
         } else {
-            installAll = 0;
+            ThemeControlElevates(_theme, ID_CUSTOM_INSTALL_BUTTON, FALSE);
             ThemeShowControl(_theme, ID_CUSTOM_BROWSE_BUTTON_LABEL, SW_SHOW);
         }
 
@@ -667,7 +672,34 @@ public: // IBootstrapperApplication
 
         // Remember when our bundle would cause a downgrade.
         if (BOOTSTRAPPER_RELATED_OPERATION_DOWNGRADE == operation) {
-            _downgrading = TRUE;
+            _downgradingOtherVersion = TRUE;
+        } else if (BOOTSTRAPPER_RELATED_OPERATION_MAJOR_UPGRADE == operation) {
+            _upgradingOldVersion = TRUE;
+
+            // Assume we don't want the launcher or file associations, and if
+            // they have already been installed then loading the state will
+            // reactivate these settings.
+            _engine->SetVariableNumeric(L"Include_launcher", 0);
+            _engine->SetVariableNumeric(L"AssociateFiles", 0);
+            auto hr = LoadLauncherStateFromKey(_engine, HKEY_CURRENT_USER);
+            if (hr == S_FALSE) {
+                hr = LoadLauncherStateFromKey(_engine, HKEY_LOCAL_MACHINE);
+            }
+        } else if (BOOTSTRAPPER_RELATED_OPERATION_NONE == operation) {
+            if (_command.action == BOOTSTRAPPER_ACTION_INSTALL) {
+                LOC_STRING *pLocString = nullptr;
+                if (SUCCEEDED(LocGetString(_wixLoc, L"#(loc.FailureExistingInstall)", &pLocString)) && pLocString) {
+                    BalFormatString(pLocString->wzText, &_failedMessage);
+                } else {
+                    BalFormatString(L"Cannot install [WixBundleName] because it is already installed.", &_failedMessage);
+                }
+                BalLog(
+                    BOOTSTRAPPER_LOG_LEVEL_ERROR,
+                    "Related bundle %ls is preventing install",
+                    wzBundleId
+                );
+                SetState(PYBA_STATE_FAILED, E_WIXSTDBA_CONDITION_FAILED);
+            }
         }
 
         return CheckCanceled() ? IDCANCEL : IDOK;
@@ -1217,6 +1249,92 @@ private:
         return hr;
     }
 
+    //
+    // ParseVariablesFromUnattendXml - reads options from unattend.xml if it
+    // exists
+    //
+    HRESULT ParseVariablesFromUnattendXml() {
+        HRESULT hr = S_OK;
+        LPWSTR sczUnattendXmlPath = nullptr;
+        IXMLDOMDocument *pixdUnattend = nullptr;
+        IXMLDOMNodeList *pNodes = nullptr;
+        IXMLDOMNode *pNode = nullptr;
+        long cNodes;
+        DWORD dwAttr;
+        LPWSTR scz = nullptr;
+        BOOL bValue;
+        int iValue;
+        BOOL tryConvert;
+        BSTR bstrValue = nullptr;
+
+        hr = BalFormatString(L"[WixBundleOriginalSourceFolder]unattend.xml", &sczUnattendXmlPath);
+        BalExitOnFailure(hr, "Failed to calculate path to unattend.xml");
+
+        if (!FileExistsEx(sczUnattendXmlPath, &dwAttr)) {
+            BalLog(BOOTSTRAPPER_LOG_LEVEL_VERBOSE, "Did not find %ls", sczUnattendXmlPath);
+            hr = S_FALSE;
+            goto LExit;
+        }
+
+        hr = XmlLoadDocumentFromFile(sczUnattendXmlPath, &pixdUnattend);
+        BalExitOnFailure1(hr, "Failed to read %ls", sczUnattendXmlPath);
+
+        // get the list of variables users have overridden
+        hr = XmlSelectNodes(pixdUnattend, L"/Options/Option", &pNodes);
+        if (S_FALSE == hr) {
+            ExitFunction1(hr = S_OK);
+        }
+        BalExitOnFailure(hr, "Failed to select option nodes.");
+
+        hr = pNodes->get_length((long*)&cNodes);
+        BalExitOnFailure(hr, "Failed to get option node count.");
+
+        BalLog(BOOTSTRAPPER_LOG_LEVEL_STANDARD, "Reading settings from %ls", sczUnattendXmlPath);
+
+        for (DWORD i = 0; i < cNodes; ++i) {
+            hr = XmlNextElement(pNodes, &pNode, nullptr);
+            BalExitOnFailure(hr, "Failed to get next node.");
+
+            // @Name
+            hr = XmlGetAttributeEx(pNode, L"Name", &scz);
+            BalExitOnFailure(hr, "Failed to get @Name.");
+
+            tryConvert = TRUE;
+            hr = XmlGetAttribute(pNode, L"Value", &bstrValue);
+            if (FAILED(hr) || !bstrValue || !*bstrValue) {
+                hr = XmlGetText(pNode, &bstrValue);
+                tryConvert = FALSE;
+            }
+            BalExitOnFailure(hr, "Failed to get @Value.");
+
+            if (tryConvert &&
+                CSTR_EQUAL == ::CompareStringW(LOCALE_INVARIANT, NORM_IGNORECASE, bstrValue, -1, L"yes", -1)) {
+                _engine->SetVariableNumeric(scz, 1);
+            } else if (tryConvert &&
+                       CSTR_EQUAL == ::CompareStringW(LOCALE_INVARIANT, NORM_IGNORECASE, bstrValue, -1, L"no", -1)) {
+                _engine->SetVariableNumeric(scz, 0);
+            } else if (tryConvert && ::StrToIntExW(bstrValue, STIF_DEFAULT, &iValue)) {
+                _engine->SetVariableNumeric(scz, iValue);
+            } else {
+                _engine->SetVariableString(scz, bstrValue);
+            }
+
+            ReleaseNullBSTR(bstrValue);
+            ReleaseNullStr(scz);
+            ReleaseNullObject(pNode);
+        }
+
+        BalLog(BOOTSTRAPPER_LOG_LEVEL_STANDARD, "Finished reading from %ls", sczUnattendXmlPath);
+
+    LExit:
+        ReleaseObject(pNode);
+        ReleaseObject(pNodes);
+        ReleaseObject(pixdUnattend);
+        ReleaseStr(sczUnattendXmlPath);
+
+        return hr;
+    }
+
 
     //
     // InitializeData - initializes all the package information.
@@ -1231,6 +1349,9 @@ private:
 
         hr = ParseOverridableVariablesFromXml(pixdManifest);
         BalExitOnFailure(hr, "Failed to read overridable variables.");
+
+        hr = ParseVariablesFromUnattendXml();
+        ExitOnFailure(hr, "Failed to read unattend.ini file.");
 
         hr = ProcessCommandLine(&_language);
         ExitOnFailure(hr, "Unknown commandline parameters.");
@@ -1291,7 +1412,9 @@ private:
 
                         hr = StrAllocString(psczLanguage, &argv[i][0], 0);
                         BalExitOnFailure(hr, "Failed to copy language.");
-                    } 
+                    } else if (CSTR_EQUAL == ::CompareStringW(LOCALE_INVARIANT, NORM_IGNORECASE, &argv[i][1], -1, L"simple", -1)) {
+                        _engine->SetVariableNumeric(L"SimpleInstall", 1);
+                    }
                 } else if (_overridableVariables) {
                     int value;
                     const wchar_t* pwc = wcschr(argv[i], L'=');
@@ -1828,8 +1951,8 @@ private:
             COLORREF fg = fnt->crForeground, bg = fnt->crBackground;
             *brush = fnt->hBackground;
             RemapColor(&fg, &bg, brush);
-            SetTextColor(hDC, fg);
-            SetBkColor(hDC, bg);
+            ::SetTextColor(hDC, fg);
+            ::SetBkColor(hDC, bg);
 
             return TRUE;
         }
@@ -1969,7 +2092,7 @@ private:
         BalExitOnFailure(hr, "Failed to update strings");
 
         // If we are going to apply a downgrade, bail.
-        if (_downgrading && BOOTSTRAPPER_ACTION_UNINSTALL < action) {
+        if (_downgradingOtherVersion && BOOTSTRAPPER_ACTION_UNINSTALL < action) {
             if (_suppressDowngradeFailure) {
                 BalLog(BOOTSTRAPPER_LOG_LEVEL_STANDARD, "A newer version of this product is installed but downgrade failure has been suppressed; continuing...");
             } else {
@@ -2069,6 +2192,7 @@ private:
 
         for (DWORD i = 0; i < pPage->cControlIndices; ++i) {
             THEME_CONTROL* pControl = _theme->rgControls + pPage->rgdwControlIndices[i];
+            BOOL enableControl = TRUE;
 
             // If this is a named control, try to set its default state.
             if (pControl->sczName && *pControl->sczName) {
@@ -2080,7 +2204,7 @@ private:
 
                     // If the control value isn't set then disable it.
                     if (!SUCCEEDED(hr)) {
-                        ThemeControlEnable(_theme, pControl->wId, FALSE);
+                        enableControl = FALSE;
                     } else {
                         ThemeSendControlMessage(
                             _theme,
@@ -2099,19 +2223,33 @@ private:
                     LPWSTR controlState = nullptr;
                     hr = BalGetStringVariable(controlName, &controlState);
                     if (SUCCEEDED(hr) && controlState && *controlState) {
+                        if (controlState[0] == '[') {
+                            LPWSTR formatted = nullptr;
+                            if (SUCCEEDED(BalFormatString(controlState, &formatted))) {
+                                StrFree(controlState);
+                                controlState = formatted;
+                            }
+                        }
+
                         if (CSTR_EQUAL == ::CompareStringW(LOCALE_NEUTRAL, 0, controlState, -1, L"disable", -1)) {
                             BalLog(BOOTSTRAPPER_LOG_LEVEL_STANDARD, "Disable control %ls", pControl->sczName);
-                            ThemeControlEnable(_theme, pControl->wId, FALSE);
+                            enableControl = FALSE;
                         } else if (CSTR_EQUAL == ::CompareStringW(LOCALE_NEUTRAL, 0, controlState, -1, L"hide", -1)) {
                             BalLog(BOOTSTRAPPER_LOG_LEVEL_STANDARD, "Hide control %ls", pControl->sczName);
                             // TODO: This doesn't work
                             ThemeShowControl(_theme, pControl->wId, SW_HIDE);
+                        } else {
+                            // An explicit state can override the lack of a
+                            // backing variable.
+                            enableControl = TRUE;
                         }
                     }
                     StrFree(controlState);
                 }
                 StrFree(controlName);
             }
+
+            ThemeControlEnable(_theme, pControl->wId, enableControl);
 
             // Format the text in each of the new page's controls
             if (pControl->sczText && *pControl->sczText) {
@@ -2354,7 +2492,9 @@ private:
                 if (_installPage == PAGE_LOADING) {
                     switch (_command.action) {
                     case BOOTSTRAPPER_ACTION_INSTALL:
-                        if (SUCCEEDED(BalGetNumericVariable(L"SimpleInstall", &simple)) && simple) {
+                        if (_upgradingOldVersion) {
+                            _installPage = PAGE_UPGRADE;
+                        } else if (SUCCEEDED(BalGetNumericVariable(L"SimpleInstall", &simple)) && simple) {
                             _installPage = PAGE_SIMPLE_INSTALL;
                         } else {
                             _installPage = PAGE_INSTALL;
@@ -2392,6 +2532,16 @@ private:
         }
     }
 
+    BOOL WillElevate() {
+        static BAL_CONDITION WILL_ELEVATE_CONDITION = {
+            L"not WixBundleElevated and (InstallAllUsers or (InstallLauncherAllUsers and Include_launcher))",
+            L""
+        };
+        BOOL result;
+
+        return SUCCEEDED(BalConditionEvaluate(&WILL_ELEVATE_CONDITION, _engine, &result, nullptr)) && result;
+    }
+
     BOOL IsCrtInstalled() {
         if (_crtInstalledToken > 0) {
             return TRUE;
@@ -2399,10 +2549,10 @@ private:
             return FALSE;
         }
         
-        // Check whether at least CRT v10.0.9924.0 is available.
+        // Check whether at least CRT v10.0.10137.0 is available.
         // It should only be installed as a Windows Update package, which means
         // we don't need to worry about 32-bit/64-bit.
-        LPCWSTR crtFile = L"api-ms-win-crt-runtime-l1-1-0.dll";
+        LPCWSTR crtFile = L"ucrtbase.dll";
 
         DWORD cbVer = GetFileVersionInfoSizeW(crtFile, nullptr);
         if (!cbVer) {
@@ -2427,7 +2577,7 @@ private:
         BOOL result = FALSE;
 
         if (VerQueryValueW(pData, L"\\", (LPVOID*)&ffi, &cb) &&
-            ffi->dwFileVersionMS == 0x000A0000 && ffi->dwFileVersionLS >= 0x26C40000) {
+            ffi->dwFileVersionMS == 0x000A0000 && ffi->dwFileVersionLS >= 0x27990000) {
             result = TRUE;
         }
         
@@ -2608,6 +2758,179 @@ private:
         }
     }
 
+    static bool IsTargetPlatformx64(__in IBootstrapperEngine* pEngine) {
+        WCHAR platform[8];
+        DWORD platformLen = 8;
+
+        if (FAILED(pEngine->GetVariableString(L"TargetPlatform", platform, &platformLen))) {
+            return S_FALSE;
+        }
+
+        return ::CompareStringW(LOCALE_NEUTRAL, 0, platform, -1, L"x64", -1) == CSTR_EQUAL;
+    }
+
+    static HRESULT LoadOptionalFeatureStatesFromKey(
+        __in IBootstrapperEngine* pEngine,
+        __in HKEY hkHive,
+        __in LPCWSTR subkey
+    ) {
+        HKEY hKey;
+        LRESULT res;
+
+        if (IsTargetPlatformx64(pEngine)) {
+            res = RegOpenKeyExW(hkHive, subkey, 0, KEY_READ | KEY_WOW64_64KEY, &hKey);
+        } else {
+            res = RegOpenKeyExW(hkHive, subkey, 0, KEY_READ | KEY_WOW64_32KEY, &hKey);
+        }
+        if (res == ERROR_FILE_NOT_FOUND) {
+            return S_FALSE;
+        }
+        if (res != ERROR_SUCCESS) {
+            return HRESULT_FROM_WIN32(res);
+        }
+
+        for (auto p = OPTIONAL_FEATURES; p->regName; ++p) {
+            res = RegQueryValueExW(hKey, p->regName, nullptr, nullptr, nullptr, nullptr);
+            if (res == ERROR_FILE_NOT_FOUND) {
+                pEngine->SetVariableNumeric(p->variableName, 0);
+            } else if (res == ERROR_SUCCESS) {
+                pEngine->SetVariableNumeric(p->variableName, 1);
+            } else {
+                RegCloseKey(hKey);
+                return HRESULT_FROM_WIN32(res);
+            }
+        }
+
+        RegCloseKey(hKey);
+        return S_OK;
+    }
+
+    static HRESULT LoadTargetDirFromKey(
+        __in IBootstrapperEngine* pEngine,
+        __in HKEY hkHive,
+        __in LPCWSTR subkey
+    ) {
+        HKEY hKey;
+        LRESULT res;
+        DWORD dataType;
+        BYTE buffer[1024];
+        DWORD bufferLen = sizeof(buffer);
+
+        if (IsTargetPlatformx64(pEngine)) {
+            res = RegOpenKeyExW(hkHive, subkey, 0, KEY_READ | KEY_WOW64_64KEY, &hKey);
+        } else {
+            res = RegOpenKeyExW(hkHive, subkey, 0, KEY_READ | KEY_WOW64_32KEY, &hKey);
+        }
+        if (res == ERROR_FILE_NOT_FOUND) {
+            return S_FALSE;
+        }
+        if (res != ERROR_SUCCESS) {
+            return HRESULT_FROM_WIN32(res);
+        }
+
+        res = RegQueryValueExW(hKey, nullptr, nullptr, &dataType, buffer, &bufferLen);
+        if (res == ERROR_SUCCESS && dataType == REG_SZ && bufferLen < sizeof(buffer)) {
+            pEngine->SetVariableString(L"TargetDir", reinterpret_cast<wchar_t*>(buffer));
+        }
+        RegCloseKey(hKey);
+        return HRESULT_FROM_WIN32(res);
+    }
+
+    static HRESULT LoadLauncherStateFromKey(
+        __in IBootstrapperEngine* pEngine,
+        __in HKEY hkHive
+    ) {
+        const LPCWSTR subkey = L"Software\\Python\\PyLauncher";
+        HKEY hKey;
+        LRESULT res;
+
+        if (IsTargetPlatformx64(pEngine)) {
+            res = RegOpenKeyExW(hkHive, subkey, 0, KEY_READ | KEY_WOW64_64KEY, &hKey);
+        } else {
+            res = RegOpenKeyExW(hkHive, subkey, 0, KEY_READ | KEY_WOW64_32KEY, &hKey);
+        }
+
+        if (res == ERROR_FILE_NOT_FOUND) {
+            return S_FALSE;
+        }
+        if (res != ERROR_SUCCESS) {
+            return HRESULT_FROM_WIN32(res);
+        }
+
+        res = RegQueryValueExW(hKey, nullptr, nullptr, nullptr, nullptr, nullptr);
+        if (res == ERROR_FILE_NOT_FOUND) {
+            pEngine->SetVariableNumeric(L"Include_launcher", 0);
+        } else if (res == ERROR_SUCCESS) {
+            pEngine->SetVariableNumeric(L"Include_launcher", 1);
+        }
+
+        res = RegQueryValueExW(hKey, L"AssociateFiles", nullptr, nullptr, nullptr, nullptr);
+        if (res == ERROR_FILE_NOT_FOUND) {
+            pEngine->SetVariableNumeric(L"AssociateFiles", 0);
+        } else if (res == ERROR_SUCCESS) {
+            pEngine->SetVariableNumeric(L"AssociateFiles", 1);
+        }
+
+        RegCloseKey(hKey);
+        return S_OK;
+    }
+
+    static void LoadOptionalFeatureStates(__in IBootstrapperEngine* pEngine) {
+        WCHAR subkeyFmt[256];
+        WCHAR subkey[256];
+        DWORD subkeyLen;
+        HRESULT hr;
+        HKEY hkHive;
+
+        // The launcher installation is separate from the Python install, so we
+        // check its state later. This also checks the file association option.
+
+        // Get the registry key from the bundle, to save having to duplicate it
+        // in multiple places.
+        subkeyLen = sizeof(subkeyFmt) / sizeof(subkeyFmt[0]);
+        hr = pEngine->GetVariableString(L"OptionalFeaturesRegistryKey", subkeyFmt, &subkeyLen);
+        BalExitOnFailure(hr, "Failed to locate registry key");
+        subkeyLen = sizeof(subkey) / sizeof(subkey[0]);
+        hr = pEngine->FormatString(subkeyFmt, subkey, &subkeyLen);
+        BalExitOnFailure1(hr, "Failed to format %ls", subkeyFmt);
+
+        // Check the current user's registry for existing features
+        hkHive = HKEY_CURRENT_USER;
+        hr = LoadOptionalFeatureStatesFromKey(pEngine, hkHive, subkey);
+        BalExitOnFailure1(hr, "Failed to read from HKCU\\%ls", subkey);
+        if (hr == S_FALSE) {
+            // Now check the local machine registry
+            hkHive = HKEY_LOCAL_MACHINE;
+            hr = LoadOptionalFeatureStatesFromKey(pEngine, hkHive, subkey);
+            BalExitOnFailure1(hr, "Failed to read from HKLM\\%ls", subkey);
+            if (hr == S_OK) {
+                // Found a system-wide install, so enable these settings.
+                pEngine->SetVariableNumeric(L"InstallAllUsers", 1);
+                pEngine->SetVariableNumeric(L"CompileAll", 1);
+            }
+        }
+
+        if (hr == S_OK) {
+            // Cannot change InstallAllUsersState when upgrading. While there's
+            // no good reason to not allow installing a per-user and an all-user
+            // version simultaneously, Burn can't handle the state management
+            // and will need to uninstall the old one. 
+            pEngine->SetVariableString(L"InstallAllUsersState", L"disable");
+
+            // Get the previous install directory. This can be changed by the
+            // user.
+            subkeyLen = sizeof(subkeyFmt) / sizeof(subkeyFmt[0]);
+            hr = pEngine->GetVariableString(L"TargetDirRegistryKey", subkeyFmt, &subkeyLen);
+            BalExitOnFailure(hr, "Failed to locate registry key");
+            subkeyLen = sizeof(subkey) / sizeof(subkey[0]);
+            hr = pEngine->FormatString(subkeyFmt, subkey, &subkeyLen);
+            BalExitOnFailure1(hr, "Failed to format %ls", subkeyFmt);
+            LoadTargetDirFromKey(pEngine, hkHive, subkey);
+        }
+
+    LExit:
+        return;
+    }
 
 public:
     //
@@ -2667,7 +2990,8 @@ public:
         _installPage = PAGE_LOADING;
         _hrFinal = hrHostInitialization;
 
-        _downgrading = FALSE;
+        _downgradingOtherVersion = FALSE;
+        _upgradingOldVersion = FALSE;
         _restartResult = BOOTSTRAPPER_APPLY_RESTART_NONE;
         _restartRequired = FALSE;
         _allowRestart = FALSE;
@@ -2690,6 +3014,8 @@ public:
 
         _hBAFModule = nullptr;
         _baFunction = nullptr;
+
+        LoadOptionalFeatureStates(pEngine);
     }
 
 
@@ -2748,7 +3074,8 @@ private:
     DWORD _calculatedCacheProgress;
     DWORD _calculatedExecuteProgress;
 
-    BOOL _downgrading;
+    BOOL _downgradingOtherVersion;
+    BOOL _upgradingOldVersion;
     BOOTSTRAPPER_APPLY_RESTART _restartResult;
     BOOL _restartRequired;
     BOOL _allowRestart;

@@ -116,9 +116,9 @@ Deprecated
 New Keywords
 ------------
 
-``async`` and ``await`` are not recommended to be used as variable, class or
-function names.  Introduced by :pep:`492` in Python 3.5, they will become
-proper keywords in Python 3.7.
+``async`` and ``await`` are not recommended to be used as variable, class,
+function or module names.  Introduced by :pep:`492` in Python 3.5, they will
+become proper keywords in Python 3.7.
 
 
 Deprecated Python modules, functions and methods
@@ -145,7 +145,12 @@ Removed
 API and Feature Removals
 ------------------------
 
-* None yet.
+* ``inspect.getargspec()`` was removed (was deprecated since CPython 3.0).
+  :func:`inspect.getfullargspec` is an almost drop in replacement.
+
+* ``inspect.getmoduleinfo()`` was removed (was deprecated since CPython 3.3).
+  :func:`inspect.getmodulename` should be used for obtaining the module
+  name for a given path.
 
 
 Porting to Python 3.6
@@ -157,7 +162,10 @@ that may require changes to your code.
 Changes in the Python API
 -------------------------
 
-* None yet.
+* Reading the :attr:`~urllib.parse.SplitResult.port` attribute of
+  :func:`urllib.parse.urlsplit` and :func:`~urllib.parse.urlparse` results
+  now raises :exc:`ValueError` for out-of-range values, rather than
+  returning :const:`None`.  See :issue:`20059`.
 
 
 Changes in the C API

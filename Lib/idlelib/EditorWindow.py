@@ -230,13 +230,7 @@ class EditorWindow(object):
         vbar['command'] = text.yview
         vbar.pack(side=RIGHT, fill=Y)
         text['yscrollcommand'] = vbar.set
-        fontWeight = 'normal'
-        if idleConf.GetOption('main', 'EditorWindow', 'font-bold', type='bool'):
-            fontWeight='bold'
-        text.config(font=(idleConf.GetOption('main', 'EditorWindow', 'font'),
-                          idleConf.GetOption('main', 'EditorWindow',
-                                             'font-size', type='int'),
-                          fontWeight))
+        text['font'] = idleConf.GetFont(self.root, 'main', 'EditorWindow')
         text_frame.pack(side=LEFT, fill=BOTH, expand=1)
         text.pack(side=TOP, fill=BOTH, expand=1)
         text.focus_set()
@@ -350,19 +344,19 @@ class EditorWindow(object):
 
 
     def _filename_to_unicode(self, filename):
-        """convert filename to unicode in order to display it in Tk"""
-        if isinstance(filename, str) or not filename:
-            return filename
-        else:
+        """Return filename as BMP unicode so diplayable in Tk."""
+        # Decode bytes to unicode.
+        if isinstance(filename, bytes):
             try:
-                return filename.decode(self.filesystemencoding)
+                filename = filename.decode(self.filesystemencoding)
             except UnicodeDecodeError:
-                # XXX
                 try:
-                    return filename.decode(self.encoding)
+                    filename = filename.decode(self.encoding)
                 except UnicodeDecodeError:
                     # byte-to-byte conversion
-                    return filename.decode('iso8859-1')
+                    filename = filename.decode('iso8859-1')
+        # Replace non-BMP char with diamond questionmark.
+        return re.sub('[\U00010000-\U0010FFFF]', '\ufffd', filename)
 
     def new_callback(self, event):
         dirname, basename = self.io.defaultfilename()
@@ -447,14 +441,15 @@ class EditorWindow(object):
         self.menudict = menudict = {}
         for name, label in self.menu_specs:
             underline, label = prepstr(label)
-            menudict[name] = menu = Menu(mbar, name=name)
+            menudict[name] = menu = Menu(mbar, name=name, tearoff=0)
             mbar.add_cascade(label=label, menu=menu, underline=underline)
         if macosxSupport.isCarbonTk():
             # Insert the application menu
-            menudict['application'] = menu = Menu(mbar, name='apple')
+            menudict['application'] = menu = Menu(mbar, name='apple',
+                                                  tearoff=0)
             mbar.add_cascade(label='IDLE', menu=menu)
         self.fill_menus()
-        self.recent_files_menu = Menu(self.menubar)
+        self.recent_files_menu = Menu(self.menubar, tearoff=0)
         self.menudict['file'].insert_cascade(3, label='Recent Files',
                                              underline=0,
                                              menu=self.recent_files_menu)
@@ -796,13 +791,8 @@ class EditorWindow(object):
     def ResetFont(self):
         "Update the text widgets' font if it is changed"
         # Called from configDialog.py
-        fontWeight='normal'
-        if idleConf.GetOption('main','EditorWindow','font-bold',type='bool'):
-            fontWeight='bold'
-        self.text.config(font=(idleConf.GetOption('main','EditorWindow','font'),
-                idleConf.GetOption('main','EditorWindow','font-size',
-                                   type='int'),
-                fontWeight))
+
+        self.text['font'] = idleConf.GetFont(self.root, 'main','EditorWindow')
 
     def RemoveKeybindings(self):
         "Remove the keybindings before they are changed."

@@ -36,7 +36,7 @@ Run an event loop
    Run until the :class:`Future` is done.
 
    If the argument is a :ref:`coroutine object <coroutine>`, it is wrapped by
-   :func:`async`.
+   :func:`ensure_future`.
 
    Return the Future's result, or raise its exception.
 
@@ -97,7 +97,8 @@ keywords to your callback, use :func:`functools.partial`. For example,
    Any positional arguments after the callback will be passed to the
    callback when it is called.
 
-   An instance of :class:`asyncio.Handle` is returned.
+   An instance of :class:`asyncio.Handle` is returned, which can be
+   used to cancel the callback.
 
    :ref:`Use functools.partial to pass keywords to the callback
    <asyncio-pass-keywords>`.
@@ -130,7 +131,8 @@ a different clock than :func:`time.time`.
    Arrange for the *callback* to be called after the given *delay*
    seconds (either an int or float).
 
-   An instance of :class:`asyncio.Handle` is returned.
+   An instance of :class:`asyncio.Handle` is returned, which can be
+   used to cancel the callback.
 
    *callback* will be called exactly once per call to :meth:`call_later`.
    If two callbacks are scheduled for exactly the same time, it is
@@ -151,6 +153,9 @@ a different clock than :func:`time.time`.
 
    This method's behavior is the same as :meth:`call_later`.
 
+   An instance of :class:`asyncio.Handle` is returned, which can be
+   used to cancel the callback.
+
    :ref:`Use functools.partial to pass keywords to the callback
    <asyncio-pass-keywords>`.
 
@@ -164,8 +169,8 @@ a different clock than :func:`time.time`.
    The :func:`asyncio.sleep` function.
 
 
-Coroutines
-----------
+Tasks
+-----
 
 .. method:: BaseEventLoop.create_task(coro)
 
@@ -704,7 +709,8 @@ Handle
 
    .. method:: cancel()
 
-      Cancel the call.
+      Cancel the call.  If the callback is already canceled or executed,
+      this method has no effect.
 
 
 Event loop examples

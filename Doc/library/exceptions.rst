@@ -162,7 +162,8 @@ The following exceptions are the exceptions that are usually raised.
 
 .. exception:: GeneratorExit
 
-   Raised when a :term:`generator`\'s :meth:`close` method is called.  It
+   Raised when a :term:`generator` or :term:`coroutine` is closed;
+   see :meth:`generator.close` and :meth:`coroutine.close`.  It
    directly inherits from :exc:`BaseException` instead of :exc:`Exception` since
    it is technically not an error.
 
@@ -281,6 +282,16 @@ The following exceptions are the exceptions that are usually raised.
    handling in C, most floating point operations are not checked.
 
 
+.. exception:: RecursionError
+
+   This exception is derived from :exc:`RuntimeError`.  It is raised when the
+   interpreter detects that the maximum recursion depth (see
+   :func:`sys.getrecursionlimit`) is exceeded.
+
+   .. versionadded:: 3.5
+      Previously, a plain :exc:`RuntimeError` was raised.
+
+
 .. exception:: ReferenceError
 
    This exception is raised when a weak reference proxy, created by the
@@ -306,7 +317,8 @@ The following exceptions are the exceptions that are usually raised.
    given as an argument when constructing the exception, and defaults
    to :const:`None`.
 
-   When a generator function returns, a new :exc:`StopIteration` instance is
+   When a :term:`generator` or :term:`coroutine` function
+   returns, a new :exc:`StopIteration` instance is
    raised, and the value returned by the function is used as the
    :attr:`value` parameter to the constructor of the exception.
 

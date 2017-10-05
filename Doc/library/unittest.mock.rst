@@ -2037,9 +2037,19 @@ mock_open
     :meth:`~io.IOBase.readline`, and :meth:`~io.IOBase.readlines` methods
     of the file handle to return.  Calls to those methods will take data from
     *read_data* until it is depleted.  The mock of these methods is pretty
-    simplistic.  If you need more control over the data that you are feeding to
-    the tested code you will need to customize this mock for yourself.
-    *read_data* is an empty string by default.
+    simplistic: every time the *mock* is called, the *read_data* is rewound to
+    the start.  If you need more control over the data that you are feeding to
+    the tested code you will need to customize this mock for yourself.  When that
+    is insufficient, one of the in-memory filesystem packages on `PyPI
+    <https://pypi.python.org/pypi>`_ can offer a realistic filesystem for testing.
+
+   .. versionchanged:: 3.4
+      Added :meth:`~io.IOBase.readline` and :meth:`~io.IOBase.readlines` support.
+      The mock of :meth:`~io.IOBase.read` changed to consume *read_data* rather
+      than returning it on each call.
+
+   .. versionchanged:: 3.5
+      *read_data* is now reset on each call to the *mock*.
 
 Using :func:`open` as a context manager is a great way to ensure your file handles
 are closed properly and is becoming common::

@@ -163,7 +163,6 @@ library/profile,,:lineno,filename:lineno(function)
 library/pyexpat,,:elem1,<py:elem1 />
 library/pyexpat,,:py,"xmlns:py = ""http://www.python.org/ns/"">"
 library/smtplib,,:port,method must support that as well as a regular host:port
-library/socket,,::,"(10, 1, 6, '', ('2001:888:2000:d::a2', 80, 0, 0))]"
 library/socket,,::,'5aef:2b::8'
 library/socket,,:can,"return (can_id, can_dlc, data[:can_dlc])"
 library/socket,,:len,fds.fromstring(cmsg_data[:len(cmsg_data) - (len(cmsg_data) % fds.itemsize)])
@@ -195,10 +194,10 @@ library/time,,:mm,
 library/time,,:ss,
 library/tracemalloc,,:limit,"for index, stat in enumerate(top_stats[:limit], 1):"
 library/turtle,,::,Example::
-library/unittest,1412,:foo,"self.assertEqual(cm.output, ['INFO:foo:first message',"
-library/unittest,1412,:first,"self.assertEqual(cm.output, ['INFO:foo:first message',"
-library/unittest,1412,:foo,'ERROR:foo.bar:second message'])
-library/unittest,1412,:second,'ERROR:foo.bar:second message'])
+library/unittest,,:foo,"self.assertEqual(cm.output, ['INFO:foo:first message',"
+library/unittest,,:first,"self.assertEqual(cm.output, ['INFO:foo:first message',"
+library/unittest,,:foo,'ERROR:foo.bar:second message'])
+library/unittest,,:second,'ERROR:foo.bar:second message'])
 library/urllib.request,,:close,Connection:close
 library/urllib.request,,:lang,"xmlns=""http://www.w3.org/1999/xhtml"" xml:lang=""en"" lang=""en"">\n\n<head>\n"
 library/urllib.request,,:password,"""joe:password@python.org"""
@@ -290,3 +289,5 @@ library/zipapp,31,:main,"$ python -m zipapp myapp -m ""myapp:main"""
 library/zipapp,82,:fn,"argument should have the form ""pkg.mod:fn"", where ""pkg.mod"" is a"
 library/zipapp,155,:callable,"""pkg.module:callable"" and the archive will be run by importing"
 library/stdtypes,3767,::,>>> m[::2].tolist()
+library/sys,1115,`,# ``wrapper`` creates a ``wrap(coro)`` coroutine:
+tutorial/venv,77,:c7b9645a6f35,"Python 3.4.3+ (3.4:c7b9645a6f35+, May 22 2015, 09:31:25)"

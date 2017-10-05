@@ -15,9 +15,7 @@
         <Condition Message="!(loc.NoPython)">PYTHON_EXE</Condition>
         
         <Feature Id="DefaultFeature" AllowAdvertise="no" Title="!(loc.Title)" Description="!(loc.Description)">
-            <Component Id="pip" Guid="*" Directory="InstallDirectory">
-                <RegistryValue KeyPath="yes" Root="HKMU" Key="[REGISTRYKEY]\EnsurePipRun" Value="1" Type="integer" />
-            </Component>
+            <ComponentRef Id="OptionalFeature" />
         </Feature>
         
         <?if $(var.Platform)~="x64" ?>
@@ -27,8 +25,8 @@
         <?endif ?>
         
         <!-- Install/uninstall pip -->
-        <CustomAction Id="SetUpdatePipCommandLine" Property="UpdatePip" Value='"[PYTHON_EXE]" -m ensurepip -U --default-pip' Execute="immediate" />
-        <CustomAction Id="SetRemovePipCommandLine" Property="UpdatePip" Value='"[PYTHON_EXE]" -B -m ensurepip._uninstall' Execute="immediate" />
+        <CustomAction Id="SetUpdatePipCommandLine" Property="UpdatePip" Value='"[PYTHON_EXE]" -E -s -m ensurepip -U --default-pip' Execute="immediate" />
+        <CustomAction Id="SetRemovePipCommandLine" Property="UpdatePip" Value='"[PYTHON_EXE]" -E -s -B -m ensurepip._uninstall' Execute="immediate" />
         
         <InstallExecuteSequence>
             <Custom Action="SetUpdatePipCommandLine" Before="UpdatePip">(&amp;DefaultFeature=3) AND NOT (!DefaultFeature=3)</Custom>

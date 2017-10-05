@@ -429,12 +429,18 @@ class UtimeTests(unittest.TestCase):
         with open(self.fname, 'wb') as fp:
             fp.write(b"ABC")
 
+        def restore_float_times(state):
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+
+                os.stat_float_times(state)
+
         # ensure that st_atime and st_mtime are float
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
 
-            old_state = os.stat_float_times(-1)
-            self.addCleanup(os.stat_float_times, old_state)
+            old_float_times = os.stat_float_times(-1)
+            self.addCleanup(restore_float_times, old_float_times)
 
             os.stat_float_times(True)
 
@@ -1073,7 +1079,8 @@ class MakedirTests(unittest.TestCase):
 @unittest.skipUnless(hasattr(os, 'chown'), "Test needs chown")
 class ChownFileTests(unittest.TestCase):
 
-    def setUpClass():
+    @classmethod
+    def setUpClass(cls):
         os.mkdir(support.TESTFN)
 
     def test_chown_uid_gid_arguments_must_be_index(self):
@@ -1118,7 +1125,8 @@ class ChownFileTests(unittest.TestCase):
             os.chown(support.TESTFN, uid_1, gid)
             os.chown(support.TESTFN, uid_2, gid)
 
-    def tearDownClass():
+    @classmethod
+    def tearDownClass(cls):
         os.rmdir(support.TESTFN)
 
 

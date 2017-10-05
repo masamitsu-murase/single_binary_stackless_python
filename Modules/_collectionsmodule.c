@@ -788,7 +788,7 @@ deque_reverse(dequeobject *deque, PyObject *unused)
     block *rightblock = deque->rightblock;
     Py_ssize_t leftindex = deque->leftindex;
     Py_ssize_t rightindex = deque->rightindex;
-    Py_ssize_t n = Py_SIZE(deque) / 2;
+    Py_ssize_t n = Py_SIZE(deque) >> 1;
     Py_ssize_t i;
     PyObject *tmp;
 
@@ -1047,7 +1047,7 @@ deque_clear(dequeobject *deque)
 static int
 valid_index(Py_ssize_t i, Py_ssize_t limit)
 {
-    /* The cast to size_t let us use just a single comparison
+    /* The cast to size_t lets us use just a single comparison
        to check whether i is in the range: 0 <= i < limit */
     return (size_t) i < (size_t) limit;
 }
@@ -2023,7 +2023,7 @@ defdict_init(PyObject *self, PyObject *args, PyObject *kwds)
             newdefault = PyTuple_GET_ITEM(args, 0);
             if (!PyCallable_Check(newdefault) && newdefault != Py_None) {
                 PyErr_SetString(PyExc_TypeError,
-                    "first argument must be callable");
+                    "first argument must be callable or None");
                 return -1;
             }
         }

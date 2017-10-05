@@ -178,7 +178,8 @@ def nti(s):
             n = -(256 ** (len(s) - 1) - n)
     else:
         try:
-            n = int(nts(s, "ascii", "strict") or "0", 8)
+            s = nts(s, "ascii", "strict")
+            n = int(s.strip() or "0", 8)
         except ValueError:
             raise InvalidHeaderError("invalid header")
     return n
@@ -224,7 +225,7 @@ def calc_chksums(buf):
     signed_chksum = 256 + sum(struct.unpack_from("148b8x356b", buf))
     return unsigned_chksum, signed_chksum
 
-def copyfileobj(src, dst, length=None):
+def copyfileobj(src, dst, length=None, exception=OSError):
     """Copy length bytes from fileobj src to fileobj dst.
        If length is None, copy the entire content.
     """
@@ -239,13 +240,13 @@ def copyfileobj(src, dst, length=None):
     for b in range(blocks):
         buf = src.read(BUFSIZE)
         if len(buf) < BUFSIZE:
-            raise OSError("end of file reached")
+            raise exception("unexpected end of data")
         dst.write(buf)
 
     if remainder != 0:
         buf = src.read(remainder)
         if len(buf) < remainder:
-            raise OSError("end of file reached")
+            raise exception("unexpected end of data")
         dst.write(buf)
     return
 
@@ -689,7 +690,10 @@ class _FileInFile(object):
             length = min(size, stop - self.position)
             if data:
                 self.fileobj.seek(offset + (self.position - start))
-                buf += self.fileobj.read(length)
+                b = self.fileobj.read(length)
+                if len(b) != length:
+                    raise ReadError("unexpected end of data")
+                buf += b
             else:
                 buf += NUL * length
             size -= length
@@ -2149,9 +2153,9 @@ class TarFile(object):
             if tarinfo.sparse is not None:
                 for offset, size in tarinfo.sparse:
                     target.seek(offset)
-                    copyfileobj(source, target, size)
+                    copyfileobj(source, target, size, ReadError)
             else:
-                copyfileobj(source, target, tarinfo.size)
+                copyfileobj(source, target, tarinfo.size, ReadError)
             target.seek(tarinfo.size)
             target.truncate()
 
@@ -2266,8 +2270,13 @@ class TarFile(object):
             self.firstmember = None
             return m
 
+        # Advance the file pointer.
+        if self.offset != self.fileobj.tell():
+            self.fileobj.seek(self.offset - 1)
+            if not self.fileobj.read(1):
+                raise ReadError("unexpected end of data")
+
         # Read the next block.
-        self.fileobj.seek(self.offset)
         tarinfo = None
         while True:
             try:

@@ -1135,7 +1135,7 @@ static int
 symtable_visit_stmt(struct symtable *st, stmt_ty s)
 {
     if (++st->recursion_depth > st->recursion_limit) {
-        PyErr_SetString(PyExc_RuntimeError,
+        PyErr_SetString(PyExc_RecursionError,
                         "maximum recursion depth exceeded during compilation");
         VISIT_QUIT(st, 0);
     }
@@ -1357,7 +1357,7 @@ static int
 symtable_visit_expr(struct symtable *st, expr_ty e)
 {
     if (++st->recursion_depth > st->recursion_limit) {
-        PyErr_SetString(PyExc_RuntimeError,
+        PyErr_SetString(PyExc_RecursionError,
                         "maximum recursion depth exceeded during compilation");
         VISIT_QUIT(st, 0);
     }
@@ -1542,7 +1542,7 @@ symtable_visit_annotations(struct symtable *st, stmt_ty s,
     if (a->kwonlyargs && !symtable_visit_argannotations(st, a->kwonlyargs))
         return 0;
     if (returns)
-        VISIT(st, expr, s->v.FunctionDef.returns);
+        VISIT(st, expr, returns);
     return 1;
 }
 

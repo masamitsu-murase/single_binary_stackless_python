@@ -663,11 +663,22 @@ gen_set_qualname(PyGenObject *op, PyObject *value)
     return 0;
 }
 
+static PyObject *
+gen_getyieldfrom(PyGenObject *gen)
+{
+    PyObject *yf = gen_yf(gen);
+    if (yf == NULL)
+        Py_RETURN_NONE;
+    return yf;
+}
+
 static PyGetSetDef gen_getsetlist[] = {
     {"__name__", (getter)gen_get_name, (setter)gen_set_name,
      PyDoc_STR("name of the generator")},
     {"__qualname__", (getter)gen_get_qualname, (setter)gen_set_qualname,
      PyDoc_STR("qualified name of the generator")},
+    {"gi_yieldfrom", (getter)gen_getyieldfrom, NULL,
+     PyDoc_STR("object being iterated by yield from, or None")},
     {NULL} /* Sentinel */
 };
 
@@ -889,11 +900,22 @@ coro_await(PyCoroObject *coro)
     return (PyObject *)cw;
 }
 
+static PyObject *
+coro_get_cr_await(PyCoroObject *coro)
+{
+    PyObject *yf = gen_yf((PyGenObject *) coro);
+    if (yf == NULL)
+        Py_RETURN_NONE;
+    return yf;
+}
+
 static PyGetSetDef coro_getsetlist[] = {
     {"__name__", (getter)gen_get_name, (setter)gen_set_name,
      PyDoc_STR("name of the coroutine")},
     {"__qualname__", (getter)gen_get_qualname, (setter)gen_set_qualname,
      PyDoc_STR("qualified name of the coroutine")},
+    {"cr_await", (getter)coro_get_cr_await, NULL,
+     PyDoc_STR("object being awaited on, or None")},
     {NULL} /* Sentinel */
 };
 
@@ -906,11 +928,11 @@ static PyMemberDef coro_memberlist[] = {
 
 PyDoc_STRVAR(coro_send_doc,
 "send(arg) -> send 'arg' into coroutine,\n\
-return next yielded value or raise StopIteration.");
+return next iterated value or raise StopIteration.");
 
 PyDoc_STRVAR(coro_throw_doc,
 "throw(typ[,val[,tb]]) -> raise exception in coroutine,\n\
-return next yielded value or raise StopIteration.");
+return next iterated value or raise StopIteration.");
 
 PyDoc_STRVAR(coro_close_doc,
 "close() -> raise GeneratorExit inside coroutine.");
@@ -1021,9 +1043,9 @@ coro_wrapper_traverse(PyCoroWrapper *cw, visitproc visit, void *arg)
 }
 
 static PyMethodDef coro_wrapper_methods[] = {
-    {"send",(PyCFunction)coro_wrapper_send, METH_O, send_doc},
-    {"throw",(PyCFunction)coro_wrapper_throw, METH_VARARGS, throw_doc},
-    {"close",(PyCFunction)coro_wrapper_close, METH_NOARGS, close_doc},
+    {"send",(PyCFunction)coro_wrapper_send, METH_O, coro_send_doc},
+    {"throw",(PyCFunction)coro_wrapper_throw, METH_VARARGS, coro_throw_doc},
+    {"close",(PyCFunction)coro_wrapper_close, METH_NOARGS, coro_close_doc},
     {NULL, NULL}        /* Sentinel */
 };
 

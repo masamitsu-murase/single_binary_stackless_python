@@ -5,10 +5,11 @@ __all__ = ['Queue', 'PriorityQueue', 'LifoQueue', 'QueueFull', 'QueueEmpty']
 import collections
 import heapq
 
+from . import compat
 from . import events
 from . import futures
 from . import locks
-from .tasks import coroutine
+from .coroutines import coroutine
 
 
 class QueueEmpty(Exception):
@@ -46,7 +47,7 @@ class Queue:
 
         # Futures.
         self._getters = collections.deque()
-        # Pairs of (item, Future).
+        # Futures
         self._putters = collections.deque()
         self._unfinished_tasks = 0
         self._finished = locks.Event(loop=self._loop)
@@ -97,7 +98,7 @@ class Queue:
 
     def _consume_done_putters(self):
         # Delete waiters at the head of the put() queue who've timed out.
-        while self._putters and self._putters[0][1].done():
+        while self._putters and self._putters[0].done():
             self._putters.popleft()
 
     def qsize(self):
@@ -147,8 +148,9 @@ class Queue:
         elif self._maxsize > 0 and self._maxsize <= self.qsize():
             waiter = futures.Future(loop=self._loop)
 
-            self._putters.append((item, waiter))
+            self._putters.append(waiter)
             yield from waiter
+            self._put(item)
 
         else:
             self.__put_internal(item)
@@ -185,8 +187,7 @@ class Queue:
         self._consume_done_putters()
         if self._putters:
             assert self.full(), 'queue not full, why are putters waiting?'
-            item, putter = self._putters.popleft()
-            self.__put_internal(item)
+            putter = self._putters.popleft()
 
             # When a getter runs and frees up a slot so this putter can
             # run, we need to defer the put for a tick to ensure that
@@ -200,9 +201,39 @@ class Queue:
             return self._get()
         else:
             waiter = futures.Future(loop=self._loop)
-
             self._getters.append(waiter)
-            return (yield from waiter)
+            try:
+                return (yield from waiter)
+            except futures.CancelledError:
+                # if we get CancelledError, it means someone cancelled this
+                # get() coroutine.  But there is a chance that the waiter
+                # already is ready and contains an item that has just been
+                # removed from the queue.  In this case, we need to put the item
+                # back into the front of the queue.  This get() must either
+                # succeed without fault or, if it gets cancelled, it must be as
+                # if it never happened.
+                if waiter.done():
+                    self._put_it_back(waiter.result())
+                raise
+
+    def _put_it_back(self, item):
+        """
+        This is called when we have a waiter to get() an item and this waiter
+        gets cancelled.  In this case, we put the item back: wake up another
+        waiter or put it in the _queue.
+        """
+        self._consume_done_getters()
+        if self._getters:
+            assert not self._queue, (
+                'queue non-empty, why are getters waiting?')
+
+            getter = self._getters.popleft()
+            self.__put_internal(item)
+
+            # getter cannot be cancelled, we just removed done getters
+            getter.set_result(item)
+        else:
+            self._queue.appendleft(item)
 
     def get_nowait(self):
         """Remove and return an item from the queue.
@@ -212,8 +243,7 @@ class Queue:
         self._consume_done_putters()
         if self._putters:
             assert self.full(), 'queue not full, why are putters waiting?'
-            item, putter = self._putters.popleft()
-            self.__put_internal(item)
+            putter = self._putters.popleft()
             # Wake putter on next tick.
 
             # getter cannot be cancelled, we just removed done putters
@@ -286,3 +316,9 @@ class LifoQueue(Queue):
 
     def _get(self):
         return self._queue.pop()
+
+
+if not compat.PY35:
+    JoinableQueue = Queue
+    """Deprecated alias for Queue."""
+    __all__.append('JoinableQueue')

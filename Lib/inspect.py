@@ -16,7 +16,7 @@ Here are some of the useful functions provided by this module:
     getmodule() - determine the module that an object came from
     getclasstree() - arrange classes so as to represent their hierarchy
 
-    getargspec(), getargvalues(), getcallargs() - get info about function arguments
+    getargvalues(), getcallargs() - get info about function arguments
     getfullargspec() - same, with support for Python 3 features
     formatargspec(), formatargvalues() - format an argument spec
     getouterframes(), getinnerframes() - get info about frames
@@ -186,10 +186,6 @@ def iscoroutinefunction(object):
     return bool((isfunction(object) or ismethod(object)) and
                 object.__code__.co_flags & CO_COROUTINE)
 
-def isawaitable(object):
-    """Return true if the object can be used in "await" expression."""
-    return isinstance(object, collections.abc.Awaitable)
-
 def isgenerator(object):
     """Return true if the object is a generator.
 
@@ -210,6 +206,13 @@ def isgenerator(object):
 def iscoroutine(object):
     """Return true if the object is a coroutine."""
     return isinstance(object, types.CoroutineType)
+
+def isawaitable(object):
+    """Return true is object can be passed to an ``await`` expression."""
+    return (isinstance(object, types.CoroutineType) or
+            isinstance(object, types.GeneratorType) and
+                object.gi_code.co_flags & CO_ITERABLE_COROUTINE or
+            isinstance(object, collections.abc.Awaitable))
 
 def istraceback(object):
     """Return true if the object is a traceback.
@@ -620,23 +623,6 @@ def getfile(object):
     raise TypeError('{!r} is not a module, class, method, '
                     'function, traceback, frame, or code object'.format(object))
 
-ModuleInfo = namedtuple('ModuleInfo', 'name suffix mode module_type')
-
-def getmoduleinfo(path):
-    """Get the module name, suffix, mode, and module type for a given file."""
-    warnings.warn('inspect.getmoduleinfo() is deprecated', DeprecationWarning,
-                  2)
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore', PendingDeprecationWarning)
-        import imp
-    filename = os.path.basename(path)
-    suffixes = [(-len(suffix), suffix, mode, mtype)
-                    for suffix, mode, mtype in imp.get_suffixes()]
-    suffixes.sort() # try longest suffixes first, in case they overlap
-    for neglen, suffix, mode, mtype in suffixes:
-        if filename[neglen:] == suffix:
-            return ModuleInfo(filename[:neglen], suffix, mode, mtype)
-
 def getmodulename(path):
     """Return the module name for a given file, or None."""
     fname = os.path.basename(path)
@@ -795,7 +781,7 @@ def findsource(object):
         if not hasattr(object, 'co_firstlineno'):
             raise OSError('could not find function definition')
         lnum = object.co_firstlineno - 1
-        pat = re.compile(r'^(\s*def\s)|(.*(?<!\w)lambda(:|\s))|^(\s*@)')
+        pat = re.compile(r'^(\s*def\s)|(\s*async\s+def\s)|(.*(?<!\w)lambda(:|\s))|^(\s*@)')
         while lnum > 0:
             if pat.match(lines[lnum]): break
             lnum = lnum - 1
@@ -856,21 +842,37 @@ class BlockFinder:
         self.islambda = False
         self.started = False
         self.passline = False
+        self.indecorator = False
+        self.decoratorhasargs = False
         self.last = 1
 
     def tokeneater(self, type, token, srowcol, erowcol, line):
-        if not self.started:
+        if not self.started and not self.indecorator:
+            # skip any decorators
+            if token == "@":
+                self.indecorator = True
             # look for the first "def", "class" or "lambda"
-            if token in ("def", "class", "lambda"):
+            elif token in ("def", "class", "lambda"):
                 if token == "lambda":
                     self.islambda = True
                 self.started = True
             self.passline = True    # skip to the end of the line
+        elif token == "(":
+            if self.indecorator:
+                self.decoratorhasargs = True
+        elif token == ")":
+            if self.indecorator:
+                self.indecorator = False
+                self.decoratorhasargs = False
         elif type == tokenize.NEWLINE:
             self.passline = False   # stop skipping when a NEWLINE is seen
             self.last = srowcol[0]
             if self.islambda:       # lambdas always end at the first NEWLINE
                 raise EndOfBlock
+            # hitting a NEWLINE when in a decorator without args
+            # ends the decorator
+            if self.indecorator and not self.decoratorhasargs:
+                self.indecorator = False
         elif self.passline:
             pass
         elif type == tokenize.INDENT:
@@ -899,14 +901,6 @@ def getblock(lines):
         pass
     return lines[:blockfinder.last]
 
-def _line_number_helper(code_obj, lines, lnum):
-    """Return a list of source lines and starting line number for a code object.
-
-    The arguments must be a code object with lines and lnum from findsource.
-    """
-    _, end_line = list(dis.findlinestarts(code_obj))[-1]
-    return lines[lnum:end_line], lnum + 1
-
 def getsourcelines(object):
     """Return a list of source lines and starting line number for an object.
 
@@ -920,12 +914,6 @@ def getsourcelines(object):
 
     if ismodule(object):
         return lines, 0
-    elif iscode(object):
-        return _line_number_helper(object, lines, lnum)
-    elif isfunction(object):
-        return _line_number_helper(object.__code__, lines, lnum)
-    elif ismethod(object):
-        return _line_number_helper(object.__func__.__code__, lines, lnum)
     else:
         return getblock(lines[lnum:]), lnum + 1
 
@@ -1015,31 +1003,6 @@ def _getfullargs(co):
         varkw = co.co_varnames[nargs]
     return args, varargs, kwonlyargs, varkw
 
-
-ArgSpec = namedtuple('ArgSpec', 'args varargs keywords defaults')
-
-def getargspec(func):
-    """Get the names and default values of a function's arguments.
-
-    A tuple of four things is returned: (args, varargs, keywords, defaults).
-    'args' is a list of the argument names, including keyword-only argument names.
-    'varargs' and 'keywords' are the names of the * and ** arguments or None.
-    'defaults' is an n-tuple of the default values of the last n arguments.
-
-    Use the getfullargspec() API for Python 3 code, as annotations
-    and keyword arguments are supported. getargspec() will raise ValueError
-    if the func has either annotations or keyword arguments.
-    """
-    warnings.warn("inspect.getargspec() is deprecated, "
-                  "use inspect.signature() instead", DeprecationWarning,
-                  stacklevel=2)
-    args, varargs, varkw, defaults, kwonlyargs, kwonlydefaults, ann = \
-        getfullargspec(func)
-    if kwonlyargs or ann:
-        raise ValueError("Function has keyword-only arguments or annotations"
-                         ", use getfullargspec() API which can support them")
-    return ArgSpec(args, varargs, varkw, defaults)
-
 FullArgSpec = namedtuple('FullArgSpec',
     'args, varargs, varkw, defaults, kwonlyargs, kwonlydefaults, annotations')
 
@@ -1054,8 +1017,6 @@ def getfullargspec(func):
     'kwonlyargs' is a list of keyword-only argument names.
     'kwonlydefaults' is a dictionary mapping names from kwonlyargs to defaults.
     'annotations' is a dictionary mapping argument names to annotations.
-
-    The first four items in the tuple correspond to getargspec().
 
     This function is deprecated, use inspect.signature() instead.
     """
@@ -1167,8 +1128,7 @@ def formatargspec(args, varargs=None, varkw=None, defaults=None,
                   formatvalue=lambda value: '=' + repr(value),
                   formatreturns=lambda text: ' -> ' + text,
                   formatannotation=formatannotation):
-    """Format an argument spec from the values returned by getargspec
-    or getfullargspec.
+    """Format an argument spec from the values returned by getfullargspec.
 
     The first seven arguments are (args, varargs, varkw, defaults,
     kwonlyargs, kwonlydefaults, annotations).  The other five arguments
@@ -2485,15 +2445,14 @@ class Parameter:
         return hash((self.name, self.kind, self.annotation, self.default))
 
     def __eq__(self, other):
-        return (self is other or
-                    (issubclass(other.__class__, Parameter) and
-                     self._name == other._name and
-                     self._kind == other._kind and
-                     self._default == other._default and
-                     self._annotation == other._annotation))
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
+        if self is other:
+            return True
+        if not isinstance(other, Parameter):
+            return NotImplemented
+        return (self._name == other._name and
+                self._kind == other._kind and
+                self._default == other._default and
+                self._annotation == other._annotation)
 
 
 class BoundArguments:
@@ -2607,13 +2566,12 @@ class BoundArguments:
         self.arguments = OrderedDict(new_arguments)
 
     def __eq__(self, other):
-        return (self is other or
-                    (issubclass(other.__class__, BoundArguments) and
-                     self.signature == other.signature and
-                     self.arguments == other.arguments))
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
+        if self is other:
+            return True
+        if not isinstance(other, BoundArguments):
+            return NotImplemented
+        return (self.signature == other.signature and
+                self.arguments == other.arguments)
 
     def __setstate__(self, state):
         self._signature = state['_signature']
@@ -2772,12 +2730,11 @@ class Signature:
         return hash((params, kwo_params, return_annotation))
 
     def __eq__(self, other):
-        return (self is other or
-                    (isinstance(other, Signature) and
-                     self._hash_basis() == other._hash_basis()))
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
+        if self is other:
+            return True
+        if not isinstance(other, Signature):
+            return NotImplemented
+        return self._hash_basis() == other._hash_basis()
 
     def _bind(self, args, kwargs, *, partial=False):
         """Private method. Don't use directly."""

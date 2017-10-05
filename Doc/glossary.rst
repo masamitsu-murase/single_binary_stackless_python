@@ -109,8 +109,10 @@ Glossary
          A :term:`text file` reads and writes :class:`str` objects.
 
    bytes-like object
-      An object that supports the :ref:`bufferobjects`, like :class:`bytes`,
-      :class:`bytearray` or :class:`memoryview`.  Bytes-like objects can
+      An object that supports the :ref:`bufferobjects` and can
+      export a C-:term:`contiguous` buffer. This includes all :class:`bytes`,
+      :class:`bytearray`, and :class:`array.array` objects, as well as many
+      common :class:`memoryview` objects.  Bytes-like objects can
       be used for various operations that work with binary data; these include
       compression, saving to a binary file, and sending over a socket.
 
@@ -169,18 +171,31 @@ Glossary
       statement by defining :meth:`__enter__` and :meth:`__exit__` methods.
       See :pep:`343`.
 
-   coroutine function
-      A function which returns a :term:`coroutine` object.  It is defined
-      with an :keyword:`async def` keyword, and may contain :keyword:`await`,
-      :keyword:`async for`, and :keyword:`async with` keywords.  Introduced
-      by :pep:`492`.
+   contiguous
+      .. index:: C-contiguous, Fortran contiguous
+
+      A buffer is considered contiguous exactly if it is either
+      *C-contiguous* or *Fortran contiguous*.  Zero-dimensional buffers are
+      C and Fortran contiguous.  In one-dimensional arrays, the items
+      must be layed out in memory next to each other, in order of
+      increasing indexes starting from zero.  In multidimensional
+      C-contiguous arrays, the last index varies the fastest when
+      visiting items in order of memory address.  However, in
+      Fortran contiguous arrays, the first index varies the fastest.
 
    coroutine
       Coroutines is a more generalized form of subroutines. Subroutines are
-      entered at one point and exited at another point.  Coroutines, can be
-      entered, exited, and resumed at many different points.  See
-      :keyword:`await` expressions, and :keyword:`async for` and
-      :keyword:`async with` statements. See also :pep:`492`.
+      entered at one point and exited at another point.  Coroutines can be
+      entered, exited, and resumed at many different points.  They can be
+      implemented with the :keyword:`async def` statement.  See also
+      :pep:`492`.
+
+   coroutine function
+      A function which returns a :term:`coroutine` object.  A coroutine
+      function may be defined with the :keyword:`async def` statement,
+      and may contain :keyword:`await`, :keyword:`async for`, and
+      :keyword:`async with` keywords.  These were introduced
+      by :pep:`492`.
 
    CPython
       The canonical implementation of the Python programming language, as

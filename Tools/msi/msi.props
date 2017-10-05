@@ -43,7 +43,7 @@
     </ItemGroup>
 
     <PropertyGroup>
-        <IntermediateOutputPath>$(MSBuildThisFileDirectory)\obj\$(Configuration)_$(Platform)\$(OutputName)</IntermediateOutputPath>
+        <IntermediateOutputPath>$(PySourcePath)PCBuild\obj\$(Configuration)_$(Platform)_Setup\$(OutputName)</IntermediateOutputPath>
         <IntermediateOutputPath Condition="'$(OutputSuffix)' != ''">$(IntermediateOutputPath)_$(OutputSuffix)</IntermediateOutputPath>
         <OutputPath Condition="'$(OutputPath)' == ''">$(BuildPath)</OutputPath>
         <OutputPath Condition="!HasTrailingSlash($(OutputPath))">$(OutputPath)\</OutputPath>
@@ -53,8 +53,13 @@
         <CRTRedist Condition="!Exists($(CRTRedist))"></CRTRedist>
         <DocFilename>python$(MajorVersionNumber)$(MinorVersionNumber)$(MicroVersionNumber)$(ReleaseLevelName).chm</DocFilename>
 
-        <RevisionNumber>$(ReleaseLevelNumber)</RevisionNumber>
-        <RevisionNumber Condition="!$(BuildForRelease)">$([System.Math]::Floor($([System.DateTime]::Now.Subtract($([System.DateTime]::new(2001, 1, 1))).TotalDays)))</RevisionNumber>
+        <InstallerVersion>$(MajorVersionNumber).$(MinorVersionNumber).$(Field3Value).0</InstallerVersion>
+    </PropertyGroup>
+    
+    <PropertyGroup Condition="!$(BuildForRelease)">
+        <RevisionNumber Condition="'$(RevisionNumber)' == ''">$([System.Math]::Floor($([System.DateTime]::Now.Subtract($([System.DateTime]::new(2001, 1, 1))).TotalDays)))</RevisionNumber>
+        <PythonVersion>$(MajorVersionNumber).$(MinorVersionNumber).$(MicroVersionNumber)dev$(RevisionNumber)</PythonVersion>
+        <InstallerVersion>$(MajorVersionNumber).$(MinorVersionNumber).$(RevisionNumber).0</InstallerVersion>
     </PropertyGroup>
     
     <PropertyGroup>
@@ -62,7 +67,7 @@
         <Bitness Condition="$(Platform) == 'x64'">64-bit</Bitness>
         <DefineConstants>
             $(DefineConstants);
-            Version=$(MajorVersionNumber).$(MinorVersionNumber).$(Field3Value).0;
+            Version=$(InstallerVersion);
             ShortVersion=$(MajorVersionNumber).$(MinorVersionNumber);
             LongVersion=$(PythonVersion);
             MajorVersionNumber=$(MajorVersionNumber);
@@ -71,14 +76,15 @@
             NextMajorVersionNumber=$(MajorVersionNumber).$([msbuild]::Add($(MinorVersionNumber), 1)).0.0;
             Bitness=$(Bitness);
             PyDebugExt=$(PyDebugExt);
+            OptionalFeatureName=$(OutputName);
         </DefineConstants>
         <DefineConstants Condition="'$(CRTRedist)' != ''">
             $(DefineConstants);CRTRedist=$(CRTRedist);
         </DefineConstants>
-        <DefineConstants Condition="$(Configuration) != 'Debug'">
+        <DefineConstants Condition="$(UseTestMarker) != 'true'">
             $(DefineConstants);TestPrefix=;FileExtension=py;
         </DefineConstants>
-        <DefineConstants Condition="$(Configuration) == 'Debug'">
+        <DefineConstants Condition="$(UseTestMarker) == 'true'">
             $(DefineConstants);TestPrefix=x;FileExtension=px;
         </DefineConstants>
         <DefineConstants Condition="$(Platform) != 'x64'">
@@ -111,9 +117,6 @@
         </LinkerBindInputPaths>
         <LinkerBindInputPaths Include="$(CRTRedist)" Condition="'$(CRTRedist)' != ''">
             <BindName>redist</BindName>
-        </LinkerBindInputPaths>
-        <LinkerBindInputPaths Include="$(CRTRedist)\$(Platform)" Condition="'$(CRTRedist)' != ''">
-            <BindName>crt</BindName>
         </LinkerBindInputPaths>
     </ItemGroup>
 

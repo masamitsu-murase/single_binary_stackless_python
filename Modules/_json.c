@@ -249,17 +249,23 @@ escape_unicode(PyObject *pystr)
     /* Compute the output size */
     for (i = 0, output_size = 2; i < input_chars; i++) {
         Py_UCS4 c = PyUnicode_READ(kind, input, i);
+        Py_ssize_t d;
         switch (c) {
         case '\\': case '"': case '\b': case '\f':
         case '\n': case '\r': case '\t':
-            output_size += 2;
+            d = 2;
             break;
         default:
             if (c <= 0x1f)
-                output_size += 6;
+                d = 6;
             else
-                output_size++;
+                d = 1;
         }
+        if (output_size > PY_SSIZE_T_MAX - d) {
+            PyErr_SetString(PyExc_OverflowError, "string is too long to escape");
+            return NULL;
+        }
+        output_size += d;
     }
 
     rval = PyUnicode_New(output_size, maxchar);
@@ -1338,10 +1344,18 @@ encoder_init(PyObject *self, PyObject *args, PyObject *kwds)
     assert(PyEncoder_Check(self));
     s = (PyEncoderObject *)self;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOOOOOOp:make_encoder", kwlist,
-        &markers, &defaultfn, &encoder, &indent, &key_separator, &item_separator,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOOUUOOp:make_encoder", kwlist,
+        &markers, &defaultfn, &encoder, &indent,
+        &key_separator, &item_separator,
         &sort_keys, &skipkeys, &allow_nan))
         return -1;
+
+    if (markers != Py_None && !PyDict_Check(markers)) {
+        PyErr_Format(PyExc_TypeError,
+                     "make_encoder() argument 1 must be dict or None, "
+                     "not %.200s", Py_TYPE(markers)->tp_name);
+        return -1;
+    }
 
     s->markers = markers;
     s->defaultfn = defaultfn;

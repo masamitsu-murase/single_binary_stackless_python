@@ -3596,6 +3596,11 @@ Miscellaneous System Information
 
    Return the number of CPUs in the system. Returns None if undetermined.
 
+   This number is not equivalent to the number of CPUs the current process can
+   use.  The number of usable CPUs can be obtained with
+   ``len(os.sched_getaffinity(0))``
+
+
    .. versionadded:: 3.4
 
 
@@ -3730,3 +3735,9 @@ Miscellaneous Functions
 
    For an easy-to-use interface to the random number generator
    provided by your platform, please see :class:`random.SystemRandom`.
+
+   .. versionchanged:: 3.5
+      On Linux 3.17 and newer, the ``getrandom()`` syscall is now used
+      when available.  On OpenBSD 5.6 and newer, the C ``getentropy()``
+      function is now used. These functions avoid the usage of an internal file
+      descriptor.

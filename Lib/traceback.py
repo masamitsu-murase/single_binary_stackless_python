@@ -453,6 +453,7 @@ class TracebackException:
                 _seen=_seen)
         else:
             context = None
+        self.exc_traceback = exc_traceback
         self.__cause__ = cause
         self.__context__ = context
         self.__suppress_context__ = \
@@ -476,10 +477,9 @@ class TracebackException:
             self._load_lines()
 
     @classmethod
-    def from_exception(self, exc, *args, **kwargs):
+    def from_exception(cls, exc, *args, **kwargs):
         """Create a TracebackException from an exception."""
-        return TracebackException(
-            type(exc), exc, exc.__traceback__, *args, **kwargs)
+        return cls(type(exc), exc, exc.__traceback__, *args, **kwargs)
 
     def _load_lines(self):
         """Private API. force all lines in the stack to be loaded."""
@@ -561,6 +561,7 @@ class TracebackException:
                 not self.__suppress_context__):
                 yield from self.__context__.format(chain=chain)
                 yield _context_message
-        yield 'Traceback (most recent call last):\n'
+        if self.exc_traceback is not None:
+            yield 'Traceback (most recent call last):\n'
         yield from self.stack.format()
         yield from self.format_exception_only()

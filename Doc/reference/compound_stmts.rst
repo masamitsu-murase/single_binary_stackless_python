@@ -666,31 +666,32 @@ can be used to create instance variables with different implementation details.
 Coroutines
 ==========
 
-.. index::
-   statement: async def
-   statement: async for
-   statement: async with
-   keyword: async
-   keyword: await
-
 .. versionadded:: 3.5
 
+.. index:: statement: async def
 .. _`async def`:
 
 Coroutine function definition
 -----------------------------
 
 .. productionlist::
-   async_funcdef: "async" `funcdef`
+   async_funcdef: [`decorators`] "async" "def" `funcname` "(" [`parameter_list`] ")" ["->" `expression`] ":" `suite`
+
+.. index::
+   keyword: async
+   keyword: await
 
 Execution of Python coroutines can be suspended and resumed at many points
-(see :term:`coroutine`.)  :keyword:`await` expressions, :keyword:`async for`
-and :keyword:`async with` can only be used in their bodies.
+(see :term:`coroutine`).  In the body of a coroutine, any ``await`` and
+``async`` identifiers become reserved keywords; :keyword:`await` expressions,
+:keyword:`async for` and :keyword:`async with` can only be used in
+coroutine bodies.
 
 Functions defined with ``async def`` syntax are always coroutine functions,
 even if they do not contain ``await`` or ``async`` keywords.
 
-It is a :exc:`SyntaxError` to use :keyword:`yield` expressions in coroutines.
+It is a :exc:`SyntaxError` to use :keyword:`yield` expressions in
+``async def`` coroutines.
 
 An example of a coroutine function::
 
@@ -699,6 +700,7 @@ An example of a coroutine function::
         await some_coroutine()
 
 
+.. index:: statement: async for
 .. _`async for`:
 
 The :keyword:`async for` statement
@@ -742,6 +744,7 @@ It is a :exc:`SyntaxError` to use ``async for`` statement outside of an
 :keyword:`async def` function.
 
 
+.. index:: statement: async with
 .. _`async with`:
 
 The :keyword:`async with` statement

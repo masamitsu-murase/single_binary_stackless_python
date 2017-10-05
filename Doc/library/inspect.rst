@@ -28,7 +28,7 @@ Types and members
 -----------------
 
 The :func:`getmembers` function retrieves the members of an object such as a
-class or module. The sixteen functions whose names begin with "is" are mainly
+class or module. The functions whose names begin with "is" are mainly
 provided as convenient choices for the second argument to :func:`getmembers`.
 They also help you determine when you can expect to find the following special
 attributes:
@@ -182,11 +182,18 @@ attributes:
 +-----------+-----------------+---------------------------+
 |           | __qualname__    | qualified name            |
 +-----------+-----------------+---------------------------+
+|           | cr_await        | object being awaited on,  |
+|           |                 | or ``None``               |
++-----------+-----------------+---------------------------+
 |           | cr_frame        | frame                     |
 +-----------+-----------------+---------------------------+
 |           | cr_running      | is the coroutine running? |
 +-----------+-----------------+---------------------------+
 |           | cr_code         | code                      |
++-----------+-----------------+---------------------------+
+|           | gi_yieldfrom    | object being iterated by  |
+|           |                 | ``yield from``, or        |
+|           |                 | ``None``                  |
 +-----------+-----------------+---------------------------+
 | builtin   | __doc__         | documentation string      |
 +-----------+-----------------+---------------------------+
@@ -220,24 +227,6 @@ attributes:
       listed in the metaclass' custom :meth:`__dir__`.
 
 
-.. function:: getmoduleinfo(path)
-
-   Returns a :term:`named tuple` ``ModuleInfo(name, suffix, mode, module_type)``
-   of values that describe how Python will interpret the file identified by
-   *path* if it is a module, or ``None`` if it would not be identified as a
-   module.  In that tuple, *name* is the name of the module without the name of
-   any enclosing package, *suffix* is the trailing part of the file name (which
-   may not be a dot-delimited extension), *mode* is the :func:`open` mode that
-   would be used (``'r'`` or ``'rb'``), and *module_type* is an integer giving
-   the type of the module.  *module_type* will have a value which can be
-   compared to the constants defined in the :mod:`imp` module; see the
-   documentation for that module for more information on module types.
-
-   .. deprecated:: 3.3
-      You may check the file path's suffix against the supported suffixes
-      listed in :mod:`importlib.machinery` to infer the same information.
-
-
 .. function:: getmodulename(path)
 
    Return the name of the module named by the file *path*, without including the
@@ -251,8 +240,7 @@ attributes:
    still return ``None``.
 
    .. versionchanged:: 3.3
-      This function is now based directly on :mod:`importlib` rather than the
-      deprecated :func:`getmoduleinfo`.
+      The function is based directly on :mod:`importlib`.
 
 
 .. function:: ismodule(object)
@@ -305,10 +293,19 @@ attributes:
 
 .. function:: isawaitable(object)
 
-   Return true if the object can be used in :keyword:`await`
-   expression.
+   Return true if the object can be used in :keyword:`await` expression.
 
-   See also :class:`collections.abc.Awaitable`.
+   Can also be used to distinguish generator-based coroutines from regular
+   generators::
+
+      def gen():
+          yield
+      @types.coroutine
+      def gen_coro():
+          yield
+
+      assert not isawaitable(gen())
+      assert isawaitable(gen_coro())
 
    .. versionadded:: 3.5
 
@@ -406,6 +403,9 @@ Retrieving source code
    If the documentation string for an object is not provided and the object is
    a class, a method, a property or a descriptor, retrieve the documentation
    string from the inheritance hierarchy.
+
+   .. versionchanged:: 3.5
+      Documentation strings are now inherited if not overridden.
 
 
 .. function:: getcomments(object)
@@ -789,24 +789,6 @@ Classes and functions
    classes using multiple inheritance and their descendants will appear multiple
    times.
 
-
-.. function:: getargspec(func)
-
-   Get the names and default values of a Python function's arguments. A
-   :term:`named tuple` ``ArgSpec(args, varargs, keywords, defaults)`` is
-   returned. *args* is a list of the argument names. *varargs* and *keywords*
-   are the names of the ``*`` and ``**`` arguments or ``None``. *defaults* is a
-   tuple of default argument values or ``None`` if there are no default
-   arguments; if this tuple has *n* elements, they correspond to the last
-   *n* elements listed in *args*.
-
-   .. deprecated:: 3.0
-      Use :func:`signature` and
-      :ref:`Signature Object <inspect-signature-object>`, which provide a
-      better introspecting API for callables.  This function will be removed
-      in Python 3.6.
-
-
 .. function:: getfullargspec(func)
 
    Get the names and default values of a Python function's arguments.  A
@@ -822,8 +804,6 @@ Classes and functions
    keyword-only argument names.  *kwonlydefaults* is a dictionary mapping names
    from kwonlyargs to defaults.  *annotations* is a dictionary mapping argument
    names to annotations.
-
-   The first four items in the tuple correspond to :func:`getargspec`.
 
    .. versionchanged:: 3.4
       This function is now based on :func:`signature`, but still ignores
@@ -853,7 +833,7 @@ Classes and functions
 .. function:: formatargspec(args[, varargs, varkw, defaults, kwonlyargs, kwonlydefaults, annotations[, formatarg, formatvarargs, formatvarkw, formatvalue, formatreturns, formatannotations]])
 
    Format a pretty argument spec from the values returned by
-   :func:`getargspec` or :func:`getfullargspec`.
+   :func:`getfullargspec`.
 
    The first seven arguments are (``args``, ``varargs``, ``varkw``,
    ``defaults``, ``kwonlyargs``, ``kwonlydefaults``, ``annotations``).

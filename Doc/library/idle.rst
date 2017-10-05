@@ -37,8 +37,6 @@ context menu.
 
 IDLE's menus dynamically change based on which window is currently selected.
 Each menu documented below indicates which window type it is associated with.
-Click on the dotted line at the top of a menu to "tear it off": a separate
-window containing the menu is created (for Unix and Windows only).
 
 File menu (Shell and Editor)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -248,7 +246,8 @@ Configure IDLE
    help sources can be specified.  Non-default user setting are saved in a
    .idlerc directory in the user's home directory.  Problems caused by bad user
    configuration files are solved by editing or deleting one or more of the
-   files in .idlerc.
+   files in .idlerc.  On OS X, open the configuration dialog by selecting
+   Preferences in the application menu.
 
 Configure Extensions
    Open a configuration dialog for setting preferences for extensions

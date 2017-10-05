@@ -506,7 +506,8 @@ class NonCallableMock(Base):
         if delegated is None:
             return self._mock_side_effect
         sf = delegated.side_effect
-        if sf is not None and not callable(sf) and not isinstance(sf, _MockIter):
+        if (sf is not None and not callable(sf)
+                and not isinstance(sf, _MockIter) and not _is_exception(sf)):
             sf = _MockIter(sf)
             delegated.side_effect = sf
         return sf
@@ -522,8 +523,14 @@ class NonCallableMock(Base):
     side_effect = property(__get_side_effect, __set_side_effect)
 
 
-    def reset_mock(self):
+    def reset_mock(self, visited=None):
         "Restore the mock object to its initial state."
+        if visited is None:
+            visited = []
+        if id(self) in visited:
+            return
+        visited.append(id(self))
+
         self.called = False
         self.call_args = None
         self.call_count = 0
@@ -534,11 +541,11 @@ class NonCallableMock(Base):
         for child in self._mock_children.values():
             if isinstance(child, _SpecState):
                 continue
-            child.reset_mock()
+            child.reset_mock(visited)
 
         ret = self._mock_return_value
         if _is_instance_mock(ret) and ret is not self:
-            ret.reset_mock()
+            ret.reset_mock(visited)
 
 
     def configure_mock(self, **kwargs):
@@ -1473,7 +1480,7 @@ def patch(
     used.
 
     A more powerful form of `spec` is `autospec`. If you set `autospec=True`
-    then the mock with be created with a spec from the object being replaced.
+    then the mock will be created with a spec from the object being replaced.
     All attributes of the mock will also have the spec of the corresponding
     attribute of the object being replaced. Methods and functions being
     mocked will have their arguments checked and will raise a `TypeError` if
@@ -2264,9 +2271,10 @@ def _iterate_read_data(read_data):
     # Helper for mock_open:
     # Retrieve lines from read_data via a generator so that separate calls to
     # readline, read, and readlines are properly interleaved
-    data_as_list = ['{}\n'.format(l) for l in read_data.split('\n')]
+    sep = b'\n' if isinstance(read_data, bytes) else '\n'
+    data_as_list = [l + sep for l in read_data.split(sep)]
 
-    if data_as_list[-1] == '\n':
+    if data_as_list[-1] == sep:
         # If the last line ended in a newline, the list comprehension will have an
         # extra entry that's just a newline.  Remove this.
         data_as_list = data_as_list[:-1]
@@ -2278,6 +2286,7 @@ def _iterate_read_data(read_data):
 
     for line in data_as_list:
         yield line
+
 
 def mock_open(mock=None, read_data=''):
     """
@@ -2294,18 +2303,18 @@ def mock_open(mock=None, read_data=''):
     def _readlines_side_effect(*args, **kwargs):
         if handle.readlines.return_value is not None:
             return handle.readlines.return_value
-        return list(_data)
+        return list(_state[0])
 
     def _read_side_effect(*args, **kwargs):
         if handle.read.return_value is not None:
             return handle.read.return_value
-        return ''.join(_data)
+        return type(read_data)().join(_state[0])
 
     def _readline_side_effect():
         if handle.readline.return_value is not None:
             while True:
                 yield handle.readline.return_value
-        for line in _data:
+        for line in _state[0]:
             yield line
 
 
@@ -2320,7 +2329,7 @@ def mock_open(mock=None, read_data=''):
     handle = MagicMock(spec=file_spec)
     handle.__enter__.return_value = handle
 
-    _data = _iterate_read_data(read_data)
+    _state = [_iterate_read_data(read_data), None]
 
     handle.write.return_value = None
     handle.read.return_value = None
@@ -2328,9 +2337,19 @@ def mock_open(mock=None, read_data=''):
     handle.readlines.return_value = None
 
     handle.read.side_effect = _read_side_effect
-    handle.readline.side_effect = _readline_side_effect()
+    _state[1] = _readline_side_effect()
+    handle.readline.side_effect = _state[1]
     handle.readlines.side_effect = _readlines_side_effect
 
+    def reset_data(*args, **kwargs):
+        _state[0] = _iterate_read_data(read_data)
+        if handle.readline.side_effect == _state[1]:
+            # Only reset the side effect if the user hasn't overridden it.
+            _state[1] = _readline_side_effect()
+            handle.readline.side_effect = _state[1]
+        return DEFAULT
+
+    mock.side_effect = reset_data
     mock.return_value = handle
     return mock
 
