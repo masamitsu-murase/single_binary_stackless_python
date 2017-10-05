@@ -9,6 +9,11 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://bitbucket.org/stackless-dev/stackless/issues/127
+  Fix pickling of 'callable-iterator' and 'method-wrapper' objects.
+  Fix copy.copy() for 'callable-iterator', 'method', 'dict_keys', 'dict_values'
+  and 'dict_items' objects.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/126
   Load the module stackless early in all C-Python tests. This ensures a defined
   behaviour of the tests even, if the execution order gets randomised.
@@ -79,6 +84,7 @@ What's New in Stackless 3.X.X?
 - https://bitbucket.org/stackless-dev/stackless/issues/107
   Improve unpickling of traceback objects. Stackless now reconstructs the
   frame.f_back linkage in frames directly referenced by traceback objects.
+  Stackless no longer pretends to be able to pickle arbitrary frame objects.
 
 - https://bitbucket.org/stackless-dev/stackless/issues/110
   Remove the already non functional remains of psyco support.

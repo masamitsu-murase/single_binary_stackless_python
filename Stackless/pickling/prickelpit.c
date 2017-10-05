@@ -16,6 +16,19 @@
 
  ******************************************************/
 
+#if PY_VERSION_HEX >= 0x030502C1
+/* issue25718 got fixed in 3.4.4rc1 */
+#define NO_STATE_FORMAT "()"
+#define NO_STATE_ARG    /* nothing */
+#else
+/* Bug http://bugs.python.org/issue25718 requires, that the state object for
+ * mutable types has a boolean value of True. Immutable types use a different
+ * copy.copy() mechanism.
+ */
+#define NO_STATE_FORMAT "(O)"
+#define NO_STATE_ARG    ,Py_None
+#endif
+
 /* check that we really have the right wrapper type */
 
 static int is_wrong_type(PyTypeObject *type)
@@ -209,6 +222,64 @@ slp_reduce_frame(PyFrameObject * frame) {
     return PyObject_CallFunctionObjArgs(reduce_frame_func, (PyObject *)frame, NULL);
 }
 
+/* Helper function for gen_setstate and tb_setstate.
+ * It unwraps the first argument of the args tuple, if it is a _Frame_Wrapper.
+ * Returns a new reference to an argument tuple.
+ *
+ * This functionality is required, to adhere to the __reduce__/__setstate__ protocol.
+ * It requires, that __setstate__ accepts the state returned by __reduce__. (copy.copy()
+ * depends on it.)
+ */
+static PyObject *
+unwrap_frame_arg(PyObject * args) {
+    PyObject *wrapper_type, *arg0, *result;
+    int is_instance;
+    Py_ssize_t len, i;
+
+    if (!PyTuple_Check(args) || (len = PyTuple_Size(args)) < 1) {
+        if (len < 0)
+            return NULL;
+        Py_INCREF(args);
+        return args;
+    }
+    if ((arg0 = PyTuple_GetItem(args, 0)) == NULL) /* arg0 is a borrowed reference */
+        return NULL;
+    if ((wrapper_type = PyObject_GetAttrString(reduce_frame_func, "__self__")) == NULL)
+        return NULL;
+    is_instance = PyObject_IsInstance(arg0, wrapper_type);
+    Py_DECREF(wrapper_type);
+    if (is_instance == 0) {
+        Py_INCREF(args);
+        return args;
+    } else if (is_instance == -1) {
+        return NULL;
+    }
+    if ((arg0 = PyObject_GetAttrString(arg0, "frame")) == NULL)
+        return NULL;
+    if ((result = PyTuple_New(len)) == NULL) {
+        Py_DECREF(arg0);
+        return NULL;
+    }
+    if (PyTuple_SetItem(result, 0, arg0)) { /* steals ref to arg0 */
+        Py_DECREF(arg0);
+        Py_DECREF(result);
+        return NULL;
+    }
+    for (i=1; i<len; i++) {
+        if ((arg0 = PyTuple_GetItem(args, i)) == NULL) {
+            Py_DECREF(result);
+            return NULL;
+        }
+        /* arg0 is a borrowed reference */
+        Py_INCREF(arg0);
+        if (PyTuple_SetItem(result, i, arg0)) { /* steals ref to arg0 */
+            Py_DECREF(arg0);
+            Py_DECREF(result);
+            return NULL;
+        }
+    }
+    return result;
+}
 
 static struct PyMethodDef _new_methoddef[] = {
     {"__new__", (PyCFunction)_new_wrapper, METH_VARARGS | METH_KEYWORDS,
@@ -1230,11 +1301,17 @@ tb_setstate(PyObject *self, PyObject *args)
 
     if (is_wrong_type(Py_TYPE(tb))) return NULL;
 
+    if ((args = unwrap_frame_arg(args)) == NULL)  /* now args is a counted ref! */
+        return NULL;
+
     if (!PyArg_ParseTuple(args,
                           "O!ii|O!:traceback",
                           &PyFrame_Type, &frame,
-                          &lasti, &lineno,&PyTraceBack_Type, &next))
+                          &lasti, &lineno,&PyTraceBack_Type, &next)) {
+        Py_DECREF(args);
         return NULL;
+    }
+    Py_DECREF(args);
 
     Py_XINCREF(next);
     tb->tb_next = next;
@@ -1403,16 +1480,15 @@ typedef struct {
 } calliterobject;
 
 static PyTypeObject wrap_PyCallIter_Type;
-
 static PyObject *
 calliter_reduce(calliterobject *iterator)
 {
     PyObject *tup;
-
-    tup = Py_BuildValue("(O(OO))",
+    tup = Py_BuildValue("(O(OO)" NO_STATE_FORMAT ")",
                         &wrap_PyCallIter_Type,
                         iterator->it_callable ? iterator->it_callable : Py_None,
-                        iterator->it_sentinel ? iterator->it_sentinel : Py_None);
+                        iterator->it_sentinel ? iterator->it_sentinel : Py_None
+                        NO_STATE_ARG);
     return tup;
 }
 
@@ -1463,13 +1539,13 @@ static PyObject *
 method_reduce(PyObject *m)
 {
     PyObject *tup, *func, *self;
-    char *fmt = "(O(OO)())";
+    char *fmt = "(O(OO)" NO_STATE_FORMAT ")";
 
     func = PyMethod_GET_FUNCTION(m);
     self = PyMethod_GET_SELF(m);
     if (self == NULL)
         self = Py_None;
-    tup = Py_BuildValue(fmt, &wrap_PyMethod_Type, func, self);
+    tup = Py_BuildValue(fmt, &wrap_PyMethod_Type, func, self NO_STATE_ARG);
     return tup;
 }
 
@@ -1528,10 +1604,10 @@ dictkeysview_reduce(dictviewobject *di)
     PyObject *tup;
 
     assert(di != NULL);
-    tup = Py_BuildValue("(O(O)())",
+    tup = Py_BuildValue("(O(O)" NO_STATE_FORMAT ")",
                 &wrap_PyDictKeys_Type,
                 di->dv_dict
-                );
+                NO_STATE_ARG);
     return tup;
 }
 
@@ -1543,10 +1619,10 @@ dictvaluesview_reduce(dictviewobject *di)
     PyObject *tup;
 
     assert(di != NULL);
-    tup = Py_BuildValue("(O(O)())",
+    tup = Py_BuildValue("(O(O)" NO_STATE_FORMAT ")",
                 &wrap_PyDictValues_Type,
                 di->dv_dict
-                );
+                NO_STATE_ARG);
     return tup;
 }
 
@@ -1558,10 +1634,10 @@ dictitemsview_reduce(dictviewobject *di)
     PyObject *tup;
 
     assert(di != NULL);
-    tup = Py_BuildValue("(O(O)())",
+    tup = Py_BuildValue("(O(O)" NO_STATE_FORMAT ")",
                 &wrap_PyDictItems_Type,
                 di->dv_dict
-                );
+                NO_STATE_ARG);
     return tup;
 }
 
@@ -1596,561 +1672,6 @@ static int init_dictitemsviewtype(void)
 #define initchain init_dictitemsviewtype
 
 
-/******************************************************
-
-  pickling of dictiter
-
- ******************************************************/
-#if PY_VERSION_HEX < 0x03030000 /* Native support in python 3.3 and above */
-
-/*
- * unfortunately we have to copy here.
- * XXX automate checking such situations.
- */
-
-typedef struct {
-    PyObject_HEAD
-    PyDictObject *di_dict; /* Set to NULL when iterator is exhausted */
-    Py_ssize_t di_used;
-    Py_ssize_t di_pos;
-    PyObject* di_result; /* reusable result tuple for iteritems */
-    Py_ssize_t len;
-} dictiterobject;
-
-/*
-    binaryfunc is a big problem.  we don't have access to the
-    function pointers, so what we have to do is exhaust the
-    dictionary iterator by copying it.
-
-    when we unpickle, we return an entirely different kind of object.
-*/
-
-static PyObject *
-dictiterkey_reduce(dictiterobject *di)
-{
-    PyObject *tup, *list, *key;
-    Py_ssize_t i;
-
-    list = PyList_New(0);
-    if (list == NULL)
-        return PyErr_NoMemory();
-
-    /* is this dictiter is already exhausted? */
-    if (di->di_dict != NULL) {
-        if (di->di_used != di->di_dict->ma_used) {
-            PyErr_SetString(PyExc_RuntimeError,
-                "dictionary changed size during iteration");
-            di->di_used = -1; /* Make this state sticky */
-            return NULL;
-        }
-        i = di->di_pos;
-        while (PyDict_Next((PyObject *)di->di_dict, &i, &key, NULL)) {
-            assert(key != NULL);
-            if (PyList_Append(list, key) == -1) {
-                Py_DECREF(list);
-                return NULL;
-            }
-        }
-    }
-    /* masquerade as a PySeqIter */
-    tup = Py_BuildValue("(O(Nl)())",
-        &wrap_PySeqIter_Type,
-        list,
-        0
-        );
-    return tup;
-}
-
-static PyObject *
-dictitervalue_reduce(dictiterobject *di)
-{
-    PyObject *tup, *list, *value;
-    Py_ssize_t i;
-
-    list = PyList_New(0);
-    if (list == NULL)
-        return PyErr_NoMemory();
-
-    /* is this dictiter is already exhausted? */
-    if (di->di_dict != NULL) {
-        if (di->di_used != di->di_dict->ma_used) {
-            PyErr_SetString(PyExc_RuntimeError,
-                "dictionary changed size during iteration");
-            di->di_used = -1; /* Make this state sticky */
-            return NULL;
-        }
-        i = di->di_pos;
-        while (PyDict_Next((PyObject *)di->di_dict, &i, NULL, &value)) {
-            assert(value != NULL);
-            if (PyList_Append(list, value) == -1) {
-                Py_DECREF(list);
-                return NULL;
-            }
-        }
-    }
-    /* masquerade as a PySeqIter */
-    tup = Py_BuildValue("(O(Nl)())",
-        &wrap_PySeqIter_Type,
-        list,
-        0
-        );
-    return tup;
-}
-
-static PyObject *
-dictiteritem_reduce(dictiterobject *di)
-{
-    PyObject *tup, *list, *key, *value, *res;
-    Py_ssize_t i;
-
-    list = PyList_New(0);
-    if (list == NULL)
-        return PyErr_NoMemory();
-
-    /* is this dictiter is already exhausted? */
-    if (di->di_dict != NULL) {
-        if (di->di_used != di->di_dict->ma_used) {
-            PyErr_SetString(PyExc_RuntimeError,
-                "dictionary changed size during iteration");
-            di->di_used = -1; /* Make this state sticky */
-            return NULL;
-        }
-        i = di->di_pos;
-        while (PyDict_Next((PyObject *)di->di_dict, &i, &key, &value)) {
-            assert(key != NULL && value != NULL);
-            res = Py_BuildValue("OO", key, value);
-            if (res == NULL) {
-                Py_DECREF(list);
-                return NULL;
-            }
-            if (PyList_Append(list, res) == -1) {
-                Py_DECREF(list);
-                Py_DECREF(res);
-                return NULL;
-            }
-            Py_DECREF(res);
-        }
-    }
-    /* masquerade as a PySeqIter */
-    tup = Py_BuildValue("(O(Nl)())",
-        &wrap_PySeqIter_Type,
-        list,
-        0
-        );
-    return tup;
-}
-
-static PyTypeObject wrap_PyDictIterKey_Type;
-
-MAKE_WRAPPERTYPE(PyDictIterKey_Type, dictiterkey, "dict_keyiterator",
-                 dictiterkey_reduce, generic_new, generic_setstate)
-
-static int init_dictiterkeytype(void)
-{
-    return init_type(&wrap_PyDictIterKey_Type, initchain);
-}
-#undef initchain
-#define initchain init_dictiterkeytype
-
-static PyTypeObject wrap_PyDictIterValue_Type;
-
-MAKE_WRAPPERTYPE(PyDictIterValue_Type, dictitervalue, "dict_valueiterator",
-                 dictitervalue_reduce, generic_new, generic_setstate)
-
-static int init_dictitervaluetype(void)
-{
-    return init_type(&wrap_PyDictIterValue_Type, initchain);
-}
-#undef initchain
-#define initchain init_dictitervaluetype
-
-static PyTypeObject wrap_PyDictIterItem_Type;
-
-MAKE_WRAPPERTYPE(PyDictIterItem_Type, dictiteritem, "dict_itemiterator",
-                 dictiteritem_reduce, generic_new, generic_setstate)
-
-static int init_dictiteritemtype(void)
-{
-    return init_type(&wrap_PyDictIterItem_Type, initchain);
-}
-#undef initchain
-#define initchain init_dictiteritemtype
-
-#endif  /* PY_VERSION_HEX < 0x03030000 */
-
-/******************************************************
-
-  pickling of setiter
-
- ******************************************************/
-#if PY_VERSION_HEX < 0x03030000 /* Native support in python 3.3 and above */
-
-/*
- * unfortunately we have to copy here.
- * XXX automate checking such situations.
- */
-
-typedef struct {
-    PyObject_HEAD
-    PySetObject *si_set; /* Set to NULL when iterator is exhausted */
-    Py_ssize_t si_used;
-    Py_ssize_t si_pos;
-    Py_ssize_t len;
-} setiterobject;
-
-extern PyTypeObject PySetIter_Type;
-static PyTypeObject wrap_PySetIter_Type;
-
-static PyObject *
-setiter_reduce(setiterobject *it)
-{
-    PyObject *list, *set, *elem;
-    Py_ssize_t i;
-    Py_hash_t hash;
-
-    list = PyList_New(0);
-    if (list == NULL)
-    return PyErr_NoMemory();
-
-    /* is this setiter is already exhausted? */
-    if (it->si_set != NULL) {
-        if (it->si_used != it->si_set->used) {
-            PyErr_SetString(PyExc_RuntimeError,
-                "set changed size during iteration");
-            it->si_used = -1; /* Make this state sticky */
-            return NULL;
-        }
-        i = it->si_pos;
-        while (_PySet_NextEntry((PyObject *)it->si_set, &i, &elem, &hash)) {
-            if (PyList_Append(list, elem) == -1) {
-                return NULL;
-            }
-        }
-    }
-    /* masquerade as a PySeqIter */
-    set = Py_BuildValue("(O(Ol)())",
-    &wrap_PySeqIter_Type,
-    list,
-    0
-    );
-    Py_DECREF(list);
-    return set;
-}
-
-MAKE_WRAPPERTYPE(PySetIter_Type, setiter, "set_iterator", setiter_reduce, generic_new, generic_setstate)
-
-static int init_setitertype(void)
-{
-    return init_type(&wrap_PySetIter_Type, initchain);
-}
-#undef initchain
-#define initchain init_setitertype
-#endif  /* PY_VERSION_HEX < 0x03030000 */
-
-/******************************************************
-
-  pickling of enumerate
-
- ******************************************************/
-
-#if PY_VERSION_HEX >= 0x02030000 && PY_VERSION_HEX < 0x03030000
-/* Native support in python 3.3 and above */
-
-/*
- * unfortunately we have to copy here.
- * XXX automate checking such situations.
- */
-
-typedef struct {
-    PyObject_HEAD
-    long      en_index;        /* current index of enumeration */
-    PyObject* en_sit;          /* secondary iterator of enumeration */
-    PyObject* en_result;       /* result tuple  */
-    PyObject* en_longindex;       /* index for sequences >= LONG_MAX */
-} enumobject;
-
-static PyTypeObject wrap_PyEnum_Type;
-
-static PyObject *
-enum_reduce(enumobject *en)
-{
-    PyObject *tup;
-
-    tup = Py_BuildValue("(O(O)(lO))",
-                        &wrap_PyEnum_Type,
-                        en->en_sit,
-                        en->en_index,
-                        en->en_longindex ? en->en_longindex : Py_None
-                );
-    return tup;
-}
-
-static PyObject *
-enum_setstate(PyObject *self, PyObject *args)
-{
-    if (is_wrong_type(self->ob_type)) return NULL;
-    if (!PyArg_ParseTuple (args, "lO:enumerate",
-                   &((enumobject *)self)->en_index,
-                   &((enumobject *)self)->en_longindex))
-        return NULL;
-    if (((enumobject *)self)->en_longindex == Py_None)
-        ((enumobject *)self)->en_longindex = NULL;
-    else
-        Py_INCREF(((enumobject *)self)->en_longindex);
-    self->ob_type = self->ob_type->tp_base;
-    Py_INCREF(self);
-    return self;
-}
-
-MAKE_WRAPPERTYPE(PyEnum_Type, en, "enumerate", enum_reduce, generic_new,
-                 enum_setstate)
-
-static int init_enumtype(void)
-{
-    return init_type(&wrap_PyEnum_Type, initchain);
-}
-#undef initchain
-#define initchain init_enumtype
-
-#endif /* PY_VERSION_HEX >= 0x02030000 && PY_VERSION_HEX < 0x03030000 */
-
-/******************************************************
-
-  pickling of listiter
-
- ******************************************************/
-
-#if PY_VERSION_HEX >= 0x02030000 && PY_VERSION_HEX < 0x03030000
-/* Native support in python 3.3 and above */
-
-/*
- * unfortunately we have to copy here.
- * XXX automate checking such situations.
- */
-
-typedef struct {
-    PyObject_HEAD
-    long it_index;
-    PyListObject *it_seq; /* Set to NULL when iterator is exhausted */
-} listiterobject;
-
-static PyTypeObject wrap_PyListIter_Type;
-
-static PyObject *
-listiter_reduce(listiterobject *it)
-{
-    PyObject *tup, *list;
-
-    /* it's finished or exhausted */
-    if (it->it_seq == NULL ||
-        it->it_index >= PyList_GET_SIZE(it->it_seq)) {
-        list = PyList_New(0);
-        if (list == NULL)
-            return PyErr_NoMemory();
-    } else {
-        list = PyList_GetSlice((PyObject *)it->it_seq,
-                               it->it_index,
-                               PyList_Size((PyObject *)it->it_seq));
-    }
-    /* masquerade as a PySeqIter */
-    tup = Py_BuildValue("(O(Ol)())",
-                        &wrap_PySeqIter_Type,
-                        list,
-                        0
-                        );
-    Py_DECREF(list);
-    return tup;
-}
-
-MAKE_WRAPPERTYPE(PyListIter_Type, listiter, "list_iterator", listiter_reduce, generic_new, generic_setstate)
-
-static int init_listitertype(void)
-{
-    return init_type(&wrap_PyListIter_Type, initchain);
-}
-#undef initchain
-#define initchain init_listitertype
-
-#endif /* PY_VERSION_HEX >= 0x02030000 && PY_VERSION_HEX < 0x03030000 */
-
-
-/******************************************************
-
-  pickling of rangeiter
-
- ******************************************************/
-
-#if PY_VERSION_HEX >= 0x02030000 && PY_VERSION_HEX < 0x03030000
-/* Native support in python 3.3 and above */
-
-/*
- * unfortunately we have to copy here.
- * XXX automate checking such situations.
- */
-
-typedef struct {
-    PyObject_HEAD
-    long index;
-    long start;
-    long step;
-    long len;
-} rangeiterobject;
-
-static PyTypeObject wrap_PyRangeIter_Type;
-
-static PyObject *
-rangeiter_reduce(rangeiterobject *it)
-{
-    PyObject *tup;
-
-    tup = Py_BuildValue("(O(llll)())",
-                        &wrap_PyRangeIter_Type,
-                        it->index,
-                        it->start,
-                        it->step,
-                        it->len
-                        );
-    return tup;
-}
-
-static
-PyObject *
-rangeiter_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
-{
-    rangeiterobject *it;
-
-    if (is_wrong_type(type)) return NULL;
-    it = PyObject_New(rangeiterobject, type);
-    if (it == NULL)
-        return NULL;
-    if (!PyArg_ParseTuple(args, "llll:range_iterator",
-                                &it->index,
-                                &it->start,
-                                &it->step,
-                                &it->len))
-        return NULL;
-    return (PyObject *)it;
-}
-
-MAKE_WRAPPERTYPE(PyRangeIter_Type, rangeiter, "range_iterator",
-                 rangeiter_reduce, rangeiter_new, generic_setstate)
-
-static int init_rangeitertype(void)
-{
-    return init_type(&wrap_PyRangeIter_Type, initchain);
-}
-#undef initchain
-#define initchain init_rangeitertype
-
-#endif /* PY_VERSION_HEX >= 0x02030000 && PY_VERSION_HEX < 0x03030000*/
-
-
-/******************************************************
-
-  pickling of tupleiter
-
- ******************************************************/
-
-#if PY_VERSION_HEX >= 0x02030000 && PY_VERSION_HEX < 0x03030000
-/* Native support in python 3.3 and above */
-
-/*
- * unfortunately we have to copy here.
- * XXX automate checking such situations.
- */
-
-typedef struct {
-    PyObject_HEAD
-    long it_index;
-    PyListObject *it_seq; /* Set to NULL when iterator is exhausted */
-} tupleiterobject;
-
-static PyTypeObject wrap_PyTupleIter_Type;
-
-static PyObject *
-tupleiter_reduce(tupleiterobject *it)
-{
-    PyObject *tup, *tuple;
-
-    /* it's finished or exhausted */
-    if (it->it_seq == NULL || it->it_index >= PyTuple_GET_SIZE(it->it_seq)) {
-        tuple = PyTuple_New(0);
-        if (tuple == NULL)
-            return PyErr_NoMemory();
-    }
-    else {
-        tuple = PyTuple_GetSlice(
-            (PyObject *)it->it_seq,
-            it->it_index,
-            PyTuple_Size((PyObject *)it->it_seq));
-    }
-    /* masquerade as a PySeqIter */
-    tup = Py_BuildValue("(O(Ol)())",
-                        &wrap_PySeqIter_Type,
-                        tuple,
-                        0
-                        );
-    Py_DECREF(tuple);
-    return tup;
-}
-
-MAKE_WRAPPERTYPE(PyTupleIter_Type, tupleiter, "tuple_iterator", tupleiter_reduce, generic_new, generic_setstate)
-
-static int init_tupleitertype(void)
-{
-    return init_type(&wrap_PyTupleIter_Type, initchain);
-}
-#undef initchain
-#define initchain init_tupleitertype
-
-#endif /* PY_VERSION_HEX >= 0x02030000 && PY_VERSION_HEX < 0x03030000 */
-
-/******************************************************
-
-  pickling of xrange
-
- ******************************************************/
-#if PY_VERSION_HEX < 0x03030000 /* Native support in python 3.3 and above */
-
-/*
- * unfortunately we have to copy here.
- * XXX automate checking such situations.
- */
-
-typedef struct {
-    PyObject_HEAD
-    PyObject    *start;
-    PyObject    *stop;
-    PyObject    *step;
-} rangeobject;
-
-static PyTypeObject wrap_PyRange_Type;
-
-static PyObject *
-range_reduce(rangeobject *r)
-{
-    PyObject *tup;
-
-    assert(r != NULL);
-    tup = Py_BuildValue("(O(OOO)())",
-                        &wrap_PyRange_Type,
-                        r->start,
-                        r->stop,
-                        r->step
-                        );
-    return tup;
-}
-
-MAKE_WRAPPERTYPE(PyRange_Type, range, "range", range_reduce,
-                 generic_new, generic_setstate)
-
-static int init_rangetype(void)
-{
-    return init_type(&wrap_PyRange_Type, initchain);
-}
-#undef initchain
-#define initchain init_rangetype
-#endif /* PY_VERSION_HEX < 0x03030000 */
 
 
 /******************************************************
@@ -2200,7 +1721,7 @@ methw_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
     it = PyObject_GetIter(tup);
     if (it != NULL)
-        w = (wrapperobject *) PyObject_GetAttrString(it, "next");
+        w = (wrapperobject *) PyObject_GetAttrString(it, "__next__");
     if (w != NULL && PyMethodWrapper_Check(w)) {
         neww = (wrapperobject *) PyWrapper_New((PyObject *) w->descr,
                                                w->self);
@@ -2319,9 +1840,16 @@ gen_setstate(PyObject *self, PyObject *args)
     PyObject *qualname = NULL;
 
     if (is_wrong_type(Py_TYPE(self))) return NULL;
-    if (!PyArg_ParseTuple(args, "O!i|OO:generator",
-                          &PyFrame_Type, &f, &gi_running, &name, &qualname))
+
+    if ((args = unwrap_frame_arg(args)) == NULL)  /* now args is a counted ref! */
         return NULL;
+
+    if (!PyArg_ParseTuple(args, "O!i|OO:generator",
+                          &PyFrame_Type, &f, &gi_running, &name, &qualname)) {
+        Py_DECREF(args);
+        return NULL;
+    }
+    Py_DECREF(args);
 
     if (name == NULL) {
         name = f->f_code->co_name;

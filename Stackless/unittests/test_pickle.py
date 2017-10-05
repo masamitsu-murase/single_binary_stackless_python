@@ -3,6 +3,7 @@ import types
 import unittest
 import gc
 import inspect
+import copy
 
 from stackless import schedule, tasklet, stackless
 
@@ -630,6 +631,101 @@ class TestTraceback(StacklessPickleTestCase):
         # compare the content
         self.assertListEqual([i[1:] for i in all_outerframes_orig[:l - 1]], [i[1:] for i in all_outerframes[:l - 1]])
 
+
+class TestCopy(StacklessTestCase):
+    ITERATOR_TYPE = type(iter("abc"))
+
+    def _test(self, obj, *attributes, **kw):
+        expected_type = kw.get("expected_type", type(obj))
+        c = copy.copy(obj)
+        try:
+            obj_hash = hash(obj)
+        except TypeError:
+            obj_hash = None
+        if obj_hash is None:
+            self.assertIsNot(c, obj)
+        if c is obj:
+            return
+        self.assertIs(type(c), expected_type)
+        for name in attributes:
+            value_obj = getattr(obj, name)
+            value_c = getattr(c, name)
+            # it is a shallow copy, therefore the attributes should
+            # refer to the same objects
+            self.assertIs(value_c, value_obj)
+
+    def test_code(self):
+        def f():
+            pass
+        obj = f.__code__
+        self._test(obj, "co_argcount", "co_nlocals", "co_stacksize", "co_flags",
+                   "co_code", "co_consts", "co_names", "co_varnames", "co_filename",
+                   "co_name", "co_firstlineno", "co_lnotab", "co_freevars", "co_cellvars")
+
+    def test_cell(self):
+        def create_cell(obj):
+            return (lambda: obj).__closure__[0]
+        obj = create_cell(None)
+        self._test(obj, 'cell_contents')
+
+    def test_function(self):
+        def obj():
+            pass
+        self._test(obj, '__code__', '__globals__', '__name__', '__defaults__', '__closure__')
+
+    def test_frame(self):
+        obj = sys._getframe()
+        # changed in version 3.4.4: Stackless no longer pretends to be able to
+        # pickle arbitrary frames
+        self.assertRaises(TypeError, self._test, obj)
+
+    def test_traceback(self):
+        try:
+            1 // 0
+        except ZeroDivisionError:
+            obj = sys.exc_info()[2]
+        self._test(obj, 'tb_frame', 'tb_next')
+
+    def test_module(self):
+        import tabnanny as obj
+        self._test(obj, '__name__', '__dict__')
+
+    def test_iterator(self):
+        obj = iter("abc")
+        self._test(obj)
+
+    def test_callable_iterator(self):
+        obj = iter(lambda: None, None)
+        self._test(obj)
+
+    def test_method(self):
+        obj = self.id
+        self._test(obj, '__func__', '__self__')
+
+    def test_method_wrapper(self):
+        obj = [].__len__
+        self._test(obj, '__objclass__', '__self__')
+
+    def test_generator(self):
+        def g():
+            yield 1
+        obj = g()
+        self._test(obj, 'gi_running', 'gi_code')
+
+    def test_dict_keys(self):
+        d = {1: 10, "a": "ABC"}
+        obj = d.keys()
+        self._test(obj)
+
+    def test_dict_values(self):
+        d = {1: 10, "a": "ABC"}
+        obj = d.values()
+        self._test(obj)
+
+    def test_dict_items(self):
+        d = {1: 10, "a": "ABC"}
+        obj = d.items()
+        self._test(obj)
 
 if __name__ == '__main__':
     if not sys.argv[1:]:

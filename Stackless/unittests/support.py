@@ -636,6 +636,8 @@ class StacklessTestCase(unittest.TestCase, StacklessTestCaseMixin, metaclass=Sta
         gc.collect()  # emits warnings about uncollectable objects after each test
 
     def dumps(self, obj, protocol=None, *, fix_imports=True):
+        if protocol is None:
+            protocol = self._pickle_protocol
         if self._pickle_module == "P":
             return pickle._dumps(obj, protocol=protocol, fix_imports=fix_imports)
         elif self._pickle_module == "C":
