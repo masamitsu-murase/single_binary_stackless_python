@@ -199,8 +199,10 @@ validate_expr(expr_ty exp, expr_context_ty ctx)
                             "Dict doesn't have the same number of keys as values");
             return 0;
         }
-        return validate_exprs(exp->v.Dict.keys, Load, 0) &&
-            validate_exprs(exp->v.Dict.values, Load, 0);
+        /* null_ok=1 for keys expressions to allow dict unpacking to work in
+           dict literals, i.e. ``{**{a:b}}`` */
+        return validate_exprs(exp->v.Dict.keys, Load, /*null_ok=*/ 1) &&
+            validate_exprs(exp->v.Dict.values, Load, /*null_ok=*/ 0);
     case Set_kind:
         return validate_exprs(exp->v.Set.elts, Load, 0);
 #define COMP(NAME) \
@@ -511,7 +513,7 @@ PyAST_Validate(mod_ty mod)
 /* Data structure used internally */
 struct compiling {
     char *c_encoding; /* source encoding */
-    PyArena *c_arena; /* arena for allocating memeory */
+    PyArena *c_arena; /* Arena for allocating memory. */
     PyObject *c_filename; /* filename */
     PyObject *c_normalize; /* Normalization function from unicodedata. */
     PyObject *c_normalize_args; /* Normalization argument tuple. */
@@ -1260,16 +1262,20 @@ ast_for_arguments(struct compiling *c, const node *n)
        and varargslist (lambda definition).
 
        parameters: '(' [typedargslist] ')'
-       typedargslist: ((tfpdef ['=' test] ',')*
-           ('*' [tfpdef] (',' tfpdef ['=' test])* [',' '**' tfpdef]
-           | '**' tfpdef)
-           | tfpdef ['=' test] (',' tfpdef ['=' test])* [','])
+       typedargslist: (tfpdef ['=' test] (',' tfpdef ['=' test])* [',' [
+               '*' [tfpdef] (',' tfpdef ['=' test])* [',' ['**' tfpdef [',']]]
+             | '**' tfpdef [',']]]
+         | '*' [tfpdef] (',' tfpdef ['=' test])* [',' ['**' tfpdef [',']]]
+         | '**' tfpdef [','])
        tfpdef: NAME [':' test]
-       varargslist: ((vfpdef ['=' test] ',')*
-           ('*' [vfpdef] (',' vfpdef ['=' test])*  [',' '**' vfpdef]
-           | '**' vfpdef)
-           | vfpdef ['=' test] (',' vfpdef ['=' test])* [','])
+       varargslist: (vfpdef ['=' test] (',' vfpdef ['=' test])* [',' [
+               '*' [vfpdef] (',' vfpdef ['=' test])* [',' ['**' vfpdef [',']]]
+             | '**' vfpdef [',']]]
+         | '*' [vfpdef] (',' vfpdef ['=' test])* [',' ['**' vfpdef [',']]]
+         | '**' vfpdef [',']
+       )
        vfpdef: NAME
+
     */
     int i, j, k, nposargs = 0, nkwonlyargs = 0;
     int nposdefaults = 0, found_default = 0;
@@ -1371,7 +1377,8 @@ ast_for_arguments(struct compiling *c, const node *n)
                 i += 2; /* the name and the comma */
                 break;
             case STAR:
-                if (i+1 >= NCH(n)) {
+                if (i+1 >= NCH(n) ||
+                    (i+2 == NCH(n) && TYPE(CHILD(n, i+1)) == COMMA)) {
                     ast_error(c, CHILD(n, i),
                         "named arguments must follow bare *");
                     return NULL;

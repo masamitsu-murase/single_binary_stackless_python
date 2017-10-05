@@ -60,50 +60,73 @@ _PyLong_FromTime_t(time_t t)
 #endif
 }
 
+double
+_PyTime_RoundHalfUp(double x)
+{
+    /* volatile avoids optimization changing how numbers are rounded */
+    volatile double d = x;
+    if (d >= 0.0)
+        d = floor(d + 0.5);
+    else
+        d = ceil(d - 0.5);
+    return d;
+}
+
+
+static int
+_PyTime_DoubleToDenominator(double d, time_t *sec, long *numerator,
+                            double denominator, _PyTime_round_t round)
+{
+    double intpart, err;
+    /* volatile avoids optimization changing how numbers are rounded */
+    volatile double floatpart;
+
+    floatpart = modf(d, &intpart);
+    if (floatpart < 0) {
+        floatpart += 1.0;
+        intpart -= 1.0;
+    }
+
+    floatpart *= denominator;
+    if (round == _PyTime_ROUND_HALF_UP)
+        floatpart = _PyTime_RoundHalfUp(floatpart);
+    else if (round == _PyTime_ROUND_CEILING)
+        floatpart = ceil(floatpart);
+    else
+        floatpart = floor(floatpart);
+    if (floatpart >= denominator) {
+        floatpart -= denominator;
+        intpart += 1.0;
+    }
+    assert(0.0 <= floatpart && floatpart < denominator);
+
+    *sec = (time_t)intpart;
+    *numerator = (long)floatpart;
+
+    err = intpart - (double)*sec;
+    if (err <= -1.0 || err >= 1.0) {
+        error_time_t_overflow();
+        return -1;
+    }
+    return 0;
+}
+
 static int
 _PyTime_ObjectToDenominator(PyObject *obj, time_t *sec, long *numerator,
                             double denominator, _PyTime_round_t round)
 {
-    assert(denominator <= LONG_MAX);
+    assert(denominator <= (double)LONG_MAX);
+
     if (PyFloat_Check(obj)) {
-        double d, intpart, err;
-        /* volatile avoids unsafe optimization on float enabled by gcc -O3 */
-        volatile double floatpart;
-
-        d = PyFloat_AsDouble(obj);
-        floatpart = modf(d, &intpart);
-        if (floatpart < 0) {
-            floatpart = 1.0 + floatpart;
-            intpart -= 1.0;
-        }
-
-        floatpart *= denominator;
-        if (round == _PyTime_ROUND_CEILING) {
-            floatpart = ceil(floatpart);
-            if (floatpart >= denominator) {
-                floatpart = 0.0;
-                intpart += 1.0;
-            }
-        }
-        else {
-            floatpart = floor(floatpart);
-        }
-
-        *sec = (time_t)intpart;
-        err = intpart - (double)*sec;
-        if (err <= -1.0 || err >= 1.0) {
-            error_time_t_overflow();
-            return -1;
-        }
-
-        *numerator = (long)floatpart;
-        return 0;
+        double d = PyFloat_AsDouble(obj);
+        return _PyTime_DoubleToDenominator(d, sec, numerator,
+                                           denominator, round);
     }
     else {
         *sec = _PyLong_AsTime_t(obj);
+        *numerator = 0;
         if (*sec == (time_t)-1 && PyErr_Occurred())
             return -1;
-        *numerator = 0;
         return 0;
     }
 }
@@ -112,10 +135,13 @@ int
 _PyTime_ObjectToTime_t(PyObject *obj, time_t *sec, _PyTime_round_t round)
 {
     if (PyFloat_Check(obj)) {
-        double d, intpart, err;
+        /* volatile avoids optimization changing how numbers are rounded */
+        volatile double d, intpart, err;
 
         d = PyFloat_AsDouble(obj);
-        if (round == _PyTime_ROUND_CEILING)
+        if (round == _PyTime_ROUND_HALF_UP)
+            d = _PyTime_RoundHalfUp(d);
+        else if (round == _PyTime_ROUND_CEILING)
             d = ceil(d);
         else
             d = floor(d);
@@ -141,14 +167,20 @@ int
 _PyTime_ObjectToTimespec(PyObject *obj, time_t *sec, long *nsec,
                          _PyTime_round_t round)
 {
-    return _PyTime_ObjectToDenominator(obj, sec, nsec, 1e9, round);
+    int res;
+    res = _PyTime_ObjectToDenominator(obj, sec, nsec, 1e9, round);
+    assert(0 <= *nsec && *nsec < SEC_TO_NS);
+    return res;
 }
 
 int
 _PyTime_ObjectToTimeval(PyObject *obj, time_t *sec, long *usec,
                         _PyTime_round_t round)
 {
-    return _PyTime_ObjectToDenominator(obj, sec, usec, 1e6, round);
+    int res;
+    res = _PyTime_ObjectToDenominator(obj, sec, usec, 1e6, round);
+    assert(0 <= *usec && *usec < SEC_TO_US);
+    return res;
 }
 
 static void
@@ -162,12 +194,13 @@ _PyTime_t
 _PyTime_FromSeconds(int seconds)
 {
     _PyTime_t t;
+    t = (_PyTime_t)seconds;
     /* ensure that integer overflow cannot happen, int type should have 32
        bits, whereas _PyTime_t type has at least 64 bits (SEC_TO_MS takes 30
        bits). */
-    assert((seconds >= 0 && seconds <= _PyTime_MAX / SEC_TO_NS)
-           || (seconds < 0 && seconds >= _PyTime_MIN / SEC_TO_NS));
-    t = (_PyTime_t)seconds * SEC_TO_NS;
+    assert((t >= 0 && t <= _PyTime_MAX / SEC_TO_NS)
+           || (t < 0 && t >= _PyTime_MIN / SEC_TO_NS));
+    t *= SEC_TO_NS;
     return t;
 }
 
@@ -221,29 +254,40 @@ _PyTime_FromTimeval(_PyTime_t *tp, struct timeval *tv, int raise)
 #endif
 
 static int
+_PyTime_FromFloatObject(_PyTime_t *t, double value, _PyTime_round_t round,
+                        long to_nanoseconds)
+{
+    /* volatile avoids optimization changing how numbers are rounded */
+    volatile double d, err;
+
+    /* convert to a number of nanoseconds */
+    d = value;
+    d *= to_nanoseconds;
+
+    if (round == _PyTime_ROUND_HALF_UP)
+        d = _PyTime_RoundHalfUp(d);
+    else if (round == _PyTime_ROUND_CEILING)
+        d = ceil(d);
+    else
+        d = floor(d);
+
+    *t = (_PyTime_t)d;
+    err = d - (double)*t;
+    if (fabs(err) >= 1.0) {
+        _PyTime_overflow();
+        return -1;
+    }
+    return 0;
+}
+
+static int
 _PyTime_FromObject(_PyTime_t *t, PyObject *obj, _PyTime_round_t round,
                    long to_nanoseconds)
 {
     if (PyFloat_Check(obj)) {
-        /* volatile avoids unsafe optimization on float enabled by gcc -O3 */
-        volatile double d, err;
-
-        /* convert to a number of nanoseconds */
+        double d;
         d = PyFloat_AsDouble(obj);
-        d *= to_nanoseconds;
-
-        if (round == _PyTime_ROUND_CEILING)
-            d = ceil(d);
-        else
-            d = floor(d);
-
-        *t = (_PyTime_t)d;
-        err = d - (double)*t;
-        if (fabs(err) >= 1.0) {
-            _PyTime_overflow();
-            return -1;
-        }
-        return 0;
+        return _PyTime_FromFloatObject(t, d, round, to_nanoseconds);
     }
     else {
 #ifdef HAVE_LONG_LONG
@@ -308,7 +352,19 @@ static _PyTime_t
 _PyTime_Divide(_PyTime_t t, _PyTime_t k, _PyTime_round_t round)
 {
     assert(k > 1);
-    if (round == _PyTime_ROUND_CEILING) {
+    if (round == _PyTime_ROUND_HALF_UP) {
+        _PyTime_t x, r;
+        x = t / k;
+        r = t % k;
+        if (Py_ABS(r) >= k / 2) {
+            if (t >= 0)
+                x++;
+            else
+                x--;
+        }
+        return x;
+    }
+    else if (round == _PyTime_ROUND_CEILING) {
         if (t >= 0)
             return (t + k - 1) / k;
         else
@@ -334,8 +390,10 @@ static int
 _PyTime_AsTimeval_impl(_PyTime_t t, struct timeval *tv, _PyTime_round_t round,
                        int raise)
 {
+    const long k = US_TO_NS;
     _PyTime_t secs, ns;
     int res = 0;
+    int usec;
 
     secs = t / SEC_TO_NS;
     ns = t % SEC_TO_NS;
@@ -367,20 +425,32 @@ _PyTime_AsTimeval_impl(_PyTime_t t, struct timeval *tv, _PyTime_round_t round,
         res = -1;
 #endif
 
-    if (round == _PyTime_ROUND_CEILING)
-        tv->tv_usec = (int)((ns + US_TO_NS - 1) / US_TO_NS);
+    if (round == _PyTime_ROUND_HALF_UP) {
+        _PyTime_t r;
+        usec = (int)(ns / k);
+        r = ns % k;
+        if (Py_ABS(r) >= k / 2) {
+            if (ns >= 0)
+                usec++;
+            else
+                usec--;
+        }
+    }
+    else if (round == _PyTime_ROUND_CEILING)
+        usec = (int)((ns + k - 1) / k);
     else
-        tv->tv_usec = (int)(ns / US_TO_NS);
+        usec = (int)(ns / k);
 
-    if (tv->tv_usec >= SEC_TO_US) {
-        tv->tv_usec -= SEC_TO_US;
+    if (usec >= SEC_TO_US) {
+        usec -= SEC_TO_US;
         tv->tv_sec += 1;
     }
 
+    assert(0 <= usec && usec < SEC_TO_US);
+    tv->tv_usec = usec;
+
     if (res && raise)
         _PyTime_overflow();
-
-    assert(0 <= tv->tv_usec && tv->tv_usec <= 999999);
     return res;
 }
 
@@ -415,7 +485,7 @@ _PyTime_AsTimespec(_PyTime_t t, struct timespec *ts)
     }
     ts->tv_nsec = nsec;
 
-    assert(0 <= ts->tv_nsec && ts->tv_nsec <= 999999999);
+    assert(0 <= ts->tv_nsec && ts->tv_nsec < SEC_TO_NS);
     return 0;
 }
 #endif
@@ -531,12 +601,8 @@ _PyTime_GetSystemClockWithInfo(_PyTime_t *t, _Py_clock_info_t *info)
 
 
 static int
-pymonotonic_new(_PyTime_t *tp, _Py_clock_info_t *info, int raise)
+pymonotonic(_PyTime_t *tp, _Py_clock_info_t *info, int raise)
 {
-#ifdef Py_DEBUG
-    static int last_set = 0;
-    static _PyTime_t last = 0;
-#endif
 #if defined(MS_WINDOWS)
     ULONGLONG result;
 
@@ -628,12 +694,6 @@ pymonotonic_new(_PyTime_t *tp, _Py_clock_info_t *info, int raise)
     if (_PyTime_FromTimespec(tp, &ts, raise) < 0)
         return -1;
 #endif
-#ifdef Py_DEBUG
-    /* monotonic clock cannot go backward */
-    assert(!last_set || last <= *tp);
-    last = *tp;
-    last_set = 1;
-#endif
     return 0;
 }
 
@@ -641,7 +701,7 @@ _PyTime_t
 _PyTime_GetMonotonicClock(void)
 {
     _PyTime_t t;
-    if (pymonotonic_new(&t, NULL, 0) < 0) {
+    if (pymonotonic(&t, NULL, 0) < 0) {
         /* should not happen, _PyTime_Init() checked that monotonic clock at
            startup */
         assert(0);
@@ -655,7 +715,7 @@ _PyTime_GetMonotonicClock(void)
 int
 _PyTime_GetMonotonicClockWithInfo(_PyTime_t *tp, _Py_clock_info_t *info)
 {
-    return pymonotonic_new(tp, info, 1);
+    return pymonotonic(tp, info, 1);
 }
 
 int

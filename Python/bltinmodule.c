@@ -1175,13 +1175,14 @@ map_next(mapobject *lz)
     PyObject *result;
     Py_ssize_t numargs, i;
 
-    numargs = PyTuple_Size(lz->iters);
+    numargs = PyTuple_GET_SIZE(lz->iters);
     argtuple = PyTuple_New(numargs);
     if (argtuple == NULL)
         return NULL;
 
     for (i=0 ; i<numargs ; i++) {
-        val = PyIter_Next(PyTuple_GET_ITEM(lz->iters, i));
+        PyObject *it = PyTuple_GET_ITEM(lz->iters, i);
+        val = Py_TYPE(it)->tp_iternext(it);
         if (val == NULL) {
             Py_DECREF(argtuple);
             return NULL;

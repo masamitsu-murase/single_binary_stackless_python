@@ -316,6 +316,14 @@ def _divide_and_round(a, b):
 
     return q
 
+def _round_half_up(x):
+    """Round to nearest with ties going away from zero."""
+    if x >= 0.0:
+        return _math.floor(x + 0.5)
+    else:
+        return _math.ceil(x - 0.5)
+
+
 class timedelta:
     """Represent the difference between two datetime objects.
 
@@ -399,7 +407,7 @@ class timedelta:
         # secondsfrac isn't referenced again
 
         if isinstance(microseconds, float):
-            microseconds = round(microseconds + usdouble)
+            microseconds = _round_half_up(microseconds + usdouble)
             seconds, microseconds = divmod(microseconds, 1000000)
             days, seconds = divmod(seconds, 24*3600)
             d += days
@@ -410,7 +418,7 @@ class timedelta:
             days, seconds = divmod(seconds, 24*3600)
             d += days
             s += seconds
-            microseconds = round(microseconds + usdouble)
+            microseconds = _round_half_up(microseconds + usdouble)
         assert isinstance(s, int)
         assert isinstance(microseconds, int)
         assert abs(s) <= 3 * 24 * 3600
@@ -1376,7 +1384,7 @@ class datetime(date):
         converter = _time.localtime if tz is None else _time.gmtime
 
         t, frac = divmod(t, 1.0)
-        us = int(frac * 1e6)
+        us = _round_half_up(frac * 1e6)
 
         # If timestamp is less than one microsecond smaller than a
         # full second, us can be rounded up to 1000000.  In this case,
@@ -1396,7 +1404,7 @@ class datetime(date):
     def utcfromtimestamp(cls, t):
         """Construct a naive UTC datetime from a POSIX timestamp."""
         t, frac = divmod(t, 1.0)
-        us = int(frac * 1e6)
+        us = _round_half_up(frac * 1e6)
 
         # If timestamp is less than one microsecond smaller than a
         # full second, us can be rounded up to 1000000.  In this case,

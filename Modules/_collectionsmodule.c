@@ -924,6 +924,8 @@ deque_index(dequeobject *deque, PyObject *args)
         if (stop < 0)
             stop = 0;
     }
+    if (stop > Py_SIZE(deque))
+        stop = Py_SIZE(deque);
 
     for (i=0 ; i<stop ; i++) {
         if (i >= start) {
@@ -2167,13 +2169,13 @@ _count_elements(PyObject *self, PyObject *args)
 
             oldval = _PyDict_GetItem_KnownHash(mapping, key, hash);
             if (oldval == NULL) {
-                if (_PyDict_SetItem_KnownHash(mapping, key, one, hash) == -1)
+                if (_PyDict_SetItem_KnownHash(mapping, key, one, hash) < 0)
                     goto done;
             } else {
                 newval = PyNumber_Add(oldval, one);
                 if (newval == NULL)
                     goto done;
-                if (_PyDict_SetItem_KnownHash(mapping, key, newval, hash) == -1)
+                if (_PyDict_SetItem_KnownHash(mapping, key, newval, hash) < 0)
                     goto done;
                 Py_CLEAR(newval);
             }
@@ -2199,7 +2201,7 @@ _count_elements(PyObject *self, PyObject *args)
             Py_DECREF(oldval);
             if (newval == NULL)
                 break;
-            if (PyObject_SetItem(mapping, key, newval) == -1)
+            if (PyObject_SetItem(mapping, key, newval) < 0)
                 break;
             Py_CLEAR(newval);
             Py_DECREF(key);
