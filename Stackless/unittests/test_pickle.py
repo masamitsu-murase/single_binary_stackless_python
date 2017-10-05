@@ -654,6 +654,10 @@ class TestCopy(StacklessTestCase):
             # refer to the same objects
             self.assertIs(value_c, value_obj)
 
+    def test_module_stackless(self):
+        # test for issue 128
+        self.assertIs(stackless, copy.copy(stackless))
+
     def test_code(self):
         def f():
             pass

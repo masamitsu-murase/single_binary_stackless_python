@@ -18,7 +18,7 @@ except ImportError: pass
 
 def __reduce__():
     return "stackless"
-def __reduce_ex_(*args):
+def __reduce_ex__(*args):
     return "stackless"
 
 # Backwards support for unpickling older pickles, even from 2.7
