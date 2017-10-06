@@ -1,7 +1,6 @@
 import faulthandler
 import importlib
 import io
-import json
 import os
 import sys
 import time
@@ -20,38 +19,6 @@ SKIPPED = -2
 RESOURCE_DENIED = -3
 INTERRUPTED = -4
 CHILD_ERROR = -5   # error in a child process
-
-
-def run_test_in_subprocess(testname, ns):
-    """Run the given test in a subprocess with --slaveargs.
-
-    ns is the option Namespace parsed from command-line arguments. regrtest
-    is invoked in a subprocess with the --slaveargs argument; when the
-    subprocess exits, its return code, stdout and stderr are returned as a
-    3-tuple.
-    """
-    from subprocess import Popen, PIPE
-    base_cmd = ([sys.executable] + support.args_from_interpreter_flags() +
-                ['-X', 'faulthandler', '-m', 'test.regrtest'])
-
-    slaveargs = (
-            (testname, ns.verbose, ns.quiet),
-            dict(huntrleaks=ns.huntrleaks,
-                 use_resources=ns.use_resources,
-                 output_on_failure=ns.verbose3,
-                 timeout=ns.timeout, failfast=ns.failfast,
-                 match_tests=ns.match_tests))
-    # Running the child from the same working directory as regrtest's original
-    # invocation ensures that TEMPDIR for the child is the same when
-    # sysconfig.is_python_build() is true. See issue 15300.
-    popen = Popen(base_cmd + ['--slaveargs', json.dumps(slaveargs)],
-                  stdout=PIPE, stderr=PIPE,
-                  universal_newlines=True,
-                  close_fds=(os.name != 'nt'),
-                  cwd=support.SAVEDCWD)
-    stdout, stderr = popen.communicate()
-    retcode = popen.wait()
-    return retcode, stdout, stderr
 
 
 # small set of tests to determine if we have a basically functioning interpreter
@@ -86,10 +53,7 @@ def findtests(testdir=None, stdtests=STDTESTS, nottests=NOTTESTS):
     return stdtests + sorted(tests)
 
 
-def runtest(test, verbose, quiet,
-            huntrleaks=False, use_resources=None,
-            output_on_failure=False, failfast=False, match_tests=None,
-            timeout=None):
+def runtest(ns, test):
     """Run a single test.
 
     test -- the name of the test
@@ -97,7 +61,6 @@ def runtest(test, verbose, quiet,
     quiet -- if true, don't print 'skipped' messages (probably redundant)
     huntrleaks -- run multiple times to test for leaks; requires a debug
                   build; a triple corresponding to -R's three arguments
-    use_resources -- list of extra resources to use
     output_on_failure -- if true, display test output on failure
     timeout -- dump the traceback and exit if a test takes more than
                timeout seconds
@@ -112,8 +75,14 @@ def runtest(test, verbose, quiet,
         PASSED           test passed
     """
 
-    if use_resources is not None:
-        support.use_resources = use_resources
+    verbose = ns.verbose
+    quiet = ns.quiet
+    huntrleaks = ns.huntrleaks
+    output_on_failure = ns.verbose3
+    failfast = ns.failfast
+    match_tests = ns.match_tests
+    timeout = ns.timeout
+
     use_timeout = (timeout is not None)
     if use_timeout:
         faulthandler.dump_traceback_later(timeout, exit=True)
@@ -194,27 +163,23 @@ def runtest_inner(test, verbose, quiet,
             test_time = time.time() - start_time
     except support.ResourceDenied as msg:
         if not quiet:
-            print(test, "skipped --", msg)
-            sys.stdout.flush()
+            print(test, "skipped --", msg, flush=True)
         return RESOURCE_DENIED, test_time
     except unittest.SkipTest as msg:
         if not quiet:
-            print(test, "skipped --", msg)
-            sys.stdout.flush()
+            print(test, "skipped --", msg, flush=True)
         return SKIPPED, test_time
     except KeyboardInterrupt:
         raise
     except support.TestFailed as msg:
         if display_failure:
-            print("test", test, "failed --", msg, file=sys.stderr)
+            print("test", test, "failed --", msg, file=sys.stderr, flush=True)
         else:
-            print("test", test, "failed", file=sys.stderr)
-        sys.stderr.flush()
+            print("test", test, "failed", file=sys.stderr, flush=True)
         return FAILED, test_time
     except:
         msg = traceback.format_exc()
-        print("test", test, "crashed --", msg, file=sys.stderr)
-        sys.stderr.flush()
+        print("test", test, "crashed --", msg, file=sys.stderr, flush=True)
         return FAILED, test_time
     else:
         if refleak:

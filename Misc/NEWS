@@ -190,7 +190,23 @@ Core and Builtins
 Library
 -------
 
-- Issue #25233: Rewrite the guts of asyncio.Queue to be more understandable and correct.
+- Issue #22958: Constructor and update method of weakref.WeakValueDictionary
+  now accept the self and the dict keyword arguments.
+
+- Issue #22609: Constructor of collections.UserDict now accepts the self keyword
+  argument.
+
+- Issue #25111: Fixed comparison of traceback.FrameSummary.
+
+- Issue #25262. Added support for BINBYTES8 opcode in Python implementation of
+  unpickler.  Highest 32 bits of 64-bit size for BINUNICODE8 and BINBYTES8
+  opcodes no longer silently ignored on 32-bit platforms in C implementation.
+
+- Issue #25034: Fix string.Formatter problem with auto-numbering and
+  nested format_specs. Patch by Anthon van der Neut.
+
+- Issue #25233: Rewrite the guts of asyncio.Queue and
+  asyncio.Semaphore to be more understandable and correct.
 
 - Issue #23600: Default implementation of tzinfo.fromutc() was returning
   wrong results in some cases.
