@@ -21,25 +21,13 @@ path = os.path.abspath(os.path.split(__file__)[0])
 # add the stackless unittest dir to the package "test"
 test_path.insert(0, path)
 
+
 def main(tests=None, **kwargs):
     kwargs.setdefault("testdir", path)
     return libregrtest.main(tests=tests, **kwargs)
 
-def main_in_temp_cwd(tests=None, **kwargs):
-    kwargs.setdefault("testdir", path)
-    # unfortunately, libregrtest.main_in_temp_cwd() does not support
-    # **kwargs. Monkey patch it
-    mglobals = libregrtest.main_in_temp_cwd.__globals__
-    real_main = mglobals["main"]
-    def main():
-        return real_main(tests, **kwargs)
-    mglobals["main"] = main
-    try:
-        libregrtest.main_in_temp_cwd()
-    finally:
-        mglobals["main"] = real_main
 
 if __name__ == '__main__':
-    main_in_temp_cwd()
+    main()
     import gc
     gc.set_debug(gc.DEBUG_UNCOLLECTABLE)
