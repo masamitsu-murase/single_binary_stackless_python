@@ -4,9 +4,6 @@
    Written and maintained by Raymond D. Hettinger <python@rcn.com>
    Derived from Lib/sets.py and Objects/dictobject.c.
 
-   Copyright (c) 2003-2015 Python Software Foundation.
-   All rights reserved.
-
    The basic lookup function used by all operations.
    This is based on Algorithm D from Knuth Vol. 3, Sec. 6.4.
 
@@ -260,16 +257,13 @@ The caller is responsible for updating the key's reference count and
 the setobject's fill and used fields.
 */
 static void
-set_insert_clean(PySetObject *so, PyObject *key, Py_hash_t hash)
+set_insert_clean(setentry *table, size_t mask, PyObject *key, Py_hash_t hash)
 {
-    setentry *table = so->table;
     setentry *entry;
     size_t perturb = hash;
-    size_t mask = (size_t)so->mask;
     size_t i = (size_t)hash & mask;
     size_t j;
 
-    assert(so->fill == so->used);
     while (1) {
         entry = &table[i];
         if (entry->key == NULL)
@@ -304,6 +298,8 @@ set_table_resize(PySetObject *so, Py_ssize_t minused)
     setentry *oldtable, *newtable, *entry;
     Py_ssize_t oldfill = so->fill;
     Py_ssize_t oldused = so->used;
+    Py_ssize_t oldmask = so->mask;
+    size_t newmask;
     int is_oldtable_malloced;
     setentry small_copy[PySet_MINSIZE];
 
@@ -363,18 +359,17 @@ set_table_resize(PySetObject *so, Py_ssize_t minused)
 
     /* Copy the data over; this is refcount-neutral for active entries;
        dummy entries aren't copied over, of course */
+    newmask = (size_t)so->mask;
     if (oldfill == oldused) {
-        for (entry = oldtable; oldused > 0; entry++) {
+        for (entry = oldtable; entry <= oldtable + oldmask; entry++) {
             if (entry->key != NULL) {
-                oldused--;
-                set_insert_clean(so, entry->key, entry->hash);
+                set_insert_clean(newtable, newmask, entry->key, entry->hash);
             }
         }
     } else {
-        for (entry = oldtable; oldused > 0; entry++) {
+        for (entry = oldtable; entry <= oldtable + oldmask; entry++) {
             if (entry->key != NULL && entry->key != dummy) {
-                oldused--;
-                set_insert_clean(so, entry->key, entry->hash);
+                set_insert_clean(newtable, newmask, entry->key, entry->hash);
             }
         }
     }
@@ -676,13 +671,15 @@ set_merge(PySetObject *so, PyObject *otherset)
 
     /* If our table is empty, we can use set_insert_clean() */
     if (so->fill == 0) {
+        setentry *newtable = so->table;
+        size_t newmask = (size_t)so->mask;
         so->fill = other->used;
         so->used = other->used;
-        for (i = 0; i <= other->mask; i++, other_entry++) {
+        for (i = other->mask + 1; i > 0 ; i--, other_entry++) {
             key = other_entry->key;
             if (key != NULL && key != dummy) {
                 Py_INCREF(key);
-                set_insert_clean(so, key, other_entry->hash);
+                set_insert_clean(newtable, newmask, key, other_entry->hash);
             }
         }
         return 0;
@@ -2003,7 +2000,7 @@ set_sizeof(PySetObject *so)
 {
     Py_ssize_t res;
 
-    res = sizeof(PySetObject);
+    res = _PyObject_SIZE(Py_TYPE(so));
     if (so->table != so->smalltable)
         res = res + (so->mask + 1) * sizeof(setentry);
     return PyLong_FromSsize_t(res);

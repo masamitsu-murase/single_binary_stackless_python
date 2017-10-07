@@ -24,6 +24,14 @@ core interpreter and library being used by a single user. The installer is also
 able to install for all users of a single machine, and a separate ZIP file is
 available for application-local distributions.
 
+Supported Versions
+------------------
+
+As specified in :pep:`11`, a Python release only supports a Windows platform
+while Microsoft considers the platform under extended support. This means that
+Python 3.5 supports Windows Vista and newer. If you require Windows XP support
+then please install Python 3.4.
+
 Installation Steps
 ------------------
 
@@ -211,6 +219,23 @@ avoid collisions between files with the same name.
 
 You may also specify the ``/quiet`` option to hide the progress display.
 
+Modifying an install
+--------------------
+
+Once Python has been installed, you can add or remove features through the
+Programs and Features tool that is part of Windows. Select the Python entry and
+choose "Uninstall/Change" to open the installer in maintenance mode.
+
+"Modify" allows you to add or remove features by modifying the checkboxes -
+unchanged checkboxes will not install or remove anything. Some options cannot be
+changed in this mode, such as the install directory; to modify these, you will
+need to remove and then reinstall Python completely.
+
+"Repair" will verify all the files that should be installed using the current
+settings and replace any that have been removed or modified.
+
+"Uninstall" will remove Python entirely, with the exception of the
+:ref:`launcher`, which has its own entry in Programs and Features.
 
 Other Platforms
 ---------------

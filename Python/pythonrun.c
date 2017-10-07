@@ -801,11 +801,11 @@ print_exception(PyObject *f, PyObject *value)
         PyErr_Clear();
 }
 
-static const char *cause_message =
+static const char cause_message[] =
     "\nThe above exception was the direct cause "
     "of the following exception:\n\n";
 
-static const char *context_message =
+static const char context_message[] =
     "\nDuring handling of the above exception, "
     "another exception occurred:\n\n";
 
@@ -1162,8 +1162,8 @@ PyParser_ASTFromString(const char *s, const char *filename_str, int start,
 
 mod_ty
 PyParser_ASTFromFileObject(FILE *fp, PyObject *filename, const char* enc,
-                           int start, char *ps1,
-                           char *ps2, PyCompilerFlags *flags, int *errcode,
+                           int start, const char *ps1,
+                           const char *ps2, PyCompilerFlags *flags, int *errcode,
                            PyArena *arena)
 {
     mod_ty mod;
@@ -1195,8 +1195,8 @@ PyParser_ASTFromFileObject(FILE *fp, PyObject *filename, const char* enc,
 
 mod_ty
 PyParser_ASTFromFile(FILE *fp, const char *filename_str, const char* enc,
-                     int start, char *ps1,
-                     char *ps2, PyCompilerFlags *flags, int *errcode,
+                     int start, const char *ps1,
+                     const char *ps2, PyCompilerFlags *flags, int *errcode,
                      PyArena *arena)
 {
     mod_ty mod;

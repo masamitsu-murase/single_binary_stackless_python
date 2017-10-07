@@ -378,7 +378,7 @@ fail:
 }
 
 static PyObject *
-PySSL_SetError(PySSLSocket *obj, int ret, char *filename, int lineno)
+PySSL_SetError(PySSLSocket *obj, int ret, const char *filename, int lineno)
 {
     PyObject *type = PySSLErrorObject;
     char *errstr = NULL;
@@ -460,7 +460,7 @@ PySSL_SetError(PySSLSocket *obj, int ret, char *filename, int lineno)
 }
 
 static PyObject *
-_setSSLError (char *errstr, int errcode, char *filename, int lineno) {
+_setSSLError (const char *errstr, int errcode, const char *filename, int lineno) {
 
     if (errstr == NULL)
         errcode = ERR_peek_last_error();
@@ -1589,8 +1589,7 @@ static int PySSL_set_context(PySSLSocket *self, PyObject *value,
         return -1;
 #else
         Py_INCREF(value);
-        Py_DECREF(self->ctx);
-        self->ctx = (PySSLContext *) value;
+        Py_SETREF(self->ctx, (PySSLContext *)value);
         SSL_set_SSL_CTX(self->ssl, self->ctx->ctx);
 #endif
     } else {
@@ -1647,8 +1646,7 @@ PySSL_get_owner(PySSLSocket *self, void *c)
 static int
 PySSL_set_owner(PySSLSocket *self, PyObject *value, void *c)
 {
-    Py_XDECREF(self->owner);
-    self->owner = PyWeakref_NewRef(value, NULL);
+    Py_SETREF(self->owner, PyWeakref_NewRef(value, NULL));
     if (self->owner == NULL)
         return -1;
     return 0;
@@ -2221,6 +2219,7 @@ _ssl__SSLContext_impl(PyTypeObject *type, int proto_version)
     PySSLContext *self;
     long options;
     SSL_CTX *ctx = NULL;
+    unsigned long libver;
 
     PySSL_BEGIN_ALLOW_THREADS
     if (proto_version == PY_SSL_VERSION_TLS1)
@@ -2282,6 +2281,22 @@ _ssl__SSLContext_impl(PyTypeObject *type, int proto_version)
     if (proto_version != PY_SSL_VERSION_SSL3)
         options |= SSL_OP_NO_SSLv3;
     SSL_CTX_set_options(self->ctx, options);
+
+#if defined(SSL_MODE_RELEASE_BUFFERS)
+    /* Set SSL_MODE_RELEASE_BUFFERS. This potentially greatly reduces memory
+       usage for no cost at all. However, don't do this for OpenSSL versions
+       between 1.0.1 and 1.0.1h or 1.0.0 and 1.0.0m, which are affected by CVE
+       2014-0198. I can't find exactly which beta fixed this CVE, so be
+       conservative and assume it wasn't fixed until release. We do this check
+       at runtime to avoid problems from the dynamic linker.
+       See #25672 for more on this. */
+    libver = SSLeay();
+    if (!(libver >= 0x10001000UL && libver < 0x1000108fUL) &&
+        !(libver >= 0x10000000UL && libver < 0x100000dfUL)) {
+        SSL_CTX_set_mode(self->ctx, SSL_MODE_RELEASE_BUFFERS);
+    }
+#endif
+
 
 #ifndef OPENSSL_NO_ECDH
     /* Allow automatic ECDH curve selection (on OpenSSL 1.0.2+), or use

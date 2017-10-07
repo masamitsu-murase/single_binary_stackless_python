@@ -308,7 +308,7 @@ PyBytes_FromFormatV(const char *format, va_list vargs)
         {
             Py_ssize_t i;
 
-            p = va_arg(vargs, char*);
+            p = va_arg(vargs, const char*);
             i = strlen(p);
             if (prec > 0 && i > prec)
                 i = prec;
@@ -3320,11 +3320,11 @@ bytes_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
         return PyBytes_FromStringAndSize(NULL, 0);
     }
 
-    if (PyUnicode_Check(x)) {
+    if (encoding != NULL) {
         /* Encode via the codec registry */
-        if (encoding == NULL) {
+        if (!PyUnicode_Check(x)) {
             PyErr_SetString(PyExc_TypeError,
-                            "string argument without an encoding");
+                            "encoding without a string argument");
             return NULL;
         }
         new = PyUnicode_AsEncodedString(x, encoding, errors);
@@ -3334,10 +3334,11 @@ bytes_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
         return new;
     }
 
-    /* If it's not unicode, there can't be encoding or errors */
-    if (encoding != NULL || errors != NULL) {
+    if (errors != NULL) {
         PyErr_SetString(PyExc_TypeError,
-            "encoding or errors without a string argument");
+                        PyUnicode_Check(x) ?
+                        "string argument without an encoding" :
+                        "errors without a string argument");
         return NULL;
     }
 
@@ -3362,6 +3363,11 @@ bytes_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     else if (PyErr_Occurred())
         return NULL;
 
+    if (PyUnicode_Check(x)) {
+        PyErr_SetString(PyExc_TypeError,
+                        "string argument without an encoding");
+        return NULL;
+    }
     /* Is it an integer? */
     size = PyNumber_AsSsize_t(x, PyExc_OverflowError);
     if (size == -1 && PyErr_Occurred()) {
@@ -3682,8 +3688,7 @@ PyBytes_Concat(PyObject **pv, PyObject *w)
         /* Multiple references, need to create new object */
         PyObject *v;
         v = bytes_concat(*pv, w);
-        Py_DECREF(*pv);
-        *pv = v;
+        Py_SETREF(*pv, v);
     }
 }
 

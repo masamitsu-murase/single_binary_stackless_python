@@ -7,6 +7,14 @@
 #endif
 #include "core/stackless_impl.h"
 
+#define GET_TSTATE() \
+    ((PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current))
+#define SET_TSTATE(value) \
+    _Py_atomic_store_relaxed(&_PyThreadState_Current, (Py_uintptr_t)(value))
+#define GET_INTERP_STATE() \
+    (GET_TSTATE()->interp)
+
+
 /* --------------------------------------------------------------------------
 CAUTION
 
@@ -66,7 +74,7 @@ static PyInterpreterState *interp_head = NULL;
 
 /* Assuming the current thread holds the GIL, this is the
    PyThreadState for the current thread. */
-_Py_atomic_address _PyThreadState_Current = {NULL};
+_Py_atomic_address _PyThreadState_Current = {0};
 PyThreadFrameGetter _PyThreadState_GetFrame = NULL;
 
 #ifdef WITH_THREAD
@@ -283,7 +291,7 @@ PyObject*
 PyState_FindModule(struct PyModuleDef* module)
 {
     Py_ssize_t index = module->m_base.m_index;
-    PyInterpreterState *state = PyThreadState_GET()->interp;
+    PyInterpreterState *state = GET_INTERP_STATE();
     PyObject *res;
     if (module->m_slots) {
         return NULL;
@@ -307,7 +315,7 @@ _PyState_AddModule(PyObject* module, struct PyModuleDef* def)
                         "PyState_AddModule called on module with slots");
         return -1;
     }
-    state = PyThreadState_GET()->interp;
+    state = GET_INTERP_STATE();
     if (!def)
         return -1;
     if (!state->modules_by_index) {
@@ -327,7 +335,7 @@ int
 PyState_AddModule(PyObject* module, struct PyModuleDef* def)
 {
     Py_ssize_t index;
-    PyInterpreterState *state = PyThreadState_GET()->interp;
+    PyInterpreterState *state = GET_INTERP_STATE();
     if (!def) {
         Py_FatalError("PyState_AddModule: Module Definition is NULL");
         return -1;
@@ -354,7 +362,7 @@ PyState_RemoveModule(struct PyModuleDef* def)
                         "PyState_RemoveModule called on module with slots");
         return -1;
     }
-    state = PyThreadState_GET()->interp;
+    state = GET_INTERP_STATE();
     if (index == 0) {
         Py_FatalError("PyState_RemoveModule: Module index invalid.");
         return -1;
@@ -374,7 +382,7 @@ PyState_RemoveModule(struct PyModuleDef* def)
 void
 _PyState_ClearModules(void)
 {
-    PyInterpreterState *state = PyThreadState_GET()->interp;
+    PyInterpreterState *state = GET_INTERP_STATE();
     if (state->modules_by_index) {
         Py_ssize_t i;
         for (i = 0; i < PyList_GET_SIZE(state->modules_by_index); i++) {
@@ -458,7 +466,7 @@ tstate_delete_common(PyThreadState *tstate)
 void
 PyThreadState_Delete(PyThreadState *tstate)
 {
-    if (tstate == (PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current))
+    if (tstate == GET_TSTATE())
         Py_FatalError("PyThreadState_Delete: tstate is still current");
 #ifdef WITH_THREAD
     if (autoInterpreterState && PyThread_get_key_value(autoTLSkey) == tstate)
@@ -472,12 +480,11 @@ PyThreadState_Delete(PyThreadState *tstate)
 void
 PyThreadState_DeleteCurrent()
 {
-    PyThreadState *tstate = (PyThreadState*)_Py_atomic_load_relaxed(
-        &_PyThreadState_Current);
+    PyThreadState *tstate = GET_TSTATE();
     if (tstate == NULL)
         Py_FatalError(
             "PyThreadState_DeleteCurrent: no current tstate");
-    _Py_atomic_store_relaxed(&_PyThreadState_Current, NULL);
+    SET_TSTATE(NULL);
     if (autoInterpreterState && PyThread_get_key_value(autoTLSkey) == tstate)
         PyThread_delete_key_value(autoTLSkey);
     tstate_delete_common(tstate);
@@ -524,10 +531,16 @@ _PyThreadState_DeleteExcept(PyThreadState *tstate)
 
 
 PyThreadState *
+_PyThreadState_UncheckedGet(void)
+{
+    return GET_TSTATE();
+}
+
+
+PyThreadState *
 PyThreadState_Get(void)
 {
-    PyThreadState *tstate = (PyThreadState*)_Py_atomic_load_relaxed(
-        &_PyThreadState_Current);
+    PyThreadState *tstate = GET_TSTATE();
     if (tstate == NULL)
         Py_FatalError("PyThreadState_Get: no current thread");
 
@@ -538,10 +551,9 @@ PyThreadState_Get(void)
 PyThreadState *
 PyThreadState_Swap(PyThreadState *newts)
 {
-    PyThreadState *oldts = (PyThreadState*)_Py_atomic_load_relaxed(
-        &_PyThreadState_Current);
+    PyThreadState *oldts = GET_TSTATE();
 
-    _Py_atomic_store_relaxed(&_PyThreadState_Current, newts);
+    SET_TSTATE(newts);
     /* It should not be possible for more than one thread state
        to be used for a thread.  Check this the best we can in debug
        builds.
@@ -570,8 +582,7 @@ PyThreadState_Swap(PyThreadState *newts)
 PyObject *
 PyThreadState_GetDict(void)
 {
-    PyThreadState *tstate = (PyThreadState*)_Py_atomic_load_relaxed(
-        &_PyThreadState_Current);
+    PyThreadState *tstate = GET_TSTATE();
     if (tstate == NULL)
         return NULL;
 
@@ -595,8 +606,7 @@ PyThreadState_GetDict(void)
 
 int
 PyThreadState_SetAsyncExc(long id, PyObject *exc) {
-    PyThreadState *tstate = PyThreadState_GET();
-    PyInterpreterState *interp = tstate->interp;
+    PyInterpreterState *interp = GET_INTERP_STATE();
     PyThreadState *p;
 
     /* Although the GIL is held, a few C API functions can be called
@@ -717,7 +727,7 @@ PyThreadState_IsCurrent(PyThreadState *tstate)
 {
     /* Must be the tstate for this thread */
     assert(PyGILState_GetThisThreadState()==tstate);
-    return tstate == (PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current);
+    return tstate == GET_TSTATE();
 }
 
 /* Internal initialization/finalization functions called by
@@ -809,9 +819,7 @@ PyGILState_GetThisThreadState(void)
 int
 PyGILState_Check(void)
 {
-    /* can't use PyThreadState_Get() since it will assert that it has the GIL */
-    PyThreadState *tstate = (PyThreadState*)_Py_atomic_load_relaxed(
-        &_PyThreadState_Current);
+    PyThreadState *tstate = GET_TSTATE();
     return tstate && (tstate == PyGILState_GetThisThreadState());
 }
 

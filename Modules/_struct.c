@@ -723,7 +723,7 @@ np_void_p(char *p, PyObject *v, const formatdef *f)
     return 0;
 }
 
-static formatdef native_table[] = {
+static const formatdef native_table[] = {
     {'x',       sizeof(char),   0,              NULL},
     {'b',       sizeof(char),   0,              nu_byte,        np_byte},
     {'B',       sizeof(char),   0,              nu_ubyte,       np_ubyte},
@@ -1189,7 +1189,7 @@ static formatdef lilendian_table[] = {
 
 
 static const formatdef *
-whichtable(char **pfmt)
+whichtable(const char **pfmt)
 {
     const char *fmt = (*pfmt)++; /* May be backed out of later */
     switch (*fmt) {
@@ -1268,7 +1268,7 @@ prepare_s(PyStructObject *self)
 
     fmt = PyBytes_AS_STRING(self->s_format);
 
-    f = whichtable((char **)&fmt);
+    f = whichtable(&fmt);
 
     s = fmt;
     size = 0;
@@ -1437,8 +1437,7 @@ s_init(PyObject *self, PyObject *args, PyObject *kwds)
         return -1;
     }
 
-    Py_CLEAR(soself->s_format);
-    soself->s_format = o_format;
+    Py_SETREF(soself->s_format, o_format);
 
     ret = prepare_s(soself);
     return ret;
@@ -1457,7 +1456,7 @@ s_dealloc(PyStructObject *s)
 }
 
 static PyObject *
-s_unpack_internal(PyStructObject *soself, char *startfrom) {
+s_unpack_internal(PyStructObject *soself, const char *startfrom) {
     formatcode *code;
     Py_ssize_t i = 0;
     PyObject *result = PyTuple_New(soself->s_len);
@@ -1924,7 +1923,7 @@ s_sizeof(PyStructObject *self, void *unused)
     Py_ssize_t size;
     formatcode *code;
 
-    size = sizeof(PyStructObject) + sizeof(formatcode);
+    size = _PyObject_SIZE(Py_TYPE(self)) + sizeof(formatcode);
     for (code = self->s_codes; code->fmtdef != NULL; code++)
         size += sizeof(formatcode);
     return PyLong_FromSsize_t(size);
@@ -2280,7 +2279,7 @@ PyInit__struct(void)
 
     /* Check endian and swap in faster functions */
     {
-        formatdef *native = native_table;
+        const formatdef *native = native_table;
         formatdef *other, *ptr;
 #if PY_LITTLE_ENDIAN
         other = lilendian_table;

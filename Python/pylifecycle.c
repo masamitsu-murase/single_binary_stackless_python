@@ -811,7 +811,7 @@ Py_NewInterpreter(void)
 
         if (initstdio() < 0)
             Py_FatalError(
-            "Py_Initialize: can't initialize sys standard streams");
+                "Py_Initialize: can't initialize sys standard streams");
         initmain(interp);
         if (!Py_NoSiteFlag)
             initsite();
@@ -1019,8 +1019,8 @@ is_valid_fd(int fd)
 /* returns Py_None if the fd is not valid */
 static PyObject*
 create_stdio(PyObject* io,
-    int fd, int write_mode, char* name,
-    char* encoding, char* errors)
+    int fd, int write_mode, const char* name,
+    const char* encoding, const char* errors)
 {
     PyObject *buf = NULL, *stream = NULL, *text = NULL, *raw = NULL, *res;
     const char* mode;

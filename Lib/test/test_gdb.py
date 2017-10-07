@@ -75,6 +75,9 @@ def run_gdb(*args, **env_vars):
     if (gdb_major_version, gdb_minor_version) >= (7, 4):
         base_cmd += ('-iex', 'add-auto-load-safe-path ' + checkout_hook_path)
     proc = subprocess.Popen(base_cmd + args,
+                            # Redirect stdin to prevent GDB from messing with
+                            # the terminal settings
+                            stdin=subprocess.PIPE,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
                             env=env)
@@ -89,7 +92,6 @@ if not gdbpy_version:
 
 # Verify that "gdb" can load our custom hooks, as OS security settings may
 # disallow this without a customised .gdbinit.
-cmd = ['--args', sys.executable]
 _, gdbpy_errors = run_gdb('--args', sys.executable)
 if "auto-loading has been declined" in gdbpy_errors:
     msg = "gdb security settings prevent use of custom hooks: "
@@ -171,10 +173,10 @@ class DebuggerTests(unittest.TestCase):
         # print commands
 
         # Use "commands" to generate the arguments with which to invoke "gdb":
-        args = ["gdb", "--batch", "-nx"]
-        args += ['--eval-command=%s' % cmd for cmd in commands]
+        args = ['--eval-command=%s' % cmd for cmd in commands]
         args += ["--args",
                  sys.executable]
+        args.extend(subprocess._args_from_interpreter_flags())
 
         if not import_site:
             # -S suppresses the default 'import site'
@@ -300,7 +302,9 @@ class PrettyPrintTests(DebuggerTests):
         'Verify the pretty-printing of dictionaries'
         self.assertGdbRepr({})
         self.assertGdbRepr({'foo': 'bar'}, "{'foo': 'bar'}")
-        self.assertGdbRepr({'foo': 'bar', 'douglas': 42}, "{'douglas': 42, 'foo': 'bar'}")
+        # PYTHONHASHSEED is need to get the exact item order
+        if not sys.flags.ignore_environment:
+            self.assertGdbRepr({'foo': 'bar', 'douglas': 42}, "{'douglas': 42, 'foo': 'bar'}")
 
     def test_lists(self):
         'Verify the pretty-printing of lists'
@@ -363,9 +367,12 @@ class PrettyPrintTests(DebuggerTests):
         'Verify the pretty-printing of sets'
         if (gdb_major_version, gdb_minor_version) < (7, 3):
             self.skipTest("pretty-printing of sets needs gdb 7.3 or later")
-        self.assertGdbRepr(set(), 'set()')
-        self.assertGdbRepr(set(['a', 'b']), "{'a', 'b'}")
-        self.assertGdbRepr(set([4, 5, 6]), "{4, 5, 6}")
+        self.assertGdbRepr(set(), "set()")
+        self.assertGdbRepr(set(['a']), "{'a'}")
+        # PYTHONHASHSEED is need to get the exact frozenset item order
+        if not sys.flags.ignore_environment:
+            self.assertGdbRepr(set(['a', 'b']), "{'a', 'b'}")
+            self.assertGdbRepr(set([4, 5, 6]), "{4, 5, 6}")
 
         # Ensure that we handle sets containing the "dummy" key value,
         # which happens on deletion:
@@ -378,9 +385,12 @@ id(s)''')
         'Verify the pretty-printing of frozensets'
         if (gdb_major_version, gdb_minor_version) < (7, 3):
             self.skipTest("pretty-printing of frozensets needs gdb 7.3 or later")
-        self.assertGdbRepr(frozenset(), 'frozenset()')
-        self.assertGdbRepr(frozenset(['a', 'b']), "frozenset({'a', 'b'})")
-        self.assertGdbRepr(frozenset([4, 5, 6]), "frozenset({4, 5, 6})")
+        self.assertGdbRepr(frozenset(), "frozenset()")
+        self.assertGdbRepr(frozenset(['a']), "frozenset({'a'})")
+        # PYTHONHASHSEED is need to get the exact frozenset item order
+        if not sys.flags.ignore_environment:
+            self.assertGdbRepr(frozenset(['a', 'b']), "frozenset({'a', 'b'})")
+            self.assertGdbRepr(frozenset([4, 5, 6]), "frozenset({4, 5, 6})")
 
     def test_exceptions(self):
         # Test a RuntimeError
@@ -509,6 +519,10 @@ id(foo)''')
 
     def test_builtins_help(self):
         'Ensure that the new-style class _Helper in site.py can be handled'
+
+        if sys.flags.no_site:
+            self.skipTest("need site module, but -S option was used")
+
         # (this was the issue causing tracebacks in
         #  http://bugs.python.org/issue8032#msg100537 )
         gdb_repr, gdb_output = self.get_gdb_repr('id(__builtins__.help)', import_site=True)

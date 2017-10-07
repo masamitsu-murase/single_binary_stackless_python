@@ -53,7 +53,7 @@ typedef struct
 } compobject;
 
 static void
-zlib_error(z_stream zst, int err, char *msg)
+zlib_error(z_stream zst, int err, const char *msg)
 {
     const char *zmsg = Z_NULL;
     /* In case of a version mismatch, zst.msg won't be initialized.
@@ -667,8 +667,7 @@ save_unconsumed_input(compobject *self, int err)
                       PyBytes_AS_STRING(self->unused_data), old_size);
             Py_MEMCPY(PyBytes_AS_STRING(new_data) + old_size,
                       self->zst.next_in, self->zst.avail_in);
-            Py_DECREF(self->unused_data);
-            self->unused_data = new_data;
+            Py_SETREF(self->unused_data, new_data);
             self->zst.avail_in = 0;
         }
     }
@@ -680,8 +679,7 @@ save_unconsumed_input(compobject *self, int err)
                 (char *)self->zst.next_in, self->zst.avail_in);
         if (new_data == NULL)
             return -1;
-        Py_DECREF(self->unconsumed_tail);
-        self->unconsumed_tail = new_data;
+        Py_SETREF(self->unconsumed_tail, new_data);
     }
     return 0;
 }
@@ -963,14 +961,11 @@ zlib_Compress_copy_impl(compobject *self)
         goto error;
     }
     Py_INCREF(self->unused_data);
+    Py_SETREF(retval->unused_data, self->unused_data);
     Py_INCREF(self->unconsumed_tail);
+    Py_SETREF(retval->unconsumed_tail, self->unconsumed_tail);
     Py_XINCREF(self->zdict);
-    Py_XDECREF(retval->unused_data);
-    Py_XDECREF(retval->unconsumed_tail);
-    Py_XDECREF(retval->zdict);
-    retval->unused_data = self->unused_data;
-    retval->unconsumed_tail = self->unconsumed_tail;
-    retval->zdict = self->zdict;
+    Py_SETREF(retval->zdict, self->zdict);
     retval->eof = self->eof;
 
     /* Mark it as being initialized */
@@ -1022,14 +1017,11 @@ zlib_Decompress_copy_impl(compobject *self)
     }
 
     Py_INCREF(self->unused_data);
+    Py_SETREF(retval->unused_data, self->unused_data);
     Py_INCREF(self->unconsumed_tail);
+    Py_SETREF(retval->unconsumed_tail, self->unconsumed_tail);
     Py_XINCREF(self->zdict);
-    Py_XDECREF(retval->unused_data);
-    Py_XDECREF(retval->unconsumed_tail);
-    Py_XDECREF(retval->zdict);
-    retval->unused_data = self->unused_data;
-    retval->unconsumed_tail = self->unconsumed_tail;
-    retval->zdict = self->zdict;
+    Py_SETREF(retval->zdict, self->zdict);
     retval->eof = self->eof;
 
     /* Mark it as being initialized */

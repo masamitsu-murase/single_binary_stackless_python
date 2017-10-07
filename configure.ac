@@ -610,6 +610,22 @@ AC_ARG_WITH(gcc,
 	esac])
 AC_MSG_RESULT($without_gcc)
 
+AC_MSG_CHECKING(for --with-icc)
+AC_ARG_WITH(icc,
+            AS_HELP_STRING([--with-icc], [build with icc]),
+[
+	case $withval in
+	no)	CC=${CC:-cc}
+		with_icc=no;;
+	yes)	CC=icc
+		CXX=icpc
+		with_icc=yes;;
+	*)	CC=$withval
+		with_icc=$withval;;
+	esac], [
+	with_icc=no])
+AC_MSG_RESULT($with_icc)
+
 # If the user switches compilers, we can't believe the cache
 if test ! -z "$ac_cv_prog_CC" -a ! -z "$CC" -a "$CC" != "$ac_cv_prog_CC"
 then
@@ -716,6 +732,7 @@ then
         gcc)    AC_PATH_TOOL(CXX, [g++], [g++], [notfound]) ;;
         cc)     AC_PATH_TOOL(CXX, [c++], [c++], [notfound]) ;;
         clang|*/clang)     AC_PATH_TOOL(CXX, [clang++], [clang++], [notfound]) ;;
+        icc|*/icc)         AC_PATH_TOOL(CXX, [icpc], [icpc], [notfound]) ;;
         esac
 	if test "$CXX" = "notfound"
 	then
@@ -1276,6 +1293,12 @@ case $CC in
         ;;
     esac
     ;;
+  *icc*)
+    PGO_PROF_GEN_FLAG="-prof-gen"
+    PGO_PROF_USE_FLAG="-prof-use"
+    LLVM_PROF_MERGER="true"
+    LLVM_PROF_FILE=""
+    ;;
 esac
 
 # XXX Shouldn't the code above that fiddles with BASECFLAGS and OPT be
@@ -1387,6 +1410,13 @@ yes)
       BASECFLAGS="$BASECFLAGS -fno-strict-aliasing"
     fi
 
+    # ICC doesn't recognize the option, but only emits a warning
+    ## XXX does it emit an unused result warning and can it be disabled?
+    case "$CC" in
+    *icc*)
+    ac_cv_disable_unused_result_warning=no
+    ;;
+    *)
     AC_MSG_CHECKING(if we can turn off $CC unused result warning)
      ac_save_cc="$CC"
      CC="$CC -Wunused-result -Werror"
@@ -1403,6 +1433,8 @@ yes)
      CFLAGS="$save_CFLAGS"
      CC="$ac_save_cc"
     AC_MSG_RESULT($ac_cv_disable_unused_result_warning)
+    ;;
+    esac
 
     if test $ac_cv_disable_unused_result_warning = yes
     then
@@ -1623,6 +1655,13 @@ yes)
 	BASECFLAGS="$BASECFLAGS -belf -Ki486 -DSCO5"
 	;;
     esac
+    ;;
+esac
+
+# ICC needs -fp-model strict or floats behave badly
+case "$CC" in
+*icc*)
+    CFLAGS_NODIST="$CFLAGS_NODIST -fp-model strict"
     ;;
 esac
 

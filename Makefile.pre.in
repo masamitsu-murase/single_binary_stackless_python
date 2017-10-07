@@ -1151,6 +1151,10 @@ altbininstall: $(BUILDPYTHON) @FRAMEWORKPYTHONW@
 	fi
 
 bininstall: altbininstall
+	if test ! -d $(DESTDIR)$(LIBPC); then \
+		echo "Creating directory $(LIBPC)"; \
+		$(INSTALL) -d -m $(DIRMODE) $(DESTDIR)$(LIBPC); \
+	fi
 	-if test -f $(DESTDIR)$(BINDIR)/python3$(EXE) -o -h $(DESTDIR)$(BINDIR)/python3$(EXE); \
 	then rm -f $(DESTDIR)$(BINDIR)/python3$(EXE); \
 	else true; \
@@ -1643,6 +1647,7 @@ clean: pycremoval
 profile-removal:
 	find . -name '*.gc??' -exec rm -f {} ';'
 	find . -name '*.profclang?' -exec rm -f {} ';'
+	find . -name '*.dyn' -exec rm -f {} ';'
 	rm -f $(COVERAGE_INFO)
 	rm -rf $(COVERAGE_REPORT)
 

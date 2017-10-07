@@ -9,8 +9,6 @@
 
 /* collections module implementation of a deque() datatype
    Written and maintained by Raymond D. Hettinger <python@rcn.com>
-   Copyright (c) 2004-2015 Python Software Foundation.
-   All rights reserved.
 */
 
 /* The block length may be set to any number over 1.  Larger numbers
@@ -1222,7 +1220,6 @@ deque_del_item(dequeobject *deque, Py_ssize_t i)
 static int
 deque_ass_item(dequeobject *deque, Py_ssize_t i, PyObject *v)
 {
-    PyObject *old_value;
     block *b;
     Py_ssize_t n, len=Py_SIZE(deque), halflen=(len+1)>>1, index=i;
 
@@ -1249,9 +1246,7 @@ deque_ass_item(dequeobject *deque, Py_ssize_t i, PyObject *v)
             b = b->leftlink;
     }
     Py_INCREF(v);
-    old_value = b->data[i];
-    b->data[i] = v;
-    Py_DECREF(old_value);
+    Py_SETREF(b->data[i], v);
     return 0;
 }
 
@@ -1476,7 +1471,7 @@ deque_sizeof(dequeobject *deque, void *unused)
     Py_ssize_t res;
     Py_ssize_t blocks;
 
-    res = sizeof(dequeobject);
+    res = _PyObject_SIZE(Py_TYPE(deque));
     blocks = (size_t)(deque->leftindex + Py_SIZE(deque) + BLOCKLEN - 1) / BLOCKLEN;
     assert(deque->leftindex + Py_SIZE(deque) - 1 ==
            (blocks - 1) * BLOCKLEN + deque->rightindex);

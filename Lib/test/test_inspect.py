@@ -30,6 +30,7 @@ from test.support import MISSING_C_DOCSTRINGS, cpython_only
 from test.support.script_helper import assert_python_ok, assert_python_failure
 from test import inspect_fodder as mod
 from test import inspect_fodder2 as mod2
+from test import support
 
 from test.test_import import _ready_to_import
 
@@ -628,6 +629,18 @@ class TestClassesAndFunctions(unittest.TestCase):
         got = inspect.getmro(D)
         self.assertEqual(expected, got)
 
+    def assertArgSpecEquals(self, routine, args_e, varargs_e=None,
+                            varkw_e=None, defaults_e=None, formatted=None):
+        with self.assertWarns(DeprecationWarning):
+            args, varargs, varkw, defaults = inspect.getargspec(routine)
+        self.assertEqual(args, args_e)
+        self.assertEqual(varargs, varargs_e)
+        self.assertEqual(varkw, varkw_e)
+        self.assertEqual(defaults, defaults_e)
+        if formatted is not None:
+            self.assertEqual(inspect.formatargspec(args, varargs, varkw, defaults),
+                             formatted)
+
     def assertFullArgSpecEquals(self, routine, args_e, varargs_e=None,
                                     varkw_e=None, defaults_e=None,
                                     kwonlyargs_e=[], kwonlydefaults_e=None,
@@ -646,6 +659,23 @@ class TestClassesAndFunctions(unittest.TestCase):
                                                     kwonlyargs, kwonlydefaults, ann),
                              formatted)
 
+    def test_getargspec(self):
+        self.assertArgSpecEquals(mod.eggs, ['x', 'y'], formatted='(x, y)')
+
+        self.assertArgSpecEquals(mod.spam,
+                                 ['a', 'b', 'c', 'd', 'e', 'f'],
+                                 'g', 'h', (3, 4, 5),
+                                 '(a, b, c, d=3, e=4, f=5, *g, **h)')
+
+        self.assertRaises(ValueError, self.assertArgSpecEquals,
+                          mod2.keyworded, [])
+
+        self.assertRaises(ValueError, self.assertArgSpecEquals,
+                          mod2.annotated, [])
+        self.assertRaises(ValueError, self.assertArgSpecEquals,
+                          mod2.keyword_only_arg, [])
+
+
     def test_getfullargspec(self):
         self.assertFullArgSpecEquals(mod2.keyworded, [], varargs_e='arg1',
                                      kwonlyargs_e=['arg2'],
@@ -659,19 +689,20 @@ class TestClassesAndFunctions(unittest.TestCase):
                                      kwonlyargs_e=['arg'],
                                      formatted='(*, arg)')
 
-    def test_fullargspec_api_ignores_wrapped(self):
+    def test_argspec_api_ignores_wrapped(self):
         # Issue 20684: low level introspection API must ignore __wrapped__
         @functools.wraps(mod.spam)
         def ham(x, y):
             pass
         # Basic check
+        self.assertArgSpecEquals(ham, ['x', 'y'], formatted='(x, y)')
         self.assertFullArgSpecEquals(ham, ['x', 'y'], formatted='(x, y)')
         self.assertFullArgSpecEquals(functools.partial(ham),
                                      ['x', 'y'], formatted='(x, y)')
         # Other variants
         def check_method(f):
-            self.assertFullArgSpecEquals(f, ['self', 'x', 'y'],
-                                         formatted='(self, x, y)')
+            self.assertArgSpecEquals(f, ['self', 'x', 'y'],
+                                        formatted='(self, x, y)')
         class C:
             @functools.wraps(mod.spam)
             def ham(self, x, y):
@@ -749,11 +780,11 @@ class TestClassesAndFunctions(unittest.TestCase):
         with self.assertRaises(TypeError):
             inspect.getfullargspec(builtin)
 
-    def test_getfullargspec_method(self):
+    def test_getargspec_method(self):
         class A(object):
             def m(self):
                 pass
-        self.assertFullArgSpecEquals(A.m, ['self'])
+        self.assertArgSpecEquals(A.m, ['self'])
 
     def test_classify_newstyle(self):
         class A(object):
@@ -3506,14 +3537,14 @@ class TestMain(unittest.TestCase):
 
     def test_details(self):
         module = importlib.import_module('unittest')
-        rc, out, err = assert_python_ok('-m', 'inspect',
+        args = support.optim_args_from_interpreter_flags()
+        rc, out, err = assert_python_ok(*args, '-m', 'inspect',
                                         'unittest', '--details')
         output = out.decode()
         # Just a quick sanity check on the output
         self.assertIn(module.__name__, output)
         self.assertIn(module.__file__, output)
-        if not sys.flags.optimize:
-            self.assertIn(module.__cached__, output)
+        self.assertIn(module.__cached__, output)
         self.assertEqual(err, b'')
 
 

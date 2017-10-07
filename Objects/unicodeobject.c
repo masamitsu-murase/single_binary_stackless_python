@@ -272,7 +272,7 @@ raise_encode_exception(PyObject **exceptionObject,
                        const char *reason);
 
 /* Same for linebreaks */
-static unsigned char ascii_linebreak[] = {
+static const unsigned char ascii_linebreak[] = {
     0, 0, 0, 0, 0, 0, 0, 0,
 /*         0x000A, * LINE FEED */
 /*         0x000B, * LINE TABULATION */
@@ -1828,8 +1828,7 @@ unicode_resize(PyObject **p_unicode, Py_ssize_t length)
         _Py_INCREF_UNICODE_EMPTY();
         if (!unicode_empty)
             return -1;
-        Py_DECREF(*p_unicode);
-        *p_unicode = unicode_empty;
+        Py_SETREF(*p_unicode, unicode_empty);
         return 0;
     }
 
@@ -1837,8 +1836,7 @@ unicode_resize(PyObject **p_unicode, Py_ssize_t length)
         PyObject *copy = resize_copy(unicode, length);
         if (copy == NULL)
             return -1;
-        Py_DECREF(*p_unicode);
-        *p_unicode = copy;
+        Py_SETREF(*p_unicode, copy);
         return 0;
     }
 
@@ -4137,7 +4135,7 @@ unicode_decode_call_errorhandler_wchar(
     Py_ssize_t *endinpos, PyObject **exceptionObject, const char **inptr,
     PyObject **output, Py_ssize_t *outpos)
 {
-    static char *argparse = "O!n;decoding error handler must return (str, int) tuple";
+    static const char *argparse = "O!n;decoding error handler must return (str, int) tuple";
 
     PyObject *restuple = NULL;
     PyObject *repunicode = NULL;
@@ -4245,7 +4243,7 @@ unicode_decode_call_errorhandler_writer(
     Py_ssize_t *endinpos, PyObject **exceptionObject, const char **inptr,
     _PyUnicodeWriter *writer /* PyObject **output, Py_ssize_t *outpos */)
 {
-    static char *argparse = "O!n;decoding error handler must return (str, int) tuple";
+    static const char *argparse = "O!n;decoding error handler must return (str, int) tuple";
 
     PyObject *restuple = NULL;
     PyObject *repunicode = NULL;
@@ -6562,7 +6560,7 @@ unicode_encode_call_errorhandler(const char *errors,
                                  Py_ssize_t startpos, Py_ssize_t endpos,
                                  Py_ssize_t *newpos)
 {
-    static char *argparse = "On;encoding error handler must return (str/bytes, int) tuple";
+    static const char *argparse = "On;encoding error handler must return (str/bytes, int) tuple";
     Py_ssize_t len;
     PyObject *restuple;
     PyObject *resunicode;
@@ -6988,7 +6986,7 @@ PyUnicode_AsASCIIString(PyObject *unicode)
 #  define WC_ERR_INVALID_CHARS 0x0080
 #endif
 
-static char*
+static const char*
 code_page_name(UINT code_page, PyObject **obj)
 {
     *obj = NULL;
@@ -7096,7 +7094,7 @@ decode_code_page_errors(UINT code_page,
     PyObject *errorHandler = NULL;
     PyObject *exc = NULL;
     PyObject *encoding_obj = NULL;
-    char *encoding;
+    const char *encoding;
     DWORD err;
     int ret = -1;
 
@@ -7332,7 +7330,6 @@ encode_code_page_strict(UINT code_page, PyObject **outbytes,
     BOOL usedDefaultChar = FALSE;
     BOOL *pusedDefaultChar = &usedDefaultChar;
     int outsize;
-    PyObject *exc = NULL;
     wchar_t *p;
     Py_ssize_t size;
     const DWORD flags = encode_code_page_flags(code_page, NULL);
@@ -7441,7 +7438,7 @@ encode_code_page_errors(UINT code_page, PyObject **outbytes,
     PyObject *errorHandler = NULL;
     PyObject *exc = NULL;
     PyObject *encoding_obj = NULL;
-    char *encoding;
+    const char *encoding;
     Py_ssize_t newpos, newoutsize;
     PyObject *rep;
     int ret = -1;
@@ -8575,7 +8572,7 @@ unicode_translate_call_errorhandler(const char *errors,
                                     Py_ssize_t startpos, Py_ssize_t endpos,
                                     Py_ssize_t *newpos)
 {
-    static char *argparse = "O!n;translating error handler must return (str, int) tuple";
+    static const char *argparse = "O!n;translating error handler must return (str, int) tuple";
 
     Py_ssize_t i_newpos;
     PyObject *restuple;
@@ -12159,7 +12156,7 @@ unicode_lower(PyObject *self)
 #define BOTHSTRIP 2
 
 /* Arrays indexed by above */
-static const char *stripformat[] = {"|O:lstrip", "|O:rstrip", "|O:strip"};
+static const char * const stripformat[] = {"|O:lstrip", "|O:rstrip", "|O:strip"};
 
 #define STRIPNAME(i) (stripformat[i]+3)
 
@@ -13544,8 +13541,7 @@ _PyUnicodeWriter_PrepareInternal(_PyUnicodeWriter *writer,
             return -1;
         _PyUnicode_FastCopyCharacters(newbuffer, 0,
                                       writer->buffer, 0, writer->pos);
-        Py_DECREF(writer->buffer);
-        writer->buffer = newbuffer;
+        Py_SETREF(writer->buffer, newbuffer);
     }
     _PyUnicodeWriter_Update(writer);
     return 0;
@@ -14447,8 +14443,8 @@ unicode_format_arg_parse(struct unicode_formatter_t *ctx,
         if (key == NULL)
             return -1;
         if (ctx->args_owned) {
-            Py_DECREF(ctx->args);
             ctx->args_owned = 0;
+            Py_DECREF(ctx->args);
         }
         ctx->args = PyObject_GetItem(ctx->dict, key);
         Py_DECREF(key);
@@ -15262,8 +15258,7 @@ PyUnicode_InternInPlace(PyObject **p)
 
     if (t) {
         Py_INCREF(t);
-        Py_DECREF(*p);
-        *p = t;
+        Py_SETREF(*p, t);
         return;
     }
 

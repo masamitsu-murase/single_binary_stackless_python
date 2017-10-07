@@ -870,7 +870,7 @@ get_operator(const node *n)
     }
 }
 
-static const char* FORBIDDEN[] = {
+static const char * const FORBIDDEN[] = {
     "None",
     "True",
     "False",
@@ -887,7 +887,7 @@ forbidden_name(struct compiling *c, identifier name, const node *n,
         return 1;
     }
     if (full_checks) {
-        const char **p;
+        const char * const *p;
         for (p = FORBIDDEN; *p; p++) {
             if (PyUnicode_CompareWithASCIIString(name, *p) == 0) {
                 ast_error(c, n, "assignment to keyword");
@@ -3214,14 +3214,14 @@ ast_for_import_stmt(struct compiling *c, const node *n)
             alias_ty import_alias = alias_for_import_name(c, n, 1);
             if (!import_alias)
                 return NULL;
-                asdl_seq_SET(aliases, 0, import_alias);
+            asdl_seq_SET(aliases, 0, import_alias);
         }
         else {
             for (i = 0; i < NCH(n); i += 2) {
                 alias_ty import_alias = alias_for_import_name(c, CHILD(n, i), 1);
                 if (!import_alias)
                     return NULL;
-                    asdl_seq_SET(aliases, i / 2, import_alias);
+                asdl_seq_SET(aliases, i / 2, import_alias);
             }
         }
         if (mod != NULL)
@@ -4496,8 +4496,7 @@ fstring_find_literal_and_expr(PyObject *str, Py_ssize_t *ofs, int recurse_lvl,
     return 0;
 
 error:
-    Py_XDECREF(*literal);
-    *literal = NULL;
+    Py_CLEAR(*literal);
     return -1;
 }
 
@@ -4692,11 +4691,8 @@ FstringParser_ConcatAndDel(FstringParser *state, PyObject *str)
         state->last_str = str;
     } else {
         /* Concatenate this with the previous string. */
-        PyObject *temp = PyUnicode_Concat(state->last_str, str);
-        Py_DECREF(state->last_str);
-        Py_DECREF(str);
-        state->last_str = temp;
-        if (!temp)
+        PyUnicode_AppendAndDel(&state->last_str, str);
+        if (!state->last_str)
             return -1;
     }
     FstringParser_check_invariants(state);

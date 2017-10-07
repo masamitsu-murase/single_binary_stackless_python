@@ -118,7 +118,7 @@ and produce a report.
 
 The :meth:`~TestCase.setUp` and :meth:`~TestCase.tearDown` methods allow you
 to define instructions that will be executed before and after each test method.
-They are covered in more details in the section :ref:`organizing-tests`.
+They are covered in more detail in the section :ref:`organizing-tests`.
 
 The final block shows a simple way to run the tests. :func:`unittest.main`
 provides a command-line interface to the test script.  When run from the command
@@ -762,8 +762,9 @@ Test cases
 
    .. _assert-methods:
 
-   The :class:`TestCase` class provides a number of methods to check for and
-   report failures, such as:
+   The :class:`TestCase` class provides several assert methods to check for and
+   report failures.  The following table lists the most commonly used methods
+   (see the tables below for more assert methods):
 
    +-----------------------------------------+-----------------------------+---------------+
    | Method                                  | Checks that                 | New in        |
@@ -884,7 +885,7 @@ Test cases
 
 
 
-   It is also possible to check the production of exceptions, warnings and
+   It is also possible to check the production of exceptions, warnings, and
    log messages using the following methods:
 
    +---------------------------------------------------------+--------------------------------------+------------+

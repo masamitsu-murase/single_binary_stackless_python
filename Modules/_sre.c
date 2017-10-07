@@ -35,7 +35,7 @@
  * other compatibility work.
  */
 
-static char copyright[] =
+static const char copyright[] =
     " SRE 2.2.2 Copyright (c) 1997-2002 by Secret Labs AB ";
 
 #define PY_SSIZE_T_CLEAN
@@ -714,7 +714,7 @@ _sre_SRE_Pattern_search_impl(PatternObject *self, PyObject *string,
 }
 
 static PyObject*
-call(char* module, char* function, PyObject* args)
+call(const char* module, const char* function, PyObject* args)
 {
     PyObject* name;
     PyObject* mod;
@@ -753,8 +753,7 @@ deepcopy(PyObject** object, PyObject* memo)
     if (!copy)
         return 0;
 
-    Py_DECREF(*object);
-    *object = copy;
+    Py_SETREF(*object, copy);
 
     return 1; /* success */
 }

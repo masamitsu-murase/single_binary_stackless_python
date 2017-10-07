@@ -320,7 +320,7 @@ PyImport_GetModuleDict(void)
 
 
 /* List of names to clear in sys */
-static char* sys_deletes[] = {
+static const char * const sys_deletes[] = {
     "path", "argv", "ps1", "ps2",
     "last_type", "last_value", "last_traceback",
     "path_hooks", "path_importer_cache", "meta_path",
@@ -330,7 +330,7 @@ static char* sys_deletes[] = {
     NULL
 };
 
-static char* sys_files[] = {
+static const char * const sys_files[] = {
     "stdin", "__stdin__",
     "stdout", "__stdout__",
     "stderr", "__stderr__",
@@ -347,7 +347,7 @@ PyImport_Cleanup(void)
     PyInterpreterState *interp = PyThreadState_GET()->interp;
     PyObject *modules = interp->modules;
     PyObject *weaklist = NULL;
-    char **p;
+    const char * const *p;
 
     if (modules == NULL)
         return; /* Already done */
@@ -879,10 +879,8 @@ update_code_filenames(PyCodeObject *co, PyObject *oldname, PyObject *newname)
     if (PyUnicode_Compare(co->co_filename, oldname))
         return;
 
-    tmp = co->co_filename;
-    co->co_filename = newname;
-    Py_INCREF(co->co_filename);
-    Py_DECREF(tmp);
+    Py_INCREF(newname);
+    Py_SETREF(co->co_filename, newname);
 
     constants = co->co_consts;
     n = PyTuple_GET_SIZE(constants);
@@ -1327,10 +1325,8 @@ remove_importlib_frames(void)
             (always_trim ||
              PyUnicode_CompareWithASCIIString(code->co_name,
                                               remove_frames) == 0)) {
-            PyObject *tmp = *outer_link;
-            *outer_link = next;
             Py_XINCREF(next);
-            Py_DECREF(tmp);
+            Py_SETREF(*outer_link, next);
             prev_link = outer_link;
         }
         else {
@@ -1363,6 +1359,7 @@ PyImport_ImportModuleLevelObject(PyObject *name, PyObject *given_globals,
     PyObject *final_mod = NULL;
     PyObject *mod = NULL;
     PyObject *package = NULL;
+    PyObject *spec = NULL;
     PyObject *globals = NULL;
     PyObject *fromlist = NULL;
     PyInterpreterState *interp = PyThreadState_GET()->interp;
@@ -1418,39 +1415,60 @@ PyImport_ImportModuleLevelObject(PyObject *name, PyObject *given_globals,
         goto error;
     }
     else if (level > 0) {
-        package = _PyDict_GetItemId(globals, &PyId___package__);
+        spec = _PyDict_GetItemId(globals, &PyId___spec__);
+        if (spec != NULL) {
+            package = PyObject_GetAttrString(spec, "parent");
+        }
         if (package != NULL && package != Py_None) {
-            Py_INCREF(package);
             if (!PyUnicode_Check(package)) {
-                PyErr_SetString(PyExc_TypeError, "package must be a string");
+                PyErr_SetString(PyExc_TypeError,
+                        "__spec__.parent must be a string");
                 goto error;
             }
         }
         else {
-            package = _PyDict_GetItemId(globals, &PyId___name__);
-            if (package == NULL) {
-                PyErr_SetString(PyExc_KeyError, "'__name__' not in globals");
-                goto error;
-            }
-            else if (!PyUnicode_Check(package)) {
-                PyErr_SetString(PyExc_TypeError, "__name__ must be a string");
-            }
-            Py_INCREF(package);
-
-            if (_PyDict_GetItemId(globals, &PyId___path__) == NULL) {
-                PyObject *partition = NULL;
-                PyObject *borrowed_dot = _PyUnicode_FromId(&single_dot);
-                if (borrowed_dot == NULL) {
-                    goto error;
-                }
-                partition = PyUnicode_RPartition(package, borrowed_dot);
-                Py_DECREF(package);
-                if (partition == NULL) {
-                    goto error;
-                }
-                package = PyTuple_GET_ITEM(partition, 0);
+            package = _PyDict_GetItemId(globals, &PyId___package__);
+            if (package != NULL && package != Py_None) {
                 Py_INCREF(package);
-                Py_DECREF(partition);
+                if (!PyUnicode_Check(package)) {
+                    PyErr_SetString(PyExc_TypeError, "package must be a string");
+                    goto error;
+                }
+            }
+            else {
+                if (PyErr_WarnEx(PyExc_ImportWarning,
+                            "can't resolve package from __spec__ or __package__, "
+                            "falling back on __name__ and __path__", 1) < 0) {
+                    goto error;
+                }
+
+                package = _PyDict_GetItemId(globals, &PyId___name__);
+                if (package == NULL) {
+                    PyErr_SetString(PyExc_KeyError, "'__name__' not in globals");
+                    goto error;
+                }
+
+                Py_INCREF(package);
+                if (!PyUnicode_Check(package)) {
+                    PyErr_SetString(PyExc_TypeError, "__name__ must be a string");
+                    goto error;
+                }
+
+                if (_PyDict_GetItemId(globals, &PyId___path__) == NULL) {
+                    PyObject *partition = NULL;
+                    PyObject *borrowed_dot = _PyUnicode_FromId(&single_dot);
+                    if (borrowed_dot == NULL) {
+                        goto error;
+                    }
+                    partition = PyUnicode_RPartition(package, borrowed_dot);
+                    Py_DECREF(package);
+                    if (partition == NULL) {
+                        goto error;
+                    }
+                    package = PyTuple_GET_ITEM(partition, 0);
+                    Py_INCREF(package);
+                    Py_DECREF(partition);
+                }
             }
         }
 

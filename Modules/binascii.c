@@ -74,7 +74,7 @@ static PyObject *Incomplete;
 #define SKIP 0x7E
 #define FAIL 0x7D
 
-static unsigned char table_a2b_hqx[256] = {
+static const unsigned char table_a2b_hqx[256] = {
 /*       ^@    ^A    ^B    ^C    ^D    ^E    ^F    ^G   */
 /* 0*/  FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL,
 /*       \b    \t    \n    ^K    ^L    \r    ^N    ^O   */
@@ -125,10 +125,10 @@ static unsigned char table_a2b_hqx[256] = {
     FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL,
 };
 
-static unsigned char table_b2a_hqx[] =
+static const unsigned char table_b2a_hqx[] =
 "!\"#$%&'()*+,-012345689@ABCDEFGHIJKLMNPQRSTUVXYZ[`abcdefhijklmpqr";
 
-static char table_a2b_base64[] = {
+static const char table_a2b_base64[] = {
     -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
     -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
     -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,62, -1,-1,-1,63,
@@ -144,12 +144,12 @@ static char table_a2b_base64[] = {
 /* Max binary chunk size; limited only by available memory */
 #define BASE64_MAXBIN ((PY_SSIZE_T_MAX - 3) / 2)
 
-static unsigned char table_b2a_base64[] =
+static const unsigned char table_b2a_base64[] =
 "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 
 
-static unsigned short crctab_hqx[256] = {
+static const unsigned short crctab_hqx[256] = {
     0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7,
     0x8108, 0x9129, 0xa14a, 0xb16b, 0xc18c, 0xd1ad, 0xe1ce, 0xf1ef,
     0x1231, 0x0210, 0x3273, 0x2252, 0x52b5, 0x4294, 0x72f7, 0x62d6,
@@ -256,7 +256,8 @@ static PyObject *
 binascii_a2b_uu_impl(PyModuleDef *module, Py_buffer *data)
 /*[clinic end generated code: output=5779f39b0b48459f input=7cafeaf73df63d1c]*/
 {
-    unsigned char *ascii_data, *bin_data;
+    const unsigned char *ascii_data;
+    unsigned char *bin_data;
     int leftbits = 0;
     unsigned char this_ch;
     unsigned int leftchar = 0;
@@ -342,7 +343,8 @@ static PyObject *
 binascii_b2a_uu_impl(PyModuleDef *module, Py_buffer *data)
 /*[clinic end generated code: output=181021b69bb9a414 input=00fdf458ce8b465b]*/
 {
-    unsigned char *ascii_data, *bin_data;
+    unsigned char *ascii_data;
+    const unsigned char *bin_data;
     int leftbits = 0;
     unsigned char this_ch;
     unsigned int leftchar = 0;
@@ -389,7 +391,7 @@ binascii_b2a_uu_impl(PyModuleDef *module, Py_buffer *data)
 
 
 static int
-binascii_find_valid(unsigned char *s, Py_ssize_t slen, int num)
+binascii_find_valid(const unsigned char *s, Py_ssize_t slen, int num)
 {
     /* Finds & returns the (num+1)th
     ** valid character for base64, or -1 if none.
@@ -426,7 +428,8 @@ static PyObject *
 binascii_a2b_base64_impl(PyModuleDef *module, Py_buffer *data)
 /*[clinic end generated code: output=3e351b702bed56d2 input=5872acf6e1cac243]*/
 {
-    unsigned char *ascii_data, *bin_data;
+    const unsigned char *ascii_data;
+    unsigned char *bin_data;
     int leftbits = 0;
     unsigned char this_ch;
     unsigned int leftchar = 0;
@@ -522,7 +525,8 @@ static PyObject *
 binascii_b2a_base64_impl(PyModuleDef *module, Py_buffer *data, int newline)
 /*[clinic end generated code: output=19e1dd719a890b50 input=7b2ea6fa38d8924c]*/
 {
-    unsigned char *ascii_data, *bin_data;
+    unsigned char *ascii_data;
+    const unsigned char *bin_data;
     int leftbits = 0;
     unsigned char this_ch;
     unsigned int leftchar = 0;
@@ -589,7 +593,8 @@ static PyObject *
 binascii_a2b_hqx_impl(PyModuleDef *module, Py_buffer *data)
 /*[clinic end generated code: output=60bcdbbd28b105cd input=0d914c680e0eed55]*/
 {
-    unsigned char *ascii_data, *bin_data;
+    const unsigned char *ascii_data;
+    unsigned char *bin_data;
     int leftbits = 0;
     unsigned char this_ch;
     unsigned int leftchar = 0;
@@ -667,7 +672,8 @@ static PyObject *
 binascii_rlecode_hqx_impl(PyModuleDef *module, Py_buffer *data)
 /*[clinic end generated code: output=0905da344dbf0648 input=e1f1712447a82b09]*/
 {
-    unsigned char *in_data, *out_data;
+    const unsigned char *in_data;
+    unsigned char *out_data;
     unsigned char ch;
     Py_ssize_t in, inend, len;
     _PyBytesWriter writer;
@@ -728,7 +734,8 @@ static PyObject *
 binascii_b2a_hqx_impl(PyModuleDef *module, Py_buffer *data)
 /*[clinic end generated code: output=5a987810d5e3cdbb input=9596ebe019fe12ba]*/
 {
-    unsigned char *ascii_data, *bin_data;
+    unsigned char *ascii_data;
+    const unsigned char *bin_data;
     int leftbits = 0;
     unsigned char this_ch;
     unsigned int leftchar = 0;
@@ -782,7 +789,8 @@ static PyObject *
 binascii_rledecode_hqx_impl(PyModuleDef *module, Py_buffer *data)
 /*[clinic end generated code: output=f7afd89b789946ab input=54cdd49fc014402c]*/
 {
-    unsigned char *in_data, *out_data;
+    const unsigned char *in_data;
+    unsigned char *out_data;
     unsigned char in_byte, in_repeat;
     Py_ssize_t in_len;
     _PyBytesWriter writer;
@@ -899,7 +907,7 @@ static unsigned int
 binascii_crc_hqx_impl(PyModuleDef *module, Py_buffer *data, unsigned int crc)
 /*[clinic end generated code: output=167c2dac62625717 input=add8c53712ccceda]*/
 {
-    unsigned char *bin_data;
+    const unsigned char *bin_data;
     Py_ssize_t len;
 
     crc &= 0xffff;
@@ -977,7 +985,7 @@ binascii_crc_hqx_impl(PyModuleDef *module, Py_buffer *data, unsigned int crc)
      using byte-swap instructions.
 ********************************************************************/
 
-static unsigned int crc_32_tab[256] = {
+static const unsigned int crc_32_tab[256] = {
 0x00000000U, 0x77073096U, 0xee0e612cU, 0x990951baU, 0x076dc419U,
 0x706af48fU, 0xe963a535U, 0x9e6495a3U, 0x0edb8832U, 0x79dcb8a4U,
 0xe0d5e91eU, 0x97d2d988U, 0x09b64c2bU, 0x7eb17cbdU, 0xe7b82d07U,
@@ -1050,7 +1058,7 @@ binascii_crc32_impl(PyModuleDef *module, Py_buffer *data, unsigned int crc)
 #ifdef USE_ZLIB_CRC32
 /* This was taken from zlibmodule.c PyZlib_crc32 (but is PY_SSIZE_T_CLEAN) */
 {
-    Byte *buf;
+    const Byte *buf;
     Py_ssize_t len;
     int signed_val;
 
@@ -1061,7 +1069,7 @@ binascii_crc32_impl(PyModuleDef *module, Py_buffer *data, unsigned int crc)
 }
 #else  /* USE_ZLIB_CRC32 */
 { /* By Jim Ahlstrom; All rights transferred to CNRI */
-    unsigned char *bin_data;
+    const unsigned char *bin_data;
     Py_ssize_t len;
     unsigned int result;
 
@@ -1144,7 +1152,7 @@ static PyObject *
 binascii_a2b_hex_impl(PyModuleDef *module, Py_buffer *hexstr)
 /*[clinic end generated code: output=d61da452b5c6d290 input=9e1e7f2f94db24fd]*/
 {
-    char* argbuf;
+    const char* argbuf;
     Py_ssize_t arglen;
     PyObject *retval;
     char* retbuf;
@@ -1201,7 +1209,7 @@ binascii_unhexlify_impl(PyModuleDef *module, Py_buffer *hexstr)
     return binascii_a2b_hex_impl(module, hexstr);
 }
 
-static int table_hex[128] = {
+static const int table_hex[128] = {
   -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
   -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
   -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
@@ -1232,7 +1240,8 @@ binascii_a2b_qp_impl(PyModuleDef *module, Py_buffer *data, int header)
 {
     Py_ssize_t in, out;
     char ch;
-    unsigned char *ascii_data, *odata;
+    const unsigned char *ascii_data;
+    unsigned char *odata;
     Py_ssize_t datalen = 0;
     PyObject *rv;
 
@@ -1338,13 +1347,14 @@ binascii_b2a_qp_impl(PyModuleDef *module, Py_buffer *data, int quotetabs,
 /*[clinic end generated code: output=a87ca9ccb94e2a9f input=7f2a9aaa008e92b2]*/
 {
     Py_ssize_t in, out;
-    unsigned char *databuf, *odata;
+    const unsigned char *databuf;
+    unsigned char *odata;
     Py_ssize_t datalen = 0, odatalen = 0;
     PyObject *rv;
     unsigned int linelen = 0;
     unsigned char ch;
     int crlf = 0;
-    unsigned char *p;
+    const unsigned char *p;
 
     databuf = data->buf;
     datalen = data->len;
@@ -1353,7 +1363,7 @@ binascii_b2a_qp_impl(PyModuleDef *module, Py_buffer *data, int quotetabs,
     /* XXX: this function has the side effect of converting all of
      * the end of lines to be the same depending on this detection
      * here */
-    p = (unsigned char *) memchr(databuf, '\n', datalen);
+    p = (const unsigned char *) memchr(databuf, '\n', datalen);
     if ((p != NULL) && (p > databuf) && (*(p-1) == '\r'))
         crlf = 1;
 

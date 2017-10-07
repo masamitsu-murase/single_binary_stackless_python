@@ -5,8 +5,6 @@
 
 /* Itertools module written and maintained
    by Raymond D. Hettinger <python@rcn.com>
-   Copyright (c) 2003-2015 Python Software Foundation.
-   All rights reserved.
 */
 
 
@@ -77,7 +75,7 @@ groupby_traverse(groupbyobject *gbo, visitproc visit, void *arg)
 static PyObject *
 groupby_next(groupbyobject *gbo)
 {
-    PyObject *newvalue, *newkey, *r, *grouper, *tmp;
+    PyObject *newvalue, *newkey, *r, *grouper;
 
     /* skip to next iteration group */
     for (;;) {
@@ -110,19 +108,12 @@ groupby_next(groupbyobject *gbo)
             }
         }
 
-        tmp = gbo->currkey;
-        gbo->currkey = newkey;
-        Py_XDECREF(tmp);
-
-        tmp = gbo->currvalue;
-        gbo->currvalue = newvalue;
-        Py_XDECREF(tmp);
+        Py_SETREF(gbo->currkey, newkey);
+        Py_SETREF(gbo->currvalue, newvalue);
     }
 
     Py_INCREF(gbo->currkey);
-    tmp = gbo->tgtkey;
-    gbo->tgtkey = gbo->currkey;
-    Py_XDECREF(tmp);
+    Py_SETREF(gbo->tgtkey, gbo->currkey);
 
     grouper = _grouper_create(gbo, gbo->tgtkey);
     if (grouper == NULL)
@@ -158,15 +149,12 @@ groupby_setstate(groupbyobject *lz, PyObject *state)
     PyObject *currkey, *currvalue, *tgtkey;
     if (!PyArg_ParseTuple(state, "OOO", &currkey, &currvalue, &tgtkey))
         return NULL;
-    Py_CLEAR(lz->currkey);
-    lz->currkey = currkey;
-    Py_INCREF(lz->currkey);
-    Py_CLEAR(lz->currvalue);
-    lz->currvalue = currvalue;
-    Py_INCREF(lz->currvalue);
-    Py_CLEAR(lz->tgtkey);
-    lz->tgtkey = tgtkey;
-    Py_INCREF(lz->tgtkey);
+    Py_INCREF(currkey);
+    Py_SETREF(lz->currkey, currkey);
+    Py_INCREF(currvalue);
+    Py_SETREF(lz->currvalue, currvalue);
+    Py_INCREF(tgtkey);
+    Py_SETREF(lz->tgtkey, tgtkey);
     Py_RETURN_NONE;
 }
 
@@ -634,8 +622,7 @@ tee_next(teeobject *to)
         link = teedataobject_jumplink(to->dataobj);
         if (link == NULL)
             return NULL;
-        Py_DECREF(to->dataobj);
-        to->dataobj = (teedataobject *)link;
+        Py_SETREF(to->dataobj, (teedataobject *)link);
         to->index = 0;
     }
     value = teedataobject_getitem(to->dataobj, to->index);
@@ -746,9 +733,8 @@ tee_setstate(teeobject *to, PyObject *state)
         PyErr_SetString(PyExc_ValueError, "Index out of range");
         return NULL;
     }
-    Py_CLEAR(to->dataobj);
-    to->dataobj = tdo;
-    Py_INCREF(to->dataobj);
+    Py_INCREF(tdo);
+    Py_SETREF(to->dataobj, tdo);
     to->index = index;
     Py_RETURN_NONE;
 }
@@ -989,8 +975,7 @@ cycle_setstate(cycleobject *lz, PyObject *state)
     if (!PyArg_ParseTuple(state, "O!i", &PyList_Type, &saved, &firstpass))
         return NULL;
     Py_INCREF(saved);
-    Py_CLEAR(lz->saved);
-    lz->saved = saved;
+    Py_SETREF(lz->saved, saved);
     lz->firstpass = firstpass != 0;
     lz->index = 0;
     Py_RETURN_NONE;
@@ -1921,12 +1906,10 @@ chain_setstate(chainobject *lz, PyObject *state)
     if (! PyArg_ParseTuple(state, "O|O", &source, &active))
         return NULL;
 
-    Py_CLEAR(lz->source);
-    lz->source = source;
-    Py_INCREF(lz->source);
-    Py_CLEAR(lz->active);
-    lz->active = active;
-    Py_XINCREF(lz->active);
+    Py_INCREF(source);
+    Py_SETREF(lz->source, source);
+    Py_XINCREF(active);
+    Py_SETREF(lz->active, active);
     Py_RETURN_NONE;
 }
 
@@ -2109,7 +2092,7 @@ product_sizeof(productobject *lz, void *unused)
 {
     Py_ssize_t res;
 
-    res = sizeof(productobject);
+    res = _PyObject_SIZE(Py_TYPE(lz));
     res += PyTuple_GET_SIZE(lz->pools) * sizeof(Py_ssize_t);
     return PyLong_FromSsize_t(res);
 }
@@ -2283,8 +2266,7 @@ product_setstate(productobject *lz, PyObject *state)
         Py_INCREF(element);
         PyTuple_SET_ITEM(result, i, element);
     }
-    Py_CLEAR(lz->result);
-    lz->result = result;
+    Py_SETREF(lz->result, result);
     Py_RETURN_NONE;
 }
 
@@ -2440,7 +2422,7 @@ combinations_sizeof(combinationsobject *co, void *unused)
 {
     Py_ssize_t res;
 
-    res = sizeof(combinationsobject);
+    res = _PyObject_SIZE(Py_TYPE(co));
     res += co->r * sizeof(Py_ssize_t);
     return PyLong_FromSsize_t(res);
 }
@@ -2605,8 +2587,7 @@ combinations_setstate(combinationsobject *lz, PyObject *state)
         PyTuple_SET_ITEM(result, i, element);
     }
 
-    Py_CLEAR(lz->result);
-    lz->result = result;
+    Py_SETREF(lz->result, result);
     Py_RETURN_NONE;
 }
 
@@ -2781,7 +2762,7 @@ cwr_sizeof(cwrobject *co, void *unused)
 {
     Py_ssize_t res;
 
-    res = sizeof(cwrobject);
+    res = _PyObject_SIZE(Py_TYPE(co));
     res += co->r * sizeof(Py_ssize_t);
     return PyLong_FromSsize_t(res);
 }
@@ -2936,8 +2917,7 @@ cwr_setstate(cwrobject *lz, PyObject *state)
         Py_INCREF(element);
         PyTuple_SET_ITEM(result, i, element);
     }
-    Py_CLEAR(lz->result);
-    lz->result = result;
+    Py_SETREF(lz->result, result);
     Py_RETURN_NONE;
 }
 
@@ -3129,7 +3109,7 @@ permutations_sizeof(permutationsobject *po, void *unused)
 {
     Py_ssize_t res;
 
-    res = sizeof(permutationsobject);
+    res = _PyObject_SIZE(Py_TYPE(po));
     res += PyTuple_GET_SIZE(po->pool) * sizeof(Py_ssize_t);
     res += po->r * sizeof(Py_ssize_t);
     return PyLong_FromSsize_t(res);
@@ -3325,8 +3305,7 @@ permutations_setstate(permutationsobject *po, PyObject *state)
         Py_INCREF(element);
         PyTuple_SET_ITEM(result, i, element);
     }
-    Py_CLEAR(po->result);
-    po->result = result;
+    Py_SETREF(po->result, result);
     Py_RETURN_NONE;
 }
 
@@ -3457,7 +3436,7 @@ accumulate_traverse(accumulateobject *lz, visitproc visit, void *arg)
 static PyObject *
 accumulate_next(accumulateobject *lz)
 {
-    PyObject *val, *oldtotal, *newtotal;
+    PyObject *val, *newtotal;
 
     val = (*Py_TYPE(lz->it)->tp_iternext)(lz->it);
     if (val == NULL)
@@ -3477,11 +3456,8 @@ accumulate_next(accumulateobject *lz)
     if (newtotal == NULL)
         return NULL;
 
-    oldtotal = lz->total;
-    lz->total = newtotal;
-    Py_DECREF(oldtotal);
-
     Py_INCREF(newtotal);
+    Py_SETREF(lz->total, newtotal);
     return newtotal;
 }
 
@@ -3496,9 +3472,8 @@ accumulate_reduce(accumulateobject *lz)
 static PyObject *
 accumulate_setstate(accumulateobject *lz, PyObject *state)
 {
-    Py_CLEAR(lz->total);
-    lz->total = state;
-    Py_INCREF(lz->total);
+    Py_INCREF(state);
+    Py_SETREF(lz->total, state);
     Py_RETURN_NONE;
 }
 
@@ -4476,9 +4451,8 @@ zip_longest_reduce(ziplongestobject *lz)
 static PyObject *
 zip_longest_setstate(ziplongestobject *lz, PyObject *state)
 {
-    Py_CLEAR(lz->fillvalue);
-    lz->fillvalue = state;
-    Py_INCREF(lz->fillvalue);
+    Py_INCREF(state);
+    Py_SETREF(lz->fillvalue, state);
     Py_RETURN_NONE;
 }
 

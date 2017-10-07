@@ -400,9 +400,8 @@ m_lgamma(double x)
    Implementations of the error function erf(x) and the complementary error
    function erfc(x).
 
-   Method: following 'Numerical Recipes' by Flannery, Press et. al. (2nd ed.,
-   Cambridge University Press), we use a series approximation for erf for
-   small x, and a continued fraction approximation for erfc(x) for larger x;
+   Method: we use a series approximation for erf for small x, and a continued
+   fraction approximation for erfc(x) for larger x;
    combined with the relations erf(-x) = -erf(x) and erfc(x) = 1.0 - erf(x),
    this gives us erf(x) and erfc(x) for all x.
 
@@ -876,7 +875,7 @@ math_1_to_int(PyObject *arg, double (*func) (double), int can_overflow)
 }
 
 static PyObject *
-math_2(PyObject *args, double (*func) (double, double), char *funcname)
+math_2(PyObject *args, double (*func) (double, double), const char *funcname)
 {
     PyObject *ox, *oy;
     double x, y, r;
@@ -1673,7 +1672,7 @@ PyDoc_STRVAR(math_modf_doc,
    in that int is larger than PY_SSIZE_T_MAX. */
 
 static PyObject*
-loghelper(PyObject* arg, double (*func)(double), char *funcname)
+loghelper(PyObject* arg, double (*func)(double), const char *funcname)
 {
     /* If it is int, do it ourselves. */
     if (PyLong_Check(arg)) {

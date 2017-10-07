@@ -820,7 +820,7 @@ class NonCallableMock(Base):
             if expected not in all_calls:
                 raise AssertionError(
                     'Calls not found.\nExpected: %r\n'
-                    'Actual: %r' % (calls, self.mock_calls)
+                    'Actual: %r' % (_CallList(calls), self.mock_calls)
                 ) from cause
             return
 
@@ -1332,7 +1332,10 @@ class _patch(object):
             setattr(self.target, self.attribute, self.temp_original)
         else:
             delattr(self.target, self.attribute)
-            if not self.create and not hasattr(self.target, self.attribute):
+            if not self.create and (not hasattr(self.target, self.attribute) or
+                        self.attribute in ('__doc__', '__module__',
+                                           '__defaults__', '__annotations__',
+                                           '__kwdefaults__')):
                 # needed for proxy objects like django settings
                 setattr(self.target, self.attribute, self.temp_original)
 

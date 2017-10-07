@@ -98,7 +98,7 @@ error(int rc, wchar_t * format, ... )
     MessageBox(NULL, message, TEXT("Python Launcher is sorry to say ..."),
                MB_OK);
 #endif
-    ExitProcess(rc);
+    exit(rc);
 }
 
 /*
@@ -114,7 +114,7 @@ static wchar_t * get_env(wchar_t * key)
     if (result >= BUFSIZE) {
         /* Large environment variable. Accept some leakage */
         wchar_t *buf2 = (wchar_t*)malloc(sizeof(wchar_t) * (result+1));
-        if (buf2 = NULL) {
+        if (buf2 == NULL) {
             error(RC_NO_MEMORY, L"Could not allocate environment buffer");
         }
         GetEnvironmentVariableW(key, buf2, result);
@@ -171,6 +171,9 @@ static wchar_t * location_checks[] = {
     L"\\",
     L"\\PCBuild\\win32\\",
     L"\\PCBuild\\amd64\\",
+    // To support early 32bit versions of Python that stuck the build binaries
+    // directly in PCBuild...
+    L"\\PCBuild\\",
     NULL
 };
 
@@ -652,7 +655,7 @@ run_child(wchar_t * cmdline)
     if (!ok)
         error(RC_CREATE_PROCESS, L"Failed to get exit code of process");
     debug(L"child process exit code: %d\n", rc);
-    ExitProcess(rc);
+    exit(rc);
 }
 
 static void
@@ -965,10 +968,12 @@ typedef struct {
  */
 static BOM BOMs[] = {
     { 3, { 0xEF, 0xBB, 0xBF }, CP_UTF8 },           /* UTF-8 - keep first */
-    { 2, { 0xFF, 0xFE }, CP_UTF16LE },              /* UTF-16LE */
-    { 2, { 0xFE, 0xFF }, CP_UTF16BE },              /* UTF-16BE */
+    /* Test UTF-32LE before UTF-16LE since UTF-16LE BOM is a prefix
+     * of UTF-32LE BOM. */
     { 4, { 0xFF, 0xFE, 0x00, 0x00 }, CP_UTF32LE },  /* UTF-32LE */
     { 4, { 0x00, 0x00, 0xFE, 0xFF }, CP_UTF32BE },  /* UTF-32BE */
+    { 2, { 0xFF, 0xFE }, CP_UTF16LE },              /* UTF-16LE */
+    { 2, { 0xFE, 0xFF }, CP_UTF16BE },              /* UTF-16BE */
     { 0 }                                           /* sentinel */
 };
 
@@ -1074,7 +1079,10 @@ static PYC_MAGIC magic_values[] = {
     { 0x0bb8, 0x0c3b, L"3.0" },
     { 0x0c45, 0x0c4f, L"3.1" },
     { 0x0c58, 0x0c6c, L"3.2" },
-    { 0x0c76, 0x0c76, L"3.3" },
+    { 0x0c76, 0x0c9e, L"3.3" },
+    { 0x0cb2, 0x0cee, L"3.4" },
+    { 0x0cf8, 0x0d16, L"3.5" },
+    { 0x0d20, 0x0d20, L"3.6" },
     { 0 }
 };
 
@@ -1106,7 +1114,7 @@ maybe_handle_shebang(wchar_t ** argv, wchar_t * cmdline)
  */
     FILE * fp;
     errno_t rc = _wfopen_s(&fp, *argv, L"rb");
-    unsigned char buffer[BUFSIZE];
+    char buffer[BUFSIZE];
     wchar_t shebang_line[BUFSIZE + 1];
     size_t read;
     char *p;
@@ -1128,7 +1136,8 @@ maybe_handle_shebang(wchar_t ** argv, wchar_t * cmdline)
         fclose(fp);
 
         if ((read >= 4) && (buffer[3] == '\n') && (buffer[2] == '\r')) {
-            ip = find_by_magic((buffer[1] << 8 | buffer[0]) & 0xFFFF);
+            ip = find_by_magic((((unsigned char)buffer[1]) << 8 |
+                                (unsigned char)buffer[0]) & 0xFFFF);
             if (ip != NULL) {
                 debug(L"script file is compiled against Python %ls\n",
                       ip->version);
@@ -1252,7 +1261,7 @@ path '%ls'", command);
                              * is no version specification.
                              */
                             debug(L"searching PATH for python executable\n");
-                            cmd = find_on_path(L"python");
+                            cmd = find_on_path(PYTHON_EXECUTABLE);
                             debug(L"Python on path: %ls\n", cmd ? cmd->value : L"<not found>");
                             if (cmd) {
                                 debug(L"located python on PATH: %ls\n", cmd->value);
@@ -1354,6 +1363,7 @@ process(int argc, wchar_t ** argv)
     wchar_t * av[2];
 #endif
 
+    setvbuf(stderr, (char *)NULL, _IONBF, 0);
     wp = get_env(L"PYLAUNCH_DEBUG");
     if ((wp != NULL) && (*wp != L'\0'))
         log_fp = stderr;

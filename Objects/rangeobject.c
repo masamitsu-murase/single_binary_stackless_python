@@ -1008,8 +1008,7 @@ longrangeiter_setstate(longrangeiterobject *r, PyObject *state)
         return NULL;
     cmp = PyObject_RichCompareBool(state, zero, Py_LT);
     if (cmp > 0) {
-        Py_CLEAR(r->index);
-        r->index = zero;
+        Py_SETREF(r->index, zero);
         Py_RETURN_NONE;
     }
     Py_DECREF(zero);
@@ -1022,9 +1021,8 @@ longrangeiter_setstate(longrangeiterobject *r, PyObject *state)
     if (cmp > 0)
         state = r->len;
 
-    Py_CLEAR(r->index);
-    r->index = state;
-    Py_INCREF(r->index);
+    Py_INCREF(state);
+    Py_SETREF(r->index, state);
     Py_RETURN_NONE;
 }
 
@@ -1073,8 +1071,7 @@ longrangeiter_next(longrangeiterobject *r)
     result = PyNumber_Add(r->start, product);
     Py_DECREF(product);
     if (result) {
-        Py_DECREF(r->index);
-        r->index = new_index;
+        Py_SETREF(r->index, new_index);
     }
     else {
         Py_DECREF(new_index);

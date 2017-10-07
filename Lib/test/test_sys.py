@@ -814,11 +814,6 @@ class SizeofTest(unittest.TestCase):
         self.longdigit = sys.int_info.sizeof_digit
         import _testcapi
         self.gc_headsize = _testcapi.SIZEOF_PYGC_HEAD
-        self.file = open(test.support.TESTFN, 'wb')
-
-    def tearDown(self):
-        self.file.close()
-        test.support.unlink(test.support.TESTFN)
 
     check_sizeof = test.support.check_sizeof
 
@@ -869,6 +864,7 @@ class SizeofTest(unittest.TestCase):
 
     def test_objecttypes(self):
         # check all types defined in Objects/
+        calcsize = struct.calcsize
         size = test.support.calcobjsize
         vsize = test.support.calcvobjsize
         check = self.check_sizeof
@@ -921,17 +917,23 @@ class SizeofTest(unittest.TestCase):
         # method-wrapper (descriptor object)
         check({}.__iter__, size('2P'))
         # dict
-        check({}, size('n2P' + '2nPn' + 8*'n2P'))
+        check({}, size('n2P') + calcsize('2nPn') + 8*calcsize('n2P'))
         longdict = {1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 7:7, 8:8}
-        check(longdict, size('n2P' + '2nPn') + 16*struct.calcsize('n2P'))
-        # dictionary-keyiterator
+        check(longdict, size('n2P') + calcsize('2nPn') + 16*calcsize('n2P'))
+        # dictionary-keyview
         check({}.keys(), size('P'))
-        # dictionary-valueiterator
+        # dictionary-valueview
         check({}.values(), size('P'))
-        # dictionary-itemiterator
+        # dictionary-itemview
         check({}.items(), size('P'))
         # dictionary iterator
         check(iter({}), size('P2nPn'))
+        # dictionary-keyiterator
+        check(iter({}.keys()), size('P2nPn'))
+        # dictionary-valueiterator
+        check(iter({}.values()), size('P2nPn'))
+        # dictionary-itemiterator
+        check(iter({}.items()), size('P2nPn'))
         # dictproxy
         class C(object): pass
         check(C.__dict__, size('P'))
@@ -1051,8 +1053,8 @@ class SizeofTest(unittest.TestCase):
                 check(set(sample), s)
                 check(frozenset(sample), s)
             else:
-                check(set(sample), s + newsize*struct.calcsize('nP'))
-                check(frozenset(sample), s + newsize*struct.calcsize('nP'))
+                check(set(sample), s + newsize*calcsize('nP'))
+                check(frozenset(sample), s + newsize*calcsize('nP'))
         # setiterator
         check(iter(set()), size('P3n'))
         # slice
@@ -1066,11 +1068,15 @@ class SizeofTest(unittest.TestCase):
         # static type: PyTypeObject
         s = vsize('P2n15Pl4Pn9Pn11PIP')
         check(int, s)
-        # (PyTypeObject + PyAsyncMethods + PyNumberMethods + PyMappingMethods +
-        #  PySequenceMethods + PyBufferProcs + 4P)
-        s = vsize('P2n17Pl4Pn9Pn11PIP') + struct.calcsize('34P 3P 3P 10P 2P 4P')
+        s = vsize('P2n15Pl4Pn9Pn11PIP'  # PyTypeObject
+                  '3P'                  # PyAsyncMethods
+                  '36P'                 # PyNumberMethods
+                  '3P'                  # PyMappingMethods
+                  '10P'                 # PySequenceMethods
+                  '2P'                  # PyBufferProcs
+                  '4P')
         # Separate block for PyDictKeysObject with 4 entries
-        s += struct.calcsize("2nPn") + 4*struct.calcsize("n2P")
+        s += calcsize("2nPn") + 4*calcsize("n2P")
         # class
         class newstyleclass(object): pass
         check(newstyleclass, s)
@@ -1113,6 +1119,36 @@ class SizeofTest(unittest.TestCase):
         # XXX
         # weakcallableproxy
         check(weakref.proxy(int), size('2Pn2P'))
+
+    def check_slots(self, obj, base, extra):
+        expected = sys.getsizeof(base) + struct.calcsize(extra)
+        if gc.is_tracked(obj) and not gc.is_tracked(base):
+            expected += self.gc_headsize
+        self.assertEqual(sys.getsizeof(obj), expected)
+
+    def test_slots(self):
+        # check all subclassable types defined in Objects/ that allow
+        # non-empty __slots__
+        check = self.check_slots
+        class BA(bytearray):
+            __slots__ = 'a', 'b', 'c'
+        check(BA(), bytearray(), '3P')
+        class D(dict):
+            __slots__ = 'a', 'b', 'c'
+        check(D(x=[]), {'x': []}, '3P')
+        class L(list):
+            __slots__ = 'a', 'b', 'c'
+        check(L(), [], '3P')
+        class S(set):
+            __slots__ = 'a', 'b', 'c'
+        check(S(), set(), '3P')
+        class FS(frozenset):
+            __slots__ = 'a', 'b', 'c'
+        check(FS(), frozenset(), '3P')
+        from collections import OrderedDict
+        class OD(OrderedDict):
+            __slots__ = 'a', 'b', 'c'
+        check(OD(x=[]), OrderedDict(x=[]), '3P')
 
     def test_pythontypes(self):
         # check all types defined in Python/

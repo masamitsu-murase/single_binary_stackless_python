@@ -184,12 +184,12 @@ divide_nearest(PyObject *m, PyObject *n)
  * and the number of days before that month in the same year.  These
  * are correct for non-leap years only.
  */
-static int _days_in_month[] = {
+static const int _days_in_month[] = {
     0, /* unused; this vector uses 1-based indexing */
     31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
 };
 
-static int _days_before_month[] = {
+static const int _days_before_month[] = {
     0, /* unused; this vector uses 1-based indexing */
     0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334
 };
@@ -873,7 +873,7 @@ get_tzinfo_member(PyObject *self)
  * this returns NULL.  Else result is returned.
  */
 static PyObject *
-call_tzinfo_method(PyObject *tzinfo, char *name, PyObject *tzinfoarg)
+call_tzinfo_method(PyObject *tzinfo, const char *name, PyObject *tzinfoarg)
 {
     PyObject *offset;
 
@@ -1009,10 +1009,10 @@ append_keyword_tzinfo(PyObject *repr, PyObject *tzinfo)
 static PyObject *
 format_ctime(PyDateTime_Date *date, int hours, int minutes, int seconds)
 {
-    static const char *DayNames[] = {
+    static const char * const DayNames[] = {
         "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"
     };
-    static const char *MonthNames[] = {
+    static const char * const MonthNames[] = {
         "Jan", "Feb", "Mar", "Apr", "May", "Jun",
         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
     };
@@ -1057,10 +1057,8 @@ format_utcoffset(char *buf, size_t buflen, const char *sep,
     }
     /* Offset is normalized, so it is negative if days < 0 */
     if (GET_TD_DAYS(offset) < 0) {
-        PyObject *temp = offset;
         sign = '-';
-        offset = delta_negative((PyDateTime_Delta *)offset);
-        Py_DECREF(temp);
+        Py_SETREF(offset, delta_negative((PyDateTime_Delta *)offset));
         if (offset == NULL)
             return -1;
     }
@@ -2307,7 +2305,7 @@ static PyMethodDef delta_methods[] = {
     {NULL,      NULL},
 };
 
-static char delta_doc[] =
+static const char delta_doc[] =
 PyDoc_STR("Difference between two datetime values.");
 
 static PyNumberMethods delta_as_number = {
@@ -2886,7 +2884,7 @@ static PyMethodDef date_methods[] = {
     {NULL,      NULL}
 };
 
-static char date_doc[] =
+static const char date_doc[] =
 PyDoc_STR("date(year, month, day) --> date object");
 
 static PyNumberMethods date_as_number = {
@@ -3047,10 +3045,8 @@ tzinfo_fromutc(PyDateTime_TZInfo *self, PyObject *dt)
     if (dst == Py_None)
         goto Inconsistent;
     if (delta_bool((PyDateTime_Delta *)dst) != 0) {
-        PyObject *temp = result;
-        result = add_datetime_timedelta((PyDateTime_DateTime *)result,
-                                        (PyDateTime_Delta *)dst, 1);
-        Py_DECREF(temp);
+        Py_SETREF(result, add_datetime_timedelta((PyDateTime_DateTime *)result,
+                                                 (PyDateTime_Delta *)dst, 1));
         if (result == NULL)
             goto Fail;
     }
@@ -3155,7 +3151,7 @@ static PyMethodDef tzinfo_methods[] = {
     {NULL, NULL}
 };
 
-static char tzinfo_doc[] =
+static const char tzinfo_doc[] =
 PyDoc_STR("Abstract base class for time zone info objects.");
 
 static PyTypeObject PyDateTime_TZInfoType = {
@@ -3387,7 +3383,7 @@ static PyMethodDef timezone_methods[] = {
     {NULL, NULL}
 };
 
-static char timezone_doc[] =
+static const char timezone_doc[] =
 PyDoc_STR("Fixed offset from UTC implementation of tzinfo.");
 
 static PyTypeObject PyDateTime_TimeZoneType = {
@@ -3877,7 +3873,7 @@ static PyMethodDef time_methods[] = {
     {NULL,      NULL}
 };
 
-static char time_doc[] =
+static const char time_doc[] =
 PyDoc_STR("time([hour[, minute[, second[, microsecond[, tzinfo]]]]]) --> a time object\n\
 \n\
 All arguments are optional. tzinfo may be None, or an instance of\n\
@@ -4157,10 +4153,7 @@ datetime_datetime_now_impl(PyTypeObject *type, PyObject *tz)
                                   tz);
     if (self != NULL && tz != Py_None) {
         /* Convert UTC to tzinfo's zone. */
-        PyObject *temp = self;
-
-        self = _PyObject_CallMethodId(tz, &PyId_fromutc, "O", self);
-        Py_DECREF(temp);
+        self = _PyObject_CallMethodId(tz, &PyId_fromutc, "N", self);
     }
     return self;
 }
@@ -4195,10 +4188,7 @@ datetime_fromtimestamp(PyObject *cls, PyObject *args, PyObject *kw)
                                    tzinfo);
     if (self != NULL && tzinfo != Py_None) {
         /* Convert UTC to tzinfo's zone. */
-        PyObject *temp = self;
-
-        self = _PyObject_CallMethodId(tzinfo, &PyId_fromutc, "O", self);
-        Py_DECREF(temp);
+        self = _PyObject_CallMethodId(tzinfo, &PyId_fromutc, "N", self);
     }
     return self;
 }
@@ -4421,9 +4411,7 @@ datetime_subtract(PyObject *left, PyObject *right)
                 return NULL;
 
             if (offdiff != NULL) {
-                PyObject *temp = result;
-                result = delta_subtract(result, offdiff);
-                Py_DECREF(temp);
+                Py_SETREF(result, delta_subtract(result, offdiff));
                 Py_DECREF(offdiff);
             }
         }
@@ -5065,7 +5053,7 @@ static PyMethodDef datetime_methods[] = {
     {NULL,      NULL}
 };
 
-static char datetime_doc[] =
+static const char datetime_doc[] =
 PyDoc_STR("datetime(year, month, day[, hour[, minute[, second[, microsecond[,tzinfo]]]]])\n\
 \n\
 The year, month and day arguments are required. tzinfo may be None, or an\n\

@@ -880,9 +880,8 @@ PyMemoTable_Set(PyMemoTable *self, PyObject *key, Py_ssize_t value)
 static int
 _Pickler_ClearBuffer(PicklerObject *self)
 {
-    Py_CLEAR(self->output_buffer);
-    self->output_buffer =
-        PyBytes_FromStringAndSize(NULL, self->max_output_len);
+    Py_SETREF(self->output_buffer,
+              PyBytes_FromStringAndSize(NULL, self->max_output_len));
     if (self->output_buffer == NULL)
         return -1;
     self->output_len = 0;
@@ -2201,7 +2200,7 @@ error:
 }
 
 static int
-write_utf8(PicklerObject *self, char *data, Py_ssize_t size)
+write_utf8(PicklerObject *self, const char *data, Py_ssize_t size)
 {
     char header[9];
     Py_ssize_t len;
@@ -3130,9 +3129,8 @@ fix_imports(PyObject **module_name, PyObject **global_name)
                          Py_TYPE(item)->tp_name);
             return -1;
         }
-        Py_CLEAR(*module_name);
         Py_INCREF(item);
-        *module_name = item;
+        Py_SETREF(*module_name, item);
     }
     else if (PyErr_Occurred()) {
         return -1;
@@ -4132,7 +4130,7 @@ _pickle_Pickler___sizeof___impl(PicklerObject *self)
 {
     Py_ssize_t res, s;
 
-    res = sizeof(PicklerObject);
+    res = _PyObject_SIZE(Py_TYPE(self));
     if (self->memo != NULL) {
         res += sizeof(PyMemoTable);
         res += self->memo->mt_allocated * sizeof(PyMemoEntry);
@@ -4584,8 +4582,6 @@ Pickler_get_persid(PicklerObject *self)
 static int
 Pickler_set_persid(PicklerObject *self, PyObject *value)
 {
-    PyObject *tmp;
-
     if (value == NULL) {
         PyErr_SetString(PyExc_TypeError,
                         "attribute deletion is not supported");
@@ -4597,10 +4593,8 @@ Pickler_set_persid(PicklerObject *self, PyObject *value)
         return -1;
     }
 
-    tmp = self->pers_func;
     Py_INCREF(value);
-    self->pers_func = value;
-    Py_XDECREF(tmp);      /* self->pers_func can be NULL, so be careful. */
+    Py_SETREF(self->pers_func, value);
 
     return 0;
 }
@@ -5244,6 +5238,7 @@ load_dict(UnpicklerObject *self)
     if ((j - i) % 2 != 0) {
         PickleState *st = _Pickle_GetGlobalState();
         PyErr_SetString(st->UnpicklingError, "odd number of items for DICT");
+        Py_DECREF(dict);
         return -1;
     }
 
@@ -6600,7 +6595,7 @@ _pickle_Unpickler___sizeof___impl(UnpicklerObject *self)
 {
     Py_ssize_t res;
 
-    res = sizeof(UnpicklerObject);
+    res = _PyObject_SIZE(Py_TYPE(self));
     if (self->memo != NULL)
         res += self->memo_size * sizeof(PyObject *);
     if (self->marks != NULL)
@@ -7039,8 +7034,6 @@ Unpickler_get_persload(UnpicklerObject *self)
 static int
 Unpickler_set_persload(UnpicklerObject *self, PyObject *value)
 {
-    PyObject *tmp;
-
     if (value == NULL) {
         PyErr_SetString(PyExc_TypeError,
                         "attribute deletion is not supported");
@@ -7053,10 +7046,8 @@ Unpickler_set_persload(UnpicklerObject *self, PyObject *value)
         return -1;
     }
 
-    tmp = self->pers_func;
     Py_INCREF(value);
-    self->pers_func = value;
-    Py_XDECREF(tmp);      /* self->pers_func can be NULL, so be careful. */
+    Py_SETREF(self->pers_func, value);
 
     return 0;
 }

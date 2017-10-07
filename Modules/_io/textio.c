@@ -772,7 +772,7 @@ typedef struct {
     encodefunc_t encodefunc;
 } encodefuncentry;
 
-static encodefuncentry encodefuncs[] = {
+static const encodefuncentry encodefuncs[] = {
     {"ascii",       (encodefunc_t) ascii_encode},
     {"iso8859-1",   (encodefunc_t) latin1_encode},
     {"utf-8",       (encodefunc_t) utf8_encode},
@@ -995,8 +995,7 @@ _io_TextIOWrapper___init___impl(textio *self, PyObject *buffer,
                 "Oi", self->decoder, (int)self->readtranslate);
             if (incrementalDecoder == NULL)
                 goto error;
-            Py_CLEAR(self->decoder);
-            self->decoder = incrementalDecoder;
+            Py_SETREF(self->decoder, incrementalDecoder);
         }
     }
 
@@ -1022,7 +1021,7 @@ _io_TextIOWrapper___init___impl(textio *self, PyObject *buffer,
                 goto error;
         }
         else if (PyUnicode_Check(res)) {
-            encodefuncentry *e = encodefuncs;
+            const encodefuncentry *e = encodefuncs;
             while (e->name != NULL) {
                 if (!PyUnicode_CompareWithASCIIString(res, e->name)) {
                     self->encodefunc = e->encodefunc;
@@ -1374,8 +1373,7 @@ _io_TextIOWrapper_write_impl(textio *self, PyObject *text)
 static void
 textiowrapper_set_decoded_chars(textio *self, PyObject *chars)
 {
-    Py_CLEAR(self->decoded_chars);
-    self->decoded_chars = chars;
+    Py_SETREF(self->decoded_chars, chars);
     self->decoded_chars_used = 0;
 }
 
@@ -1523,8 +1521,7 @@ textiowrapper_read_chunk(textio *self, Py_ssize_t size_hint)
             dec_buffer = NULL; /* Reference lost to PyBytes_Concat */
             goto fail;
         }
-        Py_CLEAR(self->snapshot);
-        self->snapshot = Py_BuildValue("NN", dec_flags, next_input);
+        Py_SETREF(self->snapshot, Py_BuildValue("NN", dec_flags, next_input));
     }
     Py_DECREF(input_chunk);
 
@@ -1630,8 +1627,7 @@ _io_TextIOWrapper_read_impl(textio *self, Py_ssize_t n)
         if (chunks != NULL) {
             if (result != NULL && PyList_Append(chunks, result) < 0)
                 goto fail;
-            Py_CLEAR(result);
-            result = PyUnicode_Join(_PyIO_empty_str, chunks);
+            Py_SETREF(result, PyUnicode_Join(_PyIO_empty_str, chunks));
             if (result == NULL)
                 goto fail;
             Py_CLEAR(chunks);
@@ -1648,8 +1644,8 @@ _io_TextIOWrapper_read_impl(textio *self, Py_ssize_t n)
 /* NOTE: `end` must point to the real end of the Py_UCS4 storage,
    that is to the NUL character. Otherwise the function will produce
    incorrect results. */
-static char *
-find_control_char(int kind, char *s, char *end, Py_UCS4 ch)
+static const char *
+find_control_char(int kind, const char *s, const char *end, Py_UCS4 ch)
 {
     if (kind == PyUnicode_1BYTE_KIND) {
         assert(ch < 256);
@@ -1669,13 +1665,13 @@ find_control_char(int kind, char *s, char *end, Py_UCS4 ch)
 Py_ssize_t
 _PyIO_find_line_ending(
     int translated, int universal, PyObject *readnl,
-    int kind, char *start, char *end, Py_ssize_t *consumed)
+    int kind, const char *start, const char *end, Py_ssize_t *consumed)
 {
     Py_ssize_t len = ((char*)end - (char*)start)/kind;
 
     if (translated) {
         /* Newlines are already translated, only search for \n */
-        char *pos = find_control_char(kind, start, end, '\n');
+        const char *pos = find_control_char(kind, start, end, '\n');
         if (pos != NULL)
             return (pos - start)/kind + 1;
         else {
@@ -1687,7 +1683,7 @@ _PyIO_find_line_ending(
         /* Universal newline search. Find any of \r, \r\n, \n
          * The decoder ensures that \r\n are not split in two pieces
          */
-        char *s = start;
+        const char *s = start;
         for (;;) {
             Py_UCS4 ch;
             /* Fast path for non-control chars. The loop always ends
@@ -1717,21 +1713,21 @@ _PyIO_find_line_ending(
         /* Assume that readnl is an ASCII character. */
         assert(PyUnicode_KIND(readnl) == PyUnicode_1BYTE_KIND);
         if (readnl_len == 1) {
-            char *pos = find_control_char(kind, start, end, nl[0]);
+            const char *pos = find_control_char(kind, start, end, nl[0]);
             if (pos != NULL)
                 return (pos - start)/kind + 1;
             *consumed = len;
             return -1;
         }
         else {
-            char *s = start;
-            char *e = end - (readnl_len - 1)*kind;
-            char *pos;
+            const char *s = start;
+            const char *e = end - (readnl_len - 1)*kind;
+            const char *pos;
             if (e < s)
                 e = s;
             while (s < e) {
                 Py_ssize_t i;
-                char *pos = find_control_char(kind, s, end, nl[0]);
+                const char *pos = find_control_char(kind, s, end, nl[0]);
                 if (pos == NULL || pos >= e)
                     break;
                 for (i = 1; i < readnl_len; i++) {

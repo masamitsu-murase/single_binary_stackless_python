@@ -155,8 +155,7 @@ zipimporter_init(ZipImporter *self, PyObject *args, PyObject *kwds)
             tmp = PyUnicode_FromFormat("%U%c", self->prefix, SEP);
             if (tmp == NULL)
                 goto error;
-            Py_DECREF(self->prefix);
-            self->prefix = tmp;
+            Py_SETREF(self->prefix, tmp);
         }
     }
     else
@@ -325,17 +324,14 @@ get_module_info(ZipImporter *self, PyObject *fullname)
 }
 
 typedef enum {
-    FL_ERROR,
-    FL_NOT_FOUND,
-    FL_MODULE_FOUND,
-    FL_NS_FOUND
+    FL_ERROR = -1,       /* error */
+    FL_NOT_FOUND,        /* no loader or namespace portions found */
+    FL_MODULE_FOUND,     /* module/package found */
+    FL_NS_FOUND          /* namespace portion found: */
+                         /* *namespace_portion will point to the name */
 } find_loader_result;
 
-/* The guts of "find_loader" and "find_module". Return values:
-   -1: error
-    0: no loader or namespace portions found
-    1: module/package found
-    2: namespace portion found: *namespace_portion will point to the name
+/* The guts of "find_loader" and "find_module".
 */
 static find_loader_result
 find_loader(ZipImporter *self, PyObject *fullname, PyObject **namespace_portion)
@@ -350,21 +346,34 @@ find_loader(ZipImporter *self, PyObject *fullname, PyObject **namespace_portion)
     if (mi == MI_NOT_FOUND) {
         /* Not a module or regular package. See if this is a directory, and
            therefore possibly a portion of a namespace package. */
-        int is_dir = check_is_directory(self, self->prefix, fullname);
+        find_loader_result result = FL_NOT_FOUND;
+        PyObject *subname;
+        int is_dir;
+
+        /* We're only interested in the last path component of fullname;
+           earlier components are recorded in self->prefix. */
+        subname = get_subname(fullname);
+        if (subname == NULL) {
+            return FL_ERROR;
+        }
+
+        is_dir = check_is_directory(self, self->prefix, subname);
         if (is_dir < 0)
-            return -1;
-        if (is_dir) {
+            result = FL_ERROR;
+        else if (is_dir) {
             /* This is possibly a portion of a namespace
                package. Return the string representing its path,
                without a trailing separator. */
             *namespace_portion = PyUnicode_FromFormat("%U%c%U%U",
                                                       self->archive, SEP,
-                                                      self->prefix, fullname);
+                                                      self->prefix, subname);
             if (*namespace_portion == NULL)
-                return FL_ERROR;
-            return FL_NS_FOUND;
+                result = FL_ERROR;
+            else
+                result = FL_NS_FOUND;
         }
-        return FL_NOT_FOUND;
+        Py_DECREF(subname);
+        return result;
     }
     /* This is a module or package. */
     return FL_MODULE_FOUND;
@@ -398,6 +407,9 @@ zipimporter_find_module(PyObject *obj, PyObject *args)
     case FL_MODULE_FOUND:
         result = (PyObject *)self;
         break;
+    default:
+        PyErr_BadInternalCall();
+        return NULL;
     }
     Py_INCREF(result);
     return result;
@@ -434,6 +446,9 @@ zipimporter_find_loader(PyObject *obj, PyObject *args)
         result = Py_BuildValue("O[O]", Py_None, namespace_portion);
         Py_DECREF(namespace_portion);
         return result;
+    default:
+        PyErr_BadInternalCall();
+        return NULL;
     }
     return result;
 }
@@ -816,7 +831,7 @@ static PyTypeObject ZipImporter_Type = {
    4 bytes, encoded as little endian. This partially reimplements
    marshal.c:r_long() */
 static long
-get_long(unsigned char *buf) {
+get_long(const unsigned char *buf) {
     long x;
     x =  buf[0];
     x |= (long)buf[1] <<  8;
@@ -1076,6 +1091,10 @@ get_data(PyObject *archive, PyObject *toc_entry)
                           &date, &crc)) {
         return NULL;
     }
+    if (data_size < 0) {
+        PyErr_Format(ZipImportError, "negative data size");
+        return NULL;
+    }
 
     fp = _Py_fopen_obj(archive, "rb");
     if (!fp)
@@ -1112,6 +1131,11 @@ get_data(PyObject *archive, PyObject *toc_entry)
     }
     file_offset += l;           /* Start of file data */
 
+    if (data_size > LONG_MAX - 1) {
+        fclose(fp);
+        PyErr_NoMemory();
+        return NULL;
+    }
     bytes_size = compress == 0 ? data_size : data_size + 1;
     if (bytes_size == 0)
         bytes_size++;
@@ -1128,6 +1152,7 @@ get_data(PyObject *archive, PyObject *toc_entry)
         bytes_read = fread(buf, 1, data_size, fp);
     } else {
         fclose(fp);
+        Py_DECREF(raw_data);
         PyErr_Format(ZipImportError, "can't read Zip file: %R", archive);
         return NULL;
     }

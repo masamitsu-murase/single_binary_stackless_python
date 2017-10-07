@@ -53,7 +53,7 @@ extern grammar _PyParser_Grammar; /* From graminit.c */
 /*  String constants used to initialize module attributes.
  *
  */
-static char parser_copyright_string[] =
+static const char parser_copyright_string[] =
 "Copyright 1995-1996 by Virginia Polytechnic Institute & State\n\
 University, Blacksburg, Virginia, USA, and Fred L. Drake, Jr., Reston,\n\
 Virginia, USA.  Portions copyright 1991-1995 by Stichting Mathematisch\n\
@@ -63,7 +63,7 @@ Centrum, Amsterdam, The Netherlands.";
 PyDoc_STRVAR(parser_doc_string,
 "This is an interface to Python's internal parser.");
 
-static char parser_version_string[] = "0.5";
+static const char parser_version_string[] = "0.5";
 
 
 typedef PyObject* (*SeqMaker) (Py_ssize_t length);
@@ -397,7 +397,7 @@ parser_sizeof(PyST_Object *st, void *unused)
 {
     Py_ssize_t res;
 
-    res = sizeof(PyST_Object) + _PyNode_SizeOf(st->st_node);
+    res = _PyObject_SIZE(Py_TYPE(st)) + _PyNode_SizeOf(st->st_node);
     return PyLong_FromSsize_t(res);
 }
 
@@ -578,13 +578,13 @@ parser_issuite(PyST_Object *self, PyObject *args, PyObject *kw)
 }
 
 
-/*  err_string(char* message)
+/*  err_string(const char* message)
  *
  *  Sets the error string for an exception of type ParserError.
  *
  */
 static void
-err_string(char *message)
+err_string(const char *message)
 {
     PyErr_SetString(parser_error, message);
 }
@@ -597,7 +597,7 @@ err_string(char *message)
  *
  */
 static PyObject*
-parser_do_parse(PyObject *args, PyObject *kw, char *argspec, int type)
+parser_do_parse(PyObject *args, PyObject *kw, const char *argspec, int type)
 {
     char*     string = 0;
     PyObject* res    = 0;
@@ -984,7 +984,7 @@ build_node_tree(PyObject *tuple)
 /*
  *  Validation routines used within the validation section:
  */
-static int validate_terminal(node *terminal, int type, char *string);
+static int validate_terminal(node *terminal, int type, const char *string);
 
 #define validate_ampersand(ch)  validate_terminal(ch,      AMPER, "&")
 #define validate_circumflex(ch) validate_terminal(ch, CIRCUMFLEX, "^")
@@ -1082,7 +1082,7 @@ validate_numnodes(node *n, int num, const char *const name)
 
 
 static int
-validate_terminal(node *terminal, int type, char *string)
+validate_terminal(node *terminal, int type, const char *string)
 {
     int res = (validate_ntype(terminal, type)
                && ((string == 0) || (strcmp(string, STR(terminal)) == 0)));

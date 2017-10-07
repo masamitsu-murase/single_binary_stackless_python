@@ -621,8 +621,6 @@ gen_get_name(PyGenObject *op)
 static int
 gen_set_name(PyGenObject *op, PyObject *value)
 {
-    PyObject *tmp;
-
     /* Not legal to del gen.gi_name or to set it to anything
      * other than a string object. */
     if (value == NULL || !PyUnicode_Check(value)) {
@@ -630,10 +628,8 @@ gen_set_name(PyGenObject *op, PyObject *value)
                         "__name__ must be set to a string object");
         return -1;
     }
-    tmp = op->gi_name;
     Py_INCREF(value);
-    op->gi_name = value;
-    Py_DECREF(tmp);
+    Py_SETREF(op->gi_name, value);
     return 0;
 }
 
@@ -647,8 +643,6 @@ gen_get_qualname(PyGenObject *op)
 static int
 gen_set_qualname(PyGenObject *op, PyObject *value)
 {
-    PyObject *tmp;
-
     /* Not legal to del gen.__qualname__ or to set it to anything
      * other than a string object. */
     if (value == NULL || !PyUnicode_Check(value)) {
@@ -656,10 +650,8 @@ gen_set_qualname(PyGenObject *op, PyObject *value)
                         "__qualname__ must be set to a string object");
         return -1;
     }
-    tmp = op->gi_qualname;
     Py_INCREF(value);
-    op->gi_qualname = value;
-    Py_DECREF(tmp);
+    Py_SETREF(op->gi_qualname, value);
     return 0;
 }
 

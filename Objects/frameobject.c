@@ -139,7 +139,7 @@ frame_setlineno(PyFrameObject *f, PyObject* p_new_lineno)
         new_lasti = -1;
         for (offset = 0; offset < lnotab_len; offset += 2) {
             addr += lnotab[offset];
-            line += lnotab[offset+1];
+            line += (signed char)lnotab[offset+1];
             if (line >= new_lineno) {
                 new_lasti = addr;
                 new_lineno = line;
@@ -351,15 +351,11 @@ frame_gettrace(PyFrameObject *f, void *closure)
 static int
 frame_settrace(PyFrameObject *f, PyObject* v, void *closure)
 {
-    PyObject* old_value;
-
     /* We rely on f_lineno being accurate when f_trace is set. */
     f->f_lineno = PyFrame_GetLineNumber(f);
 
-    old_value = f->f_trace;
     Py_XINCREF(v);
-    f->f_trace = v;
-    Py_XDECREF(old_value);
+    Py_SETREF(f->f_trace, v);
 
     return 0;
 }
@@ -885,8 +881,7 @@ dict_to_map(PyObject *map, Py_ssize_t nmap, PyObject *dict, PyObject **values,
             }
         } else if (values[j] != value) {
             Py_XINCREF(value);
-            Py_XDECREF(values[j]);
-            values[j] = value;
+            Py_SETREF(values[j], value);
         }
         Py_XDECREF(value);
     }

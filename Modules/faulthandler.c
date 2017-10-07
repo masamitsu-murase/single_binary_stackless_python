@@ -380,9 +380,8 @@ faulthandler_enable(PyObject *self, PyObject *args, PyObject *kwargs)
     if (tstate == NULL)
         return NULL;
 
-    Py_XDECREF(fatal_error.file);
     Py_XINCREF(file);
-    fatal_error.file = file;
+    Py_SETREF(fatal_error.file, file);
     fatal_error.fd = fd;
     fatal_error.all_threads = all_threads;
     fatal_error.interp = tstate->interp;
@@ -491,7 +490,7 @@ faulthandler_thread(void *unused)
         assert(st == PY_LOCK_FAILURE);
 
         /* get the thread holding the GIL, NULL if no thread hold the GIL */
-        current = (PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current);
+        current = _PyThreadState_UncheckedGet();
 
         _Py_write_noraise(thread.fd, thread.header, (int)thread.header_len);
 
@@ -599,9 +598,8 @@ faulthandler_dump_traceback_later(PyObject *self,
     /* Cancel previous thread, if running */
     cancel_dump_traceback_later();
 
-    Py_XDECREF(thread.file);
     Py_XINCREF(file);
-    thread.file = file;
+    Py_SETREF(thread.file, file);
     thread.fd = fd;
     thread.timeout_us = timeout_us;
     thread.repeat = repeat;
@@ -778,9 +776,8 @@ faulthandler_register_py(PyObject *self,
         user->previous = previous;
     }
 
-    Py_XDECREF(user->file);
     Py_XINCREF(file);
-    user->file = file;
+    Py_SETREF(user->file, file);
     user->fd = fd;
     user->all_threads = all_threads;
     user->chain = chain;

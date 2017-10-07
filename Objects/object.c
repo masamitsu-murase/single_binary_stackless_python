@@ -647,7 +647,7 @@ PyObject_Bytes(PyObject *v)
 /* Map rich comparison operators to their swapped version, e.g. LT <--> GT */
 int _Py_SwappedOp[] = {Py_GT, Py_GE, Py_EQ, Py_NE, Py_LT, Py_LE};
 
-static char *opstrings[] = {"<", "<=", "==", "!=", ">", ">="};
+static const char * const opstrings[] = {"<", "<=", "==", "!=", ">", ">="};
 
 /* Perform a rich comparison, raising TypeError when the requested comparison
    operator is not supported. */
@@ -1206,7 +1206,7 @@ PyObject_GenericSetAttr(PyObject *obj, PyObject *name, PyObject *value)
 int
 PyObject_GenericSetDict(PyObject *obj, PyObject *value, void *context)
 {
-    PyObject *dict, **dictptr = _PyObject_GetDictPtr(obj);
+    PyObject **dictptr = _PyObject_GetDictPtr(obj);
     if (dictptr == NULL) {
         PyErr_SetString(PyExc_AttributeError,
                         "This object has no __dict__");
@@ -1222,10 +1222,8 @@ PyObject_GenericSetDict(PyObject *obj, PyObject *value, void *context)
                      "not a '%.200s'", Py_TYPE(value)->tp_name);
         return -1;
     }
-    dict = *dictptr;
-    Py_XINCREF(value);
-    *dictptr = value;
-    Py_XDECREF(dict);
+    Py_INCREF(value);
+    Py_SETREF(*dictptr, value);
     return 0;
 }
 

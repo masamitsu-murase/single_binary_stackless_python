@@ -60,10 +60,10 @@ typedef enum {
 
 typedef struct {
     QuoteStyle style;
-    char *name;
+    const char *name;
 } StyleDesc;
 
-static StyleDesc quote_styles[] = {
+static const StyleDesc quote_styles[] = {
     { QUOTE_MINIMAL,    "QUOTE_MINIMAL" },
     { QUOTE_ALL,        "QUOTE_ALL" },
     { QUOTE_NONNUMERIC, "QUOTE_NONNUMERIC" },
@@ -276,9 +276,8 @@ _set_str(const char *name, PyObject **target, PyObject *src, const char *dflt)
         else {
             if (PyUnicode_READY(src) == -1)
                 return -1;
-            Py_XDECREF(*target);
             Py_INCREF(src);
-            *target = src;
+            Py_SETREF(*target, src);
         }
     }
     return 0;
@@ -287,7 +286,7 @@ _set_str(const char *name, PyObject **target, PyObject *src, const char *dflt)
 static int
 dialect_check_quoting(int quoting)
 {
-    StyleDesc *qs;
+    const StyleDesc *qs;
 
     for (qs = quote_styles; qs->name; qs++) {
         if ((int)qs->style == quoting)
@@ -784,8 +783,7 @@ parse_process_char(ReaderObj *self, Py_UCS4 c)
 static int
 parse_reset(ReaderObj *self)
 {
-    Py_XDECREF(self->fields);
-    self->fields = PyList_New(0);
+    Py_SETREF(self->fields, PyList_New(0));
     if (self->fields == NULL)
         return -1;
     self->field_len = 0;
@@ -1635,7 +1633,7 @@ PyMODINIT_FUNC
 PyInit__csv(void)
 {
     PyObject *module;
-    StyleDesc *style;
+    const StyleDesc *style;
 
     if (PyType_Ready(&Dialect_Type) < 0)
         return NULL;

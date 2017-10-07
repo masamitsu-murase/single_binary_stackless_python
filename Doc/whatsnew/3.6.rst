@@ -189,7 +189,12 @@ become proper keywords in Python 3.7.
 Deprecated Python modules, functions and methods
 ------------------------------------------------
 
-* None yet.
+* :meth:`importlib.machinery.SourceFileLoader` and
+  :meth:`importlib.machinery.SourcelessFileLoader` are now deprecated. They
+  were the only remaining implementations of
+  :meth:`importlib.abc.Loader.load_module` in :mod:`importlib` that had not
+  been deprecated in previous versions of Python in favour of
+  :meth:`importlib.abc.Loader.exec_module`.
 
 
 Deprecated functions and types of the C API
@@ -204,7 +209,12 @@ Deprecated features
 * The ``pyvenv`` script has been deprecated in favour of ``python3 -m venv``.
   This prevents confusion as to what Python interpreter ``pyvenv`` is
   connected to and thus what Python interpreter will be used by the virtual
-  environment. See :issue:`25154`.
+  environment. (Contributed by Brett Cannon in :issue:`25154`.)
+
+* When performing a relative import, falling back on ``__name__`` and
+  ``__path__`` from the calling module when ``__spec__`` or
+  ``__package__`` are not defined now raises an :exc:`ImportWarning`.
+  (Contributed by Rose Ames in :issue:`25791`.)
 
 
 Removed
@@ -213,12 +223,16 @@ Removed
 API and Feature Removals
 ------------------------
 
-* ``inspect.getargspec()`` was removed (was deprecated since CPython 3.0).
-  :func:`inspect.getfullargspec` is an almost drop in replacement.
-
 * ``inspect.getmoduleinfo()`` was removed (was deprecated since CPython 3.3).
   :func:`inspect.getmodulename` should be used for obtaining the module
   name for a given path.
+
+* ``traceback.Ignore`` class and ``traceback.usage``, ``traceback.modname``,
+  ``traceback.fullmodname``, ``traceback.find_lines_from_code``,
+  ``traceback.find_lines``, ``traceback.find_strings``,
+  ``traceback.find_executable_lines`` methods were removed from the
+  :mod:`traceback` module. They were undocumented methods deprecated since
+  Python 3.2 and equivalent functionality is available from private methods.
 
 
 Porting to Python 3.6
@@ -230,6 +244,21 @@ that may require changes to your code.
 Changes in the Python API
 -------------------------
 
+* The format of the ``co_lnotab`` attribute of code objects changed to support
+  negative line number delta. By default, Python does not emit bytecode with
+  negative line number delta. Functions using ``frame.f_lineno``,
+  ``PyFrame_GetLineNumber()`` or ``PyCode_Addr2Line()`` are not affected.
+  Functions decoding directly ``co_lnotab`` should be updated to use a signed
+  8-bit integer type for the line number delta, but it's only required to
+  support applications using negative line number delta. See
+  ``Objects/lnotab_notes.txt`` for the ``co_lnotab`` format and how to decode
+  it, and see the :pep:`511` for the rationale.
+
+* The functions in the :mod:`compileall` module now return booleans instead
+  of ``1`` or ``0`` to represent success or failure, respectively. Thanks to
+  booleans being a subclass of integers, this should only be an issue if you
+  were doing identity checks for ``1`` or ``0``. See :issue:`25768`.
+
 * Reading the :attr:`~urllib.parse.SplitResult.port` attribute of
   :func:`urllib.parse.urlsplit` and :func:`~urllib.parse.urlparse` results
   now raises :exc:`ValueError` for out-of-range values, rather than
@@ -239,10 +268,15 @@ Changes in the Python API
   :exc:`PendingDeprecationWarning`.
 
 * The following modules have had missing APIs added to their :attr:`__all__`
-  attributes to match the documented APIs: :mod:`csv`, :mod:`enum`,
-  :mod:`ftplib`, :mod:`logging`, :mod:`optparse`, :mod:`threading` and
+  attributes to match the documented APIs: :mod:`calendar`, :mod:`csv`,
+  :mod:`enum`, :mod:`fileinput`, :mod:`ftplib`, :mod:`logging`,
+  :mod:`optparse`, :mod:`tarfile`, :mod:`threading` and
   :mod:`wave`.  This means they will export new symbols when ``import *``
   is used.  See :issue:`23883`.
+
+* When performing a relative import, ``__spec__.parent`` is used
+  is ``__spec__`` is defined instead of ``__package__``.
+  (Contributed by Rose Ames in :issue:`25791`.)
 
 
 Changes in the C API

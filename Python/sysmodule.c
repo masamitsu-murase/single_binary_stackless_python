@@ -350,8 +350,10 @@ static PyObject *whatstrings[7] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL};
 static int
 trace_init(void)
 {
-    static char *whatnames[7] = {"call", "exception", "line", "return",
-                                    "c_call", "c_exception", "c_return"};
+    static const char * const whatnames[7] = {
+        "call", "exception", "line", "return",
+        "c_call", "c_exception", "c_return"
+    };
     PyObject *name;
     int i;
     for (i = 0; i < 7; ++i) {
@@ -438,10 +440,7 @@ trace_trampoline(PyObject *self, PyFrameObject *frame,
         return -1;
     }
     if (result != Py_None) {
-        PyObject *temp = frame->f_trace;
-        frame->f_trace = NULL;
-        Py_XDECREF(temp);
-        frame->f_trace = result;
+        Py_SETREF(frame->f_trace, result);
     }
     else {
         Py_DECREF(result);
@@ -1423,7 +1422,7 @@ error:
     Py_XDECREF(name);
     Py_XDECREF(value);
     /* No return value, therefore clear error state if possible */
-    if (_Py_atomic_load_relaxed(&_PyThreadState_Current))
+    if (_PyThreadState_UncheckedGet())
         PyErr_Clear();
 }
 

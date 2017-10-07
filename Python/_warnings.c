@@ -709,8 +709,7 @@ setup_context(Py_ssize_t stack_level, PyObject **filename, int *lineno,
                     goto handle_error;
                 }
                 else if (!is_true) {
-                    Py_DECREF(*filename);
-                    *filename = PyUnicode_FromString("__main__");
+                    Py_SETREF(*filename, PyUnicode_FromString("__main__"));
                     if (*filename == NULL)
                         goto handle_error;
                 }
@@ -951,7 +950,7 @@ PyErr_WarnEx(PyObject *category, const char *text, Py_ssize_t stack_level)
 #undef PyErr_Warn
 
 PyAPI_FUNC(int)
-PyErr_Warn(PyObject *category, char *text)
+PyErr_Warn(PyObject *category, const char *text)
 {
     return PyErr_WarnEx(category, text, 1);
 }

@@ -887,7 +887,7 @@ static PyObject *
 getargs_keywords(PyObject *self, PyObject *args, PyObject *kwargs)
 {
     static char *keywords[] = {"arg1","arg2","arg3","arg4","arg5", NULL};
-    static char *fmt="(ii)i|(i(ii))(iii)i";
+    static const char fmt[] = "(ii)i|(i(ii))(iii)i";
     int int_args[10]={-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, fmt, keywords,
@@ -1047,7 +1047,7 @@ test_k_code(PyObject *self)
     value = PyLong_AsUnsignedLongMask(num);
     if (value != ULONG_MAX)
         return raiseTestError("test_k_code",
-        "PyLong_AsUnsignedLongMask() returned wrong value for long 0xFFF...FFF");
+            "PyLong_AsUnsignedLongMask() returned wrong value for long 0xFFF...FFF");
 
     PyTuple_SET_ITEM(tuple, 0, num);
 
@@ -1066,7 +1066,7 @@ test_k_code(PyObject *self)
     value = PyLong_AsUnsignedLongMask(num);
     if (value != (unsigned long)-0x42)
         return raiseTestError("test_k_code",
-        "PyLong_AsUnsignedLongMask() returned wrong value for long 0xFFF...FFF");
+            "PyLong_AsUnsignedLongMask() returned wrong value for long 0xFFF...FFF");
 
     PyTuple_SET_ITEM(tuple, 0, num);
 
@@ -3769,7 +3769,7 @@ test_structmembers_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
         "T_LONGLONG", "T_ULONGLONG",
 #endif
         NULL};
-    static char *fmt = "|bbBhHiIlknfds#"
+    static const char fmt[] = "|bbBhHiIlknfds#"
 #ifdef HAVE_LONG_LONG
         "LK"
 #endif

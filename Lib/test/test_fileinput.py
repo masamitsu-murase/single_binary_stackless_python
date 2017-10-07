@@ -24,6 +24,7 @@ from fileinput import FileInput, hook_encoded
 
 from test.support import verbose, TESTFN, run_unittest, check_warnings
 from test.support import unlink as safe_unlink
+from test import support
 from unittest import mock
 
 
@@ -239,6 +240,17 @@ class FileInputTests(unittest.TestCase):
             fi = FileInput(files=['-'], mode='rb')
             lines = list(fi)
             self.assertEqual(lines, [b'spam, bacon, sausage, and spam'])
+
+    def test_detached_stdin_binary_mode(self):
+        orig_stdin = sys.stdin
+        try:
+            sys.stdin = BytesIO(b'spam, bacon, sausage, and spam')
+            self.assertFalse(hasattr(sys.stdin, 'buffer'))
+            fi = FileInput(files=['-'], mode='rb')
+            lines = list(fi)
+            self.assertEqual(lines, [b'spam, bacon, sausage, and spam'])
+        finally:
+            sys.stdin = orig_stdin
 
     def test_file_opening_hook(self):
         try:
@@ -900,6 +912,13 @@ class Test_hook_encoded(unittest.TestCase):
             check('U', ['A\n', 'B\n', 'C\n', 'D\u20ac'])
         with self.assertRaises(ValueError):
             check('rb', ['A\n', 'B\r\n', 'C\r', 'D\u20ac'])
+
+
+class MiscTest(unittest.TestCase):
+
+    def test_all(self):
+        blacklist = {'DEFAULT_BUFSIZE'}
+        support.check__all__(self, fileinput, blacklist=blacklist)
 
 
 if __name__ == "__main__":
