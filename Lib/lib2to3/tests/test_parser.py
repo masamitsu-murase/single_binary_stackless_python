@@ -10,12 +10,11 @@ from __future__ import with_statement
 
 # Testing imports
 from . import support
-from .support import driver, test_dir
+from .support import driver
 from test.support import verbose
 
 # Python imports
 import os
-import sys
 import unittest
 import warnings
 import subprocess

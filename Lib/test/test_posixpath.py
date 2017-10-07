@@ -1,7 +1,5 @@
-import itertools
 import os
 import posixpath
-import sys
 import unittest
 import warnings
 from posixpath import realpath, abspath, dirname, basename

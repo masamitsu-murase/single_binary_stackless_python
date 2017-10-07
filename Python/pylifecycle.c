@@ -225,6 +225,8 @@ get_locale_encoding(void)
         return NULL;
     }
     return get_codec_name(codeset);
+#elif defined(__ANDROID__)
+    return get_codec_name("UTF-8");
 #else
     PyErr_SetNone(PyExc_NotImplementedError);
     return NULL;

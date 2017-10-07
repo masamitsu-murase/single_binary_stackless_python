@@ -1,19 +1,15 @@
 import unittest
-from test.support import script_helper
 from test import support
 import subprocess
 import sys
 import signal
 import io
-import locale
 import os
 import errno
 import tempfile
 import time
-import re
 import selectors
 import sysconfig
-import warnings
 import select
 import shutil
 import gc

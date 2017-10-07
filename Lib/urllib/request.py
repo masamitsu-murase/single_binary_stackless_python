@@ -2455,19 +2455,35 @@ def getproxies_environment():
 
     """
     proxies = {}
+    # in order to prefer lowercase variables, process environment in
+    # two passes: first matches any, second pass matches lowercase only
     for name, value in os.environ.items():
         name = name.lower()
         if value and name[-6:] == '_proxy':
             proxies[name[:-6]] = value
+    for name, value in os.environ.items():
+        if name[-6:] == '_proxy':
+            name = name.lower()
+            if value:
+                proxies[name[:-6]] = value
+            else:
+                proxies.pop(name[:-6], None)
     return proxies
 
-def proxy_bypass_environment(host):
+def proxy_bypass_environment(host, proxies=None):
     """Test if proxies should not be used for a particular host.
 
-    Checks the environment for a variable named no_proxy, which should
-    be a list of DNS suffixes separated by commas, or '*' for all hosts.
+    Checks the proxy dict for the value of no_proxy, which should
+    be a list of comma separated DNS suffixes, or '*' for all hosts.
+
     """
-    no_proxy = os.environ.get('no_proxy', '') or os.environ.get('NO_PROXY', '')
+    if proxies is None:
+        proxies = getproxies_environment()
+    # don't bypass, if no_proxy isn't specified
+    try:
+        no_proxy = proxies['no']
+    except KeyError:
+        return 0
     # '*' is special case for always bypass
     if no_proxy == '*':
         return 1
@@ -2476,8 +2492,12 @@ def proxy_bypass_environment(host):
     # check if the host ends with any of the DNS suffixes
     no_proxy_list = [proxy.strip() for proxy in no_proxy.split(',')]
     for name in no_proxy_list:
-        if name and (hostonly.endswith(name) or host.endswith(name)):
-            return 1
+        if name:
+            name = re.escape(name)
+            pattern = r'(.+\.)?%s$' % name
+            if (re.match(pattern, hostonly, re.I)
+                    or re.match(pattern, host, re.I)):
+                return 1
     # otherwise, don't bypass
     return 0
 
@@ -2562,8 +2582,15 @@ if sys.platform == 'darwin':
 
 
     def proxy_bypass(host):
-        if getproxies_environment():
-            return proxy_bypass_environment(host)
+        """Return True, if host should be bypassed.
+
+        Checks proxy settings gathered from the environment, if specified,
+        or from the MacOSX framework SystemConfiguration.
+
+        """
+        proxies = getproxies_environment()
+        if proxies:
+            return proxy_bypass_environment(host, proxies)
         else:
             return proxy_bypass_macosx_sysconf(host)
 
@@ -2677,14 +2704,15 @@ elif os.name == 'nt':
         return 0
 
     def proxy_bypass(host):
-        """Return a dictionary of scheme -> proxy server URL mappings.
+        """Return True, if host should be bypassed.
 
-        Returns settings gathered from the environment, if specified,
+        Checks proxy settings gathered from the environment, if specified,
         or the registry.
 
         """
-        if getproxies_environment():
-            return proxy_bypass_environment(host)
+        proxies = getproxies_environment()
+        if proxies:
+            return proxy_bypass_environment(host, proxies)
         else:
             return proxy_bypass_registry(host)
 
