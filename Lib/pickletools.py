@@ -1898,7 +1898,7 @@ opcodes = [
       arg=None,
       stack_before=[pyunicode, pyunicode],
       stack_after=[anyobject],
-      proto=0,
+      proto=4,
       doc="""Push a global object (module.attr) on the stack.
       """),
 
@@ -2440,6 +2440,7 @@ def dis(pickle, out=None, memo=None, indentlevel=4, annotate=0):
         if opcode.name in ("PUT", "BINPUT", "LONG_BINPUT", "MEMOIZE"):
             if opcode.name == "MEMOIZE":
                 memo_idx = len(memo)
+                markmsg = "(as %d)" % memo_idx
             else:
                 assert arg is not None
                 memo_idx = arg
@@ -2793,7 +2794,7 @@ def _test():
     return doctest.testmod()
 
 if __name__ == "__main__":
-    import sys, argparse
+    import argparse
     parser = argparse.ArgumentParser(
         description='disassemble one or more pickle files')
     parser.add_argument(

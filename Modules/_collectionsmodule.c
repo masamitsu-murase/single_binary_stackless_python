@@ -110,12 +110,6 @@ static PyTypeObject deque_type;
 #define CHECK_NOT_END(link)
 #endif
 
-/* To prevent len from overflowing PY_SSIZE_T_MAX, we refuse to
-   allocate new blocks if the current len is nearing overflow.
-*/
-
-#define MAX_DEQUE_LEN (PY_SSIZE_T_MAX - 3*BLOCKLEN)
-
 /* A simple freelisting scheme is used to minimize calls to the memory
    allocator.  It accommodates common use cases where new blocks are being
    added at about the same rate as old blocks are being freed.
@@ -126,13 +120,8 @@ static Py_ssize_t numfreeblocks = 0;
 static block *freeblocks[MAXFREEBLOCKS];
 
 static block *
-newblock(Py_ssize_t len) {
+newblock(void) {
     block *b;
-    if (len >= MAX_DEQUE_LEN) {
-        PyErr_SetString(PyExc_OverflowError,
-                        "cannot add more blocks to the deque");
-        return NULL;
-    }
     if (numfreeblocks) {
         numfreeblocks--;
         return freeblocks[numfreeblocks];
@@ -156,12 +145,6 @@ freeblock(block *b)
     }
 }
 
-/* XXX Todo:
-   If aligned memory allocations become available, make the
-   deque object 64 byte aligned so that all of the fields
-   can be retrieved or updated in a single cache line.
-*/
-
 static PyObject *
 deque_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
@@ -173,7 +156,7 @@ deque_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     if (deque == NULL)
         return NULL;
 
-    b = newblock(0);
+    b = newblock();
     if (b == NULL) {
         Py_DECREF(deque);
         return NULL;
@@ -272,40 +255,22 @@ PyDoc_STRVAR(popleft_doc, "Remove and return the leftmost element.");
 /* The deque's size limit is d.maxlen.  The limit can be zero or positive.
  * If there is no limit, then d.maxlen == -1.
  *
- * After an item is added to a deque, we check to see if the size has grown past
- * the limit. If it has, we get the size back down to the limit by popping an
- * item off of the opposite end.  The methods that can trigger this are append(),
- * appendleft(), extend(), and extendleft().
+ * After an item is added to a deque, we check to see if the size has
+ * grown past the limit. If it has, we get the size back down to the limit
+ * by popping an item off of the opposite end.  The methods that can
+ * trigger this are append(), appendleft(), extend(), and extendleft().
+ *
+ * The macro to check whether a deque needs to be trimmed uses a single
+ * unsigned test that returns true whenever 0 <= maxlen < Py_SIZE(deque).
  */
 
-static void
-deque_trim_right(dequeobject *deque)
-{
-    if (deque->maxlen >= 0 && Py_SIZE(deque) > deque->maxlen) {
-        PyObject *rv = deque_pop(deque, NULL);
-        assert(rv != NULL);
-        assert(Py_SIZE(deque) <= deque->maxlen);
-        Py_DECREF(rv);
-    }
-}
-
-static void
-deque_trim_left(dequeobject *deque)
-{
-    if (deque->maxlen >= 0 && Py_SIZE(deque) > deque->maxlen) {
-        PyObject *rv = deque_popleft(deque, NULL);
-        assert(rv != NULL);
-        assert(Py_SIZE(deque) <= deque->maxlen);
-        Py_DECREF(rv);
-    }
-}
+#define NEEDS_TRIM(deque, maxlen) ((size_t)(maxlen) < (size_t)(Py_SIZE(deque)))
 
 static PyObject *
 deque_append(dequeobject *deque, PyObject *item)
 {
-    deque->state++;
     if (deque->rightindex == BLOCKLEN - 1) {
-        block *b = newblock(Py_SIZE(deque));
+        block *b = newblock();
         if (b == NULL)
             return NULL;
         b->leftlink = deque->rightblock;
@@ -319,7 +284,12 @@ deque_append(dequeobject *deque, PyObject *item)
     Py_INCREF(item);
     deque->rightindex++;
     deque->rightblock->data[deque->rightindex] = item;
-    deque_trim_left(deque);
+    if (NEEDS_TRIM(deque, deque->maxlen)) {
+        PyObject *olditem = deque_popleft(deque, NULL);
+        Py_DECREF(olditem);
+    } else {
+        deque->state++;
+    }
     Py_RETURN_NONE;
 }
 
@@ -328,9 +298,8 @@ PyDoc_STRVAR(append_doc, "Add an element to the right side of the deque.");
 static PyObject *
 deque_appendleft(dequeobject *deque, PyObject *item)
 {
-    deque->state++;
     if (deque->leftindex == 0) {
-        block *b = newblock(Py_SIZE(deque));
+        block *b = newblock();
         if (b == NULL)
             return NULL;
         b->rightlink = deque->leftblock;
@@ -344,7 +313,12 @@ deque_appendleft(dequeobject *deque, PyObject *item)
     Py_INCREF(item);
     deque->leftindex--;
     deque->leftblock->data[deque->leftindex] = item;
-    deque_trim_right(deque);
+    if (NEEDS_TRIM(deque, deque->maxlen)) {
+        PyObject *olditem = deque_pop(deque, NULL);
+        Py_DECREF(olditem);
+    } else {
+        deque->state++;
+    }
     Py_RETURN_NONE;
 }
 
@@ -410,14 +384,13 @@ deque_extend(dequeobject *deque, PyObject *iterable)
     if (it == NULL)
         return NULL;
 
-    if (deque->maxlen == 0)
+    if (maxlen == 0)
         return consume_iterator(it);
 
     iternext = *Py_TYPE(it)->tp_iternext;
     while ((item = iternext(it)) != NULL) {
-        deque->state++;
         if (deque->rightindex == BLOCKLEN - 1) {
-            block *b = newblock(Py_SIZE(deque));
+            block *b = newblock();
             if (b == NULL) {
                 Py_DECREF(item);
                 Py_DECREF(it);
@@ -433,9 +406,11 @@ deque_extend(dequeobject *deque, PyObject *iterable)
         Py_SIZE(deque)++;
         deque->rightindex++;
         deque->rightblock->data[deque->rightindex] = item;
-        if (maxlen >= 0 && Py_SIZE(deque) > maxlen) {
-            PyObject *rv = deque_popleft(deque, NULL);
-            Py_DECREF(rv);
+        if (NEEDS_TRIM(deque, maxlen)) {
+            PyObject *olditem = deque_popleft(deque, NULL);
+            Py_DECREF(olditem);
+        } else {
+            deque->state++;
         }
     }
     return finalize_iterator(it);
@@ -474,14 +449,13 @@ deque_extendleft(dequeobject *deque, PyObject *iterable)
     if (it == NULL)
         return NULL;
 
-    if (deque->maxlen == 0)
+    if (maxlen == 0)
         return consume_iterator(it);
 
     iternext = *Py_TYPE(it)->tp_iternext;
     while ((item = iternext(it)) != NULL) {
-        deque->state++;
         if (deque->leftindex == 0) {
-            block *b = newblock(Py_SIZE(deque));
+            block *b = newblock();
             if (b == NULL) {
                 Py_DECREF(item);
                 Py_DECREF(it);
@@ -497,9 +471,11 @@ deque_extendleft(dequeobject *deque, PyObject *iterable)
         Py_SIZE(deque)++;
         deque->leftindex--;
         deque->leftblock->data[deque->leftindex] = item;
-        if (maxlen >= 0 && Py_SIZE(deque) > maxlen) {
-            PyObject *rv = deque_pop(deque, NULL);
-            Py_DECREF(rv);
+        if (NEEDS_TRIM(deque, maxlen)) {
+            PyObject *olditem = deque_pop(deque, NULL);
+            Py_DECREF(olditem);
+        } else {
+            deque->state++;
         }
     }
     return finalize_iterator(it);
@@ -610,7 +586,7 @@ deque_clear(dequeobject *deque)
        adversary could cause it to never terminate).
     */
 
-    b = newblock(0);
+    b = newblock();
     if (b == NULL) {
         PyErr_Clear();
         goto alternate_method;
@@ -693,13 +669,10 @@ deque_inplace_repeat(dequeobject *deque, Py_ssize_t n)
         if (deque->maxlen >= 0 && n > deque->maxlen)
             n = deque->maxlen;
 
-        if (n > MAX_DEQUE_LEN)
-            return PyErr_NoMemory();
-
         deque->state++;
         for (i = 0 ; i < n-1 ; ) {
             if (deque->rightindex == BLOCKLEN - 1) {
-                block *b = newblock(Py_SIZE(deque) + i);
+                block *b = newblock();
                 if (b == NULL) {
                     Py_SIZE(deque) += i;
                     return NULL;
@@ -726,7 +699,7 @@ deque_inplace_repeat(dequeobject *deque, Py_ssize_t n)
         return (PyObject *)deque;
     }
 
-    if ((size_t)size > MAX_DEQUE_LEN / (size_t)n) {
+    if ((size_t)size > PY_SSIZE_T_MAX / (size_t)n) {
         return PyErr_NoMemory();
     }
 
@@ -769,7 +742,7 @@ volume rotations should take care not to penalize the common case.
 
 Conceptually, a rotate by one is equivalent to a pop on one side and an
 append on the other.  However, a pop/append pair is unnecessarily slow
-because it requires a incref/decref pair for an object located randomly
+because it requires an incref/decref pair for an object located randomly
 in memory.  It is better to just move the object pointer from one block
 to the next without changing the reference count.
 
@@ -813,7 +786,7 @@ _deque_rotate(dequeobject *deque, Py_ssize_t n)
     while (n > 0) {
         if (leftindex == 0) {
             if (b == NULL) {
-                b = newblock(len);
+                b = newblock();
                 if (b == NULL)
                     goto done;
             }
@@ -857,7 +830,7 @@ _deque_rotate(dequeobject *deque, Py_ssize_t n)
     while (n < 0) {
         if (rightindex == BLOCKLEN - 1) {
             if (b == NULL) {
-                b = newblock(len);
+                b = newblock();
                 if (b == NULL)
                     goto done;
             }
@@ -1044,11 +1017,12 @@ deque_len(dequeobject *deque)
 static PyObject *
 deque_index(dequeobject *deque, PyObject *args)
 {
-    Py_ssize_t i, start=0, stop=Py_SIZE(deque);
+    Py_ssize_t i, n, start=0, stop=Py_SIZE(deque);
     PyObject *v, *item;
     block *b = deque->leftblock;
     Py_ssize_t index = deque->leftindex;
     size_t start_state = deque->state;
+    int cmp;
 
     if (!PyArg_ParseTuple(args, "O|O&O&:index", &v,
                                 _PyEval_SliceIndex, &start,
@@ -1066,22 +1040,32 @@ deque_index(dequeobject *deque, PyObject *args)
     }
     if (stop > Py_SIZE(deque))
         stop = Py_SIZE(deque);
+    if (start > stop)
+        start = stop;
+    assert(0 <= start && start <= stop && stop <= Py_SIZE(deque));
 
-    for (i=0 ; i<stop ; i++) {
-        if (i >= start) {
-            int cmp;
-            CHECK_NOT_END(b);
-            item = b->data[index];
-            cmp = PyObject_RichCompareBool(item, v, Py_EQ);
-            if (cmp > 0)
-                return PyLong_FromSsize_t(i);
-            else if (cmp < 0)
-                return NULL;
-            if (start_state != deque->state) {
-                PyErr_SetString(PyExc_RuntimeError,
-                                "deque mutated during iteration");
-                return NULL;
-            }
+    /* XXX Replace this loop with faster code from deque_item() */
+    for (i=0 ; i<start ; i++) {
+        index++;
+        if (index == BLOCKLEN) {
+            b = b->rightlink;
+            index = 0;
+        }
+    }
+
+    n = stop - i + 1;
+    while (--n) {
+        CHECK_NOT_END(b);
+        item = b->data[index];
+        cmp = PyObject_RichCompareBool(item, v, Py_EQ);
+        if (cmp > 0)
+            return PyLong_FromSsize_t(stop - n);
+        if (cmp < 0)
+            return NULL;
+        if (start_state != deque->state) {
+            PyErr_SetString(PyExc_RuntimeError,
+                            "deque mutated during iteration");
+            return NULL;
         }
         index++;
         if (index == BLOCKLEN) {
@@ -1294,6 +1278,7 @@ deque_traverse(dequeobject *deque, visitproc visit, void *arg)
     PyObject *item;
     Py_ssize_t index;
     Py_ssize_t indexlo = deque->leftindex;
+    Py_ssize_t indexhigh;
 
     for (b = deque->leftblock; b != deque->rightblock; b = b->rightlink) {
         for (index = indexlo; index < BLOCKLEN ; index++) {
@@ -1302,7 +1287,8 @@ deque_traverse(dequeobject *deque, visitproc visit, void *arg)
         }
         indexlo = 0;
     }
-    for (index = indexlo; index <= deque->rightindex; index++) {
+    indexhigh = deque->rightindex;
+    for (index = indexlo; index <= indexhigh; index++) {
         item = b->data[index];
         Py_VISIT(item);
     }
@@ -1491,7 +1477,7 @@ deque_sizeof(dequeobject *deque, void *unused)
     Py_ssize_t blocks;
 
     res = sizeof(dequeobject);
-    blocks = (deque->leftindex + Py_SIZE(deque) + BLOCKLEN - 1) / BLOCKLEN;
+    blocks = (size_t)(deque->leftindex + Py_SIZE(deque) + BLOCKLEN - 1) / BLOCKLEN;
     assert(deque->leftindex + Py_SIZE(deque) - 1 ==
            (blocks - 1) * BLOCKLEN + deque->rightindex);
     res += blocks * sizeof(block);

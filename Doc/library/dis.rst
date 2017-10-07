@@ -989,6 +989,28 @@ the more significant byte last.
    arguments.
 
 
+.. opcode:: FORMAT_VALUE (flags)
+
+   Used for implementing formatted literal strings (f-strings).  Pops
+   an optional *fmt_spec* from the stack, then a required *value*.
+   *flags* is interpreted as follows:
+
+   * ``(flags & 0x03) == 0x00``: *value* is formatted as-is.
+   * ``(flags & 0x03) == 0x01``: call :func:`str` on *value* before
+     formatting it.
+   * ``(flags & 0x03) == 0x02``: call :func:`repr` on *value* before
+     formatting it.
+   * ``(flags & 0x03) == 0x03``: call :func:`ascii` on *value* before
+     formatting it.
+   * ``(flags & 0x04) == 0x04``: pop *fmt_spec* from the stack and use
+     it, else use an empty *fmt_spec*.
+
+   Formatting is performed using :c:func:`PyObject_Format`.  The
+   result is pushed on the stack.
+
+   .. versionadded:: 3.6
+
+
 .. opcode:: HAVE_ARGUMENT
 
    This is not really an opcode.  It identifies the dividing line between

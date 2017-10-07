@@ -24,8 +24,8 @@
         <Button Name="InstallButton" X="185" Y="101" Width="-11" Height="109" TabStop="yes" FontId="3" HexStyle="0xE">#(loc.InstallButton)</Button>
         <Button Name="InstallCustomButton" X="185" Y="221" Width="-11" Height="59" TabStop="yes" FontId="3" HexStyle="0xE">#(loc.InstallCustomButton)</Button>
 
+        <Checkbox Name="InstallLauncherAllUsers" X="185" Y="-37" Width="-100" Height="24" TabStop="yes" FontId="3">#(loc.ShortInstallLauncherAllUsersLabel)</Checkbox>
         <Checkbox Name="PrependPath" X="185" Y="-13" Width="-100" Height="24" TabStop="yes" FontId="3">#(loc.ShortPrependPathLabel)</Checkbox>
-        <Checkbox Name="InstallLauncherAllUsers" X="185" Y="-37" Width="-100" Height="24" TabStop="yes" FontId="3" HideWhenDisabled="yes">#(loc.ShortInstallLauncherAllUsersLabel)</Checkbox>
 
         <Button Name="InstallCancelButton" X="-11" Y="-11" Width="85" Height="27" TabStop="yes" FontId="0">#(loc.CancelButton)</Button>
     </Page>
@@ -64,8 +64,8 @@
         <Checkbox Name="Include_test" X="185" Y="201" Width="-11" Height="24" TabStop="yes" FontId="3" HideWhenDisabled="yes">#(loc.Include_testLabel)</Checkbox>
         <Text X="205" Y="226" Width="-11" Height="24" TabStop="no" FontId="5">#(loc.Include_testHelpLabel)</Text>
 
-        <Checkbox Name="Include_launcher" X="185" Y="251" Width="100" Height="24" TabStop="yes" FontId="3" HideWhenDisabled="yes">#(loc.Include_launcherLabel)</Checkbox>
-        <Checkbox Name="CustomInstallLauncherAllUsers" X="285" Y="251" Width="-11" Height="24" TabStop="yes" FontId="3" HideWhenDisabled="yes">#(loc.InstallLauncherAllUsersLabel)</Checkbox>
+        <Checkbox Name="Include_launcher" X="185" Y="251" Width="100" Height="24" TabStop="yes" FontId="3" HideWhenDisabled="no">#(loc.Include_launcherLabel)</Checkbox>
+        <Checkbox Name="CustomInstallLauncherAllUsers" X="285" Y="251" Width="-11" Height="24" TabStop="yes" FontId="3">#(loc.InstallLauncherAllUsersLabel)</Checkbox>
         <Text X="205" Y="276" Width="-11" Height="24" TabStop="no" FontId="5">#(loc.Include_launcherHelpLabel)</Text>
 
         <Button Name="Custom1BackButton" X="185" Y="-11" Width="85" Height="27" TabStop="yes" FontId="0">#(loc.CustomBackButton)</Button>
@@ -128,7 +128,7 @@
         <Image X="0" Y="0" Width="178" Height="382" ImageFile="SideBar.png"/>
 
         <Hypertext Name="FailureLogFileLink" X="205" Y="71" Width="-11" Height="60" FontId="3" TabStop="yes" HideWhenDisabled="yes">#(loc.FailureHyperlinkLogText)</Hypertext>
-        <Hypertext Name="FailureMessageText" X="205" Y="-100" Width="-11" Height="60" FontId="3" TabStop="yes" HideWhenDisabled="yes"></Hypertext>
+        <Hypertext Name="FailureMessageText" X="205" Y="151" Width="-11" Height="120" FontId="3" TabStop="yes" HideWhenDisabled="yes"></Hypertext>
         <Text Name="FailureRestartText" X="205" Y="-40" Width="-11" Height="34" FontId="3" HideWhenDisabled="yes" DisablePrefix="yes">#(loc.FailureRestartText)</Text>
         <Button Name="FailureRestartButton" X="-101" Y="-11" Width="85" Height="27" TabStop="yes" FontId="0" HideWhenDisabled="yes">#(loc.FailureRestartButton)</Button>
         <Button Name="FailureCancelButton" X="-11" Y="-11" Width="85" Height="27" TabStop="yes" FontId="0">#(loc.CloseButton)</Button>

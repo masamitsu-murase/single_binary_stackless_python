@@ -293,28 +293,8 @@ class PythonBootstrapperApplication : public CBalBaseBootstrapperApplication {
             hr = _engine->SetVariableNumeric(L"CompileAll", installAllUsers);
             ExitOnFailure(hr, L"Failed to update CompileAll");
 
-            hr = BalGetStringVariable(L"TargetDir", &targetDir);
-            if (FAILED(hr) || !targetDir || !targetDir[0]) {
-                ReleaseStr(targetDir);
-                targetDir = nullptr;
-
-                hr = BalGetStringVariable(
-                    installAllUsers ? L"DefaultAllUsersTargetDir" : L"DefaultJustForMeTargetDir",
-                    &defaultDir
-                );
-                BalExitOnFailure(hr, "Failed to get the default install directory");
-
-                if (!defaultDir || !defaultDir[0]) {
-                    BalLogError(E_INVALIDARG, "Default install directory is blank");
-                }
-
-                hr = BalFormatString(defaultDir, &targetDir);
-                BalExitOnFailure1(hr, "Failed to format '%ls'", defaultDir);
-
-                hr = _engine->SetVariableString(L"TargetDir", targetDir);
-                BalExitOnFailure(hr, "Failed to set install target directory");
-            }
-            ReleaseStr(targetDir);
+            hr = EnsureTargetDir();
+            ExitOnFailure(hr, L"Failed to set TargetDir");
 
             OnPlan(BOOTSTRAPPER_ACTION_INSTALL);
             break;
@@ -694,6 +674,8 @@ public: // IBootstrapperApplication
                     hr
                 );
             }
+
+            LoadOptionalFeatureStates(_engine);
         } else if (BOOTSTRAPPER_RELATED_OPERATION_NONE == operation) {
             if (_command.action == BOOTSTRAPPER_ACTION_INSTALL) {
                 LOC_STRING *pLocString = nullptr;
@@ -1235,6 +1217,8 @@ private:
         pThis->InitializeTaskbarButton();
         hr = pThis->CreateMainWindow();
         BalExitOnFailure(hr, "Failed to create main window.");
+
+        pThis->ValidateOperatingSystem();
 
         if (FAILED(pThis->_hrFinal)) {
             pThis->SetState(PYBA_STATE_FAILED, hr);
@@ -2574,7 +2558,14 @@ private:
 
     BOOL WillElevate() {
         static BAL_CONDITION WILL_ELEVATE_CONDITION = {
-            L"not WixBundleElevated and (InstallAllUsers or (InstallLauncherAllUsers and Include_launcher))",
+            L"not WixBundleElevated and ("
+                /*Elevate when installing for all users*/
+                L"InstallAllUsers or"
+                /*Elevate when installing the launcher for all users and it was not detected*/
+                L"(InstallLauncherAllUsers and Include_launcher and not DetectedLauncher) or"
+                /*Elevate when the launcher was installed for all users and it is being removed*/
+                L"(DetectedLauncher and DetectedLauncherAllUsers and not Include_launcher)"
+            L")",
             L""
         };
         BOOL result;
@@ -2902,6 +2893,10 @@ private:
             pEngine->SetVariableNumeric(L"Include_launcher", 0);
         } else if (res == ERROR_SUCCESS) {
             pEngine->SetVariableNumeric(L"Include_launcher", 1);
+            pEngine->SetVariableNumeric(L"DetectedLauncher", 1);
+            pEngine->SetVariableNumeric(L"InstallLauncherAllUsers", (hkHive == HKEY_LOCAL_MACHINE) ? 1 : 0);
+            pEngine->SetVariableNumeric(L"DetectedLauncherAllUsers", (hkHive == HKEY_LOCAL_MACHINE) ? 1 : 0);
+            pEngine->SetVariableString(L"InstallLauncherAllUsersState", L"disable");
         }
 
         res = RegQueryValueExW(hKey, L"AssociateFiles", nullptr, nullptr, nullptr, nullptr);
@@ -2970,6 +2965,69 @@ private:
 
     LExit:
         return;
+    }
+
+    HRESULT EnsureTargetDir() {
+        LONGLONG installAllUsers;
+        LPWSTR targetDir = nullptr, defaultDir = nullptr;
+        HRESULT hr = BalGetStringVariable(L"TargetDir", &targetDir);
+        if (FAILED(hr) || !targetDir || !targetDir[0]) {
+            ReleaseStr(targetDir);
+            targetDir = nullptr;
+
+            hr = BalGetNumericVariable(L"InstallAllUsers", &installAllUsers);
+            ExitOnFailure(hr, L"Failed to get install scope");
+
+            hr = BalGetStringVariable(
+                installAllUsers ? L"DefaultAllUsersTargetDir" : L"DefaultJustForMeTargetDir",
+                &defaultDir
+            );
+            BalExitOnFailure(hr, "Failed to get the default install directory");
+
+            if (!defaultDir || !defaultDir[0]) {
+                BalLogError(E_INVALIDARG, "Default install directory is blank");
+            }
+
+            hr = BalFormatString(defaultDir, &targetDir);
+            BalExitOnFailure1(hr, "Failed to format '%ls'", defaultDir);
+
+            hr = _engine->SetVariableString(L"TargetDir", targetDir);
+            BalExitOnFailure(hr, "Failed to set install target directory");
+        }
+    LExit:
+        ReleaseStr(defaultDir);
+        ReleaseStr(targetDir);
+        return hr;
+    }
+
+    void ValidateOperatingSystem() {
+        LOC_STRING *pLocString = nullptr;
+        
+        if (IsWindows7SP1OrGreater()) {
+            BalLog(BOOTSTRAPPER_LOG_LEVEL_ERROR, "Target OS is Windows 7 SP1 or later");
+            return;
+        } else if (IsWindows7OrGreater()) {
+            BalLog(BOOTSTRAPPER_LOG_LEVEL_ERROR, "Detected Windows 7 RTM");
+            BalLog(BOOTSTRAPPER_LOG_LEVEL_ERROR, "Service Pack 1 is required to continue installation");
+            LocGetString(_wixLoc, L"#(loc.FailureWin7MissingSP1)", &pLocString);
+        } else if (IsWindowsVistaSP2OrGreater()) {
+            BalLog(BOOTSTRAPPER_LOG_LEVEL_ERROR, "Target OS is Windows Vista SP2");
+            return;
+        } else if (IsWindowsVistaOrGreater()) {
+            BalLog(BOOTSTRAPPER_LOG_LEVEL_ERROR, "Detected Windows Vista RTM or SP1");
+            BalLog(BOOTSTRAPPER_LOG_LEVEL_ERROR, "Service Pack 2 is required to continue installation");
+            LocGetString(_wixLoc, L"#(loc.FailureVistaMissingSP2)", &pLocString);
+        } else { 
+            BalLog(BOOTSTRAPPER_LOG_LEVEL_ERROR, "Detected Windows XP or earlier");
+            BalLog(BOOTSTRAPPER_LOG_LEVEL_ERROR, "Windows Vista SP2 or later is required to continue installation");
+            LocGetString(_wixLoc, L"#(loc.FailureXPOrEarlier)", &pLocString);
+        }
+
+        if (pLocString && pLocString->wzText) {
+            BalFormatString(pLocString->wzText, &_failedMessage);
+        }
+        
+        _hrFinal = E_WIXSTDBA_CONDITION_FAILED;
     }
 
 public:
@@ -3056,7 +3114,7 @@ public:
         _hBAFModule = nullptr;
         _baFunction = nullptr;
 
-        LoadOptionalFeatureStates(pEngine);
+        EnsureTargetDir();
     }
 
 

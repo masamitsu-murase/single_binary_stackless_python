@@ -703,10 +703,10 @@ are always available.  They are listed here in alphabetical order.
    Return true if the *object* argument is an instance of the *classinfo*
    argument, or of a (direct, indirect or :term:`virtual <abstract base
    class>`) subclass thereof.  If *object* is not
-   an object of the given type, the function always returns false.  If
-   *classinfo* is not a class (type object), it may be a tuple of type objects,
-   or may recursively contain other such tuples (other sequence types are not
-   accepted).  If *classinfo* is not a type or tuple of types and such tuples,
+   an object of the given type, the function always returns false.
+   If *classinfo* is a tuple of type objects (or recursively, other such
+   tuples), return true if *object* is an instance of any of the types.
+   If *classinfo* is not a type or tuple of types and such tuples,
    a :exc:`TypeError` exception is raised.
 
 
@@ -1032,9 +1032,9 @@ are always available.  They are listed here in alphabetical order.
    :class:`io.TextIOBase` (specifically :class:`io.TextIOWrapper`).  When used
    to open a file in a binary mode with buffering, the returned class is a
    subclass of :class:`io.BufferedIOBase`.  The exact class varies: in read
-   binary mode, it returns a :class:`io.BufferedReader`; in write binary and
-   append binary modes, it returns a :class:`io.BufferedWriter`, and in
-   read/write mode, it returns a :class:`io.BufferedRandom`.  When buffering is
+   binary mode, it returns an :class:`io.BufferedReader`; in write binary and
+   append binary modes, it returns an :class:`io.BufferedWriter`, and in
+   read/write mode, it returns an :class:`io.BufferedRandom`.  When buffering is
    disabled, the raw stream, a subclass of :class:`io.RawIOBase`,
    :class:`io.FileIO`, is returned.
 

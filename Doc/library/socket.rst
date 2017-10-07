@@ -715,7 +715,7 @@ The :mod:`socket` module also offers various network-related services:
    Supported values for *address_family* are currently :const:`AF_INET` and
    :const:`AF_INET6`. If the bytes object *packed_ip* is not the correct
    length for the specified address family, :exc:`ValueError` will be raised.
-   A :exc:`OSError` is raised for errors from the call to :func:`inet_ntop`.
+   :exc:`OSError` is raised for errors from the call to :func:`inet_ntop`.
 
    Availability: Unix (maybe not all platforms), Windows.
 
@@ -786,7 +786,7 @@ The :mod:`socket` module also offers various network-related services:
 
 .. function:: sethostname(name)
 
-   Set the machine's hostname to *name*.  This will raise a
+   Set the machine's hostname to *name*.  This will raise an
    :exc:`OSError` if you don't have enough rights.
 
    Availability: Unix.
@@ -818,7 +818,7 @@ The :mod:`socket` module also offers various network-related services:
 
 .. function:: if_indextoname(if_index)
 
-   Return a network interface name corresponding to a
+   Return a network interface name corresponding to an
    interface index number.
    :exc:`OSError` if no interface with the given index exists.
 
@@ -1014,7 +1014,7 @@ to sockets.
    interpreted the same way as by the built-in :func:`open` function.
 
    The socket must be in blocking mode; it can have a timeout, but the file
-   object's internal buffer may end up in a inconsistent state if a timeout
+   object's internal buffer may end up in an inconsistent state if a timeout
    occurs.
 
    Closing the file object returned by :meth:`makefile` won't close the

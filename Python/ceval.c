@@ -2912,7 +2912,7 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
             }
             else {
                 v = PyObject_GetItem(locals, name);
-                if (v == NULL && _PyErr_OCCURRED()) {
+                if (v == NULL) {
                     if (!PyErr_ExceptionMatches(PyExc_KeyError))
                         goto error;
                     PyErr_Clear();
@@ -2968,6 +2968,10 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
                 /* Slow-path if globals or builtins is not a dict */
                 v = PyObject_GetItem(f->f_globals, name);
                 if (v == NULL) {
+                    if (!PyErr_ExceptionMatches(PyExc_KeyError))
+                        goto error;
+                    PyErr_Clear();
+
                     v = PyObject_GetItem(f->f_builtins, name);
                     if (v == NULL) {
                         if (PyErr_ExceptionMatches(PyExc_KeyError))
@@ -3027,7 +3031,7 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
             }
             else {
                 value = PyObject_GetItem(locals, name);
-                if (value == NULL && PyErr_Occurred()) {
+                if (value == NULL) {
                     if (!PyErr_ExceptionMatches(PyExc_KeyError))
                         goto error;
                     PyErr_Clear();
@@ -4019,6 +4023,63 @@ stackless_call_return:
             SET_TOP(slice);
             if (slice == NULL)
                 goto error;
+            DISPATCH();
+        }
+
+        TARGET(FORMAT_VALUE) {
+            /* Handles f-string value formatting. */
+            PyObject *result;
+            PyObject *fmt_spec;
+            PyObject *value;
+            PyObject *(*conv_fn)(PyObject *);
+            int which_conversion = oparg & FVC_MASK;
+            int have_fmt_spec = (oparg & FVS_MASK) == FVS_HAVE_SPEC;
+
+            fmt_spec = have_fmt_spec ? POP() : NULL;
+            value = TOP();
+
+            /* See if any conversion is specified. */
+            switch (which_conversion) {
+            case FVC_STR:   conv_fn = PyObject_Str;   break;
+            case FVC_REPR:  conv_fn = PyObject_Repr;  break;
+            case FVC_ASCII: conv_fn = PyObject_ASCII; break;
+
+            /* Must be 0 (meaning no conversion), since only four
+               values are allowed by (oparg & FVC_MASK). */
+            default:        conv_fn = NULL;           break;
+            }
+
+            /* If there's a conversion function, call it and replace
+               value with that result. Otherwise, just use value,
+               without conversion. */
+            if (conv_fn) {
+                result = conv_fn(value);
+                Py_DECREF(value);
+                if (!result) {
+                    Py_XDECREF(fmt_spec);
+                    goto error;
+                }
+                value = result;
+            }
+
+            /* If value is a unicode object, and there's no fmt_spec,
+               then we know the result of format(value) is value
+               itself. In that case, skip calling format(). I plan to
+               move this optimization in to PyObject_Format()
+               itself. */
+            if (PyUnicode_CheckExact(value) && fmt_spec == NULL) {
+                /* Do nothing, just transfer ownership to result. */
+                result = value;
+            } else {
+                /* Actually call format(). */
+                result = PyObject_Format(value, fmt_spec);
+                Py_DECREF(value);
+                Py_XDECREF(fmt_spec);
+                if (!result)
+                    goto error;
+            }
+
+            SET_TOP(result);
             DISPATCH();
         }
 

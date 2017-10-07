@@ -192,7 +192,7 @@ process more convenient:
    number is specified, :data:`HIGHEST_PROTOCOL` is selected.
 
    The *file* argument must have a write() method that accepts a single bytes
-   argument.  It can thus be an on-disk file opened for binary writing, a
+   argument.  It can thus be an on-disk file opened for binary writing, an
    :class:`io.BytesIO` instance, or any other custom object that meets this
    interface.
 
@@ -221,7 +221,7 @@ process more convenient:
    The argument *file* must have two methods, a read() method that takes an
    integer argument, and a readline() method that requires no arguments.  Both
    methods should return bytes.  Thus *file* can be an on-disk file opened for
-   binary reading, a :class:`io.BytesIO` object, or any other custom object
+   binary reading, an :class:`io.BytesIO` object, or any other custom object
    that meets this interface.
 
    Optional keyword arguments are *fix_imports*, *encoding* and *errors*,
@@ -288,7 +288,7 @@ The :mod:`pickle` module exports two classes, :class:`Pickler` and
    number is specified, :data:`HIGHEST_PROTOCOL` is selected.
 
    The *file* argument must have a write() method that accepts a single bytes
-   argument.  It can thus be an on-disk file opened for binary writing, a
+   argument.  It can thus be an on-disk file opened for binary writing, an
    :class:`io.BytesIO` instance, or any other custom object that meets this
    interface.
 
@@ -357,7 +357,7 @@ The :mod:`pickle` module exports two classes, :class:`Pickler` and
    The argument *file* must have two methods, a read() method that takes an
    integer argument, and a readline() method that requires no arguments.  Both
    methods should return bytes.  Thus *file* can be an on-disk file object
-   opened for binary reading, a :class:`io.BytesIO` object, or any other
+   opened for binary reading, an :class:`io.BytesIO` object, or any other
    custom object that meets this interface.
 
    Optional keyword arguments are *fix_imports*, *encoding* and *errors*,
@@ -488,7 +488,7 @@ methods:
 
 .. method:: object.__getnewargs_ex__()
 
-   In protocols 4 and newer, classes that implements the
+   In protocols 2 and newer, classes that implements the
    :meth:`__getnewargs_ex__` method can dictate the values passed to the
    :meth:`__new__` method upon unpickling.  The method must return a pair
    ``(args, kwargs)`` where *args* is a tuple of positional arguments
@@ -500,15 +500,22 @@ methods:
    class requires keyword-only arguments.  Otherwise, it is recommended for
    compatibility to implement :meth:`__getnewargs__`.
 
+   .. versionchanged:: 3.6
+      :meth:`__getnewargs_ex__` is now used in protocols 2 and 3.
+
 
 .. method:: object.__getnewargs__()
 
-   This method serve a similar purpose as :meth:`__getnewargs_ex__` but
-   for protocols 2 and newer.  It must return a tuple of arguments ``args``
-   which will be passed to the :meth:`__new__` method upon unpickling.
+   This method serve a similar purpose as :meth:`__getnewargs_ex__`, but
+   supports only positional arguments.  It must return a tuple of arguments
+   ``args`` which will be passed to the :meth:`__new__` method upon unpickling.
 
-   In protocols 4 and newer, :meth:`__getnewargs__` will not be called if
-   :meth:`__getnewargs_ex__` is defined.
+   :meth:`__getnewargs__` will not be called if :meth:`__getnewargs_ex__` is
+   defined.
+
+   .. versionchanged:: 3.6
+      Before Python 3.6, :meth:`__getnewargs__` was called instead of
+      :meth:`__getnewargs_ex__` in protocols 2 and 3.
 
 
 .. method:: object.__getstate__()

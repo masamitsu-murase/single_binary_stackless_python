@@ -142,8 +142,11 @@ PyObject_GetItem(PyObject *o, PyObject *key)
         return null_error();
 
     m = o->ob_type->tp_as_mapping;
-    if (m && m->mp_subscript)
-        return m->mp_subscript(o, key);
+    if (m && m->mp_subscript) {
+        PyObject *item = m->mp_subscript(o, key);
+        assert((item != NULL) ^ (PyErr_Occurred() != NULL));
+        return item;
+    }
 
     if (o->ob_type->tp_as_sequence) {
         if (PyIndex_Check(key)) {
@@ -1289,7 +1292,7 @@ PyNumber_Long(PyObject *o)
         if (truncated == NULL || PyLong_Check(truncated))
             return truncated;
         /* __trunc__ is specified to return an Integral type,
-           but int() needs to return a int. */
+           but int() needs to return an int. */
         m = truncated->ob_type->tp_as_number;
         if (m == NULL || m->nb_int == NULL) {
             PyErr_Format(
@@ -1527,8 +1530,10 @@ PySequence_GetItem(PyObject *s, Py_ssize_t i)
         if (i < 0) {
             if (m->sq_length) {
                 Py_ssize_t l = (*m->sq_length)(s);
-                if (l < 0)
+                if (l < 0) {
+                    assert(PyErr_Occurred());
                     return NULL;
+                }
                 i += l;
             }
         }

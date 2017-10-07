@@ -2124,38 +2124,35 @@ save_bytes(PicklerObject *self, PyObject *obj)
 static PyObject *
 raw_unicode_escape(PyObject *obj)
 {
-    PyObject *repr;
     char *p;
     Py_ssize_t i, size;
-    size_t expandsize;
     void *data;
     unsigned int kind;
+    _PyBytesWriter writer;
 
     if (PyUnicode_READY(obj))
         return NULL;
 
+    _PyBytesWriter_Init(&writer);
+
     size = PyUnicode_GET_LENGTH(obj);
     data = PyUnicode_DATA(obj);
     kind = PyUnicode_KIND(obj);
-    if (kind == PyUnicode_4BYTE_KIND)
-        expandsize = 10;
-    else
-        expandsize = 6;
 
-    if ((size_t)size > (size_t)PY_SSIZE_T_MAX / expandsize)
-        return PyErr_NoMemory();
-    repr = PyBytes_FromStringAndSize(NULL, expandsize * size);
-    if (repr == NULL)
-        return NULL;
-    if (size == 0)
-        return repr;
-    assert(Py_REFCNT(repr) == 1);
+    p = _PyBytesWriter_Alloc(&writer, size);
+    if (p == NULL)
+        goto error;
+    writer.overallocate = 1;
 
-    p = PyBytes_AS_STRING(repr);
     for (i=0; i < size; i++) {
         Py_UCS4 ch = PyUnicode_READ(kind, data, i);
         /* Map 32-bit characters to '\Uxxxxxxxx' */
         if (ch >= 0x10000) {
+            /* -1: substract 1 preallocated byte */
+            p = _PyBytesWriter_Prepare(&writer, p, 10-1);
+            if (p == NULL)
+                goto error;
+
             *p++ = '\\';
             *p++ = 'U';
             *p++ = Py_hexdigits[(ch >> 28) & 0xf];
@@ -2167,8 +2164,13 @@ raw_unicode_escape(PyObject *obj)
             *p++ = Py_hexdigits[(ch >> 4) & 0xf];
             *p++ = Py_hexdigits[ch & 15];
         }
-        /* Map 16-bit characters to '\uxxxx' */
+        /* Map 16-bit characters, '\\' and '\n' to '\uxxxx' */
         else if (ch >= 256 || ch == '\\' || ch == '\n') {
+            /* -1: substract 1 preallocated byte */
+            p = _PyBytesWriter_Prepare(&writer, p, 6-1);
+            if (p == NULL)
+                goto error;
+
             *p++ = '\\';
             *p++ = 'u';
             *p++ = Py_hexdigits[(ch >> 12) & 0xf];
@@ -2180,10 +2182,12 @@ raw_unicode_escape(PyObject *obj)
         else
             *p++ = (char) ch;
     }
-    size = p - PyBytes_AS_STRING(repr);
-    if (_PyBytes_Resize(&repr, size) < 0)
-        return NULL;
-    return repr;
+
+    return _PyBytesWriter_Finish(&writer, p);
+
+error:
+    _PyBytesWriter_Dealloc(&writer);
+    return NULL;
 }
 
 static int
@@ -4212,7 +4216,7 @@ version of Python needed to read the pickle produced.
 
 The *file* argument must have a write() method that accepts a single
 bytes argument. It can thus be a file object opened for binary
-writing, a io.BytesIO instance, or any other custom object that meets
+writing, an io.BytesIO instance, or any other custom object that meets
 this interface.
 
 If *fix_imports* is True and protocol is less than 3, pickle will try
@@ -4223,7 +4227,7 @@ to map the new Python 3 names to the old module names used in Python
 static int
 _pickle_Pickler___init___impl(PicklerObject *self, PyObject *file,
                               PyObject *protocol, int fix_imports)
-/*[clinic end generated code: output=b5f31078dab17fb0 input=b8cdeb7e3f5ee674]*/
+/*[clinic end generated code: output=b5f31078dab17fb0 input=4faabdbc763c2389]*/
 {
     _Py_IDENTIFIER(persistent_id);
     _Py_IDENTIFIER(dispatch_table);
@@ -6664,7 +6668,7 @@ representation are ignored.
 The argument *file* must have two methods, a read() method that takes
 an integer argument, and a readline() method that requires no
 arguments.  Both methods should return bytes.  Thus *file* can be a
-binary file object opened for reading, a io.BytesIO object, or any
+binary file object opened for reading, an io.BytesIO object, or any
 other custom object that meets this interface.
 
 Optional keyword arguments are *fix_imports*, *encoding* and *errors*,
@@ -6681,7 +6685,7 @@ static int
 _pickle_Unpickler___init___impl(UnpicklerObject *self, PyObject *file,
                                 int fix_imports, const char *encoding,
                                 const char *errors)
-/*[clinic end generated code: output=e2c8ce748edc57b0 input=30b4dc9e976b890c]*/
+/*[clinic end generated code: output=e2c8ce748edc57b0 input=04ece661aa884837]*/
 {
     _Py_IDENTIFIER(persistent_load);
 
@@ -7100,7 +7104,7 @@ version of Python needed to read the pickle produced.
 
 The *file* argument must have a write() method that accepts a single
 bytes argument.  It can thus be a file object opened for binary
-writing, a io.BytesIO instance, or any other custom object that meets
+writing, an io.BytesIO instance, or any other custom object that meets
 this interface.
 
 If *fix_imports* is True and protocol is less than 3, pickle will try
@@ -7111,7 +7115,7 @@ to map the new Python 3 names to the old module names used in Python
 static PyObject *
 _pickle_dump_impl(PyModuleDef *module, PyObject *obj, PyObject *file,
                   PyObject *protocol, int fix_imports)
-/*[clinic end generated code: output=0de7dff89c406816 input=e9e5fdd48de92eae]*/
+/*[clinic end generated code: output=0de7dff89c406816 input=830f8a64cef6f042]*/
 {
     PicklerObject *pickler = _Pickler_New();
 
@@ -7210,7 +7214,7 @@ representation are ignored.
 The argument *file* must have two methods, a read() method that takes
 an integer argument, and a readline() method that requires no
 arguments.  Both methods should return bytes.  Thus *file* can be a
-binary file object opened for reading, a io.BytesIO object, or any
+binary file object opened for reading, an io.BytesIO object, or any
 other custom object that meets this interface.
 
 Optional keyword arguments are *fix_imports*, *encoding* and *errors*,
@@ -7226,7 +7230,7 @@ string instances as bytes objects.
 static PyObject *
 _pickle_load_impl(PyModuleDef *module, PyObject *file, int fix_imports,
                   const char *encoding, const char *errors)
-/*[clinic end generated code: output=798f1c57cb2b4eb1 input=da97372e38e510a6]*/
+/*[clinic end generated code: output=798f1c57cb2b4eb1 input=2df7c7a1e6742204]*/
 {
     PyObject *result;
     UnpicklerObject *unpickler = _Unpickler_New();

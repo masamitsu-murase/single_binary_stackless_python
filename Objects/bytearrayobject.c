@@ -282,26 +282,14 @@ PyByteArray_Concat(PyObject *a, PyObject *b)
 static PyObject *
 bytearray_format(PyByteArrayObject *self, PyObject *args)
 {
-    PyObject *bytes_in, *bytes_out, *res;
-    char *bytestring;
-
-    if (self == NULL || !PyByteArray_Check(self) || args == NULL) {
+    if (self == NULL || !PyByteArray_Check(self)) {
         PyErr_BadInternalCall();
         return NULL;
     }
-    bytestring = PyByteArray_AS_STRING(self);
-    bytes_in = PyBytes_FromString(bytestring);
-    if (bytes_in == NULL)
-        return NULL;
-    bytes_out = _PyBytes_Format(bytes_in, args);
-    Py_DECREF(bytes_in);
-    if (bytes_out == NULL)
-        return NULL;
-    res = PyByteArray_FromObject(bytes_out);
-    Py_DECREF(bytes_out);
-    if (res == NULL)
-        return NULL;
-    return res;
+
+    return _PyBytes_FormatEx(PyByteArray_AS_STRING(self),
+                             PyByteArray_GET_SIZE(self),
+                             args, 1);
 }
 
 /* Functions stuffed into the type object */
@@ -2801,22 +2789,6 @@ bytearray_splitlines_impl(PyByteArrayObject *self, int keepends)
         );
 }
 
-static int
-hex_digit_to_int(Py_UCS4 c)
-{
-    if (c >= 128)
-        return -1;
-    if (Py_ISDIGIT(c))
-        return c - '0';
-    else {
-        if (Py_ISUPPER(c))
-            c = Py_TOLOWER(c);
-        if (c >= 'a' && c <= 'f')
-            return c - 'a' + 10;
-    }
-    return -1;
-}
-
 /*[clinic input]
 @classmethod
 bytearray.fromhex
@@ -2835,48 +2807,7 @@ static PyObject *
 bytearray_fromhex_impl(PyObject*cls, PyObject *string)
 /*[clinic end generated code: output=df3da60129b3700c input=907bbd2d34d9367a]*/
 {
-    PyObject *newbytes;
-    char *buf;
-    Py_ssize_t hexlen, byteslen, i, j;
-    int top, bot;
-    void *data;
-    unsigned int kind;
-
-    assert(PyUnicode_Check(string));
-    if (PyUnicode_READY(string))
-        return NULL;
-    kind = PyUnicode_KIND(string);
-    data = PyUnicode_DATA(string);
-    hexlen = PyUnicode_GET_LENGTH(string);
-
-    byteslen = hexlen/2; /* This overestimates if there are spaces */
-    newbytes = PyByteArray_FromStringAndSize(NULL, byteslen);
-    if (!newbytes)
-        return NULL;
-    buf = PyByteArray_AS_STRING(newbytes);
-    for (i = j = 0; i < hexlen; i += 2) {
-        /* skip over spaces in the input */
-        while (PyUnicode_READ(kind, data, i) == ' ')
-            i++;
-        if (i >= hexlen)
-            break;
-        top = hex_digit_to_int(PyUnicode_READ(kind, data, i));
-        bot = hex_digit_to_int(PyUnicode_READ(kind, data, i+1));
-        if (top == -1 || bot == -1) {
-            PyErr_Format(PyExc_ValueError,
-                         "non-hexadecimal number found in "
-                         "fromhex() arg at position %zd", i);
-            goto error;
-        }
-        buf[j++] = (top << 4) + bot;
-    }
-    if (PyByteArray_Resize(newbytes, j) < 0)
-        goto error;
-    return newbytes;
-
-  error:
-    Py_DECREF(newbytes);
-    return NULL;
+    return _PyBytes_FromHex(string, 1);
 }
 
 PyDoc_STRVAR(hex__doc__,

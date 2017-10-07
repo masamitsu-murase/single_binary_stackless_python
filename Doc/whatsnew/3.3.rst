@@ -1421,7 +1421,7 @@ can be used to directly manage when the accumlated headers are sent.
 
 :class:`http.client.HTTPResponse` now has a
 :meth:`~http.client.HTTPResponse.readinto` method, which means it can be used
-as a :class:`io.RawIOBase` class.  (Contributed by John Kuhn in
+as an :class:`io.RawIOBase` class.  (Contributed by John Kuhn in
 :issue:`13464`.)
 
 
@@ -2155,7 +2155,7 @@ Major performance enhancements have been added:
   * encode an ASCII string to UTF-8 doesn't need to encode characters anymore,
     the UTF-8 representation is shared with the ASCII representation
   * the UTF-8 encoder has been optimized
-  * repeating a single ASCII letter and getting a substring of a ASCII strings
+  * repeating a single ASCII letter and getting a substring of an ASCII string
     is 4 times faster
 
 * UTF-8 is now 2x to 4x faster.  UTF-16 encoding is now up to 10x faster.
