@@ -909,7 +909,7 @@ def temp_dir(path=None, quiet=False):
         yield path
     finally:
         if dir_created and pid == os.getpid():
-            shutil.rmtree(path)
+            rmtree(path)
 
 @contextlib.contextmanager
 def change_cwd(path, quiet=False):
