@@ -95,12 +95,30 @@ New Modules
 Improved Modules
 ================
 
+datetime
+--------
+
+:meth:`datetime.stftime <datetime.datetime.stftime>` and
+:meth:`date.stftime <datetime.date.stftime>` methods now support ISO 8601 date
+directives ``%G``, ``%u`` and ``%V``.
+(Contributed by Ashley Anderson in :issue:`12006`.)
+
+
 operator
 --------
 
-* New object :data:`operator.subscript` makes it easier to create complex
-  indexers. For example: ``subscript[0:10:2] == slice(0, 10, 2)``
-  (Contributed by Joe Jevnik in :issue:`24379`.)
+New object :data:`operator.subscript` makes it easier to create complex
+indexers. For example: ``subscript[0:10:2] == slice(0, 10, 2)``
+(Contributed by Joe Jevnik in :issue:`24379`.)
+
+
+pickle
+------
+
+Objects that need calling ``__new__`` with keyword arguments, can now be pickled
+using :ref:`pickle protocols <pickle-protocols>` older than protocol version 4.
+Protocol version 4 already supports this case.  (Contributed by Serhiy
+Storchaka in :issue:`24164`.)
 
 
 rlcomplete
@@ -111,6 +129,14 @@ with underscores.  A space or a colon can be added after completed keyword.
 (Contributed by Serhiy Storchaka in :issue:`25011` and :issue:`25209`.)
 
 
+urllib.robotparser
+------------------
+
+:class:`~urllib.robotparser.RobotFileParser` now supports ``Crawl-delay`` and
+``Request-rate`` extensions.
+(Contributed by Nikolay Bogoychev in :issue:`16099`.)
+
+
 Optimizations
 =============
 
@@ -119,6 +145,12 @@ Optimizations
 
 * The ASCII and the Latin1 encoders are now up to 3 times as fast for the error
   error ``surrogateescape``.
+
+* The UTF-8 encoder is now up to 75 times as fast for error handlers:
+  ``ignore``, ``replace``, ``surrogateescape``, ``surrogatepass``.
+
+* The UTF-8 decoder is now up to 15 times as fast for error handlers:
+  ``ignore``, ``replace`` and ``surrogateescape``.
 
 
 Build and C API Changes

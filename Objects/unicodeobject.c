@@ -163,6 +163,14 @@ extern "C" {
             *_to++ = (to_type) *_iter++;                \
     } while (0)
 
+#ifdef MS_WINDOWS
+   /* On Windows, overallocate by 50% is the best factor */
+#  define OVERALLOCATE_FACTOR 2
+#else
+   /* On Linux, overallocate by 25% is the best factor */
+#  define OVERALLOCATE_FACTOR 4
+#endif
+
 /* This dictionary holds all interned unicode strings.  Note that references
    to strings in this dictionary are *not* counted in the string's ob_refcnt.
    When the interned string reaches a refcnt of 0 the string deallocation
@@ -299,6 +307,8 @@ typedef enum {
     _Py_ERROR_SURROGATEESCAPE,
     _Py_ERROR_REPLACE,
     _Py_ERROR_IGNORE,
+    _Py_ERROR_BACKSLASHREPLACE,
+    _Py_ERROR_SURROGATEPASS,
     _Py_ERROR_XMLCHARREFREPLACE,
     _Py_ERROR_OTHER
 } _Py_error_handler;
@@ -306,16 +316,18 @@ typedef enum {
 static _Py_error_handler
 get_error_handler(const char *errors)
 {
-    if (errors == NULL)
-        return _Py_ERROR_STRICT;
-    if (strcmp(errors, "strict") == 0)
+    if (errors == NULL || strcmp(errors, "strict") == 0)
         return _Py_ERROR_STRICT;
     if (strcmp(errors, "surrogateescape") == 0)
         return _Py_ERROR_SURROGATEESCAPE;
-    if (strcmp(errors, "ignore") == 0)
-        return _Py_ERROR_IGNORE;
     if (strcmp(errors, "replace") == 0)
         return _Py_ERROR_REPLACE;
+    if (strcmp(errors, "ignore") == 0)
+        return _Py_ERROR_IGNORE;
+    if (strcmp(errors, "backslashreplace") == 0)
+        return _Py_ERROR_BACKSLASHREPLACE;
+    if (strcmp(errors, "surrogatepass") == 0)
+        return _Py_ERROR_SURROGATEPASS;
     if (strcmp(errors, "xmlcharrefreplace") == 0)
         return _Py_ERROR_XMLCHARREFREPLACE;
     return _Py_ERROR_OTHER;
@@ -548,6 +560,129 @@ unicode_result_unchanged(PyObject *unicode)
     else
         /* Subtype -- return genuine unicode string with the same value. */
         return _PyUnicode_Copy(unicode);
+}
+
+/* Implementation of the "backslashreplace" error handler for 8-bit encodings:
+   ASCII, Latin1, UTF-8, etc. */
+static char*
+backslashreplace(_PyBytesWriter *writer, char *str,
+                 PyObject *unicode, Py_ssize_t collstart, Py_ssize_t collend)
+{
+    Py_ssize_t size, i;
+    Py_UCS4 ch;
+    enum PyUnicode_Kind kind;
+    void *data;
+
+    assert(PyUnicode_IS_READY(unicode));
+    kind = PyUnicode_KIND(unicode);
+    data = PyUnicode_DATA(unicode);
+
+    size = 0;
+    /* determine replacement size */
+    for (i = collstart; i < collend; ++i) {
+        Py_ssize_t incr;
+
+        ch = PyUnicode_READ(kind, data, i);
+        if (ch < 0x100)
+            incr = 2+2;
+        else if (ch < 0x10000)
+            incr = 2+4;
+        else {
+            assert(ch <= MAX_UNICODE);
+            incr = 2+8;
+        }
+        if (size > PY_SSIZE_T_MAX - incr) {
+            PyErr_SetString(PyExc_OverflowError,
+                            "encoded result is too long for a Python string");
+            return NULL;
+        }
+        size += incr;
+    }
+
+    str = _PyBytesWriter_Prepare(writer, str, size);
+    if (str == NULL)
+        return NULL;
+
+    /* generate replacement */
+    for (i = collstart; i < collend; ++i) {
+        ch = PyUnicode_READ(kind, data, i);
+        *str++ = '\\';
+        if (ch >= 0x00010000) {
+            *str++ = 'U';
+            *str++ = Py_hexdigits[(ch>>28)&0xf];
+            *str++ = Py_hexdigits[(ch>>24)&0xf];
+            *str++ = Py_hexdigits[(ch>>20)&0xf];
+            *str++ = Py_hexdigits[(ch>>16)&0xf];
+            *str++ = Py_hexdigits[(ch>>12)&0xf];
+            *str++ = Py_hexdigits[(ch>>8)&0xf];
+        }
+        else if (ch >= 0x100) {
+            *str++ = 'u';
+            *str++ = Py_hexdigits[(ch>>12)&0xf];
+            *str++ = Py_hexdigits[(ch>>8)&0xf];
+        }
+        else
+            *str++ = 'x';
+        *str++ = Py_hexdigits[(ch>>4)&0xf];
+        *str++ = Py_hexdigits[ch&0xf];
+    }
+    return str;
+}
+
+/* Implementation of the "xmlcharrefreplace" error handler for 8-bit encodings:
+   ASCII, Latin1, UTF-8, etc. */
+static char*
+xmlcharrefreplace(_PyBytesWriter *writer, char *str,
+                  PyObject *unicode, Py_ssize_t collstart, Py_ssize_t collend)
+{
+    Py_ssize_t size, i;
+    Py_UCS4 ch;
+    enum PyUnicode_Kind kind;
+    void *data;
+
+    assert(PyUnicode_IS_READY(unicode));
+    kind = PyUnicode_KIND(unicode);
+    data = PyUnicode_DATA(unicode);
+
+    size = 0;
+    /* determine replacement size */
+    for (i = collstart; i < collend; ++i) {
+        Py_ssize_t incr;
+
+        ch = PyUnicode_READ(kind, data, i);
+        if (ch < 10)
+            incr = 2+1+1;
+        else if (ch < 100)
+            incr = 2+2+1;
+        else if (ch < 1000)
+            incr = 2+3+1;
+        else if (ch < 10000)
+            incr = 2+4+1;
+        else if (ch < 100000)
+            incr = 2+5+1;
+        else if (ch < 1000000)
+            incr = 2+6+1;
+        else {
+            assert(ch <= MAX_UNICODE);
+            incr = 2+7+1;
+        }
+        if (size > PY_SSIZE_T_MAX - incr) {
+            PyErr_SetString(PyExc_OverflowError,
+                            "encoded result is too long for a Python string");
+            return NULL;
+        }
+        size += incr;
+    }
+
+    str = _PyBytesWriter_Prepare(writer, str, size);
+    if (str == NULL)
+        return NULL;
+
+    /* generate replacement */
+    for (i = collstart; i < collend; ++i) {
+        str += sprintf(str, "&#%d;", PyUnicode_READ(kind, data, i));
+    }
+    return str;
 }
 
 /* --- Bloom Filters ----------------------------------------------------- */
@@ -4357,31 +4492,31 @@ PyUnicode_DecodeUTF7Stateful(const char *s,
             }
             else { /* now leaving a base-64 section */
                 inShift = 0;
-                s++;
-                if (surrogate) {
-                    if (_PyUnicodeWriter_WriteCharInline(&writer, surrogate) < 0)
-                        goto onError;
-                    surrogate = 0;
-                }
                 if (base64bits > 0) { /* left-over bits */
                     if (base64bits >= 6) {
                         /* We've seen at least one base-64 character */
+                        s++;
                         errmsg = "partial character in shift sequence";
                         goto utf7Error;
                     }
                     else {
                         /* Some bits remain; they should be zero */
                         if (base64buffer != 0) {
+                            s++;
                             errmsg = "non-zero padding bits in shift sequence";
                             goto utf7Error;
                         }
                     }
                 }
-                if (ch != '-') {
+                if (surrogate && DECODE_DIRECT(ch)) {
+                    if (_PyUnicodeWriter_WriteCharInline(&writer, surrogate) < 0)
+                        goto onError;
+                }
+                surrogate = 0;
+                if (ch == '-') {
                     /* '-' is absorbed; other terminating
                        characters are preserved */
-                    if (_PyUnicodeWriter_WriteCharInline(&writer, ch) < 0)
-                        goto onError;
+                    s++;
                 }
             }
         }
@@ -4395,6 +4530,7 @@ PyUnicode_DecodeUTF7Stateful(const char *s,
             }
             else { /* begin base64-encoded section */
                 inShift = 1;
+                surrogate = 0;
                 shiftOutStart = writer.pos;
                 base64bits = 0;
                 base64buffer = 0;
@@ -4426,6 +4562,7 @@ utf7Error:
 
     if (inShift && !consumed) { /* in shift sequence, no more to follow */
         /* if we're in an inconsistent state, that's an error */
+        inShift = 0;
         if (surrogate ||
                 (base64bits >= 6) ||
                 (base64bits > 0 && base64buffer != 0)) {
@@ -4709,8 +4846,9 @@ PyUnicode_DecodeUTF8Stateful(const char *s,
     Py_ssize_t startinpos;
     Py_ssize_t endinpos;
     const char *errmsg = "";
-    PyObject *errorHandler = NULL;
+    PyObject *error_handler_obj = NULL;
     PyObject *exc = NULL;
+    _Py_error_handler error_handler = _Py_ERROR_UNKNOWN;
 
     if (size == 0) {
         if (consumed)
@@ -4735,6 +4873,7 @@ PyUnicode_DecodeUTF8Stateful(const char *s,
     while (s < end) {
         Py_UCS4 ch;
         int kind = writer.kind;
+
         if (kind == PyUnicode_1BYTE_KIND) {
             if (PyUnicode_IS_ASCII(writer.buffer))
                 ch = asciilib_utf8_decode(&s, end, writer.data, &writer.pos);
@@ -4773,24 +4912,56 @@ PyUnicode_DecodeUTF8Stateful(const char *s,
             continue;
         }
 
-        if (unicode_decode_call_errorhandler_writer(
-                errors, &errorHandler,
-                "utf-8", errmsg,
-                &starts, &end, &startinpos, &endinpos, &exc, &s,
-                &writer))
-            goto onError;
+        if (error_handler == _Py_ERROR_UNKNOWN)
+            error_handler = get_error_handler(errors);
+
+        switch (error_handler) {
+        case _Py_ERROR_IGNORE:
+            s += (endinpos - startinpos);
+            break;
+
+        case _Py_ERROR_REPLACE:
+            if (_PyUnicodeWriter_WriteCharInline(&writer, 0xfffd) < 0)
+                goto onError;
+            s += (endinpos - startinpos);
+            break;
+
+        case _Py_ERROR_SURROGATEESCAPE:
+        {
+            Py_ssize_t i;
+
+            if (_PyUnicodeWriter_PrepareKind(&writer, PyUnicode_2BYTE_KIND) < 0)
+                goto onError;
+            for (i=startinpos; i<endinpos; i++) {
+                ch = (Py_UCS4)(unsigned char)(starts[i]);
+                PyUnicode_WRITE(writer.kind, writer.data, writer.pos,
+                                ch + 0xdc00);
+                writer.pos++;
+            }
+            s += (endinpos - startinpos);
+            break;
+        }
+
+        default:
+            if (unicode_decode_call_errorhandler_writer(
+                    errors, &error_handler_obj,
+                    "utf-8", errmsg,
+                    &starts, &end, &startinpos, &endinpos, &exc, &s,
+                    &writer))
+                goto onError;
+        }
     }
 
 End:
     if (consumed)
         *consumed = s - starts;
 
-    Py_XDECREF(errorHandler);
+    Py_XDECREF(error_handler_obj);
     Py_XDECREF(exc);
     return _PyUnicodeWriter_Finish(&writer);
 
 onError:
-    Py_XDECREF(errorHandler);
+    Py_XDECREF(error_handler_obj);
     Py_XDECREF(exc);
     _PyUnicodeWriter_Dealloc(&writer);
     return NULL;
@@ -6421,17 +6592,16 @@ unicode_encode_ucs1(PyObject *unicode,
     Py_ssize_t pos=0, size;
     int kind;
     void *data;
-    /* output object */
-    PyObject *res;
     /* pointer into the output */
     char *str;
-    /* current output position */
-    Py_ssize_t ressize;
     const char *encoding = (limit == 256) ? "latin-1" : "ascii";
     const char *reason = (limit == 256) ? "ordinal not in range(256)" : "ordinal not in range(128)";
     PyObject *error_handler_obj = NULL;
     PyObject *exc = NULL;
     _Py_error_handler error_handler = _Py_ERROR_UNKNOWN;
+    PyObject *rep = NULL;
+    /* output object */
+    _PyBytesWriter writer;
 
     if (PyUnicode_READY(unicode) == -1)
         return NULL;
@@ -6442,11 +6612,11 @@ unicode_encode_ucs1(PyObject *unicode,
        replacements, if we need more, we'll resize */
     if (size == 0)
         return PyBytes_FromStringAndSize(NULL, 0);
-    res = PyBytes_FromStringAndSize(NULL, size);
-    if (res == NULL)
+
+    _PyBytesWriter_Init(&writer);
+    str = _PyBytesWriter_Alloc(&writer, size);
+    if (str == NULL)
         return NULL;
-    str = PyBytes_AS_STRING(res);
-    ressize = size;
 
     while (pos < size) {
         Py_UCS4 ch = PyUnicode_READ(kind, data, pos);
@@ -6458,16 +6628,17 @@ unicode_encode_ucs1(PyObject *unicode,
             ++pos;
         }
         else {
-            Py_ssize_t requiredsize;
-            PyObject *repunicode;
-            Py_ssize_t repsize, newpos, respos, i;
+            Py_ssize_t newpos, i;
             /* startpos for collecting unencodable chars */
             Py_ssize_t collstart = pos;
-            Py_ssize_t collend = pos;
+            Py_ssize_t collend = collstart + 1;
             /* find all unecodable characters */
 
             while ((collend < size) && (PyUnicode_READ(kind, data, collend) >= limit))
                 ++collend;
+
+            /* Only overallocate the buffer if it's not the last write */
+            writer.overallocate = (collend < size);
 
             /* cache callback name lookup (if not done yet, i.e. it's the first error) */
             if (error_handler == _Py_ERROR_UNKNOWN)
@@ -6479,56 +6650,30 @@ unicode_encode_ucs1(PyObject *unicode,
                 goto onError;
 
             case _Py_ERROR_REPLACE:
-                while (collstart++ < collend)
-                    *str++ = '?';
+                memset(str, '?', collend - collstart);
+                str += (collend - collstart);
                 /* fall through ignore error handler */
             case _Py_ERROR_IGNORE:
                 pos = collend;
                 break;
 
-            case _Py_ERROR_XMLCHARREFREPLACE:
-                respos = str - PyBytes_AS_STRING(res);
-                requiredsize = respos;
-                /* determine replacement size */
-                for (i = collstart; i < collend; ++i) {
-                    Py_ssize_t incr;
+            case _Py_ERROR_BACKSLASHREPLACE:
+                /* substract preallocated bytes */
+                writer.min_size -= (collend - collstart);
+                str = backslashreplace(&writer, str,
+                                       unicode, collstart, collend);
+                if (str == NULL)
+                    goto onError;
+                pos = collend;
+                break;
 
-                    ch = PyUnicode_READ(kind, data, i);
-                    if (ch < 10)
-                        incr = 2+1+1;
-                    else if (ch < 100)
-                        incr = 2+2+1;
-                    else if (ch < 1000)
-                        incr = 2+3+1;
-                    else if (ch < 10000)
-                        incr = 2+4+1;
-                    else if (ch < 100000)
-                        incr = 2+5+1;
-                    else if (ch < 1000000)
-                        incr = 2+6+1;
-                    else {
-                        assert(ch <= MAX_UNICODE);
-                        incr = 2+7+1;
-                    }
-                    if (requiredsize > PY_SSIZE_T_MAX - incr)
-                        goto overflow;
-                    requiredsize += incr;
-                }
-                if (requiredsize > PY_SSIZE_T_MAX - (size - collend))
-                    goto overflow;
-                requiredsize += size - collend;
-                if (requiredsize > ressize) {
-                    if (ressize <= PY_SSIZE_T_MAX/2 && requiredsize < 2*ressize)
-                        requiredsize = 2*ressize;
-                    if (_PyBytes_Resize(&res, requiredsize))
-                        goto onError;
-                    str = PyBytes_AS_STRING(res) + respos;
-                    ressize = requiredsize;
-                }
-                /* generate replacement */
-                for (i = collstart; i < collend; ++i) {
-                    str += sprintf(str, "&#%d;", PyUnicode_READ(kind, data, i));
-                }
+            case _Py_ERROR_XMLCHARREFREPLACE:
+                /* substract preallocated bytes */
+                writer.min_size -= (collend - collstart);
+                str = xmlcharrefreplace(&writer, str,
+                                        unicode, collstart, collend);
+                if (str == NULL)
+                    goto onError;
                 pos = collend;
                 break;
 
@@ -6549,95 +6694,74 @@ unicode_encode_ucs1(PyObject *unicode,
                 /* fallback to general error handling */
 
             default:
-                repunicode = unicode_encode_call_errorhandler(errors, &error_handler_obj,
-                                                              encoding, reason, unicode, &exc,
-                                                              collstart, collend, &newpos);
-                if (repunicode == NULL || (PyUnicode_Check(repunicode) &&
-                                           PyUnicode_READY(repunicode) == -1))
+                rep = unicode_encode_call_errorhandler(errors, &error_handler_obj,
+                                                       encoding, reason, unicode, &exc,
+                                                       collstart, collend, &newpos);
+                if (rep == NULL)
                     goto onError;
 
-                if (PyBytes_Check(repunicode)) {
+                /* substract preallocated bytes */
+                writer.min_size -= 1;
+
+                if (PyBytes_Check(rep)) {
                     /* Directly copy bytes result to output. */
-                    repsize = PyBytes_Size(repunicode);
-                    if (repsize > 1) {
-                        /* Make room for all additional bytes. */
-                        respos = str - PyBytes_AS_STRING(res);
-                        if (ressize > PY_SSIZE_T_MAX - repsize - 1) {
-                            Py_DECREF(repunicode);
-                            goto overflow;
-                        }
-                        if (_PyBytes_Resize(&res, ressize+repsize-1)) {
-                            Py_DECREF(repunicode);
+                    str = _PyBytesWriter_WriteBytes(&writer, str,
+                                                    PyBytes_AS_STRING(rep),
+                                                    PyBytes_GET_SIZE(rep));
+                    if (str == NULL)
+                        goto onError;
+                }
+                else {
+                    assert(PyUnicode_Check(rep));
+
+                    if (PyUnicode_READY(rep) < 0)
+                        goto onError;
+
+                    if (PyUnicode_IS_ASCII(rep)) {
+                        /* Fast path: all characters are smaller than limit */
+                        assert(limit >= 128);
+                        assert(PyUnicode_KIND(rep) == PyUnicode_1BYTE_KIND);
+                        str = _PyBytesWriter_WriteBytes(&writer, str,
+                                                        PyUnicode_DATA(rep),
+                                                        PyUnicode_GET_LENGTH(rep));
+                    }
+                    else {
+                        Py_ssize_t repsize = PyUnicode_GET_LENGTH(rep);
+
+                        str = _PyBytesWriter_Prepare(&writer, str, repsize);
+                        if (str == NULL)
                             goto onError;
+
+                        /* check if there is anything unencodable in the
+                           replacement and copy it to the output */
+                        for (i = 0; repsize-->0; ++i, ++str) {
+                            ch = PyUnicode_READ_CHAR(rep, i);
+                            if (ch >= limit) {
+                                raise_encode_exception(&exc, encoding, unicode,
+                                                       pos, pos+1, reason);
+                                goto onError;
+                            }
+                            *str = (char)ch;
                         }
-                        str = PyBytes_AS_STRING(res) + respos;
-                        ressize += repsize-1;
                     }
-                    memcpy(str, PyBytes_AsString(repunicode), repsize);
-                    str += repsize;
-                    pos = newpos;
-                    Py_DECREF(repunicode);
-                    break;
-                }
-
-                /* need more space? (at least enough for what we
-                   have+the replacement+the rest of the string, so
-                   we won't have to check space for encodable characters) */
-                respos = str - PyBytes_AS_STRING(res);
-                repsize = PyUnicode_GET_LENGTH(repunicode);
-                requiredsize = respos;
-                if (requiredsize > PY_SSIZE_T_MAX - repsize)
-                    goto overflow;
-                requiredsize += repsize;
-                if (requiredsize > PY_SSIZE_T_MAX - (size - collend))
-                    goto overflow;
-                requiredsize += size - collend;
-                if (requiredsize > ressize) {
-                    if (ressize <= PY_SSIZE_T_MAX/2 && requiredsize < 2*ressize)
-                        requiredsize = 2*ressize;
-                    if (_PyBytes_Resize(&res, requiredsize)) {
-                        Py_DECREF(repunicode);
-                        goto onError;
-                    }
-                    str = PyBytes_AS_STRING(res) + respos;
-                    ressize = requiredsize;
-                }
-
-                /* check if there is anything unencodable in the replacement
-                   and copy it to the output */
-                for (i = 0; repsize-->0; ++i, ++str) {
-                    ch = PyUnicode_READ_CHAR(repunicode, i);
-                    if (ch >= limit) {
-                        raise_encode_exception(&exc, encoding, unicode,
-                                               pos, pos+1, reason);
-                        Py_DECREF(repunicode);
-                        goto onError;
-                    }
-                    *str = (char)ch;
                 }
                 pos = newpos;
-                Py_DECREF(repunicode);
+                Py_CLEAR(rep);
             }
+
+            /* If overallocation was disabled, ensure that it was the last
+               write. Otherwise, we missed an optimization */
+            assert(writer.overallocate || pos == size);
         }
-    }
-    /* Resize if we allocated to much */
-    size = str - PyBytes_AS_STRING(res);
-    if (size < ressize) { /* If this falls res will be NULL */
-        assert(size >= 0);
-        if (_PyBytes_Resize(&res, size) < 0)
-            goto onError;
     }
 
     Py_XDECREF(error_handler_obj);
     Py_XDECREF(exc);
-    return res;
-
-  overflow:
-    PyErr_SetString(PyExc_OverflowError,
-                    "encoded result is too long for a Python string");
+    return _PyBytesWriter_Finish(&writer, str);
 
   onError:
-    Py_XDECREF(res);
+    Py_XDECREF(rep);
+    _PyBytesWriter_Dealloc(&writer);
     Py_XDECREF(error_handler_obj);
     Py_XDECREF(exc);
     return NULL;
@@ -8680,7 +8804,7 @@ exit:
     return res;
 }
 
-PyObject *
+static PyObject *
 _PyUnicode_TranslateCharmap(PyObject *input,
                             PyObject *mapping,
                             const char *errors)
@@ -13289,40 +13413,44 @@ unicode_endswith(PyObject *self,
 Py_LOCAL_INLINE(void)
 _PyUnicodeWriter_Update(_PyUnicodeWriter *writer)
 {
-    if (!writer->readonly)
+    writer->maxchar = PyUnicode_MAX_CHAR_VALUE(writer->buffer);
+    writer->data = PyUnicode_DATA(writer->buffer);
+
+    if (!writer->readonly) {
+        writer->kind = PyUnicode_KIND(writer->buffer);
         writer->size = PyUnicode_GET_LENGTH(writer->buffer);
+    }
     else {
+        /* use a value smaller than PyUnicode_1BYTE_KIND() so
+           _PyUnicodeWriter_PrepareKind() will copy the buffer. */
+        writer->kind = PyUnicode_WCHAR_KIND;
+        assert(writer->kind <= PyUnicode_1BYTE_KIND);
+
         /* Copy-on-write mode: set buffer size to 0 so
          * _PyUnicodeWriter_Prepare() will copy (and enlarge) the buffer on
          * next write. */
         writer->size = 0;
     }
-    writer->maxchar = PyUnicode_MAX_CHAR_VALUE(writer->buffer);
-    writer->data = PyUnicode_DATA(writer->buffer);
-    writer->kind = PyUnicode_KIND(writer->buffer);
 }
 
 void
 _PyUnicodeWriter_Init(_PyUnicodeWriter *writer)
 {
     memset(writer, 0, sizeof(*writer));
-#ifdef Py_DEBUG
-    writer->kind = 5;    /* invalid kind */
-#endif
+
+    /* ASCII is the bare minimum */
     writer->min_char = 127;
+
+    /* use a value smaller than PyUnicode_1BYTE_KIND() so
+       _PyUnicodeWriter_PrepareKind() will copy the buffer. */
+    writer->kind = PyUnicode_WCHAR_KIND;
+    assert(writer->kind <= PyUnicode_1BYTE_KIND);
 }
 
 int
 _PyUnicodeWriter_PrepareInternal(_PyUnicodeWriter *writer,
                                  Py_ssize_t length, Py_UCS4 maxchar)
 {
-#ifdef MS_WINDOWS
-   /* On Windows, overallocate by 50% is the best factor */
-#  define OVERALLOCATE_FACTOR 2
-#else
-   /* On Linux, overallocate by 25% is the best factor */
-#  define OVERALLOCATE_FACTOR 4
-#endif
     Py_ssize_t newlen;
     PyObject *newbuffer;
 
@@ -13363,6 +13491,7 @@ _PyUnicodeWriter_PrepareInternal(_PyUnicodeWriter *writer,
 
         if (maxchar > writer->maxchar || writer->readonly) {
             /* resize + widen */
+            maxchar = Py_MAX(maxchar, writer->maxchar);
             newbuffer = PyUnicode_New(newlen, maxchar);
             if (newbuffer == NULL)
                 return -1;

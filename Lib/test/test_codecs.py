@@ -361,6 +361,12 @@ class ReadTest(MixInCheckStateHandling):
         self.assertEqual("[\uDC80]".encode(self.encoding, "replace"),
                          "[?]".encode(self.encoding))
 
+        # sequential surrogate characters
+        self.assertEqual("[\uD800\uDC80]".encode(self.encoding, "ignore"),
+                         "[]".encode(self.encoding))
+        self.assertEqual("[\uD800\uDC80]".encode(self.encoding, "replace"),
+                         "[??]".encode(self.encoding))
+
         bom = "".encode(self.encoding)
         for before, after in [("\U00010fff", "A"), ("[", "]"),
                               ("A", "\U00010fff")]:
@@ -753,6 +759,7 @@ class UTF8Test(ReadTest, unittest.TestCase):
     encoding = "utf-8"
     ill_formed_sequence = b"\xed\xb2\x80"
     ill_formed_sequence_replace = "\ufffd" * 3
+    BOM = b''
 
     def test_partial(self):
         self.check_partial(
@@ -781,27 +788,48 @@ class UTF8Test(ReadTest, unittest.TestCase):
         self.check_state_handling_decode(self.encoding,
                                          u, u.encode(self.encoding))
 
+    def test_decode_error(self):
+        for data, error_handler, expected in (
+            (b'[\x80\xff]', 'ignore', '[]'),
+            (b'[\x80\xff]', 'replace', '[\ufffd\ufffd]'),
+            (b'[\x80\xff]', 'surrogateescape', '[\udc80\udcff]'),
+            (b'[\x80\xff]', 'backslashreplace', '[\\x80\\xff]'),
+        ):
+            with self.subTest(data=data, error_handler=error_handler,
+                              expected=expected):
+                self.assertEqual(data.decode(self.encoding, error_handler),
+                                 expected)
+
     def test_lone_surrogates(self):
         super().test_lone_surrogates()
         # not sure if this is making sense for
         # UTF-16 and UTF-32
-        self.assertEqual("[\uDC80]".encode('utf-8', "surrogateescape"),
-                         b'[\x80]')
+        self.assertEqual("[\uDC80]".encode(self.encoding, "surrogateescape"),
+                         self.BOM + b'[\x80]')
+
+        with self.assertRaises(UnicodeEncodeError) as cm:
+            "[\uDC80\uD800\uDFFF]".encode(self.encoding, "surrogateescape")
+        exc = cm.exception
+        self.assertEqual(exc.object[exc.start:exc.end], '\uD800\uDFFF')
 
     def test_surrogatepass_handler(self):
-        self.assertEqual("abc\ud800def".encode("utf-8", "surrogatepass"),
-                         b"abc\xed\xa0\x80def")
-        self.assertEqual(b"abc\xed\xa0\x80def".decode("utf-8", "surrogatepass"),
+        self.assertEqual("abc\ud800def".encode(self.encoding, "surrogatepass"),
+                         self.BOM + b"abc\xed\xa0\x80def")
+        self.assertEqual("\U00010fff\uD800".encode(self.encoding, "surrogatepass"),
+                         self.BOM + b"\xf0\x90\xbf\xbf\xed\xa0\x80")
+        self.assertEqual("[\uD800\uDC80]".encode(self.encoding, "surrogatepass"),
+                         self.BOM + b'[\xed\xa0\x80\xed\xb2\x80]')
+
+        self.assertEqual(b"abc\xed\xa0\x80def".decode(self.encoding, "surrogatepass"),
                          "abc\ud800def")
-        self.assertEqual("\U00010fff\uD800".encode("utf-8", "surrogatepass"),
-                         b"\xf0\x90\xbf\xbf\xed\xa0\x80")
-        self.assertEqual(b"\xf0\x90\xbf\xbf\xed\xa0\x80".decode("utf-8", "surrogatepass"),
+        self.assertEqual(b"\xf0\x90\xbf\xbf\xed\xa0\x80".decode(self.encoding, "surrogatepass"),
                          "\U00010fff\uD800")
+
         self.assertTrue(codecs.lookup_error("surrogatepass"))
         with self.assertRaises(UnicodeDecodeError):
-            b"abc\xed\xa0".decode("utf-8", "surrogatepass")
+            b"abc\xed\xa0".decode(self.encoding, "surrogatepass")
         with self.assertRaises(UnicodeDecodeError):
-            b"abc\xed\xa0z".decode("utf-8", "surrogatepass")
+            b"abc\xed\xa0z".decode(self.encoding, "surrogatepass")
 
 
 @unittest.skipUnless(sys.platform == 'win32',
@@ -910,6 +938,32 @@ class CP65001Test(ReadTest, unittest.TestCase):
 class UTF7Test(ReadTest, unittest.TestCase):
     encoding = "utf-7"
 
+    def test_ascii(self):
+        # Set D (directly encoded characters)
+        set_d = ('ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+                 'abcdefghijklmnopqrstuvwxyz'
+                 '0123456789'
+                 '\'(),-./:?')
+        self.assertEqual(set_d.encode(self.encoding), set_d.encode('ascii'))
+        self.assertEqual(set_d.encode('ascii').decode(self.encoding), set_d)
+        # Set O (optional direct characters)
+        set_o = ' !"#$%&*;<=>@[]^_`{|}'
+        self.assertEqual(set_o.encode(self.encoding), set_o.encode('ascii'))
+        self.assertEqual(set_o.encode('ascii').decode(self.encoding), set_o)
+        # +
+        self.assertEqual('a+b'.encode(self.encoding), b'a+-b')
+        self.assertEqual(b'a+-b'.decode(self.encoding), 'a+b')
+        # White spaces
+        ws = ' \t\n\r'
+        self.assertEqual(ws.encode(self.encoding), ws.encode('ascii'))
+        self.assertEqual(ws.encode('ascii').decode(self.encoding), ws)
+        # Other ASCII characters
+        other_ascii = ''.join(sorted(set(bytes(range(0x80)).decode()) -
+                                     set(set_d + set_o + '+' + ws)))
+        self.assertEqual(other_ascii.encode(self.encoding),
+                         b'+AAAAAQACAAMABAAFAAYABwAIAAsADAAOAA8AEAARABIAEwAU'
+                         b'ABUAFgAXABgAGQAaABsAHAAdAB4AHwBcAH4Afw-')
+
     def test_partial(self):
         self.check_partial(
             'a+-b\x00c\x80d\u0100e\U00010000f',
@@ -951,7 +1005,9 @@ class UTF7Test(ReadTest, unittest.TestCase):
 
     def test_errors(self):
         tests = [
+            (b'\xffb', '\ufffdb'),
             (b'a\xffb', 'a\ufffdb'),
+            (b'a\xff\xffb', 'a\ufffd\ufffdb'),
             (b'a+IK', 'a\ufffd'),
             (b'a+IK-b', 'a\ufffdb'),
             (b'a+IK,b', 'a\ufffdb'),
@@ -967,6 +1023,8 @@ class UTF7Test(ReadTest, unittest.TestCase):
             (b'a+//,+IKw-b', 'a\ufffd\u20acb'),
             (b'a+///,+IKw-b', 'a\uffff\ufffd\u20acb'),
             (b'a+////,+IKw-b', 'a\uffff\ufffd\u20acb'),
+            (b'a+IKw-b\xff', 'a\u20acb\ufffd'),
+            (b'a+IKw\xffb', 'a\u20ac\ufffdb'),
         ]
         for raw, expected in tests:
             with self.subTest(raw=raw):
@@ -978,8 +1036,36 @@ class UTF7Test(ReadTest, unittest.TestCase):
         self.assertEqual('\U000104A0'.encode(self.encoding), b'+2AHcoA-')
         self.assertEqual('\ud801\udca0'.encode(self.encoding), b'+2AHcoA-')
         self.assertEqual(b'+2AHcoA-'.decode(self.encoding), '\U000104A0')
+        self.assertEqual(b'+2AHcoA'.decode(self.encoding), '\U000104A0')
+        self.assertEqual('\u20ac\U000104A0'.encode(self.encoding), b'+IKzYAdyg-')
+        self.assertEqual(b'+IKzYAdyg-'.decode(self.encoding), '\u20ac\U000104A0')
+        self.assertEqual(b'+IKzYAdyg'.decode(self.encoding), '\u20ac\U000104A0')
+        self.assertEqual('\u20ac\u20ac\U000104A0'.encode(self.encoding),
+                         b'+IKwgrNgB3KA-')
+        self.assertEqual(b'+IKwgrNgB3KA-'.decode(self.encoding),
+                         '\u20ac\u20ac\U000104A0')
+        self.assertEqual(b'+IKwgrNgB3KA'.decode(self.encoding),
+                         '\u20ac\u20ac\U000104A0')
 
-    test_lone_surrogates = None
+    def test_lone_surrogates(self):
+        tests = [
+            (b'a+2AE-b', 'a\ud801b'),
+            (b'a+2AE\xffb', 'a\ufffdb'),
+            (b'a+2AE', 'a\ufffd'),
+            (b'a+2AEA-b', 'a\ufffdb'),
+            (b'a+2AH-b', 'a\ufffdb'),
+            (b'a+IKzYAQ-b', 'a\u20ac\ud801b'),
+            (b'a+IKzYAQ\xffb', 'a\u20ac\ufffdb'),
+            (b'a+IKzYAQA-b', 'a\u20ac\ufffdb'),
+            (b'a+IKzYAd-b', 'a\u20ac\ufffdb'),
+            (b'a+IKwgrNgB-b', 'a\u20ac\u20ac\ud801b'),
+            (b'a+IKwgrNgB\xffb', 'a\u20ac\u20ac\ufffdb'),
+            (b'a+IKwgrNgB', 'a\u20ac\u20ac\ufffd'),
+            (b'a+IKwgrNgBA-b', 'a\u20ac\u20ac\ufffdb'),
+        ]
+        for raw, expected in tests:
+            with self.subTest(raw=raw):
+                self.assertEqual(raw.decode('utf-7', 'replace'), expected)
 
 
 class UTF16ExTest(unittest.TestCase):
@@ -1008,6 +1094,7 @@ class ReadBufferTest(unittest.TestCase):
 
 class UTF8SigTest(UTF8Test, unittest.TestCase):
     encoding = "utf-8-sig"
+    BOM = codecs.BOM_UTF8
 
     def test_partial(self):
         self.check_partial(
@@ -3068,7 +3155,8 @@ class ASCIITest(unittest.TestCase):
             ('[\x80\xff\u20ac]', 'ignore', b'[]'),
             ('[\x80\xff\u20ac]', 'replace', b'[???]'),
             ('[\x80\xff\u20ac]', 'xmlcharrefreplace', b'[&#128;&#255;&#8364;]'),
-            ('[\x80\xff\u20ac]', 'backslashreplace', b'[\\x80\\xff\\u20ac]'),
+            ('[\x80\xff\u20ac\U000abcde]', 'backslashreplace',
+             b'[\\x80\\xff\\u20ac\\U000abcde]'),
             ('[\udc80\udcff]', 'surrogateescape', b'[\x80\xff]'),
         ):
             with self.subTest(data=data, error_handler=error_handler,
@@ -3110,7 +3198,8 @@ class Latin1Test(unittest.TestCase):
         for data, error_handler, expected in (
             ('[\u20ac\udc80]', 'ignore', b'[]'),
             ('[\u20ac\udc80]', 'replace', b'[??]'),
-            ('[\u20ac\udc80]', 'backslashreplace', b'[\\u20ac\\udc80]'),
+            ('[\u20ac\U000abcde]', 'backslashreplace',
+             b'[\\u20ac\\U000abcde]'),
             ('[\u20ac\udc80]', 'xmlcharrefreplace', b'[&#8364;&#56448;]'),
             ('[\udc80\udcff]', 'surrogateescape', b'[\x80\xff]'),
         ):

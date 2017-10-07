@@ -281,7 +281,7 @@ PyDoc_STRVAR(popleft_doc, "Remove and return the leftmost element.");
 static void
 deque_trim_right(dequeobject *deque)
 {
-    if (deque->maxlen != -1 && Py_SIZE(deque) > deque->maxlen) {
+    if (deque->maxlen >= 0 && Py_SIZE(deque) > deque->maxlen) {
         PyObject *rv = deque_pop(deque, NULL);
         assert(rv != NULL);
         assert(Py_SIZE(deque) <= deque->maxlen);
@@ -292,7 +292,7 @@ deque_trim_right(dequeobject *deque)
 static void
 deque_trim_left(dequeobject *deque)
 {
-    if (deque->maxlen != -1 && Py_SIZE(deque) > deque->maxlen) {
+    if (deque->maxlen >= 0 && Py_SIZE(deque) > deque->maxlen) {
         PyObject *rv = deque_popleft(deque, NULL);
         assert(rv != NULL);
         assert(Py_SIZE(deque) <= deque->maxlen);
@@ -350,21 +350,34 @@ deque_appendleft(dequeobject *deque, PyObject *item)
 
 PyDoc_STRVAR(appendleft_doc, "Add an element to the left side of the deque.");
 
+static PyObject*
+finalize_iterator(PyObject *it)
+{
+    if (PyErr_Occurred()) {
+        if (PyErr_ExceptionMatches(PyExc_StopIteration))
+            PyErr_Clear();
+        else {
+            Py_DECREF(it);
+            return NULL;
+        }
+    }
+    Py_DECREF(it);
+    Py_RETURN_NONE;
+}
 
 /* Run an iterator to exhaustion.  Shortcut for
    the extend/extendleft methods when maxlen == 0. */
 static PyObject*
 consume_iterator(PyObject *it)
 {
+    PyObject *(*iternext)(PyObject *);
     PyObject *item;
 
-    while ((item = PyIter_Next(it)) != NULL) {
+    iternext = *Py_TYPE(it)->tp_iternext;
+    while ((item = iternext(it)) != NULL) {
         Py_DECREF(item);
     }
-    Py_DECREF(it);
-    if (PyErr_Occurred())
-        return NULL;
-    Py_RETURN_NONE;
+    return finalize_iterator(it);
 }
 
 static PyObject *
@@ -372,7 +385,7 @@ deque_extend(dequeobject *deque, PyObject *iterable)
 {
     PyObject *it, *item;
     PyObject *(*iternext)(PyObject *);
-    int trim = (deque->maxlen != -1);
+    Py_ssize_t maxlen = deque->maxlen;
 
     /* Handle case where id(deque) == id(iterable) */
     if ((PyObject *)deque == iterable) {
@@ -420,19 +433,12 @@ deque_extend(dequeobject *deque, PyObject *iterable)
         Py_SIZE(deque)++;
         deque->rightindex++;
         deque->rightblock->data[deque->rightindex] = item;
-        if (trim)
-            deque_trim_left(deque);
-    }
-    if (PyErr_Occurred()) {
-        if (PyErr_ExceptionMatches(PyExc_StopIteration))
-            PyErr_Clear();
-        else {
-            Py_DECREF(it);
-            return NULL;
+        if (maxlen >= 0 && Py_SIZE(deque) > maxlen) {
+            PyObject *rv = deque_popleft(deque, NULL);
+            Py_DECREF(rv);
         }
     }
-    Py_DECREF(it);
-    Py_RETURN_NONE;
+    return finalize_iterator(it);
 }
 
 PyDoc_STRVAR(extend_doc,
@@ -443,7 +449,7 @@ deque_extendleft(dequeobject *deque, PyObject *iterable)
 {
     PyObject *it, *item;
     PyObject *(*iternext)(PyObject *);
-    int trim = (deque->maxlen != -1);
+    Py_ssize_t maxlen = deque->maxlen;
 
     /* Handle case where id(deque) == id(iterable) */
     if ((PyObject *)deque == iterable) {
@@ -491,19 +497,12 @@ deque_extendleft(dequeobject *deque, PyObject *iterable)
         Py_SIZE(deque)++;
         deque->leftindex--;
         deque->leftblock->data[deque->leftindex] = item;
-        if (trim)
-            deque_trim_right(deque);
-    }
-    if (PyErr_Occurred()) {
-        if (PyErr_ExceptionMatches(PyExc_StopIteration))
-            PyErr_Clear();
-        else {
-            Py_DECREF(it);
-            return NULL;
+        if (maxlen >= 0 && Py_SIZE(deque) > maxlen) {
+            PyObject *rv = deque_pop(deque, NULL);
+            Py_DECREF(rv);
         }
     }
-    Py_DECREF(it);
-    Py_RETURN_NONE;
+    return finalize_iterator(it);
 }
 
 PyDoc_STRVAR(extendleft_doc,
@@ -535,7 +534,7 @@ deque_copy(PyObject *deque)
             return NULL;
         new_deque->maxlen = old_deque->maxlen;
         /* Fast path for the deque_repeat() common case where len(deque) == 1 */
-        if (Py_SIZE(deque) == 1 && new_deque->maxlen != 0) {
+        if (Py_SIZE(deque) == 1) {
             PyObject *item = old_deque->leftblock->data[old_deque->leftindex];
             rv = deque_append(new_deque, item);
         } else {
@@ -691,7 +690,7 @@ deque_inplace_repeat(dequeobject *deque, Py_ssize_t n)
         /* common case, repeating a single element */
         PyObject *item = deque->leftblock->data[deque->leftindex];
 
-        if (deque->maxlen != -1 && n > deque->maxlen)
+        if (deque->maxlen >= 0 && n > deque->maxlen)
             n = deque->maxlen;
 
         if (n > MAX_DEQUE_LEN)
@@ -1360,7 +1359,7 @@ deque_repr(PyObject *deque)
         Py_ReprLeave(deque);
         return NULL;
     }
-    if (((dequeobject *)deque)->maxlen != -1)
+    if (((dequeobject *)deque)->maxlen >= 0)
         result = PyUnicode_FromFormat("deque(%R, maxlen=%zd)",
                                       aslist, ((dequeobject *)deque)->maxlen);
     else
@@ -1456,8 +1455,14 @@ deque_init(dequeobject *deque, PyObject *args, PyObject *kwdargs)
     Py_ssize_t maxlen = -1;
     char *kwlist[] = {"iterable", "maxlen", 0};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwdargs, "|OO:deque", kwlist, &iterable, &maxlenobj))
-        return -1;
+    if (kwdargs == NULL) {
+        if (!PyArg_UnpackTuple(args, "deque()", 0, 2, &iterable, &maxlenobj))
+            return -1;
+    } else {
+        if (!PyArg_ParseTupleAndKeywords(args, kwdargs, "|OO:deque", kwlist,
+                                         &iterable, &maxlenobj))
+            return -1;
+    }
     if (maxlenobj != NULL && maxlenobj != Py_None) {
         maxlen = PyLong_AsSsize_t(maxlenobj);
         if (maxlen == -1 && PyErr_Occurred())
@@ -1468,7 +1473,8 @@ deque_init(dequeobject *deque, PyObject *args, PyObject *kwdargs)
         }
     }
     deque->maxlen = maxlen;
-    deque_clear(deque);
+    if (Py_SIZE(deque) > 0)
+        deque_clear(deque);
     if (iterable != NULL) {
         PyObject *rv = deque_extend(deque, iterable);
         if (rv == NULL)

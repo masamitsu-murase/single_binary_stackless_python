@@ -5,8 +5,10 @@ Note: test_regrtest cannot be run twice in parallel.
 """
 
 import argparse
+import contextlib
 import faulthandler
 import getopt
+import io
 import os.path
 import platform
 import re
@@ -21,6 +23,16 @@ from test import support
 Py_DEBUG = hasattr(sys, 'getobjects')
 ROOT_DIR = os.path.join(os.path.dirname(__file__), '..', '..')
 ROOT_DIR = os.path.abspath(os.path.normpath(ROOT_DIR))
+
+TEST_INTERRUPTED = textwrap.dedent("""
+    from signal import SIGINT
+    try:
+        from _testcapi import raise_signal
+        raise_signal(SIGINT)
+    except ImportError:
+        import os
+        os.kill(os.getpid(), SIGINT)
+    """)
 
 
 class ParseArgsTestCase(unittest.TestCase):
@@ -246,8 +258,11 @@ class ParseArgsTestCase(unittest.TestCase):
     def test_nowindows(self):
         for opt in '-n', '--nowindows':
             with self.subTest(opt=opt):
-                ns = libregrtest._parse_args([opt])
+                with contextlib.redirect_stderr(io.StringIO()) as stderr:
+                    ns = libregrtest._parse_args([opt])
                 self.assertTrue(ns.nowindows)
+                err = stderr.getvalue()
+                self.assertIn('the --nowindows (-n) option is deprecated', err)
 
     def test_forever(self):
         for opt in '-F', '--forever':
@@ -335,16 +350,19 @@ class BaseTestCase(unittest.TestCase):
         return list(match.group(1) for match in parser)
 
     def check_executed_tests(self, output, tests, skipped=(), failed=(),
-                             randomize=False):
+                             omitted=(), randomize=False):
         if isinstance(tests, str):
             tests = [tests]
         if isinstance(skipped, str):
             skipped = [skipped]
         if isinstance(failed, str):
             failed = [failed]
+        if isinstance(omitted, str):
+            omitted = [omitted]
         ntest = len(tests)
         nskipped = len(skipped)
         nfailed = len(failed)
+        nomitted = len(omitted)
 
         executed = self.parse_executed_tests(output)
         if randomize:
@@ -370,7 +388,11 @@ class BaseTestCase(unittest.TestCase):
             regex = list_regex('%s test%s failed', failed)
             self.check_line(output, regex)
 
-        good = ntest - nskipped - nfailed
+        if omitted:
+            regex = list_regex('%s test%s omitted', omitted)
+            self.check_line(output, regex)
+
+        good = ntest - nskipped - nfailed - nomitted
         if good:
             regex = r'%s test%s OK\.$' % (good, plural(good))
             if not skipped and not failed and good > 1:
@@ -383,27 +405,32 @@ class BaseTestCase(unittest.TestCase):
         self.assertTrue(0 <= randseed <= 10000000, randseed)
         return randseed
 
-    def run_command(self, args, input=None, exitcode=0):
+    def run_command(self, args, input=None, exitcode=0, **kw):
         if not input:
             input = ''
+        if 'stderr' not in kw:
+            kw['stderr'] = subprocess.PIPE
         proc = subprocess.run(args,
                               universal_newlines=True,
                               input=input,
                               stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE)
+                              **kw)
         if proc.returncode != exitcode:
-            self.fail("Command %s failed with exit code %s\n"
-                      "\n"
-                      "stdout:\n"
-                      "---\n"
-                      "%s\n"
-                      "---\n"
-                      "\n"
-                      "stderr:\n"
-                      "---\n"
-                      "%s"
-                      "---\n"
-                      % (str(args), proc.returncode, proc.stdout, proc.stderr))
+            msg = ("Command %s failed with exit code %s\n"
+                   "\n"
+                   "stdout:\n"
+                   "---\n"
+                   "%s\n"
+                   "---\n"
+                   % (str(args), proc.returncode, proc.stdout))
+            if proc.stderr:
+                msg += ("\n"
+                        "stderr:\n"
+                        "---\n"
+                        "%s"
+                        "---\n"
+                        % proc.stderr)
+            self.fail(msg)
         return proc
 
 
@@ -428,7 +455,9 @@ class ProgramsTestCase(BaseTestCase):
         self.tests = [self.create_test() for index in range(self.NTEST)]
 
         self.python_args = ['-Wd', '-E', '-bb']
-        self.regrtest_args = ['-uall', '-rwW', '--timeout', '3600', '-j4']
+        self.regrtest_args = ['-uall', '-rwW']
+        if hasattr(faulthandler, 'dump_traceback_later'):
+            self.regrtest_args.extend(('--timeout', '3600', '-j4'))
         if sys.platform == 'win32':
             self.regrtest_args.append('-n')
 
@@ -595,6 +624,12 @@ class ArgsTestCase(BaseTestCase):
         output = self.run_tests('--fromfile', filename)
         self.check_executed_tests(output, tests)
 
+    def test_interrupted(self):
+        code = TEST_INTERRUPTED
+        test = self.create_test("sigint", code=code)
+        output = self.run_tests(test, exitcode=1)
+        self.check_executed_tests(output, test, omitted=test)
+
     def test_slow(self):
         # test --slow
         tests = [self.create_test() for index in range(3)]
@@ -605,8 +640,22 @@ class ArgsTestCase(BaseTestCase):
                  % (self.TESTNAME_REGEX, len(tests)))
         self.check_line(output, regex)
 
-    @unittest.skipIf(sys.platform == 'win32',
-                     "FIXME: coverage doesn't work on Windows")
+    def test_slow_interrupted(self):
+        # Issue #25373: test --slow with an interrupted test
+        code = TEST_INTERRUPTED
+        test = self.create_test("sigint", code=code)
+
+        for multiprocessing in (False, True):
+            if multiprocessing:
+                args = ("--slow", "-j2", test)
+            else:
+                args = ("--slow", test)
+            output = self.run_tests(*args, exitcode=1)
+            self.check_executed_tests(output, test, omitted=test)
+            regex = ('10 slowest tests:\n')
+            self.check_line(output, regex)
+            self.check_line(output, 'Test suite interrupted by signal SIGINT.')
+
     def test_coverage(self):
         # test --coverage
         test = self.create_test()
@@ -638,6 +687,56 @@ class ArgsTestCase(BaseTestCase):
         test = self.create_test(code=code)
         output = self.run_tests('--forever', test, exitcode=1)
         self.check_executed_tests(output, [test]*3, failed=test)
+
+    @unittest.skipUnless(Py_DEBUG, 'need a debug build')
+    def test_huntrleaks_fd_leak(self):
+        # test --huntrleaks for file descriptor leak
+        code = textwrap.dedent("""
+            import os
+            import unittest
+
+            # Issue #25306: Disable popups and logs to stderr on assertion
+            # failures in MSCRT
+            try:
+                import msvcrt
+                msvcrt.CrtSetReportMode
+            except (ImportError, AttributeError):
+                # no Windows, o release build
+                pass
+            else:
+                for m in [msvcrt.CRT_WARN, msvcrt.CRT_ERROR, msvcrt.CRT_ASSERT]:
+                    msvcrt.CrtSetReportMode(m, 0)
+
+            class FDLeakTest(unittest.TestCase):
+                def test_leak(self):
+                    fd = os.open(__file__, os.O_RDONLY)
+                    # bug: never cloes the file descriptor
+        """)
+        test = self.create_test(code=code)
+
+        filename = 'reflog.txt'
+        self.addCleanup(support.unlink, filename)
+        output = self.run_tests('--huntrleaks', '3:3:', test,
+                                exitcode=1,
+                                stderr=subprocess.STDOUT)
+        self.check_executed_tests(output, [test], failed=test)
+
+        line = 'beginning 6 repetitions\n123456\n......\n'
+        self.check_line(output, re.escape(line))
+
+        line2 = '%s leaked [1, 1, 1] file descriptors, sum=3\n' % test
+        self.check_line(output, re.escape(line2))
+
+        with open(filename) as fp:
+            reflog = fp.read()
+            self.assertEqual(reflog, line2)
+
+    def test_list_tests(self):
+        # test --list-tests
+        tests = [self.create_test() for i in range(5)]
+        output = self.run_tests('--list-tests', *tests)
+        self.assertEqual(output.rstrip().splitlines(),
+                         tests)
 
 
 if __name__ == '__main__':

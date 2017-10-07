@@ -696,10 +696,8 @@ _io_StringIO___init___impl(stringio *self, PyObject *value,
     char *newline = "\n";
     Py_ssize_t value_len;
 
-    /* Parse the newline argument. This used to be done with the 'z'
-       specifier, however this allowed any object with the buffer interface to
-       be converted. Thus we have to parse it manually since we only want to
-       allow unicode objects or None. */
+    /* Parse the newline argument. We only want to allow unicode objects or
+       None. */
     if (newline_obj == Py_None) {
         newline = NULL;
     }
@@ -750,7 +748,7 @@ _io_StringIO___init___impl(stringio *self, PyObject *value,
     /* If newline == "", we don't translate anything.
        If newline == "\n" or newline == None, we translate to "\n", which is
        a no-op.
-       (for newline == None, TextIOWrapper translates to os.sepline, but it
+       (for newline == None, TextIOWrapper translates to os.linesep, but it
        is pointless for StringIO)
     */
     if (newline != NULL && newline[0] == '\r') {

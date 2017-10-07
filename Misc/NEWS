@@ -1,4 +1,4 @@
-+++++++++++
+﻿+++++++++++
 Python News
 +++++++++++
 
@@ -10,6 +10,26 @@ Release date: XXXX-XX-XX
 Core and Builtins
 -----------------
 
+- Issue #24402: Fix input() to prompt to the redirected stdout when
+  sys.stdout.fileno() fails.
+
+- Issue #25349: Optimize bytes % args using the new private _PyBytesWriter API.
+
+- Issue #24806: Prevent builtin types that are not allowed to be subclassed from
+  being subclassed through multiple inheritance.
+
+* Issue #25301: The UTF-8 decoder is now up to 15 times as fast for error
+  handlers: ``ignore``, ``replace`` and ``surrogateescape``.
+
+- Issue #24848: Fixed a number of bugs in UTF-7 decoding of misformed data.
+
+- Issue #25267: The UTF-8 encoder is now up to 75 times as fast for error
+  handlers: ``ignore``, ``replace``, ``surrogateescape``, ``surrogatepass``.
+  Patch co-written with Serhiy Storchaka.
+
+- Issue #25280: Import trace messages emitted in verbose (-v) mode are no
+  longer formatted twice.
+
 - Issue #25227: Optimize ASCII and latin1 encoders with the ``surrogateescape``
   error handler: the encoders are now up to 3 times as fast. Initial patch
   written by Serhiy Storchaka.
@@ -20,7 +40,7 @@ Core and Builtins
   doesn't need such high-quality entropy.
 
 - Issue #9232: Modify Python's grammar to allow trailing commas in the
-  argument list of a function declaration.  For example, "def f(*, a =
+  argument list of a function declaration.  For example, "def f(\*, a =
   3,): pass" is now legal. Patch from Mark Dickinson.
 
 - Issue #24965: Implement PEP 498 "Literal String Interpolation". This
@@ -30,6 +50,43 @@ Core and Builtins
 
 Library
 -------
+
+- Issue #25357: Add an optional newline paramer to binascii.b2a_base64().
+  base64.b64encode() uses it to avoid a memory copy.
+
+- Issue #24164: Objects that need calling ``__new__`` with keyword arguments,
+  can now be pickled using pickle protocols older than protocol version 4.
+
+- Issue #25364: zipfile now works in threads disabled builds.
+
+- Issue #25328: smtpd's SMTPChannel now correctly raises a ValueError if both
+  decode_data and enable_SMTPUTF8 are set to true.
+
+- Issue #16099: RobotFileParser now supports Crawl-delay and Request-rate
+  extensions.  Patch by Nikolay Bogoychev.
+
+- Issue #25316: distutils raises OSError instead of DistutilsPlatformError
+  when MSVC is not installed.
+
+- Issue #23972: Updates asyncio datagram create method allowing reuseport
+  and reuseaddr socket options to be set prior to binding the socket.
+  Mirroring the existing asyncio create_server method the reuseaddr option
+  for datagram sockets defaults to True if the O/S is 'posix' (except if the
+  platform is Cygwin). Patch by Chris Laws.
+
+- Issue #25304: Add asyncio.run_coroutine_threadsafe().  This lets you
+  submit a coroutine to a loop from another thread, returning a
+  concurrent.futures.Future.  By Vincent Michel.
+
+- Issue #25232: Fix CGIRequestHandler to split the query from the URL at the
+  first question mark (?) rather than the last. Patch from Xiang Zhang.
+
+- Issue #24657: Prevent CGIRequestHandler from collapsing slashes in the
+  query part of the URL as if it were a path. Patch from Xiang Zhang.
+
+- Issue #25287: Don't add crypt.METHOD_CRYPT to crypt.methods if it's not
+  supported. Check if it is supported, it may not be supported on OpenBSD for
+  example.
 
 - Issue #23600: Default implementation of tzinfo.fromutc() was returning
   wrong results in some cases.
@@ -93,8 +150,30 @@ Library
 - Issue #13248: Remove deprecated inspect.getargspec and inspect.getmoduleinfo
   functions.
 
+- Issue #25319: When threading.Event is reinitialized, the underlying condition
+  should use a regular lock rather than a recursive lock.
+
 IDLE
 ----
+
+- Issue #24820: IDLE now has an 'IDLE Dark' built-in text color theme.
+  It is more or less IDLE Classic inverted, with a cobalt blue background.
+  Strings, comments, keywords, ... are still green, red, orange, ... .
+  Selecting it displays the following warning and solution.
+  "IDLE Dark is new in October, 2015.  Trying to run earlier versions
+  of IDLE with it selected will disable colorizing, or worse.
+  If you might ever run an earlier release of IDLE, then before
+  exiting this version, either switch to another theme or hit the
+  'Save as New Custom Theme' button.  The latter requires a new name,
+  such as 'Custom Dark', but the custom theme will work with any IDLE
+  release, and can be modified."
+
+- Issue #25224: README.txt is now an idlelib index for IDLE developers and
+  curious users.  The previous user content is now in the IDLE doc and is
+  redundant.  IDLE now means 'Integrated Development and Learning Environment'.
+
+- Issue #24820: Users can now set breakpoint colors in
+  Settings -> Custom Highlighting.  Original patch by Mark Roseman.
 
 - Issue #24972: Inactive selection background now matches active selection
   background, as configured by user, on all systems.  Found items are now
@@ -157,6 +236,18 @@ Documentation
 Tests
 -----
 
+- Issue #25188: Add -P/--pgo to test.regrtest to suppress error output when
+  running the test suite for the purposes of a PGO build. Initial patch by
+  Alecsandru Patrascu.
+
+- Issue #22806: Add ``python -m test --list-tests`` command to list tests.
+
+- Issue #18174: ``python -m test --huntrleaks ...`` now also checks for leak of
+  file descriptors. Patch written by Richard Oudkerk.
+
+- Issue #25260: Fix ``python -m test --coverage`` on Windows. Remove the
+  list of ignored directories.
+
 - PCbuild\rt.bat now accepts an unlimited number of arguments to pass along
   to regrtest.py.  Previously there was a limit of 9.
 
@@ -180,6 +271,12 @@ Release date: TBA
 Core and Builtins
 -----------------
 
+- Issue #24402: Fix input() to prompt to the redirected stdout when
+  sys.stdout.fileno() fails.
+
+- Issue #25182: The stdprinter (used as sys.stderr before the io module is
+  imported at startup) now uses the backslashreplace error handler.
+
 - Issue #25131: Make the line number and column offset of set/dict literals and
   comprehensions correspond to the opening brace.
 
@@ -189,6 +286,15 @@ Core and Builtins
 
 Library
 -------
+
+- Issue #25232: Fix CGIRequestHandler to split the query from the URL at the
+  first question mark (?) rather than the last. Patch from Xiang Zhang.
+
+- Issue #24657: Prevent CGIRequestHandler from collapsing slashes in the
+  query part of the URL as if it were a path. Patch from Xiang Zhang.
+
+- Issue #24483: C implementation of functools.lru_cache() now calculates key's
+  hash only once.
 
 - Issue #22958: Constructor and update method of weakref.WeakValueDictionary
   now accept the self and the dict keyword arguments.
@@ -302,6 +408,9 @@ Library
 - Issue #23572: Fixed functools.singledispatch on classes with falsy
   metaclasses.  Patch by Ethan Furman.
 
+- Issue #12006: Add ISO 8601 year, week, and day directives (%G, %V, %u) to
+  strptime.
+
 Documentation
 -------------
 
@@ -327,6 +436,11 @@ Documentation
 Tests
 -----
 
+- Issue #25099: Make test_compileall not fail when a entry on sys.path cannot
+  be written to (commonly seen in administrative installs on Windows).
+
+- Issue #23919: Prevents assert dialogs appearing in the test suite.
+
 - PCbuild\rt.bat now accepts an unlimited number of arguments to pass along
   to regrtest.py.  Previously there was a limit of 9.
 
@@ -334,7 +448,7 @@ Build
 -----
 
 - Issue #24915: Add LLVM support for PGO builds and use the test suite to
-  generate the profile data. Initiial patch by Alecsandru Patrascu of Intel.
+  generate the profile data. Initial patch by Alecsandru Patrascu of Intel.
 
 - Issue #24910: Windows MSIs now have unique display names.
 
@@ -345,7 +459,13 @@ Build
 Windows
 -------
 
-- Issues #25112: py.exe launcher is missing icons
+- Issue #25089: Adds logging to installer for case where launcher is not
+  selected on upgrade.
+
+- Issue #25165: Windows uninstallation should not remove launcher if other
+  versions remain
+
+- Issue #25112: py.exe launcher is missing icons
 
 - Issue #25102: Windows installer does not precompile for -O or -OO.
 
@@ -505,7 +625,7 @@ Library
 
 - Issue #17527: Add PATCH to wsgiref.validator. Patch from Luca Sbardella.
 
-- Issue #24791: Fix grammar regression for call syntax: 'g(*a or b)'.
+- Issue #24791: Fix grammar regression for call syntax: 'g(\*a or b)'.
 
 IDLE
 ----
@@ -1740,7 +1860,7 @@ Core and Builtins
   type) can now be weakref'ed.  Patch by Wei Wu.
 
 - Issue #22077: Improve index error messages for bytearrays, bytes, lists,
-  and tuples by adding 'or slices'. Added ', not <typename' for bytearrays.
+  and tuples by adding 'or slices'. Added ', not <typename>' for bytearrays.
   Original patch by Claudiu Popa.
 
 - Issue #20179: Apply Argument Clinic to bytes and bytearray.
@@ -1764,7 +1884,7 @@ Core and Builtins
   engine friendly) error messages when "exec" and "print" are used as
   statements.
 
-- Issue #21642: If the conditional if-else expression, allow an integer written
+- Issue #21642: In the conditional if-else expression, allow an integer written
   with no space between itself and the ``else`` keyword (e.g. ``True if 42else
   False``) to be valid syntax.
 

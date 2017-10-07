@@ -1018,11 +1018,11 @@ anywhere a regular dictionary is used.
 
 The :class:`OrderedDict` constructor and :meth:`update` method both accept
 keyword arguments, but their order is lost because Python's function call
-semantics pass-in keyword arguments using a regular unordered dictionary.
+semantics pass in keyword arguments using a regular unordered dictionary.
 
 .. versionchanged:: 3.5
-   The items, keys, and values :term:`views <view>` of :class:`OrderedDict` now
-   support reverse iteration using :func:`reversed`.
+   The items, keys, and values :term:`views <dictionary view>`
+   of :class:`OrderedDict` now support reverse iteration using :func:`reversed`.
 
 :class:`OrderedDict` Examples and Recipes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

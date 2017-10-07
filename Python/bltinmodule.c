@@ -333,7 +333,7 @@ builtin_any(PyModuleDef *module, PyObject *iterable)
             Py_DECREF(it);
             return NULL;
         }
-        if (cmp == 1) {
+        if (cmp > 0) {
             Py_DECREF(it);
             Py_RETURN_TRUE;
         }
@@ -471,6 +471,7 @@ filter_next(filterobject *lz)
     PyObject *it = lz->it;
     long ok;
     PyObject *(*iternext)(PyObject *);
+    int checktrue = lz->func == Py_None || lz->func == (PyObject *)&PyBool_Type;
 
     iternext = *Py_TYPE(it)->tp_iternext;
     for (;;) {
@@ -478,12 +479,11 @@ filter_next(filterobject *lz)
         if (item == NULL)
             return NULL;
 
-        if (lz->func == Py_None || lz->func == (PyObject *)&PyBool_Type) {
+        if (checktrue) {
             ok = PyObject_IsTrue(item);
         } else {
             PyObject *good;
-            good = PyObject_CallFunctionObjArgs(lz->func,
-                                                item, NULL);
+            good = PyObject_CallFunctionObjArgs(lz->func, item, NULL);
             if (good == NULL) {
                 Py_DECREF(item);
                 return NULL;
@@ -1871,8 +1871,10 @@ builtin_input_impl(PyModuleDef *module, PyObject *prompt)
     }
     if (tty) {
         tmp = _PyObject_CallMethodId(fout, &PyId_fileno, "");
-        if (tmp == NULL)
+        if (tmp == NULL) {
             PyErr_Clear();
+            tty = 0;
+        }
         else {
             fd = PyLong_AsLong(tmp);
             Py_DECREF(tmp);

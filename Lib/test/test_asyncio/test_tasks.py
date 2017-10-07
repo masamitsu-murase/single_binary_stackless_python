@@ -153,6 +153,24 @@ class TaskTests(test_utils.TestCase):
         t = asyncio.ensure_future(t_orig, loop=self.loop)
         self.assertIs(t, t_orig)
 
+    @unittest.skipUnless(PY35, 'need python 3.5 or later')
+    def test_ensure_future_awaitable(self):
+        class Aw:
+            def __init__(self, coro):
+                self.coro = coro
+            def __await__(self):
+                return (yield from self.coro)
+
+        @asyncio.coroutine
+        def coro():
+            return 'ok'
+
+        loop = asyncio.new_event_loop()
+        self.set_event_loop(loop)
+        fut = asyncio.ensure_future(Aw(coro()), loop=loop)
+        loop.run_until_complete(fut)
+        assert fut.result() == 'ok'
+
     def test_ensure_future_neither(self):
         with self.assertRaises(TypeError):
             asyncio.ensure_future('ok')
@@ -2080,6 +2098,94 @@ class CoroutineGatherTests(GatherTestsBase, test_utils.TestCase):
         b.set_result(None)
         test_utils.run_briefly(self.one_loop)
         self.assertIsInstance(f.exception(), RuntimeError)
+
+
+class RunCoroutineThreadsafeTests(test_utils.TestCase):
+    """Test case for futures.submit_to_loop."""
+
+    def setUp(self):
+        self.loop = self.new_test_loop(self.time_gen)
+
+    def time_gen(self):
+        """Handle the timer."""
+        yield 0  # second
+        yield 1  # second
+
+    @asyncio.coroutine
+    def add(self, a, b, fail=False, cancel=False):
+        """Wait 1 second and return a + b."""
+        yield from asyncio.sleep(1, loop=self.loop)
+        if fail:
+            raise RuntimeError("Fail!")
+        if cancel:
+            asyncio.tasks.Task.current_task(self.loop).cancel()
+            yield
+        return a + b
+
+    def target(self, fail=False, cancel=False, timeout=None):
+        """Run add coroutine in the event loop."""
+        coro = self.add(1, 2, fail=fail, cancel=cancel)
+        future = asyncio.run_coroutine_threadsafe(coro, self.loop)
+        try:
+            return future.result(timeout)
+        finally:
+            future.done() or future.cancel()
+
+    def test_run_coroutine_threadsafe(self):
+        """Test coroutine submission from a thread to an event loop."""
+        future = self.loop.run_in_executor(None, self.target)
+        result = self.loop.run_until_complete(future)
+        self.assertEqual(result, 3)
+
+    def test_run_coroutine_threadsafe_with_exception(self):
+        """Test coroutine submission from a thread to an event loop
+        when an exception is raised."""
+        future = self.loop.run_in_executor(None, self.target, True)
+        with self.assertRaises(RuntimeError) as exc_context:
+            self.loop.run_until_complete(future)
+        self.assertIn("Fail!", exc_context.exception.args)
+
+    def test_run_coroutine_threadsafe_with_timeout(self):
+        """Test coroutine submission from a thread to an event loop
+        when a timeout is raised."""
+        callback = lambda: self.target(timeout=0)
+        future = self.loop.run_in_executor(None, callback)
+        with self.assertRaises(asyncio.TimeoutError):
+            self.loop.run_until_complete(future)
+        # Clear the time generator and tasks
+        test_utils.run_briefly(self.loop)
+        # Check that there's no pending task (add has been cancelled)
+        for task in asyncio.Task.all_tasks(self.loop):
+            self.assertTrue(task.done())
+
+    def test_run_coroutine_threadsafe_task_cancelled(self):
+        """Test coroutine submission from a tread to an event loop
+        when the task is cancelled."""
+        callback = lambda: self.target(cancel=True)
+        future = self.loop.run_in_executor(None, callback)
+        with self.assertRaises(asyncio.CancelledError):
+            self.loop.run_until_complete(future)
+
+    def test_run_coroutine_threadsafe_task_factory_exception(self):
+        """Test coroutine submission from a tread to an event loop
+        when the task factory raise an exception."""
+        # Clear the time generator
+        asyncio.ensure_future(self.add(1, 2), loop=self.loop)
+        # Schedule the target
+        future = self.loop.run_in_executor(None, self.target)
+        # Set corrupted task factory
+        self.loop.set_task_factory(lambda loop, coro: wrong_name)
+        # Set exception handler
+        callback = test_utils.MockCallback()
+        self.loop.set_exception_handler(callback)
+        # Run event loop
+        with self.assertRaises(NameError) as exc_context:
+            self.loop.run_until_complete(future)
+        # Check exceptions
+        self.assertIn('wrong_name', exc_context.exception.args[0])
+        self.assertEqual(len(callback.call_args_list), 1)
+        (loop, context), kwargs = callback.call_args
+        self.assertEqual(context['exception'], exc_context.exception)
 
 
 if __name__ == '__main__':
