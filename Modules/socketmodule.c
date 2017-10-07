@@ -84,6 +84,11 @@ Local naming conventions:
 */
 
 #ifdef __APPLE__
+#include <AvailabilityMacros.h>
+/* for getaddrinfo thread safety test on old versions of OS X */
+#ifndef MAC_OS_X_VERSION_10_5
+#define MAC_OS_X_VERSION_10_5 1050
+#endif
   /*
    * inet_aton is not available on OSX 10.3, yet we want to use a binary
    * that was build on 10.4 or later to work on that release, weak linking
@@ -179,15 +184,32 @@ if_indextoname(index) -- return the corresponding interface name\n\
 # define USE_GETHOSTBYNAME_LOCK
 #endif
 
-/* To use __FreeBSD_version */
+/* To use __FreeBSD_version, __OpenBSD__, and __NetBSD_Version__ */
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
 /* On systems on which getaddrinfo() is believed to not be thread-safe,
-   (this includes the getaddrinfo emulation) protect access with a lock. */
-#if defined(WITH_THREAD) && (defined(__APPLE__) || \
+   (this includes the getaddrinfo emulation) protect access with a lock.
+
+   getaddrinfo is thread-safe on Mac OS X 10.5 and later. Originally it was
+   a mix of code including an unsafe implementation from an old BSD's
+   libresolv. In 10.5 Apple reimplemented it as a safe IPC call to the
+   mDNSResponder process. 10.5 is the first be UNIX '03 certified, which
+   includes the requirement that getaddrinfo be thread-safe. See issue #25924.
+
+   It's thread-safe in OpenBSD starting with 5.4, released Nov 2013:
+   http://www.openbsd.org/plus54.html
+
+   It's thread-safe in NetBSD starting with 4.0, released Dec 2007:
+
+http://cvsweb.netbsd.org/bsdweb.cgi/src/lib/libc/net/getaddrinfo.c.diff?r1=1.82&r2=1.83
+ */
+#if defined(WITH_THREAD) && ( \
+    (defined(__APPLE__) && \
+        MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5) || \
     (defined(__FreeBSD__) && __FreeBSD_version+0 < 503000) || \
-    defined(__OpenBSD__) || defined(__NetBSD__) || \
+    (defined(__OpenBSD__) && OpenBSD+0 < 201311) || \
+    (defined(__NetBSD__) && __NetBSD_Version__+0 < 400000000) || \
     !defined(HAVE_GETADDRINFO))
 #define USE_GETADDRINFO_LOCK
 #endif
@@ -2436,13 +2458,26 @@ sock_setsockopt(PySocketSockObject *s, PyObject *args)
         if (!PyArg_ParseTuple(args, "iiy*:setsockopt",
                               &level, &optname, &optval))
             return NULL;
+#ifdef MS_WINDOWS
+        if (optval.len > INT_MAX) {
+            PyBuffer_Release(&optval);
+            PyErr_Format(PyExc_OverflowError,
+                         "socket option is larger than %i bytes",
+                         INT_MAX);
+            return NULL;
+        }
+        res = setsockopt(s->sock_fd, level, optname,
+                         optval.buf, (int)optval.len);
+#else
         res = setsockopt(s->sock_fd, level, optname, optval.buf, optval.len);
+#endif
         PyBuffer_Release(&optval);
     }
-    if (res < 0)
+    if (res < 0) {
         return s->errorhandler();
-    Py_INCREF(Py_None);
-    return Py_None;
+    }
+
+    Py_RETURN_NONE;
 }
 
 PyDoc_STRVAR(setsockopt_doc,
@@ -2542,12 +2577,14 @@ sock_close(PySocketSockObject *s)
 {
     SOCKET_T fd;
 
-    /* We do not want to retry upon EINTR: see http://lwn.net/Articles/576478/
-     * and http://linux.derkeiler.com/Mailing-Lists/Kernel/2005-09/3000.html
-     * for more details.
-     */
-    if ((fd = s->sock_fd) != -1) {
+    fd = s->sock_fd;
+    if (fd != -1) {
         s->sock_fd = -1;
+
+        /* We do not want to retry upon EINTR: see
+           http://lwn.net/Articles/576478/ and
+           http://linux.derkeiler.com/Mailing-Lists/Kernel/2005-09/3000.html
+           for more details. */
         Py_BEGIN_ALLOW_THREADS
         (void) SOCKETCLOSE(fd);
         Py_END_ALLOW_THREADS
@@ -4141,22 +4178,45 @@ static PyGetSetDef sock_getsetlist[] = {
    First close the file description. */
 
 static void
+sock_finalize(PySocketSockObject *s)
+{
+    SOCKET_T fd;
+    PyObject *error_type, *error_value, *error_traceback;
+
+    /* Save the current exception, if any. */
+    PyErr_Fetch(&error_type, &error_value, &error_traceback);
+
+    if (s->sock_fd != -1) {
+        if (PyErr_ResourceWarning((PyObject *)s, 1, "unclosed %R", s)) {
+            /* Spurious errors can appear at shutdown */
+            if (PyErr_ExceptionMatches(PyExc_Warning)) {
+                PyErr_WriteUnraisable((PyObject *)s);
+            }
+        }
+
+        /* Only close the socket *after* logging the ResourceWarning warning
+           to allow the logger to call socket methods like
+           socket.getsockname(). If the socket is closed before, socket
+           methods fails with the EBADF error. */
+        fd = s->sock_fd;
+        s->sock_fd = -1;
+
+        /* We do not want to retry upon EINTR: see sock_close() */
+        Py_BEGIN_ALLOW_THREADS
+        (void) SOCKETCLOSE(fd);
+        Py_END_ALLOW_THREADS
+    }
+
+    /* Restore the saved exception. */
+    PyErr_Restore(error_type, error_value, error_traceback);
+}
+
+static void
 sock_dealloc(PySocketSockObject *s)
 {
-    if (s->sock_fd != -1) {
-        PyObject *exc, *val, *tb;
-        Py_ssize_t old_refcount = Py_REFCNT(s);
-        ++Py_REFCNT(s);
-        PyErr_Fetch(&exc, &val, &tb);
-        if (PyErr_WarnFormat(PyExc_ResourceWarning, 1,
-                             "unclosed %R", s))
-            /* Spurious errors can appear at shutdown */
-            if (PyErr_ExceptionMatches(PyExc_Warning))
-                PyErr_WriteUnraisable((PyObject *) s);
-        PyErr_Restore(exc, val, tb);
-        (void) SOCKETCLOSE(s->sock_fd);
-        Py_REFCNT(s) = old_refcount;
-    }
+    if (PyObject_CallFinalizerFromDealloc((PyObject *)s) < 0)
+        return;
+
     Py_TYPE(s)->tp_free((PyObject *)s);
 }
 
@@ -4373,7 +4433,8 @@ static PyTypeObject sock_type = {
     PyObject_GenericGetAttr,                    /* tp_getattro */
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /* tp_flags */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE
+        | Py_TPFLAGS_HAVE_FINALIZE,             /* tp_flags */
     sock_doc,                                   /* tp_doc */
     0,                                          /* tp_traverse */
     0,                                          /* tp_clear */
@@ -4393,6 +4454,15 @@ static PyTypeObject sock_type = {
     PyType_GenericAlloc,                        /* tp_alloc */
     sock_new,                                   /* tp_new */
     PyObject_Del,                               /* tp_free */
+    0,                                          /* tp_is_gc */
+    0,                                          /* tp_bases */
+    0,                                          /* tp_mro */
+    0,                                          /* tp_cache */
+    0,                                          /* tp_subclasses */
+    0,                                          /* tp_weaklist */
+    0,                                          /* tp_del */
+    0,                                          /* tp_version_tag */
+    (destructor)sock_finalize,                  /* tp_finalize */
 };
 
 
@@ -4519,6 +4589,19 @@ PyDoc_STRVAR(gethostbyname_doc,
 Return the IP address (a string of the form '255.255.255.255') for a host.");
 
 
+static PyObject*
+sock_decode_hostname(const char *name)
+{
+#ifdef MS_WINDOWS
+    /* Issue #26227: gethostbyaddr() returns a string encoded
+     * to the ANSI code page */
+    return PyUnicode_DecodeFSDefault(name);
+#else
+    /* Decode from UTF-8 */
+    return PyUnicode_FromString(name);
+#endif
+}
+
 /* Convenience function common to gethostbyname_ex and gethostbyaddr */
 
 static PyObject *
@@ -4529,6 +4612,7 @@ gethost_common(struct hostent *h, struct sockaddr *addr, size_t alen, int af)
     PyObject *name_list = (PyObject *)NULL;
     PyObject *addr_list = (PyObject *)NULL;
     PyObject *tmp;
+    PyObject *name;
 
     if (h == NULL) {
         /* Let's get real error message to return */
@@ -4637,7 +4721,10 @@ gethost_common(struct hostent *h, struct sockaddr *addr, size_t alen, int af)
             goto err;
     }
 
-    rtn_tuple = Py_BuildValue("sOO", h->h_name, name_list, addr_list);
+    name = sock_decode_hostname(h->h_name);
+    if (name == NULL)
+        goto err;
+    rtn_tuple = Py_BuildValue("NOO", name, name_list, addr_list);
 
  err:
     Py_XDECREF(name_list);
@@ -5411,10 +5498,6 @@ socket_inet_ntop(PyObject *self, PyObject *args)
     } else {
         return PyUnicode_FromString(retval);
     }
-
-    /* NOTREACHED */
-    PyErr_SetString(PyExc_RuntimeError, "invalid handling of inet_ntop");
-    return NULL;
 }
 
 #elif defined(MS_WINDOWS)
@@ -5623,6 +5706,7 @@ socket_getnameinfo(PyObject *self, PyObject *args)
     struct addrinfo hints, *res = NULL;
     int error;
     PyObject *ret = (PyObject *)NULL;
+    PyObject *name;
 
     flags = flowinfo = scope_id = 0;
     if (!PyArg_ParseTuple(args, "Oi:getnameinfo", &sa, &flags))
@@ -5686,7 +5770,11 @@ socket_getnameinfo(PyObject *self, PyObject *args)
         set_gaierror(error);
         goto fail;
     }
-    ret = Py_BuildValue("ss", hbuf, pbuf);
+
+    name = sock_decode_hostname(hbuf);
+    if (name == NULL)
+        goto fail;
+    ret = Py_BuildValue("Ns", name, pbuf);
 
 fail:
     if (res)

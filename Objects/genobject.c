@@ -92,7 +92,7 @@ static PyObject* gen_iternext_callback(PyFrameObject *f, int exc, PyObject *resu
 #endif
 
 static PyObject *
-gen_send_ex(PyGenObject *gen, PyObject *arg, int exc)
+gen_send_ex(PyGenObject *gen, PyObject *arg, int exc, int closing)
 {
 #ifdef STACKLESS
     STACKLESS_GETARG();
@@ -110,9 +110,18 @@ gen_send_ex(PyGenObject *gen, PyObject *arg, int exc)
         return NULL;
     }
     if (f == NULL || f->f_stacktop == NULL) {
-        /* Only set exception if called from send() */
-        if (arg && !exc)
+        if (PyCoro_CheckExact(gen) && !closing) {
+            /* `gen` is an exhausted coroutine: raise an error,
+               except when called from gen_close(), which should
+               always be a silent method. */
+            PyErr_SetString(
+                PyExc_RuntimeError,
+                "cannot reuse already awaited coroutine");
+        } else if (arg && !exc) {
+            /* `gen` is an exhausted generator:
+               only set exception if called from send(). */
             PyErr_SetNone(PyExc_StopIteration);
+        }
         return NULL;
     }
 
@@ -275,7 +284,7 @@ gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result)
             /* Pop the exception before issuing a warning. */
             PyErr_Fetch(&exc, &val, &tb);
 
-            if (PyErr_WarnFormat(PyExc_PendingDeprecationWarning, 1,
+            if (PyErr_WarnFormat(PyExc_DeprecationWarning, 1,
                                  "generator '%.50S' raised StopIteration",
                                  gen->gi_qualname)) {
                 /* Warning was converted to an error. */
@@ -331,7 +340,7 @@ return next yielded value or raise StopIteration.");
 PyObject *
 _PyGen_Send(PyGenObject *gen, PyObject *arg)
 {
-    return gen_send_ex(gen, arg, 0);
+    return gen_send_ex(gen, arg, 0, 0);
 }
 
 PyDoc_STRVAR(close_doc,
@@ -369,8 +378,8 @@ gen_close_iter(PyObject *yf)
     return 0;
 }
 
-static PyObject *
-gen_yf(PyGenObject *gen)
+PyObject *
+_PyGen_yf(PyGenObject *gen)
 {
     PyObject *yf = NULL;
     PyFrameObject *f = gen->gi_frame;
@@ -392,7 +401,7 @@ static PyObject *
 gen_close(PyGenObject *gen, PyObject *args)
 {
     PyObject *retval;
-    PyObject *yf = gen_yf(gen);
+    PyObject *yf = _PyGen_yf(gen);
     int err = 0;
 
     if (yf) {
@@ -403,7 +412,7 @@ gen_close(PyGenObject *gen, PyObject *args)
     }
     if (err == 0)
         PyErr_SetNone(PyExc_GeneratorExit);
-    retval = gen_send_ex(gen, Py_None, 1);
+    retval = gen_send_ex(gen, Py_None, 1, 1);
     if (retval) {
         char *msg = "generator ignored GeneratorExit";
         if (PyCoro_CheckExact(gen))
@@ -432,7 +441,7 @@ gen_throw(PyGenObject *gen, PyObject *args)
     PyObject *typ;
     PyObject *tb = NULL;
     PyObject *val = NULL;
-    PyObject *yf = gen_yf(gen);
+    PyObject *yf = _PyGen_yf(gen);
     _Py_IDENTIFIER(throw);
 
     if (!PyArg_UnpackTuple(args, "throw", 1, 3, &typ, &val, &tb))
@@ -447,7 +456,7 @@ gen_throw(PyGenObject *gen, PyObject *args)
             gen->gi_running = 0;
             Py_DECREF(yf);
             if (err < 0)
-                return gen_send_ex(gen, Py_None, 1);
+                return gen_send_ex(gen, Py_None, 1, 0);
             goto throw_here;
         }
         if (PyGen_CheckExact(yf)) {
@@ -480,10 +489,10 @@ gen_throw(PyGenObject *gen, PyObject *args)
             /* Termination repetition of YIELD_FROM */
             gen->gi_frame->f_lasti++;
             if (_PyGen_FetchStopIterationValue(&val) == 0) {
-                ret = gen_send_ex(gen, val, 0);
+                ret = gen_send_ex(gen, val, 0, 0);
                 Py_DECREF(val);
             } else {
-                ret = gen_send_ex(gen, Py_None, 1);
+                ret = gen_send_ex(gen, Py_None, 1, 0);
             }
         }
         return ret;
@@ -537,7 +546,7 @@ throw_here:
     }
 
     PyErr_Restore(typ, val, tb);
-    return gen_send_ex(gen, Py_None, 1);
+    return gen_send_ex(gen, Py_None, 1, 0);
 
 failed_throw:
     /* Didn't use our arguments, so restore their original refcounts */
@@ -551,7 +560,7 @@ failed_throw:
 static PyObject *
 gen_iternext(PyGenObject *gen)
 {
-    return gen_send_ex(gen, NULL, 0);
+    return gen_send_ex(gen, NULL, 0, 0);
 }
 
 /*
@@ -658,7 +667,7 @@ gen_set_qualname(PyGenObject *op, PyObject *value)
 static PyObject *
 gen_getyieldfrom(PyGenObject *gen)
 {
-    PyObject *yf = gen_yf(gen);
+    PyObject *yf = _PyGen_yf(gen);
     if (yf == NULL)
         Py_RETURN_NONE;
     return yf;
@@ -895,7 +904,7 @@ coro_await(PyCoroObject *coro)
 static PyObject *
 coro_get_cr_await(PyCoroObject *coro)
 {
-    PyObject *yf = gen_yf((PyGenObject *) coro);
+    PyObject *yf = _PyGen_yf((PyGenObject *) coro);
     if (yf == NULL)
         Py_RETURN_NONE;
     return yf;
@@ -1006,13 +1015,13 @@ coro_wrapper_dealloc(PyCoroWrapper *cw)
 static PyObject *
 coro_wrapper_iternext(PyCoroWrapper *cw)
 {
-    return gen_send_ex((PyGenObject *)cw->cw_coroutine, NULL, 0);
+    return gen_send_ex((PyGenObject *)cw->cw_coroutine, NULL, 0, 0);
 }
 
 static PyObject *
 coro_wrapper_send(PyCoroWrapper *cw, PyObject *arg)
 {
-    return gen_send_ex((PyGenObject *)cw->cw_coroutine, arg, 0);
+    return gen_send_ex((PyGenObject *)cw->cw_coroutine, arg, 0, 0);
 }
 
 static PyObject *

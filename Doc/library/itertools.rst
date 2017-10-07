@@ -117,7 +117,7 @@ loops that truncate the stream.
     :func:`min` for a running minimum, :func:`max` for a running maximum, or
     :func:`operator.mul` for a running product.  Amortization tables can be
     built by accumulating interest and applying payments.  First-order
-    `recurrence relations <http://en.wikipedia.org/wiki/Recurrence_relation>`_
+    `recurrence relations <https://en.wikipedia.org/wiki/Recurrence_relation>`_
     can be modeled by supplying the initial value in the iterable and using only
     the accumulated total in *func* argument::
 
@@ -132,7 +132,7 @@ loops that truncate the stream.
       >>> list(accumulate(cashflows, lambda bal, pmt: bal*1.05 + pmt))
       [1000, 960.0, 918.0, 873.9000000000001, 827.5950000000001]
 
-      # Chaotic recurrence relation http://en.wikipedia.org/wiki/Logistic_map
+      # Chaotic recurrence relation https://en.wikipedia.org/wiki/Logistic_map
       >>> logistic_map = lambda x, _:  r * x * (1 - x)
       >>> r = 3.8
       >>> x0 = 0.4
@@ -693,6 +693,11 @@ which incur interpreter overhead.
        "Returns the nth item or a default value"
        return next(islice(iterable, n, None), default)
 
+   def all_equal(iterable):
+       "Returns True if all the elements are equal to each other"
+       g = groupby(iterable)
+       return next(g, True) and not next(g, False)
+
    def quantify(iterable, pred=bool):
        "Count how many times the predicate is true"
        return sum(map(pred, iterable))
@@ -801,7 +806,7 @@ which incur interpreter overhead.
        try:
            if first is not None:
                yield first()            # For database APIs needing an initial cast to db.first()
-           while 1:
+           while True:
                yield func()
        except exception:
            pass

@@ -1,3 +1,4 @@
+import faulthandler
 import json
 import os
 import queue
@@ -12,16 +13,16 @@ except ImportError:
     print("Multiprocess option requires thread support")
     sys.exit(2)
 
-from test.libregrtest.runtest import runtest, INTERRUPTED, CHILD_ERROR
+from test.libregrtest.runtest import (
+    runtest, INTERRUPTED, CHILD_ERROR, PROGRESS_MIN_TIME)
 from test.libregrtest.setup import setup_tests
 
 
-# Minimum duration of a test to display its duration or to mention that
-# the test is running in background
-PROGRESS_MIN_TIME = 30.0   # seconds
-
 # Display the running tests if nothing happened last N seconds
 PROGRESS_UPDATE = 30.0   # seconds
+
+# If interrupted, display the wait process every N seconds
+WAIT_PROGRESS = 2.0   # seconds
 
 
 def run_test_in_subprocess(testname, ns):
@@ -151,9 +152,13 @@ class MultiprocessThread(threading.Thread):
 def run_tests_multiprocess(regrtest):
     output = queue.Queue()
     pending = MultiprocessIterator(regrtest.tests)
+    test_timeout = regrtest.ns.timeout
+    use_timeout = (test_timeout is not None)
 
     workers = [MultiprocessThread(pending, output, regrtest.ns)
                for i in range(regrtest.ns.use_mp)]
+    print("Run tests in parallel using %s child processes"
+          % len(workers))
     for worker in workers:
         worker.start()
 
@@ -170,11 +175,14 @@ def run_tests_multiprocess(regrtest):
 
     finished = 0
     test_index = 1
-    timeout = max(PROGRESS_UPDATE, PROGRESS_MIN_TIME)
+    get_timeout = max(PROGRESS_UPDATE, PROGRESS_MIN_TIME)
     try:
         while finished < regrtest.ns.use_mp:
+            if use_timeout:
+                faulthandler.dump_traceback_later(test_timeout, exit=True)
+
             try:
-                item = output.get(timeout=timeout)
+                item = output.get(timeout=get_timeout)
             except queue.Empty:
                 running = get_running(workers)
                 if running and not regrtest.ns.pgo:
@@ -215,10 +223,22 @@ def run_tests_multiprocess(regrtest):
         regrtest.interrupted = True
         pending.interrupted = True
         print()
+    finally:
+        if use_timeout:
+            faulthandler.cancel_dump_traceback_later()
 
-    running = [worker.current_test for worker in workers]
-    running = list(filter(bool, running))
-    if running:
-        print("Waiting for %s" % ', '.join(running))
-    for worker in workers:
-        worker.join()
+    # If tests are interrupted, wait until tests complete
+    wait_start = time.monotonic()
+    while True:
+        running = [worker.current_test for worker in workers]
+        running = list(filter(bool, running))
+        if not running:
+            break
+
+        dt = time.monotonic() - wait_start
+        line = "Waiting for %s (%s tests)" % (', '.join(running), len(running))
+        if dt >= WAIT_PROGRESS:
+            line = "%s since %.0f sec" % (line, dt)
+        print(line)
+        for worker in workers:
+            worker.join(WAIT_PROGRESS)

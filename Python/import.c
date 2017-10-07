@@ -671,9 +671,13 @@ PyImport_AddModuleObject(PyObject *name)
     PyObject *modules = PyImport_GetModuleDict();
     PyObject *m;
 
-    if ((m = PyDict_GetItem(modules, name)) != NULL &&
-        PyModule_Check(m))
+    if ((m = PyDict_GetItemWithError(modules, name)) != NULL &&
+        PyModule_Check(m)) {
         return m;
+    }
+    if (PyErr_Occurred()) {
+        return NULL;
+    }
     m = PyModule_NewObject(name);
     if (m == NULL)
         return NULL;
@@ -1415,64 +1419,88 @@ PyImport_ImportModuleLevelObject(PyObject *name, PyObject *given_globals,
         goto error;
     }
     else if (level > 0) {
+        package = _PyDict_GetItemId(globals, &PyId___package__);
         spec = _PyDict_GetItemId(globals, &PyId___spec__);
-        if (spec != NULL) {
-            package = PyObject_GetAttrString(spec, "parent");
-        }
+
         if (package != NULL && package != Py_None) {
+            Py_INCREF(package);
             if (!PyUnicode_Check(package)) {
+                PyErr_SetString(PyExc_TypeError, "package must be a string");
+                goto error;
+            }
+            else if (spec != NULL && spec != Py_None) {
+                int equal;
+                PyObject *parent = PyObject_GetAttrString(spec, "parent");
+                if (parent == NULL) {
+                    goto error;
+                }
+
+                equal = PyObject_RichCompareBool(package, parent, Py_EQ);
+                Py_DECREF(parent);
+                if (equal < 0) {
+                    goto error;
+                }
+                else if (equal == 0) {
+                    if (PyErr_WarnEx(PyExc_ImportWarning,
+                            "__package__ != __spec__.parent", 1) < 0) {
+                        goto error;
+                    }
+                }
+            }
+        }
+        else if (spec != NULL && spec != Py_None) {
+            package = PyObject_GetAttrString(spec, "parent");
+            if (package == NULL) {
+                goto error;
+            }
+            else if (!PyUnicode_Check(package)) {
                 PyErr_SetString(PyExc_TypeError,
                         "__spec__.parent must be a string");
                 goto error;
             }
         }
         else {
-            package = _PyDict_GetItemId(globals, &PyId___package__);
-            if (package != NULL && package != Py_None) {
-                Py_INCREF(package);
-                if (!PyUnicode_Check(package)) {
-                    PyErr_SetString(PyExc_TypeError, "package must be a string");
-                    goto error;
-                }
+            if (PyErr_WarnEx(PyExc_ImportWarning,
+                        "can't resolve package from __spec__ or __package__, "
+                        "falling back on __name__ and __path__", 1) < 0) {
+                goto error;
             }
-            else {
-                if (PyErr_WarnEx(PyExc_ImportWarning,
-                            "can't resolve package from __spec__ or __package__, "
-                            "falling back on __name__ and __path__", 1) < 0) {
+
+            package = _PyDict_GetItemId(globals, &PyId___name__);
+            if (package == NULL) {
+                PyErr_SetString(PyExc_KeyError, "'__name__' not in globals");
+                goto error;
+            }
+
+            Py_INCREF(package);
+            if (!PyUnicode_Check(package)) {
+                PyErr_SetString(PyExc_TypeError, "__name__ must be a string");
+                goto error;
+            }
+
+            if (_PyDict_GetItemId(globals, &PyId___path__) == NULL) {
+                PyObject *partition = NULL;
+                PyObject *borrowed_dot = _PyUnicode_FromId(&single_dot);
+                if (borrowed_dot == NULL) {
                     goto error;
                 }
-
-                package = _PyDict_GetItemId(globals, &PyId___name__);
-                if (package == NULL) {
-                    PyErr_SetString(PyExc_KeyError, "'__name__' not in globals");
+                partition = PyUnicode_RPartition(package, borrowed_dot);
+                Py_DECREF(package);
+                if (partition == NULL) {
                     goto error;
                 }
-
+                package = PyTuple_GET_ITEM(partition, 0);
                 Py_INCREF(package);
-                if (!PyUnicode_Check(package)) {
-                    PyErr_SetString(PyExc_TypeError, "__name__ must be a string");
-                    goto error;
-                }
-
-                if (_PyDict_GetItemId(globals, &PyId___path__) == NULL) {
-                    PyObject *partition = NULL;
-                    PyObject *borrowed_dot = _PyUnicode_FromId(&single_dot);
-                    if (borrowed_dot == NULL) {
-                        goto error;
-                    }
-                    partition = PyUnicode_RPartition(package, borrowed_dot);
-                    Py_DECREF(package);
-                    if (partition == NULL) {
-                        goto error;
-                    }
-                    package = PyTuple_GET_ITEM(partition, 0);
-                    Py_INCREF(package);
-                    Py_DECREF(partition);
-                }
+                Py_DECREF(partition);
             }
         }
 
-        if (PyDict_GetItem(interp->modules, package) == NULL) {
+        if (PyUnicode_CompareWithASCIIString(package, "") == 0) {
+            PyErr_SetString(PyExc_ImportError,
+                    "attempted relative import with no known parent package");
+            goto error;
+        }
+        else if (PyDict_GetItem(interp->modules, package) == NULL) {
             PyErr_Format(PyExc_SystemError,
                     "Parent module %R not loaded, cannot perform relative "
                     "import", package);

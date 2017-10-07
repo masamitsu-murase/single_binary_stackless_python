@@ -374,12 +374,12 @@ or subtracting from an empty counter.
 
 .. seealso::
 
-    * `Bag class <http://www.gnu.org/software/smalltalk/manual-base/html_node/Bag.html>`_
+    * `Bag class <https://www.gnu.org/software/smalltalk/manual-base/html_node/Bag.html>`_
       in Smalltalk.
 
-    * Wikipedia entry for `Multisets <http://en.wikipedia.org/wiki/Multiset>`_.
+    * Wikipedia entry for `Multisets <https://en.wikipedia.org/wiki/Multiset>`_.
 
-    * `C++ multisets <http://www.demo2s.com/Tutorial/Cpp/0380__set-multiset/Catalog0380__set-multiset.htm>`_
+    * `C++ multisets <http://www.java2s.com/Tutorial/Cpp/0380__set-multiset/Catalog0380__set-multiset.htm>`_
       tutorial with examples.
 
     * For mathematical operations on multisets and their use cases, see
@@ -476,6 +476,9 @@ or subtracting from an empty counter.
     .. method:: insert(i, x)
 
         Insert *x* into the deque at position *i*.
+
+        If the insertion would cause a bounded deque to grow beyond *maxlen*,
+        an :exc:`IndexError` is raised.
 
         .. versionadded:: 3.5
 

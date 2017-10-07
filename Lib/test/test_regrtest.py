@@ -304,7 +304,7 @@ class ParseArgsTestCase(unittest.TestCase):
 class BaseTestCase(unittest.TestCase):
     TEST_UNIQUE_ID = 1
     TESTNAME_PREFIX = 'test_regrtest_'
-    TESTNAME_REGEX = r'test_[a-z0-9_]+'
+    TESTNAME_REGEX = r'test_[a-zA-Z0-9_]+'
 
     def setUp(self):
         self.testdir = os.path.realpath(os.path.dirname(__file__))
@@ -351,7 +351,8 @@ class BaseTestCase(unittest.TestCase):
         self.assertRegex(output, regex)
 
     def parse_executed_tests(self, output):
-        regex = r'^\[ *[0-9]+(?:/ *[0-9]+)?\] (%s)$' % self.TESTNAME_REGEX
+        regex = (r'^[0-9]+:[0-9]+:[0-9]+ \[ *[0-9]+(?:/ *[0-9]+)?\] (%s)'
+                 % self.TESTNAME_REGEX)
         parser = re.finditer(regex, output, re.MULTILINE)
         return list(match.group(1) for match in parser)
 
@@ -627,9 +628,33 @@ class ArgsTestCase(BaseTestCase):
         # [2/2] test_2
         filename = support.TESTFN
         self.addCleanup(support.unlink, filename)
+
+        # test format '0:00:00 [2/7] test_opcodes -- test_grammar took 0 sec'
+        with open(filename, "w") as fp:
+            previous = None
+            for index, name in enumerate(tests, 1):
+                line = ("00:00:%02i [%s/%s] %s"
+                        % (index, index, len(tests), name))
+                if previous:
+                    line += " -- %s took 0 sec" % previous
+                print(line, file=fp)
+                previous = name
+
+        output = self.run_tests('--fromfile', filename)
+        self.check_executed_tests(output, tests)
+
+        # test format '[2/7] test_opcodes'
         with open(filename, "w") as fp:
             for index, name in enumerate(tests, 1):
                 print("[%s/%s] %s" % (index, len(tests), name), file=fp)
+
+        output = self.run_tests('--fromfile', filename)
+        self.check_executed_tests(output, tests)
+
+        # test format 'test_opcodes'
+        with open(filename, "w") as fp:
+            for name in tests:
+                print(name, file=fp)
 
         output = self.run_tests('--fromfile', filename)
         self.check_executed_tests(output, tests)

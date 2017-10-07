@@ -62,7 +62,7 @@ Summary -- Release highlights
 .. This section singles out the most important changes in Python 3.6.
    Brevity is key.
 
-* None yet.
+* PEP 498: :ref:`Formatted string literals <whatsnew-fstrings>`
 
 .. PEP-sized items next.
 
@@ -78,6 +78,101 @@ Summary -- Release highlights
 
     :pep:`4XX` - Python Virtual Environments
        PEP written by Carl Meyer
+
+
+New Features
+============
+
+.. _whatsnew-fstrings:
+
+PEP 498: Formatted string literals
+----------------------------------
+
+Formatted string literals are a new kind of string literal, prefixed
+with ``'f'``.  They are similar to the format strings accepted by
+:meth:`str.format`.  They contain replacement fields surrounded by
+curly braces.  The replacement fields are expressions, which are
+evaluated at run time, and then formatted using the :func:`format` protocol.
+
+    >>> name = "Fred"
+    >>> f"He said his name is {name}."
+    'He said his name is Fred.'
+
+See :pep:`498` and the main documentation at :ref:`f-strings`.
+
+
+PYTHONMALLOC environment variable
+---------------------------------
+
+The new :envvar:`PYTHONMALLOC` environment variable allows to set the Python
+memory allocators and/or install debug hooks.
+
+It is now possible to install debug hooks on Python memory allocators on Python
+compiled in release mode using ``PYTHONMALLOC=debug``. Effects of debug hooks:
+
+* Newly allocated memory is filled with the byte ``0xCB``
+* Freed memory is filled with the byte ``0xDB``
+* Detect violations of Python memory allocator API. For example,
+  :c:func:`PyObject_Free` called on a memory block allocated by
+  :c:func:`PyMem_Malloc`.
+* Detect write before the start of the buffer (buffer underflow)
+* Detect write after the end of the buffer (buffer overflow)
+* Check that the :term:`GIL <global interpreter lock>` is held when allocator
+  functions of :c:data:`PYMEM_DOMAIN_OBJ` (ex: :c:func:`PyObject_Malloc`) and
+  :c:data:`PYMEM_DOMAIN_MEM` (ex: :c:func:`PyMem_Malloc`) domains are called.
+
+Checking if the GIL is held is also a new feature of Python 3.6.
+
+See the :c:func:`PyMem_SetupDebugHooks` function for debug hooks on Python
+memory allocators.
+
+It is now also possible to force the usage of the :c:func:`malloc` allocator of
+the C library for all Python memory allocations using ``PYTHONMALLOC=malloc``.
+It helps to use external memory debuggers like Valgrind on a Python compiled in
+release mode.
+
+On error, the debug hooks on Python memory allocators now use the
+:mod:`tracemalloc` module to get the traceback where a memory block was
+allocated.
+
+Example of fatal error on buffer overflow using
+``python3.6 -X tracemalloc=5`` (store 5 frames in traces)::
+
+    Debug memory block at address p=0x7fbcd41666f8: API 'o'
+        4 bytes originally requested
+        The 7 pad bytes at p-7 are FORBIDDENBYTE, as expected.
+        The 8 pad bytes at tail=0x7fbcd41666fc are not all FORBIDDENBYTE (0xfb):
+            at tail+0: 0x02 *** OUCH
+            at tail+1: 0xfb
+            at tail+2: 0xfb
+            at tail+3: 0xfb
+            at tail+4: 0xfb
+            at tail+5: 0xfb
+            at tail+6: 0xfb
+            at tail+7: 0xfb
+        The block was made by call #1233329 to debug malloc/realloc.
+        Data at p: 1a 2b 30 00
+
+    Memory block allocated at (most recent call first):
+      File "test/test_bytes.py", line 323
+      File "unittest/case.py", line 600
+      File "unittest/case.py", line 648
+      File "unittest/suite.py", line 122
+      File "unittest/suite.py", line 84
+
+    Fatal Python error: bad trailing pad byte
+
+    Current thread 0x00007fbcdbd32700 (most recent call first):
+      File "test/test_bytes.py", line 323 in test_hex
+      File "unittest/case.py", line 600 in run
+      File "unittest/case.py", line 648 in __call__
+      File "unittest/suite.py", line 122 in run
+      File "unittest/suite.py", line 84 in __call__
+      File "unittest/suite.py", line 122 in run
+      File "unittest/suite.py", line 84 in __call__
+      ...
+
+(Contributed by Victor Stinner in :issue:`26516` and :issue:`26564`.)
 
 
 Other Language Changes
@@ -102,6 +197,25 @@ The :meth:`datetime.strftime() <datetime.datetime.strftime>` and
 :meth:`date.strftime() <datetime.date.strftime>` methods now support ISO 8601 date
 directives ``%G``, ``%u`` and ``%V``.
 (Contributed by Ashley Anderson in :issue:`12006`.)
+
+
+faulthandler
+------------
+
+On Windows, the :mod:`faulthandler` module now installs an handler for Windows
+exceptions: see :func:`faulthandler.enable`. (Contributed by Victor Stinner in
+:issue:`23848`.)
+
+
+os
+--
+
+A new :meth:`~os.scandir.close` method allows explicitly closing a
+:func:`~os.scandir` iterator.  The :func:`~os.scandir` iterator now
+supports the :term:`context manager` protocol.  If a :func:`scandir`
+iterator is neither exhausted nor explicitly closed a :exc:`ResourceWarning`
+will be emitted in its destructor.
+(Contributed by Serhiy Storchaka in :issue:`25994`.)
 
 
 pickle
@@ -132,12 +246,78 @@ telnetlib
 Stéphane Wirtel in :issue:`25485`).
 
 
+unittest.mock
+-------------
+
+The :class:`~unittest.mock.Mock` class has the following improvements:
+
+* Two new methods, :meth:`Mock.assert_called()
+  <unittest.mock.Mock.assert_called>` and :meth:`Mock.assert_called_once()
+  <unittest.mock.Mock.assert_called_once>` to check if the mock object
+  was called.
+  (Contributed by Amit Saha in :issue:`26323`.)
+
+
 urllib.robotparser
 ------------------
 
 :class:`~urllib.robotparser.RobotFileParser` now supports the ``Crawl-delay`` and
 ``Request-rate`` extensions.
 (Contributed by Nikolay Bogoychev in :issue:`16099`.)
+
+
+warnings
+--------
+
+A new optional *source* parameter has been added to the
+:func:`warnings.warn_explicit` function: the destroyed object which emitted a
+:exc:`ResourceWarning`. A *source* attribute has also been added to
+:class:`warnings.WarningMessage` (contributed by Victor Stinner in
+:issue:`26568` and :issue:`26567`).
+
+When a :exc:`ResourceWarning` warning is logged, the :mod:`tracemalloc` is now
+used to try to retrieve the traceback where the detroyed object was allocated.
+
+Example with the script ``example.py``::
+
+    import warnings
+
+    def func():
+        return open(__file__)
+
+    f = func()
+    f = None
+
+Output of the command ``python3.6 -Wd -X tracemalloc=5 example.py``::
+
+    example.py:7: ResourceWarning: unclosed file <_io.TextIOWrapper name='example.py' mode='r' encoding='UTF-8'>
+      f = None
+    Object allocated at (most recent call first):
+      File "example.py", lineno 4
+        return open(__file__)
+      File "example.py", lineno 6
+        f = func()
+
+The "Object allocated at" traceback is new and only displayed if
+:mod:`tracemalloc` is tracing Python memory allocations and if the
+:mod:`warnings` was already imported.
+
+
+zipfile
+-------
+
+A new :meth:`ZipInfo.from_file() <zipfile.ZipInfo.from_file>` class method
+allows making a :class:`~zipfile.ZipInfo` instance from a filesystem file.
+A new :meth:`ZipInfo.is_dir() <zipfile.ZipInfo.is_dir>` method can be used
+to check if the :class:`~zipfile.ZipInfo` instance represents a directory.
+(Contributed by Thomas Kluyver in :issue:`26039`.)
+
+
+zlib
+----
+
+The :func:`~zlib.compress` function now accepts keyword arguments.
+(Contributed by Aviv Palivoda in :issue:`26243`.)
 
 
 Optimizations
@@ -166,6 +346,9 @@ Optimizations
 
 * Optimize :meth:`bytes.fromhex` and :meth:`bytearray.fromhex`: they are now
   between 2x and 3.5x faster. (Contributed by Victor Stinner in :issue:`25401`).
+
+* Optimize ``bytes.replace(b'', b'.')`` and ``bytearray.replace(b'', b'.')``:
+  up to 80% faster. (Contributed by Josh Snider in :issue:`26574`).
 
 
 Build and C API Changes
@@ -215,6 +398,14 @@ Deprecated features
   ``__path__`` from the calling module when ``__spec__`` or
   ``__package__`` are not defined now raises an :exc:`ImportWarning`.
   (Contributed by Rose Ames in :issue:`25791`.)
+
+
+Deprecated Python behavior
+--------------------------
+
+* Raising the :exc:`StopIteration` exception inside a generator will now generate a
+  :exc:`DeprecationWarning`, and will trigger a :exc:`RuntimeError` in Python 3.7.
+  See :ref:`whatsnew-pep-479` for details.
 
 
 Removed
@@ -274,10 +465,25 @@ Changes in the Python API
   :mod:`wave`.  This means they will export new symbols when ``import *``
   is used.  See :issue:`23883`.
 
-* When performing a relative import, ``__spec__.parent`` is used
-  is ``__spec__`` is defined instead of ``__package__``.
-  (Contributed by Rose Ames in :issue:`25791`.)
+* When performing a relative import, if ``__package__`` does not compare equal
+  to ``__spec__.parent`` then :exc:`ImportWarning` is raised.
+  (Contributed by Brett Cannon in :issue:`25791`.)
 
+* When a relative import is performed and no parent package is known, then
+  :exc:`ImportError` will be raised. Previously, :exc:`SystemError` could be
+  raised. (Contributed by Brett Cannon in :issue:`18018`.)
+
+* Servers based on the :mod:`socketserver` module, including those
+  defined in :mod:`http.server`, :mod:`xmlrpc.server` and
+  :mod:`wsgiref.simple_server`, now only catch exceptions derived
+  from :exc:`Exception`. Therefore if a request handler raises
+  an exception like :exc:`SystemExit` or :exc:`KeyboardInterrupt`,
+  :meth:`~socketserver.BaseServer.handle_error` is no longer called, and
+  the exception will stop a single-threaded server. (Contributed by
+  Martin Panter in :issue:`23430`.)
+
+* :func:`spwd.getspnam` now raises a :exc:`PermissionError` instead of
+  :exc:`KeyError` if the user doesn't have privileges.
 
 Changes in the C API
 --------------------

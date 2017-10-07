@@ -142,7 +142,7 @@ class Future:
     def __init__(self, *, loop=None):
         """Initialize the future.
 
-        The optional event_loop argument allows to explicitly set the event
+        The optional event_loop argument allows explicitly setting the event
         loop object used by the future. If it's not provided, the future uses
         the default event loop.
         """
@@ -341,6 +341,9 @@ class Future:
             raise InvalidStateError('{}: {!r}'.format(self._state, self))
         if isinstance(exception, type):
             exception = exception()
+        if type(exception) is StopIteration:
+            raise TypeError("StopIteration interacts badly with generators "
+                            "and cannot be raised into a Future")
         self._exception = exception
         self._state = _FINISHED
         self._schedule_callbacks()

@@ -171,7 +171,6 @@ static int compiler_addop(struct compiler *, int);
 static int compiler_addop_o(struct compiler *, int, PyObject *, PyObject *);
 static int compiler_addop_i(struct compiler *, int, Py_ssize_t);
 static int compiler_addop_j(struct compiler *, int, basicblock *, int);
-static basicblock *compiler_use_new_block(struct compiler *);
 static int compiler_error(struct compiler *, const char *);
 static int compiler_nameop(struct compiler *, identifier, expr_context_ty);
 
@@ -196,7 +195,7 @@ static int expr_constant(struct compiler *, expr_ty);
 static int compiler_with(struct compiler *, stmt_ty, int);
 static int compiler_async_with(struct compiler *, stmt_ty, int);
 static int compiler_async_for(struct compiler *, stmt_ty);
-static int compiler_call_helper(struct compiler *c, Py_ssize_t n,
+static int compiler_call_helper(struct compiler *c, int n,
                                 asdl_seq *args,
                                 asdl_seq *keywords);
 static int compiler_try_except(struct compiler *, stmt_ty);
@@ -477,9 +476,9 @@ compiler_unit_check(struct compiler_unit *u)
 {
     basicblock *block;
     for (block = u->u_blocks; block != NULL; block = block->b_list) {
-        assert((void *)block != (void *)0xcbcbcbcb);
-        assert((void *)block != (void *)0xfbfbfbfb);
-        assert((void *)block != (void *)0xdbdbdbdb);
+        assert((Py_uintptr_t)block != 0xcbcbcbcbU);
+        assert((Py_uintptr_t)block != 0xfbfbfbfbU);
+        assert((Py_uintptr_t)block != 0xdbdbdbdbU);
         if (block->b_instr != NULL) {
             assert(block->b_ialloc > 0);
             assert(block->b_iused > 0);
@@ -523,6 +522,7 @@ compiler_enter_scope(struct compiler *c, identifier name,
                      int scope_type, void *key, int lineno)
 {
     struct compiler_unit *u;
+    basicblock *block;
 
     u = (struct compiler_unit *)PyObject_Malloc(sizeof(
                                             struct compiler_unit));
@@ -620,8 +620,11 @@ compiler_enter_scope(struct compiler *c, identifier name,
     c->u = u;
 
     c->c_nestlevel++;
-    if (compiler_use_new_block(c) == NULL)
+
+    block = compiler_new_block(c);
+    if (block == NULL)
         return 0;
+    c->u->u_curblock = block;
 
     if (u->u_scope_type != COMPILER_SCOPE_MODULE) {
         if (!compiler_set_qualname(c))
@@ -753,16 +756,6 @@ compiler_new_block(struct compiler *c)
     b->b_list = u->u_blocks;
     u->u_blocks = b;
     return b;
-}
-
-static basicblock *
-compiler_use_new_block(struct compiler *c)
-{
-    basicblock *block = compiler_new_block(c);
-    if (block == NULL)
-        return NULL;
-    c->u->u_curblock = block;
-    return block;
 }
 
 static basicblock *
@@ -1170,10 +1163,14 @@ compiler_addop_i(struct compiler *c, int opcode, Py_ssize_t oparg)
     struct instr *i;
     int off;
 
-    /* Integer arguments are limit to 16-bit. There is an extension for 32-bit
-       integer arguments. */
-    assert((-2147483647-1) <= oparg);
-    assert(oparg <= 2147483647);
+    /* oparg value is unsigned, but a signed C int is usually used to store
+       it in the C code (like Python/ceval.c).
+
+       Limit to 32-bit signed C int (rather than INT_MAX) for portability.
+
+       The argument of a concrete bytecode instruction is limited to 16-bit.
+       EXTENDED_ARG is used for 32-bit arguments. */
+    assert(0 <= oparg && oparg <= 2147483647);
 
     off = compiler_next_instr(c, c->u->u_curblock);
     if (off < 0)
@@ -1208,22 +1205,12 @@ compiler_addop_j(struct compiler *c, int opcode, basicblock *b, int absolute)
     return 1;
 }
 
-/* The distinction between NEW_BLOCK and NEXT_BLOCK is subtle.  (I'd
-   like to find better names.)  NEW_BLOCK() creates a new block and sets
-   it as the current block.  NEXT_BLOCK() also creates an implicit jump
-   from the current block to the new block.
+/* NEXT_BLOCK() creates an implicit jump from the current block
+   to the new block.
+
+   The returns inside this macro make it impossible to decref objects
+   created in the local function. Local objects should use the arena.
 */
-
-/* The returns inside these macros make it impossible to decref objects
-   created in the local function.  Local objects should use the arena.
-*/
-
-
-#define NEW_BLOCK(C) { \
-    if (compiler_use_new_block((C)) == NULL) \
-        return 0; \
-}
-
 #define NEXT_BLOCK(C) { \
     if (compiler_next_block((C)) == NULL) \
         return 0; \
@@ -1314,7 +1301,11 @@ compiler_isdocstring(stmt_ty s)
 {
     if (s->kind != Expr_kind)
         return 0;
-    return s->v.Expr.value->kind == Str_kind;
+    if (s->v.Expr.value->kind == Str_kind)
+        return 1;
+    if (s->v.Expr.value->kind == Constant_kind)
+        return PyUnicode_CheckExact(s->v.Expr.value->v.Constant.value);
+    return 0;
 }
 
 /* Compile a sequence of statements, checking for a docstring. */
@@ -1688,8 +1679,12 @@ compiler_function(struct compiler *c, stmt_ty s, int is_async)
 
     st = (stmt_ty)asdl_seq_GET(body, 0);
     docstring = compiler_isdocstring(st);
-    if (docstring && c->c_optimize < 2)
-        first_const = st->v.Expr.value->v.Str.s;
+    if (docstring && c->c_optimize < 2) {
+        if (st->v.Expr.value->kind == Constant_kind)
+            first_const = st->v.Expr.value->v.Constant.value;
+        else
+            first_const = st->v.Expr.value->v.Str.s;
+    }
     if (compiler_add_o(c, c->u->u_consts, first_const) < 0)      {
         compiler_exit_scope(c);
         return 0;
@@ -2600,6 +2595,35 @@ compiler_assert(struct compiler *c, stmt_ty s)
 }
 
 static int
+compiler_visit_stmt_expr(struct compiler *c, expr_ty value)
+{
+    if (c->c_interactive && c->c_nestlevel <= 1) {
+        VISIT(c, expr, value);
+        ADDOP(c, PRINT_EXPR);
+        return 1;
+    }
+
+    switch (value->kind)
+    {
+    case Str_kind:
+    case Num_kind:
+    case Ellipsis_kind:
+    case Bytes_kind:
+    case NameConstant_kind:
+    case Constant_kind:
+        /* ignore constant statement */
+        return 1;
+
+    default:
+        break;
+    }
+
+    VISIT(c, expr, value);
+    ADDOP(c, POP_TOP);
+    return 1;
+}
+
+static int
 compiler_visit_stmt(struct compiler *c, stmt_ty s)
 {
     Py_ssize_t i, n;
@@ -2669,16 +2693,7 @@ compiler_visit_stmt(struct compiler *c, stmt_ty s)
     case Nonlocal_kind:
         break;
     case Expr_kind:
-        if (c->c_interactive && c->c_nestlevel <= 1) {
-            VISIT(c, expr, s->v.Expr.value);
-            ADDOP(c, PRINT_EXPR);
-        }
-        else if (s->v.Expr.value->kind != Str_kind &&
-                 s->v.Expr.value->kind != Num_kind) {
-            VISIT(c, expr, s->v.Expr.value);
-            ADDOP(c, POP_TOP);
-        }
-        break;
+        return compiler_visit_stmt_expr(c, s->v.Expr.value);
     case Pass_kind:
         break;
     case Break_kind:
@@ -3082,7 +3097,8 @@ compiler_set(struct compiler *c, expr_ty e)
 static int
 compiler_dict(struct compiler *c, expr_ty e)
 {
-    Py_ssize_t i, n, containers, elements;
+    Py_ssize_t i, n, elements;
+    int containers;
     int is_unpacking = 0;
     n = asdl_seq_LEN(e->v.Dict.values);
     containers = 0;
@@ -3252,12 +3268,13 @@ compiler_formatted_value(struct compiler *c, expr_ty e)
 /* shared code between compiler_call and compiler_class */
 static int
 compiler_call_helper(struct compiler *c,
-                     Py_ssize_t n, /* Args already pushed */
+                     int n, /* Args already pushed */
                      asdl_seq *args,
                      asdl_seq *keywords)
 {
     int code = 0;
-    Py_ssize_t nelts, i, nseen, nkw;
+    Py_ssize_t nelts, i, nseen;
+    int nkw;
 
     /* the number of tuples and dictionaries on the stack */
     Py_ssize_t nsubargs = 0, nsubkwargs = 0;
@@ -3625,6 +3642,8 @@ expr_constant(struct compiler *c, expr_ty e)
     switch (e->kind) {
     case Ellipsis_kind:
         return 1;
+    case Constant_kind:
+        return PyObject_IsTrue(e->v.Constant.value);
     case Num_kind:
         return PyObject_IsTrue(e->v.Num.n);
     case Str_kind:
@@ -3912,6 +3931,9 @@ compiler_visit_expr(struct compiler *c, expr_ty e)
         return compiler_compare(c, e);
     case Call_kind:
         return compiler_call(c, e);
+    case Constant_kind:
+        ADDOP_O(c, LOAD_CONST, e->v.Constant.value, consts);
+        break;
     case Num_kind:
         ADDOP_O(c, LOAD_CONST, e->v.Num.n, consts);
         break;

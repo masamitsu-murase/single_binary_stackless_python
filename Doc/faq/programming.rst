@@ -63,7 +63,7 @@ PyChecker is a static analysis tool that finds bugs in Python source code and
 warns about code complexity and style.  You can get PyChecker from
 http://pychecker.sourceforge.net/.
 
-`Pylint <http://www.logilab.org/projects/pylint>`_ is another tool that checks
+`Pylint <http://www.pylint.org/>`_ is another tool that checks
 if a module satisfies a coding standard, and also makes it possible to write
 plug-ins to add a custom feature.  In addition to the bug checking that
 PyChecker performs, Pylint offers some additional features such as checking line
@@ -839,7 +839,8 @@ How do I convert a number to a string?
 To convert, e.g., the number 144 to the string '144', use the built-in type
 constructor :func:`str`.  If you want a hexadecimal or octal representation, use
 the built-in functions :func:`hex` or :func:`oct`.  For fancy formatting, see
-the :ref:`string-formatting` section, e.g. ``"{:04d}".format(144)`` yields
+the :ref:`f-strings` and :ref:`formatstrings` sections,
+e.g. ``"{:04d}".format(144)`` yields
 ``'0144'`` and ``"{:.3f}".format(1.0/3.0)`` yields ``'0.333'``.
 
 

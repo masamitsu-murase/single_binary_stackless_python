@@ -876,7 +876,7 @@ tarballs or zipfiles.
    archive.  *root_dir* and *base_dir* both default to the current directory.
    Returns the name of the archive file.
 
-   .. versionchanged: 3.5
+   .. versionchanged:: 3.5
       Added support for the ``xztar`` format.
 
 
@@ -891,7 +891,7 @@ tarballs or zipfiles.
    compression extension (``.gz``, ``.bz2``, ``.xz`` or ``.Z``).  Return the
    output filename.
 
-   .. versionchanged: 3.5
+   .. versionchanged:: 3.5
       Added support for the ``xz`` compression.
 
 
@@ -1234,7 +1234,7 @@ other utility module.
       <imp.get_tag>` in their name, in a :file:`__pycache__` subdirectory
       instead of files without tag in the current directory.
 
-   .. versionchanged: 3.5
+   .. versionchanged:: 3.5
       Create ``.pyc`` files according to :pep:`488`.
 
 
@@ -1822,7 +1822,7 @@ Subclasses of :class:`Command` must define the following methods.
 
    Builds a `Windows Installer`_ (.msi) binary package.
 
-   .. _Windows Installer: http://msdn.microsoft.com/en-us/library/cc185688(VS.85).aspx
+   .. _Windows Installer: https://msdn.microsoft.com/en-us/library/cc185688(VS.85).aspx
 
    In most cases, the ``bdist_msi`` installer is a better choice than the
    ``bdist_wininst`` installer, because it provides better support for

@@ -1,7 +1,8 @@
+import ast
+import dis
 import os
 import sys
 import unittest
-import ast
 import weakref
 
 from test import support
@@ -238,7 +239,7 @@ class AST_Tests(unittest.TestCase):
                     ast_tree = compile(i, "?", kind, ast.PyCF_ONLY_AST)
                     self.assertEqual(to_tuple(ast_tree), o)
                     self._assertTrueorder(ast_tree, (0, 0))
-                with self.subTest(action="compiling", input=i):
+                with self.subTest(action="compiling", input=i, kind=kind):
                     compile(ast_tree, "?", kind)
 
     def test_slice(self):
@@ -933,6 +934,125 @@ class ASTValidatorTests(unittest.TestCase):
             compile(mod, fn, "exec")
 
 
+class ConstantTests(unittest.TestCase):
+    """Tests on the ast.Constant node type."""
+
+    def compile_constant(self, value):
+        tree = ast.parse("x = 123")
+
+        node = tree.body[0].value
+        new_node = ast.Constant(value=value)
+        ast.copy_location(new_node, node)
+        tree.body[0].value = new_node
+
+        code = compile(tree, "<string>", "exec")
+
+        ns = {}
+        exec(code, ns)
+        return ns['x']
+
+    def test_validation(self):
+        with self.assertRaises(TypeError) as cm:
+            self.compile_constant([1, 2, 3])
+        self.assertEqual(str(cm.exception),
+                         "got an invalid type in Constant: list")
+
+    def test_singletons(self):
+        for const in (None, False, True, Ellipsis, b'', frozenset()):
+            with self.subTest(const=const):
+                value = self.compile_constant(const)
+                self.assertIs(value, const)
+
+    def test_values(self):
+        nested_tuple = (1,)
+        nested_frozenset = frozenset({1})
+        for level in range(3):
+            nested_tuple = (nested_tuple, 2)
+            nested_frozenset = frozenset({nested_frozenset, 2})
+        values = (123, 123.0, 123j,
+                  "unicode", b'bytes',
+                  tuple("tuple"), frozenset("frozenset"),
+                  nested_tuple, nested_frozenset)
+        for value in values:
+            with self.subTest(value=value):
+                result = self.compile_constant(value)
+                self.assertEqual(result, value)
+
+    def test_assign_to_constant(self):
+        tree = ast.parse("x = 1")
+
+        target = tree.body[0].targets[0]
+        new_target = ast.Constant(value=1)
+        ast.copy_location(new_target, target)
+        tree.body[0].targets[0] = new_target
+
+        with self.assertRaises(ValueError) as cm:
+            compile(tree, "string", "exec")
+        self.assertEqual(str(cm.exception),
+                         "expression which can't be assigned "
+                         "to in Store context")
+
+    def test_get_docstring(self):
+        tree = ast.parse("'docstring'\nx = 1")
+        self.assertEqual(ast.get_docstring(tree), 'docstring')
+
+        tree.body[0].value = ast.Constant(value='constant docstring')
+        self.assertEqual(ast.get_docstring(tree), 'constant docstring')
+
+    def get_load_const(self, tree):
+        # Compile to bytecode, disassemble and get parameter of LOAD_CONST
+        # instructions
+        co = compile(tree, '<string>', 'exec')
+        consts = []
+        for instr in dis.get_instructions(co):
+            if instr.opname == 'LOAD_CONST':
+                consts.append(instr.argval)
+        return consts
+
+    @support.cpython_only
+    def test_load_const(self):
+        consts = [None,
+                  True, False,
+                  124,
+                  2.0,
+                  3j,
+                  "unicode",
+                  b'bytes',
+                  (1, 2, 3)]
+
+        code = '\n'.join(['x={!r}'.format(const) for const in consts])
+        code += '\nx = ...'
+        consts.extend((Ellipsis, None))
+
+        tree = ast.parse(code)
+        self.assertEqual(self.get_load_const(tree),
+                         consts)
+
+        # Replace expression nodes with constants
+        for assign, const in zip(tree.body, consts):
+            assert isinstance(assign, ast.Assign), ast.dump(assign)
+            new_node = ast.Constant(value=const)
+            ast.copy_location(new_node, assign.value)
+            assign.value = new_node
+
+        self.assertEqual(self.get_load_const(tree),
+                         consts)
+
+    def test_literal_eval(self):
+        tree = ast.parse("1 + 2")
+        binop = tree.body[0].value
+
+        new_left = ast.Constant(value=10)
+        ast.copy_location(new_left, binop.left)
+        binop.left = new_left
+
+        new_right = ast.Constant(value=20)
+        ast.copy_location(new_right, binop.right)
+        binop.right = new_right
+
+        self.assertEqual(ast.literal_eval(binop), 30)
+
+
 def main():
     if __name__ != '__main__':
         return
@@ -940,8 +1060,9 @@ def main():
         for statements, kind in ((exec_tests, "exec"), (single_tests, "single"),
                                  (eval_tests, "eval")):
             print(kind+"_results = [")
-            for s in statements:
-                print(repr(to_tuple(compile(s, "?", kind, 0x400)))+",")
+            for statement in statements:
+                tree = ast.parse(statement, "?", kind)
+                print("%r," % (to_tuple(tree),))
             print("]")
         print("main()")
         raise SystemExit

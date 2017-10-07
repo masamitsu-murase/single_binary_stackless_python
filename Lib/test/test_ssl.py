@@ -60,7 +60,7 @@ REMOTE_ROOT_CERT = data_file("selfsigned_pythontestdotnet.pem")
 
 EMPTYCERT = data_file("nullcert.pem")
 BADCERT = data_file("badcert.pem")
-WRONGCERT = data_file("XXXnonexisting.pem")
+NONEXISTINGCERT = data_file("XXXnonexisting.pem")
 BADKEY = data_file("badkey.pem")
 NOKIACERT = data_file("nokia.pem")
 NULLBYTECERT = data_file("nullbytecert.pem")
@@ -328,7 +328,7 @@ class BasicSocketTests(unittest.TestCase):
         wr = weakref.ref(ss)
         with support.check_warnings(("", ResourceWarning)):
             del ss
-            self.assertEqual(wr(), None)
+        self.assertEqual(wr(), None)
 
     def test_wrapped_unconnected(self):
         # Methods on an unconnected SSLSocket propagate the original
@@ -367,16 +367,41 @@ class BasicSocketTests(unittest.TestCase):
                                     s.connect, (HOST, 8080))
         with self.assertRaises(OSError) as cm:
             with socket.socket() as sock:
-                ssl.wrap_socket(sock, certfile=WRONGCERT)
+                ssl.wrap_socket(sock, certfile=NONEXISTINGCERT)
         self.assertEqual(cm.exception.errno, errno.ENOENT)
         with self.assertRaises(OSError) as cm:
             with socket.socket() as sock:
-                ssl.wrap_socket(sock, certfile=CERTFILE, keyfile=WRONGCERT)
+                ssl.wrap_socket(sock,
+                    certfile=CERTFILE, keyfile=NONEXISTINGCERT)
         self.assertEqual(cm.exception.errno, errno.ENOENT)
         with self.assertRaises(OSError) as cm:
             with socket.socket() as sock:
-                ssl.wrap_socket(sock, certfile=WRONGCERT, keyfile=WRONGCERT)
+                ssl.wrap_socket(sock,
+                    certfile=NONEXISTINGCERT, keyfile=NONEXISTINGCERT)
         self.assertEqual(cm.exception.errno, errno.ENOENT)
+
+    def bad_cert_test(self, certfile):
+        """Check that trying to use the given client certificate fails"""
+        certfile = os.path.join(os.path.dirname(__file__) or os.curdir,
+                                   certfile)
+        sock = socket.socket()
+        self.addCleanup(sock.close)
+        with self.assertRaises(ssl.SSLError):
+            ssl.wrap_socket(sock,
+                            certfile=certfile,
+                            ssl_version=ssl.PROTOCOL_TLSv1)
+
+    def test_empty_cert(self):
+        """Wrapping with an empty cert file"""
+        self.bad_cert_test("nullcert.pem")
+
+    def test_malformed_cert(self):
+        """Wrapping with a badly formatted certificate (syntax error)"""
+        self.bad_cert_test("badcert.pem")
+
+    def test_malformed_key(self):
+        """Wrapping with a badly formatted key (syntax error)"""
+        self.bad_cert_test("badkey.pem")
 
     def test_match_hostname(self):
         def ok(cert, hostname):
@@ -843,7 +868,7 @@ class ContextTests(unittest.TestCase):
         ctx.load_cert_chain(CERTFILE, keyfile=CERTFILE)
         self.assertRaises(TypeError, ctx.load_cert_chain, keyfile=CERTFILE)
         with self.assertRaises(OSError) as cm:
-            ctx.load_cert_chain(WRONGCERT)
+            ctx.load_cert_chain(NONEXISTINGCERT)
         self.assertEqual(cm.exception.errno, errno.ENOENT)
         with self.assertRaisesRegex(ssl.SSLError, "PEM lib"):
             ctx.load_cert_chain(BADCERT)
@@ -928,7 +953,7 @@ class ContextTests(unittest.TestCase):
         self.assertRaises(TypeError, ctx.load_verify_locations)
         self.assertRaises(TypeError, ctx.load_verify_locations, None, None, None)
         with self.assertRaises(OSError) as cm:
-            ctx.load_verify_locations(WRONGCERT)
+            ctx.load_verify_locations(NONEXISTINGCERT)
         self.assertEqual(cm.exception.errno, errno.ENOENT)
         with self.assertRaisesRegex(ssl.SSLError, "PEM lib"):
             ctx.load_verify_locations(BADCERT)
@@ -1004,7 +1029,7 @@ class ContextTests(unittest.TestCase):
         self.assertRaises(TypeError, ctx.load_dh_params)
         self.assertRaises(TypeError, ctx.load_dh_params, None)
         with self.assertRaises(FileNotFoundError) as cm:
-            ctx.load_dh_params(WRONGCERT)
+            ctx.load_dh_params(NONEXISTINGCERT)
         self.assertEqual(cm.exception.errno, errno.ENOENT)
         with self.assertRaises(ssl.SSLError) as cm:
             ctx.load_dh_params(CERTFILE)
@@ -2090,36 +2115,6 @@ else:
             self.active = False
             self.server.close()
 
-    def bad_cert_test(certfile):
-        """
-        Launch a server with CERT_REQUIRED, and check that trying to
-        connect to it with the given client certificate fails.
-        """
-        server = ThreadedEchoServer(CERTFILE,
-                                    certreqs=ssl.CERT_REQUIRED,
-                                    cacerts=CERTFILE, chatty=False,
-                                    connectionchatty=False)
-        with server:
-            try:
-                with socket.socket() as sock:
-                    s = ssl.wrap_socket(sock,
-                                        certfile=certfile,
-                                        ssl_version=ssl.PROTOCOL_TLSv1)
-                    s.connect((HOST, server.port))
-            except ssl.SSLError as x:
-                if support.verbose:
-                    sys.stdout.write("\nSSLError is %s\n" % x.args[1])
-            except OSError as x:
-                if support.verbose:
-                    sys.stdout.write("\nOSError is %s\n" % x.args[1])
-            except OSError as x:
-                if x.errno != errno.ENOENT:
-                    raise
-                if support.verbose:
-                    sys.stdout.write("\OSError is %s\n" % str(x))
-            else:
-                raise AssertionError("Use of invalid cert should have failed!")
-
     def server_params_test(client_context, server_context, indata=b"FOO\n",
                            chatty=True, connectionchatty=False, sni_name=None):
         """
@@ -2360,22 +2355,38 @@ else:
                                                 "check_hostname requires server_hostname"):
                         context.wrap_socket(s)
 
-        def test_empty_cert(self):
-            """Connecting with an empty cert file"""
-            bad_cert_test(os.path.join(os.path.dirname(__file__) or os.curdir,
-                                      "nullcert.pem"))
-        def test_malformed_cert(self):
-            """Connecting with a badly formatted certificate (syntax error)"""
-            bad_cert_test(os.path.join(os.path.dirname(__file__) or os.curdir,
-                                       "badcert.pem"))
-        def test_nonexisting_cert(self):
-            """Connecting with a non-existing cert file"""
-            bad_cert_test(os.path.join(os.path.dirname(__file__) or os.curdir,
-                                       "wrongcert.pem"))
-        def test_malformed_key(self):
-            """Connecting with a badly formatted key (syntax error)"""
-            bad_cert_test(os.path.join(os.path.dirname(__file__) or os.curdir,
-                                       "badkey.pem"))
+        def test_wrong_cert(self):
+            """Connecting when the server rejects the client's certificate
+
+            Launch a server with CERT_REQUIRED, and check that trying to
+            connect to it with a wrong client certificate fails.
+            """
+            certfile = os.path.join(os.path.dirname(__file__) or os.curdir,
+                                       "wrongcert.pem")
+            server = ThreadedEchoServer(CERTFILE,
+                                        certreqs=ssl.CERT_REQUIRED,
+                                        cacerts=CERTFILE, chatty=False,
+                                        connectionchatty=False)
+            with server, \
+                    socket.socket() as sock, \
+                    ssl.wrap_socket(sock,
+                                        certfile=certfile,
+                                        ssl_version=ssl.PROTOCOL_TLSv1) as s:
+                try:
+                    # Expect either an SSL error about the server rejecting
+                    # the connection, or a low-level connection reset (which
+                    # sometimes happens on Windows)
+                    s.connect((HOST, server.port))
+                except ssl.SSLError as e:
+                    if support.verbose:
+                        sys.stdout.write("\nSSLError is %r\n" % e)
+                except OSError as e:
+                    if e.errno != errno.ECONNRESET:
+                        raise
+                    if support.verbose:
+                        sys.stdout.write("\nsocket.error is %r\n" % e)
+                else:
+                    self.fail("Use of invalid cert should have failed!")
 
         def test_rude_shutdown(self):
             """A brutal shutdown of an SSL server should raise an OSError

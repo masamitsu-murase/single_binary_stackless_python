@@ -1661,6 +1661,10 @@ def sqr(x, wait=0.0):
 def mul(x, y):
     return x*y
 
+def raise_large_valuerror(wait):
+    time.sleep(wait)
+    raise ValueError("x" * 1024**2)
+
 class SayWhenError(ValueError): pass
 
 def exception_throwing_generator(total, when):
@@ -1819,13 +1823,19 @@ class _TestPool(BaseTestCase):
                 expected_values.remove(value)
 
     def test_make_pool(self):
-        self.assertRaises(ValueError, multiprocessing.Pool, -1)
-        self.assertRaises(ValueError, multiprocessing.Pool, 0)
+        expected_error = (RemoteError if self.TYPE == 'manager'
+                          else ValueError)
 
-        p = multiprocessing.Pool(3)
-        self.assertEqual(3, len(p._pool))
-        p.close()
-        p.join()
+        self.assertRaises(expected_error, self.Pool, -1)
+        self.assertRaises(expected_error, self.Pool, 0)
+
+        if self.TYPE != 'manager':
+            p = self.Pool(3)
+            try:
+                self.assertEqual(3, len(p._pool))
+            finally:
+                p.close()
+                p.join()
 
     def test_terminate(self):
         result = self.pool.map_async(
@@ -1834,7 +1844,8 @@ class _TestPool(BaseTestCase):
         self.pool.terminate()
         join = TimingWrapper(self.pool.join)
         join()
-        self.assertLess(join.elapsed, 0.5)
+        # Sanity check the pool didn't wait for all tasks to finish
+        self.assertLess(join.elapsed, 2.0)
 
     def test_empty_iterable(self):
         # See Issue 12157
@@ -1852,7 +1863,7 @@ class _TestPool(BaseTestCase):
         if self.TYPE == 'processes':
             L = list(range(10))
             expected = [sqr(i) for i in L]
-            with multiprocessing.Pool(2) as p:
+            with self.Pool(2) as p:
                 r = p.map_async(sqr, L)
                 self.assertEqual(r.get(), expected)
             self.assertRaises(ValueError, p.map_async, sqr, L)
@@ -1895,6 +1906,26 @@ class _TestPool(BaseTestCase):
         with self.Pool(1) as p:
             with self.assertRaises(RuntimeError):
                 p.apply(self._test_wrapped_exception)
+
+    def test_map_no_failfast(self):
+        # Issue #23992: the fail-fast behaviour when an exception is raised
+        # during map() would make Pool.join() deadlock, because a worker
+        # process would fill the result queue (after the result handler thread
+        # terminated, hence not draining it anymore).
+
+        t_start = time.time()
+
+        with self.assertRaises(ValueError):
+            with self.Pool(2) as p:
+                try:
+                    p.map(raise_large_valuerror, [0, 1])
+                finally:
+                    time.sleep(0.5)
+                    p.close()
+                    p.join()
+
+        # check that we indeed waited for all jobs
+        self.assertGreater(time.time() - t_start, 0.9)
 
 
 def raising():
@@ -3840,7 +3871,7 @@ class ThreadsMixin(object):
     connection = multiprocessing.dummy.connection
     current_process = staticmethod(multiprocessing.dummy.current_process)
     active_children = staticmethod(multiprocessing.dummy.active_children)
-    Pool = staticmethod(multiprocessing.Pool)
+    Pool = staticmethod(multiprocessing.dummy.Pool)
     Pipe = staticmethod(multiprocessing.dummy.Pipe)
     Queue = staticmethod(multiprocessing.dummy.Queue)
     JoinableQueue = staticmethod(multiprocessing.dummy.JoinableQueue)

@@ -352,9 +352,11 @@ The built-in function :func:`len` returns the length of a string::
       Strings support a large number of methods for
       basic transformations and searching.
 
-   :ref:`string-formatting`
-      Information about string formatting with :meth:`str.format` is described
-      here.
+   :ref:`f-strings`
+      String literals that have embedded expressions.
+
+   :ref:`formatstrings`
+      Information about string formatting with :meth:`str.format`.
 
    :ref:`old-string-formatting`
       The old formatting operations invoked when strings and Unicode strings are

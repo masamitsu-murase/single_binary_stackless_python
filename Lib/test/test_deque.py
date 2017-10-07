@@ -289,7 +289,7 @@ class TestBasic(unittest.TestCase):
                     else:
                         self.assertEqual(d.index(element, start, stop), target)
 
-    def test_insert_bug_24913(self):
+    def test_index_bug_24913(self):
         d = deque('A' * 3)
         with self.assertRaises(ValueError):
             i = d.index("Hello world", 0, 4)
@@ -303,6 +303,21 @@ class TestBasic(unittest.TestCase):
             d.insert(i, 'Z')
             s.insert(i, 'Z')
             self.assertEqual(list(d), s)
+
+    def test_insert_bug_26194(self):
+        data = 'ABC'
+        d = deque(data, maxlen=len(data))
+        with self.assertRaises(IndexError):
+            d.insert(2, None)
+
+        elements = 'ABCDEFGHI'
+        for i in range(-len(elements), len(elements)):
+            d = deque(elements, maxlen=len(elements)+1)
+            d.insert(i, 'Z')
+            if i >= 0:
+                self.assertEqual(d[i], 'Z')
+            else:
+                self.assertEqual(d[i-1], 'Z')
 
     def test_imul(self):
         for n in (-10, -1, 0, 1, 2, 10, 1000):
@@ -607,34 +622,63 @@ class TestBasic(unittest.TestCase):
         self.assertEqual(list(d), list(e))
 
     def test_pickle(self):
-        d = deque(range(200))
-        for i in range(pickle.HIGHEST_PROTOCOL + 1):
-            s = pickle.dumps(d, i)
-            e = pickle.loads(s)
-            self.assertNotEqual(id(d), id(e))
-            self.assertEqual(list(d), list(e))
+        for d in deque(range(200)), deque(range(200), 100):
+            for i in range(pickle.HIGHEST_PROTOCOL + 1):
+                s = pickle.dumps(d, i)
+                e = pickle.loads(s)
+                self.assertNotEqual(id(e), id(d))
+                self.assertEqual(list(e), list(d))
+                self.assertEqual(e.maxlen, d.maxlen)
 
-##    def test_pickle_recursive(self):
-##        d = deque('abc')
-##        d.append(d)
-##        for i in range(pickle.HIGHEST_PROTOCOL + 1):
-##            e = pickle.loads(pickle.dumps(d, i))
-##            self.assertNotEqual(id(d), id(e))
-##            self.assertEqual(id(e), id(e[-1]))
+    def test_pickle_recursive(self):
+        for d in deque('abc'), deque('abc', 3):
+            d.append(d)
+            for i in range(pickle.HIGHEST_PROTOCOL + 1):
+                e = pickle.loads(pickle.dumps(d, i))
+                self.assertNotEqual(id(e), id(d))
+                self.assertEqual(id(e[-1]), id(e))
+                self.assertEqual(e.maxlen, d.maxlen)
 
     def test_iterator_pickle(self):
-        data = deque(range(200))
+        orig = deque(range(200))
+        data = [i*1.01 for i in orig]
         for proto in range(pickle.HIGHEST_PROTOCOL + 1):
-            it = itorg = iter(data)
-            d = pickle.dumps(it, proto)
-            it = pickle.loads(d)
-            self.assertEqual(type(itorg), type(it))
-            self.assertEqual(list(it), list(data))
+            # initial iterator
+            itorg = iter(orig)
+            dump = pickle.dumps((itorg, orig), proto)
+            it, d = pickle.loads(dump)
+            for i, x in enumerate(data):
+                d[i] = x
+            self.assertEqual(type(it), type(itorg))
+            self.assertEqual(list(it), data)
 
-            it = pickle.loads(d)
-            next(it)
-            d = pickle.dumps(it, proto)
-            self.assertEqual(list(it), list(data)[1:])
+            # running iterator
+            next(itorg)
+            dump = pickle.dumps((itorg, orig), proto)
+            it, d = pickle.loads(dump)
+            for i, x in enumerate(data):
+                d[i] = x
+            self.assertEqual(type(it), type(itorg))
+            self.assertEqual(list(it), data[1:])
+
+            # empty iterator
+            for i in range(1, len(data)):
+                next(itorg)
+            dump = pickle.dumps((itorg, orig), proto)
+            it, d = pickle.loads(dump)
+            for i, x in enumerate(data):
+                d[i] = x
+            self.assertEqual(type(it), type(itorg))
+            self.assertEqual(list(it), [])
+
+            # exhausted iterator
+            self.assertRaises(StopIteration, next, itorg)
+            dump = pickle.dumps((itorg, orig), proto)
+            it, d = pickle.loads(dump)
+            for i, x in enumerate(data):
+                d[i] = x
+            self.assertEqual(type(it), type(itorg))
+            self.assertEqual(list(it), [])
 
     def test_deepcopy(self):
         mut = [10]
@@ -812,24 +856,26 @@ class TestSubclass(unittest.TestCase):
             self.assertEqual(type(d), type(e))
             self.assertEqual(list(d), list(e))
 
-##    def test_pickle(self):
-##        d = Deque('abc')
-##        d.append(d)
-##
-##        e = pickle.loads(pickle.dumps(d))
-##        self.assertNotEqual(id(d), id(e))
-##        self.assertEqual(type(d), type(e))
-##        dd = d.pop()
-##        ee = e.pop()
-##        self.assertEqual(id(e), id(ee))
-##        self.assertEqual(d, e)
-##
-##        d.x = d
-##        e = pickle.loads(pickle.dumps(d))
-##        self.assertEqual(id(e), id(e.x))
-##
-##        d = DequeWithBadIter('abc')
-##        self.assertRaises(TypeError, pickle.dumps, d)
+    def test_pickle_recursive(self):
+        for proto in range(pickle.HIGHEST_PROTOCOL + 1):
+            for d in Deque('abc'), Deque('abc', 3):
+                d.append(d)
+
+                e = pickle.loads(pickle.dumps(d, proto))
+                self.assertNotEqual(id(e), id(d))
+                self.assertEqual(type(e), type(d))
+                self.assertEqual(e.maxlen, d.maxlen)
+                dd = d.pop()
+                ee = e.pop()
+                self.assertEqual(id(ee), id(e))
+                self.assertEqual(e, d)
+
+                d.x = d
+                e = pickle.loads(pickle.dumps(d, proto))
+                self.assertEqual(id(e.x), id(e))
+
+            for d in DequeWithBadIter('abc'), DequeWithBadIter('abc', 2):
+                self.assertRaises(TypeError, pickle.dumps, d, proto)
 
     def test_weakref(self):
         d = deque('gallahad')

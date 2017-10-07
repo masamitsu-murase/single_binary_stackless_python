@@ -2,7 +2,9 @@ from contextlib import contextmanager
 import linecache
 import os
 from io import StringIO
+import re
 import sys
+import textwrap
 import unittest
 from test import support
 from test.support.script_helper import assert_python_ok, assert_python_failure
@@ -651,6 +653,17 @@ class _WarningsTests(BaseTest, unittest.TestCase):
                 result = stream.getvalue()
         self.assertIn(text, result)
 
+    def test_showwarnmsg_missing(self):
+        # Test that _showwarnmsg() missing is okay.
+        text = 'del _showwarnmsg test'
+        with original_warnings.catch_warnings(module=self.module):
+            self.module.filterwarnings("always", category=UserWarning)
+            del self.module._showwarnmsg
+            with support.captured_output('stderr') as stream:
+                self.module.warn(text)
+                result = stream.getvalue()
+        self.assertIn(text, result)
+
     def test_showwarning_not_callable(self):
         with original_warnings.catch_warnings(module=self.module):
             self.module.filterwarnings("always", category=UserWarning)
@@ -752,11 +765,43 @@ class WarningsDisplayTests(BaseTest):
                                 file_object, expected_file_line)
         self.assertEqual(expect, file_object.getvalue())
 
+
 class CWarningsDisplayTests(WarningsDisplayTests, unittest.TestCase):
     module = c_warnings
 
 class PyWarningsDisplayTests(WarningsDisplayTests, unittest.TestCase):
     module = py_warnings
+
+    def test_tracemalloc(self):
+        self.addCleanup(support.unlink, support.TESTFN)
+
+        with open(support.TESTFN, 'w') as fp:
+            fp.write(textwrap.dedent("""
+                def func():
+                    f = open(__file__)
+                    # Emit ResourceWarning
+                    f = None
+
+                func()
+            """))
+
+        res = assert_python_ok('-Wd', '-X', 'tracemalloc=2', support.TESTFN)
+
+        stderr = res.err.decode('ascii', 'replace')
+        # normalize newlines
+        stderr = '\n'.join(stderr.splitlines())
+        stderr = re.sub('<.*>', '<...>', stderr)
+        expected = textwrap.dedent('''
+            {fname}:5: ResourceWarning: unclosed file <...>
+              f = None
+            Object allocated at (most recent call first):
+              File "{fname}", lineno 3
+                f = open(__file__)
+              File "{fname}", lineno 7
+                func()
+        ''')
+        expected = expected.format(fname=support.TESTFN).strip()
+        self.assertEqual(stderr, expected)
 
 
 class CatchWarningTests(BaseTest):

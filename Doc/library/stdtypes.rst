@@ -397,8 +397,8 @@ Bitwise Operations on Integer Types
    operator: >>
 
 Bitwise operations only make sense for integers.  Negative numbers are treated
-as their 2's complement value (this assumes a sufficiently large number of bits
-that no overflow occurs during the operation).
+as their 2's complement value (this assumes that there are enough bits so that
+no overflow occurs during the operation).
 
 The priorities of the binary bitwise operations are all lower than the numeric
 operations and higher than the comparisons; the unary operation ``~`` has the
@@ -1298,16 +1298,16 @@ loops.
    only represent sequences that follow a strict pattern and repetition and
    concatenation will usually violate that pattern).
 
-   .. data: start
+   .. attribute:: start
 
       The value of the *start* parameter (or ``0`` if the parameter was
       not supplied)
 
-   .. data: stop
+   .. attribute:: stop
 
       The value of the *stop* parameter
 
-   .. data: step
+   .. attribute:: step
 
       The value of the *step* parameter (or ``1`` if the parameter was
       not supplied)
@@ -1450,8 +1450,8 @@ multiple fragments.
 
    For more information on the ``str`` class and its methods, see
    :ref:`textseq` and the :ref:`string-methods` section below.  To output
-   formatted strings, see the :ref:`string-formatting` section.  In addition,
-   see the :ref:`stringservices` section.
+   formatted strings, see the :ref:`f-strings` and :ref:`formatstrings`
+   sections.  In addition, see the :ref:`stringservices` section.
 
 
 .. index::
@@ -2053,8 +2053,8 @@ expression support in the :mod:`re` module).
 .. index::
    single: formatting, string (%)
    single: interpolation, string (%)
-   single: string; formatting
-   single: string; interpolation
+   single: string; formatting, printf
+   single: string; interpolation, printf
    single: printf-style formatting
    single: sprintf-style formatting
    single: % formatting
@@ -2064,9 +2064,10 @@ expression support in the :mod:`re` module).
 
    The formatting operations described here exhibit a variety of quirks that
    lead to a number of common errors (such as failing to display tuples and
-   dictionaries correctly).  Using the newer :meth:`str.format` interface
-   helps avoid these errors, and also provides a generally more powerful,
-   flexible and extensible approach to formatting text.
+   dictionaries correctly).  Using the newer :ref:`formatted
+   string literals <f-strings>` or the :meth:`str.format` interface
+   helps avoid these errors.  These alternatives also provide more powerful,
+   flexible and extensible approaches to formatting text.
 
 String objects have one unique built-in operation: the ``%`` operator (modulo).
 This is also known as the string *formatting* or *interpolation* operator.
@@ -3828,7 +3829,7 @@ The constructors for both classes work the same:
 
    .. describe:: len(s)
 
-      Return the cardinality of set *s*.
+      Return the number of elements in set *s* (cardinality of *s*).
 
    .. describe:: x in s
 

@@ -1156,7 +1156,6 @@ class PureWindowsPathTest(_BasePurePathTest, unittest.TestCase):
         # UNC paths are never reserved
         self.assertIs(False, P('//my/share/nul/con/aux').is_reserved())
 
-
 class PurePathTest(_BasePurePathTest, unittest.TestCase):
     cls = pathlib.PurePath
 
@@ -1219,6 +1218,16 @@ class PosixPathAsPureTest(PurePosixPathTest):
 @only_nt
 class WindowsPathAsPureTest(PureWindowsPathTest):
     cls = pathlib.WindowsPath
+
+    def test_owner(self):
+        P = self.cls
+        with self.assertRaises(NotImplementedError):
+            P('c:/').owner()
+
+    def test_group(self):
+        P = self.cls
+        with self.assertRaises(NotImplementedError):
+            P('c:/').group()
 
 
 class _BasePathTest(object):
@@ -1968,6 +1977,11 @@ class PathTest(_BasePathTest, unittest.TestCase):
             self.assertRaises(NotImplementedError, pathlib.PosixPath)
         else:
             self.assertRaises(NotImplementedError, pathlib.WindowsPath)
+
+    def test_glob_empty_pattern(self):
+        p = self.cls()
+        with self.assertRaisesRegex(ValueError, 'Unacceptable pattern'):
+            list(p.glob(''))
 
 
 @only_posix

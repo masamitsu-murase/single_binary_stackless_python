@@ -707,6 +707,7 @@ Py_FinalizeEx(void)
 
     /* Delete current thread. After this, many C API calls become crashy. */
     PyThreadState_Swap(NULL);
+
     PyInterpreterState_Delete(interp);
 
 #ifdef Py_TRACE_REFS
@@ -717,9 +718,12 @@ Py_FinalizeEx(void)
     if (Py_GETENV("PYTHONDUMPREFS"))
         _Py_PrintReferenceAddresses(stderr);
 #endif /* Py_TRACE_REFS */
-#ifdef PYMALLOC_DEBUG
-    if (Py_GETENV("PYTHONMALLOCSTATS"))
-        _PyObject_DebugMallocStats(stderr);
+#ifdef WITH_PYMALLOC
+    if (_PyMem_PymallocEnabled()) {
+        char *opt = Py_GETENV("PYTHONMALLOCSTATS");
+        if (opt != NULL && *opt != '\0')
+            _PyObject_DebugMallocStats(stderr);
+    }
 #endif
 
     call_ll_exitfuncs();
@@ -754,6 +758,10 @@ Py_NewInterpreter(void)
 
     if (!initialized)
         Py_FatalError("Py_NewInterpreter: call Py_Initialize first");
+
+    /* Issue #10915, #15751: The GIL API doesn't work with multiple
+       interpreters: disable PyGILState_Check(). */
+    _PyGILState_check_enabled = 0;
 
     interp = PyInterpreterState_New();
     if (interp == NULL)
@@ -1279,31 +1287,48 @@ initstdio(void)
 }
 
 
-/* Print the current exception (if an exception is set) with its traceback,
- * or display the current Python stack.
- *
- * Don't call PyErr_PrintEx() and the except hook, because Py_FatalError() is
- * called on catastrophic cases. */
-
 static void
-_Py_PrintFatalError(int fd)
+_Py_FatalError_DumpTracebacks(int fd)
+{
+    fputc('\n', stderr);
+    fflush(stderr);
+
+    /* display the current Python stack */
+    _Py_DumpTracebackThreads(fd, NULL, NULL);
+}
+
+/* Print the current exception (if an exception is set) with its traceback,
+   or display the current Python stack.
+
+   Don't call PyErr_PrintEx() and the except hook, because Py_FatalError() is
+   called on catastrophic cases.
+
+   Return 1 if the traceback was displayed, 0 otherwise. */
+
+static int
+_Py_FatalError_PrintExc(int fd)
 {
     PyObject *ferr, *res;
     PyObject *exception, *v, *tb;
     int has_tb;
-    PyThreadState *tstate;
+
+    if (PyThreadState_GET() == NULL) {
+        /* The GIL is released: trying to acquire it is likely to deadlock,
+           just give up. */
+        return 0;
+    }
 
     PyErr_Fetch(&exception, &v, &tb);
     if (exception == NULL) {
         /* No current exception */
-        goto display_stack;
+        return 0;
     }
 
     ferr = _PySys_GetObjectId(&PyId_stderr);
     if (ferr == NULL || ferr == Py_None) {
         /* sys.stderr is not set yet or set to None,
            no need to try to display the exception */
-        goto display_stack;
+        return 0;
     }
 
     PyErr_NormalizeException(&exception, &v, &tb);
@@ -1314,7 +1339,7 @@ _Py_PrintFatalError(int fd)
     PyException_SetTraceback(v, tb);
     if (exception == NULL) {
         /* PyErr_NormalizeException() failed */
-        goto display_stack;
+        return 0;
     }
 
     has_tb = (tb != Py_None);
@@ -1330,28 +1355,9 @@ _Py_PrintFatalError(int fd)
     else
         Py_DECREF(res);
 
-    if (has_tb)
-        return;
-
-display_stack:
-#ifdef WITH_THREAD
-    /* PyGILState_GetThisThreadState() works even if the GIL was released */
-    tstate = PyGILState_GetThisThreadState();
-#else
-    tstate = PyThreadState_GET();
-#endif
-    if (tstate == NULL) {
-        /* _Py_DumpTracebackThreads() requires the thread state to display
-         * frames */
-        return;
-    }
-
-    fputc('\n', stderr);
-    fflush(stderr);
-
-    /* display the current Python stack */
-    _Py_DumpTracebackThreads(fd, tstate->interp, tstate);
+    return has_tb;
 }
+
 /* Print fatal error message and abort */
 
 void
@@ -1377,15 +1383,19 @@ Py_FatalError(const char *msg)
 
     /* Print the exception (if an exception is set) with its traceback,
      * or display the current Python stack. */
-    _Py_PrintFatalError(fd);
-
-    /* Flush sys.stdout and sys.stderr */
-    flush_std_files();
+    if (!_Py_FatalError_PrintExc(fd))
+        _Py_FatalError_DumpTracebacks(fd);
 
     /* The main purpose of faulthandler is to display the traceback. We already
      * did our best to display it. So faulthandler can now be disabled.
      * (Don't trigger it on abort().) */
     _PyFaulthandler_Fini();
+
+    /* Check if the current Python thread hold the GIL */
+    if (PyThreadState_GET() != NULL) {
+        /* Flush sys.stdout and sys.stderr */
+        flush_std_files();
+    }
 
 #ifdef MS_WINDOWS
     len = strlen(msg);

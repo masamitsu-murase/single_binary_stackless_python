@@ -57,7 +57,7 @@ created.  Socket addresses are represented as follows:
       Previously, :const:`AF_UNIX` socket paths were assumed to use UTF-8
       encoding.
 
-   .. versionchanged: 3.5
+   .. versionchanged:: 3.5
       Writable :term:`bytes-like object` is now accepted.
 
 - A pair ``(host, port)`` is used for the :const:`AF_INET` address family,
@@ -675,7 +675,7 @@ The :mod:`socket` module also offers various network-related services:
    support IPv6, and :func:`inet_ntop` should be used instead for IPv4/v6 dual
    stack support.
 
-   .. versionchanged: 3.5
+   .. versionchanged:: 3.5
       Writable :term:`bytes-like object` is now accepted.
 
 
@@ -717,7 +717,7 @@ The :mod:`socket` module also offers various network-related services:
    .. versionchanged:: 3.4
       Windows support added
 
-   .. versionchanged: 3.5
+   .. versionchanged:: 3.5
       Writable :term:`bytes-like object` is now accepted.
 
 
@@ -983,7 +983,7 @@ to sockets.
 
    The :meth:`ioctl` method is a limited interface to the WSAIoctl system
    interface.  Please refer to the `Win32 documentation
-   <http://msdn.microsoft.com/en-us/library/ms741621%28VS.85%29.aspx>`_ for more
+   <https://msdn.microsoft.com/en-us/library/ms741621%28VS.85%29.aspx>`_ for more
    information.
 
    On other platforms, the generic :func:`fcntl.fcntl` and :func:`fcntl.ioctl`
@@ -1006,7 +1006,8 @@ to sockets.
 
    Return a :term:`file object` associated with the socket.  The exact returned
    type depends on the arguments given to :meth:`makefile`.  These arguments are
-   interpreted the same way as by the built-in :func:`open` function.
+   interpreted the same way as by the built-in :func:`open` function, except
+   the only supported *mode* values are ``'r'`` (default), ``'w'`` and ``'b'``.
 
    The socket must be in blocking mode; it can have a timeout, but the file
    object's internal buffer may end up in an inconsistent state if a timeout
@@ -1331,7 +1332,7 @@ to sockets.
    ensure that the bytestring contains the proper bits (see the optional built-in
    module :mod:`struct` for a way to encode C structures as bytestrings).
 
-   .. versionchanged: 3.5
+   .. versionchanged:: 3.5
       Writable :term:`bytes-like object` is now accepted.
 
 

@@ -75,7 +75,12 @@ class Completer:
 
         if not text.strip():
             if state == 0:
-                return '\t'
+                if _readline_available:
+                    readline.insert_text('\t')
+                    readline.redisplay()
+                    return ''
+                else:
+                    return '\t'
             else:
                 return None
 
@@ -190,10 +195,11 @@ def get_class_members(klass):
 try:
     import readline
 except ImportError:
-    pass
+    _readline_available = False
 else:
     readline.set_completer(Completer().complete)
     # Release references early at shutdown (the readline module's
     # contents are quasi-immortal, and the completer function holds a
     # reference to globals).
     atexit.register(lambda: readline.set_completer(None))
+    _readline_available = True

@@ -98,6 +98,7 @@ class DictSetTest(unittest.TestCase):
         self.assertEqual(d1.keys() & set(d1.keys()), {'a', 'b'})
         self.assertEqual(d1.keys() & set(d2.keys()), {'b'})
         self.assertEqual(d1.keys() & set(d3.keys()), set())
+        self.assertEqual(d1.keys() & tuple(d1.keys()), {'a', 'b'})
 
         self.assertEqual(d1.keys() | d1.keys(), {'a', 'b'})
         self.assertEqual(d1.keys() | d2.keys(), {'a', 'b', 'c'})
@@ -106,6 +107,7 @@ class DictSetTest(unittest.TestCase):
         self.assertEqual(d1.keys() | set(d2.keys()), {'a', 'b', 'c'})
         self.assertEqual(d1.keys() | set(d3.keys()),
                          {'a', 'b', 'd', 'e'})
+        self.assertEqual(d1.keys() | (1, 2), {'a', 'b', 1, 2})
 
         self.assertEqual(d1.keys() ^ d1.keys(), set())
         self.assertEqual(d1.keys() ^ d2.keys(), {'a', 'c'})
@@ -114,6 +116,7 @@ class DictSetTest(unittest.TestCase):
         self.assertEqual(d1.keys() ^ set(d2.keys()), {'a', 'c'})
         self.assertEqual(d1.keys() ^ set(d3.keys()),
                          {'a', 'b', 'd', 'e'})
+        self.assertEqual(d1.keys() ^ tuple(d2.keys()), {'a', 'c'})
 
         self.assertEqual(d1.keys() - d1.keys(), set())
         self.assertEqual(d1.keys() - d2.keys(), {'a'})
@@ -121,6 +124,7 @@ class DictSetTest(unittest.TestCase):
         self.assertEqual(d1.keys() - set(d1.keys()), set())
         self.assertEqual(d1.keys() - set(d2.keys()), {'a'})
         self.assertEqual(d1.keys() - set(d3.keys()), {'a', 'b'})
+        self.assertEqual(d1.keys() - (0, 1), {'a', 'b'})
 
         self.assertFalse(d1.keys().isdisjoint(d1.keys()))
         self.assertFalse(d1.keys().isdisjoint(d2.keys()))

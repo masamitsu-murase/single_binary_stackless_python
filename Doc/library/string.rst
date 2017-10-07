@@ -75,14 +75,14 @@ The constants defined in this module are:
 
 .. _string-formatting:
 
-String Formatting
------------------
+Custom String Formatting
+------------------------
 
 The built-in string class provides the ability to do complex variable
-substitutions and value formatting via the :func:`format` method described in
+substitutions and value formatting via the :meth:`~str.format` method described in
 :pep:`3101`.  The :class:`Formatter` class in the :mod:`string` module allows
 you to create and customize your own string formatting behaviors using the same
-implementation as the built-in :meth:`format` method.
+implementation as the built-in :meth:`~str.format` method.
 
 
 .. class:: Formatter
@@ -91,9 +91,9 @@ implementation as the built-in :meth:`format` method.
 
    .. method:: format(format_string, *args, **kwargs)
 
-      :meth:`format` is the primary API method.  It takes a format string and
+      The primary API method.  It takes a format string and
       an arbitrary set of positional and keyword arguments.
-      :meth:`format` is just a wrapper that calls :meth:`vformat`.
+      It is just a wrapper that calls :meth:`vformat`.
 
       .. deprecated:: 3.5
          Passing a format string as keyword argument *format_string* has been
@@ -188,7 +188,9 @@ Format String Syntax
 
 The :meth:`str.format` method and the :class:`Formatter` class share the same
 syntax for format strings (although in the case of :class:`Formatter`,
-subclasses can define their own format string syntax).
+subclasses can define their own format string syntax).  The syntax is
+related to that of :ref:`formatted string literals <f-strings>`, but
+there are differences.
 
 Format strings contain "replacement fields" surrounded by curly braces ``{}``.
 Anything that is not contained in braces is considered literal text, which is
@@ -267,8 +269,9 @@ Most built-in types support a common formatting mini-language, which is
 described in the next section.
 
 A *format_spec* field can also include nested replacement fields within it.
-These nested replacement fields can contain only a field name; conversion flags
-and format specifications are not allowed.  The replacement fields within the
+These nested replacement fields may contain a field name, conversion flag
+and format specification, but deeper nesting is
+not allowed.  The replacement fields within the
 format_spec are substituted before the *format_spec* string is interpreted.
 This allows the formatting of a value to be dynamically specified.
 
@@ -282,7 +285,8 @@ Format Specification Mini-Language
 
 "Format specifications" are used within replacement fields contained within a
 format string to define how individual values are presented (see
-:ref:`formatstrings`).  They can also be passed directly to the built-in
+:ref:`formatstrings` and :ref:`f-strings`).
+They can also be passed directly to the built-in
 :func:`format` function.  Each formattable type may define how the format
 specification is to be interpreted.
 
@@ -306,8 +310,11 @@ The general form of a *standard format specifier* is:
 
 If a valid *align* value is specified, it can be preceded by a *fill*
 character that can be any character and defaults to a space if omitted.
-Note that it is not possible to use ``{`` and ``}`` as *fill* char while
-using the :meth:`str.format` method; this limitation however doesn't
+It is not possible to use a literal curly brace ("``{``" or "``}``") as
+the *fill* character in a :ref:`formatted string literal
+<f-strings>` or when using the :meth:`str.format`
+method.  However, it is possible to insert a curly brace
+with a nested replacement field.  This limitation doesn't
 affect the :func:`format` function.
 
 The meaning of the various alignment options is as follows:
@@ -324,7 +331,8 @@ The meaning of the various alignment options is as follows:
    | ``'='`` | Forces the padding to be placed after the sign (if any)  |
    |         | but before the digits.  This is used for printing fields |
    |         | in the form '+000000120'. This alignment option is only  |
-   |         | valid for numeric types.                                 |
+   |         | valid for numeric types.  It becomes the default when '0'|
+   |         | immediately precedes the field width.                    |
    +---------+----------------------------------------------------------+
    | ``'^'`` | Forces the field to be centered within the available     |
    |         | space.                                                   |
@@ -373,7 +381,8 @@ instead.
 *width* is a decimal integer defining the minimum field width.  If not
 specified, then the field width will be determined by the content.
 
-Preceding the *width* field by a zero (``'0'``) character enables
+When no explicit alignment is given, preceding the *width* field by a zero
+(``'0'``) character enables
 sign-aware zero-padding for numeric types.  This is equivalent to a *fill*
 character of ``'0'`` with an *alignment* type of ``'='``.
 
@@ -496,8 +505,8 @@ The available presentation types for floating point and decimal values are:
 Format examples
 ^^^^^^^^^^^^^^^
 
-This section contains examples of the new format syntax and comparison with
-the old ``%``-formatting.
+This section contains examples of the :meth:`str.format` syntax and
+comparison with the old ``%``-formatting.
 
 In most of the cases the syntax is similar to the old ``%``-formatting, with the
 addition of the ``{}`` and with ``:`` used instead of ``%``.

@@ -894,7 +894,7 @@ The following constants are options for the *flags* parameter to the
 :func:`~os.open` function.  They can be combined using the bitwise OR operator
 ``|``.  Some of them are not available on all platforms.  For descriptions of
 their availability and use, consult the :manpage:`open(2)` manual page on Unix
-or `the MSDN <http://msdn.microsoft.com/en-us/library/z0kc8e3z.aspx>`_ on Windows.
+or `the MSDN <https://msdn.microsoft.com/en-us/library/z0kc8e3z.aspx>`_ on Windows.
 
 
 .. data:: O_RDONLY
@@ -1891,14 +1891,29 @@ features:
    :attr:`~DirEntry.path` attributes of each :class:`DirEntry` will be of
    the same type as *path*.
 
+   The :func:`scandir` iterator supports the :term:`context manager` protocol
+   and has the following method:
+
+   .. method:: scandir.close()
+
+      Close the iterator and free acquired resources.
+
+      This is called automatically when the iterator is exhausted or garbage
+      collected, or when an error happens during iterating.  However it
+      is advisable to call it explicitly or use the :keyword:`with`
+      statement.
+
+      .. versionadded:: 3.6
+
    The following example shows a simple use of :func:`scandir` to display all
    the files (excluding directories) in the given *path* that don't start with
    ``'.'``. The ``entry.is_file()`` call will generally not make an additional
    system call::
 
-      for entry in os.scandir(path):
-         if not entry.name.startswith('.') and entry.is_file():
-             print(entry.name)
+      with os.scandir(path) as it:
+          for entry in it:
+              if not entry.name.startswith('.') and entry.is_file():
+                  print(entry.name)
 
    .. note::
 
@@ -1907,12 +1922,18 @@ features:
       and
       `readdir() <http://pubs.opengroup.org/onlinepubs/009695399/functions/readdir_r.html>`_
       functions. On Windows, it uses the Win32
-      `FindFirstFileW <http://msdn.microsoft.com/en-us/library/windows/desktop/aa364418(v=vs.85).aspx>`_
+      `FindFirstFileW <https://msdn.microsoft.com/en-us/library/windows/desktop/aa364418(v=vs.85).aspx>`_
       and
-      `FindNextFileW <http://msdn.microsoft.com/en-us/library/windows/desktop/aa364428(v=vs.85).aspx>`_
+      `FindNextFileW <https://msdn.microsoft.com/en-us/library/windows/desktop/aa364428(v=vs.85).aspx>`_
       functions.
 
    .. versionadded:: 3.5
+
+   .. versionadded:: 3.6
+      Added support for the :term:`context manager` protocol and the
+      :func:`~scandir.close()` method.  If a :func:`scandir` iterator is neither
+      exhausted nor explicitly closed a :exc:`ResourceWarning` will be emitted
+      in its destructor.
 
 
 .. class:: DirEntry
@@ -1960,62 +1981,65 @@ features:
 
       Return the inode number of the entry.
 
-      The result is cached on the ``DirEntry`` object, use ``os.stat(entry.path,
+      The result is cached on the ``DirEntry`` object. Use ``os.stat(entry.path,
       follow_symlinks=False).st_ino`` to fetch up-to-date information.
 
-      On Unix, no system call is required.
+      On the first, uncached call, a system call is required on Windows but
+      not on Unix.
 
    .. method:: is_dir(\*, follow_symlinks=True)
 
-      If *follow_symlinks* is ``True`` (the default), return ``True`` if the
-      entry is a directory or a symbolic link pointing to a directory;
-      return ``False`` if it is or points to any other kind of file, or if it
-      doesn't exist anymore.
+      Return ``True`` if this entry is a directory or a symbolic link pointing
+      to a directory; return ``False`` if the entry is or points to any other
+      kind of file, or if it doesn't exist anymore.
 
       If *follow_symlinks* is ``False``, return ``True`` only if this entry
-      is a directory; return ``False`` if it is any other kind of file
-      or if it doesn't exist anymore.
+      is a directory (without following symlinks); return ``False`` if the
+      entry is any other kind of file or if it doesn't exist anymore.
 
-      The result is cached on the ``DirEntry`` object. Call :func:`os.stat`
-      along with :func:`stat.S_ISDIR` to fetch up-to-date information.
+      The result is cached on the ``DirEntry`` object, with a separate cache
+      for *follow_symlinks* ``True`` and ``False``. Call :func:`os.stat` along
+      with :func:`stat.S_ISDIR` to fetch up-to-date information.
+
+      On the first, uncached call, no system call is required in most cases.
+      Specifically, for non-symlinks, neither Windows or Unix require a system
+      call, except on certain Unix file systems, such as network file systems,
+      that return ``dirent.d_type == DT_UNKNOWN``. If the entry is a symlink,
+      a system call will be required to follow the symlink unless
+      *follow_symlinks* is ``False``.
 
       This method can raise :exc:`OSError`, such as :exc:`PermissionError`,
       but :exc:`FileNotFoundError` is caught and not raised.
-
-      In most cases, no system call is required.
 
    .. method:: is_file(\*, follow_symlinks=True)
 
-      If *follow_symlinks* is ``True`` (the default), return ``True`` if the
-      entry is a file or a symbolic link pointing to a file; return ``False``
-      if it is or points to a directory or other non-file entry, or if it
-      doesn't exist anymore.
+      Return ``True`` if this entry is a file or a symbolic link pointing to a
+      file; return ``False`` if the entry is or points to a directory or other
+      non-file entry, or if it doesn't exist anymore.
 
       If *follow_symlinks* is ``False``, return ``True`` only if this entry
-      is a file; return ``False`` if it is a directory or other non-file entry,
-      or if it doesn't exist anymore.
+      is a file (without following symlinks); return ``False`` if the entry is
+      a directory or other non-file entry, or if it doesn't exist anymore.
 
-      The result is cached on the ``DirEntry`` object. Call :func:`os.stat`
-      along with :func:`stat.S_ISREG` to fetch up-to-date information.
-
-      This method can raise :exc:`OSError`, such as :exc:`PermissionError`,
-      but :exc:`FileNotFoundError` is caught and not raised.
-
-      In most cases, no system call is required.
+      The result is cached on the ``DirEntry`` object. Caching, system calls
+      made, and exceptions raised are as per :func:`~DirEntry.is_dir`.
 
    .. method:: is_symlink()
 
       Return ``True`` if this entry is a symbolic link (even if broken);
-      return ``False`` if it points to a directory or any kind of file,
+      return ``False`` if the entry points to a directory or any kind of file,
       or if it doesn't exist anymore.
 
       The result is cached on the ``DirEntry`` object. Call
       :func:`os.path.islink` to fetch up-to-date information.
 
-      The method can raise :exc:`OSError`, such as :exc:`PermissionError`,
-      but :exc:`FileNotFoundError` is caught and not raised.
+      On the first, uncached call, no system call is required in most cases.
+      Specifically, neither Windows or Unix require a system call, except on
+      certain Unix file systems, such as network file systems, that return
+      ``dirent.d_type == DT_UNKNOWN``.
 
-      In most cases, no system call is required.
+      This method can raise :exc:`OSError`, such as :exc:`PermissionError`,
+      but :exc:`FileNotFoundError` is caught and not raised.
 
    .. method:: stat(\*, follow_symlinks=True)
 
@@ -2023,17 +2047,17 @@ features:
       follows symbolic links by default; to stat a symbolic link add the
       ``follow_symlinks=False`` argument.
 
-      On Unix, this method always requires a system call. On Windows,
-      ``DirEntry.stat()`` requires a system call only if the
-      entry is a symbolic link, and ``DirEntry.stat(follow_symlinks=False)``
-      never requires a system call.
+      On Unix, this method always requires a system call. On Windows, it
+      only requires a system call if *follow_symlinks* is ``True`` and the
+      entry is a symbolic link.
 
       On Windows, the ``st_ino``, ``st_dev`` and ``st_nlink`` attributes of the
       :class:`stat_result` are always set to zero. Call :func:`os.stat` to
       get these attributes.
 
-      The result is cached on the ``DirEntry`` object. Call :func:`os.stat`
-      to fetch up-to-date information.
+      The result is cached on the ``DirEntry`` object, with a separate cache
+      for *follow_symlinks* ``True`` and ``False``. Call :func:`os.stat` to
+      fetch up-to-date information.
 
    Note that there is a nice correspondence between several attributes
    and methods of ``DirEntry`` and of :class:`pathlib.Path`.  In

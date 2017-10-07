@@ -922,9 +922,12 @@ def _sanity_check(name, package, level):
         raise TypeError('module name must be str, not {}'.format(type(name)))
     if level < 0:
         raise ValueError('level must be >= 0')
-    if package:
+    if level > 0:
         if not isinstance(package, str):
             raise TypeError('__package__ not set to a string')
+        elif not package:
+            raise ImportError('attempted relative import with no known parent '
+                              'package')
         elif package not in sys.modules:
             msg = ('Parent module {!r} not loaded, cannot perform relative '
                    'import')
@@ -1032,11 +1035,17 @@ def _calc___package__(globals):
     to represent that its proper value is unknown.
 
     """
-    spec = globals.get('__spec__')
-    if spec is not None:
-        return spec.parent
     package = globals.get('__package__')
-    if package is None:
+    spec = globals.get('__spec__')
+    if package is not None:
+        if spec is not None and package != spec.parent:
+            _warnings.warn("__package__ != __spec__.parent "
+                           f"({package!r} != {spec.parent!r})",
+                           ImportWarning, stacklevel=3)
+        return package
+    elif spec is not None:
+        return spec.parent
+    else:
         _warnings.warn("can't resolve package from __spec__ or __package__, "
                        "falling back on __name__ and __path__",
                        ImportWarning, stacklevel=3)

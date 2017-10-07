@@ -1088,7 +1088,16 @@ getargs_c(PyObject *self, PyObject *args)
     char c;
     if (!PyArg_ParseTuple(args, "c", &c))
         return NULL;
-    return PyBytes_FromStringAndSize(&c, 1);
+    return PyLong_FromLong((unsigned char)c);
+}
+
+static PyObject *
+getargs_C(PyObject *self, PyObject *args)
+{
+    int c;
+    if (!PyArg_ParseTuple(args, "C", &c))
+        return NULL;
+    return PyLong_FromLong(c);
 }
 
 static PyObject *
@@ -1241,6 +1250,84 @@ getargs_Z_hash(PyObject *self, PyObject *args)
         return PyUnicode_FromUnicode(str, size);
     else
         Py_RETURN_NONE;
+}
+
+static PyObject *
+getargs_es(PyObject *self, PyObject *args)
+{
+    PyObject *arg, *result;
+    const char *encoding = NULL;
+    char *str;
+
+    if (!PyArg_ParseTuple(args, "O|s", &arg, &encoding))
+        return NULL;
+    if (!PyArg_Parse(arg, "es", encoding, &str))
+        return NULL;
+    result = PyBytes_FromString(str);
+    PyMem_Free(str);
+    return result;
+}
+
+static PyObject *
+getargs_et(PyObject *self, PyObject *args)
+{
+    PyObject *arg, *result;
+    const char *encoding = NULL;
+    char *str;
+
+    if (!PyArg_ParseTuple(args, "O|s", &arg, &encoding))
+        return NULL;
+    if (!PyArg_Parse(arg, "et", encoding, &str))
+        return NULL;
+    result = PyBytes_FromString(str);
+    PyMem_Free(str);
+    return result;
+}
+
+static PyObject *
+getargs_es_hash(PyObject *self, PyObject *args)
+{
+    PyObject *arg, *result;
+    const char *encoding = NULL;
+    PyByteArrayObject *buffer = NULL;
+    char *str = NULL;
+    Py_ssize_t size;
+
+    if (!PyArg_ParseTuple(args, "O|sY", &arg, &encoding, &buffer))
+        return NULL;
+    if (buffer != NULL) {
+        str = PyByteArray_AS_STRING(buffer);
+        size = PyByteArray_GET_SIZE(buffer);
+    }
+    if (!PyArg_Parse(arg, "es#", encoding, &str, &size))
+        return NULL;
+    result = PyBytes_FromStringAndSize(str, size);
+    if (buffer == NULL)
+        PyMem_Free(str);
+    return result;
+}
+
+static PyObject *
+getargs_et_hash(PyObject *self, PyObject *args)
+{
+    PyObject *arg, *result;
+    const char *encoding = NULL;
+    PyByteArrayObject *buffer = NULL;
+    char *str = NULL;
+    Py_ssize_t size;
+
+    if (!PyArg_ParseTuple(args, "O|sY", &arg, &encoding, &buffer))
+        return NULL;
+    if (buffer != NULL) {
+        str = PyByteArray_AS_STRING(buffer);
+        size = PyByteArray_GET_SIZE(buffer);
+    }
+    if (!PyArg_Parse(arg, "et#", encoding, &str, &size))
+        return NULL;
+    result = PyBytes_FromStringAndSize(str, size);
+    if (buffer == NULL)
+        PyMem_Free(str);
+    return result;
 }
 
 /* Test the s and z codes for PyArg_ParseTuple.
@@ -3529,6 +3616,137 @@ get_recursion_depth(PyObject *self, PyObject *args)
     return PyLong_FromLong(tstate->recursion_depth - 1);
 }
 
+static PyObject*
+pymem_buffer_overflow(PyObject *self, PyObject *args)
+{
+    char *buffer;
+
+    /* Deliberate buffer overflow to check that PyMem_Free() detects
+       the overflow when debug hooks are installed. */
+    buffer = PyMem_Malloc(16);
+    buffer[16] = 'x';
+    PyMem_Free(buffer);
+
+    Py_RETURN_NONE;
+}
+
+static PyObject*
+pymem_api_misuse(PyObject *self, PyObject *args)
+{
+    char *buffer;
+
+    /* Deliberate misusage of Python allocators:
+       allococate with PyMem but release with PyMem_Raw. */
+    buffer = PyMem_Malloc(16);
+    PyMem_RawFree(buffer);
+
+    Py_RETURN_NONE;
+}
+
+static PyObject*
+pymem_malloc_without_gil(PyObject *self, PyObject *args)
+{
+    char *buffer;
+
+    /* Deliberate bug to test debug hooks on Python memory allocators:
+       call PyMem_Malloc() without holding the GIL */
+    Py_BEGIN_ALLOW_THREADS
+    buffer = PyMem_Malloc(10);
+    Py_END_ALLOW_THREADS
+
+    PyMem_Free(buffer);
+
+    Py_RETURN_NONE;
+}
+
+static PyObject*
+pyobject_malloc_without_gil(PyObject *self, PyObject *args)
+{
+    char *buffer;
+
+    /* Deliberate bug to test debug hooks on Python memory allocators:
+       call PyObject_Malloc() without holding the GIL */
+    Py_BEGIN_ALLOW_THREADS
+    buffer = PyObject_Malloc(10);
+    Py_END_ALLOW_THREADS
+
+    PyObject_Free(buffer);
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+tracemalloc_track(PyObject *self, PyObject *args)
+{
+    unsigned int domain;
+    PyObject *ptr_obj;
+    void *ptr;
+    Py_ssize_t size;
+    int release_gil = 0;
+    int res;
+
+    if (!PyArg_ParseTuple(args, "IOn|i", &domain, &ptr_obj, &size, &release_gil))
+        return NULL;
+    ptr = PyLong_AsVoidPtr(ptr_obj);
+    if (PyErr_Occurred())
+        return NULL;
+
+    if (release_gil) {
+        Py_BEGIN_ALLOW_THREADS
+        res = _PyTraceMalloc_Track(domain, (Py_uintptr_t)ptr, size);
+        Py_END_ALLOW_THREADS
+    }
+    else {
+        res = _PyTraceMalloc_Track(domain, (Py_uintptr_t)ptr, size);
+    }
+
+    if (res < 0) {
+        PyErr_SetString(PyExc_RuntimeError, "_PyTraceMalloc_Track error");
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+tracemalloc_untrack(PyObject *self, PyObject *args)
+{
+    unsigned int domain;
+    PyObject *ptr_obj;
+    void *ptr;
+    int res;
+
+    if (!PyArg_ParseTuple(args, "IO", &domain, &ptr_obj))
+        return NULL;
+    ptr = PyLong_AsVoidPtr(ptr_obj);
+    if (PyErr_Occurred())
+        return NULL;
+
+    res = _PyTraceMalloc_Untrack(domain, (Py_uintptr_t)ptr);
+    if (res < 0) {
+        PyErr_SetString(PyExc_RuntimeError, "_PyTraceMalloc_Track error");
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+tracemalloc_get_traceback(PyObject *self, PyObject *args)
+{
+    unsigned int domain;
+    PyObject *ptr_obj;
+    void *ptr;
+
+    if (!PyArg_ParseTuple(args, "IO", &domain, &ptr_obj))
+        return NULL;
+    ptr = PyLong_AsVoidPtr(ptr_obj);
+    if (PyErr_Occurred())
+        return NULL;
+
+    return _PyTraceMalloc_GetTraceback(domain, (Py_uintptr_t)ptr);
+}
+
 
 static PyMethodDef TestMethods[] = {
     {"raise_exception",         raise_exception,                 METH_VARARGS},
@@ -3590,6 +3808,7 @@ static PyMethodDef TestMethods[] = {
     {"test_L_code",             (PyCFunction)test_L_code,        METH_NOARGS},
 #endif
     {"getargs_c",               getargs_c,                       METH_VARARGS},
+    {"getargs_C",               getargs_C,                       METH_VARARGS},
     {"getargs_s",               getargs_s,                       METH_VARARGS},
     {"getargs_s_star",          getargs_s_star,                  METH_VARARGS},
     {"getargs_s_hash",          getargs_s_hash,                  METH_VARARGS},
@@ -3604,6 +3823,10 @@ static PyMethodDef TestMethods[] = {
     {"getargs_Z",               getargs_Z,                       METH_VARARGS},
     {"getargs_Z_hash",          getargs_Z_hash,                  METH_VARARGS},
     {"getargs_w_star",          getargs_w_star,                  METH_VARARGS},
+    {"getargs_es",              getargs_es,                      METH_VARARGS},
+    {"getargs_et",              getargs_et,                      METH_VARARGS},
+    {"getargs_es_hash",         getargs_es_hash,                 METH_VARARGS},
+    {"getargs_et_hash",         getargs_et_hash,                 METH_VARARGS},
     {"codec_incrementalencoder",
      (PyCFunction)codec_incrementalencoder,                      METH_VARARGS},
     {"codec_incrementaldecoder",
@@ -3706,6 +3929,13 @@ static PyMethodDef TestMethods[] = {
     {"PyTime_AsMilliseconds", test_PyTime_AsMilliseconds, METH_VARARGS},
     {"PyTime_AsMicroseconds", test_PyTime_AsMicroseconds, METH_VARARGS},
     {"get_recursion_depth", get_recursion_depth, METH_NOARGS},
+    {"pymem_buffer_overflow", pymem_buffer_overflow, METH_NOARGS},
+    {"pymem_api_misuse", pymem_api_misuse, METH_NOARGS},
+    {"pymem_malloc_without_gil", pymem_malloc_without_gil, METH_NOARGS},
+    {"pyobject_malloc_without_gil", pyobject_malloc_without_gil, METH_NOARGS},
+    {"tracemalloc_track", tracemalloc_track, METH_VARARGS},
+    {"tracemalloc_untrack", tracemalloc_untrack, METH_VARARGS},
+    {"tracemalloc_get_traceback", tracemalloc_get_traceback, METH_VARARGS},
     {NULL, NULL} /* sentinel */
 };
 

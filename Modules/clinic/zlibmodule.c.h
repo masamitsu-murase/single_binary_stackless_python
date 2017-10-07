@@ -3,38 +3,39 @@ preserve
 [clinic start generated code]*/
 
 PyDoc_STRVAR(zlib_compress__doc__,
-"compress($module, bytes, level=Z_DEFAULT_COMPRESSION, /)\n"
+"compress($module, /, data, level=Z_DEFAULT_COMPRESSION)\n"
 "--\n"
 "\n"
 "Returns a bytes object containing compressed data.\n"
 "\n"
-"  bytes\n"
+"  data\n"
 "    Binary data to be compressed.\n"
 "  level\n"
-"    Compression level, in 0-9.");
+"    Compression level, in 0-9 or -1.");
 
 #define ZLIB_COMPRESS_METHODDEF    \
-    {"compress", (PyCFunction)zlib_compress, METH_VARARGS, zlib_compress__doc__},
+    {"compress", (PyCFunction)zlib_compress, METH_VARARGS|METH_KEYWORDS, zlib_compress__doc__},
 
 static PyObject *
-zlib_compress_impl(PyModuleDef *module, Py_buffer *bytes, int level);
+zlib_compress_impl(PyModuleDef *module, Py_buffer *data, int level);
 
 static PyObject *
-zlib_compress(PyModuleDef *module, PyObject *args)
+zlib_compress(PyModuleDef *module, PyObject *args, PyObject *kwargs)
 {
     PyObject *return_value = NULL;
-    Py_buffer bytes = {NULL, NULL};
+    static char *_keywords[] = {"data", "level", NULL};
+    Py_buffer data = {NULL, NULL};
     int level = Z_DEFAULT_COMPRESSION;
 
-    if (!PyArg_ParseTuple(args, "y*|i:compress",
-        &bytes, &level))
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "y*|i:compress", _keywords,
+        &data, &level))
         goto exit;
-    return_value = zlib_compress_impl(module, &bytes, level);
+    return_value = zlib_compress_impl(module, &data, level);
 
 exit:
-    /* Cleanup for bytes */
-    if (bytes.obj)
-       PyBuffer_Release(&bytes);
+    /* Cleanup for data */
+    if (data.obj)
+       PyBuffer_Release(&data);
 
     return return_value;
 }
@@ -89,8 +90,9 @@ PyDoc_STRVAR(zlib_compressobj__doc__,
 "Return a compressor object.\n"
 "\n"
 "  level\n"
-"    The compression level (an integer in the range 0-9; default is 6).\n"
-"    Higher compression levels are slower, but produce smaller results.\n"
+"    The compression level (an integer in the range 0-9 or -1; default is\n"
+"    currently equivalent to 6).  Higher compression levels are slower,\n"
+"    but produce smaller results.\n"
 "  method\n"
 "    The compression algorithm.  If given, this must be DEFLATED.\n"
 "  wbits\n"
@@ -438,4 +440,4 @@ exit:
 #ifndef ZLIB_COMPRESS_COPY_METHODDEF
     #define ZLIB_COMPRESS_COPY_METHODDEF
 #endif /* !defined(ZLIB_COMPRESS_COPY_METHODDEF) */
-/*[clinic end generated code: output=7734aec079550bc8 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=e6f3b79e051ecc35 input=a9049054013a1b77]*/

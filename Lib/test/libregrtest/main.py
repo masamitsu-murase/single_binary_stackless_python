@@ -1,3 +1,4 @@
+import datetime
 import faulthandler
 import os
 import platform
@@ -7,11 +8,13 @@ import sys
 import sysconfig
 import tempfile
 import textwrap
+import time
 from test.libregrtest.cmdline import _parse_args
 from test.libregrtest.runtest import (
     findtests, runtest,
     STDTESTS, NOTTESTS, PASSED, FAILED, ENV_CHANGED, SKIPPED, RESOURCE_DENIED,
-    INTERRUPTED, CHILD_ERROR)
+    INTERRUPTED, CHILD_ERROR,
+    PROGRESS_MIN_TIME)
 from test.libregrtest.setup import setup_tests
 from test import support
 try:
@@ -79,6 +82,7 @@ class Regrtest:
         self.found_garbage = []
 
         # used to display the progress bar "[ 3/100]"
+        self.start_time = time.monotonic()
         self.test_count = ''
         self.test_count_width = 1
 
@@ -102,16 +106,24 @@ class Regrtest:
             self.skipped.append(test)
             self.resource_denieds.append(test)
 
+    def time_delta(self):
+        seconds = time.monotonic() - self.start_time
+        return datetime.timedelta(seconds=int(seconds))
+
     def display_progress(self, test_index, test):
         if self.ns.quiet:
             return
         if self.bad and not self.ns.pgo:
-            fmt = "[{1:{0}}{2}/{3}] {4}"
+            fmt = "{time} [{test_index:{count_width}}{test_count}/{nbad}] {test_name}"
         else:
-            fmt = "[{1:{0}}{2}] {4}"
-        print(fmt.format(self.test_count_width, test_index,
-                         self.test_count, len(self.bad), test),
-              flush=True)
+            fmt = "{time} [{test_index:{count_width}}{test_count}] {test_name}"
+        line = fmt.format(count_width=self.test_count_width,
+                          test_index=test_index,
+                          test_count=self.test_count,
+                          nbad=len(self.bad),
+                          test_name=test,
+                          time=self.time_delta())
+        print(line, flush=True)
 
     def parse_args(self, kwargs):
         ns = _parse_args(sys.argv[1:], **kwargs)
@@ -156,13 +168,21 @@ class Regrtest:
 
         if self.ns.fromfile:
             self.tests = []
+            # regex to match 'test_builtin' in line:
+            # '0:00:00 [  4/400] test_builtin -- test_dict took 1 sec'
+            regex = (r'^(?:[0-9]+:[0-9]+:[0-9]+ *)?'
+                     r'(?:\[[0-9/ ]+\] *)?'
+                     r'(test_[a-zA-Z0-9_]+)')
+            regex = re.compile(regex)
             with open(os.path.join(support.SAVEDCWD, self.ns.fromfile)) as fp:
-                count_pat = re.compile(r'\[\s*\d+/\s*\d+\]')
                 for line in fp:
-                    line = count_pat.sub('', line)
-                    guts = line.split() # assuming no test has whitespace in its name
-                    if guts and not guts[0].startswith('#'):
-                        self.tests.extend(guts)
+                    line = line.strip()
+                    if line.startswith('#'):
+                        continue
+                    match = regex.match(line)
+                    if match is None:
+                        continue
+                    self.tests.append(match.group(1))
 
         removepy(self.tests)
 
@@ -182,7 +202,10 @@ class Regrtest:
         else:
             alltests = findtests(self.ns.testdir, stdtests, nottests)
 
-        self.selected = self.tests or self.ns.args or alltests
+        if not self.ns.fromfile:
+            self.selected = self.tests or self.ns.args or alltests
+        else:
+            self.selected = self.tests
         if self.ns.single:
             self.selected = self.selected[:1]
             try:
@@ -282,8 +305,17 @@ class Regrtest:
 
         save_modules = sys.modules.keys()
 
+        print("Run tests sequentially")
+
+        previous_test = None
         for test_index, test in enumerate(self.tests, 1):
-            self.display_progress(test_index, test)
+            start_time = time.monotonic()
+
+            text = test
+            if previous_test:
+                text = '%s -- %s' % (text, previous_test)
+            self.display_progress(test_index, text)
+
             if self.tracer:
                 # If we're tracing code coverage, then we don't exit with status
                 # if on a false return value from main.
@@ -300,6 +332,12 @@ class Regrtest:
                 else:
                     self.accumulate_result(test, result)
 
+            test_time = time.monotonic() - start_time
+            if test_time >= PROGRESS_MIN_TIME:
+                previous_test = '%s took %.0f sec' % (test, test_time)
+            else:
+                previous_test = None
+
             if self.ns.findleaks:
                 gc.collect()
                 if gc.garbage:
@@ -314,6 +352,9 @@ class Regrtest:
             for module in sys.modules.keys():
                 if module not in save_modules and module.startswith("test."):
                     support.unload(module)
+
+        if previous_test:
+            print(previous_test)
 
     def _test_forever(self, tests):
         while True:
@@ -367,6 +408,8 @@ class Regrtest:
             r = self.tracer.results()
             r.write_results(show_missing=True, summary=True,
                             coverdir=self.ns.coverdir)
+
+        print("Total duration: %s" % self.time_delta())
 
         if self.ns.runleaks:
             os.system("leaks %d" % os.getpid())

@@ -297,7 +297,7 @@ The special characters are:
       >>> m.group(0)
       'egg'
 
-   .. versionchanged: 3.5
+   .. versionchanged:: 3.5
       Added support for group references of fixed length.
 
 ``(?<!...)``
@@ -1389,7 +1389,7 @@ functionally identical:
 Writing a Tokenizer
 ^^^^^^^^^^^^^^^^^^^
 
-A `tokenizer or scanner <http://en.wikipedia.org/wiki/Lexical_analysis>`_
+A `tokenizer or scanner <https://en.wikipedia.org/wiki/Lexical_analysis>`_
 analyzes a string to categorize groups of characters.  This is a useful first
 step in writing a compiler or interpreter.
 

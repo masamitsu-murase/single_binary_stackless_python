@@ -74,8 +74,8 @@ Printing and clearing
    :meth:`__del__` method.
 
    The function is called with a single argument *obj* that identifies the context
-   in which the unraisable exception occurred. The repr of *obj* will be printed in
-   the warning message.
+   in which the unraisable exception occurred. If possible,
+   the repr of *obj* will be printed in the warning message.
 
 
 Raising exceptions
@@ -332,6 +332,14 @@ an error value).
    an ASCII-encoded string.
 
    .. versionadded:: 3.2
+
+
+.. c:function:: int PyErr_ResourceWarning(PyObject *source, Py_ssize_t stack_level, const char *format, ...)
+
+   Function similar to :c:func:`PyErr_WarnFormat`, but *category* is
+   :exc:`ResourceWarning` and pass *source* to :func:`warnings.WarningMessage`.
+
+   .. versionadded:: 3.6
 
 
 Querying the error indicator

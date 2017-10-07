@@ -132,6 +132,52 @@ validate_arguments(arguments_ty args)
 }
 
 static int
+validate_constant(PyObject *value)
+{
+    if (value == Py_None || value == Py_Ellipsis)
+        return 1;
+
+    if (PyLong_CheckExact(value)
+            || PyFloat_CheckExact(value)
+            || PyComplex_CheckExact(value)
+            || PyBool_Check(value)
+            || PyUnicode_CheckExact(value)
+            || PyBytes_CheckExact(value))
+        return 1;
+
+    if (PyTuple_CheckExact(value) || PyFrozenSet_CheckExact(value)) {
+        PyObject *it;
+
+        it = PyObject_GetIter(value);
+        if (it == NULL)
+            return 0;
+
+        while (1) {
+            PyObject *item = PyIter_Next(it);
+            if (item == NULL) {
+                if (PyErr_Occurred()) {
+                    Py_DECREF(it);
+                    return 0;
+                }
+                break;
+            }
+
+            if (!validate_constant(item)) {
+                Py_DECREF(it);
+                Py_DECREF(item);
+                return 0;
+            }
+            Py_DECREF(item);
+        }
+
+        Py_DECREF(it);
+        return 1;
+    }
+
+    return 0;
+}
+
+static int
 validate_expr(expr_ty exp, expr_context_ty ctx)
 {
     int check_ctx = 1;
@@ -240,6 +286,14 @@ validate_expr(expr_ty exp, expr_context_ty ctx)
         return validate_expr(exp->v.Call.func, Load) &&
             validate_exprs(exp->v.Call.args, Load, 0) &&
             validate_keywords(exp->v.Call.keywords);
+    case Constant_kind:
+        if (!validate_constant(exp->v.Constant.value)) {
+            PyErr_Format(PyExc_TypeError,
+                         "got an invalid type in Constant: %s",
+                         Py_TYPE(exp->v.Constant.value)->tp_name);
+            return 0;
+        }
+        return 1;
     case Num_kind: {
         PyObject *n = exp->v.Num.n;
         if (!PyLong_CheckExact(n) && !PyFloat_CheckExact(n) &&
@@ -520,7 +574,6 @@ PyAST_Validate(mod_ty mod)
 
 /* Data structure used internally */
 struct compiling {
-    char *c_encoding; /* source encoding */
     PyArena *c_arena; /* Arena for allocating memory. */
     PyObject *c_filename; /* filename */
     PyObject *c_normalize; /* Normalization function from unicodedata. */
@@ -707,23 +760,11 @@ PyAST_FromNodeObject(const node *n, PyCompilerFlags *flags,
     c.c_arena = arena;
     /* borrowed reference */
     c.c_filename = filename;
-    c.c_normalize = c.c_normalize_args = NULL;
-    if (flags && flags->cf_flags & PyCF_SOURCE_IS_UTF8) {
-        c.c_encoding = "utf-8";
-        if (TYPE(n) == encoding_decl) {
-#if 0
-            ast_error(c, n, "encoding declaration in Unicode string");
-            goto out;
-#endif
-            n = CHILD(n, 0);
-        }
-    } else if (TYPE(n) == encoding_decl) {
-        c.c_encoding = STR(n);
+    c.c_normalize = NULL;
+    c.c_normalize_args = NULL;
+
+    if (TYPE(n) == encoding_decl)
         n = CHILD(n, 0);
-    } else {
-        /* PEP 3120 */
-        c.c_encoding = "utf-8";
-    }
 
     k = 0;
     switch (TYPE(n)) {
@@ -3941,62 +3982,59 @@ decode_utf8(struct compiling *c, const char **sPtr, const char *end)
 }
 
 static PyObject *
-decode_unicode(struct compiling *c, const char *s, size_t len, const char *encoding)
+decode_unicode_with_escapes(struct compiling *c, const char *s, size_t len)
 {
     PyObject *v, *u;
     char *buf;
     char *p;
     const char *end;
 
-    if (encoding == NULL) {
-        u = NULL;
-    } else {
-        /* check for integer overflow */
-        if (len > PY_SIZE_MAX / 6)
-            return NULL;
-        /* "ä" (2 bytes) may become "\U000000E4" (10 bytes), or 1:5
-           "\ä" (3 bytes) may become "\u005c\U000000E4" (16 bytes), or ~1:6 */
-        u = PyBytes_FromStringAndSize((char *)NULL, len * 6);
-        if (u == NULL)
-            return NULL;
-        p = buf = PyBytes_AsString(u);
-        end = s + len;
-        while (s < end) {
-            if (*s == '\\') {
-                *p++ = *s++;
-                if (*s & 0x80) {
-                    strcpy(p, "u005c");
-                    p += 5;
-                }
-            }
-            if (*s & 0x80) { /* XXX inefficient */
-                PyObject *w;
-                int kind;
-                void *data;
-                Py_ssize_t len, i;
-                w = decode_utf8(c, &s, end);
-                if (w == NULL) {
-                    Py_DECREF(u);
-                    return NULL;
-                }
-                kind = PyUnicode_KIND(w);
-                data = PyUnicode_DATA(w);
-                len = PyUnicode_GET_LENGTH(w);
-                for (i = 0; i < len; i++) {
-                    Py_UCS4 chr = PyUnicode_READ(kind, data, i);
-                    sprintf(p, "\\U%08x", chr);
-                    p += 10;
-                }
-                /* Should be impossible to overflow */
-                assert(p - buf <= Py_SIZE(u));
-                Py_DECREF(w);
-            } else {
-                *p++ = *s++;
+    /* check for integer overflow */
+    if (len > PY_SIZE_MAX / 6)
+        return NULL;
+    /* "ä" (2 bytes) may become "\U000000E4" (10 bytes), or 1:5
+       "\ä" (3 bytes) may become "\u005c\U000000E4" (16 bytes), or ~1:6 */
+    u = PyBytes_FromStringAndSize((char *)NULL, len * 6);
+    if (u == NULL)
+        return NULL;
+    p = buf = PyBytes_AsString(u);
+    end = s + len;
+    while (s < end) {
+        if (*s == '\\') {
+            *p++ = *s++;
+            if (*s & 0x80) {
+                strcpy(p, "u005c");
+                p += 5;
             }
         }
-        len = p - buf;
-        s = buf;
+        if (*s & 0x80) { /* XXX inefficient */
+            PyObject *w;
+            int kind;
+            void *data;
+            Py_ssize_t len, i;
+            w = decode_utf8(c, &s, end);
+            if (w == NULL) {
+                Py_DECREF(u);
+                return NULL;
+            }
+            kind = PyUnicode_KIND(w);
+            data = PyUnicode_DATA(w);
+            len = PyUnicode_GET_LENGTH(w);
+            for (i = 0; i < len; i++) {
+                Py_UCS4 chr = PyUnicode_READ(kind, data, i);
+                sprintf(p, "\\U%08x", chr);
+                p += 10;
+            }
+            /* Should be impossible to overflow */
+            assert(p - buf <= Py_SIZE(u));
+            Py_DECREF(w);
+        } else {
+            *p++ = *s++;
+        }
     }
+    len = p - buf;
+    s = buf;
+
     v = PyUnicode_DecodeUnicodeEscape(s, len, NULL);
     Py_XDECREF(u);
     return v;
@@ -4870,7 +4908,6 @@ parsestr(struct compiling *c, const node *n, int *bytesmode, int *fmode)
     const char *s = STR(n);
     int quote = Py_CHARMASK(*s);
     int rawmode = 0;
-    int need_encoding;
     if (Py_ISALPHA(quote)) {
         while (!*bytesmode || !rawmode) {
             if (quote == 'b' || quote == 'B') {
@@ -4926,11 +4963,10 @@ parsestr(struct compiling *c, const node *n, int *bytesmode, int *fmode)
             return NULL;
         }
     }
-    if (!*bytesmode && !rawmode) {
-        return decode_unicode(c, s, len, c->c_encoding);
-    }
+    /* Avoid invoking escape decoding routines if possible. */
+    rawmode = rawmode || strchr(s, '\\') == NULL;
     if (*bytesmode) {
-        /* Disallow non-ascii characters (but not escapes) */
+        /* Disallow non-ASCII characters. */
         const char *ch;
         for (ch = s; *ch; ch++) {
             if (Py_CHARMASK(*ch) >= 0x80) {
@@ -4939,27 +4975,16 @@ parsestr(struct compiling *c, const node *n, int *bytesmode, int *fmode)
                 return NULL;
             }
         }
-    }
-    need_encoding = (!*bytesmode && c->c_encoding != NULL &&
-                     strcmp(c->c_encoding, "utf-8") != 0);
-    if (rawmode || strchr(s, '\\') == NULL) {
-        if (need_encoding) {
-            PyObject *v, *u = PyUnicode_DecodeUTF8(s, len, NULL);
-            if (u == NULL || !*bytesmode)
-                return u;
-            v = PyUnicode_AsEncodedString(u, c->c_encoding, NULL);
-            Py_DECREF(u);
-            return v;
-        } else if (*bytesmode) {
+        if (rawmode)
             return PyBytes_FromStringAndSize(s, len);
-        } else if (strcmp(c->c_encoding, "utf-8") == 0) {
-            return PyUnicode_FromStringAndSize(s, len);
-        } else {
-            return PyUnicode_DecodeLatin1(s, len, NULL);
-        }
+        else
+            return PyBytes_DecodeEscape(s, len, NULL, /* ignored */ 0, NULL);
+    } else {
+        if (rawmode)
+            return PyUnicode_DecodeUTF8Stateful(s, len, NULL, NULL);
+        else
+            return decode_unicode_with_escapes(c, s, len);
     }
-    return PyBytes_DecodeEscape(s, len, NULL, 1,
-                                need_encoding ? c->c_encoding : NULL);
 }
 
 /* Accepts a STRING+ atom, and produces an expr_ty node. Run through

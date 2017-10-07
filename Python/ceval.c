@@ -2626,6 +2626,21 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
 
             Py_DECREF(iterable);
 
+            if (iter != NULL && PyCoro_CheckExact(iter)) {
+                PyObject *yf = _PyGen_yf((PyGenObject*)iter);
+                if (yf != NULL) {
+                    /* `iter` is a coroutine object that is being
+                       awaited, `yf` is a pointer to the current awaitable
+                       being awaited on. */
+                    Py_DECREF(yf);
+                    Py_CLEAR(iter);
+                    PyErr_SetString(
+                        PyExc_RuntimeError,
+                        "coroutine is being awaited already");
+                    /* The code below jumps to `error` if `iter` is NULL. */
+                }
+            }
+
             SET_TOP(iter); /* Even if it's NULL */
 
             if (iter == NULL) {
@@ -4042,7 +4057,7 @@ stackless_call_return:
             int have_fmt_spec = (oparg & FVS_MASK) == FVS_HAVE_SPEC;
 
             fmt_spec = have_fmt_spec ? POP() : NULL;
-            value = TOP();
+            value = POP();
 
             /* See if any conversion is specified. */
             switch (which_conversion) {
@@ -4058,10 +4073,10 @@ stackless_call_return:
             /* If there's a conversion function, call it and replace
                value with that result. Otherwise, just use value,
                without conversion. */
-            if (conv_fn) {
+            if (conv_fn != NULL) {
                 result = conv_fn(value);
                 Py_DECREF(value);
-                if (!result) {
+                if (result == NULL) {
                     Py_XDECREF(fmt_spec);
                     goto error;
                 }
@@ -4081,11 +4096,12 @@ stackless_call_return:
                 result = PyObject_Format(value, fmt_spec);
                 Py_DECREF(value);
                 Py_XDECREF(fmt_spec);
-                if (!result)
+                if (result == NULL) {
                     goto error;
+                }
             }
 
-            SET_TOP(result);
+            PUSH(result);
             DISPATCH();
         }
 
@@ -5813,16 +5829,18 @@ ext_do_call(PyObject *func, PyObject ***pp_stack, int flags, int na, int nk)
         stararg = EXT_POP(*pp_stack);
         if (!PyTuple_Check(stararg)) {
             PyObject *t = NULL;
+            if (Py_TYPE(stararg)->tp_iter == NULL &&
+                    !PySequence_Check(stararg)) {
+                PyErr_Format(PyExc_TypeError,
+                             "%.200s%.200s argument after * "
+                             "must be an iterable, not %.200s",
+                             PyEval_GetFuncName(func),
+                             PyEval_GetFuncDesc(func),
+                             stararg->ob_type->tp_name);
+                goto ext_call_fail;
+            }
             t = PySequence_Tuple(stararg);
             if (t == NULL) {
-                if (PyErr_ExceptionMatches(PyExc_TypeError)) {
-                    PyErr_Format(PyExc_TypeError,
-                                 "%.200s%.200s argument after * "
-                                 "must be a sequence, not %.200s",
-                                 PyEval_GetFuncName(func),
-                                 PyEval_GetFuncDesc(func),
-                                 stararg->ob_type->tp_name);
-                }
                 goto ext_call_fail;
             }
             Py_DECREF(stararg);

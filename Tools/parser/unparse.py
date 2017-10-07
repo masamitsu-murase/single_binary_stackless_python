@@ -343,6 +343,11 @@ class Unparser:
         value = t.s.replace("{", "{{").replace("}", "}}")
         write(value)
 
+    def _fstring_Constant(self, t, write):
+        assert isinstance(t.value, str)
+        value = t.value.replace("{", "{{").replace("}", "}}")
+        write(value)
+
     def _fstring_FormattedValue(self, t, write):
         write("{")
         expr = io.StringIO()
@@ -363,6 +368,25 @@ class Unparser:
 
     def _Name(self, t):
         self.write(t.id)
+
+    def _write_constant(self, value):
+        if isinstance(value, (float, complex)):
+            self.write(repr(value).replace("inf", INFSTR))
+        else:
+            self.write(repr(value))
+
+    def _Constant(self, t):
+        value = t.value
+        if isinstance(value, tuple):
+            self.write("(")
+            if len(value) == 1:
+                self._write_constant(value[0])
+                self.write(",")
+            else:
+                interleave(lambda: self.write(", "), self._write_constant, value)
+            self.write(")")
+        else:
+            self._write_constant(t.value)
 
     def _NameConstant(self, t):
         self.write(repr(t.value))
@@ -432,18 +456,27 @@ class Unparser:
 
     def _Dict(self, t):
         self.write("{")
-        def write_pair(pair):
-            (k, v) = pair
+        def write_key_value_pair(k, v):
             self.dispatch(k)
             self.write(": ")
             self.dispatch(v)
-        interleave(lambda: self.write(", "), write_pair, zip(t.keys, t.values))
+
+        def write_item(item):
+            k, v = item
+            if k is None:
+                # for dictionary unpacking operator in dicts {**{'y': 2}}
+                # see PEP 448 for details
+                self.write("**")
+                self.dispatch(v)
+            else:
+                write_key_value_pair(k, v)
+        interleave(lambda: self.write(", "), write_item, zip(t.keys, t.values))
         self.write("}")
 
     def _Tuple(self, t):
         self.write("(")
         if len(t.elts) == 1:
-            (elt,) = t.elts
+            elt = t.elts[0]
             self.dispatch(elt)
             self.write(",")
         else:
@@ -490,7 +523,8 @@ class Unparser:
         # Special case: 3.__abs__() is a syntax error, so if t.value
         # is an integer literal then we need to either parenthesize
         # it or add an extra space to get 3 .__abs__().
-        if isinstance(t.value, ast.Num) and isinstance(t.value.n, int):
+        if ((isinstance(t.value, ast.Num) and isinstance(t.value.n, int))
+           or (isinstance(t.value, ast.Constant) and isinstance(t.value.value, int))):
             self.write(" ")
         self.write(".")
         self.write(t.attr)

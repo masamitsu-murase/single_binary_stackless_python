@@ -324,7 +324,7 @@ static PyDictKeysObject *new_keys_object(Py_ssize_t size)
 
     assert(size >= PyDict_MINSIZE_SPLIT);
     assert(IS_POWER_OF_2(size));
-    dk = PyMem_MALLOC(sizeof(PyDictKeysObject) +
+    dk = PyObject_MALLOC(sizeof(PyDictKeysObject) +
                       sizeof(PyDictKeyEntry) * (size-1));
     if (dk == NULL) {
         PyErr_NoMemory();
@@ -353,7 +353,7 @@ free_keys_object(PyDictKeysObject *keys)
         Py_XDECREF(entries[i].me_key);
         Py_XDECREF(entries[i].me_value);
     }
-    PyMem_FREE(keys);
+    PyObject_FREE(keys);
 }
 
 #define new_values(size) PyMem_NEW(PyObject *, size)
@@ -964,7 +964,7 @@ dictresize(PyDictObject *mp, Py_ssize_t minused)
             }
         }
         assert(oldkeys->dk_refcnt == 1);
-        DK_DEBUG_DECREF PyMem_FREE(oldkeys);
+        DK_DEBUG_DECREF PyObject_FREE(oldkeys);
     }
     return 0;
 }
@@ -3451,7 +3451,7 @@ dictviews_sub(PyObject* self, PyObject *other)
     if (result == NULL)
         return NULL;
 
-    tmp = _PyObject_CallMethodId(result, &PyId_difference_update, "O", other);
+    tmp = _PyObject_CallMethodIdObjArgs(result, &PyId_difference_update, other, NULL);
     if (tmp == NULL) {
         Py_DECREF(result);
         return NULL;
@@ -3471,7 +3471,7 @@ _PyDictView_Intersect(PyObject* self, PyObject *other)
     if (result == NULL)
         return NULL;
 
-    tmp = _PyObject_CallMethodId(result, &PyId_intersection_update, "O", other);
+    tmp = _PyObject_CallMethodIdObjArgs(result, &PyId_intersection_update, other, NULL);
     if (tmp == NULL) {
         Py_DECREF(result);
         return NULL;
@@ -3491,7 +3491,7 @@ dictviews_or(PyObject* self, PyObject *other)
     if (result == NULL)
         return NULL;
 
-    tmp = _PyObject_CallMethodId(result, &PyId_update, "O", other);
+    tmp = _PyObject_CallMethodIdObjArgs(result, &PyId_update, other, NULL);
     if (tmp == NULL) {
         Py_DECREF(result);
         return NULL;
@@ -3511,8 +3511,7 @@ dictviews_xor(PyObject* self, PyObject *other)
     if (result == NULL)
         return NULL;
 
-    tmp = _PyObject_CallMethodId(result, &PyId_symmetric_difference_update, "O",
-                              other);
+    tmp = _PyObject_CallMethodIdObjArgs(result, &PyId_symmetric_difference_update, other, NULL);
     if (tmp == NULL) {
         Py_DECREF(result);
         return NULL;

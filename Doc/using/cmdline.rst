@@ -194,7 +194,7 @@ Miscellaneous options
    :class:`str` or :class:`bytes` with :class:`int`.  Issue an error when the
    option is given twice (:option:`-bb`).
 
-   .. versionchanged: 3.5
+   .. versionchanged:: 3.5
       Affects comparisons of :class:`bytes` with :class:`int`.
 
 .. cmdoption:: -B
@@ -398,7 +398,7 @@ Miscellaneous options
      tracing with a traceback limit of *NFRAME* frames. See the
      :func:`tracemalloc.start` for more information.
 
-   It also allows to pass arbitrary values and retrieve them through the
+   It also allows passing arbitrary values and retrieving them through the
    :data:`sys._xoptions` dictionary.
 
    .. versionchanged:: 3.2
@@ -621,6 +621,55 @@ conflict.
    .. versionadded:: 3.4
 
 
+.. envvar:: PYTHONMALLOC
+
+   Set the Python memory allocators and/or install debug hooks.
+
+   Set the family of memory allocators used by Python:
+
+   * ``malloc``: use the :c:func:`malloc` function of the C library
+     for all Python memory allocators (ex: :c:func:`PyMem_RawMalloc`,
+     :c:func:`PyMem_Malloc` and :c:func:`PyObject_Malloc`).
+   * ``pymalloc``: :c:func:`PyObject_Malloc`, :c:func:`PyObject_Calloc` and
+     :c:func:`PyObject_Realloc` use the :ref:`pymalloc allocator <pymalloc>`.
+     Other Python memory allocators (ex: :c:func:`PyMem_RawMalloc` and
+     :c:func:`PyMem_Malloc`) use :c:func:`malloc`.
+
+   Install debug hooks:
+
+   * ``debug``: install debug hooks on top of the default memory allocator
+   * ``malloc_debug``: same as ``malloc`` but also install debug hooks
+   * ``pymalloc_debug``: same as ``pymalloc`` but also install debug hooks
+
+   When Python is compiled in release mode, the default is ``pymalloc``. When
+   compiled in debug mode, the default is ``pymalloc_debug`` and the debug hooks
+   are used automatically.
+
+   If Python is configured without ``pymalloc`` support, ``pymalloc`` and
+   ``pymalloc_debug`` are not available, the default is ``malloc`` in release
+   mode and ``malloc_debug`` in debug mode.
+
+   See the :c:func:`PyMem_SetupDebugHooks` function for debug hooks on Python
+   memory allocators.
+
+   .. versionadded:: 3.6
+
+
+.. envvar:: PYTHONMALLOCSTATS
+
+   If set to a non-empty string, Python will print statistics of the
+   :ref:`pymalloc memory allocator <pymalloc>` every time a new pymalloc object
+   arena is created, and on shutdown.
+
+   This variable is ignored if the :envvar:`PYTHONMALLOC` environment variable
+   is used to force the :c:func:`malloc` allocator of the C library, or if
+   Python is configured without ``pymalloc`` support.
+
+   .. versionchanged:: 3.6
+      This variable can now also be used on Python compiled in release mode.
+      It now has no effect if set to an empty string.
+
+
 Debug-mode variables
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -636,9 +685,3 @@ if Python was configured with the ``--with-pydebug`` build option.
 
    If set, Python will dump objects and reference counts still alive after
    shutting down the interpreter.
-
-
-.. envvar:: PYTHONMALLOCSTATS
-
-   If set, Python will print memory allocation statistics every time a new
-   object arena is created, and on shutdown.

@@ -20,7 +20,7 @@ The function below takes and returns a string and is annotated as follows::
    def greeting(name: str) -> str:
        return 'Hello ' + name
 
-In the function ``greeting``, the argument ``name`` is expected to by of type
+In the function ``greeting``, the argument ``name`` is expected to be of type
 :class:`str` and the return type :class:`str`. Subtypes are accepted as
 arguments.
 
@@ -285,6 +285,13 @@ The module defines the following classes, functions and decorators:
    Optional type.
 
    ``Optional[X]`` is equivalent to ``Union[X, type(None)]``.
+
+   Note that this is not the same concept as an optional argument,
+   which is one that has a default.  An optional argument with a
+   default needn't use the ``Optional`` qualifier on its type
+   annotation (although it is inferred if the default is ``None``).
+   A mandatory argument may still have an ``Optional`` type if an
+   explicit value of ``None`` is allowed.
 
 .. class:: Tuple
 

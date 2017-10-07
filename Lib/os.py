@@ -356,6 +356,7 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
 
     dirs = []
     nondirs = []
+    walk_dirs = []
 
     # We may not have read permission for top, in which case we can't
     # get a list of the files the directory contains.  os.walk
@@ -363,54 +364,58 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
     # minor reason when (say) a thousand readable directories are still
     # left to visit.  That logic is copied here.
     try:
-        # Note that scandir is global in this module due
-        # to earlier import-*.
-        scandir_it = scandir(top)
+        if name == 'nt' and isinstance(top, bytes):
+            scandir_it = _dummy_scandir(top)
+        else:
+            # Note that scandir is global in this module due
+            # to earlier import-*.
+            scandir_it = scandir(top)
     except OSError as error:
         if onerror is not None:
             onerror(error)
         return
 
-    while True:
-        try:
+    with scandir_it:
+        while True:
             try:
-                entry = next(scandir_it)
-            except StopIteration:
-                break
-        except OSError as error:
-            if onerror is not None:
-                onerror(error)
-            return
-
-        try:
-            is_dir = entry.is_dir()
-        except OSError:
-            # If is_dir() raises an OSError, consider that the entry is not
-            # a directory, same behaviour than os.path.isdir().
-            is_dir = False
-
-        if is_dir:
-            dirs.append(entry.name)
-        else:
-            nondirs.append(entry.name)
-
-        if not topdown and is_dir:
-            # Bottom-up: recurse into sub-directory, but exclude symlinks to
-            # directories if followlinks is False
-            if followlinks:
-                walk_into = True
-            else:
                 try:
-                    is_symlink = entry.is_symlink()
-                except OSError:
-                    # If is_symlink() raises an OSError, consider that the
-                    # entry is not a symbolic link, same behaviour than
-                    # os.path.islink().
-                    is_symlink = False
-                walk_into = not is_symlink
+                    entry = next(scandir_it)
+                except StopIteration:
+                    break
+            except OSError as error:
+                if onerror is not None:
+                    onerror(error)
+                return
 
-            if walk_into:
-                yield from walk(entry.path, topdown, onerror, followlinks)
+            try:
+                is_dir = entry.is_dir()
+            except OSError:
+                # If is_dir() raises an OSError, consider that the entry is not
+                # a directory, same behaviour than os.path.isdir().
+                is_dir = False
+
+            if is_dir:
+                dirs.append(entry.name)
+            else:
+                nondirs.append(entry.name)
+
+            if not topdown and is_dir:
+                # Bottom-up: recurse into sub-directory, but exclude symlinks to
+                # directories if followlinks is False
+                if followlinks:
+                    walk_into = True
+                else:
+                    try:
+                        is_symlink = entry.is_symlink()
+                    except OSError:
+                        # If is_symlink() raises an OSError, consider that the
+                        # entry is not a symbolic link, same behaviour than
+                        # os.path.islink().
+                        is_symlink = False
+                    walk_into = not is_symlink
+
+                if walk_into:
+                    walk_dirs.append(entry.path)
 
     # Yield before recursion if going top down
     if topdown:
@@ -418,8 +423,8 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
 
         # Recurse into sub-directories
         islink, join = path.islink, path.join
-        for name in dirs:
-            new_path = join(top, name)
+        for dirname in dirs:
+            new_path = join(top, dirname)
             # Issue #23605: os.path.islink() is used instead of caching
             # entry.is_symlink() result during the loop on os.scandir() because
             # the caller can replace the directory entry during the "yield"
@@ -427,8 +432,61 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
             if followlinks or not islink(new_path):
                 yield from walk(new_path, topdown, onerror, followlinks)
     else:
+        # Recurse into sub-directories
+        for new_path in walk_dirs:
+            yield from walk(new_path, topdown, onerror, followlinks)
         # Yield after recursion if going bottom up
         yield top, dirs, nondirs
+
+class _DummyDirEntry:
+    """Dummy implementation of DirEntry
+
+    Only used internally by os.walk(bytes). Since os.walk() doesn't need the
+    follow_symlinks parameter: don't implement it, always follow symbolic
+    links.
+    """
+
+    def __init__(self, dir, name):
+        self.name = name
+        self.path = path.join(dir, name)
+        # Mimick FindFirstFile/FindNextFile: we should get file attributes
+        # while iterating on a directory
+        self._stat = None
+        try:
+            self.stat()
+        except OSError:
+            pass
+
+    def stat(self):
+        if self._stat is None:
+            self._stat = stat(self.path)
+        return self._stat
+
+    def is_dir(self):
+        stat = self.stat()
+        return st.S_ISDIR(stat.st_mode)
+
+    def is_symlink(self):
+        stat = self.stat()
+        return st.S_ISLNK(stat.st_mode)
+
+class _dummy_scandir:
+    # listdir-based implementation for bytes patches on Windows
+    def __init__(self, dir):
+        self.dir = dir
+        self.it = iter(listdir(dir))
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return _DummyDirEntry(self.dir, next(self.it))
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.it = iter(())
 
 __all__.append("walk")
 

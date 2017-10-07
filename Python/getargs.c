@@ -342,7 +342,7 @@ vgetargs1(PyObject *args, const char *format, va_list *p_va, int flags)
                           flags, levels, msgbuf,
                           sizeof(msgbuf), &freelist);
         if (msg) {
-            seterror(i+1, msg, levels, fname, msg);
+            seterror(i+1, msg, levels, fname, message);
             return cleanreturn(0, &freelist);
         }
     }
@@ -394,7 +394,12 @@ seterror(Py_ssize_t iarg, const char *msg, int *levels, const char *fname,
         PyOS_snprintf(p, sizeof(buf) - (p - buf), " %.256s", msg);
         message = buf;
     }
-    PyErr_SetString(PyExc_TypeError, message);
+    if (msg[0] == '(') {
+        PyErr_SetString(PyExc_SystemError, message);
+    }
+    else {
+        PyErr_SetString(PyExc_TypeError, message);
+    }
 }
 
 
@@ -535,9 +540,15 @@ converterr(const char *expected, PyObject *arg, char *msgbuf, size_t bufsize)
 {
     assert(expected != NULL);
     assert(arg != NULL);
-    PyOS_snprintf(msgbuf, bufsize,
-                  "must be %.50s, not %.50s", expected,
-                  arg == Py_None ? "None" : arg->ob_type->tp_name);
+    if (expected[0] == '(') {
+        PyOS_snprintf(msgbuf, bufsize,
+                      "%.100s", expected);
+    }
+    else {
+        PyOS_snprintf(msgbuf, bufsize,
+                      "must be %.50s, not %.50s", expected,
+                      arg == Py_None ? "None" : arg->ob_type->tp_name);
+    }
     return msgbuf;
 }
 
@@ -741,7 +752,7 @@ convertsimple(PyObject *arg, const char **p_format, va_list *p_va, int flags,
         if (PyLong_Check(arg))
             ival = PyLong_AsUnsignedLongMask(arg);
         else
-            return converterr("integer<k>", arg, msgbuf, bufsize);
+            return converterr("int", arg, msgbuf, bufsize);
         *p = ival;
         break;
     }
@@ -766,7 +777,7 @@ convertsimple(PyObject *arg, const char **p_format, va_list *p_va, int flags,
         if (PyLong_Check(arg))
             ival = PyLong_AsUnsignedLongLongMask(arg);
         else
-            return converterr("integer<K>", arg, msgbuf, bufsize);
+            return converterr("int", arg, msgbuf, bufsize);
         *p = ival;
         break;
     }
@@ -1123,9 +1134,11 @@ convertsimple(PyObject *arg, const char **p_format, va_list *p_va, int flags,
             } else {
                 if (size + 1 > BUFFER_LEN) {
                     Py_DECREF(s);
-                    return converterr(
-                        "(buffer overflow)",
-                        arg, msgbuf, bufsize);
+                    PyErr_Format(PyExc_ValueError,
+                                 "encoded string too long "
+                                 "(%zd, maximum length %zd)",
+                                 (Py_ssize_t)size, (Py_ssize_t)(BUFFER_LEN-1));
+                    RETURN_ERR_OCCURRED;
                 }
             }
             memcpy(*buffer, ptr, size+1);
@@ -1147,7 +1160,7 @@ convertsimple(PyObject *arg, const char **p_format, va_list *p_va, int flags,
             if ((Py_ssize_t)strlen(ptr) != size) {
                 Py_DECREF(s);
                 return converterr(
-                    "encoded string without NULL bytes",
+                    "encoded string without null bytes",
                     arg, msgbuf, bufsize);
             }
             *buffer = PyMem_NEW(char, size + 1);
@@ -1237,7 +1250,7 @@ convertsimple(PyObject *arg, const char **p_format, va_list *p_va, int flags,
 
         if (*format != '*')
             return converterr(
-                "invalid use of 'w' format character",
+                "(invalid use of 'w' format character)",
                 arg, msgbuf, bufsize);
         format++;
 
@@ -1261,7 +1274,7 @@ convertsimple(PyObject *arg, const char **p_format, va_list *p_va, int flags,
     }
 
     default:
-        return converterr("impossible<bad format char>", arg, msgbuf, bufsize);
+        return converterr("(impossible<bad format char>)", arg, msgbuf, bufsize);
 
     }
 
@@ -1499,7 +1512,7 @@ vgetargskeywords(PyObject *args, PyObject *keywords, const char *format,
         keyword = kwlist[i];
         if (*format == '|') {
             if (min != INT_MAX) {
-                PyErr_SetString(PyExc_RuntimeError,
+                PyErr_SetString(PyExc_SystemError,
                                 "Invalid format string (| specified twice)");
                 return cleanreturn(0, &freelist);
             }
@@ -1508,14 +1521,14 @@ vgetargskeywords(PyObject *args, PyObject *keywords, const char *format,
             format++;
 
             if (max != INT_MAX) {
-                PyErr_SetString(PyExc_RuntimeError,
+                PyErr_SetString(PyExc_SystemError,
                                 "Invalid format string ($ before |)");
                 return cleanreturn(0, &freelist);
             }
         }
         if (*format == '$') {
             if (max != INT_MAX) {
-                PyErr_SetString(PyExc_RuntimeError,
+                PyErr_SetString(PyExc_SystemError,
                                 "Invalid format string ($ specified twice)");
                 return cleanreturn(0, &freelist);
             }
@@ -1533,7 +1546,7 @@ vgetargskeywords(PyObject *args, PyObject *keywords, const char *format,
             }
         }
         if (IS_END_OF_FORMAT(*format)) {
-            PyErr_Format(PyExc_RuntimeError,
+            PyErr_Format(PyExc_SystemError,
                          "More keyword list entries (%d) than "
                          "format specifiers (%d)", len, i);
             return cleanreturn(0, &freelist);
@@ -1585,14 +1598,14 @@ vgetargskeywords(PyObject *args, PyObject *keywords, const char *format,
          * keyword args */
         msg = skipitem(&format, p_va, flags);
         if (msg) {
-            PyErr_Format(PyExc_RuntimeError, "%s: '%s'", msg,
+            PyErr_Format(PyExc_SystemError, "%s: '%s'", msg,
                          format);
             return cleanreturn(0, &freelist);
         }
     }
 
     if (!IS_END_OF_FORMAT(*format) && (*format != '|') && (*format != '$')) {
-        PyErr_Format(PyExc_RuntimeError,
+        PyErr_Format(PyExc_SystemError,
             "more argument specifiers than keyword list entries "
             "(remaining format:'%s')", format);
         return cleanreturn(0, &freelist);
