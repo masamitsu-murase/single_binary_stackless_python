@@ -3944,8 +3944,10 @@ _PyObject_GetState(PyObject *obj)
                 PyObject *name, *value;
 
                 name = PyList_GET_ITEM(slotnames, i);
+                Py_INCREF(name);
                 value = PyObject_GetAttr(obj, name);
                 if (value == NULL) {
+                    Py_DECREF(name);
                     if (!PyErr_ExceptionMatches(PyExc_AttributeError)) {
                         goto error;
                     }
@@ -3954,6 +3956,7 @@ _PyObject_GetState(PyObject *obj)
                 }
                 else {
                     int err = PyDict_SetItem(slots, name, value);
+                    Py_DECREF(name);
                     Py_DECREF(value);
                     if (err) {
                         goto error;
@@ -4155,6 +4158,12 @@ reduce_newobj(PyObject *obj)
     PyObject *newobj, *newargs, *state, *listitems, *dictitems;
     PyObject *result;
 
+    if (Py_TYPE(obj)->tp_new == NULL) {
+        PyErr_Format(PyExc_TypeError,
+                     "can't pickle %s objects",
+                     Py_TYPE(obj)->tp_name);
+        return NULL;
+    }
     if (_PyObject_GetNewArguments(obj, &args, &kwargs) < 0)
         return NULL;
 

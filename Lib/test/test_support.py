@@ -9,13 +9,11 @@ import errno
 from test import support
 
 TESTFN = support.TESTFN
-TESTDIRN = os.path.basename(tempfile.mkdtemp(dir='.'))
 
 
 class TestSupport(unittest.TestCase):
     def setUp(self):
         support.unlink(TESTFN)
-        support.rmtree(TESTDIRN)
     tearDown = setUp
 
     def test_import_module(self):
@@ -48,6 +46,10 @@ class TestSupport(unittest.TestCase):
         support.unlink(TESTFN)
 
     def test_rmtree(self):
+        TESTDIRN = os.path.basename(tempfile.mkdtemp(dir='.'))
+        self.addCleanup(support.rmtree, TESTDIRN)
+        support.rmtree(TESTDIRN)
+
         os.mkdir(TESTDIRN)
         os.mkdir(os.path.join(TESTDIRN, TESTDIRN))
         support.rmtree(TESTDIRN)
@@ -311,6 +313,28 @@ class TestSupport(unittest.TestCase):
         missing_items = support.detect_api_mismatch(
                 self.OtherClass, self.RefClass, ignore=ignore)
         self.assertEqual(set(), missing_items)
+
+    def test_check__all__(self):
+        extra = {'tempdir'}
+        blacklist = {'template'}
+        support.check__all__(self,
+                             tempfile,
+                             extra=extra,
+                             blacklist=blacklist)
+
+        extra = {'TextTestResult', 'installHandler'}
+        blacklist = {'load_tests', "TestProgram", "BaseTestSuite"}
+
+        support.check__all__(self,
+                             unittest,
+                             ("unittest.result", "unittest.case",
+                              "unittest.suite", "unittest.loader",
+                              "unittest.main", "unittest.runner",
+                              "unittest.signals"),
+                             extra=extra,
+                             blacklist=blacklist)
+
+        self.assertRaises(AssertionError, support.check__all__, self, unittest)
 
     # XXX -follows a list of untested API
     # make_legacy_pyc

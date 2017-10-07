@@ -26,6 +26,7 @@ import sys
 import sysconfig
 import tempfile
 import time
+import types
 import unittest
 import urllib.error
 import warnings
@@ -94,6 +95,7 @@ __all__ = [
     "bigmemtest", "bigaddrspacetest", "cpython_only", "get_attribute",
     "requires_IEEE_754", "skip_unless_xattr", "requires_zlib",
     "anticipate_failure", "load_package_tests", "detect_api_mismatch",
+    "check__all__",
     # sys
     "is_jython", "check_impl_detail",
     # network
@@ -1615,12 +1617,15 @@ class _MemoryWatchdog:
 def bigmemtest(size, memuse, dry_run=True):
     """Decorator for bigmem tests.
 
-    'minsize' is the minimum useful size for the test (in arbitrary,
-    test-interpreted units.) 'memuse' is the number of 'bytes per size' for
-    the test, or a good estimate of it.
+    'size' is a requested size for the test (in arbitrary, test-interpreted
+    units.) 'memuse' is the number of bytes per unit for the test, or a good
+    estimate of it. For example, a test that needs two byte buffers, of 4 GiB
+    each, could be decorated with @bigmemtest(size=_4G, memuse=2).
 
-    if 'dry_run' is False, it means the test doesn't support dummy runs
-    when -M is not specified.
+    The 'size' argument is normally passed to the decorated test method as an
+    extra argument. If 'dry_run' is true, the value passed to the test method
+    may be less than the requested value. If 'dry_run' is false, it means the
+    test doesn't support dummy runs when -M is not specified.
     """
     def decorator(f):
         def wrapper(self):
@@ -2204,6 +2209,65 @@ def detect_api_mismatch(ref_api, other_api, *, ignore=()):
     missing_items = set(m for m in missing_items
                         if not m.startswith('_') or m.endswith('__'))
     return missing_items
+
+
+def check__all__(test_case, module, name_of_module=None, extra=(),
+                 blacklist=()):
+    """Assert that the __all__ variable of 'module' contains all public names.
+
+    The module's public names (its API) are detected automatically based on
+    whether they match the public name convention and were defined in
+    'module'.
+
+    The 'name_of_module' argument can specify (as a string or tuple thereof)
+    what module(s) an API could be defined in in order to be detected as a
+    public API. One case for this is when 'module' imports part of its public
+    API from other modules, possibly a C backend (like 'csv' and its '_csv').
+
+    The 'extra' argument can be a set of names that wouldn't otherwise be
+    automatically detected as "public", like objects without a proper
+    '__module__' attriubute. If provided, it will be added to the
+    automatically detected ones.
+
+    The 'blacklist' argument can be a set of names that must not be treated
+    as part of the public API even though their names indicate otherwise.
+
+    Usage:
+        import bar
+        import foo
+        import unittest
+        from test import support
+
+        class MiscTestCase(unittest.TestCase):
+            def test__all__(self):
+                support.check__all__(self, foo)
+
+        class OtherTestCase(unittest.TestCase):
+            def test__all__(self):
+                extra = {'BAR_CONST', 'FOO_CONST'}
+                blacklist = {'baz'}  # Undocumented name.
+                # bar imports part of its API from _bar.
+                support.check__all__(self, bar, ('bar', '_bar'),
+                                     extra=extra, blacklist=blacklist)
+
+    """
+
+    if name_of_module is None:
+        name_of_module = (module.__name__, )
+    elif isinstance(name_of_module, str):
+        name_of_module = (name_of_module, )
+
+    expected = set(extra)
+
+    for name in dir(module):
+        if name.startswith('_') or name in blacklist:
+            continue
+        obj = getattr(module, name)
+        if (getattr(obj, '__module__', None) in name_of_module or
+                (not hasattr(obj, '__module__') and
+                 not isinstance(obj, types.ModuleType))):
+            expected.add(name)
+    test_case.assertCountEqual(module.__all__, expected)
 
 
 class SuppressCrashReport:

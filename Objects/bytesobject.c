@@ -1937,16 +1937,15 @@ bytes_find_internal(PyBytesObject *self, PyObject *args, int dir)
     ADJUST_INDICES(start, end, len);
     if (end - start < sub_len)
         res = -1;
-    else if (sub_len == 1
-#ifndef HAVE_MEMRCHR
-            && dir > 0
-#endif
-    ) {
-        unsigned char needle = *sub;
-        int mode = (dir > 0) ? FAST_SEARCH : FAST_RSEARCH;
-        res = stringlib_fastsearch_memchr_1char(
-            PyBytes_AS_STRING(self) + start, end - start,
-            needle, needle, mode);
+    else if (sub_len == 1) {
+        if (dir > 0)
+            res = stringlib_find_char(
+                PyBytes_AS_STRING(self) + start, end - start,
+                *sub);
+        else
+            res = stringlib_rfind_char(
+                PyBytes_AS_STRING(self) + start, end - start,
+                *sub);
         if (res >= 0)
             res += start;
     }
@@ -3292,7 +3291,7 @@ static PyNumberMethods bytes_as_number = {
 };
 
 static PyObject *
-str_subtype_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+bytes_subtype_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 
 static PyObject *
 bytes_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
@@ -3307,7 +3306,7 @@ bytes_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     _Py_IDENTIFIER(__bytes__);
 
     if (type != &PyBytes_Type)
-        return str_subtype_new(type, args, kwds);
+        return bytes_subtype_new(type, args, kwds);
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|Oss:bytes", kwlist, &x,
                                      &encoding, &errors))
         return NULL;
@@ -3557,7 +3556,7 @@ PyBytes_FromObject(PyObject *x)
 }
 
 static PyObject *
-str_subtype_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+bytes_subtype_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
     PyObject *tmp, *pnew;
     Py_ssize_t n;
@@ -3566,7 +3565,7 @@ str_subtype_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     tmp = bytes_new(&PyBytes_Type, args, kwds);
     if (tmp == NULL)
         return NULL;
-    assert(PyBytes_CheckExact(tmp));
+    assert(PyBytes_Check(tmp));
     n = PyBytes_GET_SIZE(tmp);
     pnew = type->tp_alloc(type, n);
     if (pnew != NULL) {

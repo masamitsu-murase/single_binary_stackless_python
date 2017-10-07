@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 import builtins
 import rlcompleter
 
@@ -72,12 +73,33 @@ class TestRlcompleter(unittest.TestCase):
         self.assertIn('CompleteMe.__name__', matches)
         self.assertIn('CompleteMe.__new__(', matches)
 
-        CompleteMe.me = CompleteMe
-        self.assertEqual(self.completer.attr_matches('CompleteMe.me.me.sp'),
-                         ['CompleteMe.me.me.spam'])
-        self.assertEqual(self.completer.attr_matches('egg.s'),
-                         ['egg.{}('.format(x) for x in dir(str)
-                          if x.startswith('s')])
+        with patch.object(CompleteMe, "me", CompleteMe, create=True):
+            self.assertEqual(self.completer.attr_matches('CompleteMe.me.me.sp'),
+                             ['CompleteMe.me.me.spam'])
+            self.assertEqual(self.completer.attr_matches('egg.s'),
+                             ['egg.{}('.format(x) for x in dir(str)
+                              if x.startswith('s')])
+
+    def test_excessive_getattr(self):
+        # Ensure getattr() is invoked no more than once per attribute
+        class Foo:
+            calls = 0
+            @property
+            def bar(self):
+                self.calls += 1
+                return None
+        f = Foo()
+        completer = rlcompleter.Completer(dict(f=f))
+        self.assertEqual(completer.complete('f.b', 0), 'f.bar')
+        self.assertEqual(f.calls, 1)
+
+    def test_uncreated_attr(self):
+        # Attributes like properties and slots should be completed even when
+        # they haven't been created on an instance
+        class Foo:
+            __slots__ = ("bar",)
+        completer = rlcompleter.Completer(dict(f=Foo()))
+        self.assertEqual(completer.complete('f.', 0), 'f.bar')
 
     def test_complete(self):
         completer = rlcompleter.Completer()
@@ -91,6 +113,28 @@ class TestRlcompleter(unittest.TestCase):
         self.assertEqual(completer.complete('el', 0), 'elif ')
         self.assertEqual(completer.complete('el', 1), 'else')
         self.assertEqual(completer.complete('tr', 0), 'try:')
+
+    def test_duplicate_globals(self):
+        namespace = {
+            'False': None,  # Keyword vs builtin vs namespace
+            'assert': None,  # Keyword vs namespace
+            'try': lambda: None,  # Keyword vs callable
+            'memoryview': None,  # Callable builtin vs non-callable
+            'Ellipsis': lambda: None,  # Non-callable builtin vs callable
+        }
+        completer = rlcompleter.Completer(namespace)
+        self.assertEqual(completer.complete('False', 0), 'False')
+        self.assertIsNone(completer.complete('False', 1))  # No duplicates
+        # Space or colon added due to being a reserved keyword
+        self.assertEqual(completer.complete('assert', 0), 'assert ')
+        self.assertIsNone(completer.complete('assert', 1))
+        self.assertEqual(completer.complete('try', 0), 'try:')
+        self.assertIsNone(completer.complete('try', 1))
+        # No opening bracket "(" because we overrode the built-in class
+        self.assertEqual(completer.complete('memoryview', 0), 'memoryview')
+        self.assertIsNone(completer.complete('memoryview', 1))
+        self.assertEqual(completer.complete('Ellipsis', 0), 'Ellipsis(')
+        self.assertIsNone(completer.complete('Ellipsis', 1))
 
 if __name__ == '__main__':
     unittest.main()

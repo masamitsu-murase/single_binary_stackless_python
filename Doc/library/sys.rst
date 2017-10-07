@@ -255,7 +255,7 @@ always available.
    (defaulting to zero), or another type of object.  If it is an integer, zero
    is considered "successful termination" and any nonzero value is considered
    "abnormal termination" by shells and the like.  Most systems require it to be
-   in the range 0-127, and produce undefined results otherwise.  Some systems
+   in the range 0--127, and produce undefined results otherwise.  Some systems
    have a convention for assigning specific meanings to specific exit codes, but
    these are generally underdeveloped; Unix programs generally use 2 for command
    line syntax errors and 1 for all other kind of errors.  If another type of
@@ -267,6 +267,11 @@ always available.
    Since :func:`exit` ultimately "only" raises an exception, it will only exit
    the process when called from the main thread, and the exception is not
    intercepted.
+
+   .. versionchanged:: 3.6
+      If an error occurs in the cleanup after the Python interpreter
+      has caught :exc:`SystemExit` (such as an error flushing buffered data
+      in the standard streams), the exit status is changed to 120.
 
 
 .. data:: flags
@@ -774,19 +779,32 @@ always available.
 
 .. data:: meta_path
 
-    A list of :term:`finder` objects that have their :meth:`find_module`
-    methods called to see if one of the objects can find the module to be
-    imported. The :meth:`find_module` method is called at least with the
-    absolute name of the module being imported. If the module to be imported is
-    contained in package then the parent package's :attr:`__path__` attribute
-    is passed in as a second argument. The method returns ``None`` if
-    the module cannot be found, else returns a :term:`loader`.
+    A list of :term:`meta path finder` objects that have their
+    :meth:`~importlib.abc.MetaPathFinder.find_spec` methods called to see if one
+    of the objects can find the module to be imported. The
+    :meth:`~importlib.abc.MetaPathFinder.find_spec` method is called with at
+    least the absolute name of the module being imported. If the module to be
+    imported is contained in a package, then the parent package's :attr:`__path__`
+    attribute is passed in as a second argument. The method returns a
+    :term:`module spec`, or ``None`` if the module cannot be found.
 
-    :data:`sys.meta_path` is searched before any implicit default finders or
-    :data:`sys.path`.
+    .. seealso::
 
-    See :pep:`302` for the original specification.
+        :class:`importlib.abc.MetaPathFinder`
+          The abstract base class defining the interface of finder objects on
+          :data:`meta_path`.
+        :class:`importlib.machinery.ModuleSpec`
+          The concrete class which
+          :meth:`~importlib.abc.MetaPathFinder.find_spec` should return
+          instances of.
 
+    .. versionchanged:: 3.4
+
+        :term:`Module specs <module spec>` were introduced in Python 3.4, by
+        :pep:`451`. Earlier versions of Python looked for a method called
+        :meth:`~importlib.abc.MetaPathFinder.find_module`.
+        This is still called as a fallback if a :data:`meta_path` entry doesn't
+        have a :meth:`~importlib.abc.MetaPathFinder.find_spec` method.
 
 .. data:: modules
 

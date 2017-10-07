@@ -516,6 +516,16 @@ if 1:
             res = script_helper.run_python_until_end(fn)[0]
         self.assertIn(b"Non-UTF-8", res.err)
 
+    def test_yet_more_evil_still_undecodable(self):
+        # Issue #25388
+        src = b"#\x00\n#\xfd\n"
+        with tempfile.TemporaryDirectory() as tmpd:
+            fn = os.path.join(tmpd, "bad.py")
+            with open(fn, "wb") as fp:
+                fp.write(src)
+            res = script_helper.run_python_until_end(fn)[0]
+        self.assertIn(b"Non-UTF-8", res.err)
+
     @support.cpython_only
     def test_compiler_recursion_limit(self):
         # Expected limit is sys.getrecursionlimit() * the scaling factor
@@ -545,10 +555,9 @@ if 1:
     def test_null_terminated(self):
         # The source code is null-terminated internally, but bytes-like
         # objects are accepted, which could be not terminated.
-        # Exception changed from TypeError to ValueError in 3.5
-        with self.assertRaisesRegex(Exception, "cannot contain null"):
+        with self.assertRaisesRegex(ValueError, "cannot contain null"):
             compile("123\x00", "<dummy>", "eval")
-        with self.assertRaisesRegex(Exception, "cannot contain null"):
+        with self.assertRaisesRegex(ValueError, "cannot contain null"):
             compile(memoryview(b"123\x00"), "<dummy>", "eval")
         code = compile(memoryview(b"123\x00")[1:-1], "<dummy>", "eval")
         self.assertEqual(eval(code), 23)

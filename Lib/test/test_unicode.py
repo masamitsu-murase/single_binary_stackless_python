@@ -43,6 +43,9 @@ def duplicate_string(text):
     """
     return text.encode().decode()
 
+class StrSubclass(str):
+    pass
+
 class UnicodeTest(string_tests.CommonTest,
         string_tests.MixinStrUnicodeUserStringTest,
         string_tests.MixinStrUnicodeTest,
@@ -849,7 +852,15 @@ class UnicodeTest(string_tests.CommonTest,
     @support.cpython_only
     def test_case_operation_overflow(self):
         # Issue #22643
-        self.assertRaises(OverflowError, ("ü"*(2**32//12 + 1)).upper)
+        size = 2**32//12 + 1
+        try:
+            s = "ü" * size
+        except MemoryError:
+            self.skipTest('no enough memory (%.0f MiB required)' % (size / 2**20))
+        try:
+            self.assertRaises(OverflowError, s.upper)
+        finally:
+            del s
 
     def test_contains(self):
         # Testing Unicode contains method
@@ -1433,11 +1444,8 @@ class UnicodeTest(string_tests.CommonTest,
             'unicode remains unicode'
         )
 
-        class UnicodeSubclass(str):
-            pass
-
         for text in ('ascii', '\xe9', '\u20ac', '\U0010FFFF'):
-            subclass = UnicodeSubclass(text)
+            subclass = StrSubclass(text)
             self.assertEqual(str(subclass), text)
             self.assertEqual(len(subclass), len(text))
             if text == 'ascii':
@@ -2191,6 +2199,9 @@ class UnicodeTest(string_tests.CommonTest,
         s = str(StrSubclassToStrSubclass("foo"))
         self.assertEqual(s, "foofoo")
         self.assertIs(type(s), StrSubclassToStrSubclass)
+        s = StrSubclass(StrSubclassToStrSubclass("foo"))
+        self.assertEqual(s, "foofoo")
+        self.assertIs(type(s), StrSubclass)
 
     def test_unicode_repr(self):
         class s1:
@@ -2690,6 +2701,23 @@ class UnicodeTest(string_tests.CommonTest,
         self.assertTrue(astral >= latin)
         self.assertTrue(astral >= bmp2)
         self.assertFalse(astral >= astral2)
+
+    @support.cpython_only
+    def test_pep393_utf8_caching_bug(self):
+        # Issue #25709: Problem with string concatenation and utf-8 cache
+        from _testcapi import getargs_s_hash
+        for k in 0x24, 0xa4, 0x20ac, 0x1f40d:
+            s = ''
+            for i in range(5):
+                # Due to CPython specific optimization the 's' string can be
+                # resized in-place.
+                s += chr(k)
+                # Parsing with the "s#" format code calls indirectly
+                # PyUnicode_AsUTF8AndSize() which creates the UTF-8
+                # encoded string cached in the Unicode object.
+                self.assertEqual(getargs_s_hash(s), chr(k).encode() * (i + 1))
+                # Check that the second call returns the same result
+                self.assertEqual(getargs_s_hash(s), chr(k).encode() * (i + 1))
 
 
 class StringModuleTest(unittest.TestCase):

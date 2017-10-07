@@ -103,9 +103,11 @@ class Completer:
         """
         import keyword
         matches = []
+        seen = {"__builtins__"}
         n = len(text)
         for word in keyword.kwlist:
             if word[:n] == text:
+                seen.add(word)
                 if word in {'finally', 'try'}:
                     word = word + ':'
                 elif word not in {'False', 'None', 'True',
@@ -113,9 +115,10 @@ class Completer:
                                   'else'}:
                     word = word + ' '
                 matches.append(word)
-        for nspace in [builtins.__dict__, self.namespace]:
+        for nspace in [self.namespace, builtins.__dict__]:
             for word, val in nspace.items():
-                if word[:n] == text and word != "__builtins__":
+                if word[:n] == text and word not in seen:
+                    seen.add(word)
                     matches.append(self._callable_postfix(val, word))
         return matches
 
@@ -159,11 +162,15 @@ class Completer:
         while True:
             for word in words:
                 if (word[:n] == attr and
-                    not (noprefix and word[:n+1] == noprefix) and
-                    hasattr(thisobject, word)):
-                    val = getattr(thisobject, word)
-                    word = self._callable_postfix(val, "%s.%s" % (expr, word))
-                    matches.append(word)
+                    not (noprefix and word[:n+1] == noprefix)):
+                    match = "%s.%s" % (expr, word)
+                    try:
+                        val = getattr(thisobject, word)
+                    except Exception:
+                        pass  # Include even if attribute not set
+                    else:
+                        match = self._callable_postfix(val, match)
+                    matches.append(match)
             if matches or not noprefix:
                 break
             if noprefix == '_':

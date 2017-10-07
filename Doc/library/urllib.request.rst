@@ -36,13 +36,8 @@ The :mod:`urllib.request` module defines the following functions:
    *data* should be a buffer in the standard
    :mimetype:`application/x-www-form-urlencoded` format.  The
    :func:`urllib.parse.urlencode` function takes a mapping or sequence of
-   2-tuples and returns a string in this format. It should be encoded to bytes
-   before being used as the *data* parameter. The charset parameter in
-   ``Content-Type`` header may be used to specify the encoding. If charset
-   parameter is not sent with the Content-Type header, the server following the
-   HTTP 1.1 recommendation may assume that the data is encoded in ISO-8859-1
-   encoding. It is advisable to use charset parameter with encoding used in
-   ``Content-Type`` header with the :class:`Request`.
+   2-tuples and returns an ASCII text string in this format. It should
+   be encoded to bytes before being used as the *data* parameter.
 
    urllib.request module uses HTTP/1.1 and includes ``Connection:close`` header
    in its HTTP requests.
@@ -64,13 +59,7 @@ The :mod:`urllib.request` module defines the following functions:
 
    The *cadefault* parameter is ignored.
 
-   For http and https urls, this function returns a
-   :class:`http.client.HTTPResponse` object which has the following
-   :ref:`httpresponse-objects` methods.
-
-   For ftp, file, and data urls and requests explicitly handled by legacy
-   :class:`URLopener` and :class:`FancyURLopener` classes, this function
-   returns a :class:`urllib.response.addinfourl` object which can work as
+   This function always returns an object which can work as
    :term:`context manager` and has methods such as
 
    * :meth:`~urllib.response.addinfourl.geturl` --- return the URL of the resource retrieved,
@@ -81,6 +70,18 @@ The :mod:`urllib.request` module defines the following functions:
      `Quick Reference to HTTP Headers <http://www.cs.tut.fi/~jkorpela/http.html>`_)
 
    * :meth:`~urllib.response.addinfourl.getcode` -- return the HTTP status code of the response.
+
+   For http and https urls, this function returns a
+   :class:`http.client.HTTPResponse` object slightly modified. In addition
+   to the three new methods above, the msg attribute contains the
+   same information as the :attr:`~http.client.HTTPResponse.reason`
+   attribute --- the reason phrase returned by server --- instead of
+   the response headers as it is specified in the documentation for
+   :class:`~http.client.HTTPResponse`.
+
+   For ftp, file, and data urls and requests explicitly handled by legacy
+   :class:`URLopener` and :class:`FancyURLopener` classes, this function
+   returns a :class:`urllib.response.addinfourl` object.
 
    Raises :exc:`~urllib.error.URLError` on errors.
 
@@ -180,16 +181,9 @@ The following classes are provided:
    the only ones that use *data*; the HTTP request will be a POST instead of a
    GET when the *data* parameter is provided.  *data* should be a buffer in the
    standard :mimetype:`application/x-www-form-urlencoded` format.
-
    The :func:`urllib.parse.urlencode` function takes a mapping or sequence of
-   2-tuples and returns a string in this format. It should be encoded to bytes
-   before being used as the *data* parameter. The charset parameter in
-   ``Content-Type`` header may be used to specify the encoding. If charset
-   parameter is not sent with the Content-Type header, the server following the
-   HTTP 1.1 recommendation may assume that the data is encoded in ISO-8859-1
-   encoding. It is advisable to use charset parameter with encoding used in
-   ``Content-Type`` header with the :class:`Request`.
-
+   2-tuples and returns an ASCII string in this format. It should be
+   encoded to bytes before being used as the *data* parameter.
 
    *headers* should be a dictionary, and will be treated as if
    :meth:`add_header` was called with each key and value as arguments.
@@ -202,7 +196,7 @@ The following classes are provided:
    ``"Python-urllib/2.6"`` (on Python 2.6).
 
    An example of using ``Content-Type`` header with *data* argument would be
-   sending a dictionary like ``{"Content-Type":" application/x-www-form-urlencoded;charset=utf-8"}``.
+   sending a dictionary like ``{"Content-Type": "application/x-www-form-urlencoded"}``.
 
    The final two arguments are only of interest for correct handling
    of third-party HTTP cookies:
@@ -1168,7 +1162,7 @@ The code for the sample CGI used in the above example is::
    #!/usr/bin/env python
    import sys
    data = sys.stdin.read()
-   print('Content-type: text-plain\n\nGot Data: "%s"' % data)
+   print('Content-type: text/plain\n\nGot Data: "%s"' % data)
 
 Here is an example of doing a ``PUT`` request using :class:`Request`::
 
@@ -1230,7 +1224,7 @@ every :class:`Request`.  To change this::
    opener.open('http://www.example.com/')
 
 Also, remember that a few standard headers (:mailheader:`Content-Length`,
-:mailheader:`Content-Type` without charset parameter and :mailheader:`Host`)
+:mailheader:`Content-Type` and :mailheader:`Host`)
 are added when the :class:`Request` is passed to :func:`urlopen` (or
 :meth:`OpenerDirector.open`).
 
@@ -1253,11 +1247,8 @@ from urlencode is encoded to bytes before it is sent to urlopen as data::
    >>> import urllib.request
    >>> import urllib.parse
    >>> data = urllib.parse.urlencode({'spam': 1, 'eggs': 2, 'bacon': 0})
-   >>> data = data.encode('utf-8')
-   >>> request = urllib.request.Request("http://requestb.in/xrbl82xr")
-   >>> # adding charset parameter to the Content-Type header.
-   >>> request.add_header("Content-Type","application/x-www-form-urlencoded;charset=utf-8")
-   >>> with urllib.request.urlopen(request, data) as f:
+   >>> data = data.encode('ascii')
+   >>> with urllib.request.urlopen("http://requestb.in/xrbl82xr", data) as f:
    ...     print(f.read().decode('utf-8'))
    ...
 

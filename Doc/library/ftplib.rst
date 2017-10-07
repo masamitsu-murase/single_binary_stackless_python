@@ -52,8 +52,7 @@ The module defines the following items:
    will be used). *source_address* is a 2-tuple ``(host, port)`` for the socket
    to bind to as its source address before connecting.
 
-   :class:`FTP` class supports the :keyword:`with` statement. Here is a sample
-   on how using it:
+   The :class:`FTP` class supports the :keyword:`with` statement, e.g.:
 
     >>> from ftplib import FTP
     >>> with FTP("ftp1.at.proftpd.org") as ftp:
@@ -418,8 +417,8 @@ FTP_TLS Objects
 
 .. method:: FTP_TLS.auth()
 
-   Set up secure control connection by using TLS or SSL, depending on what
-   specified in :meth:`ssl_version` attribute.
+   Set up a secure control connection by using TLS or SSL, depending on what
+   is specified in the :attr:`ssl_version` attribute.
 
    .. versionchanged:: 3.4
       The method now supports hostname check with

@@ -905,15 +905,15 @@ functionality with a subclass.  Here is how to add a calculated field and
 a fixed-width print format:
 
     >>> class Point(namedtuple('Point', 'x y')):
-        __slots__ = ()
-        @property
-        def hypot(self):
-            return (self.x ** 2 + self.y ** 2) ** 0.5
-        def __str__(self):
-            return 'Point: x=%6.3f  y=%6.3f  hypot=%6.3f' % (self.x, self.y, self.hypot)
+            __slots__ = ()
+            @property
+            def hypot(self):
+                return (self.x ** 2 + self.y ** 2) ** 0.5
+            def __str__(self):
+                return 'Point: x=%6.3f  y=%6.3f  hypot=%6.3f' % (self.x, self.y, self.hypot)
 
     >>> for p in Point(3, 4), Point(14, 5/7):
-        print(p)
+            print(p)
     Point: x= 3.000  y= 4.000  hypot= 5.000
     Point: x=14.000  y= 0.714  hypot=14.018
 
@@ -929,10 +929,13 @@ Docstrings can be customized by making direct assignments to the ``__doc__``
 fields:
 
    >>> Book = namedtuple('Book', ['id', 'title', 'authors'])
-   >>> Book.__doc__ = 'Hardcover book in active collection'
+   >>> Book.__doc__ += ': Hardcover book in active collection'
    >>> Book.id.__doc__ = '13-digit ISBN'
    >>> Book.title.__doc__ = 'Title of first printing'
-   >>> Book.author.__doc__ = 'List of authors sorted by last name'
+   >>> Book.authors.__doc__ = 'List of authors sorted by last name'
+
+.. versionchanged:: 3.5
+   Property docstrings became writeable.
 
 Default values can be implemented by using :meth:`_replace` to
 customize a prototype instance:
@@ -941,16 +944,6 @@ customize a prototype instance:
     >>> default_account = Account('<owner name>', 0.0, 0)
     >>> johns_account = default_account._replace(owner='John')
     >>> janes_account = default_account._replace(owner='Jane')
-
-Enumerated constants can be implemented with named tuples, but it is simpler
-and more efficient to use a simple :class:`~enum.Enum`:
-
-    >>> Status = namedtuple('Status', 'open pending closed')._make(range(3))
-    >>> Status.open, Status.pending, Status.closed
-    (0, 1, 2)
-    >>> from enum import Enum
-    >>> class Status(Enum):
-    ...     open, pending, closed = range(3)
 
 
 .. seealso::
