@@ -122,7 +122,7 @@ library. ::
 
 Note that other encodings are sometimes required (e.g. for file upload from HTML
 forms - see `HTML Specification, Form Submission
-<http://www.w3.org/TR/REC-html40/interact/forms.html#h-17.13>`_ for more
+<https://www.w3.org/TR/REC-html40/interact/forms.html#h-17.13>`_ for more
 details).
 
 If you do not pass the ``data`` argument, urllib uses a **GET** request. One
@@ -175,10 +175,10 @@ Explorer [#]_. ::
 
     url = 'http://www.someserver.com/cgi-bin/register.cgi'
     user_agent = 'Mozilla/5.0 (Windows NT 6.1; Win64; x64)'
-    values = {'name' : 'Michael Foord',
-              'location' : 'Northampton',
-              'language' : 'Python' }
-    headers = { 'User-Agent' : user_agent }
+    values = {'name': 'Michael Foord',
+              'location': 'Northampton',
+              'language': 'Python' }
+    headers = {'User-Agent': user_agent}
 
     data = urllib.parse.urlencode(values)
     data = data.encode('ascii')
@@ -215,7 +215,7 @@ e.g. ::
     >>> req = urllib.request.Request('http://www.pretend_server.org')
     >>> try: urllib.request.urlopen(req)
     ... except urllib.error.URLError as e:
-    ...    print(e.reason)      #doctest: +SKIP
+    ...     print(e.reason)      #doctest: +SKIP
     ...
     (4, 'getaddrinfo failed')
 
@@ -372,7 +372,7 @@ Number 2
 ::
 
     from urllib.request import Request, urlopen
-    from urllib.error import  URLError
+    from urllib.error import URLError
     req = Request(someurl)
     try:
         response = urlopen(req)
@@ -403,7 +403,7 @@ fetched, particularly the headers sent by the server. It is currently an
 :class:`http.client.HTTPMessage` instance.
 
 Typical headers include 'Content-length', 'Content-type', and so on. See the
-`Quick Reference to HTTP Headers <http://www.cs.tut.fi/~jkorpela/http.html>`_
+`Quick Reference to HTTP Headers <https://www.cs.tut.fi/~jkorpela/http.html>`_
 for a useful listing of HTTP headers with brief explanations of their meaning
 and use.
 
@@ -586,5 +586,5 @@ This document was reviewed and revised by John Lee.
        scripts with a localhost server, I have to prevent urllib from using
        the proxy.
 .. [#] urllib opener for SSL proxy (CONNECT method): `ASPN Cookbook Recipe
-       <http://code.activestate.com/recipes/456195/>`_.
+       <https://code.activestate.com/recipes/456195/>`_.
 

@@ -1002,7 +1002,7 @@ class EventLoopTestsMixin:
         with mock.patch.object(self.loop, 'call_exception_handler'):
             with test_utils.disable_logger():
                 with self.assertRaisesRegex(ssl.SSLError,
-                                            '(?i)certificate.verify.failed '):
+                                            '(?i)certificate.verify.failed'):
                     self.loop.run_until_complete(f_c)
 
             # execute the loop to log the connection error
@@ -1036,7 +1036,7 @@ class EventLoopTestsMixin:
         with mock.patch.object(self.loop, 'call_exception_handler'):
             with test_utils.disable_logger():
                 with self.assertRaisesRegex(ssl.SSLError,
-                                            '(?i)certificate.verify.failed '):
+                                            '(?i)certificate.verify.failed'):
                     self.loop.run_until_complete(f_c)
 
             # execute the loop to log the connection error
@@ -1365,6 +1365,41 @@ class EventLoopTestsMixin:
             ['INITIAL', 'CONNECTED', 'EOF', 'CLOSED'], proto.state)
         # extra info is available
         self.assertIsNotNone(proto.transport.get_extra_info('pipe'))
+
+    @unittest.skipUnless(sys.platform != 'win32',
+                         "Don't support pipes for Windows")
+    def test_unclosed_pipe_transport(self):
+        # This test reproduces the issue #314 on GitHub
+        loop = self.create_event_loop()
+        read_proto = MyReadPipeProto(loop=loop)
+        write_proto = MyWritePipeProto(loop=loop)
+
+        rpipe, wpipe = os.pipe()
+        rpipeobj = io.open(rpipe, 'rb', 1024)
+        wpipeobj = io.open(wpipe, 'w', 1024)
+
+        @asyncio.coroutine
+        def connect():
+            read_transport, _ = yield from loop.connect_read_pipe(
+                lambda: read_proto, rpipeobj)
+            write_transport, _ = yield from loop.connect_write_pipe(
+                lambda: write_proto, wpipeobj)
+            return read_transport, write_transport
+
+        # Run and close the loop without closing the transports
+        read_transport, write_transport = loop.run_until_complete(connect())
+        loop.close()
+
+        # These 'repr' calls used to raise an AttributeError
+        # See Issue #314 on GitHub
+        self.assertIn('open', repr(read_transport))
+        self.assertIn('open', repr(write_transport))
+
+        # Clean up (avoid ResourceWarning)
+        rpipeobj.close()
+        wpipeobj.close()
+        read_transport._pipe = None
+        write_transport._pipe = None
 
     @unittest.skipUnless(sys.platform != 'win32',
                          "Don't support pipes for Windows")

@@ -67,7 +67,7 @@ test runner
    a GUI tool for test discovery and execution.  This is intended largely for ease of use
    for those new to unit testing.  For production environments it is
    recommended that tests be driven by a continuous integration system such as
-   `Buildbot <http://buildbot.net/>`_, `Jenkins <http://jenkins-ci.org/>`_
+   `Buildbot <https://buildbot.net/>`_, `Jenkins <https://jenkins.io/>`_
    or  `Hudson <http://hudson-ci.org/>`_.
 
 
@@ -86,19 +86,19 @@ Here is a short script to test three string methods::
 
   class TestStringMethods(unittest.TestCase):
 
-    def test_upper(self):
-        self.assertEqual('foo'.upper(), 'FOO')
+      def test_upper(self):
+          self.assertEqual('foo'.upper(), 'FOO')
 
-    def test_isupper(self):
-        self.assertTrue('FOO'.isupper())
-        self.assertFalse('Foo'.isupper())
+      def test_isupper(self):
+          self.assertTrue('FOO'.isupper())
+          self.assertFalse('Foo'.isupper())
 
-    def test_split(self):
-        s = 'hello world'
-        self.assertEqual(s.split(), ['hello', 'world'])
-        # check that s.split fails when the separator is not a string
-        with self.assertRaises(TypeError):
-            s.split(2)
+      def test_split(self):
+          s = 'hello world'
+          self.assertEqual(s.split(), ['hello', 'world'])
+          # check that s.split fails when the separator is not a string
+          with self.assertRaises(TypeError):
+              s.split(2)
 
   if __name__ == '__main__':
       unittest.main()
@@ -1388,9 +1388,9 @@ Test cases
 
       Add a function to be called after :meth:`tearDown` to cleanup resources
       used during the test. Functions will be called in reverse order to the
-      order they are added (LIFO). They are called with any arguments and
-      keyword arguments passed into :meth:`addCleanup` when they are
-      added.
+      order they are added (:abbr:`LIFO (last-in, first-out)`).  They
+      are called with any arguments and keyword arguments passed into
+      :meth:`addCleanup` when they are added.
 
       If :meth:`setUp` fails, meaning that :meth:`tearDown` is not called,
       then any cleanup functions added will still be called.

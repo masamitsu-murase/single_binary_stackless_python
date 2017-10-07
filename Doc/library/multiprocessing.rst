@@ -644,8 +644,9 @@ primitives like locks.
 For passing messages one can use :func:`Pipe` (for a connection between two
 processes) or a queue (which allows multiple producers and consumers).
 
-The :class:`Queue`, :class:`SimpleQueue` and :class:`JoinableQueue` types are multi-producer,
-multi-consumer FIFO queues modelled on the :class:`queue.Queue` class in the
+The :class:`Queue`, :class:`SimpleQueue` and :class:`JoinableQueue` types
+are multi-producer, multi-consumer :abbr:`FIFO (first-in, first-out)`
+queues modelled on the :class:`queue.Queue` class in the
 standard library.  They differ in that :class:`Queue` lacks the
 :meth:`~queue.Queue.task_done` and :meth:`~queue.Queue.join` methods introduced
 into Python 2.5's :class:`queue.Queue` class.
@@ -2668,8 +2669,8 @@ Explicitly pass resources to child processes
             ... do something using "lock" ...
 
         if __name__ == '__main__':
-           lock = Lock()
-           for i in range(10):
+            lock = Lock()
+            for i in range(10):
                 Process(target=f).start()
 
     should be rewritten as ::
@@ -2680,8 +2681,8 @@ Explicitly pass resources to child processes
             ... do something using "l" ...
 
         if __name__ == '__main__':
-           lock = Lock()
-           for i in range(10):
+            lock = Lock()
+            for i in range(10):
                 Process(target=f, args=(lock,)).start()
 
 Beware of replacing :data:`sys.stdin` with a "file like object"

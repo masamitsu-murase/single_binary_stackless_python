@@ -468,12 +468,6 @@ class Misc:
         disabledForeground, insertBackground, troughColor."""
         self.tk.call(('tk_setPalette',)
               + _flatten(args) + _flatten(list(kw.items())))
-    def tk_menuBar(self, *args):
-        """Do not use. Needed in Tk 3.6 and earlier."""
-        # obsolete since Tk 4.0
-        import warnings
-        warnings.warn('tk_menuBar() does nothing and will be removed in 3.6',
-                      DeprecationWarning, stacklevel=2)
     def wait_variable(self, name='PY_VAR'):
         """Wait until the variable is modified.
 
@@ -1248,7 +1242,7 @@ class Misc:
         nsign, b, f, h, k, s, t, w, x, y, A, E, K, N, W, T, X, Y, D = args
         # Missing: (a, c, d, m, o, v, B, R)
         e = Event()
-        # serial field: valid vor all events
+        # serial field: valid for all events
         # number of button: ButtonPress and ButtonRelease events only
         # height field: Configure, ConfigureRequest, Create,
         # ResizeRequest, and Expose events only
@@ -1256,11 +1250,11 @@ class Misc:
         # time field: "valid for events that contain a time field"
         # width field: Configure, ConfigureRequest, Create, ResizeRequest,
         # and Expose events only
-        # x field: "valid for events that contain a x field"
+        # x field: "valid for events that contain an x field"
         # y field: "valid for events that contain a y field"
         # keysym as decimal: KeyPress and KeyRelease events only
         # x_root, y_root fields: ButtonPress, ButtonRelease, KeyPress,
-        # KeyRelease,and Motion events
+        # KeyRelease, and Motion events
         e.serial = getint(nsign)
         e.num = getint_event(b)
         try: e.focus = getboolean(f)
@@ -2705,12 +2699,6 @@ class Menu(Widget):
     def tk_popup(self, x, y, entry=""):
         """Post the menu at position X,Y with entry ENTRY."""
         self.tk.call('tk_popup', self._w, x, y, entry)
-    def tk_bindForTraversal(self):
-        # obsolete since Tk 4.0
-        import warnings
-        warnings.warn('tk_bindForTraversal() does nothing and '
-                      'will be removed in 3.6',
-                      DeprecationWarning, stacklevel=2)
     def activate(self, index):
         """Activate entry at INDEX."""
         self.tk.call(self._w, 'activate', index)

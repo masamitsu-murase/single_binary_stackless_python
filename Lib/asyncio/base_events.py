@@ -86,7 +86,7 @@ if hasattr(socket, 'SOCK_CLOEXEC'):
     _SOCKET_TYPE_MASK |= socket.SOCK_CLOEXEC
 
 
-@functools.lru_cache(maxsize=1024)
+@functools.lru_cache(maxsize=1024, typed=True)
 def _ipaddr_info(host, port, family, type, proto):
     # Try to skip getaddrinfo if "host" is already an IP. Since getaddrinfo
     # blocks on an exclusive lock on some platforms, users might handle name
@@ -101,6 +101,11 @@ def _ipaddr_info(host, port, family, type, proto):
         proto = socket.IPPROTO_UDP
     else:
         return None
+
+    if port in {None, ''}:
+        port = 0
+    elif isinstance(port, (bytes, str)):
+        port = int(port)
 
     if hasattr(socket, 'inet_pton'):
         if family == socket.AF_UNSPEC:
@@ -209,7 +214,7 @@ class Server(events.AbstractServer):
     def wait_closed(self):
         if self.sockets is None or self._waiters is None:
             return
-        waiter = futures.Future(loop=self._loop)
+        waiter = self._loop.create_future()
         self._waiters.append(waiter)
         yield from waiter
 
@@ -242,6 +247,10 @@ class BaseEventLoop(events.AbstractEventLoop):
         return ('<%s running=%s closed=%s debug=%s>'
                 % (self.__class__.__name__, self.is_running(),
                    self.is_closed(), self.get_debug()))
+
+    def create_future(self):
+        """Create a Future object attached to the loop."""
+        return futures.Future(loop=self)
 
     def create_task(self, coro):
         """Schedule a coroutine object.
@@ -537,7 +546,7 @@ class BaseEventLoop(events.AbstractEventLoop):
             assert not args
             assert not isinstance(func, events.TimerHandle)
             if func._cancelled:
-                f = futures.Future(loop=self)
+                f = self.create_future()
                 f.set_result(None)
                 return f
             func, args = func._callback, func._args
@@ -580,7 +589,7 @@ class BaseEventLoop(events.AbstractEventLoop):
                     family=0, type=0, proto=0, flags=0):
         info = _ipaddr_info(host, port, family, type, proto)
         if info is not None:
-            fut = futures.Future(loop=self)
+            fut = self.create_future()
             fut.set_result([info])
             return fut
         elif self._debug:
@@ -721,7 +730,7 @@ class BaseEventLoop(events.AbstractEventLoop):
     def _create_connection_transport(self, sock, protocol_factory, ssl,
                                      server_hostname):
         protocol = protocol_factory()
-        waiter = futures.Future(loop=self)
+        waiter = self.create_future()
         if ssl:
             sslcontext = None if isinstance(ssl, bool) else ssl
             transport = self._make_ssl_transport(
@@ -841,7 +850,7 @@ class BaseEventLoop(events.AbstractEventLoop):
                 raise exceptions[0]
 
         protocol = protocol_factory()
-        waiter = futures.Future(loop=self)
+        waiter = self.create_future()
         transport = self._make_datagram_transport(
             sock, protocol, r_addr, waiter)
         if self._debug:
@@ -980,7 +989,7 @@ class BaseEventLoop(events.AbstractEventLoop):
     @coroutine
     def connect_read_pipe(self, protocol_factory, pipe):
         protocol = protocol_factory()
-        waiter = futures.Future(loop=self)
+        waiter = self.create_future()
         transport = self._make_read_pipe_transport(pipe, protocol, waiter)
 
         try:
@@ -997,7 +1006,7 @@ class BaseEventLoop(events.AbstractEventLoop):
     @coroutine
     def connect_write_pipe(self, protocol_factory, pipe):
         protocol = protocol_factory()
-        waiter = futures.Future(loop=self)
+        waiter = self.create_future()
         transport = self._make_write_pipe_transport(pipe, protocol, waiter)
 
         try:
@@ -1078,6 +1087,11 @@ class BaseEventLoop(events.AbstractEventLoop):
         if self._debug:
             logger.info('%s: %r' % (debug_log, transport))
         return transport, protocol
+
+    def get_exception_handler(self):
+        """Return an exception handler, or None if the default one is in use.
+        """
+        return self._exception_handler
 
     def set_exception_handler(self, handler):
         """Set handler as the new event loop exception handler.

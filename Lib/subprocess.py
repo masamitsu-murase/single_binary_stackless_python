@@ -1006,6 +1006,9 @@ class Popen(object):
         if not self._child_created:
             # We didn't get to successfully create a child process.
             return
+        if self.returncode is None:
+            warnings.warn("running subprocess %r" % self, ResourceWarning,
+                          source=self)
         # In case the child hasn't been waited on, check if it's done.
         self._internal_poll(_deadstate=_maxsize)
         if self.returncode is None and _active is not None:
@@ -1412,7 +1415,10 @@ class Popen(object):
             elif stderr == PIPE:
                 errread, errwrite = os.pipe()
             elif stderr == STDOUT:
-                errwrite = c2pwrite
+                if c2pwrite != -1:
+                    errwrite = c2pwrite
+                else: # child's stdout is not set, use parent's stdout
+                    errwrite = sys.__stdout__.fileno()
             elif stderr == DEVNULL:
                 errwrite = self._get_devnull()
             elif isinstance(stderr, int):
@@ -1521,9 +1527,14 @@ class Popen(object):
 
             if errpipe_data:
                 try:
-                    os.waitpid(self.pid, 0)
+                    pid, sts = os.waitpid(self.pid, 0)
+                    if pid == self.pid:
+                        self._handle_exitstatus(sts)
+                    else:
+                        self.returncode = sys.maxsize
                 except ChildProcessError:
                     pass
+
                 try:
                     exception_name, hex_errno, err_msg = (
                             errpipe_data.split(b':', 2))

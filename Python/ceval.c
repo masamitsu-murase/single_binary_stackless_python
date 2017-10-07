@@ -3950,6 +3950,7 @@ stackless_call_return:
                 PyObject *anns = PyDict_New();
                 if (anns == NULL) {
                     Py_DECREF(func);
+                    Py_DECREF(names);
                     goto error;
                 }
                 name_ix = PyTuple_Size(names);
@@ -3965,9 +3966,11 @@ stackless_call_return:
                     if (err != 0) {
                         Py_DECREF(anns);
                         Py_DECREF(func);
+                        Py_DECREF(names);
                         goto error;
                     }
                 }
+                Py_DECREF(names);
 
                 if (PyFunction_SetAnnotations(func, anns) != 0) {
                     /* Can't happen unless
@@ -3977,7 +3980,6 @@ stackless_call_return:
                     goto error;
                 }
                 Py_DECREF(anns);
-                Py_DECREF(names);
             }
 
             /* XXX Maybe this should be a separate opcode? */
@@ -5807,7 +5809,7 @@ ext_do_call(PyObject *func, PyObject ***pp_stack, int flags, int na, int nk)
 
     if (flags & CALL_FLAG_KW) {
         kwdict = EXT_POP(*pp_stack);
-        if (!PyDict_Check(kwdict)) {
+        if (!PyDict_CheckExact(kwdict)) {
             PyObject *d;
             d = PyDict_New();
             if (d == NULL)

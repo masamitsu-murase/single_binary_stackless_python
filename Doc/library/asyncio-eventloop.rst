@@ -101,8 +101,9 @@ keywords to your callback, use :func:`functools.partial`. For example,
    called after :meth:`call_soon` returns, when control returns to the event
    loop.
 
-   This operates as a FIFO queue, callbacks are called in the order in
-   which they are registered.  Each callback will be called exactly once.
+   This operates as a :abbr:`FIFO (first-in, first-out)` queue, callbacks
+   are called in the order in which they are registered.  Each callback
+   will be called exactly once.
 
    Any positional arguments after the callback will be passed to the
    callback when it is called.
@@ -177,6 +178,20 @@ a different clock than :func:`time.time`.
 .. seealso::
 
    The :func:`asyncio.sleep` function.
+
+
+Futures
+-------
+
+.. method:: BaseEventLoop.create_future()
+
+   Create an :class:`asyncio.Future` object attached to the loop.
+
+   This is a preferred way to create futures in asyncio, as event
+   loop implementations can provide alternative implementations
+   of the Future class (with better performance or instrumentation).
+
+   .. versionadded:: 3.5.2
 
 
 Tasks
@@ -668,6 +683,13 @@ Allows customizing how exceptions are handled in the event loop.
    will be a reference to the active event loop, ``context``
    will be a ``dict`` object (see :meth:`call_exception_handler`
    documentation for details about context).
+
+.. method:: BaseEventLoop.get_exception_handler()
+
+   Return the exception handler, or ``None`` if the default one
+   is in use.
+
+   .. versionadded:: 3.5.2
 
 .. method:: BaseEventLoop.default_exception_handler(context)
 

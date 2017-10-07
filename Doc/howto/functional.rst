@@ -395,14 +395,14 @@ equivalent to the following Python code::
             continue   # Skip this element
         for expr2 in sequence2:
             if not (condition2):
-                continue    # Skip this element
+                continue   # Skip this element
             ...
             for exprN in sequenceN:
-                 if not (conditionN):
-                     continue   # Skip this element
+                if not (conditionN):
+                    continue   # Skip this element
 
-                 # Output the value of
-                 # the expression.
+                # Output the value of
+                # the expression.
 
 This means that when there are multiple ``for...in`` clauses but no ``if``
 clauses, the length of the resulting output will be equal to the product of the
@@ -1225,9 +1225,9 @@ Text Processing".
 
 Mertz also wrote a 3-part series of articles on functional programming
 for IBM's DeveloperWorks site; see
-`part 1 <http://www.ibm.com/developerworks/linux/library/l-prog/index.html>`__,
-`part 2 <http://www.ibm.com/developerworks/linux/library/l-prog2/index.html>`__, and
-`part 3 <http://www.ibm.com/developerworks/linux/library/l-prog3/index.html>`__,
+`part 1 <https://www.ibm.com/developerworks/linux/library/l-prog/index.html>`__,
+`part 2 <https://www.ibm.com/developerworks/linux/library/l-prog2/index.html>`__, and
+`part 3 <https://www.ibm.com/developerworks/linux/library/l-prog3/index.html>`__,
 
 
 Python documentation

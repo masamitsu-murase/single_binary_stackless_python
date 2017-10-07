@@ -245,7 +245,7 @@ earlier are no longer supported (due to the lack of users or developers).
 Check :pep:`11` for details on all unsupported platforms.
 
 * `Windows CE <http://pythonce.sourceforge.net/>`_ is still supported.
-* The `Cygwin <http://cygwin.com/>`_ installer offers to install the Python
+* The `Cygwin <https://cygwin.com/>`_ installer offers to install the Python
   interpreter as well (cf. `Cygwin package source
   <ftp://ftp.uni-erlangen.de/pub/pc/gnuwin32/cygwin/mirrors/cygnus/
   release/python>`_, `Maintainer releases
@@ -364,7 +364,7 @@ System variables, you need non-restricted access to your machine
     https://support.microsoft.com/kb/310519
       How To Manage Environment Variables in Windows XP
 
-    http://www.chem.gla.ac.uk/~louis/software/faq/q1.html
+    https://www.chem.gla.ac.uk/~louis/software/faq/q1.html
       Setting Environment variables, Louis J. Farrugia
 
 .. _windows-path-mod:
@@ -418,6 +418,8 @@ Getting started
 From the command-line
 ^^^^^^^^^^^^^^^^^^^^^
 
+.. versionchanged:: 3.6
+
 System-wide installations of Python 3.3 and later will put the launcher on your
 :envvar:`PATH`. The launcher is compatible with all available versions of
 Python, so it does not matter which version is installed. To check that the
@@ -427,25 +429,26 @@ launcher is available, execute the following command in Command Prompt:
 
   py
 
-You should find that the latest version of Python 2.x you have installed is
+You should find that the latest version of Python you have installed is
 started - it can be exited as normal, and any additional command-line
 arguments specified will be sent directly to Python.
 
-If you have multiple versions of Python 2.x installed (e.g., 2.6 and 2.7) you
-will have noticed that Python 2.7 was started - to launch Python 2.6, try the
+If you have multiple versions of Python installed (e.g., 2.7 and 3.6) you
+will have noticed that Python 3.6 was started - to launch Python 2.7, try the
 command:
 
 ::
 
-  py -2.6
+  py -2.7
 
-If you have a Python 3.x installed, try the command:
+If you want the latest version of Python 2.x you have installed, try the
+command:
 
 ::
 
-  py -3
+  py -2
 
-You should find the latest version of Python 3.x starts.
+You should find the latest version of Python 2.x starts.
 
 If you see the following error, you do not have the launcher installed:
 
@@ -499,6 +502,11 @@ As with the above command-line examples, you can specify a more explicit
 version qualifier.  Assuming you have Python 2.6 installed, try changing the
 first line to ``#! python2.6`` and you should find the 2.6 version
 information printed.
+
+Note that unlike interactive use, a bare "python" will use the latest
+version of Python 2.x that you have installed.  This is for backward
+compatibility and for compatibility with Unix, where the command ``python``
+typically refers to Python 2.
 
 From file associations
 ^^^^^^^^^^^^^^^^^^^^^^

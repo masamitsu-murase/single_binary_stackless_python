@@ -1,7 +1,12 @@
 """
 Very minimal unittests for parts of the readline module.
 """
+from contextlib import ExitStack
+from errno import EIO
 import os
+import selectors
+import subprocess
+import sys
 import tempfile
 import unittest
 from test.support import import_module, unlink
@@ -95,6 +100,65 @@ class TestReadline(unittest.TestCase):
         rc, stdout, stderr = assert_python_ok('-c', 'import readline',
                                               TERM='xterm-256color')
         self.assertEqual(stdout, b'')
+
+    auto_history_script = """\
+import readline
+readline.set_auto_history({})
+input()
+print("History length:", readline.get_current_history_length())
+"""
+
+    def test_auto_history_enabled(self):
+        output = run_pty(self.auto_history_script.format(True))
+        self.assertIn(b"History length: 1\r\n", output)
+
+    def test_auto_history_disabled(self):
+        output = run_pty(self.auto_history_script.format(False))
+        self.assertIn(b"History length: 0\r\n", output)
+
+
+def run_pty(script, input=b"dummy input\r"):
+    pty = import_module('pty')
+    output = bytearray()
+    [master, slave] = pty.openpty()
+    args = (sys.executable, '-c', script)
+    proc = subprocess.Popen(args, stdin=slave, stdout=slave, stderr=slave)
+    os.close(slave)
+    with ExitStack() as cleanup:
+        cleanup.enter_context(proc)
+        def terminate(proc):
+            try:
+                proc.terminate()
+            except ProcessLookupError:
+                # Workaround for Open/Net BSD bug (Issue 16762)
+                pass
+        cleanup.callback(terminate, proc)
+        cleanup.callback(os.close, master)
+        # Avoid using DefaultSelector and PollSelector. Kqueue() does not
+        # work with pseudo-terminals on OS X < 10.9 (Issue 20365) and Open
+        # BSD (Issue 20667). Poll() does not work with OS X 10.6 or 10.4
+        # either (Issue 20472). Hopefully the file descriptor is low enough
+        # to use with select().
+        sel = cleanup.enter_context(selectors.SelectSelector())
+        sel.register(master, selectors.EVENT_READ | selectors.EVENT_WRITE)
+        os.set_blocking(master, False)
+        while True:
+            for [_, events] in sel.select():
+                if events & selectors.EVENT_READ:
+                    try:
+                        chunk = os.read(master, 0x10000)
+                    except OSError as err:
+                        # Linux raises EIO when the slave is closed
+                        if err.errno != EIO:
+                            raise
+                        chunk = b""
+                    if not chunk:
+                        return output
+                    output.extend(chunk)
+                if events & selectors.EVENT_WRITE:
+                    input = input[os.write(master, input):]
+                    if not input:
+                        sel.modify(master, selectors.EVENT_READ)
 
 
 if __name__ == "__main__":
