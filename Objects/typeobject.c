@@ -317,7 +317,7 @@ assign_version_tag(PyTypeObject *type)
         for (i = 0; i < (1 << MCACHE_SIZE_EXP); i++) {
             method_cache[i].value = NULL;
             Py_INCREF(Py_None);
-            Py_SETREF(method_cache[i].name, Py_None);
+            Py_XSETREF(method_cache[i].name, Py_None);
         }
         /* mark all version tags as invalid */
         PyType_Modified(&PyBaseObject_Type);
@@ -2152,7 +2152,7 @@ subtype_setdict(PyObject *obj, PyObject *value, void *context)
         return -1;
     }
     Py_XINCREF(value);
-    Py_SETREF(*dictptr, value);
+    Py_XSETREF(*dictptr, value);
     return 0;
 }
 
@@ -3972,7 +3972,7 @@ _PyObject_GetState(PyObject *obj, int required)
                     }
                 }
 
-                /* The list is stored on the class so it may mutates while we
+                /* The list is stored on the class so it may mutate while we
                    iterate over it */
                 if (slotnames_size != Py_SIZE(slotnames)) {
                     PyErr_Format(PyExc_RuntimeError,
@@ -4106,7 +4106,7 @@ _PyObject_GetNewArguments(PyObject *obj, PyObject **args, PyObject **kwargs)
     }
 
     /* The object does not have __getnewargs_ex__ and __getnewargs__. This may
-       means __new__ does not takes any arguments on this object, or that the
+       mean __new__ does not takes any arguments on this object, or that the
        object does not implement the reduce protocol for pickling or
        copying. */
     *args = NULL;
@@ -7659,9 +7659,9 @@ super_init(PyObject *self, PyObject *args, PyObject *kwds)
         Py_INCREF(obj);
     }
     Py_INCREF(type);
-    su->type = type;
-    su->obj = obj;
-    su->obj_type = obj_type;
+    Py_XSETREF(su->type, type);
+    Py_XSETREF(su->obj, obj);
+    Py_XSETREF(su->obj_type, obj_type);
     return 0;
 }
 

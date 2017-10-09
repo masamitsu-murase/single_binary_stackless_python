@@ -379,7 +379,7 @@ tracemalloc_get_frame(PyFrameObject *pyframe, frame_t *frame)
 
     if (!PyUnicode_Check(filename)) {
 #ifdef TRACE_DEBUG
-        tracemalloc_error("filename is not an unicode string");
+        tracemalloc_error("filename is not a unicode string");
 #endif
         return;
     }
@@ -723,7 +723,7 @@ tracemalloc_realloc(void *ctx, void *ptr, size_t new_size)
                the caller, because realloc() may already have shrinked the
                memory block and so removed bytes.
 
-               This case is very unlikely: an hash entry has just been
+               This case is very unlikely: a hash entry has just been
                released, so the hash table should have at least one free entry.
 
                The GIL and the table lock ensures that only one thread is

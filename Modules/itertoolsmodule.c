@@ -108,12 +108,12 @@ groupby_next(groupbyobject *gbo)
             }
         }
 
-        Py_SETREF(gbo->currkey, newkey);
-        Py_SETREF(gbo->currvalue, newvalue);
+        Py_XSETREF(gbo->currkey, newkey);
+        Py_XSETREF(gbo->currvalue, newvalue);
     }
 
     Py_INCREF(gbo->currkey);
-    Py_SETREF(gbo->tgtkey, gbo->currkey);
+    Py_XSETREF(gbo->tgtkey, gbo->currkey);
 
     grouper = _grouper_create(gbo, gbo->tgtkey);
     if (grouper == NULL)
@@ -150,11 +150,11 @@ groupby_setstate(groupbyobject *lz, PyObject *state)
     if (!PyArg_ParseTuple(state, "OOO", &currkey, &currvalue, &tgtkey))
         return NULL;
     Py_INCREF(currkey);
-    Py_SETREF(lz->currkey, currkey);
+    Py_XSETREF(lz->currkey, currkey);
     Py_INCREF(currvalue);
-    Py_SETREF(lz->currvalue, currvalue);
+    Py_XSETREF(lz->currvalue, currvalue);
     Py_INCREF(tgtkey);
-    Py_SETREF(lz->tgtkey, tgtkey);
+    Py_XSETREF(lz->tgtkey, tgtkey);
     Py_RETURN_NONE;
 }
 
@@ -734,7 +734,7 @@ tee_setstate(teeobject *to, PyObject *state)
         return NULL;
     }
     Py_INCREF(tdo);
-    Py_SETREF(to->dataobj, tdo);
+    Py_XSETREF(to->dataobj, tdo);
     to->index = index;
     Py_RETURN_NONE;
 }
@@ -975,7 +975,7 @@ cycle_setstate(cycleobject *lz, PyObject *state)
     if (!PyArg_ParseTuple(state, "O!i", &PyList_Type, &saved, &firstpass))
         return NULL;
     Py_INCREF(saved);
-    Py_SETREF(lz->saved, saved);
+    Py_XSETREF(lz->saved, saved);
     lz->firstpass = firstpass != 0;
     lz->index = 0;
     Py_RETURN_NONE;
@@ -1907,9 +1907,9 @@ chain_setstate(chainobject *lz, PyObject *state)
         return NULL;
 
     Py_INCREF(source);
-    Py_SETREF(lz->source, source);
+    Py_XSETREF(lz->source, source);
     Py_XINCREF(active);
-    Py_SETREF(lz->active, active);
+    Py_XSETREF(lz->active, active);
     Py_RETURN_NONE;
 }
 
@@ -2266,7 +2266,7 @@ product_setstate(productobject *lz, PyObject *state)
         Py_INCREF(element);
         PyTuple_SET_ITEM(result, i, element);
     }
-    Py_SETREF(lz->result, result);
+    Py_XSETREF(lz->result, result);
     Py_RETURN_NONE;
 }
 
@@ -2587,7 +2587,7 @@ combinations_setstate(combinationsobject *lz, PyObject *state)
         PyTuple_SET_ITEM(result, i, element);
     }
 
-    Py_SETREF(lz->result, result);
+    Py_XSETREF(lz->result, result);
     Py_RETURN_NONE;
 }
 
@@ -2917,7 +2917,7 @@ cwr_setstate(cwrobject *lz, PyObject *state)
         Py_INCREF(element);
         PyTuple_SET_ITEM(result, i, element);
     }
-    Py_SETREF(lz->result, result);
+    Py_XSETREF(lz->result, result);
     Py_RETURN_NONE;
 }
 
@@ -3305,7 +3305,7 @@ permutations_setstate(permutationsobject *po, PyObject *state)
         Py_INCREF(element);
         PyTuple_SET_ITEM(result, i, element);
     }
-    Py_SETREF(po->result, result);
+    Py_XSETREF(po->result, result);
     Py_RETURN_NONE;
 }
 
@@ -3490,7 +3490,7 @@ static PyObject *
 accumulate_setstate(accumulateobject *lz, PyObject *state)
 {
     Py_INCREF(state);
-    Py_SETREF(lz->total, state);
+    Py_XSETREF(lz->total, state);
     Py_RETURN_NONE;
 }
 
@@ -4469,7 +4469,7 @@ static PyObject *
 zip_longest_setstate(ziplongestobject *lz, PyObject *state)
 {
     Py_INCREF(state);
-    Py_SETREF(lz->fillvalue, state);
+    Py_XSETREF(lz->fillvalue, state);
     Py_RETURN_NONE;
 }
 
@@ -4484,7 +4484,7 @@ static PyMethodDef zip_longest_methods[] = {
 PyDoc_STRVAR(zip_longest_doc,
 "zip_longest(iter1 [,iter2 [...]], [fillvalue=None]) --> zip_longest object\n\
 \n\
-Return an zip_longest object whose .__next__() method returns a tuple where\n\
+Return a zip_longest object whose .__next__() method returns a tuple where\n\
 the i-th element comes from the i-th iterable argument.  The .__next__()\n\
 method continues until the longest iterable in the argument sequence\n\
 is exhausted and then it raises StopIteration.  When the shorter iterables\n\

@@ -10,6 +10,23 @@ Release date: tba
 Core and Builtins
 -----------------
 
+- Issue #26802: Optimize function calls only using unpacking like
+  ``func(*tuple)`` (no other positional argument, no keyword): avoid copying
+  the tuple. Patch written by Joe Jevnik.
+
+- Issue #26659: Make the builtin slice type support cycle collection.
+
+- Issue #26718: super.__init__ no longer leaks memory if called multiple times.
+  NOTE: A direct call of super.__init__ is not endorsed!
+
+- Issue #25339: PYTHONIOENCODING now has priority over locale in setting the
+  error handler for stdin and stdout.
+
+- Issue #26494: Fixed crash on iterating exhausting iterators.
+  Affected classes are generic sequence iterators, iterators of str, bytes,
+  bytearray, list, tuple, set, frozenset, dict, OrderedDict, corresponding
+  views and os.scandir() iterator.
+
 - Issue #26574: Optimize ``bytes.replace(b'', b'.')`` and
   ``bytearray.replace(b'', b'.')``. Patch written by Josh Snider.
 
@@ -28,10 +45,10 @@ Core and Builtins
   :c:func:`PyObject_Malloc` now detect when functions are called without
   holding the GIL.
 
-- Issue #26516: Add :envvar`PYTHONMALLOC` environment variable to set the
+- Issue #26516: Add :envvar:`PYTHONMALLOC` environment variable to set the
   Python memory allocators and/or install debug hooks.
 
-- Issue #26516: The :c:func`PyMem_SetupDebugHooks` function can now also be
+- Issue #26516: The :c:func:`PyMem_SetupDebugHooks` function can now also be
   used on Python compiled in release mode.
 
 - Issue #26516: The :envvar:`PYTHONMALLOCSTATS` environment variable can now
@@ -231,6 +248,90 @@ Core and Builtins
 
 Library
 -------
+
+- Issue #26801: Fix error handling in :func:`shutil.get_terminal_size`, catch
+  :exc:`AttributeError` instead of :exc:`NameError`. Patch written by Emanuel
+  Barry.
+
+- Issue #24838: tarfile's ustar and gnu formats now correctly calculate name
+  and link field limits for multibyte character encodings like utf-8.
+
+- Issue #26657: Fix directory traversal vulnerability with http.server on
+  Windows.  This fixes a regression that was introduced in 3.3.4rc1 and
+  3.4.0rc1.  Based on patch by Philipp Hagemeister.
+
+- Issue #26717: Stop encoding Latin-1-ized WSGI paths with UTF-8.  Patch by
+  Anthony Sottile.
+
+- Issue #26782: Add STARTUPINFO to subprocess.__all__ on Windows.
+
+- Issue #26404: Add context manager to socketserver.  Patch by Aviv Palivoda.
+
+- Issue #26735: Fix :func:`os.urandom` on Solaris 11.3 and newer when reading
+  more than 1,024 bytes: call ``getrandom()`` multiple times with a limit of
+  1024 bytes per call.
+
+- Issue #26585: Eliminate http.server._quote_html() and use
+  html.escape(quote=False).  Patch by Xiang Zhang.
+
+- Issue #26685: Raise OSError if closing a socket fails.
+
+- Issue #16329: Add .webm to mimetypes.types_map.  Patch by Giampaolo Rodola'.
+
+- Issue #13952: Add .csv to mimetypes.types_map.  Patch by Geoff Wilson.
+
+- Issue #26587: the site module now allows .pth files to specify files to be
+  added to sys.path (e.g. zip files).
+
+- Issue #25609: Introduce contextlib.AbstractContextManager and
+  typing.ContextManager.
+
+- Issue #26709: Fixed Y2038 problem in loading binary PLists.
+
+- Issue #23735: Handle terminal resizing with Readline 6.3+ by installing our
+  own SIGWINCH handler.  Patch by Eric Price.
+
+- Issue #25951: Change SSLSocket.sendall() to return None, as explicitly
+  documented for plain socket objects.  Patch by Aviv Palivoda.
+
+- Issue #26586: In http.server, respond with "413 Request header fields too
+  large" if there are too many header fields to parse, rather than killing
+  the connection and raising an unhandled exception.  Patch by Xiang Zhang.
+
+- Issue #26676: Added missing XMLPullParser to ElementTree.__all__.
+
+- Issue #22854: Change BufferedReader.writable() and
+  BufferedWriter.readable() to always return False.
+
+- Issue #26492: Exhausted iterator of array.array now conforms with the behavior
+  of iterators of other mutable sequences: it lefts exhausted even if iterated
+  array is extended.
+
+- Issue #26641: doctest.DocFileTest and doctest.testfile() now support
+  packages (module splitted into multiple directories) for the package
+  parameter.
+
+- Issue #25195: Fix a regression in mock.MagicMock. _Call is a subclass of
+  tuple (changeset 3603bae63c13 only works for classes) so we need to
+  implement __ne__ ourselves.  Patch by Andrew Plummer.
+
+- Issue #26644: Raise ValueError rather than SystemError when a negative
+  length is passed to SSLSocket.recv() or read().
+
+- Issue #23804: Fix SSL recv(0) and read(0) methods to return zero bytes
+  instead of up to 1024.
+
+- Issue #26616: Fixed a bug in datetime.astimezone() method.
+
+- Issue #26637: The :mod:`importlib` module now emits an :exc:`ImportError`
+  rather than a :exc:`TypeError` if :func:`__import__` is tried during the
+  Python shutdown process but :data:`sys.path` is already cleared (set to
+  ``None``).
+
+- Issue #21925: :func:`warnings.formatwarning` now catches exceptions when
+  calling :func:`linecache.getline` and
+  :func:`tracemalloc.get_object_traceback` to be able to log
+  :exc:`ResourceWarning` emitted late during the Python shutdown process.
 
 - Issue #23848: On Windows, faulthandler.enable() now also installs an
   exception handler to dump the traceback of all Python threads on any Windows
@@ -845,6 +946,10 @@ IDLE
 Documentation
 -------------
 
+- Issue #6953: Rework the Readline module documentation to group related
+  functions together, and add more details such as what underlying Readline
+  functions and variables are accessed.
+
 - Issue #23606: Adds note to ctypes documentation regarding cdll.msvcrt.
 
 - Issue #24952: Clarify the default size argument of stack_size() in
@@ -852,6 +957,9 @@ Documentation
 
 Tests
 -----
+
+- Issue #26295: When using "python3 -m test --testdir=TESTDIR", regrtest
+  doesn't add "test." prefix to test module names.
 
 - Issue #26523: The multiprocessing thread pool (multiprocessing.dummy.Pool)
   was untested.
@@ -861,7 +969,7 @@ Tests
 - Issue #26325: Added test.support.check_no_resource_warning() to check that
   no ResourceWarning is emitted.
 
-- Issue #25940: Changed test_ssl to use self-signed.pythontest.net.  This
+- Issue #25940: Changed test_ssl to use its internal local server more.  This
   avoids relying on svn.python.org, which recently changed root certificate.
 
 - Issue #25616: Tests for OrderedDict are extracted from test_collections
@@ -889,6 +997,18 @@ Tests
 
 Build
 -----
+
+- Issue #21668: Link audioop, _datetime, _ctypes_test modules to libm,
+  except on Mac OS X. Patch written by Chi Hsuan Yen.
+
+- Issue #25702: A --with-lto configure option has been added that will
+  enable link time optimizations at build time during a make profile-opt.
+  Some compilers and toolchains are known to not produce stable code when
+  using LTO, be sure to test things thoroughly before relying on it.
+  It can provide a few % speed up over profile-opt alone.
+
+- Issue #26624: Adds validation of ucrtbase[d].dll version with warning
+  for old versions.
 
 - Issue #17603: Avoid error about nonexistant fileblocks.o file by using a
   lower-level check for st_blocks in struct stat.
@@ -944,6 +1064,11 @@ Windows
 
 Tools/Demos
 -----------
+
+- Issue #26799: Fix python-gdb.py: don't get C types once when the Python code
+  is loaded, but get C types on demand. The C types can change if
+  python-gdb.py is loaded before the Python executable. Patch written by Thomas
+  Ilsche.
 
 - Issue #26271: Fix the Freeze tool to properly use flags passed through
   configure. Patch by Daniel Shaulov.
@@ -1677,7 +1802,7 @@ Core and Builtins
 - Issue #24407: Fix crash when dict is mutated while being updated.
 
 - Issue #24619: New approach for tokenizing async/await. As a consequence,
-  is is now possible to have one-line 'async def foo(): await ..' functions.
+  it is now possible to have one-line 'async def foo(): await ..' functions.
 
 - Issue #24687: Plug refleak on SyntaxError in function parameters
   annotations.
@@ -2353,7 +2478,7 @@ Library
 Build
 -----
 
-- Issue #23817: FreeBSD now uses "1.0" the the SOVERSION as other operating
+- Issue #23817: FreeBSD now uses "1.0" in the SOVERSION as other operating
   systems, instead of just "1".
 
 - Issue #23501: Argument Clinic now generates code into separate files by default.
@@ -2745,7 +2870,7 @@ Core and Builtins
   static type in some cases.
 
 - Issue #15859: PyUnicode_EncodeFSDefault(), PyUnicode_EncodeMBCS() and
-  PyUnicode_EncodeCodePage() now raise an exception if the object is not an
+  PyUnicode_EncodeCodePage() now raise an exception if the object is not a
   Unicode object. For PyUnicode_EncodeFSDefault(), it was already the case on
   platforms other than Windows. Patch written by Campbell Barton.
 
@@ -3836,7 +3961,7 @@ Library
 - Issue #21226: Set up modules properly in PyImport_ExecCodeModuleObject
   (and friends).
 
-- Issue #21398: Fix an unicode error in the pydoc pager when the documentation
+- Issue #21398: Fix a unicode error in the pydoc pager when the documentation
   contains characters not encodable to the stdout encoding.
 
 - Issue #16531: ipaddress.IPv4Network and ipaddress.IPv6Network now accept
@@ -4022,7 +4147,7 @@ Library
 - Issue #21000: Improve the command-line interface of json.tool.
 
 - Issue #20995: Enhance default ciphers used by the ssl module to enable
-  better security an prioritize perfect forward secrecy.
+  better security and prioritize perfect forward secrecy.
 
 - Issue #20884: Don't assume that __file__ is defined on importlib.__init__.
 
@@ -5731,8 +5856,8 @@ Library
 - Issue #19448: Add private API to SSL module to lookup ASN.1 objects by OID,
   NID, short name and long name.
 
-- Issue #19282: dbm.open now supports the context management protocol. (Inital
-  patch by Claudiu Popa)
+- Issue #19282: dbm.open now supports the context management protocol.
+  (Initial patch by Claudiu Popa)
 
 - Issue #8311: Added support for writing any bytes-like objects in the aifc,
   sunau, and wave modules.
@@ -5826,7 +5951,7 @@ Library
 - Issue #19227: Remove pthread_atfork() handler. The handler was added to
   solve #18747 but has caused issues.
 
-- Issue #19420: Fix reference leak in module initalization code of
+- Issue #19420: Fix reference leak in module initialization code of
   _hashopenssl.c
 
 - Issue #19329: Optimized compiling charsets in regular expressions.
@@ -6840,7 +6965,7 @@ Core and Builtins
 - Issue #17173: Remove uses of locale-dependent C functions (isalpha() etc.)
   in the interpreter.
 
-- Issue #17137: When an Unicode string is resized, the internal wide character
+- Issue #17137: When a Unicode string is resized, the internal wide character
   string (wstr) format is now cleared.
 
 - Issue #17043: The unicode-internal decoder no longer read past the end of
@@ -7367,7 +7492,7 @@ Library
   Thomas Barlow.
 
 - Issue #17358: Modules loaded by imp.load_source() and load_compiled() (and by
-  extention load_module()) now have a better chance of working when reloaded.
+  extension load_module()) now have a better chance of working when reloaded.
 
 - Issue #17804: New function ``struct.iter_unpack`` allows for streaming
   struct unpacking.
@@ -8050,7 +8175,7 @@ Library
 - Issue #16284: Prevent keeping unnecessary references to worker functions
   in concurrent.futures ThreadPoolExecutor.
 
-- Issue #16230: Fix a crash in select.select() when one the lists changes
+- Issue #16230: Fix a crash in select.select() when one of the lists changes
   size while iterated on.  Patch by Serhiy Storchaka.
 
 - Issue #16228: Fix a crash in the json module where a list changes size

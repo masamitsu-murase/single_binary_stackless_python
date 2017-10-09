@@ -387,7 +387,7 @@ class BaseSelectorEventLoop(base_events.BaseEventLoop):
 
         The address must be already resolved to avoid the trap of hanging the
         entire event loop when the address requires doing a DNS lookup. For
-        example, it must be an IP address, not an hostname, for AF_INET and
+        example, it must be an IP address, not a hostname, for AF_INET and
         AF_INET6 address families. Use getaddrinfo() to resolve the hostname
         asynchronously.
 
@@ -579,8 +579,7 @@ class _SelectorTransport(transports._FlowControlMixin,
 
     def _fatal_error(self, exc, message='Fatal error on transport'):
         # Should be called from exception handler only.
-        if isinstance(exc, (BrokenPipeError,
-                            ConnectionResetError, ConnectionAbortedError)):
+        if isinstance(exc, base_events._FATAL_ERROR_IGNORE):
             if self._loop.get_debug():
                 logger.debug("%r: %s", self, message, exc_info=True)
         else:

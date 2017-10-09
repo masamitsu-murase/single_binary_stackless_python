@@ -638,7 +638,7 @@ gen_set_name(PyGenObject *op, PyObject *value)
         return -1;
     }
     Py_INCREF(value);
-    Py_SETREF(op->gi_name, value);
+    Py_XSETREF(op->gi_name, value);
     return 0;
 }
 
@@ -660,7 +660,7 @@ gen_set_qualname(PyGenObject *op, PyObject *value)
         return -1;
     }
     Py_INCREF(value);
-    Py_SETREF(op->gi_qualname, value);
+    Py_XSETREF(op->gi_qualname, value);
     return 0;
 }
 

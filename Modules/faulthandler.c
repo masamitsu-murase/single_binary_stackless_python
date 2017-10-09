@@ -488,7 +488,7 @@ faulthandler_py_enable(PyObject *self, PyObject *args, PyObject *kwargs)
         return NULL;
 
     Py_XINCREF(file);
-    Py_SETREF(fatal_error.file, file);
+    Py_XSETREF(fatal_error.file, file);
     fatal_error.fd = fd;
     fatal_error.all_threads = all_threads;
     fatal_error.interp = tstate->interp;
@@ -668,7 +668,7 @@ faulthandler_dump_traceback_later(PyObject *self,
     cancel_dump_traceback_later();
 
     Py_XINCREF(file);
-    Py_SETREF(thread.file, file);
+    Py_XSETREF(thread.file, file);
     thread.fd = fd;
     thread.timeout_us = timeout_us;
     thread.repeat = repeat;
@@ -846,7 +846,7 @@ faulthandler_register_py(PyObject *self,
     }
 
     Py_XINCREF(file);
-    Py_SETREF(user->file, file);
+    Py_XSETREF(user->file, file);
     user->fd = fd;
     user->all_threads = all_threads;
     user->chain = chain;
@@ -1178,7 +1178,7 @@ static PyMethodDef module_methods[] = {
     {"register",
      (PyCFunction)faulthandler_register_py, METH_VARARGS|METH_KEYWORDS,
      PyDoc_STR("register(signum, file=sys.stderr, all_threads=True, chain=False): "
-               "register an handler for the signal 'signum': dump the "
+               "register a handler for the signal 'signum': dump the "
                "traceback of the current thread, or of all threads if "
                "all_threads is True, into file")},
     {"unregister",

@@ -2518,7 +2518,7 @@ class Win32ProcessTestCase(BaseTestCase):
     def test_terminate_dead(self):
         self._kill_dead_process('terminate')
 
-class CommandTests(unittest.TestCase):
+class MiscTests(unittest.TestCase):
     def test_getoutput(self):
         self.assertEqual(subprocess.getoutput('echo xyzzy'), 'xyzzy')
         self.assertEqual(subprocess.getstatusoutput('echo xyzzy'),
@@ -2538,6 +2538,20 @@ class CommandTests(unittest.TestCase):
             if dir is not None:
                 os.rmdir(dir)
 
+    def test__all__(self):
+        """Ensure that __all__ is populated properly."""
+        intentionally_excluded = {"list2cmdline", "Handle"}
+        exported = set(subprocess.__all__)
+        possible_exports = set()
+        import types
+        for name, value in subprocess.__dict__.items():
+            if name.startswith('_'):
+                continue
+            if isinstance(value, (types.ModuleType,)):
+                continue
+            possible_exports.add(name)
+        self.assertEqual(exported, possible_exports - intentionally_excluded)
+
 
 @unittest.skipUnless(hasattr(selectors, 'PollSelector'),
                      "Test needs selectors.PollSelector")
@@ -2550,21 +2564,6 @@ class ProcessTestCaseNoPoll(ProcessTestCase):
     def tearDown(self):
         subprocess._PopenSelector = self.orig_selector
         ProcessTestCase.tearDown(self)
-
-    def test__all__(self):
-        """Ensure that __all__ is populated properly."""
-        intentionally_excluded = set(("list2cmdline",))
-        exported = set(subprocess.__all__)
-        possible_exports = set()
-        import types
-        for name, value in subprocess.__dict__.items():
-            if name.startswith('_'):
-                continue
-            if isinstance(value, (types.ModuleType,)):
-                continue
-            possible_exports.add(name)
-        self.assertEqual(exported, possible_exports - intentionally_excluded)
-
 
 
 @unittest.skipUnless(mswindows, "Windows-specific tests")
@@ -2669,7 +2668,7 @@ def test_main():
     unit_tests = (ProcessTestCase,
                   POSIXProcessTestCase,
                   Win32ProcessTestCase,
-                  CommandTests,
+                  MiscTests,
                   ProcessTestCaseNoPoll,
                   CommandsWithSpaces,
                   ContextManagerTests,

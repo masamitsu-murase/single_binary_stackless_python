@@ -526,7 +526,7 @@ fp_setreadl(struct tok_state *tok, const char* enc)
         goto cleanup;
 
     readline = _PyObject_GetAttrId(stream, &PyId_readline);
-    Py_SETREF(tok->decoding_readline, readline);
+    Py_XSETREF(tok->decoding_readline, readline);
     if (pos > 0) {
         if (PyObject_CallObject(readline, NULL) == NULL) {
             readline = NULL;
@@ -1587,10 +1587,6 @@ tok_get(struct tok_state *tok, char **p_start, char **p_end)
         if (c == '0') {
             /* Hex, octal or binary -- maybe. */
             c = tok_nextc(tok);
-            if (c == '.')
-                goto fraction;
-            if (c == 'j' || c == 'J')
-                goto imaginary;
             if (c == 'x' || c == 'X') {
 
                 /* Hex */

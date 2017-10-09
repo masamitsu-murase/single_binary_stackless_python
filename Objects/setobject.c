@@ -916,8 +916,8 @@ static PyObject *setiter_iternext(setiterobject *si)
     return key;
 
 fail:
-    Py_DECREF(so);
     si->si_set = NULL;
+    Py_DECREF(so);
     return NULL;
 }
 
@@ -1116,24 +1116,9 @@ frozenset_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     return emptyfrozenset;
 }
 
-int
-PySet_ClearFreeList(void)
-{
-    return 0;
-}
-
-void
-PySet_Fini(void)
-{
-    Py_CLEAR(emptyfrozenset);
-}
-
 static PyObject *
 set_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-    if (kwds != NULL && type == &PySet_Type && !_PyArg_NoKeywords("set()", kwds))
-        return NULL;
-
     return make_new_set(type, NULL);
 }
 
@@ -2015,11 +2000,12 @@ set_init(PySetObject *self, PyObject *args, PyObject *kwds)
 
     if (!PyAnySet_Check(self))
         return -1;
-    if (PySet_Check(self) && !_PyArg_NoKeywords("set()", kwds))
+    if (kwds != NULL && PySet_Check(self) && !_PyArg_NoKeywords("set()", kwds))
         return -1;
     if (!PyArg_UnpackTuple(args, Py_TYPE(self)->tp_name, 0, 1, &iterable))
         return -1;
-    set_clear_internal(self);
+    if (self->fill)
+        set_clear_internal(self);
     self->hash = -1;
     if (iterable == NULL)
         return 0;
@@ -2338,6 +2324,18 @@ PySet_Add(PyObject *anyset, PyObject *key)
         return -1;
     }
     return set_add_key((PySetObject *)anyset, key);
+}
+
+int
+PySet_ClearFreeList(void)
+{
+    return 0;
+}
+
+void
+PySet_Fini(void)
+{
+    Py_CLEAR(emptyfrozenset);
 }
 
 int

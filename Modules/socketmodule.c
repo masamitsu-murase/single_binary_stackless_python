@@ -1401,7 +1401,7 @@ static int
 idna_converter(PyObject *obj, struct maybe_idna *data)
 {
     size_t len;
-    PyObject *obj2, *obj3;
+    PyObject *obj2;
     if (obj == NULL) {
         idna_cleanup(data);
         return 1;
@@ -1416,31 +1416,27 @@ idna_converter(PyObject *obj, struct maybe_idna *data)
         data->buf = PyByteArray_AsString(obj);
         len = PyByteArray_Size(obj);
     }
-    else if (PyUnicode_Check(obj) && PyUnicode_READY(obj) == 0 && PyUnicode_IS_COMPACT_ASCII(obj)) {
-        data->buf = PyUnicode_DATA(obj);
-        len = PyUnicode_GET_LENGTH(obj);
+    else if (PyUnicode_Check(obj)) {
+        if (PyUnicode_READY(obj) == 0 && PyUnicode_IS_COMPACT_ASCII(obj)) {
+            data->buf = PyUnicode_DATA(obj);
+            len = PyUnicode_GET_LENGTH(obj);
+        }
+        else {
+            obj2 = PyUnicode_AsEncodedString(obj, "idna", NULL);
+            if (!obj2) {
+                PyErr_SetString(PyExc_TypeError, "encoding of hostname failed");
+                return 0;
+            }
+            assert(PyBytes_Check(obj2));
+            data->obj = obj2;
+            data->buf = PyBytes_AS_STRING(obj2);
+            len = PyBytes_GET_SIZE(obj2);
+        }
     }
     else {
-        obj2 = PyUnicode_FromObject(obj);
-        if (!obj2) {
-            PyErr_Format(PyExc_TypeError, "string or unicode text buffer expected, not %s",
-                         obj->ob_type->tp_name);
-            return 0;
-        }
-        obj3 = PyUnicode_AsEncodedString(obj2, "idna", NULL);
-        Py_DECREF(obj2);
-        if (!obj3) {
-            PyErr_SetString(PyExc_TypeError, "encoding of hostname failed");
-            return 0;
-        }
-        if (!PyBytes_Check(obj3)) {
-            Py_DECREF(obj3);
-            PyErr_SetString(PyExc_TypeError, "encoding of hostname failed to return bytes");
-            return 0;
-        }
-        data->obj = obj3;
-        data->buf = PyBytes_AS_STRING(obj3);
-        len = PyBytes_GET_SIZE(obj3);
+        PyErr_Format(PyExc_TypeError, "str, bytes or bytearray expected, not %s",
+                     obj->ob_type->tp_name);
+        return 0;
     }
     if (strlen(data->buf) != len) {
         Py_CLEAR(data->obj);
@@ -2576,6 +2572,7 @@ static PyObject *
 sock_close(PySocketSockObject *s)
 {
     SOCKET_T fd;
+    int res;
 
     fd = s->sock_fd;
     if (fd != -1) {
@@ -2586,8 +2583,11 @@ sock_close(PySocketSockObject *s)
            http://linux.derkeiler.com/Mailing-Lists/Kernel/2005-09/3000.html
            for more details. */
         Py_BEGIN_ALLOW_THREADS
-        (void) SOCKETCLOSE(fd);
+        res = SOCKETCLOSE(fd);
         Py_END_ALLOW_THREADS
+        if (res < 0) {
+            return s->errorhandler();
+        }
     }
     Py_INCREF(Py_None);
     return Py_None;

@@ -170,7 +170,7 @@ int pysqlite_build_row_cast_map(pysqlite_Cursor* self)
         return 0;
     }
 
-    Py_SETREF(self->row_cast_map, PyList_New(0));
+    Py_XSETREF(self->row_cast_map, PyList_New(0));
 
     for (i = 0; i < sqlite3_column_count(self->statement->st); i++) {
         converter = NULL;
@@ -242,8 +242,7 @@ PyObject* _pysqlite_build_column_name(const char* colname)
     const char* pos;
 
     if (!colname) {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
 
     for (pos = colname;; pos++) {
@@ -526,7 +525,7 @@ PyObject* _pysqlite_query_execute(pysqlite_Cursor* self, int multiple, PyObject*
         (void)pysqlite_statement_reset(self->statement);
     }
 
-    Py_SETREF(self->statement,
+    Py_XSETREF(self->statement,
               (pysqlite_Statement *)pysqlite_cache_get(self->connection->statement_cache, func_args));
     Py_DECREF(func_args);
 
@@ -914,8 +913,7 @@ PyObject* pysqlite_cursor_fetchone(pysqlite_Cursor* self, PyObject* args)
 
     row = pysqlite_cursor_iternext(self);
     if (!row && !PyErr_Occurred()) {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
 
     return row;
@@ -996,8 +994,7 @@ PyObject* pysqlite_cursor_fetchall(pysqlite_Cursor* self, PyObject* args)
 PyObject* pysqlite_noop(pysqlite_Connection* self, PyObject* args)
 {
     /* don't care, return None */
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 PyObject* pysqlite_cursor_close(pysqlite_Cursor* self, PyObject* args)
@@ -1013,8 +1010,7 @@ PyObject* pysqlite_cursor_close(pysqlite_Cursor* self, PyObject* args)
 
     self->closed = 1;
 
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 static PyMethodDef cursor_methods[] = {

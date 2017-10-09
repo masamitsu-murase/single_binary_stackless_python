@@ -720,8 +720,7 @@ how the command-line arguments should be handled. The supplied actions are:
     Namespace(foo='1')
 
 * ``'store_const'`` - This stores the value specified by the const_ keyword
-  argument.  (Note that the const_ keyword argument defaults to the rather
-  unhelpful ``None``.)  The ``'store_const'`` action is most commonly used with
+  argument.  The ``'store_const'`` action is most commonly used with
   optional arguments that specify some sort of flag.  For example::
 
     >>> parser = argparse.ArgumentParser()
@@ -729,15 +728,17 @@ how the command-line arguments should be handled. The supplied actions are:
     >>> parser.parse_args('--foo'.split())
     Namespace(foo=42)
 
-* ``'store_true'`` and ``'store_false'`` - These store the values ``True`` and
-  ``False`` respectively.  These are special cases of ``'store_const'``.  For
-  example::
+* ``'store_true'`` and ``'store_false'`` - These are special cases of
+  ``'store_const'`` used for storing the values ``True`` and ``False``
+  respectively.  In addition, they create default values of ``False`` and
+  ``True`` respectively.  For example::
 
     >>> parser = argparse.ArgumentParser()
     >>> parser.add_argument('--foo', action='store_true')
     >>> parser.add_argument('--bar', action='store_false')
+    >>> parser.add_argument('--baz', action='store_false')
     >>> parser.parse_args('--foo --bar'.split())
-    Namespace(bar=False, foo=True)
+    Namespace(foo=True, bar=False, baz=True)
 
 * ``'append'`` - This stores a list, and appends each argument value to the
   list.  This is useful to allow an option to be specified multiple times.
@@ -921,7 +922,8 @@ the various :class:`ArgumentParser` actions.  The two most common uses of it are
   command-line argument following it, the value of ``const`` will be assumed instead.
   See the nargs_ description for examples.
 
-The ``const`` keyword argument defaults to ``None``.
+With the ``'store_const'`` and ``'append_const'`` actions, the ``const``
+keyword argument must be given.  For other actions, it defaults to ``None``.
 
 
 default

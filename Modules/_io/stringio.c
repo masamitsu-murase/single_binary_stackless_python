@@ -438,7 +438,7 @@ stringio_iternext(stringio *self)
                                            _PyIO_str_readline, NULL);
         if (line && !PyUnicode_Check(line)) {
             PyErr_Format(PyExc_IOError,
-                         "readline() should have returned an str object, "
+                         "readline() should have returned a str object, "
                          "not '%.200s'", Py_TYPE(line)->tp_name);
             Py_DECREF(line);
             return NULL;
@@ -913,8 +913,8 @@ stringio_setstate(stringio *self, PyObject *state)
     Py_DECREF(initarg);
 
     /* Restore the buffer state. Even if __init__ did initialize the buffer,
-       we have to initialize it again since __init__ may translates the
-       newlines in the inital_value string. We clearly do not want that
+       we have to initialize it again since __init__ may translate the
+       newlines in the initial_value string. We clearly do not want that
        because the string value in the state tuple has already been translated
        once by __init__. So we do not take any chance and replace object's
        buffer completely. */

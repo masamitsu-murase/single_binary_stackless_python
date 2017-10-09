@@ -961,11 +961,11 @@ zlib_Compress_copy_impl(compobject *self)
         goto error;
     }
     Py_INCREF(self->unused_data);
-    Py_SETREF(retval->unused_data, self->unused_data);
+    Py_XSETREF(retval->unused_data, self->unused_data);
     Py_INCREF(self->unconsumed_tail);
-    Py_SETREF(retval->unconsumed_tail, self->unconsumed_tail);
+    Py_XSETREF(retval->unconsumed_tail, self->unconsumed_tail);
     Py_XINCREF(self->zdict);
-    Py_SETREF(retval->zdict, self->zdict);
+    Py_XSETREF(retval->zdict, self->zdict);
     retval->eof = self->eof;
 
     /* Mark it as being initialized */
@@ -1017,11 +1017,11 @@ zlib_Decompress_copy_impl(compobject *self)
     }
 
     Py_INCREF(self->unused_data);
-    Py_SETREF(retval->unused_data, self->unused_data);
+    Py_XSETREF(retval->unused_data, self->unused_data);
     Py_INCREF(self->unconsumed_tail);
-    Py_SETREF(retval->unconsumed_tail, self->unconsumed_tail);
+    Py_XSETREF(retval->unconsumed_tail, self->unconsumed_tail);
     Py_XINCREF(self->zdict);
-    Py_SETREF(retval->zdict, self->zdict);
+    Py_XSETREF(retval->zdict, self->zdict);
     retval->eof = self->eof;
 
     /* Mark it as being initialized */

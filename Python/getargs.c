@@ -1056,34 +1056,24 @@ convertsimple(PyObject *arg, const char **p_format, va_list *p_va, int flags,
                 return converterr("(AsCharBuffer failed)",
                                   arg, msgbuf, bufsize);
         }
-        else {
-            PyObject *u;
-
-            /* Convert object to Unicode */
-            u = PyUnicode_FromObject(arg);
-            if (u == NULL)
-                return converterr(
-                    "string or unicode or text buffer",
-                    arg, msgbuf, bufsize);
-
+        else if (PyUnicode_Check(arg)) {
             /* Encode object; use default error handling */
-            s = PyUnicode_AsEncodedString(u,
+            s = PyUnicode_AsEncodedString(arg,
                                           encoding,
                                           NULL);
-            Py_DECREF(u);
             if (s == NULL)
                 return converterr("(encoding failed)",
                                   arg, msgbuf, bufsize);
-            if (!PyBytes_Check(s)) {
-                Py_DECREF(s);
-                return converterr(
-                    "(encoder failed to return bytes)",
-                    arg, msgbuf, bufsize);
-            }
+            assert(PyBytes_Check(s));
             size = PyBytes_GET_SIZE(s);
             ptr = PyBytes_AS_STRING(s);
             if (ptr == NULL)
                 ptr = "";
+        }
+        else {
+            return converterr(
+                recode_strings ? "str" : "str, bytes or bytearray",
+                arg, msgbuf, bufsize);
         }
 
         /* Write output; output is guaranteed to be 0-terminated */
@@ -1771,16 +1761,9 @@ PyArg_UnpackTuple(PyObject *args, const char *name, Py_ssize_t min, Py_ssize_t m
     PyObject **o;
     va_list vargs;
 
-#ifdef HAVE_STDARG_PROTOTYPES
-    va_start(vargs, max);
-#else
-    va_start(vargs);
-#endif
-
     assert(min >= 0);
     assert(min <= max);
     if (!PyTuple_Check(args)) {
-        va_end(vargs);
         PyErr_SetString(PyExc_SystemError,
             "PyArg_UnpackTuple() argument list is not a tuple");
         return 0;
@@ -1798,9 +1781,10 @@ PyArg_UnpackTuple(PyObject *args, const char *name, Py_ssize_t min, Py_ssize_t m
                 "unpacked tuple should have %s%zd elements,"
                 " but has %zd",
                 (min == max ? "" : "at least "), min, l);
-        va_end(vargs);
         return 0;
     }
+    if (l == 0)
+        return 1;
     if (l > max) {
         if (name != NULL)
             PyErr_Format(
@@ -1813,9 +1797,14 @@ PyArg_UnpackTuple(PyObject *args, const char *name, Py_ssize_t min, Py_ssize_t m
                 "unpacked tuple should have %s%zd elements,"
                 " but has %zd",
                 (min == max ? "" : "at most "), max, l);
-        va_end(vargs);
         return 0;
     }
+
+#ifdef HAVE_STDARG_PROTOTYPES
+    va_start(vargs, max);
+#else
+    va_start(vargs);
+#endif
     for (i = 0; i < l; i++) {
         o = va_arg(vargs, PyObject **);
         *o = PyTuple_GET_ITEM(args, i);

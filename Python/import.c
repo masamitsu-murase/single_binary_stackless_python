@@ -38,14 +38,6 @@ module _imp
 
 #include "clinic/import.c.h"
 
-/*[python input]
-class fs_unicode_converter(CConverter):
-    type = 'PyObject *'
-    converter = 'PyUnicode_FSDecoder'
-
-[python start generated code]*/
-/*[python end generated code: output=da39a3ee5e6b4b0d input=9d6786230166006e]*/
-
 /* Initialize things */
 
 void
@@ -884,7 +876,7 @@ update_code_filenames(PyCodeObject *co, PyObject *oldname, PyObject *newname)
         return;
 
     Py_INCREF(newname);
-    Py_SETREF(co->co_filename, newname);
+    Py_XSETREF(co->co_filename, newname);
 
     constants = co->co_consts;
     n = PyTuple_GET_SIZE(constants);
@@ -1330,7 +1322,7 @@ remove_importlib_frames(void)
              PyUnicode_CompareWithASCIIString(code->co_name,
                                               remove_frames) == 0)) {
             Py_XINCREF(next);
-            Py_SETREF(*outer_link, next);
+            Py_XSETREF(*outer_link, next);
             prev_link = outer_link;
         }
         else {

@@ -324,8 +324,9 @@ Connection Objects
 
       Creates a user-defined function that you can later use from within SQL
       statements under the function name *name*. *num_params* is the number of
-      parameters the function accepts, and *func* is a Python callable that is called
-      as the SQL function.
+      parameters the function accepts (if *num_params* is -1, the function may
+      take any number of arguments), and *func* is a Python callable that is
+      called as the SQL function.
 
       The function can return any of the types supported by SQLite: bytes, str, int,
       float and None.
@@ -340,7 +341,8 @@ Connection Objects
       Creates a user-defined aggregate function.
 
       The aggregate class must implement a ``step`` method, which accepts the number
-      of parameters *num_params*, and a ``finalize`` method which will return the
+      of parameters *num_params* (if *num_params* is -1, the function may take
+      any number of arguments), and a ``finalize`` method which will return the
       final result of the aggregate.
 
       The ``finalize`` method can return any of the types supported by SQLite:
@@ -495,7 +497,7 @@ Connection Objects
       deleted since the database connection was opened.
 
 
-   .. attribute:: iterdump
+   .. method:: iterdump
 
       Returns an iterator to dump the database in an SQL text format.  Useful when
       saving an in-memory database for later restoration.  This function provides
@@ -505,7 +507,7 @@ Connection Objects
       Example::
 
          # Convert file existing_db.db to SQL dump file dump.sql
-         import sqlite3, os
+         import sqlite3
 
          con = sqlite3.connect('existing_db.db')
          with open('dump.sql', 'w') as f:
@@ -593,6 +595,12 @@ Cursor Objects
       the cursor's arraysize attribute can affect the performance of this operation.
       An empty list is returned when no rows are available.
 
+   .. method:: close()
+
+      Close the cursor now (rather than whenever ``__del__`` is called).
+
+      The cursor will be unusable from this point forward; a ``ProgrammingError``
+      exception will be raised if any operation is attempted with the cursor.
 
    .. attribute:: rowcount
 

@@ -6,6 +6,8 @@
 
 **Source code:** :source:`Lib/typing.py`
 
+.. versionadded:: 3.5
+
 --------------
 
 This module supports type hints as specified by :pep:`484`.  The most
@@ -345,11 +347,15 @@ The module defines the following classes, functions and decorators:
 
 .. class:: Iterable(Generic[T_co])
 
-    A generic version of the :class:`collections.abc.Iterable`.
+    A generic version of :class:`collections.abc.Iterable`.
 
 .. class:: Iterator(Iterable[T_co])
 
-    A generic version of the :class:`collections.abc.Iterator`.
+    A generic version of :class:`collections.abc.Iterator`.
+
+.. class:: Reversible(Iterable[T_co])
+
+    A generic version of :class:`collections.abc.Reversible`.
 
 .. class:: SupportsInt
 
@@ -368,11 +374,6 @@ The module defines the following classes, functions and decorators:
 
     An ABC with one abstract method ``__round__``
     that is covariant in its return type.
-
-.. class:: Reversible
-
-    An ABC with one abstract method ``__reversed__`` returning
-    an ``Iterator[T_co]``.
 
 .. class:: Container(Generic[T_co])
 
@@ -394,7 +395,7 @@ The module defines the following classes, functions and decorators:
 
     A generic version of :class:`collections.abc.MutableMapping`.
 
-.. class:: Sequence(Sized, Iterable[T_co], Container[T_co])
+.. class:: Sequence(Sized, Reversible[T_co], Container[T_co])
 
     A generic version of :class:`collections.abc.Sequence`.
 
@@ -448,6 +449,12 @@ The module defines the following classes, functions and decorators:
 .. class:: ValuesView(MappingView[VT_co])
 
    A generic version of :class:`collections.abc.ValuesView`.
+
+.. class:: ContextManager(Generic[T_co])
+
+   A generic version of :class:`contextlib.AbstractContextManager`.
+
+   .. versionadded:: 3.6
 
 .. class:: Dict(dict, MutableMapping[KT, VT])
 

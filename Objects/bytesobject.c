@@ -3282,15 +3282,13 @@ bytes_methods[] = {
 };
 
 static PyObject *
-bytes_mod(PyObject *self, PyObject *args)
+bytes_mod(PyObject *self, PyObject *arg)
 {
-    if (self == NULL || !PyBytes_Check(self)) {
-        PyErr_BadInternalCall();
-        return NULL;
+    if (!PyBytes_Check(self)) {
+        Py_RETURN_NOTIMPLEMENTED;
     }
-
     return _PyBytes_FormatEx(PyBytes_AS_STRING(self), PyBytes_GET_SIZE(self),
-                             args, 0);
+                             arg, 0);
 }
 
 static PyNumberMethods bytes_as_number = {
@@ -3469,30 +3467,23 @@ _PyBytes_FromTuple(PyObject *x)
 }
 
 static PyObject *
-_PyBytes_FromIterator(PyObject *x)
+_PyBytes_FromIterator(PyObject *it, PyObject *x)
 {
     char *str;
-    PyObject *it;
     Py_ssize_t i, size;
     _PyBytesWriter writer;
-
-    _PyBytesWriter_Init(&writer);
 
     /* For iterator version, create a string object and resize as needed */
     size = PyObject_LengthHint(x, 64);
     if (size == -1 && PyErr_Occurred())
         return NULL;
 
+    _PyBytesWriter_Init(&writer);
     str = _PyBytesWriter_Alloc(&writer, size);
     if (str == NULL)
         return NULL;
     writer.overallocate = 1;
     size = writer.allocated;
-
-    /* Get the iterator */
-    it = PyObject_GetIter(x);
-    if (it == NULL)
-        goto error;
 
     /* Run the iterator to exhaustion */
     for (i = 0; ; i++) {
@@ -3529,19 +3520,19 @@ _PyBytes_FromIterator(PyObject *x)
         }
         *str++ = (char) value;
     }
-    Py_DECREF(it);
 
     return _PyBytesWriter_Finish(&writer, str);
 
   error:
     _PyBytesWriter_Dealloc(&writer);
-    Py_XDECREF(it);
     return NULL;
 }
 
 PyObject *
 PyBytes_FromObject(PyObject *x)
 {
+    PyObject *it, *result;
+
     if (x == NULL) {
         PyErr_BadInternalCall();
         return NULL;
@@ -3562,13 +3553,19 @@ PyBytes_FromObject(PyObject *x)
     if (PyTuple_CheckExact(x))
         return _PyBytes_FromTuple(x);
 
-    if (PyUnicode_Check(x)) {
-        PyErr_SetString(PyExc_TypeError,
-                        "cannot convert unicode object to bytes");
-        return NULL;
+    if (!PyUnicode_Check(x)) {
+        it = PyObject_GetIter(x);
+        if (it != NULL) {
+            result = _PyBytes_FromIterator(it, x);
+            Py_DECREF(it);
+            return result;
+        }
     }
 
-    return _PyBytes_FromIterator(x);
+    PyErr_Format(PyExc_TypeError,
+                 "cannot convert '%.200s' object to bytes",
+                 x->ob_type->tp_name);
+    return NULL;
 }
 
 static PyObject *
@@ -3806,8 +3803,8 @@ striter_next(striterobject *it)
         return item;
     }
 
-    Py_DECREF(seq);
     it->it_seq = NULL;
+    Py_DECREF(seq);
     return NULL;
 }
 
@@ -4153,7 +4150,12 @@ _PyBytesWriter_Finish(_PyBytesWriter *writer, void *str)
         result = PyBytes_FromStringAndSize(NULL, 0);
     }
     else if (writer->use_small_buffer) {
-        result = PyBytes_FromStringAndSize(writer->small_buffer, size);
+        if (writer->use_bytearray) {
+            result = PyByteArray_FromStringAndSize(writer->small_buffer, size);
+        }
+        else {
+            result = PyBytes_FromStringAndSize(writer->small_buffer, size);
+        }
     }
     else {
         result = writer->buffer;

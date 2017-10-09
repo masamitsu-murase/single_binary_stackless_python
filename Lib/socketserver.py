@@ -378,6 +378,12 @@ class BaseServer:
         traceback.print_exc()
         print('-'*40, file=sys.stderr)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.server_close()
+
 
 class TCPServer(BaseServer):
 
@@ -741,7 +747,7 @@ class StreamRequestHandler(BaseRequestHandler):
             try:
                 self.wfile.flush()
             except socket.error:
-                # An final socket error may have occurred here, such as
+                # A final socket error may have occurred here, such as
                 # the local error ECONNABORTED.
                 pass
         self.wfile.close()

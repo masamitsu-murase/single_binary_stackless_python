@@ -1646,7 +1646,7 @@ PySSL_get_owner(PySSLSocket *self, void *c)
 static int
 PySSL_set_owner(PySSLSocket *self, PyObject *value, void *c)
 {
-    Py_SETREF(self->owner, PyWeakref_NewRef(value, NULL));
+    Py_XSETREF(self->owner, PyWeakref_NewRef(value, NULL));
     if (self->owner == NULL)
         return -1;
     return 0;
@@ -1894,6 +1894,11 @@ _ssl__SSLSocket_read_impl(PySSLSocket *self, int len, int group_right_1,
     PySocketSockObject *sock = GET_SOCKET(self);
     _PyTime_t timeout, deadline = 0;
     int has_timeout;
+
+    if (!group_right_1 && len < 0) {
+        PyErr_SetString(PyExc_ValueError, "size should not be negative");
+        return NULL;
+    }
 
     if (sock != NULL) {
         if (((PyObject*)sock) == Py_None) {
@@ -2219,7 +2224,9 @@ _ssl__SSLContext_impl(PyTypeObject *type, int proto_version)
     PySSLContext *self;
     long options;
     SSL_CTX *ctx = NULL;
+#if defined(SSL_MODE_RELEASE_BUFFERS)
     unsigned long libver;
+#endif
 
     PySSL_BEGIN_ALLOW_THREADS
     if (proto_version == PY_SSL_VERSION_TLS1)
