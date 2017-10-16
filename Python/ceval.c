@@ -1266,7 +1266,7 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
             oparg = NEXTARG();
             if (opcode == EXTENDED_ARG) {
                 opcode = NEXTOP();
-                oparg = oparg<<16 | NEXTARG();
+                oparg = oparg<<8 | NEXTARG();
             }
             assert(opcode == FOR_ITER);
 
@@ -1301,7 +1301,7 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
             oparg = NEXTARG();
             if (opcode == EXTENDED_ARG) {
                 opcode = NEXTOP();
-                oparg = oparg<<16 | NEXTARG();
+                oparg = oparg<<8 | NEXTARG();
             }
             assert(opcode == SETUP_WITH);
 
@@ -3872,7 +3872,14 @@ stackless_iter:
     /* restore this opcode and enable frame to handle it */
     f->f_execute = slp_eval_frame_iter;
 stackless_call_with_opcode:
-    next_instr -= (oparg >> 16) ? 6 : 3;
+
+#define EXTENDED_ARG_OFFSET(x) \
+    (assert(sizeof(x) == 4), \
+     (!((x) >> 8)  ? 0 : \
+     (!((x) >> 16) ? 2 : \
+     (!((x) >> 24) ? 4 : 6 ))))
+
+    next_instr -= 2 + EXTENDED_ARG_OFFSET(oparg);
 
 stackless_call:
     /*
@@ -3882,7 +3889,7 @@ stackless_call:
 
     /* the -1 is to adjust for the f_lasti change.
        (look for the word 'Promise' above) */
-    f->f_lasti = INSTR_OFFSET() - 1;
+    f->f_lasti = INSTR_OFFSET() - 2;
     if (SLP_PEEK_NEXT_FRAME(tstate)->f_back != f)
         return retval;
     STACKLESS_UNPACK(tstate, retval);
@@ -3906,12 +3913,12 @@ stackless_call:
 
     f->f_stacktop = NULL;
     if (f->f_execute == slp_eval_frame_iter) {
-        next_instr += (oparg >> 16) ? 6 : 3;
+        next_instr += 2 + EXTENDED_ARG_OFFSET(oparg);;
         f->f_execute = slp_eval_frame_value;
         goto stackless_iter_return;
     }
     else if (f->f_execute == slp_eval_frame_setup_with) {
-        next_instr += (oparg >> 16) ? 6 : 3;
+        next_instr += 2 + EXTENDED_ARG_OFFSET(oparg);
         f->f_execute = slp_eval_frame_value;
         goto stackless_setup_with_return;
     }
@@ -3930,7 +3937,7 @@ stackless_interrupt_call:
 
     /* the -1 is to adjust for the f_lasti change.
        (look for the word 'Promise' above) */
-    f->f_lasti = INSTR_OFFSET() - 1;
+    f->f_lasti = INSTR_OFFSET() - 2;
     return (PyObject *) Py_UnwindToken;
 #endif
 }
