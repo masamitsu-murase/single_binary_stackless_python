@@ -787,25 +787,6 @@ PyEval_EvalCode(PyObject *co, PyObject *globals, PyObject *locals)
 
 /* Interpreter main loop */
 
-#ifdef STACKLESS
-PyObject *
-PyEval_EvalFrame(PyFrameObject *f)
-{
-    return PyEval_EvalFrameEx_slp(f, 0, NULL);
-}
-
-PyObject *
-PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
-{
-    return PyEval_EvalFrameEx_slp(f, throwflag, NULL);
-}
-
-PyObject *
-PyEval_EvalFrameEx_slp(PyFrameObject *f, int throwflag, PyObject *retval)
-{
-    PyThreadState *tstate = PyThreadState_GET();
-#else
-
 PyObject *
 PyEval_EvalFrame(PyFrameObject *f) {
     /* This is for backward compatibility with extension modules that
@@ -815,7 +796,11 @@ PyEval_EvalFrame(PyFrameObject *f) {
 }
 
 PyObject *
+#ifdef STACKLESS
+slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
+#else
 PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
+#endif
 {
 #ifdef DXPAIRS
     int lastopcode = 0;
@@ -826,7 +811,9 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
     int oparg;         /* Current opcode argument, if any */
     enum why_code why; /* Reason for block stack unwind */
     PyObject **fastlocals, **freevars;
+#ifndef STACKLESS
     PyObject *retval = NULL;            /* Return value */
+#endif
     PyThreadState *tstate = PyThreadState_GET();
     PyCodeObject *co;
 
@@ -1153,29 +1140,37 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
     }
 
 /* Stackless specific defines start here.. */
+#ifdef STACKLESS
+#define SLP_CHECK_INTERRUPT() \
+    if (tstate->st.interrupt && !tstate->curexc_type) { \
+        if (tstate->st.tick_counter > tstate->st.tick_watermark) { \
+            PyObject *ires; \
+            ires = tstate->st.interrupt(); \
+            if (ires == NULL) { \
+                goto error; \
+            } \
+            else if (STACKLESS_UNWINDING(ires)) { \
+                goto stackless_interrupt_call; \
+            } \
+            /* hard switch, drop value */ \
+            Py_DECREF(ires); \
+        } \
+    } \
+    tstate->st.tick_counter++;
 
+#else
 #define SLP_CHECK_INTERRUPT() ;
-
-#endif  /* not STACKLESS */
 
 /* Start of code */
 
-#ifdef STACKLESS
-    if (CSTACK_SAVE_NOW(tstate, f))
-        return slp_eval_frame_newstack(f, throwflag, retval);
-
-    /* push frame */
-    if (Py_EnterRecursiveCall("")) {
-        Py_XDECREF(retval);
-        SLP_STORE_NEXT_FRAME(tstate, f->f_back);
-        return NULL;
-    }
-#else
     /* push frame */
     if (Py_EnterRecursiveCall(""))
         return NULL;
-#endif /* STACKLESS */
 
+    /* STACKLESS:
+     * the code starting from here on until the end-marker
+     * is duplicated below. Keep the two copies in sync!
+     */
     tstate->frame = f;
 
     if (tstate->use_tracing) {
@@ -1211,441 +1206,10 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
             }
         }
     }
-
-#ifdef STACKLESS
-
-    f->f_execute = slp_eval_frame_noval;
-    return slp_eval_frame_value(f, throwflag, retval);
-exit_eval_frame:
-    Py_XDECREF(retval);
-    Py_LeaveRecursiveCall();
-    f->f_executing = 0;
-    SLP_STORE_NEXT_FRAME(tstate, f->f_back);
-    return NULL;
-}
-
-/* a global write only dummy variable */
-char _dont_optimise_away_slp_eval_frame_functions;
-
-PyObject *
-slp_eval_frame_noval(PyFrameObject *f, int throwflag, PyObject *retval)
-{
-    PyObject *r;
-    /*
-     * this function is identical to PyEval_EvalFrame_value.
-     * it serves as a marker whether we expect a value or
-     * not, and it makes debugging a little easier.
+    /* STACKLESS: end of duplicated code
      */
-    _dont_optimise_away_slp_eval_frame_functions = 1;
-    r = slp_eval_frame_value(f, throwflag, retval);
-    return r;
-}
 
-PyObject *
-slp_eval_frame_iter(PyFrameObject *f, int throwflag, PyObject *retval)
-{
-    PyObject *r;
-    /*
-     * this function is identical to PyEval_EvalFrame_value.
-     * it serves as a marker whether we are inside of a
-     * for_iter operation. In this case we need to handle
-     * null without error as valid result.
-     */
-    _dont_optimise_away_slp_eval_frame_functions = 2;
-    r = slp_eval_frame_value(f, throwflag, retval);
-    return r;
-}
-
-PyObject *
-slp_eval_frame_setup_with(PyFrameObject *f, int throwflag, PyObject *retval)
-{
-    PyObject *r;
-    /*
-     * this function is identical to PyEval_EvalFrame_value.
-     * it serves as a marker whether we are inside of a
-     * SETUP_WITH operation.
-     * NOTE / XXX: see above.
-     */
-    _dont_optimise_away_slp_eval_frame_functions = 3;
-    r = slp_eval_frame_value(f, throwflag, retval);
-    return r;
-}
-
-PyObject *
-slp_eval_frame_with_cleanup(PyFrameObject *f, int throwflag, PyObject *retval)
-{
-    PyObject *r;
-    /*
-     * this function is identical to PyEval_EvalFrame_value.
-     * it serves as a marker whether we are inside of a
-     * WITH_CLEANUP operation.
-     * NOTE / XXX: see above.
-     */
-    _dont_optimise_away_slp_eval_frame_functions = 4;
-    r = slp_eval_frame_value(f, throwflag, retval);
-    return r;
-}
-
-PyObject *
-slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
-{
-    /* unfortunately we repeat all the variables here... */
-#ifdef DXPAIRS
-    int lastopcode = 0;
-#endif
-    PyObject **stack_pointer;  /* Next free slot in value stack */
-    unsigned char *next_instr;
-    int opcode;        /* Current opcode */
-    int oparg;         /* Current opcode argument, if any */
-    enum why_code why; /* Reason for block stack unwind */
-    PyObject **fastlocals, **freevars;
-
-    PyThreadState *tstate = PyThreadState_GET();
-    PyCodeObject *co;
-
-    /* when tracing we set things up so that
-
-           not (instr_lb <= current_bytecode_offset < instr_ub)
-
-       is true when the line being executed has changed.  The
-       initial values are such as to make this false the first
-       time it is tested. */
-    int instr_ub = -1, instr_lb = 0, instr_prev = -1;
-
-    unsigned char *first_instr;
-    PyObject *names;
-    PyObject *consts;
-
-#ifdef LLTRACE
-    _Py_IDENTIFIER(__ltrace__);
-#endif
-
-/* Computed GOTOs, or
-       the-optimization-commonly-but-improperly-known-as-"threaded code"
-   using gcc's labels-as-values extension
-   (http://gcc.gnu.org/onlinedocs/gcc/Labels-as-Values.html).
-
-   The traditional bytecode evaluation loop uses a "switch" statement, which
-   decent compilers will optimize as a single indirect branch instruction
-   combined with a lookup table of jump addresses. However, since the
-   indirect jump instruction is shared by all opcodes, the CPU will have a
-   hard time making the right prediction for where to jump next (actually,
-   it will be always wrong except in the uncommon case of a sequence of
-   several identical opcodes).
-
-   "Threaded code" in contrast, uses an explicit jump table and an explicit
-   indirect jump instruction at the end of each opcode. Since the jump
-   instruction is at a different address for each opcode, the CPU will make a
-   separate prediction for each of these instructions, which is equivalent to
-   predicting the second opcode of each opcode pair. These predictions have
-   a much better chance to turn out valid, especially in small bytecode loops.
-
-   A mispredicted branch on a modern CPU flushes the whole pipeline and
-   can cost several CPU cycles (depending on the pipeline depth),
-   and potentially many more instructions (depending on the pipeline width).
-   A correctly predicted branch, however, is nearly free.
-
-   At the time of this writing, the "threaded code" version is up to 15-20%
-   faster than the normal "switch" version, depending on the compiler and the
-   CPU architecture.
-
-   We disable the optimization if DYNAMIC_EXECUTION_PROFILE is defined,
-   because it would render the measurements invalid.
-
-
-   NOTE: care must be taken that the compiler doesn't try to "optimize" the
-   indirect jumps by sharing them between all opcodes. Such optimizations
-   can be disabled on gcc by using the -fno-gcse flag (or possibly
-   -fno-crossjumping).
-*/
-
-#ifdef DYNAMIC_EXECUTION_PROFILE
-#undef USE_COMPUTED_GOTOS
-#define USE_COMPUTED_GOTOS 0
-#endif
-
-#ifdef HAVE_COMPUTED_GOTOS
-    #ifndef USE_COMPUTED_GOTOS
-    #define USE_COMPUTED_GOTOS 1
-    #endif
-#else
-    #if defined(USE_COMPUTED_GOTOS) && USE_COMPUTED_GOTOS
-    #error "Computed gotos are not supported on this compiler."
-    #endif
-    #undef USE_COMPUTED_GOTOS
-    #define USE_COMPUTED_GOTOS 0
-#endif
-
-#if USE_COMPUTED_GOTOS
-/* Import the static jump table */
-#include "opcode_targets.h"
-
-/* This macro is used when several opcodes defer to the same implementation
-   (e.g. SETUP_LOOP, SETUP_FINALLY) */
-#define TARGET_WITH_IMPL(op, impl) \
-    TARGET_##op: \
-        opcode = op; \
-        if (HAS_ARG(op)) \
-            oparg = NEXTARG(); \
-    case op: \
-        goto impl; \
-
-#define TARGET(op) \
-    TARGET_##op: \
-        opcode = op; \
-        if (HAS_ARG(op)) \
-            oparg = NEXTARG(); \
-    case op:
-
-
-#define DISPATCH() \
-    { \
-        SLP_CHECK_INTERRUPT() \
-        if (!_Py_atomic_load_relaxed(&eval_breaker)) {      \
-                    FAST_DISPATCH(); \
-        } \
-        continue; \
-    }
-
-#ifdef LLTRACE
-#define FAST_DISPATCH() \
-    { \
-        if (!lltrace && !_Py_TracingPossible) { \
-            f->f_lasti = INSTR_OFFSET(); \
-            goto *opcode_targets[*next_instr++]; \
-        } \
-        goto fast_next_opcode; \
-    }
-#else
-#define FAST_DISPATCH() \
-    { \
-        if (!_Py_TracingPossible) { \
-            f->f_lasti = INSTR_OFFSET(); \
-            goto *opcode_targets[*next_instr++]; \
-        } \
-        goto fast_next_opcode; \
-    }
-#endif
-
-#else
-#define TARGET(op) \
-    case op:
-#define TARGET_WITH_IMPL(op, impl) \
-    /* silence compiler warnings about `impl` unused */ \
-    if (0) goto impl; \
-    case op:
-#define DISPATCH() continue
-#define FAST_DISPATCH() goto fast_next_opcode
-#endif
-
-
-/* Tuple access macros */
-
-#ifndef Py_DEBUG
-#define GETITEM(v, i) PyTuple_GET_ITEM((PyTupleObject *)(v), (i))
-#else
-#define GETITEM(v, i) PyTuple_GetItem((v), (i))
-#endif
-
-#ifdef WITH_TSC
-/* Use Pentium timestamp counter to mark certain events:
-   inst0 -- beginning of switch statement for opcode dispatch
-   inst1 -- end of switch statement (may be skipped)
-   loop0 -- the top of the mainloop
-   loop1 -- place where control returns again to top of mainloop
-            (may be skipped)
-   intr1 -- beginning of long interruption
-   intr2 -- end of long interruption
-
-   Many opcodes call out to helper C functions.  In some cases, the
-   time in those functions should be counted towards the time for the
-   opcode, but not in all cases.  For example, a CALL_FUNCTION opcode
-   calls another Python function; there's no point in charge all the
-   bytecode executed by the called function to the caller.
-
-   It's hard to make a useful judgement statically.  In the presence
-   of operator overloading, it's impossible to tell if a call will
-   execute new Python code or not.
-
-   It's a case-by-case judgement.  I'll use intr1 for the following
-   cases:
-
-   IMPORT_STAR
-   IMPORT_FROM
-   CALL_FUNCTION (and friends)
-
- */
-    uint64 inst0, inst1, loop0, loop1, intr0 = 0, intr1 = 0;
-    int ticked = 0;
-
-    READ_TIMESTAMP(inst0);
-    READ_TIMESTAMP(inst1);
-    READ_TIMESTAMP(loop0);
-    READ_TIMESTAMP(loop1);
-
-    /* shut up the compiler */
-    opcode = 0;
-#endif
-
-/* Code access macros */
-
-#define INSTR_OFFSET()  ((int)(next_instr - first_instr))
-#define NEXTOP()        (*next_instr++)
-#define NEXTARG()       (next_instr += 2, (next_instr[-1]<<8) + next_instr[-2])
-#define PEEKARG()       ((next_instr[2]<<8) + next_instr[1])
-#define JUMPTO(x)       (next_instr = first_instr + (x))
-#define JUMPBY(x)       (next_instr += (x))
-
-/* OpCode prediction macros
-    Some opcodes tend to come in pairs thus making it possible to
-    predict the second code when the first is run.  For example,
-    COMPARE_OP is often followed by JUMP_IF_FALSE or JUMP_IF_TRUE.  And,
-    those opcodes are often followed by a POP_TOP.
-
-    Verifying the prediction costs a single high-speed test of a register
-    variable against a constant.  If the pairing was good, then the
-    processor's own internal branch predication has a high likelihood of
-    success, resulting in a nearly zero-overhead transition to the
-    next opcode.  A successful prediction saves a trip through the eval-loop
-    including its two unpredictable branches, the HAS_ARG test and the
-    switch-case.  Combined with the processor's internal branch prediction,
-    a successful PREDICT has the effect of making the two opcodes run as if
-    they were a single new opcode with the bodies combined.
-
-    If collecting opcode statistics, your choices are to either keep the
-    predictions turned-on and interpret the results as if some opcodes
-    had been combined or turn-off predictions so that the opcode frequency
-    counter updates for both opcodes.
-
-    Opcode prediction is disabled with threaded code, since the latter allows
-    the CPU to record separate branch prediction information for each
-    opcode.
-
-*/
-
-#if defined(DYNAMIC_EXECUTION_PROFILE) || USE_COMPUTED_GOTOS
-#define PREDICT(op)             if (0) goto PRED_##op
-#define PREDICTED(op)           PRED_##op:
-#define PREDICTED_WITH_ARG(op)  PRED_##op:
-#else
-#define PREDICT(op)             if (*next_instr == op) goto PRED_##op
-#define PREDICTED(op)           PRED_##op: next_instr++
-#define PREDICTED_WITH_ARG(op)  PRED_##op: oparg = PEEKARG(); next_instr += 3
-#endif
-
-
-#ifdef STACKLESS
-#ifdef STACKLESS_USE_ENDIAN
-
-#undef NEXTARG
-#define NEXTARG()    (next_instr += 2, ((unsigned short *)next_instr)[-1])
-#undef PREDICTED_WITH_ARG
-#define PREDICTED_WITH_ARG(op)    PRED_##op: next_instr += 3;  \
-                oparg = ((unsigned short *)next_instr)[-1]
-
-#endif
-#endif
-
-/* Stack manipulation macros */
-
-/* The stack can grow at most MAXINT deep, as co_nlocals and
-   co_stacksize are ints. */
-#define STACK_LEVEL()     ((int)(stack_pointer - f->f_valuestack))
-#define EMPTY()           (STACK_LEVEL() == 0)
-#define TOP()             (stack_pointer[-1])
-#define SECOND()          (stack_pointer[-2])
-#define THIRD()           (stack_pointer[-3])
-#define FOURTH()          (stack_pointer[-4])
-#define PEEK(n)           (stack_pointer[-(n)])
-#define SET_TOP(v)        (stack_pointer[-1] = (v))
-#define SET_SECOND(v)     (stack_pointer[-2] = (v))
-#define SET_THIRD(v)      (stack_pointer[-3] = (v))
-#define SET_FOURTH(v)     (stack_pointer[-4] = (v))
-#define SET_VALUE(n, v)   (stack_pointer[-(n)] = (v))
-#define BASIC_STACKADJ(n) (stack_pointer += n)
-#define BASIC_PUSH(v)     (*stack_pointer++ = (v))
-#define BASIC_POP()       (*--stack_pointer)
-
-#ifdef LLTRACE
-#define PUSH(v)         { (void)(BASIC_PUSH(v), \
-                          lltrace && prtrace(TOP(), "push")); \
-                          assert(STACK_LEVEL() <= co->co_stacksize); }
-#define POP()           ((void)(lltrace && prtrace(TOP(), "pop")), \
-                         BASIC_POP())
-#define STACKADJ(n)     { (void)(BASIC_STACKADJ(n), \
-                          lltrace && prtrace(TOP(), "stackadj")); \
-                          assert(STACK_LEVEL() <= co->co_stacksize); }
-#define EXT_POP(STACK_POINTER) ((void)(lltrace && \
-                                prtrace((STACK_POINTER)[-1], "ext_pop")), \
-                                *--(STACK_POINTER))
-#else
-#define PUSH(v)                BASIC_PUSH(v)
-#define POP()                  BASIC_POP()
-#define STACKADJ(n)            BASIC_STACKADJ(n)
-#define EXT_POP(STACK_POINTER) (*--(STACK_POINTER))
-#endif
-
-/* Local variable macros */
-
-#define GETLOCAL(i)     (fastlocals[i])
-
-/* The SETLOCAL() macro must not DECREF the local variable in-place and
-   then store the new value; it must copy the old value to a temporary
-   value, then store the new value, and then DECREF the temporary value.
-   This is because it is possible that during the DECREF the frame is
-   accessed by other code (e.g. a __del__ method or gc.collect()) and the
-   variable would be pointing to already-freed memory. */
-#define SETLOCAL(i, value)      do { PyObject *tmp = GETLOCAL(i); \
-                                     GETLOCAL(i) = value; \
-                                     Py_XDECREF(tmp); } while (0)
-
-
-#define UNWIND_BLOCK(b) \
-    while (STACK_LEVEL() > (b)->b_level) { \
-        PyObject *v = POP(); \
-        Py_XDECREF(v); \
-    }
-
-#define UNWIND_EXCEPT_HANDLER(b) \
-    { \
-        PyObject *type, *value, *traceback; \
-        assert(STACK_LEVEL() >= (b)->b_level + 3); \
-        while (STACK_LEVEL() > (b)->b_level + 3) { \
-            value = POP(); \
-            Py_XDECREF(value); \
-        } \
-        type = tstate->exc_type; \
-        value = tstate->exc_value; \
-        traceback = tstate->exc_traceback; \
-        tstate->exc_type = POP(); \
-        tstate->exc_value = POP(); \
-        tstate->exc_traceback = POP(); \
-        Py_XDECREF(type); \
-        Py_XDECREF(value); \
-        Py_XDECREF(traceback); \
-    }
-
-
-/* Stackless specific defines start here.. */
-
-#define SLP_CHECK_INTERRUPT() \
-    if (tstate->st.interrupt && !tstate->curexc_type) { \
-        if (tstate->st.tick_counter > tstate->st.tick_watermark) { \
-            PyObject *ires; \
-            ires = tstate->st.interrupt(); \
-            if (ires == NULL) { \
-                goto error; \
-            } \
-            else if (STACKLESS_UNWINDING(ires)) { \
-                goto stackless_interrupt_call; \
-            } \
-            /* hard switch, drop value */ \
-            Py_DECREF(ires); \
-        } \
-    } \
-    tstate->st.tick_counter++;
-
-#endif /* STACKLESS */
+#endif /* #ifdef STACKLESS */
 
     co = f->f_code;
     names = co->co_names;
@@ -1856,9 +1420,6 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
                    a try: finally: block uninterruptible. */
                 goto fast_next_opcode;
             }
-
-
-
 #ifdef WITH_TSC
             ticked = 1;
 #endif
@@ -4402,6 +3963,150 @@ stackless_interrupt_call:
     return (PyObject *) Py_UnwindToken;
 #endif
 }
+
+
+#ifdef STACKLESS
+/* a global write only dummy variable */
+char _dont_optimise_away_slp_eval_frame_functions;
+
+PyObject *
+slp_eval_frame_noval(PyFrameObject *f, int throwflag, PyObject *retval)
+{
+    PyObject *r;
+    /*
+     * this function is identical to PyEval_EvalFrame_value.
+     * it serves as a marker whether we expect a value or
+     * not, and it makes debugging a little easier.
+     */
+    _dont_optimise_away_slp_eval_frame_functions = 1;
+    r = slp_eval_frame_value(f, throwflag, retval);
+    return r;
+}
+
+PyObject *
+slp_eval_frame_iter(PyFrameObject *f, int throwflag, PyObject *retval)
+{
+    PyObject *r;
+    /*
+     * this function is identical to PyEval_EvalFrame_value.
+     * it serves as a marker whether we are inside of a
+     * for_iter operation. In this case we need to handle
+     * null without error as valid result.
+     */
+    _dont_optimise_away_slp_eval_frame_functions = 2;
+    r = slp_eval_frame_value(f, throwflag, retval);
+    return r;
+}
+
+PyObject *
+slp_eval_frame_setup_with(PyFrameObject *f, int throwflag, PyObject *retval)
+{
+    PyObject *r;
+    /*
+     * this function is identical to PyEval_EvalFrame_value.
+     * it serves as a marker whether we are inside of a
+     * SETUP_WITH operation.
+     * NOTE / XXX: see above.
+     */
+    _dont_optimise_away_slp_eval_frame_functions = 3;
+    r = slp_eval_frame_value(f, throwflag, retval);
+    return r;
+}
+
+PyObject *
+slp_eval_frame_with_cleanup(PyFrameObject *f, int throwflag, PyObject *retval)
+{
+    PyObject *r;
+    /*
+     * this function is identical to PyEval_EvalFrame_value.
+     * it serves as a marker whether we are inside of a
+     * WITH_CLEANUP operation.
+     * NOTE / XXX: see above.
+     */
+    _dont_optimise_away_slp_eval_frame_functions = 4;
+    r = slp_eval_frame_value(f, throwflag, retval);
+    return r;
+}
+
+PyObject *
+PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
+{
+    return PyEval_EvalFrameEx_slp(f, throwflag, NULL);
+}
+
+PyObject *
+PyEval_EvalFrameEx_slp(PyFrameObject *f, int throwflag, PyObject *retval)
+{
+    PyThreadState *tstate = PyThreadState_GET();
+
+    /* Start of code, similar to non stackless
+     * PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
+     */
+
+    if (CSTACK_SAVE_NOW(tstate, f))
+        return slp_eval_frame_newstack(f, throwflag, retval);
+
+    /* push frame */
+    if (Py_EnterRecursiveCall("")) {
+        Py_XDECREF(retval);
+        SLP_STORE_NEXT_FRAME(tstate, f->f_back);
+        return NULL;
+    }
+
+    /* STACKLESS:
+     * the code starting from here on until the end-marker
+     * is a copy of code above. Keep the two copies in sync!
+     */
+    tstate->frame = f;
+
+    if (tstate->use_tracing) {
+        if (tstate->c_tracefunc != NULL) {
+            /* tstate->c_tracefunc, if defined, is a
+               function that will be called on *every* entry
+               to a code block.  Its return value, if not
+               None, is a function that will be called at
+               the start of each executed line of code.
+               (Actually, the function must return itself
+               in order to continue tracing.)  The trace
+               functions are called with three arguments:
+               a pointer to the current frame, a string
+               indicating why the function is called, and
+               an argument which depends on the situation.
+               The global trace function is also called
+               whenever an exception is detected. */
+            if (call_trace_protected(tstate->c_tracefunc,
+                                     tstate->c_traceobj,
+                                     tstate, f, PyTrace_CALL, Py_None)) {
+                /* Trace function raised an error */
+                goto exit_eval_frame;
+            }
+        }
+        if (tstate->c_profilefunc != NULL) {
+            /* Similar for c_profilefunc, except it needn't
+               return itself and isn't called for "line" events */
+            if (call_trace_protected(tstate->c_profilefunc,
+                                     tstate->c_profileobj,
+                                     tstate, f, PyTrace_CALL, Py_None)) {
+                /* Profile function raised an error */
+                goto exit_eval_frame;
+            }
+        }
+    }
+    /* STACKLESS: end of duplicated code
+     */
+
+
+    f->f_execute = slp_eval_frame_noval;
+    return slp_eval_frame_value(f, throwflag, retval);
+exit_eval_frame:
+    Py_XDECREF(retval);
+    Py_LeaveRecursiveCall();
+    f->f_executing = 0;
+    SLP_STORE_NEXT_FRAME(tstate, f->f_back);
+    return NULL;
+}
+#endif /* #ifdef STACKLESS */
+
 
 static void
 format_missing(const char *kind, PyCodeObject *co, PyObject *names)
