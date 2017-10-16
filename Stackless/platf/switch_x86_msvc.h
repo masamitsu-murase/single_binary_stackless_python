@@ -39,9 +39,6 @@
 
 #define STACK_REFPLUS 1
 
-/* use faster oparg fetch */
-#define STACKLESS_USE_ENDIAN
-
 /* switching related stuff */
 #ifdef SLP_EVAL
 

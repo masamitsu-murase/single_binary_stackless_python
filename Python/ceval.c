@@ -7,7 +7,7 @@
    */
 
 /* enable more aggressive intra-module optimizations, where available */
-#undef PY_LOCAL_AGGRESSIVE
+#define PY_LOCAL_AGGRESSIVE
 
 #include "Python.h"
 
@@ -1047,18 +1047,6 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
 #define PREDICTED_WITH_ARG(op)  PRED_##op: oparg = PEEKARG(); next_instr += 3
 #endif
 
-
-#ifdef STACKLESS
-#ifdef STACKLESS_USE_ENDIAN
-
-#undef NEXTARG
-#define NEXTARG()    (next_instr += 2, ((unsigned short *)next_instr)[-1])
-#undef PREDICTED_WITH_ARG
-#define PREDICTED_WITH_ARG(op)    PRED_##op: next_instr += 3;  \
-                oparg = ((unsigned short *)next_instr)[-1]
-
-#endif
-#endif
 
 /* Stack manipulation macros */
 
