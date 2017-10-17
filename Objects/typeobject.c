@@ -461,7 +461,7 @@ type_module(PyTypeObject *type, void *context)
             PyErr_Format(PyExc_AttributeError, "__module__");
             return 0;
         }
-        Py_XINCREF(mod);
+        Py_INCREF(mod);
         return mod;
     }
     else {
@@ -501,7 +501,7 @@ type_abstractmethods(PyTypeObject *type, void *context)
             PyErr_SetObject(PyExc_AttributeError, message);
         return NULL;
     }
-    Py_XINCREF(mod);
+    Py_INCREF(mod);
     return mod;
 }
 
@@ -1562,7 +1562,6 @@ class_name(PyObject *cls)
     PyObject *name = _PyObject_GetAttrId(cls, &PyId___name__);
     if (name == NULL) {
         PyErr_Clear();
-        Py_XDECREF(name);
         name = PyObject_Repr(cls);
     }
     if (name == NULL)
@@ -5876,8 +5875,8 @@ slot_sq_item(PyObject *self, Py_ssize_t i)
             if (args != NULL) {
                 PyTuple_SET_ITEM(args, 0, ival);
                 retval = PyObject_Call(func, args, NULL);
-                Py_XDECREF(args);
-                Py_XDECREF(func);
+                Py_DECREF(args);
+                Py_DECREF(func);
                 return retval;
             }
         }
