@@ -1172,16 +1172,28 @@ You probably tried to make a multidimensional array like this::
 
    >>> A = [[None] * 2] * 3
 
-This looks correct if you print it::
+This looks correct if you print it:
+
+.. testsetup::
+
+   A = [[None] * 2] * 3
+
+.. doctest::
 
    >>> A
    [[None, None], [None, None], [None, None]]
 
 But when you assign a value, it shows up in multiple places:
 
-  >>> A[0][0] = 5
-  >>> A
-  [[5, None], [5, None], [5, None]]
+.. testsetup::
+
+   A = [[None] * 2] * 3
+
+.. doctest::
+
+   >>> A[0][0] = 5
+   >>> A
+   [[5, None], [5, None], [5, None]]
 
 The reason is that replicating a list with ``*`` doesn't create copies, it only
 creates references to the existing objects.  The ``*3`` creates a list
@@ -1201,7 +1213,7 @@ use a list comprehension::
    w, h = 2, 3
    A = [[None] * w for i in range(h)]
 
-Or, you can use an extension that provides a matrix datatype; `Numeric Python
+Or, you can use an extension that provides a matrix datatype; `NumPy
 <http://www.numpy.org/>`_ is the best known.
 
 
@@ -1313,39 +1325,10 @@ I want to do a complicated sort: can you do a Schwartzian Transform in Python?
 
 The technique, attributed to Randal Schwartz of the Perl community, sorts the
 elements of a list by a metric which maps each element to its "sort value". In
-Python, just use the ``key`` argument for the ``sort()`` method::
+Python, use the ``key`` argument for the :meth:`list.sort` method::
 
    Isorted = L[:]
    Isorted.sort(key=lambda s: int(s[10:15]))
-
-The ``key`` argument is new in Python 2.4, for older versions this kind of
-sorting is quite simple to do with list comprehensions.  To sort a list of
-strings by their uppercase values::
-
-  tmp1 = [(x.upper(), x) for x in L]  # Schwartzian transform
-  tmp1.sort()
-  Usorted = [x[1] for x in tmp1]
-
-To sort by the integer value of a subfield extending from positions 10-15 in
-each string::
-
-  tmp2 = [(int(s[10:15]), s) for s in L]  # Schwartzian transform
-  tmp2.sort()
-  Isorted = [x[1] for x in tmp2]
-
-For versions prior to 3.0, Isorted may also be computed by ::
-
-   def intfield(s):
-       return int(s[10:15])
-
-   def Icmp(s1, s2):
-       return cmp(intfield(s1), intfield(s2))
-
-   Isorted = L[:]
-   Isorted.sort(Icmp)
-
-but since this method calls ``intfield()`` many times for each element of L, it
-is slower than the Schwartzian Transform.
 
 
 How can I sort one list by values from another list?
@@ -1694,9 +1677,9 @@ address, it happens frequently that after an object is deleted from memory, the
 next freshly created object is allocated at the same position in memory.  This
 is illustrated by this example:
 
->>> id(1000)
+>>> id(1000) # doctest: +SKIP
 13901272
->>> id(2000)
+>>> id(2000) # doctest: +SKIP
 13901272
 
 The two ids belong to different integer objects that are created before, and
@@ -1705,9 +1688,9 @@ objects whose id you want to examine are still alive, create another reference
 to the object:
 
 >>> a = 1000; b = 2000
->>> id(a)
+>>> id(a) # doctest: +SKIP
 13901272
->>> id(b)
+>>> id(b) # doctest: +SKIP
 13891296
 
 

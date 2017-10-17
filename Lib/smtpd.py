@@ -89,7 +89,10 @@ import collections
 from warnings import warn
 from email._header_value_parser import get_addr_spec, get_angle_addr
 
-__all__ = ["SMTPServer","DebuggingServer","PureProxy","MailmanProxy"]
+__all__ = [
+    "SMTPChannel", "SMTPServer", "DebuggingServer", "PureProxy",
+    "MailmanProxy",
+]
 
 program = sys.argv[0]
 __version__ = 'Python SMTP proxy version 0.3'
@@ -134,8 +137,8 @@ class SMTPChannel(asynchat.async_chat):
         self.conn = conn
         self.addr = addr
         self.data_size_limit = data_size_limit
-        self.enable_SMTPUTF8 = enable_SMTPUTF8 = bool(enable_SMTPUTF8)
-        self._decode_data = decode_data = bool(decode_data)
+        self.enable_SMTPUTF8 = enable_SMTPUTF8
+        self._decode_data = decode_data
         if enable_SMTPUTF8 and decode_data:
             raise ValueError("decode_data and enable_SMTPUTF8 cannot"
                              " be set to True at the same time")
@@ -632,8 +635,8 @@ class SMTPServer(asyncore.dispatcher):
         self._localaddr = localaddr
         self._remoteaddr = remoteaddr
         self.data_size_limit = data_size_limit
-        self.enable_SMTPUTF8 = enable_SMTPUTF8 = bool(enable_SMTPUTF8)
-        self._decode_data = decode_data = bool(decode_data)
+        self.enable_SMTPUTF8 = enable_SMTPUTF8
+        self._decode_data = decode_data
         if enable_SMTPUTF8 and decode_data:
             raise ValueError("decode_data and enable_SMTPUTF8 cannot"
                              " be set to True at the same time")

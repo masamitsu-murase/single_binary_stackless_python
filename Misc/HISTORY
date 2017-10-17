@@ -1834,7 +1834,7 @@ Core and Builtins
   objects.  Initial patch by Matthias Troffaes.
 
 - Fix OSError.__init__ and OSError.__new__ so that each of them can be
-  overriden and take additional arguments (followup to issue #12555).
+  overridden and take additional arguments (followup to issue #12555).
 
 - Fix the fix for issue #12149: it was incorrect, although it had the side
   effect of appearing to resolve the issue.  Thanks to Mark Shannon for
@@ -2053,7 +2053,7 @@ Core and Builtins
   given, produce an informative error message which includes the name(s) of the
   missing arguments.
 
-- Issue #12370: Fix super with no arguments when __class__ is overriden in the
+- Issue #12370: Fix super with no arguments when __class__ is overridden in the
   class body.
 
 - Issue #12084: os.stat on Windows now works properly with relative symbolic
@@ -6633,7 +6633,7 @@ C-API
   PyErr_Format, on machines with HAVE_LONG_LONG defined.
 
 - Issue #6151: Made PyDescr_COMMON conform to standard C (like PyObject_HEAD in
-  PEP 3123).  The PyDescr_TYPE and PyDescr_NAME macros should be should used for
+  PEP 3123).  The PyDescr_TYPE and PyDescr_NAME macros should be used for
   accessing the d_type and d_name members of structures using PyDescr_COMMON.
 
 - Issue #6405: Remove duplicate type declarations in descrobject.h.
@@ -7273,7 +7273,7 @@ Library
   messages parsed by email.Parser.HeaderParser.
 
 - Issue #7361: Importlib was not properly checking the number of bytes in
-  bytecode file when it was less then 8 bytes.
+  bytecode file when it was less than 8 bytes.
 
 - Issue #7633: In the decimal module, Context class methods (with the exception
   of canonical and is_canonical) now accept instances of int and long wherever a
@@ -7709,7 +7709,7 @@ Extension Modules
 
 - Issue #7900: The getgroups(2) system call on MacOSX behaves rather oddly
   compared to other unix systems. In particular, os.getgroups() does not reflect
-  any changes made using os.setgroups() but basicly always returns the same
+  any changes made using os.setgroups() but basically always returns the same
   information as the id command. os.getgroups() can now return more than 16
   groups on MacOSX.
 
@@ -7728,7 +7728,7 @@ Extension Modules
 - Issue #1578269: Implement os.symlink for Windows 6.0+.  Patch by Jason
   R. Coombs.
 
-- In struct.pack, correctly propogate exceptions from computing the truth of an
+- In struct.pack, correctly propagate exceptions from computing the truth of an
   object in the '?' format.
 
 - Issue #9000: datetime.timezone objects now have eval-friendly repr.
@@ -8215,7 +8215,7 @@ Build
   added LIBS to OS X framework builds.
 
 - Issue #5809: Specifying both --enable-framework and --enable-shared is
-  an error. Configure now explicity tells you about this.
+  an error. Configure now explicitly tells you about this.
 
 
 
@@ -9209,7 +9209,7 @@ Library
   been backported to help facilitate transitions from 2.7 to 3.1.
 
 - Issue #1885: distutils. When running sdist with --formats=tar,gztar
-  the tar file was overriden by the gztar one.
+  the tar file was overridden by the gztar one.
 
 - Issue #4863: distutils.mwerkscompiler has been removed.
 
@@ -10639,8 +10639,8 @@ Core and Builtins
   certain operations between bytes/buffer and str like str(b'') and
   comparison.
 
-- The standards streams sys.stdin, stdout and stderr may be None when
-  the when the C runtime library returns an invalid file descriptor
+- The standard streams sys.stdin, stdout and stderr may be None
+  when the C runtime library returns an invalid file descriptor
   for the streams (fileno(stdin) < 0). For now this happens only for
   Windows GUI apps and scripts started with `pythonw.exe`.
 
@@ -10679,7 +10679,7 @@ Library
 
 - Removed the 'new' module.
 
-- Removed all types from the 'types' module that are easily accessable
+- Removed all types from the 'types' module that are easily accessible
   through builtins.
 
 
@@ -16065,7 +16065,7 @@ Core and builtins
 - All standard iterators now ensure that, once StopIteration has been
   raised, all future calls to next() on the same iterator will also
   raise StopIteration.  There used to be various counterexamples to
-  this behavior, which could caused confusion or subtle program
+  this behavior, which could have caused confusion or subtle program
   breakage, without any benefits.  (Note that this is still an
   iterator's responsibility; the iterator framework does not enforce
   this.)
@@ -20921,7 +20921,7 @@ Fri Mar 26 22:36:00 1999  Fred Drake  <fdrake@eric.cnri.reston.va.us>
 
 	* Tools/scripts/dutree.py:
 	During display, if EPIPE is raised, it's probably because a pager was
-	killed.  Discard the error in that case, but propogate it otherwise.
+	killed.  Discard the error in that case, but propagate it otherwise.
 
 Fri Mar 26 16:20:45 1999  Guido van Rossum  <guido@eric.cnri.reston.va.us>
 
@@ -26799,7 +26799,7 @@ the first time it is imported.
 python parser.  Corresponding standard library modules token and symbol
 defines the numeric values of tokens and non-terminal symbols.
 
-* The posix module has aquired new functions setuid(), setgid(),
+* The posix module has acquired new functions setuid(), setgid(),
 execve(), and exec() has been renamed to execv().
 
 * The array module is extended with 8-byte object swaps, the 'i'
@@ -26813,7 +26813,7 @@ module can't be decoded by the new version.
 * For select.select(), a timeout (4th) argument of None means the same
 as leaving the timeout argument out.
 
-* Module strop (and hence standard library module string) has aquired
+* Module strop (and hence standard library module string) has acquired
 a new function: rindex().  Thanks to Amrit Prem!
 
 * Module regex defines a new function symcomp() which uses an extended
@@ -27959,7 +27959,7 @@ New features in 0.9.6:
   to give more useful results for negative operands
 - Changed/added range checks for long/plain integer shifts
 - Options found after "-c command" are now passed to the command in sys.argv
-  (note subtle incompatiblity with "python -c command -- -options"!)
+  (note subtle incompatibility with "python -c command -- -options"!)
 - Module stdwin is better protected against touching objects after they've
   been closed; menus can now also be closed explicitly
 - Stdwin now uses its own exception (stdwin.error)

@@ -470,8 +470,12 @@ Retrieving source code
 .. function:: cleandoc(doc)
 
    Clean up indentation from docstrings that are indented to line up with blocks
-   of code.  Any whitespace that can be uniformly removed from the second line
-   onwards is removed.  Also, all tabs are expanded to spaces.
+   of code.
+
+   All leading whitespace is removed from the first line.  Any leading whitespace
+   that can be uniformly removed from the second line onwards is removed.  Empty
+   lines at the beginning and end are subsequently removed.  Also, all tabs are
+   expanded to spaces.
 
 
 .. _inspect-signature-object:
@@ -620,6 +624,16 @@ function.
 
       The name of the parameter as a string.  The name must be a valid
       Python identifier.
+
+      .. impl-detail::
+
+         CPython generates implicit parameter names of the form ``.0`` on the
+         code objects used to implement comprehensions and generator
+         expressions.
+
+         .. versionchanged:: 3.6
+            These parameter names are exposed by this module as names like
+            ``implicit0``.
 
    .. attribute:: Parameter.default
 

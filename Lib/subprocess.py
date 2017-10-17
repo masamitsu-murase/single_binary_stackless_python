@@ -372,9 +372,11 @@ class SubprocessError(Exception): pass
 
 
 class CalledProcessError(SubprocessError):
-    """This exception is raised when a process run by check_call() or
-    check_output() returns a non-zero exit status.
-    The exit status will be stored in the returncode attribute;
+    """Raised when a check_call() or check_output() process returns non-zero.
+
+    The exit status will be stored in the returncode attribute, negative
+    if it represents a signal number.
+
     check_output() will also store the output in the output attribute.
     """
     def __init__(self, returncode, cmd, output=None, stderr=None):
@@ -384,7 +386,16 @@ class CalledProcessError(SubprocessError):
         self.stderr = stderr
 
     def __str__(self):
-        return "Command '%s' returned non-zero exit status %d" % (self.cmd, self.returncode)
+        if self.returncode and self.returncode < 0:
+            try:
+                return "Command '%s' died with %r." % (
+                        self.cmd, signal.Signals(-self.returncode))
+            except ValueError:
+                return "Command '%s' died with unknown signal %d." % (
+                        self.cmd, -self.returncode)
+        else:
+            return "Command '%s' returned non-zero exit status %d." % (
+                    self.cmd, self.returncode)
 
     @property
     def stdout(self):
@@ -1025,8 +1036,7 @@ class Popen(object):
             try:
                 self.stdin.write(input)
             except BrokenPipeError:
-                # communicate() must ignore broken pipe error
-                pass
+                pass  # communicate() must ignore broken pipe errors.
             except OSError as e:
                 if e.errno == errno.EINVAL and self.poll() is not None:
                     # Issue #19612: On Windows, stdin.write() fails with EINVAL
@@ -1034,7 +1044,15 @@ class Popen(object):
                     pass
                 else:
                     raise
-        self.stdin.close()
+        try:
+            self.stdin.close()
+        except BrokenPipeError:
+            pass  # communicate() must ignore broken pipe errors.
+        except OSError as e:
+            if e.errno == errno.EINVAL and self.poll() is not None:
+                pass
+            else:
+                raise
 
     def communicate(self, input=None, timeout=None):
         """Interact with process: Send data to stdin.  Read data from
@@ -1680,9 +1698,15 @@ class Popen(object):
             if self.stdin and not self._communication_started:
                 # Flush stdio buffer.  This might block, if the user has
                 # been writing to .stdin in an uncontrolled fashion.
-                self.stdin.flush()
+                try:
+                    self.stdin.flush()
+                except BrokenPipeError:
+                    pass  # communicate() must ignore BrokenPipeError.
                 if not input:
-                    self.stdin.close()
+                    try:
+                        self.stdin.close()
+                    except BrokenPipeError:
+                        pass  # communicate() must ignore BrokenPipeError.
 
             stdout = None
             stderr = None

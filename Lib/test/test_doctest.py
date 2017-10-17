@@ -324,7 +324,7 @@ containing test:
     >>> test.lineno + e2.lineno
     26
 
-If the docstring contains inconsistant leading whitespace in the
+If the docstring contains inconsistent leading whitespace in the
 expected output of an example, then `DocTest` will raise a ValueError:
 
     >>> docstring = r'''
@@ -2338,7 +2338,7 @@ def test_DocFileSuite():
        `__file__` global, which is set to the name of the file
        containing the tests:
 
-         >>> suite = doctest.DocFileSuite('test_doctest3.txt')
+         >>> suite = doctest.DocFileSuite('test_doctest3.txt', optionflags=doctest.ELLIPSIS)
          >>> suite.run(unittest.TestResult())
          <unittest.result.TestResult run=1 errors=0 failures=0>
 

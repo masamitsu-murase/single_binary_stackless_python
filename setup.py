@@ -768,7 +768,7 @@ class PyBuildExt(build_ext):
                 # In every directory on the search path search for a dynamic
                 # library and then a static library, instead of first looking
                 # for dynamic libraries on the entire path.
-                # This way a staticly linked custom readline gets picked up
+                # This way a statically linked custom readline gets picked up
                 # before the (possibly broken) dynamic library in /usr/lib.
                 readline_extra_link_args = ('-Wl,-search_paths_first',)
             else:
@@ -1622,7 +1622,7 @@ class PyBuildExt(build_ext):
         #     --with-tcltk-libs="-L/path/to/tcllibs -ltclm.n \
         #                        -L/path/to/tklibs -ltkm.n"
         #
-        # These values can also be specified or overriden via make:
+        # These values can also be specified or overridden via make:
         #    make TCLTK_INCLUDES="..." TCLTK_LIBS="..."
         #
         # This can be useful for building and testing tkinter with multiple
@@ -2007,7 +2007,7 @@ class PyBuildExt(build_ext):
                         break
         ffi_lib = None
         if ffi_inc is not None:
-            for lib_name in ('ffi_convenience', 'ffi_pic', 'ffi'):
+            for lib_name in ('ffi', 'ffi_pic'):
                 if (self.compiler.find_library_file(lib_dirs, lib_name)):
                     ffi_lib = lib_name
                     break

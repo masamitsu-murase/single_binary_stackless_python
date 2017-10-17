@@ -22,7 +22,7 @@ and opendir), and leave all pathname manipulation to os.path
 """
 
 #'
-
+import abc
 import sys, errno
 import stat as st
 
@@ -877,29 +877,35 @@ def _fscodec():
 
     def fsencode(filename):
         """
-        Encode filename to the filesystem encoding with 'surrogateescape' error
-        handler, return bytes unchanged. On Windows, use 'strict' error handler if
-        the file system encoding is 'mbcs' (which is the default encoding).
+        Encode filename (an os.PathLike, bytes, or str) to the filesystem
+        encoding with 'surrogateescape' error handler, return bytes unchanged.
+        On Windows, use 'strict' error handler if the file system encoding is
+        'mbcs' (which is the default encoding).
         """
+        filename = fspath(filename)
         if isinstance(filename, bytes):
             return filename
         elif isinstance(filename, str):
             return filename.encode(encoding, errors)
         else:
-            raise TypeError("expect bytes or str, not %s" % type(filename).__name__)
+            raise TypeError("expected str, bytes or os.PathLike object, not "
+                            + type(filename).__name__)
 
     def fsdecode(filename):
         """
-        Decode filename from the filesystem encoding with 'surrogateescape' error
-        handler, return str unchanged. On Windows, use 'strict' error handler if
-        the file system encoding is 'mbcs' (which is the default encoding).
+        Decode filename (an os.PathLike, bytes, or str) from the filesystem
+        encoding with 'surrogateescape' error handler, return str unchanged. On
+        Windows, use 'strict' error handler if the file system encoding is
+        'mbcs' (which is the default encoding).
         """
+        filename = fspath(filename)
         if isinstance(filename, str):
             return filename
         elif isinstance(filename, bytes):
             return filename.decode(encoding, errors)
         else:
-            raise TypeError("expect bytes or str, not %s" % type(filename).__name__)
+            raise TypeError("expected str, bytes or os.PathLike object, not "
+                            + type(filename).__name__)
 
     return fsencode, fsdecode
 
@@ -1097,3 +1103,40 @@ def fdopen(fd, *args, **kwargs):
         raise TypeError("invalid fd type (%s, expected integer)" % type(fd))
     import io
     return io.open(fd, *args, **kwargs)
+
+# Supply os.fspath() if not defined in C
+if not _exists('fspath'):
+    def fspath(path):
+        """Return the string representation of the path.
+
+        If str or bytes is passed in, it is returned unchanged.
+        """
+        if isinstance(path, (str, bytes)):
+            return path
+
+        # Work from the object's type to match method resolution of other magic
+        # methods.
+        path_type = type(path)
+        try:
+            return path_type.__fspath__(path)
+        except AttributeError:
+            if hasattr(path_type, '__fspath__'):
+                raise
+
+            raise TypeError("expected str, bytes or os.PathLike object, not "
+                            + path_type.__name__)
+
+class PathLike(abc.ABC):
+    """
+    Abstract base class for implementing the file system path protocol.
+    """
+    @abc.abstractmethod
+    def __fspath__(self):
+        """
+        Return the file system path representation of the object.
+        """
+        raise NotImplementedError
+
+    @classmethod
+    def __subclasshook__(cls, subclass):
+        return hasattr(subclass, '__fspath__')

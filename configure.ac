@@ -559,7 +559,7 @@ fi
 #
 # SGI compilers allow the specification of the both the ABI and the
 # ISA on the command line.  Depending on the values of these switches,
-# different and often incompatable code will be generated.
+# different and often incompatible code will be generated.
 #
 # The SGI_ABI variable can be used to modify the CC and LDFLAGS and
 # thus supply support for various ABI/ISA combinations.  The MACHDEP
@@ -1899,7 +1899,7 @@ sys/param.h sys/select.h sys/sendfile.h sys/socket.h sys/statvfs.h \
 sys/stat.h sys/syscall.h sys/sys_domain.h sys/termio.h sys/time.h \
 sys/times.h sys/types.h sys/uio.h sys/un.h sys/utsname.h sys/wait.h pty.h \
 libutil.h sys/resource.h netpacket/packet.h sysexits.h bluetooth.h \
-bluetooth/bluetooth.h linux/tipc.h spawn.h util.h alloca.h endian.h \
+bluetooth/bluetooth.h linux/tipc.h linux/random.h spawn.h util.h alloca.h endian.h \
 sys/endian.h)
 AC_HEADER_DIRENT
 AC_HEADER_MAJOR
@@ -5264,12 +5264,13 @@ AC_LINK_IFELSE(
   AC_LANG_SOURCE([[
     #include <unistd.h>
     #include <sys/syscall.h>
+    #include <linux/random.h>
 
     int main() {
         char buffer[1];
         const size_t buflen = sizeof(buffer);
-        const int flags = 0;
-        /* ignore the result, Python checks for ENOSYS at runtime */
+        const int flags = GRND_NONBLOCK;
+        /* ignore the result, Python checks for ENOSYS and EAGAIN at runtime */
         (void)syscall(SYS_getrandom, buffer, buflen, flags);
         return 0;
     }

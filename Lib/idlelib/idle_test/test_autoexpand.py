@@ -1,9 +1,9 @@
-"""Unit tests for idlelib.AutoExpand"""
+"""Unit tests for idlelib.autoexpand"""
 import unittest
 from test.support import requires
 from tkinter import Text, Tk
 #from idlelib.idle_test.mock_tk import Text
-from idlelib.AutoExpand import AutoExpand
+from idlelib.autoexpand import AutoExpand
 
 
 class Dummy_Editwin:
@@ -25,10 +25,10 @@ class AutoExpandTest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        del cls.text, cls.auto_expand
         if hasattr(cls, 'tk'):
             cls.tk.destroy()
             del cls.tk
-        del cls.text, cls.auto_expand
 
     def tearDown(self):
         self.text.delete('1.0', 'end')

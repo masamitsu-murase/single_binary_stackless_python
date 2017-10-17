@@ -6,6 +6,9 @@
 #  ifdef HAVE_SYS_STAT_H
 #    include <sys/stat.h>
 #  endif
+#  ifdef HAVE_LINUX_RANDOM_H
+#    include <linux/random.h>
+#  endif
 #  ifdef HAVE_GETRANDOM
 #    include <sys/random.h>
 #  elif defined(HAVE_GETRANDOM_SYSCALL)
@@ -122,14 +125,21 @@ py_getrandom(void *buffer, Py_ssize_t size, int raise)
     /* Is getrandom() supported by the running kernel?
      * Need Linux kernel 3.17 or newer, or Solaris 11.3 or newer */
     static int getrandom_works = 1;
-    /* Use non-blocking /dev/urandom device. On Linux at boot, the getrandom()
-     * syscall blocks until /dev/urandom is initialized with enough entropy. */
-    const int flags = 0;
+
+    /* getrandom() on Linux will block if called before the kernel has
+     * initialized the urandom entropy pool. This will cause Python
+     * to hang on startup if called very early in the boot process -
+     * see https://bugs.python.org/issue26839. To avoid this, use the
+     * GRND_NONBLOCK flag. */
+    const int flags = GRND_NONBLOCK;
+
+    char *dest;
     int n;
 
     if (!getrandom_works)
         return 0;
 
+    dest = buffer;
     while (0 < size) {
 #ifdef sun
         /* Issue #26735: On Solaris, getrandom() is limited to returning up
@@ -143,11 +153,11 @@ py_getrandom(void *buffer, Py_ssize_t size, int raise)
 #ifdef HAVE_GETRANDOM
         if (raise) {
             Py_BEGIN_ALLOW_THREADS
-            n = getrandom(buffer, n, flags);
+            n = getrandom(dest, n, flags);
             Py_END_ALLOW_THREADS
         }
         else {
-            n = getrandom(buffer, n, flags);
+            n = getrandom(dest, n, flags);
         }
 #else
         /* On Linux, use the syscall() function because the GNU libc doesn't
@@ -155,16 +165,27 @@ py_getrandom(void *buffer, Py_ssize_t size, int raise)
          * https://sourceware.org/bugzilla/show_bug.cgi?id=17252 */
         if (raise) {
             Py_BEGIN_ALLOW_THREADS
-            n = syscall(SYS_getrandom, buffer, n, flags);
+            n = syscall(SYS_getrandom, dest, n, flags);
             Py_END_ALLOW_THREADS
         }
         else {
-            n = syscall(SYS_getrandom, buffer, n, flags);
+            n = syscall(SYS_getrandom, dest, n, flags);
         }
 #endif
 
         if (n < 0) {
             if (errno == ENOSYS) {
+                getrandom_works = 0;
+                return 0;
+            }
+            if (errno == EAGAIN) {
+                /* If we failed with EAGAIN, the entropy pool was
+                 * uninitialized. In this case, we return failure to fall
+                 * back to reading from /dev/urandom.
+                 *
+                 * Note: In this case the data read will not be random so
+                 * should not be used for cryptographic purposes. Retaining
+                 * the existing semantics for practical purposes. */
                 getrandom_works = 0;
                 return 0;
             }
@@ -186,7 +207,7 @@ py_getrandom(void *buffer, Py_ssize_t size, int raise)
             return -1;
         }
 
-        buffer += n;
+        dest += n;
         size -= n;
     }
     return 1;

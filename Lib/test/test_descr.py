@@ -4544,9 +4544,9 @@ order (MRO) for bases """
                 pass
         foo = Foo()
         self.assertRegex(repr(foo.method), # access via instance
-            r"<bound method .*Foo\.method of <class '.*Foo'>>")
+            r"<bound method .*Foo\.method of <class '.*Foo' at 0x.+>>")
         self.assertRegex(repr(Foo.method), # access via the class
-            r"<bound method .*Foo\.method of <class '.*Foo'>>")
+            r"<bound method .*Foo\.method of <class '.*Foo' at 0x.+>>")
 
 
         class MyCallable:
@@ -4563,14 +4563,6 @@ order (MRO) for bases """
         func.__qualname__ = "qualname"
         self.assertRegex(repr(method),
             r"<bound method qualname of <object object at .*>>")
-
-    def test_deleting_new_in_subclasses(self):
-        class X:
-            def __init__(self, a):
-                pass
-        X.__new__ = None
-        del X.__new__
-        X(1) # should work
 
 
 class DictProxyTests(unittest.TestCase):

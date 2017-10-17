@@ -1449,7 +1449,7 @@ PyOS_CheckStack(void)
 
 #endif /* USE_STACKCHECK */
 
-/* Deprecated C API functions still provided for binary compatiblity */
+/* Deprecated C API functions still provided for binary compatibility */
 
 #undef PyParser_SimpleParseFile
 PyAPI_FUNC(node *)

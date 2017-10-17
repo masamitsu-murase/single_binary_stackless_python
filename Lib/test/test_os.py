@@ -3095,5 +3095,57 @@ class TestScandir(unittest.TestCase):
             del iterator
 
 
+class TestPEP519(unittest.TestCase):
+    "os.fspath()"
+
+    def test_return_bytes(self):
+        for b in b'hello', b'goodbye', b'some/path/and/file':
+            self.assertEqual(b, os.fspath(b))
+
+    def test_return_string(self):
+        for s in 'hello', 'goodbye', 'some/path/and/file':
+            self.assertEqual(s, os.fspath(s))
+
+    def test_fsencode_fsdecode_return_pathlike(self):
+        class PathLike:
+            def __init__(self, path):
+                self.path = path
+            def __fspath__(self):
+                return self.path
+
+        for p in "path/like/object", b"path/like/object":
+            pathlike = PathLike(p)
+
+            self.assertEqual(p, os.fspath(pathlike))
+            self.assertEqual(b"path/like/object", os.fsencode(pathlike))
+            self.assertEqual("path/like/object", os.fsdecode(pathlike))
+
+    def test_fspathlike(self):
+        class PathLike:
+            def __init__(self, path=''):
+                self.path = path
+            def __fspath__(self):
+                return self.path
+
+        self.assertEqual('#feelthegil', os.fspath(PathLike('#feelthegil')))
+        self.assertTrue(issubclass(PathLike, os.PathLike))
+        self.assertTrue(isinstance(PathLike(), os.PathLike))
+
+        message = 'expected str, bytes or os.PathLike object, not'
+        for fn in (os.fsencode, os.fsdecode):
+            for obj in PathLike(None), None:
+                with self.assertRaisesRegex(TypeError, message):
+                    fn(obj)
+
+    def test_garbage_in_exception_out(self):
+        vapor = type('blah', (), {})
+        for o in int, type, os, vapor():
+            self.assertRaises(TypeError, os.fspath, o)
+
+    def test_argument_required(self):
+        with self.assertRaises(TypeError):
+            os.fspath()
+
+
 if __name__ == "__main__":
     unittest.main()

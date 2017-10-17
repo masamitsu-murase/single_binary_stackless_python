@@ -878,11 +878,11 @@ are always available.  They are listed here in alphabetical order.
    Open *file* and return a corresponding :term:`file object`.  If the file
    cannot be opened, an :exc:`OSError` is raised.
 
-   *file* is either a string or bytes object giving the pathname (absolute or
-   relative to the current working directory) of the file to be opened or
-   an integer file descriptor of the file to be wrapped.  (If a file descriptor
-   is given, it is closed when the returned I/O object is closed, unless
-   *closefd* is set to ``False``.)
+   *file* is either a string, bytes, or :class:`os.PathLike` object giving the
+   pathname (absolute or relative to the current working directory) of the file
+   to be opened or an integer file descriptor of the file to be wrapped.  (If a
+   file descriptor is given, it is closed when the returned I/O object is
+   closed, unless *closefd* is set to ``False``.)
 
    *mode* is an optional string that specifies the mode in which the file is
    opened.  It defaults to ``'r'`` which means open for reading in text mode.
@@ -1449,8 +1449,9 @@ are always available.  They are listed here in alphabetical order.
    class name and becomes the :attr:`~class.__name__` attribute; the *bases*
    tuple itemizes the base classes and becomes the :attr:`~class.__bases__`
    attribute; and the *dict* dictionary is the namespace containing definitions
-   for class body and becomes the :attr:`~object.__dict__` attribute.  For
-   example, the following two statements create identical :class:`type` objects:
+   for class body and is copied to a standard dictionary to become the
+   :attr:`~object.__dict__` attribute.  For example, the following two
+   statements create identical :class:`type` objects:
 
       >>> class X:
       ...     a = 1
