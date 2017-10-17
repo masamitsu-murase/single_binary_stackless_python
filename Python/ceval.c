@@ -1277,11 +1277,11 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
     else {
         if (f->f_execute == slp_eval_frame_iter) {
             /* finalise the for_iter operation */
-            opcode = NEXTOP();
-            oparg = NEXTARG();
+            NEXTOPARG();
             if (opcode == EXTENDED_ARG) {
-                opcode = NEXTOP();
-                oparg = oparg<<8 | NEXTARG();
+                int oldoparg = oparg;
+                NEXTOPARG();
+                oparg |= oldoparg << 8;
             }
             assert(opcode == FOR_ITER);
 
@@ -1312,11 +1312,11 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
         }
         else if (f->f_execute == slp_eval_frame_setup_with) {
             /* finalise the SETUP_WITH operation */
-            opcode = NEXTOP();
-            oparg = NEXTARG();
+            NEXTOPARG();
             if (opcode == EXTENDED_ARG) {
-                opcode = NEXTOP();
-                oparg = oparg<<8 | NEXTARG();
+                int oldoparg = oparg;
+                NEXTOPARG();
+                oparg |= oldoparg << 8;
             }
             assert(opcode == SETUP_WITH);
 
@@ -3891,10 +3891,10 @@ stackless_call_with_opcode:
 #define EXTENDED_ARG_OFFSET(x) \
     (assert(sizeof(x) == 4), \
      (!((x) >> 8)  ? 0 : \
-     (!((x) >> 16) ? 2 : \
-     (!((x) >> 24) ? 4 : 6 ))))
+     (!((x) >> 16) ? 1 : \
+     (!((x) >> 24) ? 2 : 3 ))))
 
-    next_instr -= 2 + EXTENDED_ARG_OFFSET(oparg);
+    next_instr -= 1 + EXTENDED_ARG_OFFSET(oparg);
 
 stackless_call:
     /*
@@ -3928,12 +3928,12 @@ stackless_call:
 
     f->f_stacktop = NULL;
     if (f->f_execute == slp_eval_frame_iter) {
-        next_instr += 2 + EXTENDED_ARG_OFFSET(oparg);;
+        next_instr += 1 + EXTENDED_ARG_OFFSET(oparg);;
         f->f_execute = slp_eval_frame_value;
         goto stackless_iter_return;
     }
     else if (f->f_execute == slp_eval_frame_setup_with) {
-        next_instr += 2 + EXTENDED_ARG_OFFSET(oparg);
+        next_instr += 1 + EXTENDED_ARG_OFFSET(oparg);
         f->f_execute = slp_eval_frame_value;
         goto stackless_setup_with_return;
     }
