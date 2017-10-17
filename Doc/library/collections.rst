@@ -763,7 +763,7 @@ Named tuples assign meaning to each position in a tuple and allow for more reada
 self-documenting code.  They can be used wherever regular tuples are used, and
 they add the ability to access fields by name instead of position index.
 
-.. function:: namedtuple(typename, field_names, verbose=False, rename=False)
+.. function:: namedtuple(typename, field_names, *, verbose=False, rename=False)
 
     Returns a new tuple subclass named *typename*.  The new subclass is used to
     create tuple-like objects that have fields accessible by attribute lookup as
@@ -793,13 +793,12 @@ they add the ability to access fields by name instead of position index.
     Named tuple instances do not have per-instance dictionaries, so they are
     lightweight and require no more memory than regular tuples.
 
-    For simple uses, where the only requirement is to be able to refer to a set
-    of values by name using attribute-style access, the
-    :class:`types.SimpleNamespace` type can be a suitable alternative to using
-    a namedtuple.
-
     .. versionchanged:: 3.1
-        Added support for *rename*.
+       Added support for *rename*.
+
+    .. versionchanged:: 3.6
+       The *verbose* and *rename* parameters became
+       :ref:`keyword-only arguments <keyword-only_parameter>`.
 
 
 .. doctest::
@@ -851,7 +850,9 @@ field names, the method and attribute names start with an underscore.
 .. method:: somenamedtuple._asdict()
 
     Return a new :class:`OrderedDict` which maps field names to their corresponding
-    values::
+    values:
+
+    .. doctest::
 
         >>> p = Point(x=11, y=22)
         >>> p._asdict()
@@ -913,7 +914,9 @@ Since a named tuple is a regular Python class, it is easy to add or change
 functionality with a subclass.  Here is how to add a calculated field and
 a fixed-width print format:
 
-    >>> class Point(namedtuple('Point', 'x y')):
+.. doctest::
+
+    >>> class Point(namedtuple('Point', ['x', 'y'])):
     ...     __slots__ = ()
     ...     @property
     ...     def hypot(self):
@@ -964,8 +967,10 @@ customize a prototype instance:
       constructor that is convenient for use cases where named tuples are being
       subclassed.
 
-    * :meth:`types.SimpleNamespace` for a mutable namespace based on an underlying
-      dictionary instead of a tuple.
+    * See :meth:`types.SimpleNamespace` for a mutable namespace based on an
+      underlying dictionary instead of a tuple.
+
+    * See :meth:`typing.NamedTuple` for a way to add type hints for named tuples.
 
 
 :class:`OrderedDict` objects
