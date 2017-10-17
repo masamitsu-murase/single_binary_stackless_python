@@ -176,6 +176,13 @@ def rstrip_lines(s):
     text.pop()
     return output()
 
+def format_escape(s):
+    # double up curly-braces, this string will be used
+    # as part of a format_map() template later
+    s = s.replace('{', '{{')
+    s = s.replace('}', '}}')
+    return s
+
 def linear_format(s, **kwargs):
     """
     Perform str.format-like substitution, except:
@@ -999,7 +1006,7 @@ class CLanguage(Language):
         count_min = sys.maxsize
         count_max = -1
 
-        add("switch (PyTuple_GET_SIZE(args)) {{\n")
+        add("switch (PyTuple_GET_SIZE(args)) {\n")
         for subset in permute_optional_groups(left, required, right):
             count = len(subset)
             count_min = min(count_min, count)
@@ -1015,7 +1022,6 @@ class CLanguage(Language):
             d = {}
             d['count'] = count
             d['name'] = f.name
-            d['groups'] = sorted(group_ids)
             d['format_units'] = "".join(p.converter.format_unit for p in subset)
 
             parse_arguments = []
@@ -1042,8 +1048,8 @@ class CLanguage(Language):
         s = '        PyErr_SetString(PyExc_TypeError, "{} requires {} to {} arguments");\n'
         add(s.format(f.full_name, count_min, count_max))
         add('        goto exit;\n')
-        add("}}")
-        template_dict['option_group_parsing'] = output()
+        add("}")
+        template_dict['option_group_parsing'] = format_escape(output())
 
     def render_function(self, clinic, f):
         if not f:
@@ -1138,7 +1144,7 @@ class CLanguage(Language):
         f.return_converter.render(f, data)
         template_dict['impl_return_type'] = f.return_converter.type
 
-        template_dict['declarations'] = "\n".join(data.declarations)
+        template_dict['declarations'] = format_escape("\n".join(data.declarations))
         template_dict['initializers'] = "\n\n".join(data.initializers)
         template_dict['modifications'] = '\n\n'.join(data.modifications)
         template_dict['keywords'] = '"' + '", "'.join(data.keywords) + '"'
@@ -1146,8 +1152,8 @@ class CLanguage(Language):
         template_dict['parse_arguments'] = ', '.join(data.parse_arguments)
         template_dict['impl_parameters'] = ", ".join(data.impl_parameters)
         template_dict['impl_arguments'] = ", ".join(data.impl_arguments)
-        template_dict['return_conversion'] = "".join(data.return_conversion).rstrip()
-        template_dict['cleanup'] = "".join(data.cleanup)
+        template_dict['return_conversion'] = format_escape("".join(data.return_conversion).rstrip())
+        template_dict['cleanup'] = format_escape("".join(data.cleanup))
         template_dict['return_value'] = data.return_value
 
         # used by unpack tuple code generator
@@ -2450,12 +2456,7 @@ class CConverter(metaclass=CConverterAutoRegister):
             declaration.append('\nPy_ssize_clean_t ')
             declaration.append(self.length_name())
             declaration.append(';')
-        s = "".join(declaration)
-        # double up curly-braces, this string will be used
-        # as part of a format_map() template later
-        s = s.replace("{", "{{")
-        s = s.replace("}", "}}")
-        return s
+        return "".join(declaration)
 
     def initialize(self):
         """
