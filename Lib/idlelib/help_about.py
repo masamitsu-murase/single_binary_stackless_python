@@ -130,7 +130,7 @@ class AboutDialog(Toplevel):
         self.display_file_text('About - Readme', 'README.txt', 'ascii')
 
     def ShowIDLENEWS(self):
-        self.display_file_text('About - NEWS', 'NEWS.txt', 'ascii')
+        self.display_file_text('About - NEWS', 'NEWS.txt', 'utf-8')
 
     def display_printer_text(self, title, printer):
         printer._Printer__setup()
@@ -145,5 +145,7 @@ class AboutDialog(Toplevel):
         self.destroy()
 
 if __name__ == '__main__':
+    import unittest
+    unittest.main('idlelib.idle_test.test_help_about', verbosity=2, exit=False)
     from idlelib.idle_test.htest import run
     run(AboutDialog)

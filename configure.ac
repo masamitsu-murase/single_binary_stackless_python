@@ -889,10 +889,17 @@ if test x$PLATFORM_TRIPLET != x && test x$MULTIARCH != x; then
     AC_MSG_ERROR([internal configure error for the platform triplet, please file a bug report])
   fi
 fi
-PLATDIR=plat-$MACHDEP
+if test x$PLATFORM_TRIPLET = x; then
+  PLATDIR=plat-$MACHDEP
+else
+  PLATDIR=plat-$PLATFORM_TRIPLET
+fi
 AC_SUBST(PLATDIR)
 AC_SUBST(PLATFORM_TRIPLET)
-
+if test x$MULTIARCH != x; then
+  MULTIARCH_CPPFLAGS="-DMULTIARCH=\\\"$MULTIARCH\\\""
+fi
+AC_SUBST(MULTIARCH_CPPFLAGS)
 
 AC_MSG_CHECKING([for -Wl,--no-as-needed])
 save_LDFLAGS="$LDFLAGS"
@@ -1996,6 +2003,11 @@ AC_MSG_RESULT($sol_lfs_bug)
 if test "$sol_lfs_bug" = "yes"; then
   use_lfs=no
 fi
+
+# Don't use largefile support for GNU/Hurd
+case $ac_sys_system in GNU*)
+  use_lfs=no
+esac
 
 if test "$use_lfs" = "yes"; then
 # Two defines needed to enable largefile support on various platforms
@@ -4480,7 +4492,11 @@ AC_MSG_RESULT($LDVERSION)
 
 dnl define LIBPL after ABIFLAGS and LDVERSION is defined.
 AC_SUBST(PY_ENABLE_SHARED)
-LIBPL='$(prefix)'"/lib/python${VERSION}/config-${LDVERSION}"
+if test x$PLATFORM_TRIPLET = x; then
+  LIBPL='$(prefix)'"/lib/python${VERSION}/config-${LDVERSION}"
+else
+  LIBPL='$(prefix)'"/lib/python${VERSION}/config-${LDVERSION}-${PLATFORM_TRIPLET}"
+fi
 AC_SUBST(LIBPL)
 
 # Check whether right shifting a negative integer extends the sign bit

@@ -18,7 +18,7 @@ import tkinter.font as tkFont
 from idlelib.config import idleConf
 from idlelib.dynoption import DynOptionMenu
 from idlelib.config_key import GetKeysDialog
-from idlelib.config_sec import GetCfgSectionNameDialog
+from idlelib.query import SectionName
 from idlelib.config_help import GetHelpSourceDialog
 from idlelib.tabbedpages import TabbedPageSet
 from idlelib.textview import view_text
@@ -465,24 +465,24 @@ class ConfigDialog(Toplevel):
         return frame
 
     def AttachVarCallbacks(self):
-        self.fontSize.trace_variable('w', self.VarChanged_font)
-        self.fontName.trace_variable('w', self.VarChanged_font)
-        self.fontBold.trace_variable('w', self.VarChanged_font)
-        self.spaceNum.trace_variable('w', self.VarChanged_spaceNum)
-        self.colour.trace_variable('w', self.VarChanged_colour)
-        self.builtinTheme.trace_variable('w', self.VarChanged_builtinTheme)
-        self.customTheme.trace_variable('w', self.VarChanged_customTheme)
-        self.themeIsBuiltin.trace_variable('w', self.VarChanged_themeIsBuiltin)
-        self.highlightTarget.trace_variable('w', self.VarChanged_highlightTarget)
-        self.keyBinding.trace_variable('w', self.VarChanged_keyBinding)
-        self.builtinKeys.trace_variable('w', self.VarChanged_builtinKeys)
-        self.customKeys.trace_variable('w', self.VarChanged_customKeys)
-        self.keysAreBuiltin.trace_variable('w', self.VarChanged_keysAreBuiltin)
-        self.winWidth.trace_variable('w', self.VarChanged_winWidth)
-        self.winHeight.trace_variable('w', self.VarChanged_winHeight)
-        self.startupEdit.trace_variable('w', self.VarChanged_startupEdit)
-        self.autoSave.trace_variable('w', self.VarChanged_autoSave)
-        self.encoding.trace_variable('w', self.VarChanged_encoding)
+        self.fontSize.trace_add('write', self.VarChanged_font)
+        self.fontName.trace_add('write', self.VarChanged_font)
+        self.fontBold.trace_add('write', self.VarChanged_font)
+        self.spaceNum.trace_add('write', self.VarChanged_spaceNum)
+        self.colour.trace_add('write', self.VarChanged_colour)
+        self.builtinTheme.trace_add('write', self.VarChanged_builtinTheme)
+        self.customTheme.trace_add('write', self.VarChanged_customTheme)
+        self.themeIsBuiltin.trace_add('write', self.VarChanged_themeIsBuiltin)
+        self.highlightTarget.trace_add('write', self.VarChanged_highlightTarget)
+        self.keyBinding.trace_add('write', self.VarChanged_keyBinding)
+        self.builtinKeys.trace_add('write', self.VarChanged_builtinKeys)
+        self.customKeys.trace_add('write', self.VarChanged_customKeys)
+        self.keysAreBuiltin.trace_add('write', self.VarChanged_keysAreBuiltin)
+        self.winWidth.trace_add('write', self.VarChanged_winWidth)
+        self.winHeight.trace_add('write', self.VarChanged_winHeight)
+        self.startupEdit.trace_add('write', self.VarChanged_startupEdit)
+        self.autoSave.trace_add('write', self.VarChanged_autoSave)
+        self.encoding.trace_add('write', self.VarChanged_encoding)
 
     def remove_var_callbacks(self):
         "Remove callbacks to prevent memory leaks."
@@ -493,7 +493,7 @@ class ConfigDialog(Toplevel):
                 self.keyBinding, self.builtinKeys, self.customKeys,
                 self.keysAreBuiltin, self.winWidth, self.winHeight,
                 self.startupEdit, self.autoSave, self.encoding,):
-            var.trace_vdelete('w', var.trace_vinfo()[0][1])
+            var.trace_remove('write', var.trace_info()[0][1])
 
     def VarChanged_font(self, *params):
         '''When one font attribute changes, save them all, as they are
@@ -684,7 +684,7 @@ class ConfigDialog(Toplevel):
     def GetNewKeysName(self, message):
         usedNames = (idleConf.GetSectionList('user', 'keys') +
                 idleConf.GetSectionList('default', 'keys'))
-        newKeySet = GetCfgSectionNameDialog(
+        newKeySet = SectionName(
                 self, 'New Custom Key Set', message, usedNames).result
         return newKeySet
 
@@ -752,6 +752,7 @@ class ConfigDialog(Toplevel):
         if not tkMessageBox.askyesno(
                 'Delete Key Set',  delmsg % keySetName, parent=self):
             return
+        self.DeactivateCurrentConfig()
         #remove key set from config
         idleConf.userCfg['keys'].remove_section(keySetName)
         if keySetName in self.changedItems['keys']:
@@ -770,7 +771,8 @@ class ConfigDialog(Toplevel):
         self.keysAreBuiltin.set(idleConf.defaultCfg['main'].Get('Keys', 'default'))
         self.builtinKeys.set(idleConf.defaultCfg['main'].Get('Keys', 'name'))
         #user can't back out of these changes, they must be applied now
-        self.Apply()
+        self.SaveAllChangedConfigs()
+        self.ActivateConfigChanges()
         self.SetKeysType()
 
     def DeleteCustomTheme(self):
@@ -779,6 +781,7 @@ class ConfigDialog(Toplevel):
         if not tkMessageBox.askyesno(
                 'Delete Theme',  delmsg % themeName, parent=self):
             return
+        self.DeactivateCurrentConfig()
         #remove theme from config
         idleConf.userCfg['highlight'].remove_section(themeName)
         if themeName in self.changedItems['highlight']:
@@ -797,7 +800,8 @@ class ConfigDialog(Toplevel):
         self.themeIsBuiltin.set(idleConf.defaultCfg['main'].Get('Theme', 'default'))
         self.builtinTheme.set(idleConf.defaultCfg['main'].Get('Theme', 'name'))
         #user can't back out of these changes, they must be applied now
-        self.Apply()
+        self.SaveAllChangedConfigs()
+        self.ActivateConfigChanges()
         self.SetThemeType()
 
     def GetColour(self):
@@ -833,7 +837,7 @@ class ConfigDialog(Toplevel):
     def GetNewThemeName(self, message):
         usedNames = (idleConf.GetSectionList('user', 'highlight') +
                 idleConf.GetSectionList('default', 'highlight'))
-        newTheme = GetCfgSectionNameDialog(
+        newTheme = SectionName(
                 self, 'New Custom Theme', message, usedNames).result
         return newTheme
 

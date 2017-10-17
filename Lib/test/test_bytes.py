@@ -1328,6 +1328,16 @@ class ByteArrayTest(BaseBytesTest, unittest.TestCase):
 
     test_exhausted_iterator = test.list_tests.CommonTest.test_exhausted_iterator
 
+    def test_iterator_length_hint(self):
+        # Issue 27443: __length_hint__ can return negative integer
+        ba = bytearray(b'ab')
+        it = iter(ba)
+        next(it)
+        ba.clear()
+        # Shouldn't raise an error
+        self.assertEqual(list(it), [])
+
+
 class AssortedBytesTest(unittest.TestCase):
     #
     # Test various combinations of bytes and bytearray
@@ -1589,7 +1599,32 @@ class SubclassTest:
             self.assertEqual(type(a), type(b))
             self.assertEqual(type(a.y), type(b.y))
 
-    test_fromhex = BaseBytesTest.test_fromhex
+    def test_fromhex(self):
+        b = self.type2test.fromhex('1a2B30')
+        self.assertEqual(b, b'\x1a\x2b\x30')
+        self.assertIs(type(b), self.type2test)
+
+        class B1(self.basetype):
+            def __new__(cls, value):
+                me = self.basetype.__new__(cls, value)
+                me.foo = 'bar'
+                return me
+
+        b = B1.fromhex('1a2B30')
+        self.assertEqual(b, b'\x1a\x2b\x30')
+        self.assertIs(type(b), B1)
+        self.assertEqual(b.foo, 'bar')
+
+        class B2(self.basetype):
+            def __init__(me, *args, **kwargs):
+                if self.basetype is not bytes:
+                    self.basetype.__init__(me, *args, **kwargs)
+                me.foo = 'bar'
+
+        b = B2.fromhex('1a2B30')
+        self.assertEqual(b, b'\x1a\x2b\x30')
+        self.assertIs(type(b), B2)
+        self.assertEqual(b.foo, 'bar')
 
 
 class ByteArraySubclass(bytearray):

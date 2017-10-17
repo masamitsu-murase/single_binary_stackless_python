@@ -113,7 +113,7 @@ See :pep:`498` and the main documentation at :ref:`f-strings`.
 PYTHONMALLOC environment variable
 ---------------------------------
 
-The new :envvar:`PYTHONMALLOC` environment variable allows to set the Python
+The new :envvar:`PYTHONMALLOC` environment variable allows setting the Python
 memory allocators and/or install debug hooks.
 
 It is now possible to install debug hooks on Python memory allocators on Python
@@ -281,6 +281,26 @@ exceptions: see :func:`faulthandler.enable`. (Contributed by Victor Stinner in
 :issue:`23848`.)
 
 
+idlelib and IDLE
+----------------
+
+The idlelib package is being modernized and refactored to make IDLE look and work better and to make the code easier to understand, test, and improve. Part of making IDLE look better, especially on Linux and Mac, is using ttk widgets, mostly in the dialogs.  As a result, IDLE no longer runs with tcl/tk 8.4.  It now requires tcl/tk 8.5 or 8.6.  We recommend running the latest release of either.
+
+'Modernizing' includes renaming and consolidation of idlelib modules. The renaming of files with partial uppercase names is similar to the renaming of, for instance, Tkinter and TkFont to tkinter and tkinter.font in 3.0.  As a result, imports of idlelib files that worked in 3.5 will usually not work in 3.6.  At least a module name change will be needed (see idlelib/README.txt), sometimes more.  (Name changes contributed by Al Swiegart and Terry Reedy in :issue:`24225`.  Most idlelib patches since have been and will be part of the process.)
+
+In compensation, the eventual result with be that some idlelib classes will be easier to use, with better APIs and docstrings explaining them.  Additional useful information will be added to idlelib when available.
+
+
+importlib
+---------
+
+:class:`importlib.util.LazyLoader` now calls
+:meth:`~importlib.abc.Loader.create_module` on the wrapped loader, removing the
+restriction that :class:`importlib.machinery.BuiltinImporter` and
+:class:`importlib.machinery.ExtensionFileLoader` couldn't be used with
+:class:`importlib.util.LazyLoader`.
+
+
 os
 --
 
@@ -329,6 +349,21 @@ you may now specify file paths on top of directories (e.g. zip files).
 (Contributed by Wolfgang Langner in :issue:`26587`).
 
 
+sqlite3
+-------
+
+* :attr:`sqlite3.Cursor.lastrowid` now supports the ``REPLACE`` statement.
+  (Contributed by Alex LordThorsen in :issue:`16864`.)
+
+
+socket
+------
+
+The :func:`~socket.socket.ioctl` function now supports the :data:`~socket.SIO_LOOPBACK_FAST_PATH`
+control code.
+(Contributed by Daniel Stokes in :issue:`26536`.)
+
+
 socketserver
 ------------
 
@@ -337,6 +372,12 @@ defined in :mod:`http.server`, :mod:`xmlrpc.server` and
 :mod:`wsgiref.simple_server`, now support the :term:`context manager`
 protocol.
 (Contributed by Aviv Palivoda in :issue:`26404`.)
+
+The :attr:`~socketserver.StreamRequestHandler.wfile` attribute of
+:class:`~socketserver.StreamRequestHandler` classes now implements
+the :class:`io.BufferedIOBase` writable interface.  In particular,
+calling :meth:`~io.BufferedIOBase.write` is now guaranteed to send the
+data in full.  (Contributed by Martin Panter in :issue:`26721`.)
 
 
 subprocess
@@ -354,6 +395,19 @@ telnetlib
 
 :class:`~telnetlib.Telnet` is now a context manager (contributed by
 Stéphane Wirtel in :issue:`25485`).
+
+
+tkinter
+-------
+
+Added methods :meth:`~tkinter.Variable.trace_add`,
+:meth:`~tkinter.Variable.trace_remove` and :meth:`~tkinter.Variable.trace_info`
+in the :class:`tkinter.Variable` class.  They replace old methods
+:meth:`~tkinter.Variable.trace_variable`, :meth:`~tkinter.Variable.trace`,
+:meth:`~tkinter.Variable.trace_vdelete` and
+:meth:`~tkinter.Variable.trace_vinfo` that use obsolete Tcl commands and might
+not work in future versions of Tcl.
+(Contributed by Serhiy Storchaka in :issue:`22115`).
 
 
 typing
@@ -506,7 +560,7 @@ Build and C API Changes
 * :c:func:`PyArg_ParseTupleAndKeywords` now supports :ref:`positional-only
   parameters <positional-only_parameter>`.  Positional-only parameters are
   defined by empty names.
-  (Contributed by Serhit Storchaka in :issue:`26282`).
+  (Contributed by Serhiy Storchaka in :issue:`26282`).
 
 
 Deprecated
@@ -550,6 +604,11 @@ Deprecated features
   ``__package__`` are not defined now raises an :exc:`ImportWarning`.
   (Contributed by Rose Ames in :issue:`25791`.)
 
+* Unlike to other :mod:`dbm` implementations, the :mod:`dbm.dumb` module
+  creates database in ``'r'`` and ``'w'`` modes if it doesn't exist and
+  allows modifying database in ``'r'`` mode.  This behavior is now deprecated
+  and will be removed in 3.8.
+  (Contributed by Serhiy Storchaka in :issue:`21708`.)
 
 Deprecated Python behavior
 --------------------------
@@ -592,8 +651,21 @@ Porting to Python 3.6
 This section lists previously described changes and other bugfixes
 that may require changes to your code.
 
+Changes in 'python' Command Behavior
+------------------------------------
+
+* The output of a special Python build with defined ``COUNT_ALLOCS``,
+  ``SHOW_ALLOC_COUNT`` or ``SHOW_TRACK_COUNT`` macros is now off by
+  default.  It can be re-enabled using the ``-X showalloccount`` option.
+  It now outputs to ``stderr`` instead of ``stdout``.
+  (Contributed by Serhiy Storchaka in :issue:`23034`.)
+
+
 Changes in the Python API
 -------------------------
+
+* When :meth:`importlib.abc.Loader.exec_module` is defined,
+  :meth:`importlib.abc.Loader.create_module` must also be defined.
 
 * The format of the ``co_lnotab`` attribute of code objects changed to support
   negative line number delta. By default, Python does not emit bytecode with
@@ -659,6 +731,14 @@ Changes in the Python API
   default, and ``process_message()`` will be passed keyword arguments.
   Code that has already been updated in accordance with the deprecation
   warning generated by 3.5 will not be affected.
+
+* All optional parameters of the :func:`~json.dump`, :func:`~json.dumps`,
+  :func:`~json.load` and :func:`~json.loads` functions and
+  :class:`~json.JSONEncoder` and :class:`~json.JSONDecoder` class
+  constructors in the :mod:`json` module are now :ref:`keyword-only
+  <keyword-only_parameter>`.
+  (Contributed by Serhiy Storchaka in :issue:`18726`.)
+
 
 Changes in the C API
 --------------------

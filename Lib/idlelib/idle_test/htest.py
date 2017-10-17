@@ -68,6 +68,7 @@ outwin.OutputWindow (indirectly being tested with grep test)
 from importlib import import_module
 import tkinter as tk
 from tkinter.ttk import Scrollbar
+tk.NoDefaultRoot()
 
 AboutDialog_spec = {
     'file': 'help_about',
@@ -134,18 +135,6 @@ _editor_window_spec = {
     'kwds': {},
     'msg': "Test editor functions of interest.\n"
            "Best to close editor first."
-    }
-
-GetCfgSectionNameDialog_spec = {
-    'file': 'config_sec',
-    'kwds': {'title':'Get Name',
-             'message':'Enter something',
-             'used_names': {'abc'},
-             '_htest': True},
-    'msg': "After the text entered with [Ok] is stripped, <nothing>, "
-           "'abc', or more that 30 chars are errors.\n"
-           "Close 'Get Name' with a valid entry (printed to Shell), "
-           "[Cancel], or [X]",
     }
 
 GetHelpSourceDialog_spec = {
@@ -243,6 +232,18 @@ _percolator_spec = {
            "was switched 'on' later, should be printed first\n"
            "Test for actions like text entry, and removal."
     }
+
+Query_spec = {
+    'file': 'query',
+    'kwds': {'title': 'Query',
+             'message': 'Enter something',
+             'text0': 'Go',
+             '_htest': True},
+    'msg': "Enter with <Return> or [Ok].  Print valid entry to Shell\n"
+           "Blank line, after stripping, is ignored\n"
+           "Close dialog with valid entry, [Cancel] or [X]",
+    }
+
 
 _replace_dialog_spec = {
     'file': 'replace',
@@ -364,7 +365,7 @@ def run(*tests):
                 test = getattr(mod, test_name)
                 test_list.append((test_spec, test))
 
-    test_name = tk.StringVar('')
+    test_name = tk.StringVar(root)
     callable_object = None
     test_kwds = None
 

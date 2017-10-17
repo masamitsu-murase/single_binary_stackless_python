@@ -2303,7 +2303,12 @@ static PyObject *
 bytes_fromhex_impl(PyTypeObject *type, PyObject *string)
 /*[clinic end generated code: output=0973acc63661bb2e input=bf4d1c361670acd3]*/
 {
-    return _PyBytes_FromHex(string, 0);
+    PyObject *result = _PyBytes_FromHex(string, 0);
+    if (type != &PyBytes_Type && result != NULL) {
+        Py_SETREF(result, PyObject_CallFunctionObjArgs((PyObject *)type,
+                                                       result, NULL));
+    }
+    return result;
 }
 
 PyObject*
@@ -2619,7 +2624,7 @@ fail:
                                                                             \
         for (i = 0; i < Py_SIZE(x); i++) {                                  \
             item = GET_ITEM((x), i);                                        \
-            value = PyNumber_AsSsize_t(item, PyExc_ValueError);             \
+            value = PyNumber_AsSsize_t(item, NULL);                         \
             if (value == -1 && PyErr_Occurred())                            \
                 goto error;                                                 \
                                                                             \
@@ -2682,7 +2687,7 @@ _PyBytes_FromIterator(PyObject *it, PyObject *x)
         }
 
         /* Interpret it as an int (__index__) */
-        value = PyNumber_AsSsize_t(item, PyExc_ValueError);
+        value = PyNumber_AsSsize_t(item, NULL);
         Py_DECREF(item);
         if (value == -1 && PyErr_Occurred())
             goto error;

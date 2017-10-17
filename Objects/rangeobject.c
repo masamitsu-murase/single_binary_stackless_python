@@ -29,17 +29,10 @@ validate_step(PyObject *step)
         return PyLong_FromLong(1);
 
     step = PyNumber_Index(step);
-    if (step) {
-        Py_ssize_t istep = PyNumber_AsSsize_t(step, NULL);
-        if (istep == -1 && PyErr_Occurred()) {
-            /* Ignore OverflowError, we know the value isn't 0. */
-            PyErr_Clear();
-        }
-        else if (istep == 0) {
-            PyErr_SetString(PyExc_ValueError,
-                            "range() arg 3 must not be zero");
-            Py_CLEAR(step);
-        }
+    if (step && _PyLong_Sign(step) == 0) {
+        PyErr_SetString(PyExc_ValueError,
+                        "range() arg 3 must not be zero");
+        Py_CLEAR(step);
     }
 
     return step;
@@ -129,9 +122,9 @@ range_new(PyTypeObject *type, PyObject *args, PyObject *kw)
         return (PyObject *) obj;
 
     /* Failed to create object, release attributes */
-    Py_XDECREF(start);
-    Py_XDECREF(stop);
-    Py_XDECREF(step);
+    Py_DECREF(start);
+    Py_DECREF(stop);
+    Py_DECREF(step);
     return NULL;
 }
 
@@ -196,7 +189,7 @@ compute_range_length(PyObject *start, PyObject *stop, PyObject *step)
     /* if (lo >= hi), return length of 0. */
     cmp_result = PyObject_RichCompareBool(lo, hi, Py_GE);
     if (cmp_result != 0) {
-        Py_XDECREF(step);
+        Py_DECREF(step);
         if (cmp_result < 0)
             return NULL;
         return PyLong_FromLong(0);
@@ -225,9 +218,9 @@ compute_range_length(PyObject *start, PyObject *stop, PyObject *step)
     return result;
 
   Fail:
+    Py_DECREF(step);
     Py_XDECREF(tmp2);
     Py_XDECREF(diff);
-    Py_XDECREF(step);
     Py_XDECREF(tmp1);
     Py_XDECREF(one);
     return NULL;

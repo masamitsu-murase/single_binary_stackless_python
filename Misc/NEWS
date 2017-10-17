@@ -2,10 +2,157 @@
 Python News
 +++++++++++
 
-What's New in Python 3.6.0 alpha 2
+What's New in Python 3.6.0 alpha 3
 ==================================
 
 *Release date: XXXX-XX-XX*
+
+Core and Builtins
+-----------------
+
+- Issue #23034: The output of a special Python build with defined COUNT_ALLOCS,
+  SHOW_ALLOC_COUNT or SHOW_TRACK_COUNT macros is now off by  default.  It can
+  be re-enabled using the "-X showalloccount" option.  It now outputs to stderr
+  instead of stdout.
+
+- Issue #27443: __length_hint__() of bytearray itearator no longer return
+  negative integer for resized bytearray.
+
+- Issue #27007: The fromhex() class methods of bytes and bytearray subclasses
+  now return an instance of corresponding subclass.
+
+Library
+-------
+
+- Issue #21708: Deprecated dbm.dumb behavior that differs from common dbm
+  behavior: creating a database in 'r' and 'w' modes and modifying a database
+  in 'r' mode.
+
+- Issue #26721: Change the socketserver.StreamRequestHandler.wfile attribute
+  to implement BufferedIOBase. In particular, the write() method no longer
+  does partial writes.
+
+- Issue #22115: Added methods trace_add, trace_remove and trace_info in the
+  tkinter.Variable class.  They replace old methods trace_variable, trace,
+  trace_vdelete and trace_vinfo that use obsolete Tcl commands and might
+  not work in future versions of Tcl.  Fixed old tracing methods:
+  trace_vdelete() with wrong mode no longer break tracing, trace_vinfo() now
+  always returns a list of pairs of strings, tracing in the "u" mode now works.
+
+- Issue #26243: Only the level argument to zlib.compress() is keyword argument
+  now.  The first argument is positional-only.
+
+- Issue #27038: Expose the DirEntry type as os.DirEntry. Code patch by
+  Jelle Zijlstra.
+
+- Issue #27186: Update os.fspath()/PyOS_FSPath() to check the return value of
+  __fspath__() to be either str or bytes.
+
+- Issue #18726: All optional parameters of the dump(), dumps(),
+  load() and loads() functions and JSONEncoder and JSONDecoder class
+  constructors in the json module are now keyword-only.
+
+- Issue #27319: Methods selection_set(), selection_add(), selection_remove()
+  and selection_toggle() of ttk.TreeView now allow passing multiple items as
+  multiple arguments instead of passing them as a tuple.  Deprecated
+  undocumented ability of calling the selection() method with arguments.
+
+- Issue #27079: Fixed curses.ascii functions isblank(), iscntrl() and ispunct().
+
+- Issue #27294: Numerical state in the repr for Tkinter event objects is now
+  represented as a compination of known flags.
+
+- Issue #27177: Match objects in the re module now support index-like objects
+  as group indices.  Based on patches by Jeroen Demeyer and Xiang Zhang.
+
+- Issue #26754: Some functions (compile() etc) accepted a filename argument
+  encoded as an iterable of integers. Now only strings and byte-like objects
+  are accepted.
+
+- Issue #26536: socket.ioctl now supports SIO_LOOPBACK_FAST_PATH. Patch by
+  Daniel Stokes.
+
+- Issue #27048: Prevents distutils failing on Windows when environment
+  variables contain non-ASCII characters
+
+- Issue #27330: Fixed possible leaks in the ctypes module.
+
+- Issue #27238: Got rid of bare excepts in the turtle module.  Original patch
+  by Jelle Zijlstra.
+
+- Issue #27122: When an exception is raised within the context being managed
+  by a contextlib.ExitStack() and one of the exit stack generators
+  catches and raises it in a chain, do not re-raise the original exception
+  when exiting, let the new chained one through.  This avoids the PEP 479
+  bug described in issue25782.
+
+- Issue #27278: Fix os.urandom() implementation using getrandom() on Linux.
+  Truncate size to INT_MAX and loop until we collected enough random bytes,
+  instead of casting a directly Py_ssize_t to int.
+
+- Issue #16864: sqlite3.Cursor.lastrowid now supports REPLACE statement.
+  Initial patch by Alex LordThorsen.
+
+- Issue #26386: Fixed ttk.TreeView selection operations with item id's
+  containing spaces.
+
+- Issue #8637: Honor a pager set by the env var MANPAGER (in preference to
+  one set by the env var PAGER).
+
+- Issue #22636: Avoid shell injection problems with
+  ctypes.util.find_library().
+
+- Issue #16182: Fix various functions in the "readline" module to use the
+  locale encoding, and fix get_begidx() and get_endidx() to return code point
+  indexes.
+
+IDLE
+----
+
+- Issue #27372: Test_idle no longer changes the locale.
+
+- Issue #27365: Allow non-ascii chars in IDLE NEWS.txt, for contributor names.
+
+- Issue #27245: IDLE: Cleanly delete custom themes and key bindings.
+  Previously, when IDLE was started from a console or by import, a cascade
+  of warnings was emitted.  Patch by Serhiy Storchaka.
+
+- Issue #24137: Run IDLE, test_idle, and htest with tkinter default root disabled.
+  Fix code and tests that fail with this restriction.
+  Fix htests to not create a second and redundant root and mainloop.
+
+- Issue #27310: Fix IDLE.app failure to launch on OS X due to vestigial import.
+
+C API
+-----
+
+- Issue #26754: PyUnicode_FSDecoder() accepted a filename argument encoded as
+  an iterable of integers. Now only strings and byte-like objects are accepted.
+
+Build
+-----
+
+- Issue #26930: Update Windows builds to use OpenSSL 1.0.2h.
+
+- Issue #23968: Rename the platform directory from plat-$(MACHDEP) to
+  plat-$(PLATFORM_TRIPLET).
+  Rename the config directory (LIBPL) from config-$(LDVERSION) to
+  config-$(LDVERSION)-$(PLATFORM_TRIPLET).
+  Install the platform specifc _sysconfigdata module into the platform
+  directory and rename it to include the ABIFLAGS.
+
+- Don't use largefile support for GNU/Hurd.
+
+Tools/Demos
+-----------
+
+- Issue #27418: Fixed Tools/importbench/importbench.py.
+
+
+What's New in Python 3.6.0 alpha 2
+==================================
+
+*Release date: 2016-06-13*
 
 Core and Builtins
 -----------------
@@ -50,6 +197,10 @@ Core and Builtins
 Library
 -------
 
+- Comment out socket (SO_REUSEPORT) and posix (O_SHLOCK, O_EXLOCK) constants
+  exposed on the API which are not implemented on GNU/Hurd. They would not
+  work at runtime anyway.
+
 - Issue #25455: Fixed crashes in repr of recursive ElementTree.Element and
   functools.partial objects.
 
@@ -60,7 +211,7 @@ Library
 
 - Issue #26556: Update expat to 2.1.1, fixes CVE-2015-1283.
 
-- Fix TLS stripping vulnerability in smptlib, CVE-2016-0772.  Reported by Team
+- Fix TLS stripping vulnerability in smtplib, CVE-2016-0772.  Reported by Team
   Oststrom
 
 - Issue #21386: Implement missing IPv4Address.is_global property.  It was
@@ -431,7 +582,7 @@ Core and Builtins
 - Issue #25843: When compiling code, don't merge constants if they are equal
   but have a different types. For example, ``f1, f2 = lambda: 1, lambda: 1.0``
   is now correctly compiled to two different functions: ``f1()`` returns ``1``
-  (``int``) and ``f2()`` returns ``1.0`` (``int``), even if ``1`` and ``1.0``
+  (``int``) and ``f2()`` returns ``1.0`` (``float``), even if ``1`` and ``1.0``
   are equal.
 
 - Issue #26107: The format of the ``co_lnotab`` attribute of code objects
@@ -1558,7 +1709,6 @@ Tools/Demos
 
 - Issue #26316: Fix variable name typo in Argument Clinic.
 
-<<<<<<< local
 - Issue #25440: Fix output of python-config --extension-suffix.
 
 - Issue #25154: The pyvenv script has been deprecated in favour of

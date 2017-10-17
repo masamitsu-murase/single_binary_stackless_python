@@ -25,12 +25,6 @@ import unittest
 import sqlite3 as sqlite
 
 class CollationTests(unittest.TestCase):
-    def setUp(self):
-        pass
-
-    def tearDown(self):
-        pass
-
     def CheckCreateCollationNotCallable(self):
         con = sqlite.connect(":memory:")
         with self.assertRaises(TypeError) as cm:
@@ -61,8 +55,8 @@ class CollationTests(unittest.TestCase):
             ) order by x collate mycoll
             """
         result = con.execute(sql).fetchall()
-        if result[0][0] != "c" or result[1][0] != "b" or result[2][0] != "a":
-            self.fail("the expected order was not returned")
+        self.assertEqual(result, [('c',), ('b',), ('a',)],
+                         msg='the expected order was not returned')
 
         con.create_collation("mycoll", None)
         with self.assertRaises(sqlite.OperationalError) as cm:

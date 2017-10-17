@@ -12,8 +12,18 @@ from zipfile import ZipFile, ZIP_DEFLATED
 import subprocess
 
 TKTCL_RE = re.compile(r'^(_?tk|tcl).+\.(pyd|dll)', re.IGNORECASE)
-DEBUG_RE = re.compile(r'_d\.(pyd|dll|exe)$', re.IGNORECASE)
+DEBUG_RE = re.compile(r'_d\.(pyd|dll|exe|pdb|lib)$', re.IGNORECASE)
 PYTHON_DLL_RE = re.compile(r'python\d\d?\.dll$', re.IGNORECASE)
+
+DEBUG_FILES = {
+    '_ctypes_test',
+    '_testbuffer',
+    '_testcapi',
+    '_testimportmultiple',
+    '_testmultiphase',
+    'xxlimited',
+    'python3_dstub',
+}
 
 EXCLUDE_FROM_LIBRARY = {
     '__pycache__',
@@ -30,6 +40,12 @@ EXCLUDE_FILE_FROM_LIBRARY = {
     'bdist_wininst.py',
 }
 
+EXCLUDE_FILE_FROM_LIBS = {
+    'ssleay',
+    'libeay',
+    'python3stub',
+}
+
 def is_not_debug(p):
     if DEBUG_RE.search(p.name):
         return False
@@ -37,14 +53,7 @@ def is_not_debug(p):
     if TKTCL_RE.search(p.name):
         return False
 
-    return p.name.lower() not in {
-        '_ctypes_test.pyd',
-        '_testbuffer.pyd',
-        '_testcapi.pyd',
-        '_testimportmultiple.pyd',
-        '_testmultiphase.pyd',
-        'xxlimited.pyd',
-    }
+    return p.stem.lower() not in DEBUG_FILES
 
 def is_not_debug_or_python(p):
     return is_not_debug(p) and not PYTHON_DLL_RE.search(p.name)
@@ -68,6 +77,12 @@ def include_in_lib(p):
     suffix = p.suffix.lower()
     return suffix not in {'.pyc', '.pyo', '.exe'}
 
+def include_in_libs(p):
+    if not is_not_debug(p):
+        return False
+
+    return p.stem.lower() not in EXCLUDE_FILE_FROM_LIBS
+
 def include_in_tools(p):
     if p.is_dir() and p.name.lower() in {'scripts', 'i18n', 'pynche', 'demo', 'parser'}:
         return True
@@ -75,13 +90,16 @@ def include_in_tools(p):
     return p.suffix.lower() in {'.py', '.pyw', '.txt'}
 
 FULL_LAYOUT = [
-    ('/', 'PCBuild/$arch', 'python*.exe', is_not_debug),
-    ('/', 'PCBuild/$arch', 'python*.dll', is_not_debug),
+    ('/', 'PCBuild/$arch', 'python.exe', is_not_debug),
+    ('/', 'PCBuild/$arch', 'pythonw.exe', is_not_debug),
+    ('/', 'PCBuild/$arch', 'python{0.major}.dll'.format(sys.version_info), is_not_debug),
+    ('/', 'PCBuild/$arch', 'python{0.major}{0.minor}.dll'.format(sys.version_info), is_not_debug),
     ('DLLs/', 'PCBuild/$arch', '*.pyd', is_not_debug),
-    ('DLLs/', 'PCBuild/$arch', '*.dll', is_not_debug),
+    ('DLLs/', 'PCBuild/$arch', '*.dll', is_not_debug_or_python),
     ('include/', 'include', '*.h', None),
     ('include/', 'PC', 'pyconfig.h', None),
     ('Lib/', 'Lib', '**/*', include_in_lib),
+    ('libs/', 'PCBuild/$arch', '*.lib', include_in_libs),
     ('Tools/', 'Tools', '**/*', include_in_tools),
 ]
 
@@ -150,17 +168,17 @@ def rglob(root, pattern, condition):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--source', metavar='dir', help='The directory containing the repository root', type=Path)
-    parser.add_argument('-o', '--out', metavar='file', help='The name of the output self-extracting archive', type=Path, required=True)
+    parser.add_argument('-o', '--out', metavar='file', help='The name of the output self-extracting archive', type=Path, default=None)
     parser.add_argument('-t', '--temp', metavar='dir', help='A directory to temporarily extract files into', type=Path, default=None)
     parser.add_argument('-e', '--embed', help='Create an embedding layout', action='store_true', default=False)
     parser.add_argument('-a', '--arch', help='Specify the architecture to use (win32/amd64)', type=str, default="win32")
     ns = parser.parse_args()
 
-    source = ns.source or (Path(__file__).parent.parent.parent)
+    source = ns.source or (Path(__file__).resolve().parent.parent.parent)
     out = ns.out
     arch = ns.arch
     assert isinstance(source, Path)
-    assert isinstance(out, Path)
+    assert not out or isinstance(out, Path)
     assert isinstance(arch, str)
 
     if ns.temp:
@@ -170,10 +188,11 @@ def main():
         temp = Path(tempfile.mkdtemp())
         delete_temp = True
 
-    try:
-        out.parent.mkdir(parents=True)
-    except FileExistsError:
-        pass
+    if out:
+        try:
+            out.parent.mkdir(parents=True)
+        except FileExistsError:
+            pass
     try:
         temp.mkdir(parents=True)
     except FileExistsError:
@@ -190,8 +209,9 @@ def main():
         with open(str(temp / 'pyvenv.cfg'), 'w') as f:
             print('applocal = true', file=f)
 
-        total = copy_to_layout(out, rglob(temp, '*', None))
-        print('Wrote {} files to {}'.format(total, out))
+        if out:
+            total = copy_to_layout(out, rglob(temp, '**/*', None))
+            print('Wrote {} files to {}'.format(total, out))
     finally:
         if delete_temp:
             shutil.rmtree(temp, True)

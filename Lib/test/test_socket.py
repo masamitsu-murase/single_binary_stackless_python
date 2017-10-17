@@ -1217,6 +1217,22 @@ class GeneralModuleTests(unittest.TestCase):
         self.assertRaises(ValueError, s.ioctl, -1, None)
         s.ioctl(socket.SIO_KEEPALIVE_VALS, (1, 100, 100))
 
+    @unittest.skipUnless(os.name == "nt", "Windows specific")
+    @unittest.skipUnless(hasattr(socket, 'SIO_LOOPBACK_FAST_PATH'),
+                         'Loopback fast path support required for this test')
+    def test_sio_loopback_fast_path(self):
+        s = socket.socket()
+        self.addCleanup(s.close)
+        try:
+            s.ioctl(socket.SIO_LOOPBACK_FAST_PATH, True)
+        except OSError as exc:
+            WSAEOPNOTSUPP = 10045
+            if exc.winerror == WSAEOPNOTSUPP:
+                self.skipTest("SIO_LOOPBACK_FAST_PATH is defined but "
+                              "doesn't implemented in this Windows version")
+            raise
+        self.assertRaises(TypeError, s.ioctl, socket.SIO_LOOPBACK_FAST_PATH, None)
+
     def testGetaddrinfo(self):
         try:
             socket.getaddrinfo('localhost', 80)

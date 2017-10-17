@@ -879,7 +879,7 @@ class IOTest(unittest.TestCase):
         check_path_succeeds(PathLike(support.TESTFN.encode('utf-8')))
 
         bad_path = PathLike(TypeError)
-        with self.assertRaisesRegex(TypeError, 'invalid file'):
+        with self.assertRaises(TypeError):
             self.open(bad_path, 'w')
 
         # ensure that refcounting is correct with some error conditions
@@ -3165,6 +3165,7 @@ class TextIOWrapperTest(unittest.TestCase):
             """.format(iomod=iomod, kwargs=kwargs)
         return assert_python_ok("-c", code)
 
+    @support.requires_type_collecting
     def test_create_at_shutdown_without_encoding(self):
         rc, out, err = self._check_create_at_shutdown()
         if err:
@@ -3174,6 +3175,7 @@ class TextIOWrapperTest(unittest.TestCase):
         else:
             self.assertEqual("ok", out.decode().strip())
 
+    @support.requires_type_collecting
     def test_create_at_shutdown_with_encoding(self):
         rc, out, err = self._check_create_at_shutdown(encoding='utf-8',
                                                       errors='strict')

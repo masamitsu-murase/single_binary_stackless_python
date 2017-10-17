@@ -1547,7 +1547,9 @@ def main():
     enable_edit = enable_edit or edit_start
     enable_shell = enable_shell or not enable_edit
 
-    # start editor and/or shell windows:
+    # Setup root.
+    if use_subprocess:  # Don't break user code run in IDLE process
+        NoDefaultRoot()
     root = Tk(className="Idle")
     root.withdraw()
 
@@ -1560,9 +1562,11 @@ def main():
         ext = '.png' if TkVersion >= 8.6 else '.gif'
         iconfiles = [os.path.join(icondir, 'idle_%d%s' % (size, ext))
                      for size in (16, 32, 48)]
-        icons = [PhotoImage(file=iconfile) for iconfile in iconfiles]
+        icons = [PhotoImage(master=root, file=iconfile)
+                 for iconfile in iconfiles]
         root.wm_iconphoto(True, *icons)
 
+    # start editor and/or shell windows:
     fixwordbreaks(root)
     fix_x11_paste(root)
     flist = PyShellFileList(root)

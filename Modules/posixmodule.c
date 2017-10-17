@@ -12317,12 +12317,21 @@ PyOS_FSPath(PyObject *path)
     if (NULL == func) {
         return PyErr_Format(PyExc_TypeError,
                             "expected str, bytes or os.PathLike object, "
-                            "not %S",
-                            path->ob_type);
+                            "not %.200s",
+                            Py_TYPE(path)->tp_name);
     }
 
     path_repr = PyObject_CallFunctionObjArgs(func, NULL);
     Py_DECREF(func);
+    if (!(PyUnicode_Check(path_repr) || PyBytes_Check(path_repr))) {
+        PyErr_Format(PyExc_TypeError,
+                     "expected %.200s.__fspath__() to return str or bytes, "
+                     "not %.200s", Py_TYPE(path)->tp_name,
+                     Py_TYPE(path_repr)->tp_name);
+        Py_DECREF(path_repr);
+        return NULL;
+    }
+
     return path_repr;
 }
 
@@ -12658,11 +12667,13 @@ all_ins(PyObject *m)
 #ifdef O_LARGEFILE
     if (PyModule_AddIntMacro(m, O_LARGEFILE)) return -1;
 #endif
+#ifndef __GNU__
 #ifdef O_SHLOCK
     if (PyModule_AddIntMacro(m, O_SHLOCK)) return -1;
 #endif
 #ifdef O_EXLOCK
     if (PyModule_AddIntMacro(m, O_EXLOCK)) return -1;
+#endif
 #endif
 #ifdef O_EXEC
     if (PyModule_AddIntMacro(m, O_EXEC)) return -1;
@@ -13309,6 +13320,7 @@ INITFUNC(void)
         Py_DECREF(unicode);
     }
     PyModule_AddObject(m, "_have_functions", list);
+    PyModule_AddObject(m, "DirEntry", (PyObject *)&DirEntryType);
 
     initialized = 1;
 

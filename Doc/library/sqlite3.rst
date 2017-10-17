@@ -489,10 +489,6 @@ Connection Objects
       :mod:`sqlite3` module will return Unicode objects for ``TEXT``. If you want to
       return bytestrings instead, you can set it to :class:`bytes`.
 
-      For efficiency reasons, there's also a way to return :class:`str` objects
-      only for non-ASCII data, and :class:`bytes` otherwise. To activate it, set
-      this attribute to :const:`sqlite3.OptimizedUnicode`.
-
       You can also set it to any other callable that accepts a single bytestring
       parameter and returns the resulting object.
 
@@ -633,9 +629,16 @@ Cursor Objects
    .. attribute:: lastrowid
 
       This read-only attribute provides the rowid of the last modified row. It is
-      only set if you issued an ``INSERT`` statement using the :meth:`execute`
-      method. For operations other than ``INSERT`` or when :meth:`executemany` is
-      called, :attr:`lastrowid` is set to :const:`None`.
+      only set if you issued an ``INSERT`` or a ``REPLACE`` statement using the
+      :meth:`execute` method.  For operations other than ``INSERT`` or
+      ``REPLACE`` or when :meth:`executemany` is called, :attr:`lastrowid` is
+      set to :const:`None`.
+
+      If the ``INSERT`` or ``REPLACE`` statement failed to insert the previous
+      successful rowid is returned.
+
+      .. versionchanged:: 3.6
+         Added support for the ``REPLACE`` statement.
 
    .. attribute:: description
 
