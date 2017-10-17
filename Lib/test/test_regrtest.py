@@ -109,7 +109,7 @@ class ParseArgsTestCase(unittest.TestCase):
                 self.assertEqual(ns.verbose, 0)
 
     def test_slow(self):
-        for opt in '-o', '--slow':
+        for opt in '-o', '--slowest':
             with self.subTest(opt=opt):
                 ns = libregrtest._parse_args([opt])
                 self.assertTrue(ns.print_slow)
@@ -349,7 +349,7 @@ class BaseTestCase(unittest.TestCase):
         return list(match.group(1) for match in parser)
 
     def check_executed_tests(self, output, tests, skipped=(), failed=(),
-                             omitted=(), randomize=False):
+                             omitted=(), randomize=False, interrupted=False):
         if isinstance(tests, str):
             tests = [tests]
         if isinstance(skipped, str):
@@ -397,6 +397,17 @@ class BaseTestCase(unittest.TestCase):
             if not skipped and not failed and good > 1:
                 regex = 'All %s' % regex
             self.check_line(output, regex)
+
+        if interrupted:
+            self.check_line(output, 'Test suite interrupted by signal SIGINT.')
+
+        if nfailed:
+            result = 'FAILURE'
+        elif interrupted:
+            result = 'INTERRUPTED'
+        else:
+            result = 'SUCCESS'
+        self.check_line(output, 'Result: %s' % result)
 
     def parse_random_seed(self, output):
         match = self.regex_search(r'Using random seed ([0-9]+)', output)
@@ -658,33 +669,35 @@ class ArgsTestCase(BaseTestCase):
         code = TEST_INTERRUPTED
         test = self.create_test('sigint', code=code)
         output = self.run_tests(test, exitcode=1)
-        self.check_executed_tests(output, test, omitted=test)
+        self.check_executed_tests(output, test, omitted=test,
+                                  interrupted=True)
 
-    def test_slow(self):
-        # test --slow
+    def test_slowest(self):
+        # test --slowest
         tests = [self.create_test() for index in range(3)]
-        output = self.run_tests("--slow", *tests)
+        output = self.run_tests("--slowest", *tests)
         self.check_executed_tests(output, tests)
         regex = ('10 slowest tests:\n'
-                 '(?:%s: [0-9]+\.[0-9]+s\n){%s}'
+                 '(?:- %s: .*\n){%s}'
                  % (self.TESTNAME_REGEX, len(tests)))
         self.check_line(output, regex)
 
     def test_slow_interrupted(self):
-        # Issue #25373: test --slow with an interrupted test
+        # Issue #25373: test --slowest with an interrupted test
         code = TEST_INTERRUPTED
         test = self.create_test("sigint", code=code)
 
         for multiprocessing in (False, True):
             if multiprocessing:
-                args = ("--slow", "-j2", test)
+                args = ("--slowest", "-j2", test)
             else:
-                args = ("--slow", test)
+                args = ("--slowest", test)
             output = self.run_tests(*args, exitcode=1)
-            self.check_executed_tests(output, test, omitted=test)
+            self.check_executed_tests(output, test,
+                                      omitted=test, interrupted=True)
+
             regex = ('10 slowest tests:\n')
             self.check_line(output, regex)
-            self.check_line(output, 'Test suite interrupted by signal SIGINT.')
 
     def test_coverage(self):
         # test --coverage

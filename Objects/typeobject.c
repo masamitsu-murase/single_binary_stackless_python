@@ -2315,11 +2315,13 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
     assert(kwds == NULL || PyDict_Check(kwds));
 
     /* Special case: type(x) should return x->ob_type */
-    {
+    /* We only want type itself to accept the one-argument form (#27157)
+       Note: We don't call PyType_CheckExact as that also allows subclasses */
+    if (metatype == &PyType_Type) {
         const Py_ssize_t nargs = PyTuple_GET_SIZE(args);
         const Py_ssize_t nkwds = kwds == NULL ? 0 : PyDict_Size(kwds);
 
-        if (PyType_CheckExact(metatype) && nargs == 1 && nkwds == 0) {
+        if (nargs == 1 && nkwds == 0) {
             PyObject *x = PyTuple_GET_ITEM(args, 0);
             Py_INCREF(Py_TYPE(x));
             return (PyObject *) Py_TYPE(x);
@@ -2336,8 +2338,8 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
     }
 
     /* Check arguments: (name, bases, dict) */
-    if (!PyArg_ParseTuple(args, "UO!O!:type", &name, &PyTuple_Type, &bases,
-                          &PyDict_Type, &orig_dict))
+    if (!PyArg_ParseTuple(args, "UO!O!:type.__new__", &name, &PyTuple_Type,
+                          &bases, &PyDict_Type, &orig_dict))
         return NULL;
 
     /* Determine the proper metatype to deal with this: */
@@ -5956,6 +5958,13 @@ slot_sq_contains(PyObject *self, PyObject *value)
     _Py_IDENTIFIER(__contains__);
 
     func = lookup_maybe(self, &PyId___contains__);
+    if (func == Py_None) {
+        Py_DECREF(func);
+        PyErr_Format(PyExc_TypeError,
+                     "'%.200s' object is not a container",
+                     Py_TYPE(self)->tp_name);
+        return -1;
+    }
     if (func != NULL) {
         args = PyTuple_Pack(1, value);
         if (args == NULL)
@@ -6392,6 +6401,13 @@ slot_tp_iter(PyObject *self)
     _Py_IDENTIFIER(__iter__);
 
     func = lookup_method(self, &PyId___iter__);
+    if (func == Py_None) {
+        Py_DECREF(func);
+        PyErr_Format(PyExc_TypeError,
+                     "'%.200s' object is not iterable",
+                     Py_TYPE(self)->tp_name);
+        return NULL;
+    }
     if (func != NULL) {
         PyObject *args;
         args = res = PyTuple_New(0);

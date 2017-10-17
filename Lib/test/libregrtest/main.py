@@ -34,6 +34,16 @@ else:
 TEMPDIR = os.path.abspath(TEMPDIR)
 
 
+def format_duration(seconds):
+    if seconds < 1.0:
+        return '%.0f ms' % (seconds * 1e3)
+    if seconds < 60.0:
+        return '%.0f sec' % seconds
+
+    minutes, seconds = divmod(seconds, 60.0)
+    return '%.0f min %.0f sec' % (minutes, seconds)
+
+
 class Regrtest:
     """Execute a test suite.
 
@@ -107,14 +117,6 @@ class Regrtest:
             self.skipped.append(test)
             self.resource_denieds.append(test)
 
-    def time_delta(self, ceil=False):
-        seconds = time.monotonic() - self.start_time
-        if ceil:
-            seconds = math.ceil(seconds)
-        else:
-            seconds = int(seconds)
-        return datetime.timedelta(seconds=seconds)
-
     def display_progress(self, test_index, test):
         if self.ns.quiet:
             return
@@ -122,12 +124,14 @@ class Regrtest:
             fmt = "{time} [{test_index:{count_width}}{test_count}/{nbad}] {test_name}"
         else:
             fmt = "{time} [{test_index:{count_width}}{test_count}] {test_name}"
+        test_time = time.monotonic() - self.start_time
+        test_time = datetime.timedelta(seconds=int(test_time))
         line = fmt.format(count_width=self.test_count_width,
                           test_index=test_index,
                           test_count=self.test_count,
                           nbad=len(self.bad),
                           test_name=test,
-                          time=self.time_delta())
+                          time=test_time)
         print(line, flush=True)
 
     def parse_args(self, kwargs):
@@ -250,6 +254,7 @@ class Regrtest:
                 self.ns.verbose = True
                 ok = runtest(self.ns, test)
             except KeyboardInterrupt:
+                self.interrupted = True
                 # print a newline separate from the ^C
                 print()
                 break
@@ -286,20 +291,24 @@ class Regrtest:
 
         if self.ns.print_slow:
             self.test_times.sort(reverse=True)
+            print()
             print("10 slowest tests:")
             for time, test in self.test_times[:10]:
-                print("%s: %.1fs" % (test, time))
+                print("- %s: %s" % (test, format_duration(time)))
 
         if self.bad:
+            print()
             print(count(len(self.bad), "test"), "failed:")
             printlist(self.bad)
 
         if self.environment_changed:
+            print()
             print("{} altered the execution environment:".format(
                      count(len(self.environment_changed), "test")))
             printlist(self.environment_changed)
 
         if self.skipped and not self.ns.quiet:
+            print()
             print(count(len(self.skipped), "test"), "skipped:")
             printlist(self.skipped)
 
@@ -333,8 +342,8 @@ class Regrtest:
                 try:
                     result = runtest(self.ns, test)
                 except KeyboardInterrupt:
-                    self.accumulate_result(test, (INTERRUPTED, None))
                     self.interrupted = True
+                    self.accumulate_result(test, (INTERRUPTED, None))
                     break
                 else:
                     self.accumulate_result(test, result)
@@ -342,7 +351,7 @@ class Regrtest:
             previous_test = format_test_result(test, result[0])
             test_time = time.monotonic() - start_time
             if test_time >= PROGRESS_MIN_TIME:
-                previous_test = "%s in %.0f sec" % (previous_test, test_time)
+                previous_test = "%s in %s" % (previous_test, format_duration(test_time))
             elif result[0] == PASSED:
                 # be quiet: say nothing if the test passed shortly
                 previous_test = None
@@ -418,7 +427,17 @@ class Regrtest:
             r.write_results(show_missing=True, summary=True,
                             coverdir=self.ns.coverdir)
 
-        print("Total duration: %s" % self.time_delta(ceil=True))
+        print()
+        duration = time.monotonic() - self.start_time
+        print("Total duration: %s" % format_duration(duration))
+
+        if self.bad:
+            result = "FAILURE"
+        elif self.interrupted:
+            result = "INTERRUPTED"
+        else:
+            result = "SUCCESS"
+        print("Result: %s" % result)
 
         if self.ns.runleaks:
             os.system("leaks %d" % os.getpid())
