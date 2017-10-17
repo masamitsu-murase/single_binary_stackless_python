@@ -83,11 +83,10 @@ PyDoc_STRVAR(builtin_format__doc__,
     {"format", (PyCFunction)builtin_format, METH_VARARGS, builtin_format__doc__},
 
 static PyObject *
-builtin_format_impl(PyModuleDef *module, PyObject *value,
-                    PyObject *format_spec);
+builtin_format_impl(PyObject *module, PyObject *value, PyObject *format_spec);
 
 static PyObject *
-builtin_format(PyModuleDef *module, PyObject *args)
+builtin_format(PyObject *module, PyObject *args)
 {
     PyObject *return_value = NULL;
     PyObject *value;
@@ -113,10 +112,10 @@ PyDoc_STRVAR(builtin_chr__doc__,
     {"chr", (PyCFunction)builtin_chr, METH_O, builtin_chr__doc__},
 
 static PyObject *
-builtin_chr_impl(PyModuleDef *module, int i);
+builtin_chr_impl(PyObject *module, int i);
 
 static PyObject *
-builtin_chr(PyModuleDef *module, PyObject *arg)
+builtin_chr(PyObject *module, PyObject *arg)
 {
     PyObject *return_value = NULL;
     int i;
@@ -152,12 +151,12 @@ PyDoc_STRVAR(builtin_compile__doc__,
     {"compile", (PyCFunction)builtin_compile, METH_VARARGS|METH_KEYWORDS, builtin_compile__doc__},
 
 static PyObject *
-builtin_compile_impl(PyModuleDef *module, PyObject *source,
-                     PyObject *filename, const char *mode, int flags,
-                     int dont_inherit, int optimize);
+builtin_compile_impl(PyObject *module, PyObject *source, PyObject *filename,
+                     const char *mode, int flags, int dont_inherit,
+                     int optimize);
 
 static PyObject *
-builtin_compile(PyModuleDef *module, PyObject *args, PyObject *kwargs)
+builtin_compile(PyObject *module, PyObject *args, PyObject *kwargs)
 {
     PyObject *return_value = NULL;
     static char *_keywords[] = {"source", "filename", "mode", "flags", "dont_inherit", "optimize", NULL};
@@ -188,10 +187,10 @@ PyDoc_STRVAR(builtin_divmod__doc__,
     {"divmod", (PyCFunction)builtin_divmod, METH_VARARGS, builtin_divmod__doc__},
 
 static PyObject *
-builtin_divmod_impl(PyModuleDef *module, PyObject *x, PyObject *y);
+builtin_divmod_impl(PyObject *module, PyObject *x, PyObject *y);
 
 static PyObject *
-builtin_divmod(PyModuleDef *module, PyObject *args)
+builtin_divmod(PyObject *module, PyObject *args)
 {
     PyObject *return_value = NULL;
     PyObject *x;
@@ -224,11 +223,11 @@ PyDoc_STRVAR(builtin_eval__doc__,
     {"eval", (PyCFunction)builtin_eval, METH_VARARGS|METH_STACKLESS, builtin_eval__doc__},
 
 static PyObject *
-builtin_eval_impl(PyModuleDef *module, PyObject *source, PyObject *globals,
+builtin_eval_impl(PyObject *module, PyObject *source, PyObject *globals,
                   PyObject *locals);
 
 static PyObject *
-builtin_eval(PyModuleDef *module, PyObject *args)
+builtin_eval(PyObject *module, PyObject *args)
 {
     STACKLESS_GETARG();
     PyObject *return_value = NULL;
@@ -265,11 +264,11 @@ PyDoc_STRVAR(builtin_exec__doc__,
     {"exec", (PyCFunction)builtin_exec, METH_VARARGS|METH_STACKLESS, builtin_exec__doc__},
 
 static PyObject *
-builtin_exec_impl(PyModuleDef *module, PyObject *source, PyObject *globals,
+builtin_exec_impl(PyObject *module, PyObject *source, PyObject *globals,
                   PyObject *locals);
 
 static PyObject *
-builtin_exec(PyModuleDef *module, PyObject *args)
+builtin_exec(PyObject *module, PyObject *args)
 {
     STACKLESS_GETARG();
     PyObject *return_value = NULL;
@@ -303,10 +302,10 @@ PyDoc_STRVAR(builtin_globals__doc__,
     {"globals", (PyCFunction)builtin_globals, METH_NOARGS, builtin_globals__doc__},
 
 static PyObject *
-builtin_globals_impl(PyModuleDef *module);
+builtin_globals_impl(PyObject *module);
 
 static PyObject *
-builtin_globals(PyModuleDef *module, PyObject *Py_UNUSED(ignored))
+builtin_globals(PyObject *module, PyObject *Py_UNUSED(ignored))
 {
     return builtin_globals_impl(module);
 }
@@ -323,10 +322,10 @@ PyDoc_STRVAR(builtin_hasattr__doc__,
     {"hasattr", (PyCFunction)builtin_hasattr, METH_VARARGS, builtin_hasattr__doc__},
 
 static PyObject *
-builtin_hasattr_impl(PyModuleDef *module, PyObject *obj, PyObject *name);
+builtin_hasattr_impl(PyObject *module, PyObject *obj, PyObject *name);
 
 static PyObject *
-builtin_hasattr(PyModuleDef *module, PyObject *args)
+builtin_hasattr(PyObject *module, PyObject *args)
 {
     PyObject *return_value = NULL;
     PyObject *obj;
@@ -367,11 +366,11 @@ PyDoc_STRVAR(builtin_setattr__doc__,
     {"setattr", (PyCFunction)builtin_setattr, METH_VARARGS, builtin_setattr__doc__},
 
 static PyObject *
-builtin_setattr_impl(PyModuleDef *module, PyObject *obj, PyObject *name,
+builtin_setattr_impl(PyObject *module, PyObject *obj, PyObject *name,
                      PyObject *value);
 
 static PyObject *
-builtin_setattr(PyModuleDef *module, PyObject *args)
+builtin_setattr(PyObject *module, PyObject *args)
 {
     PyObject *return_value = NULL;
     PyObject *obj;
@@ -401,10 +400,10 @@ PyDoc_STRVAR(builtin_delattr__doc__,
     {"delattr", (PyCFunction)builtin_delattr, METH_VARARGS, builtin_delattr__doc__},
 
 static PyObject *
-builtin_delattr_impl(PyModuleDef *module, PyObject *obj, PyObject *name);
+builtin_delattr_impl(PyObject *module, PyObject *obj, PyObject *name);
 
 static PyObject *
-builtin_delattr(PyModuleDef *module, PyObject *args)
+builtin_delattr(PyObject *module, PyObject *args)
 {
     PyObject *return_value = NULL;
     PyObject *obj;
@@ -468,10 +467,10 @@ PyDoc_STRVAR(builtin_locals__doc__,
     {"locals", (PyCFunction)builtin_locals, METH_NOARGS, builtin_locals__doc__},
 
 static PyObject *
-builtin_locals_impl(PyModuleDef *module);
+builtin_locals_impl(PyObject *module);
 
 static PyObject *
-builtin_locals(PyModuleDef *module, PyObject *Py_UNUSED(ignored))
+builtin_locals(PyObject *module, PyObject *Py_UNUSED(ignored))
 {
     return builtin_locals_impl(module);
 }
@@ -510,10 +509,10 @@ PyDoc_STRVAR(builtin_pow__doc__,
     {"pow", (PyCFunction)builtin_pow, METH_VARARGS, builtin_pow__doc__},
 
 static PyObject *
-builtin_pow_impl(PyModuleDef *module, PyObject *x, PyObject *y, PyObject *z);
+builtin_pow_impl(PyObject *module, PyObject *x, PyObject *y, PyObject *z);
 
 static PyObject *
-builtin_pow(PyModuleDef *module, PyObject *args)
+builtin_pow(PyObject *module, PyObject *args)
 {
     PyObject *return_value = NULL;
     PyObject *x;
@@ -547,10 +546,10 @@ PyDoc_STRVAR(builtin_input__doc__,
     {"input", (PyCFunction)builtin_input, METH_VARARGS, builtin_input__doc__},
 
 static PyObject *
-builtin_input_impl(PyModuleDef *module, PyObject *prompt);
+builtin_input_impl(PyObject *module, PyObject *prompt);
 
 static PyObject *
-builtin_input(PyModuleDef *module, PyObject *args)
+builtin_input(PyObject *module, PyObject *args)
 {
     PyObject *return_value = NULL;
     PyObject *prompt = NULL;
@@ -591,10 +590,10 @@ PyDoc_STRVAR(builtin_sum__doc__,
     {"sum", (PyCFunction)builtin_sum, METH_VARARGS, builtin_sum__doc__},
 
 static PyObject *
-builtin_sum_impl(PyModuleDef *module, PyObject *iterable, PyObject *start);
+builtin_sum_impl(PyObject *module, PyObject *iterable, PyObject *start);
 
 static PyObject *
-builtin_sum(PyModuleDef *module, PyObject *args)
+builtin_sum(PyObject *module, PyObject *args)
 {
     PyObject *return_value = NULL;
     PyObject *iterable;
@@ -625,11 +624,11 @@ PyDoc_STRVAR(builtin_isinstance__doc__,
     {"isinstance", (PyCFunction)builtin_isinstance, METH_VARARGS, builtin_isinstance__doc__},
 
 static PyObject *
-builtin_isinstance_impl(PyModuleDef *module, PyObject *obj,
+builtin_isinstance_impl(PyObject *module, PyObject *obj,
                         PyObject *class_or_tuple);
 
 static PyObject *
-builtin_isinstance(PyModuleDef *module, PyObject *args)
+builtin_isinstance(PyObject *module, PyObject *args)
 {
     PyObject *return_value = NULL;
     PyObject *obj;
@@ -660,11 +659,11 @@ PyDoc_STRVAR(builtin_issubclass__doc__,
     {"issubclass", (PyCFunction)builtin_issubclass, METH_VARARGS, builtin_issubclass__doc__},
 
 static PyObject *
-builtin_issubclass_impl(PyModuleDef *module, PyObject *cls,
+builtin_issubclass_impl(PyObject *module, PyObject *cls,
                         PyObject *class_or_tuple);
 
 static PyObject *
-builtin_issubclass(PyModuleDef *module, PyObject *args)
+builtin_issubclass(PyObject *module, PyObject *args)
 {
     PyObject *return_value = NULL;
     PyObject *cls;
@@ -680,4 +679,4 @@ builtin_issubclass(PyModuleDef *module, PyObject *args)
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=17cb201af1b01cb0 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=5bb1201755612048 input=a9049054013a1b77]*/
