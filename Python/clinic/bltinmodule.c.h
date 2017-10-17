@@ -159,7 +159,8 @@ static PyObject *
 builtin_compile(PyObject *module, PyObject *args, PyObject *kwargs)
 {
     PyObject *return_value = NULL;
-    static char *_keywords[] = {"source", "filename", "mode", "flags", "dont_inherit", "optimize", NULL};
+    static const char * const _keywords[] = {"source", "filename", "mode", "flags", "dont_inherit", "optimize", NULL};
+    static _PyArg_Parser _parser = {"OO&s|iii:compile", _keywords, 0};
     PyObject *source;
     PyObject *filename;
     const char *mode;
@@ -167,7 +168,7 @@ builtin_compile(PyObject *module, PyObject *args, PyObject *kwargs)
     int dont_inherit = 0;
     int optimize = -1;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO&s|iii:compile", _keywords,
+    if (!_PyArg_ParseTupleAndKeywordsFast(args, kwargs, &_parser,
         &source, PyUnicode_FSDecoder, &filename, &mode, &flags, &dont_inherit, &optimize)) {
         goto exit;
     }
@@ -679,4 +680,4 @@ builtin_issubclass(PyObject *module, PyObject *args)
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=5bb1201755612048 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=2a918c534692f99e input=a9049054013a1b77]*/

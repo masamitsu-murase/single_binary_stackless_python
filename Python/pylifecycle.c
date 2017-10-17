@@ -686,6 +686,7 @@ Py_FinalizeEx(void)
     PySlice_Fini();
     _PyGC_Fini();
     _PyRandom_Fini();
+    _PyArg_Fini();
 
     /* Cleanup Unicode implementation */
     _PyUnicode_Fini();
