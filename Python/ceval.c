@@ -4236,12 +4236,13 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
     PyFrameObject *f;
     PyObject *retval = NULL;
     PyObject **fastlocals, **freevars;
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate;
     PyObject *x, *u;
     int total_args = co->co_argcount + co->co_kwonlyargcount;
-    int i;
-    int n = argcount;
-    PyObject *kwdict = NULL;
+    int i, n;
+    PyObject *kwdict;
+
+    assert((kwcount == 0) || (kws != NULL));
 
     if (globals == NULL) {
         PyErr_SetString(PyExc_SystemError,
@@ -4249,11 +4250,13 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
         return NULL;
     }
 
+    /* Create the frame */
+    tstate = PyThreadState_GET();
     assert(tstate != NULL);
-    assert(globals != NULL);
     f = PyFrame_New(tstate, co, globals, locals);
-    if (f == NULL)
+    if (f == NULL) {
         return NULL;
+    }
 
 #ifdef STACKLESS
     f->f_execute = PyEval_EvalFrameEx_slp;
@@ -4261,27 +4264,40 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
     fastlocals = f->f_localsplus;
     freevars = f->f_localsplus + co->co_nlocals;
 
-    /* Parse arguments. */
+    /* Create a dictionary for keyword parameters (**kwags) */
     if (co->co_flags & CO_VARKEYWORDS) {
         kwdict = PyDict_New();
         if (kwdict == NULL)
             goto fail;
         i = total_args;
-        if (co->co_flags & CO_VARARGS)
+        if (co->co_flags & CO_VARARGS) {
             i++;
+        }
         SETLOCAL(i, kwdict);
     }
-    if (argcount > co->co_argcount)
+    else {
+        kwdict = NULL;
+    }
+
+    /* Copy positional arguments into local variables */
+    if (argcount > co->co_argcount) {
         n = co->co_argcount;
+    }
+    else {
+        n = argcount;
+    }
     for (i = 0; i < n; i++) {
         x = args[i];
         Py_INCREF(x);
         SETLOCAL(i, x);
     }
+
+    /* Pack other positional arguments into the *args argument */
     if (co->co_flags & CO_VARARGS) {
         u = PyTuple_New(argcount - n);
-        if (u == NULL)
+        if (u == NULL) {
             goto fail;
+        }
         SETLOCAL(total_args, u);
         for (i = n; i < argcount; i++) {
             x = args[i];
@@ -4289,17 +4305,21 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
             PyTuple_SET_ITEM(u, i-n, x);
         }
     }
+
+    /* Handle keyword arguments (passed as an array of (key, value)) */
     for (i = 0; i < kwcount; i++) {
         PyObject **co_varnames;
         PyObject *keyword = kws[2*i];
         PyObject *value = kws[2*i + 1];
         int j;
+
         if (keyword == NULL || !PyUnicode_Check(keyword)) {
             PyErr_Format(PyExc_TypeError,
                          "%U() keywords must be strings",
                          co->co_name);
             goto fail;
         }
+
         /* Speed hack: do raw pointer compares. As names are
            normally interned this should almost always hit. */
         co_varnames = ((PyTupleObject *)(co->co_varnames))->ob_item;
@@ -4308,6 +4328,7 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
             if (nm == keyword)
                 goto kw_found;
         }
+
         /* Slow fallback, just in case */
         for (j = 0; j < total_args; j++) {
             PyObject *nm = co_varnames[j];
@@ -4318,6 +4339,7 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
             else if (cmp < 0)
                 goto fail;
         }
+
         if (j >= total_args && kwdict == NULL) {
             PyErr_Format(PyExc_TypeError,
                          "%U() got an unexpected "
@@ -4326,10 +4348,12 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
                          keyword);
             goto fail;
         }
+
         if (PyDict_SetItem(kwdict, keyword, value) == -1) {
             goto fail;
         }
         continue;
+
       kw_found:
         if (GETLOCAL(j) != NULL) {
             PyErr_Format(PyExc_TypeError,
@@ -4342,10 +4366,14 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
         Py_INCREF(value);
         SETLOCAL(j, value);
     }
+
+    /* Check the number of positional arguments */
     if (argcount > co->co_argcount && !(co->co_flags & CO_VARARGS)) {
         too_many_positional(co, argcount, defcount, fastlocals);
         goto fail;
     }
+
+    /* Add missing positional arguments (copy default values from defs) */
     if (argcount < co->co_argcount) {
         int m = co->co_argcount - defcount;
         int missing = 0;
@@ -4368,6 +4396,8 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
             }
         }
     }
+
+    /* Add missing keyword arguments (copy default values from kwdefs) */
     if (co->co_kwonlyargcount > 0) {
         int missing = 0;
         for (i = co->co_argcount; i < total_args; i++) {
@@ -4410,12 +4440,15 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
             goto fail;
         SETLOCAL(co->co_nlocals + i, c);
     }
+
+    /* Copy closure variables to free variables */
     for (i = 0; i < PyTuple_GET_SIZE(co->co_freevars); ++i) {
         PyObject *o = PyTuple_GET_ITEM(closure, i);
         Py_INCREF(o);
         freevars[PyTuple_GET_SIZE(co->co_cellvars) + i] = o;
     }
 
+    /* Handle generator/coroutine */
     if (co->co_flags & (CO_GENERATOR | CO_COROUTINE)) {
         PyObject *gen;
         PyObject *coro_wrapper = tstate->coroutine_wrapper;
