@@ -110,6 +110,26 @@ evaluated at run time, and then formatted using the :func:`format` protocol.
 See :pep:`498` and the main documentation at :ref:`f-strings`.
 
 
+PEP 487: Simpler customization of class creation
+------------------------------------------------
+
+Upon subclassing a class, the ``__init_subclass__`` classmethod (if defined) is
+called on the base class. This makes it straightforward to write classes that
+customize initialization of future subclasses without introducing the
+complexity of a full custom metaclass.
+
+The descriptor protocol has also been expanded to include a new optional method,
+``__set_name__``. Whenever a new class is defined, the new method will be called
+on all descriptors included in the definition, providing them with a reference
+to the class being defined and the name given to the descriptor within the
+class namespace.
+
+Also see :pep:`487` and the updated class customization documentation at
+:ref:`class-customization` and :ref:`descriptors`.
+
+(Contributed by Martin Teichmann in :issue:`27366`)
+
+
 PYTHONMALLOC environment variable
 ---------------------------------
 
@@ -262,6 +282,14 @@ sensible default implementation for `__enter__()` which returns
 class has been added to the :mod:`typing` module as
 :class:`typing.ContextManager`.
 (Contributed by Brett Cannon in :issue:`25609`.)
+
+
+venv
+----
+
+:mod:`venv` accepts a new parameter ``--prompt``. This parameter provides an
+alternative prefix for the virtual environment. (Proposed by Łukasz.Balcerzak
+and ported to 3.6 by Stéphane Wirtel in :issue:`22829`.)
 
 
 datetime
@@ -610,6 +638,12 @@ Deprecated features
   and will be removed in 3.8.
   (Contributed by Serhiy Storchaka in :issue:`21708`.)
 
+* Undocumented support of general :term:`bytes-like objects <bytes-like object>`
+  as paths in :mod:`os` functions, :func:`compile` and similar functions is
+  now deprecated.
+  (Contributed by Serhiy Storchaka in :issue:`25791` and :issue:`26754`.)
+
+
 Deprecated Python behavior
 --------------------------
 
@@ -738,6 +772,15 @@ Changes in the Python API
   constructors in the :mod:`json` module are now :ref:`keyword-only
   <keyword-only_parameter>`.
   (Contributed by Serhiy Storchaka in :issue:`18726`.)
+
+* As part of :pep:`487`, the handling of keyword arguments passed to
+  :class:`type` (other than the metaclass hint, ``metaclass``) is now
+  consistently delegated to :meth:`object.__init_subclass__`. This means that
+  :meth:`type.__new__` and :meth:`type.__init__` both now accept arbitrary
+  keyword arguments, but :meth:`object.__init_subclass__` (which is called from
+  :meth:`type.__new__`) will reject them by default. Custom metaclasses
+  accepting additional keyword arguments will need to adjust their calls to
+  :meth:`type.__new__` (whether direct or via :class:`super`) accordingly.
 
 
 Changes in the C API

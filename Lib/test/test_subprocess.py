@@ -1351,7 +1351,7 @@ class POSIXProcessTestCase(BaseTestCase):
             desired_exception = e
             desired_exception.strerror += ': ' + repr(self._nonexistent_dir)
         else:
-            self.fail("chdir to nonexistant directory %s succeeded." %
+            self.fail("chdir to nonexistent directory %s succeeded." %
                       self._nonexistent_dir)
         return desired_exception
 
@@ -1579,7 +1579,7 @@ class POSIXProcessTestCase(BaseTestCase):
         fd, fname = tempfile.mkstemp()
         # reopen in text mode
         with open(fd, "w", errors="surrogateescape") as fobj:
-            fobj.write("#!/bin/sh\n")
+            fobj.write("#!%s\n" % support.unix_shell)
             fobj.write("exec '%s' -c 'import sys; sys.exit(47)'\n" %
                        sys.executable)
         os.chmod(fname, 0o700)
@@ -1624,7 +1624,7 @@ class POSIXProcessTestCase(BaseTestCase):
         fd, fname = tempfile.mkstemp()
         # reopen in text mode
         with open(fd, "w", errors="surrogateescape") as fobj:
-            fobj.write("#!/bin/sh\n")
+            fobj.write("#!%s\n" % support.unix_shell)
             fobj.write("exec '%s' -c 'import sys; sys.exit(47)'\n" %
                        sys.executable)
         os.chmod(fname, 0o700)

@@ -1858,7 +1858,7 @@ UnicodeEncodeError_str(PyObject *self)
         return PyUnicode_FromString("");
 
     /* Get reason and encoding as strings, which they might not be if
-       they've been modified after we were contructed. */
+       they've been modified after we were constructed. */
     reason_str = PyObject_Str(uself->reason);
     if (reason_str == NULL)
         goto done;
@@ -1983,7 +1983,7 @@ UnicodeDecodeError_str(PyObject *self)
         return PyUnicode_FromString("");
 
     /* Get reason and encoding as strings, which they might not be if
-       they've been modified after we were contructed. */
+       they've been modified after we were constructed. */
     reason_str = PyObject_Str(uself->reason);
     if (reason_str == NULL)
         goto done;
@@ -2081,7 +2081,7 @@ UnicodeTranslateError_str(PyObject *self)
         return PyUnicode_FromString("");
 
     /* Get reason as a string, which it might not be if it's been
-       modified after we were contructed. */
+       modified after we were constructed. */
     reason_str = PyObject_Str(uself->reason);
     if (reason_str == NULL)
         goto done;
@@ -2619,7 +2619,9 @@ _PyExc_Init(PyObject *bltinmod)
     ADD_ERRNO(BlockingIOError, EWOULDBLOCK);
     POST_INIT(BrokenPipeError);
     ADD_ERRNO(BrokenPipeError, EPIPE);
+#ifdef ESHUTDOWN
     ADD_ERRNO(BrokenPipeError, ESHUTDOWN);
+#endif
     POST_INIT(ChildProcessError);
     ADD_ERRNO(ChildProcessError, ECHILD);
     POST_INIT(ConnectionAbortedError);

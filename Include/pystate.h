@@ -44,6 +44,7 @@ typedef struct _is {
 #endif
 
     PyObject *builtins_copy;
+    PyObject *import_func;
 } PyInterpreterState;
 #endif
 

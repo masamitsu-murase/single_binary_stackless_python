@@ -652,7 +652,7 @@ internal_select(PySocketSockObject *s, int writing, _PyTime_t interval,
     assert(!(connect && !writing));
 
     /* Guard against closed socket */
-    if (s->sock_fd < 0)
+    if (s->sock_fd == INVALID_SOCKET)
         return 0;
 
     /* Prefer poll, if available, since you can poll() any fd
@@ -2579,8 +2579,8 @@ sock_close(PySocketSockObject *s)
     int res;
 
     fd = s->sock_fd;
-    if (fd != -1) {
-        s->sock_fd = -1;
+    if (fd != INVALID_SOCKET) {
+        s->sock_fd = INVALID_SOCKET;
 
         /* We do not want to retry upon EINTR: see
            http://lwn.net/Articles/576478/ and
@@ -2606,7 +2606,7 @@ static PyObject *
 sock_detach(PySocketSockObject *s)
 {
     SOCKET_T fd = s->sock_fd;
-    s->sock_fd = -1;
+    s->sock_fd = INVALID_SOCKET;
     return PyLong_FromSocket_t(fd);
 }
 
@@ -4202,7 +4202,7 @@ sock_finalize(PySocketSockObject *s)
     /* Save the current exception, if any. */
     PyErr_Fetch(&error_type, &error_value, &error_traceback);
 
-    if (s->sock_fd != -1) {
+    if (s->sock_fd != INVALID_SOCKET) {
         if (PyErr_ResourceWarning((PyObject *)s, 1, "unclosed %R", s)) {
             /* Spurious errors can appear at shutdown */
             if (PyErr_ExceptionMatches(PyExc_Warning)) {
@@ -4215,7 +4215,7 @@ sock_finalize(PySocketSockObject *s)
            socket.getsockname(). If the socket is closed before, socket
            methods fails with the EBADF error. */
         fd = s->sock_fd;
-        s->sock_fd = -1;
+        s->sock_fd = INVALID_SOCKET;
 
         /* We do not want to retry upon EINTR: see sock_close() */
         Py_BEGIN_ALLOW_THREADS
@@ -4275,7 +4275,7 @@ sock_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
     new = type->tp_alloc(type, 0);
     if (new != NULL) {
-        ((PySocketSockObject *)new)->sock_fd = -1;
+        ((PySocketSockObject *)new)->sock_fd = INVALID_SOCKET;
         ((PySocketSockObject *)new)->sock_timeout = _PyTime_FromSeconds(-1);
         ((PySocketSockObject *)new)->errorhandler = &set_error;
     }
@@ -6495,7 +6495,10 @@ PyInit__socket(void)
     PyModule_AddIntMacro(m, SOCK_STREAM);
     PyModule_AddIntMacro(m, SOCK_DGRAM);
 /* We have incomplete socket support. */
+#ifdef SOCK_RAW
+    /* SOCK_RAW is marked as optional in the POSIX specification */
     PyModule_AddIntMacro(m, SOCK_RAW);
+#endif
     PyModule_AddIntMacro(m, SOCK_SEQPACKET);
 #if defined(SOCK_RDM)
     PyModule_AddIntMacro(m, SOCK_RDM);

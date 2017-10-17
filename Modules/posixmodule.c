@@ -891,7 +891,28 @@ path_converter(PyObject *o, void *p)
         }
 #endif
     }
+    else if (PyBytes_Check(o)) {
+#ifdef MS_WINDOWS
+        if (win32_warn_bytes_api()) {
+            return 0;
+        }
+#endif
+        bytes = o;
+        Py_INCREF(bytes);
+    }
     else if (PyObject_CheckBuffer(o)) {
+        if (PyErr_WarnFormat(PyExc_DeprecationWarning, 1,
+            "%s%s%s should be %s, not %.200s",
+            path->function_name ? path->function_name : "",
+            path->function_name ? ": "                : "",
+            path->argument_name ? path->argument_name : "path",
+            path->allow_fd && path->nullable ? "string, bytes, integer or None" :
+            path->allow_fd ? "string, bytes or integer" :
+            path->nullable ? "string, bytes or None" :
+                             "string or bytes",
+            Py_TYPE(o)->tp_name)) {
+            return 0;
+        }
 #ifdef MS_WINDOWS
         if (win32_warn_bytes_api()) {
             return 0;
@@ -946,8 +967,14 @@ path_converter(PyObject *o, void *p)
     path->length = length;
     path->object = o;
     path->fd = -1;
-    path->cleanup = bytes;
-    return Py_CLEANUP_SUPPORTED;
+    if (bytes == o) {
+        Py_DECREF(bytes);
+        return 1;
+    }
+    else {
+        path->cleanup = bytes;
+        return Py_CLEANUP_SUPPORTED;
+    }
 }
 
 static void
@@ -1106,8 +1133,8 @@ _PyVerify_fd_dup2(int fd1, int fd2)
 static int
 win32_get_reparse_tag(HANDLE reparse_point_handle, ULONG *reparse_tag)
 {
-    char target_buffer[MAXIMUM_REPARSE_DATA_BUFFER_SIZE];
-    REPARSE_DATA_BUFFER *rdb = (REPARSE_DATA_BUFFER *)target_buffer;
+    char target_buffer[_Py_MAXIMUM_REPARSE_DATA_BUFFER_SIZE];
+    _Py_REPARSE_DATA_BUFFER *rdb = (_Py_REPARSE_DATA_BUFFER *)target_buffer;
     DWORD n_bytes_returned;
 
     if (0 == DeviceIoControl(
@@ -3893,10 +3920,12 @@ os__isdir_impl(PyObject *module, path_t *path)
 {
     DWORD attributes;
 
+    Py_BEGIN_ALLOW_THREADS
     if (!path->narrow)
         attributes = GetFileAttributesW(path->wide);
     else
         attributes = GetFileAttributesA(path->narrow);
+    Py_END_ALLOW_THREADS
 
     if (attributes == INVALID_FILE_ATTRIBUTES)
         Py_RETURN_FALSE;
@@ -7147,8 +7176,8 @@ win_readlink(PyObject *self, PyObject *args, PyObject *kwargs)
     int dir_fd;
     HANDLE reparse_point_handle;
 
-    char target_buffer[MAXIMUM_REPARSE_DATA_BUFFER_SIZE];
-    REPARSE_DATA_BUFFER *rdb = (REPARSE_DATA_BUFFER *)target_buffer;
+    char target_buffer[_Py_MAXIMUM_REPARSE_DATA_BUFFER_SIZE];
+    _Py_REPARSE_DATA_BUFFER *rdb = (_Py_REPARSE_DATA_BUFFER *)target_buffer;
     const wchar_t *print_name;
 
     static char *keywords[] = {"path", "dir_fd", NULL};
@@ -12936,9 +12965,15 @@ all_ins(PyObject *m)
 #endif
 
 #ifdef HAVE_SCHED_H
+#ifdef SCHED_OTHER
     if (PyModule_AddIntMacro(m, SCHED_OTHER)) return -1;
+#endif
+#ifdef SCHED_FIFO
     if (PyModule_AddIntMacro(m, SCHED_FIFO)) return -1;
+#endif
+#ifdef SCHED_RR
     if (PyModule_AddIntMacro(m, SCHED_RR)) return -1;
+#endif
 #ifdef SCHED_SPORADIC
     if (PyModule_AddIntMacro(m, SCHED_SPORADIC) return -1;
 #endif

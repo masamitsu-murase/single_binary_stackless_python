@@ -64,6 +64,7 @@ except ImportError:
     INT_MAX = PY_SSIZE_T_MAX = sys.maxsize
 
 from test.support.script_helper import assert_python_ok
+from test.support import unix_shell
 
 
 root_in_posix = False
@@ -670,18 +671,20 @@ class EnvironTests(mapping_tests.BasicTestMappingProtocol):
         return os.environ
 
     # Bug 1110478
-    @unittest.skipUnless(os.path.exists('/bin/sh'), 'requires /bin/sh')
+    @unittest.skipUnless(unix_shell and os.path.exists(unix_shell),
+                         'requires a shell')
     def test_update2(self):
         os.environ.clear()
         os.environ.update(HELLO="World")
-        with os.popen("/bin/sh -c 'echo $HELLO'") as popen:
+        with os.popen("%s -c 'echo $HELLO'" % unix_shell) as popen:
             value = popen.read().strip()
             self.assertEqual(value, "World")
 
-    @unittest.skipUnless(os.path.exists('/bin/sh'), 'requires /bin/sh')
+    @unittest.skipUnless(unix_shell and os.path.exists(unix_shell),
+                         'requires a shell')
     def test_os_popen_iter(self):
-        with os.popen(
-            "/bin/sh -c 'echo \"line1\nline2\nline3\"'") as popen:
+        with os.popen("%s -c 'echo \"line1\nline2\nline3\"'"
+                      % unix_shell) as popen:
             it = iter(popen)
             self.assertEqual(next(it), "line1\n")
             self.assertEqual(next(it), "line2\n")
@@ -2623,6 +2626,7 @@ class OSErrorTests(unittest.TestCase):
         else:
             encoded = os.fsencode(support.TESTFN)
         self.bytes_filenames.append(encoded)
+        self.bytes_filenames.append(bytearray(encoded))
         self.bytes_filenames.append(memoryview(encoded))
 
         self.filenames = self.bytes_filenames + self.unicode_filenames
@@ -2696,8 +2700,14 @@ class OSErrorTests(unittest.TestCase):
         for filenames, func, *func_args in funcs:
             for name in filenames:
                 try:
-                    with bytes_filename_warn(False):
+                    if isinstance(name, str):
                         func(name, *func_args)
+                    elif isinstance(name, bytes):
+                        with bytes_filename_warn(False):
+                            func(name, *func_args)
+                    else:
+                        with self.assertWarnsRegex(DeprecationWarning, 'should be'):
+                            func(name, *func_args)
                 except OSError as err:
                     self.assertIs(err.filename, name)
                 else:

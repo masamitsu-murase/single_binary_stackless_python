@@ -4,6 +4,10 @@
    have any value except INVALID_SOCKET.
 */
 
+#if defined(HAVE_POLL_H) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
+
 #include "Python.h"
 #include <structmember.h>
 
@@ -2452,6 +2456,10 @@ PyInit_select(void)
 #ifdef POLLMSG
         PyModule_AddIntMacro(m, POLLMSG);
 #endif
+#ifdef POLLRDHUP
+        /* Kernel 2.6.17+ */
+        PyModule_AddIntMacro(m, POLLRDHUP);
+#endif
     }
 #endif /* HAVE_POLL */
 
@@ -2473,12 +2481,18 @@ PyInit_select(void)
     PyModule_AddIntMacro(m, EPOLLPRI);
     PyModule_AddIntMacro(m, EPOLLERR);
     PyModule_AddIntMacro(m, EPOLLHUP);
+#ifdef EPOLLRDHUP
+    /* Kernel 2.6.17 */
+    PyModule_AddIntMacro(m, EPOLLRDHUP);
+#endif
     PyModule_AddIntMacro(m, EPOLLET);
 #ifdef EPOLLONESHOT
     /* Kernel 2.6.2+ */
     PyModule_AddIntMacro(m, EPOLLONESHOT);
 #endif
-    /* PyModule_AddIntConstant(m, "EPOLL_RDHUP", EPOLLRDHUP); */
+#ifdef EPOLLEXCLUSIVE
+    PyModule_AddIntMacro(m, EPOLLEXCLUSIVE);
+#endif
 
 #ifdef EPOLLRDNORM
     PyModule_AddIntMacro(m, EPOLLRDNORM);

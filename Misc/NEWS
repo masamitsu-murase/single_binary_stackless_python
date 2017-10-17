@@ -10,25 +10,135 @@ What's New in Python 3.6.0 alpha 4
 Core and Builtins
 -----------------
 
+- Issue #22557: Now importing already imported modules is up to 2.5 times faster.
+
+- Issue #17596: Include <wincrypt.h> to help with Min GW building.
+
+- Issue #17599: On Windows, rename the privately defined REPARSE_DATA_BUFFER
+  structure to avoid conflicting with the definition from Min GW.
+
+- Issue #27507: Add integer overflow check in bytearray.extend().  Patch by
+  Xiang Zhang.
+
+- Issue #27581: Don't rely on wrapping for overflow check in
+  PySequence_Tuple().  Patch by Xiang Zhang.
+
+- Issue #1621: Avoid signed integer overflow in list and tuple operations.
+  Patch by Xiang Zhang.
+
+- Issue #27419: Standard __import__() no longer look up "__import__" in globals
+  or builtins for importing submodules or "from import".  Fixed a crash if
+  raise a warning about unabling to resolve package from __spec__ or
+  __package__.
+
 - Issue #27083: Respect the PYTHONCASEOK environment variable under Windows.
 
 - Issue #27514: Make having too many statically nested blocks a SyntaxError
   instead of SystemError.
 
+- Issue #27366: Implemented PEP 487 (Simpler customization of class creation).
+  Upon subclassing, the __init_subclass__ classmethod is called on the base
+  class. Descriptors are initialized with __set_name__ after class creation.
+
 Library
 -------
+
+- Issue #27664: Add to concurrent.futures.thread.ThreadPoolExecutor()
+  the ability to specify a thread name prefix.
+
+- Issue #26750: unittest.mock.create_autospec() now works properly for
+  subclasses of property() and other data descriptors.  Removes the never
+  publicly used, never documented unittest.mock.DescriptorTypes tuple.
+
+- Issue #26754: Undocumented support of general bytes-like objects
+  as path in compile() and similar functions is now deprecated.
+
+- Issue #26800: Undocumented support of general bytes-like objects
+  as paths in os functions is now deprecated.
+
+- Issue #27661: Added tzinfo keyword argument to datetime.combine.
+
+- In the curses module, raise an error if window.getstr() is passed a negative
+  value.
+
+- Issue #27760: Fix possible integer overflow in binascii.b2a_qp.
+
+- Issue #27758: Fix possible integer overflow in the _csv module for large record
+  lengths.
+
+- Issue #27568: Prevent HTTPoxy attack (CVE-2016-1000110). Ignore the
+  HTTP_PROXY variable when REQUEST_METHOD environment is set, which indicates
+  that the script is in CGI mode.
+
+- Issue #7063: Remove dead code from the "array" module's slice handling.
+  Patch by Chuck.
+
+- Issue #27656: Do not assume sched.h defines any SCHED_* constants.
+
+- Issue #27130: In the "zlib" module, fix handling of large buffers
+  (typically 4 GiB) when compressing and decompressing.  Previously, inputs
+  were limited to 4 GiB, and compression and decompression operations did not
+  properly handle results of 4 GiB.
+
+- Issue #24773: Implemented PEP 495 (Local Time Disambiguation).
+
+- Expose the EPOLLEXCLUSIVE constant (when it is defined) in the select module.
+
+- Issue #27567: Expose the EPOLLRDHUP and POLLRDHUP constants in the select
+  module.
+
+- Issue #1621: Avoid signed int negation overflow in the "audioop" module.
+
+- Issue #27533: Release GIL in nt._isdir
+
+- Issue #17711: Fixed unpickling by the persistent ID with protocol 0.
+  Original patch by Alexandre Vassalotti.
 
 - Issue #27522: Avoid an unintentional reference cycle in email.feedparser.
 
 - Issue 27512: Fix a segfault when os.fspath() called a an __fspath__() method
   that raised an exception. Patch by Xiang Zhang.
 
+- Issue 26988: Add AutoEnum.
+
 Tests
 -----
+
+- Issue #25805: Skip a test in test_pkgutil as needed that doesn't work when
+  ``__name__ == __main__``. Patch by SilentGhost.
+
+- Issue #27472: Add test.support.unix_shell as the path to the default shell.
 
 - Issue #27369: In test_pyexpat, avoid testing an error message detail that
   changed in Expat 2.2.0.
 
+Windows
+-------
+
+- Issue #27647: Update bundled Tcl/Tk to 8.6.6.
+
+- Issue #27610: Adds PEP 514 metadata to Windows installer
+
+- Issue #27469: Adds a shell extension to the launcher so that drag and drop
+  works correctly.
+
+- Issue #27309: Enables proper Windows styles in python[w].exe manifest.
+
+Build
+-----
+
+- Issue #25825: Correct the references to Modules/python.exp, which is
+  required on AIX.  The references were accidentally changed in 3.5.0a1.
+
+- Issue #27453: CPP invocation in configure must use CPPFLAGS. Patch by
+  Chi Hsuan Yen.
+
+- Issue #27641: The configure script now inserts comments into the makefile
+  to prevent the pgen and _freeze_importlib executables from being cross-
+  compiled.
+
+- Issue #26662: Set PYTHON_FOR_GEN in configure as the Python program to be
+  used for file generation during the build.
 
 What's New in Python 3.6.0 alpha 3
 ==================================
@@ -127,7 +237,7 @@ Library
   when exiting, let the new chained one through.  This avoids the PEP 479
   bug described in issue25782.
 
-- Issue #27278: Fix os.urandom() implementation using getrandom() on Linux.
+- [Security] Issue #27278: Fix os.urandom() implementation using getrandom() on Linux.
   Truncate size to INT_MAX and loop until we collected enough random bytes,
   instead of casting a directly Py_ssize_t to int.
 
@@ -140,7 +250,7 @@ Library
 - Issue #8637: Honor a pager set by the env var MANPAGER (in preference to
   one set by the env var PAGER).
 
-- Issue #22636: Avoid shell injection problems with
+- [Security] Issue #22636: Avoid shell injection problems with
   ctypes.util.find_library().
 
 - Issue #16182: Fix various functions in the "readline" module to use the
@@ -292,9 +402,9 @@ Library
 - Issue #20508: Improve exception message of IPv{4,6}Network.__getitem__.
   Patch by Gareth Rees.
 
-- Issue #26556: Update expat to 2.1.1, fixes CVE-2015-1283.
+- [Security] Issue #26556: Update expat to 2.1.1, fixes CVE-2015-1283.
 
-- Fix TLS stripping vulnerability in smtplib, CVE-2016-0772.  Reported by Team
+- [Security] Fix TLS stripping vulnerability in smtplib, CVE-2016-0772.  Reported by Team
   Oststrom
 
 - Issue #21386: Implement missing IPv4Address.is_global property.  It was
@@ -337,7 +447,7 @@ Library
 - Issue #21313: Fix the "platform" module to tolerate when sys.version
   contains truncated build information.
 
-- Issue #26839: On Linux, :func:`os.urandom` now calls ``getrandom()`` with
+- [Security] Issue #26839: On Linux, :func:`os.urandom` now calls ``getrandom()`` with
   ``GRND_NONBLOCK`` to fall back on reading ``/dev/urandom`` if the urandom
   entropy pool is not initialized yet. Patch written by Colm Buckley.
 
@@ -932,7 +1042,7 @@ Library
 - Issue #24838: tarfile's ustar and gnu formats now correctly calculate name
   and link field limits for multibyte character encodings like utf-8.
 
-- Issue #26657: Fix directory traversal vulnerability with http.server on
+- [Security] Issue #26657: Fix directory traversal vulnerability with http.server on
   Windows.  This fixes a regression that was introduced in 3.3.4rc1 and
   3.4.0rc1.  Based on patch by Philipp Hagemeister.
 
@@ -1038,7 +1148,7 @@ Library
   :class:`warnings.WarningMessage`. Add warnings._showwarnmsg() which uses
   tracemalloc to get the traceback where source object was allocated.
 
-- Issue #26313: ssl.py _load_windows_store_certs fails if windows cert store
+- [Security] Issue #26313: ssl.py _load_windows_store_certs fails if windows cert store
   is empty. Patch by Baji.
 
 - Issue #26569: Fix :func:`pyclbr.readmodule` and :func:`pyclbr.readmodule_ex`
@@ -1121,7 +1231,7 @@ Library
   trigger the handle_error() method, and will now to stop a single-threaded
   server.
 
-- Issue #25939: On Windows open the cert store readonly in ssl.enum_certificates.
+- [Security] Issue #25939: On Windows open the cert store readonly in ssl.enum_certificates.
 
 - Issue #25995: os.walk() no longer uses FDs proportional to the tree depth.
 
@@ -3113,7 +3223,7 @@ Library
   the FTP connection failed to fix a ResourceWarning.
 
 - Issue #23853: :meth:`socket.socket.sendall` does no more reset the socket
-  timeout each time data is sent successfuly. The socket timeout is now the
+  timeout each time data is sent successfully. The socket timeout is now the
   maximum total duration to send all data.
 
 - Issue #22721: An order of multiline pprint output of set or dict containing
@@ -8020,7 +8130,7 @@ Library
   on Windows and adds no value over and above python -m pydoc ...
 
 - Issue #18155: The csv module now correctly handles csv files that use
-  a delimter character that has a special meaning in regexes, instead of
+  a delimiter character that has a special meaning in regexes, instead of
   throwing an exception.
 
 - Issue #14360: encode_quopri can now be successfully used as an encoder

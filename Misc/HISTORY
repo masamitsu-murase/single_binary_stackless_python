@@ -1339,7 +1339,7 @@ Core and Builtins
 Library
 -------
 
-- Issue #14768: os.path.expanduser('~/a') doesn't works correctly when HOME is '/'.
+- Issue #14768: os.path.expanduser('~/a') doesn't work correctly when HOME is '/'.
 
 - Issue #14371: Support bzip2 in zipfile module.  Patch by Serhiy Storchaka.
 
@@ -21545,7 +21545,7 @@ Thu Feb 18 20:51:50 1999  Fred Drake  <fdrake@eric.cnri.reston.va.us>
 	Bow to font-lock at the end of the docstring, since it throws stuff
 	off.
 
-	Make sure the path paramter to readmodule() is a list before adding it
+	Make sure the path parameter to readmodule() is a list before adding it
 	with sys.path, or the addition could fail.
 
 
@@ -23597,7 +23597,7 @@ an underscore and used to initialize the pointer.
 - The warning about a thread still having a frame now only happens in
 verbose mode.
 
-- Change the signal finialization so that it also resets the signal
+- Change the signal finalization so that it also resets the signal
 handlers.  After this has been called, our signal handlers are no
 longer active!
 
@@ -23970,7 +23970,7 @@ in Python.  An example completer, rlcompleter.py, is provided.
 
 - The traceback.py module has a new function tb_lineno() by Marc-Andre
 Lemburg which extracts the line number from the linenumber table in
-the code object.  Apparently the traceback object doesn't contains the
+the code object.  Apparently the traceback object doesn't contain the
 right linenumber when -O is used.  Rather than guessing whether -O is
 on or off, the module itself uses tb_lineno() unconditionally.
 

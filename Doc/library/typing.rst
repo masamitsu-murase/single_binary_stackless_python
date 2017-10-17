@@ -29,9 +29,104 @@ arguments.
 Type aliases
 ------------
 
-A type alias is defined by assigning the type to the alias::
+A type alias is defined by assigning the type to the alias. In this example,
+``Vector`` and ``List[float]`` will be treated as interchangeable synonyms::
 
+   from typing import List
    Vector = List[float]
+
+   def scale(scalar: float, vector: Vector) -> Vector:
+       return [scalar * num for num in vector]
+
+   # typechecks; a list of floats qualifies as a Vector.
+   new_vector = scale(2.0, [1.0, -4.2, 5.4])
+
+Type aliases are useful for simplifying complex type signatures. For example::
+
+   from typing import Dict, Tuple, List
+
+   ConnectionOptions = Dict[str, str]
+   Address = Tuple[str, int]
+   Server = Tuple[Address, ConnectionOptions]
+
+   def broadcast_message(message: str, servers: List[Server]) -> None:
+       ...
+
+   # The static type checker will treat the previous type signature as
+   # being exactly equivalent to this one.
+   def broadcast_message(
+           message: str,
+           servers: List[Tuple[Tuple[str, int], Dict[str, str]]]) -> None:
+       ...
+
+NewType
+-------
+
+Use the ``NewType`` helper function to create distinct types::
+
+   from typing import NewType
+
+   UserId = NewType('UserId', int)
+   some_id = UserId(524313)
+
+The static type checker will treat the new type as if it were a subclass
+of the original type. This is useful in helping catch logical errors::
+
+   def get_user_name(user_id: UserId) -> str:
+       ...
+
+   # typechecks
+   user_a = get_user_name(UserId(42351))
+
+   # does not typecheck; an int is not a UserId
+   user_b = get_user_name(-1)
+
+You may still perform all ``int`` operations on a variable of type ``UserId``,
+but the result will always be of type ``int``. This lets you pass in a
+``UserId`` wherever an ``int`` might be expected, but will prevent you from
+accidentally creating a ``UserId`` in an invalid way::
+
+   # 'output' is of type 'int', not 'UserId'
+   output = UserId(23413) + UserId(54341)
+
+Note that these checks are enforced only by the static type checker. At runtime
+the statement ``Derived = NewType('Derived', Base)`` will make ``Derived`` a
+function that immediately returns whatever parameter you pass it. That means
+the expression ``Derived(some_value)`` does not create a new class or introduce
+any overhead beyond that of a regular function call.
+
+More precisely, the expression ``some_value is Derived(some_value)`` is always
+true at runtime.
+
+This also means that it is not possible to create a subtype of ``Derived``
+since it is an identity function at runtime, not an actual type. Similarly, it
+is not possible to create another ``NewType`` based on a ``Derived`` type::
+
+   from typing import NewType
+
+   UserId = NewType('UserId', int)
+
+   # Fails at runtime and does not typecheck
+   class AdminUserId(UserId): pass
+
+   # Also does not typecheck
+   ProUserId = NewType('ProUserId', UserId)
+
+See :pep:`484` for more details.
+
+.. note::
+
+   Recall that the use of a type alias declares two types to be *equivalent* to
+   one another. Doing ``Alias = Original`` will make the static type checker
+   treat ``Alias`` as being *exactly equivalent* to ``Original`` in all cases.
+   This is useful when you want to simplify complex type signatures.
+
+   In contrast, ``NewType`` declares one type to be a *subtype* of another.
+   Doing ``Derived = NewType('Derived', Original)`` will make the static type
+   checker treat ``Derived`` as a *subclass* of ``Original``, which means a
+   value of type ``Original`` cannot be used in places where a value of type
+   ``Derived`` is expected. This is useful when you want to prevent logic
+   errors with minimal runtime cost.
 
 Callable
 --------
@@ -184,17 +279,79 @@ conflict.  Generic metaclasses are not supported.
 The :class:`Any` type
 ---------------------
 
-A special kind of type is :class:`Any`. Every type is a subtype of
-:class:`Any`. This is also true for the builtin type object. However, to the
-static type checker these are completely different.
+A special kind of type is :class:`Any`. A static type checker will treat
+every type as being compatible with :class:`Any` and :class:`Any` as being
+compatible with every type.
 
-When the type of a value is :class:`object`, the type checker will reject
-almost all operations on it, and assigning it to a variable (or using it as a
-return value) of a more specialized type is a type error. On the other hand,
-when a value has type :class:`Any`, the type checker will allow all operations
-on it, and a value of type :class:`Any` can be assigned to a variable (or used
-as a return value) of a more constrained type.
+This means that it is possible to perform any operation or method call on a
+value of type on :class:`Any` and assign it to any variable::
 
+   from typing import Any
+
+   a = None    # type: Any
+   a = []      # OK
+   a = 2       # OK
+
+   s = ''      # type: str
+   s = a       # OK
+
+   def foo(item: Any) -> int:
+       # Typechecks; 'item' could be any type,
+       # and that type might have a 'bar' method
+       item.bar()
+       ...
+
+Notice that no typechecking is performed when assigning a value of type
+:class:`Any` to a more precise type. For example, the static type checker did
+not report an error when assigning ``a`` to ``s`` even though ``s`` was
+declared to be of type :class:`str` and receives an :class:`int` value at
+runtime!
+
+Furthermore, all functions without a return type or parameter types will
+implicitly default to using :class:`Any`::
+
+   def legacy_parser(text):
+       ...
+       return data
+
+   # A static type checker will treat the above
+   # as having the same signature as:
+   def legacy_parser(text: Any) -> Any:
+       ...
+       return data
+
+This behavior allows :class:`Any` to be used as an *escape hatch* when you
+need to mix dynamically and statically typed code.
+
+Contrast the behavior of :class:`Any` with the behavior of :class:`object`.
+Similar to :class:`Any`, every type is a subtype of :class:`object`. However,
+unlike :class:`Any`, the reverse is not true: :class:`object` is *not* a
+subtype of every other type.
+
+That means when the type of a value is :class:`object`, a type checker will
+reject almost all operations on it, and assigning it to a variable (or using
+it as a return value) of a more specialized type is a type error. For example::
+
+   def hash_a(item: object) -> int:
+       # Fails; an object does not have a 'magic' method.
+       item.magic()
+       ...
+
+   def hash_b(item: Any) -> int:
+       # Typechecks
+       item.magic()
+       ...
+
+   # Typechecks, since ints and strs are subclasses of object
+   hash_a(42)
+   hash_a("foo")
+
+   # Typechecks, since Any is compatible with all types
+   hash_b(42)
+   hash_b("foo")
+
+Use :class:`object` to indicate that a value could be any type in a typesafe
+manner. Use :class:`Any` to indicate that a value is dynamically typed.
 
 Classes, functions, and decorators
 ----------------------------------
@@ -465,6 +622,35 @@ The module defines the following classes, functions and decorators:
           return word_list[word]
 
 .. class:: Generator(Iterator[T_co], Generic[T_co, T_contra, V_co])
+
+   A generator can be annotated by the generic type
+   ``Generator[YieldType, SendType, ReturnType]``. For example::
+
+      def echo_round() -> Generator[int, float, str]:
+          sent = yield 0
+          while sent >= 0:
+              sent = yield round(sent)
+          return 'Done'
+
+   Note that unlike many other generics in the typing module, the ``SendType``
+   of :class:`Generator` behaves contravariantly, not covariantly or
+   invariantly.
+
+   If your generator will only yield values, set the ``SendType`` and
+   ``ReturnType`` to ``None``::
+
+      def infinite_stream(start: int) -> Generator[int, None, None]:
+          while True:
+              yield start
+              start += 1
+
+   Alternatively, annotate your generator as having a return type of
+   ``Iterator[YieldType]``::
+
+      def infinite_stream(start: int) -> Iterator[int]:
+          while True:
+              yield start
+              start += 1
 
 .. class:: io
 

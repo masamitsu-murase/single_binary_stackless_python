@@ -141,6 +141,7 @@ static int maybe_call_line_trace(Py_tracefunc, PyObject *,
                                  PyThreadState *, PyFrameObject *, int *, int *, int *);
 
 static PyObject * cmp_outcome(int, PyObject *, PyObject *);
+static PyObject * import_name(PyFrameObject *, PyObject *, PyObject *, PyObject *);
 static PyObject * import_from(PyObject *, PyObject *);
 static int import_all_from(PyObject *, PyObject *);
 static void format_exc_check_arg(PyObject *, const char *, PyObject *);
@@ -1719,7 +1720,7 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
             if (PyUnicode_CheckExact(left) &&
                      PyUnicode_CheckExact(right)) {
                 sum = unicode_concatenate(left, right, f, next_instr);
-                /* unicode_concatenate consumed the ref to v */
+                /* unicode_concatenate consumed the ref to left */
             }
             else {
                 sum = PyNumber_Add(left, right);
@@ -1918,7 +1919,7 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
             PyObject *sum;
             if (PyUnicode_CheckExact(left) && PyUnicode_CheckExact(right)) {
                 sum = unicode_concatenate(left, right, f, next_instr);
-                /* unicode_concatenate consumed the ref to v */
+                /* unicode_concatenate consumed the ref to left */
             }
             else {
                 sum = PyNumber_InPlaceAdd(left, right);
@@ -2009,7 +2010,7 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
             PyObject *v = THIRD();
             int err;
             STACKADJ(-3);
-            /* v[w] = u */
+            /* container[sub] = v */
             err = PyObject_SetItem(container, sub, v);
             Py_DECREF(v);
             Py_DECREF(container);
@@ -2024,7 +2025,7 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
             PyObject *container = SECOND();
             int err;
             STACKADJ(-2);
-            /* del v[w] */
+            /* del container[sub] */
             err = PyObject_DelItem(container, sub);
             Py_DECREF(container);
             Py_DECREF(sub);
@@ -2267,7 +2268,7 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
                 SET_TOP(val);
                 DISPATCH();
             }
-            /* x remains on stack, retval is value to be yielded */
+            /* receiver remains on stack, retval is value to be yielded */
             f->f_stacktop = stack_pointer;
             why = WHY_YIELD;
             /* and repeat... */
@@ -2927,7 +2928,7 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
             STACKADJ(-2);
             map = stack_pointer[-oparg];  /* dict */
             assert(PyDict_CheckExact(map));
-            err = PyDict_SetItem(map, key, value);  /* v[w] = u */
+            err = PyDict_SetItem(map, key, value);  /* map[key] = value */
             Py_DECREF(value);
             Py_DECREF(key);
             if (err != 0)
@@ -2962,37 +2963,15 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
         }
 
         TARGET(IMPORT_NAME) {
-            _Py_IDENTIFIER(__import__);
             PyObject *name = GETITEM(names, oparg);
-            PyObject *func = _PyDict_GetItemId(f->f_builtins, &PyId___import__);
-            PyObject *from, *level, *args, *res;
-            if (func == NULL) {
-                PyErr_SetString(PyExc_ImportError,
-                                "__import__ not found");
-                goto error;
-            }
-            Py_INCREF(func);
-            from = POP();
-            level = TOP();
-            args = PyTuple_Pack(5,
-                            name,
-                            f->f_globals,
-                            f->f_locals == NULL ?
-                                  Py_None : f->f_locals,
-                            from,
-                            level);
-            Py_DECREF(level);
-            Py_DECREF(from);
-            if (args == NULL) {
-                Py_DECREF(func);
-                STACKADJ(-1);
-                goto error;
-            }
+            PyObject *fromlist = POP();
+            PyObject *level = TOP();
+            PyObject *res;
             READ_TIMESTAMP(intr0);
-            res = PyEval_CallObject(func, args);
+            res = import_name(f, name, fromlist, level);
+            Py_DECREF(level);
+            Py_DECREF(fromlist);
             READ_TIMESTAMP(intr1);
-            Py_DECREF(args);
-            Py_DECREF(func);
             SET_TOP(res);
             if (res == NULL)
                 goto error;
@@ -5672,6 +5651,50 @@ cmp_outcome(int op, PyObject *v, PyObject *w)
     v = res ? Py_True : Py_False;
     Py_INCREF(v);
     return v;
+}
+
+static PyObject *
+import_name(PyFrameObject *f, PyObject *name, PyObject *fromlist, PyObject *level)
+{
+    _Py_IDENTIFIER(__import__);
+    PyObject *import_func, *args, *res;
+
+    import_func = _PyDict_GetItemId(f->f_builtins, &PyId___import__);
+    if (import_func == NULL) {
+        PyErr_SetString(PyExc_ImportError, "__import__ not found");
+        return NULL;
+    }
+
+    /* Fast path for not overloaded __import__. */
+    if (import_func == PyThreadState_GET()->interp->import_func) {
+        int ilevel = _PyLong_AsInt(level);
+        if (ilevel == -1 && PyErr_Occurred()) {
+            return NULL;
+        }
+        res = PyImport_ImportModuleLevelObject(
+                        name,
+                        f->f_globals,
+                        f->f_locals == NULL ? Py_None : f->f_locals,
+                        fromlist,
+                        ilevel);
+        return res;
+    }
+
+    Py_INCREF(import_func);
+    args = PyTuple_Pack(5,
+                        name,
+                        f->f_globals,
+                        f->f_locals == NULL ? Py_None : f->f_locals,
+                        fromlist,
+                        level);
+    if (args == NULL) {
+        Py_DECREF(import_func);
+        return NULL;
+    }
+    res = PyEval_CallObject(import_func, args);
+    Py_DECREF(args);
+    Py_DECREF(import_func);
+    return res;
 }
 
 static PyObject *

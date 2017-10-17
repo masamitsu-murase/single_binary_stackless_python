@@ -54,7 +54,7 @@ If you select "Install Now":
   users)
 * Python will be installed into your user directory
 * The :ref:`launcher` will be installed according to the option at the bottom
-  of the first pace
+  of the first page
 * The standard library, test suite, launcher and pip will be installed
 * If selected, the install directory will be added to your :envvar:`PATH`
 * Shortcuts will only be visible for the current user
@@ -382,7 +382,7 @@ On the first page of the installer, an option labelled "Add Python 3.5 to
 PATH" can be selected to have the installer add the install location into the
 :envvar:`PATH`.  The location of the :file:`Scripts\\` folder is also added.
 This allows you to type :command:`python` to run the interpreter, and
-:command:`pip` or . Thus, you can also execute your
+:command:`pip` for the package installer. Thus, you can also execute your
 scripts with command line options, see :ref:`using-on-cmdline` documentation.
 
 If you don't enable this option at install time, you can always re-run the

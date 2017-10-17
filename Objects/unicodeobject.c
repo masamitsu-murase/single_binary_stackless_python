@@ -3837,7 +3837,13 @@ PyUnicode_FSDecoder(PyObject* arg, void* addr)
         output = arg;
         Py_INCREF(output);
     }
-    else if (PyObject_CheckBuffer(arg)) {
+    else if (PyBytes_Check(arg) || PyObject_CheckBuffer(arg)) {
+        if (!PyBytes_Check(arg) &&
+            PyErr_WarnFormat(PyExc_DeprecationWarning, 1,
+            "path should be string or bytes, not %.200s",
+            Py_TYPE(arg)->tp_name)) {
+            return 0;
+        }
         arg = PyBytes_FromObject(arg);
         if (!arg)
             return 0;
@@ -3846,11 +3852,6 @@ PyUnicode_FSDecoder(PyObject* arg, void* addr)
         Py_DECREF(arg);
         if (!output)
             return 0;
-        if (!PyUnicode_Check(output)) {
-            Py_DECREF(output);
-            PyErr_SetString(PyExc_TypeError, "decoder failed to return unicode");
-            return 0;
-        }
     }
     else {
         PyErr_Format(PyExc_TypeError,
@@ -15039,26 +15040,18 @@ PyUnicode_InternInPlace(PyObject **p)
             return;
         }
     }
-    /* It might be that the GetItem call fails even
-       though the key is present in the dictionary,
-       namely when this happens during a stack overflow. */
     Py_ALLOW_RECURSION
-    t = PyDict_GetItem(interned, s);
+    t = PyDict_SetDefault(interned, s, s);
     Py_END_ALLOW_RECURSION
-
-    if (t) {
+    if (t == NULL) {
+        PyErr_Clear();
+        return;
+    }
+    if (t != s) {
         Py_INCREF(t);
         Py_SETREF(*p, t);
         return;
     }
-
-    PyThreadState_GET()->recursion_critical = 1;
-    if (PyDict_SetItem(interned, s, s) < 0) {
-        PyErr_Clear();
-        PyThreadState_GET()->recursion_critical = 0;
-        return;
-    }
-    PyThreadState_GET()->recursion_critical = 0;
     /* The two references in interned are not counted by refcnt.
        The deallocator will take care of this */
     Py_REFCNT(s) -= 2;

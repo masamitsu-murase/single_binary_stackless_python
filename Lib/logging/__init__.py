@@ -1,4 +1,4 @@
-# Copyright 2001-2015 by Vinay Sajip. All Rights Reserved.
+# Copyright 2001-2016 by Vinay Sajip. All Rights Reserved.
 #
 # Permission to use, copy, modify, and distribute this software and its
 # documentation for any purpose and without fee is hereby granted,
@@ -18,7 +18,7 @@
 Logging package for Python. Based on PEP 282 and comments thereto in
 comp.lang.python.
 
-Copyright (C) 2001-2015 Vinay Sajip. All Rights Reserved.
+Copyright (C) 2001-2016 Vinay Sajip. All Rights Reserved.
 
 To use, simply 'import logging' and log away!
 """
@@ -935,6 +935,10 @@ class Handler(Filterer):
             finally:
                 del t, v, tb
 
+    def __repr__(self):
+        level = getLevelName(self.level)
+        return '<%s (%s)>' % (self.__class__.__name__, level)
+
 class StreamHandler(Handler):
     """
     A handler class which writes logging records, appropriately formatted,
@@ -986,6 +990,14 @@ class StreamHandler(Handler):
         except Exception:
             self.handleError(record)
 
+    def __repr__(self):
+        level = getLevelName(self.level)
+        name = getattr(self.stream, 'name', '')
+        if name:
+            name += ' '
+        return '<%s %s(%s)>' % (self.__class__.__name__, name, level)
+
+
 class FileHandler(StreamHandler):
     """
     A handler class which writes formatted logging records to disk files.
@@ -994,6 +1006,8 @@ class FileHandler(StreamHandler):
         """
         Open the specified file and use it as the stream for logging.
         """
+        # Issue #27493: add support for Path objects to be passed in
+        filename = os.fspath(filename)
         #keep the absolute path, otherwise derived classes which use this
         #may come a cropper when the current directory changes
         self.baseFilename = os.path.abspath(filename)
@@ -1047,6 +1061,11 @@ class FileHandler(StreamHandler):
         if self.stream is None:
             self.stream = self._open()
         StreamHandler.emit(self, record)
+
+    def __repr__(self):
+        level = getLevelName(self.level)
+        return '<%s %s (%s)>' % (self.__class__.__name__, self.baseFilename, level)
+
 
 class _StderrHandler(StreamHandler):
     """
@@ -1540,6 +1559,11 @@ class Logger(Filterer):
             suffix = '.'.join((self.name, suffix))
         return self.manager.getLogger(suffix)
 
+    def __repr__(self):
+        level = getLevelName(self.getEffectiveLevel())
+        return '<%s %s (%s)>' % (self.__class__.__name__, self.name, level)
+
+
 class RootLogger(Logger):
     """
     A root logger is not that different to any other logger, except that
@@ -1665,6 +1689,11 @@ class LoggerAdapter(object):
         See if the underlying logger has any handlers.
         """
         return self.logger.hasHandlers()
+
+    def __repr__(self):
+        logger = self.logger
+        level = getLevelName(logger.getEffectiveLevel())
+        return '<%s %s (%s)>' % (self.__class__.__name__, logger.name, level)
 
 root = RootLogger(WARNING)
 Logger.root = root
