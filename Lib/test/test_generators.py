@@ -673,10 +673,10 @@ From the Iterators list, about the types of these things.
 ...     yield 1
 ...
 >>> type(g)
-<class 'function' ...>
+<class 'function'>
 >>> i = g()
 >>> type(i)
-<class 'generator' ...>
+<class 'generator'>
 >>> [s for s in dir(i) if not s.startswith('_')]
 ['close', 'gi_code', 'gi_frame', 'gi_running', 'gi_yieldfrom', 'send', 'throw']
 >>> from test.support import HAVE_DOCSTRINGS
@@ -693,7 +693,7 @@ And more, added later.
 >>> i.gi_running
 0
 >>> type(i.gi_frame)
-<class 'frame' ...>
+<class 'frame'>
 >>> i.gi_running = 42
 Traceback (most recent call last):
   ...
@@ -1068,27 +1068,27 @@ These are fine:
 >>> def f():
 ...    yield
 >>> type(f())
-<class 'generator' ...>
+<class 'generator'>
 
 
 >>> def f():
 ...    if 0:
 ...        yield
 >>> type(f())
-<class 'generator' ...>
+<class 'generator'>
 
 
 >>> def f():
 ...     if 0:
 ...         yield 1
 >>> type(f())
-<class 'generator' ...>
+<class 'generator'>
 
 >>> def f():
 ...    if "":
 ...        yield None
 >>> type(f())
-<class 'generator' ...>
+<class 'generator'>
 
 >>> def f():
 ...     return
@@ -1112,7 +1112,7 @@ These are fine:
 ...         x = 1
 ...     return
 >>> type(f())
-<class 'generator' ...>
+<class 'generator'>
 
 >>> def f():
 ...     if 0:
@@ -1120,7 +1120,7 @@ These are fine:
 ...             yield 1
 ...
 >>> type(f())
-<class 'NoneType' ...>
+<class 'NoneType'>
 
 >>> def f():
 ...     if 0:
@@ -1130,7 +1130,7 @@ These are fine:
 ...             def f(self):
 ...                 yield 2
 >>> type(f())
-<class 'NoneType' ...>
+<class 'NoneType'>
 
 >>> def f():
 ...     if 0:
@@ -1138,7 +1138,7 @@ These are fine:
 ...     if 0:
 ...         yield 2
 >>> type(f())
-<class 'generator' ...>
+<class 'generator'>
 
 This one caused a crash (see SF bug 567538):
 
@@ -1793,7 +1793,7 @@ And a more sane, but still weird usage:
 
 >>> def f(): list(i for i in [(yield 26)])
 >>> type(f())
-<class 'generator' ...>
+<class 'generator'>
 
 
 A yield expression with augmented assignment.
@@ -2049,25 +2049,25 @@ enclosing function a generator:
 
 >>> def f(): x += yield
 >>> type(f())
-<class 'generator' ...>
+<class 'generator'>
 
 >>> def f(): x = yield
 >>> type(f())
-<class 'generator' ...>
+<class 'generator'>
 
 >>> def f(): lambda x=(yield): 1
 >>> type(f())
-<class 'generator' ...>
+<class 'generator'>
 
 >>> def f(): x=(i for i in (yield) if (yield))
 >>> type(f())
-<class 'generator' ...>
+<class 'generator'>
 
 >>> def f(d): d[(yield "a")] = d[(yield "b")] = 27
 >>> data = [1,2]
 >>> g = f(data)
 >>> type(g)
-<class 'generator' ...>
+<class 'generator'>
 >>> g.send(None)
 'a'
 >>> data
@@ -2176,9 +2176,8 @@ __test__ = {"tut":      tutorial_tests,
 # so this works as expected in both ways of running regrtest.
 def test_main(verbose=None):
     from test import support, test_generators
-    import doctest
     support.run_unittest(__name__)
-    support.run_doctest(test_generators, verbose, optionflags=doctest.ELLIPSIS)
+    support.run_doctest(test_generators, verbose)
 
 # This part isn't needed for regrtest, but for running the test directly.
 if __name__ == "__main__":

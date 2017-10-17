@@ -21,15 +21,22 @@ work. One should use importlib as the public-facing version of this module.
 # anything specified at the class level.
 
 # Bootstrap-related code ######################################################
-
-_CASE_INSENSITIVE_PLATFORMS = 'win', 'cygwin', 'darwin'
+_CASE_INSENSITIVE_PLATFORMS_STR_KEY = 'win',
+_CASE_INSENSITIVE_PLATFORMS_BYTES_KEY = 'cygwin', 'darwin'
+_CASE_INSENSITIVE_PLATFORMS =  (_CASE_INSENSITIVE_PLATFORMS_BYTES_KEY
+                                + _CASE_INSENSITIVE_PLATFORMS_STR_KEY)
 
 
 def _make_relax_case():
     if sys.platform.startswith(_CASE_INSENSITIVE_PLATFORMS):
+        if sys.platform.startswith(_CASE_INSENSITIVE_PLATFORMS_STR_KEY):
+            key = 'PYTHONCASEOK'
+        else:
+            key = b'PYTHONCASEOK'
+
         def _relax_case():
             """True if filenames must be checked case-insensitively."""
-            return b'PYTHONCASEOK' in _os.environ
+            return key in _os.environ
     else:
         def _relax_case():
             """True if filenames must be checked case-insensitively."""
@@ -1048,11 +1055,7 @@ class PathFinder:
 
     @classmethod
     def _path_hooks(cls, path):
-        """Search sequence of hooks for a finder for 'path'.
-
-        If 'hooks' is false then use sys.path_hooks.
-
-        """
+        """Search sys.path_hooks for a finder for 'path'."""
         if sys.path_hooks is not None and not sys.path_hooks:
             _warnings.warn('sys.path_hooks is empty', ImportWarning)
         for hook in sys.path_hooks:
@@ -1134,8 +1137,10 @@ class PathFinder:
 
     @classmethod
     def find_spec(cls, fullname, path=None, target=None):
-        """find the module on sys.path or 'path' based on sys.path_hooks and
-        sys.path_importer_cache."""
+        """Try to find a spec for 'fullname' on sys.path or 'path'.
+
+        The search is based on sys.path_hooks and sys.path_importer_cache.
+        """
         if path is None:
             path = sys.path
         spec = cls._get_spec(fullname, path, target)
@@ -1215,8 +1220,10 @@ class FileFinder:
                                        submodule_search_locations=smsl)
 
     def find_spec(self, fullname, target=None):
-        """Try to find a spec for the specified module.  Returns the
-        matching spec, or None if not found."""
+        """Try to find a spec for the specified module.
+
+        Returns the matching spec, or None if not found.
+        """
         is_namespace = False
         tail_module = fullname.rpartition('.')[2]
         try:

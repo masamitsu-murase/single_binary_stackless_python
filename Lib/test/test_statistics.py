@@ -659,7 +659,7 @@ class DocTests(unittest.TestCase):
     @unittest.skipIf(sys.flags.optimize >= 2,
                      "Docstrings are omitted with -OO and above")
     def test_doc_tests(self):
-        failed, tried = doctest.testmod(statistics, optionflags=doctest.ELLIPSIS)
+        failed, tried = doctest.testmod(statistics)
         self.assertGreater(tried, 0)
         self.assertEqual(failed, 0)
 
@@ -1599,6 +1599,22 @@ class TestMedianGrouped(TestMedian):
         self.assertApproxEqual(self.func(data, 0.25), 2.83333333, tol=1e-8)
         data = [220, 220, 240, 260, 260, 260, 260, 280, 280, 300, 320, 340]
         self.assertEqual(self.func(data, 20), 265.0)
+
+    def test_data_type_error(self):
+        # Test median_grouped with str, bytes data types for data and interval
+        data = ["", "", ""]
+        self.assertRaises(TypeError, self.func, data)
+        #---
+        data = [b"", b"", b""]
+        self.assertRaises(TypeError, self.func, data)
+        #---
+        data = [1, 2, 3]
+        interval = ""
+        self.assertRaises(TypeError, self.func, data, interval)
+        #---
+        data = [1, 2, 3]
+        interval = b""
+        self.assertRaises(TypeError, self.func, data, interval)
 
 
 class TestMode(NumericTestCase, AverageMixin, UnivariateTypeMixin):

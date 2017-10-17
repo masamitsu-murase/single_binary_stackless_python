@@ -62,7 +62,7 @@ if test "$cross_compiling" = yes; then
     if test -z "$PYTHON_FOR_BUILD"; then
         for interp in python$PACKAGE_VERSION python3 python; do
 	    which $interp >/dev/null 2>&1 || continue
-	    if $interp -c 'import sys;sys.exit(not sys.version_info@<:@:2@:>@ >= (3,3))'; then
+	    if $interp -c "import sys;sys.exit(not '.'.join(str(n) for n in sys.version_info@<:@:2@:>@) == '$PACKAGE_VERSION')"; then
 	        break
 	    fi
             interp=
@@ -915,6 +915,25 @@ AC_SUBST(NO_AS_NEEDED)
 
 # checks for UNIX variants that set C preprocessor variables
 AC_USE_SYSTEM_EXTENSIONS
+
+AC_MSG_CHECKING([for the Android API level])
+cat >> conftest.c <<EOF
+#ifdef __ANDROID__
+#include <android/api-level.h>
+__ANDROID_API__
+#else
+#error not Android
+#endif
+EOF
+
+if $CPP $CPPFLAGS conftest.c >conftest.out 2>/dev/null; then
+  ANDROID_API_LEVEL=`grep -v '^#' conftest.out | grep -v '^ *$'`
+  AC_MSG_RESULT([$ANDROID_API_LEVEL])
+  AC_DEFINE_UNQUOTED(ANDROID_API_LEVEL, $ANDROID_API_LEVEL, [The Android API level.])
+else
+  AC_MSG_RESULT([not Android])
+fi
+rm -f conftest.c conftest.out
 
 # Check for unsupported systems
 case $ac_sys_system/$ac_sys_release in

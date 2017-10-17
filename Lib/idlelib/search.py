@@ -1,4 +1,4 @@
-from tkinter import *
+from tkinter import TclError
 
 from idlelib import searchengine
 from idlelib.searchbase import SearchDialogBase
@@ -72,26 +72,30 @@ class SearchDialog(SearchDialogBase):
 
 
 def _search_dialog(parent):  # htest #
-    '''Display search test box.'''
+    "Display search test box."
+    from tkinter import Toplevel, Text
+    from tkinter.ttk import Button
+
     box = Toplevel(parent)
     box.title("Test SearchDialog")
-    width, height, x, y = list(map(int, re.split('[x+]', parent.geometry())))
-    box.geometry("+%d+%d"%(x, y + 150))
+    x, y = map(int, parent.geometry().split('+')[1:])
+    box.geometry("+%d+%d" % (x, y + 175))
     text = Text(box, inactiveselectbackground='gray')
     text.pack()
     text.insert("insert","This is a sample string.\n"*5)
 
     def show_find():
-        text.tag_add(SEL, "1.0", END)
+        text.tag_add('sel', '1.0', 'end')
         _setup(text).open(text)
-        text.tag_remove(SEL, "1.0", END)
+        text.tag_remove('sel', '1.0', 'end')
 
     button = Button(box, text="Search (selection ignored)", command=show_find)
     button.pack()
 
 if __name__ == '__main__':
     import unittest
-    unittest.main('idlelib.idle_test.test_searchdialog',
+    unittest.main('idlelib.idle_test.test_search',
                   verbosity=2, exit=False)
+
     from idlelib.idle_test.htest import run
     run(_search_dialog)
