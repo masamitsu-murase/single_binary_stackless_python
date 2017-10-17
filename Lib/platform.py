@@ -1147,10 +1147,12 @@ def processor():
 
 # The second element is the Stackless part of the version string.
 _sys_version_parser = re.compile(
-    r'([\w.+]+)\s*'
-    '.*'
-    '\(#?([^,]+),\s*([\w ]+),\s*([\w :]+)\)\s*'
-    '\[([^\]]+)\]?', re.ASCII)
+    r'([\w.+]+)\s*'  # "version<space>"
+    r'.*'            # Stackless part
+    r'\(#?([^,]+)'  # "(#buildno"
+    r'(?:,\s*([\w ]*)'  # ", builddate"
+    r'(?:,\s*([\w :]*))?)?\)\s*'  # ", buildtime)<space>"
+    r'\[([^\]]+)\]?', re.ASCII)  # "[compiler]"
 
 _ironpython_sys_version_parser = re.compile(
     r'IronPython\s*'
@@ -1229,6 +1231,8 @@ def _sys_version(sys_version=None):
                 'failed to parse Jython sys.version: %s' %
                 repr(sys_version))
         version, buildno, builddate, buildtime, _ = match.groups()
+        if builddate is None:
+            builddate = ''
         compiler = sys.platform
 
     elif "PyPy" in sys_version:
@@ -1251,7 +1255,10 @@ def _sys_version(sys_version=None):
         version, buildno, builddate, buildtime, compiler = \
               match.groups()
         name = 'CPython'
-        builddate = builddate + ' ' + buildtime
+        if builddate is None:
+            builddate = ''
+        elif buildtime:
+            builddate = builddate + ' ' + buildtime
 
     if hasattr(sys, '_mercurial'):
         _, branch, revision = sys._mercurial
