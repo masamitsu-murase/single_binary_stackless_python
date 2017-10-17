@@ -1176,6 +1176,7 @@ class IpaddrUnitTest(unittest.TestCase):
 
         self.assertEqual(str(self.ipv6_network[5]),
                          '2001:658:22a:cafe::5')
+        self.assertRaises(IndexError, self.ipv6_network.__getitem__, 1 << 64)
 
     def testGetitem(self):
         # http://code.google.com/p/ipaddr-py/issues/detail?id=15
@@ -1625,6 +1626,9 @@ class IpaddrUnitTest(unittest.TestCase):
                          ipaddress.ip_address('169.254.100.200').is_link_local)
         self.assertEqual(False,
                          ipaddress.ip_address('169.255.100.200').is_link_local)
+
+        self.assertTrue(ipaddress.ip_address('192.0.7.1').is_global)
+        self.assertFalse(ipaddress.ip_address('203.0.113.1').is_global)
 
         self.assertEqual(True,
                           ipaddress.ip_address('127.100.200.254').is_loopback)

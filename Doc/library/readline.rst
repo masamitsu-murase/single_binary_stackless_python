@@ -4,8 +4,10 @@
 .. module:: readline
    :platform: Unix
    :synopsis: GNU readline support for Python.
+
 .. sectionauthor:: Skip Montanaro <skip@pobox.com>
 
+--------------
 
 The :mod:`readline` module defines a number of functions to facilitate
 completion and reading/writing of history files from the Python interpreter.
@@ -26,6 +28,13 @@ function.
   of GNU readline. If you programmatically load configuration strings
   you can check for the text "libedit" in :const:`readline.__doc__`
   to differentiate between GNU readline and libedit.
+
+Readline keybindings may be configured via an initialization file, typically
+``.inputrc`` in your home directory.  See `Readline Init File
+<https://cnswww.cns.cwru.edu/php/chet/readline/rluserman.html#SEC9>`_
+in the GNU Readline manual for information about the format and
+allowable constructs of that file, and the capabilities of the
+Readline library in general.
 
 
 Init file

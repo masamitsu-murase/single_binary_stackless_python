@@ -10,6 +10,20 @@ What's New in Python 3.6.0 alpha 2
 Core and Builtins
 -----------------
 
+- Issue #27095: Simplified MAKE_FUNCTION and removed MAKE_CLOSURE opcodes.
+  Patch by Demur Rumed.
+
+- Issue #27190: Raise NotSupportedError if sqlite3 is older than 3.3.1.
+  Patch by Dave Sawyer.
+
+- Issue #27286: Fixed compiling BUILD_MAP_UNPACK_WITH_CALL opcode.  Calling
+  function with generalized unpacking (PEP 448) and conflicting keyword names
+  could cause undefined behavior.
+
+- Issue #27140: Added BUILD_CONST_KEY_MAP opcode.
+
+- Issue #27186: Add support for os.PathLike objects to open() (part of PEP 519).
+
 - Issue #27066: Fixed SystemError if a custom opener (for open()) returns a
   negative number without setting an exception.
 
@@ -27,8 +41,51 @@ Core and Builtins
 - Issue #23275: Allow assigning to an empty target list in round brackets:
   () = iterable.
 
+- Issue #27243: Update the __aiter__ protocol: instead of returning
+  an awaitable that resolves to an asynchronous iterator, the asynchronous
+  iterator should be returned directly.  Doing the former will trigger a
+  PendingDeprecationWarning.
+
+
 Library
 -------
+
+- Issue #25455: Fixed crashes in repr of recursive ElementTree.Element and
+  functools.partial objects.
+
+- Issue #27294: Improved repr for Tkinter event objects.
+
+- Issue #20508: Improve exception message of IPv{4,6}Network.__getitem__.
+  Patch by Gareth Rees.
+
+- Issue #26556: Update expat to 2.1.1, fixes CVE-2015-1283.
+
+- Fix TLS stripping vulnerability in smptlib, CVE-2016-0772.  Reported by Team
+  Oststrom
+
+- Issue #21386: Implement missing IPv4Address.is_global property.  It was
+  documented since 07a5610bae9d.  Initial patch by Roger Luethi.
+
+- Issue #27029: Removed deprecated support of universal newlines mode from
+  ZipFile.open().
+
+- Issue #27030: Unknown escapes consisting of ``'\'`` and an ASCII letter in
+  regular expressions now are errors.  The re.LOCALE flag now can be used
+  only with bytes patterns.
+
+- Issue #27186: Add os.PathLike support to DirEntry (part of PEP 519).
+  Initial patch by Jelle Zijlstra.
+
+- Issue #20900: distutils register command now decodes HTTP responses
+  correctly.  Initial patch by ingrid.
+
+- Issue #27186: Add os.PathLike support to pathlib, removing its provisional
+  status (part of PEP 519). Initial patch by Dusty Phillips.
+
+- Issue #27186: Add support for os.PathLike objects to os.fsencode() and
+  os.fsdecode() (part of PEP 519).
+
+- Issue #27186: Introduce os.PathLike and os.fspath() (part of PEP 519).
 
 - A new version of typing.py provides several new classes and
   features: @overload outside stubs, Reversible, DefaultDict, Text,
@@ -113,6 +170,21 @@ Library
 IDLE
 ----
 
+- Issue #5124: Paste with text selected now replaces the selection on X11.
+  This matches how paste works on Windows, Mac, most modern Linux apps,
+  and ttk widgets.  Original patch by Serhiy Storchaka.
+
+- Issue #24750: Switch all scrollbars in IDLE to ttk versions.
+  Where needed, minimal tests are added to cover changes.
+
+- Issue #24759: IDLE requires tk 8.5 and availability ttk widgets.
+  Delete now unneeded tk version tests and code for older versions.
+  Add test for IDLE syntax colorizoer.
+
+- Issue #27239: idlelib.macosx.isXyzTk functions initialize as needed.
+
+- Issue #27262: move Aqua unbinding code, which enable context menus, to maxosx.
+
 - Issue #24759: Make clear in idlelib.idle_test.__init__ that the directory
   is a private implementation of test.test_idle and tool for maintainers.
 
@@ -163,6 +235,18 @@ IDLE
 
 - Issue #23977: Add more asserts to test_delegator.
 
+Documentation
+-------------
+
+- Issue #16484: Change the default PYTHONDOCS URL to "https:", and fix the
+  resulting links to use lowercase.  Patch by Sean Rodman, test by Kaushik
+  Nadikuditi.
+
+- Issue #24136: Document the new PEP 448 unpacking syntax of 3.5.
+
+- Issue #22558: Add remaining doc links to source code for Python-coded modules.
+  Patch by Yoni Lavi.
+
 Tests
 -----
 
@@ -188,6 +272,26 @@ Build
 
 - Issue #26930: Update OS X 10.5+ 32-bit-only installer to build
   and link with OpenSSL 1.0.2h.
+
+Misc
+----
+
+- Issue #17500, and https://github.com/python/pythondotorg/issues/945: Remove
+  unused and outdated icons.
+
+C API
+-----
+
+- Issue #27186: Add the PyOS_FSPath() function (part of PEP 519).
+
+- Issue #26282: PyArg_ParseTupleAndKeywords() now supports positional-only
+  parameters.
+
+Tools/Demos
+-----------
+
+- Issue #26282: Argument Clinic now supports positional-only and keyword
+  parameters in the same function.
 
 
 What's New in Python 3.6.0 alpha 1?
@@ -1454,6 +1558,7 @@ Tools/Demos
 
 - Issue #26316: Fix variable name typo in Argument Clinic.
 
+<<<<<<< local
 - Issue #25440: Fix output of python-config --extension-suffix.
 
 - Issue #25154: The pyvenv script has been deprecated in favour of
@@ -2948,8 +3053,8 @@ Library
   writer failed in BufferedRWPair.close().
 
 - Issue #23622: Unknown escapes in regular expressions that consist of ``'\'``
-  and ASCII letter now raise a deprecation warning and will be forbidden in
-  Python 3.6.
+  and an ASCII letter now raise a deprecation warning and will be forbidden
+  in Python 3.6.
 
 - Issue #23671: string.Template now allows specifying the "self" parameter as
   a keyword argument.  string.Formatter now allows specifying the "self" and

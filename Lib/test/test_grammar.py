@@ -345,7 +345,7 @@ class GrammarTests(unittest.TestCase):
         def f(x) -> list: pass
         self.assertEqual(f.__annotations__, {'return': list})
 
-        # test MAKE_CLOSURE with a variety of oparg's
+        # test closures with a variety of opargs
         closure = 1
         def f(): return closure
         def f(x=1): return closure
@@ -1114,7 +1114,7 @@ class GrammarTests(unittest.TestCase):
         class Done(Exception): pass
 
         class AIter:
-            async def __aiter__(self):
+            def __aiter__(self):
                 return self
             async def __anext__(self):
                 raise StopAsyncIteration

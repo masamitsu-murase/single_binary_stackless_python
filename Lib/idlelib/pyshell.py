@@ -1,5 +1,20 @@
 #! /usr/bin/env python3
 
+try:
+    from tkinter import *
+except ImportError:
+    print("** IDLE can't import Tkinter.\n"
+          "Your Python may not be configured for Tk. **", file=sys.__stderr__)
+    sys.exit(1)
+import tkinter.messagebox as tkMessageBox
+if TkVersion < 8.5:
+    root = Tk()  # otherwise create root in main
+    root.withdraw()
+    tkMessageBox.showerror("Idle Cannot Start",
+            "Idle requires tcl/tk 8.5+, not $s." % TkVersion,
+            parent=root)
+    sys.exit(1)
+
 import getopt
 import os
 import os.path
@@ -15,14 +30,6 @@ import io
 import linecache
 from code import InteractiveInterpreter
 from platform import python_version, system
-
-try:
-    from tkinter import *
-except ImportError:
-    print("** IDLE can't import Tkinter.\n"
-          "Your Python may not be configured for Tk. **", file=sys.__stderr__)
-    sys.exit(1)
-import tkinter.messagebox as tkMessageBox
 
 from idlelib.editor import EditorWindow, fixwordbreaks
 from idlelib.filelist import FileList
@@ -1396,6 +1403,17 @@ class PseudoInputFile(PseudoFile):
         self.shell.close()
 
 
+def fix_x11_paste(root):
+    "Make paste replace selection on x11.  See issue #5124."
+    if root._windowingsystem == 'x11':
+        for cls in 'Text', 'Entry', 'Spinbox':
+            root.bind_class(
+                cls,
+                '<<Paste>>',
+                'catch {%W delete sel.first sel.last}\n' +
+                        root.bind_class(cls, '<<Paste>>'))
+
+
 usage_msg = """\
 
 USAGE: idle  [-deins] [-t title] [file]*
@@ -1528,15 +1546,17 @@ def main():
                                     'editor-on-startup', type='bool')
     enable_edit = enable_edit or edit_start
     enable_shell = enable_shell or not enable_edit
+
     # start editor and/or shell windows:
     root = Tk(className="Idle")
+    root.withdraw()
 
     # set application icon
     icondir = os.path.join(os.path.dirname(__file__), 'Icons')
     if system() == 'Windows':
         iconfile = os.path.join(icondir, 'idle.ico')
         root.wm_iconbitmap(default=iconfile)
-    elif TkVersion >= 8.5:
+    else:
         ext = '.png' if TkVersion >= 8.6 else '.gif'
         iconfiles = [os.path.join(icondir, 'idle_%d%s' % (size, ext))
                      for size in (16, 32, 48)]
@@ -1544,7 +1564,7 @@ def main():
         root.wm_iconphoto(True, *icons)
 
     fixwordbreaks(root)
-    root.withdraw()
+    fix_x11_paste(root)
     flist = PyShellFileList(root)
     macosx.setupApp(root, flist)
 

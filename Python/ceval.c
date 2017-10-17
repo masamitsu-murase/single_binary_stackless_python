@@ -2089,8 +2089,9 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
             PyObject *obj = TOP();
             PyTypeObject *type = Py_TYPE(obj);
 
-            if (type->tp_as_async != NULL)
+            if (type->tp_as_async != NULL) {
                 getter = type->tp_as_async->am_aiter;
+            }
 
             if (getter != NULL) {
                 iter = (*getter)(obj);
@@ -2111,6 +2112,27 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
                 goto error;
             }
 
+            if (Py_TYPE(iter)->tp_as_async != NULL &&
+                    Py_TYPE(iter)->tp_as_async->am_anext != NULL) {
+
+                /* Starting with CPython 3.5.2 __aiter__ should return
+                   asynchronous iterators directly (not awaitables that
+                   resolve to asynchronous iterators.)
+
+                   Therefore, we check if the object that was returned
+                   from __aiter__ has an __anext__ method.  If it does,
+                   we wrap it in an awaitable that resolves to `iter`.
+
+                   See http://bugs.python.org/issue27243 for more
+                   details.
+                */
+
+                PyObject *wrapper = _PyAIterWrapper_New(iter);
+                Py_DECREF(iter);
+                SET_TOP(wrapper);
+                DISPATCH();
+            }
+
             awaitable = _PyCoro_GetAwaitableIter(iter);
             if (awaitable == NULL) {
                 SET_TOP(NULL);
@@ -2122,8 +2144,22 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
 
                 Py_DECREF(iter);
                 goto error;
-            } else
+            } else {
                 Py_DECREF(iter);
+
+                if (PyErr_WarnFormat(
+                        PyExc_PendingDeprecationWarning, 1,
+                        "'%.100s' implements legacy __aiter__ protocol; "
+                        "__aiter__ should return an asynchronous "
+                        "iterator, not awaitable",
+                        type->tp_name))
+                {
+                    /* Warning was converted to an error. */
+                    Py_DECREF(awaitable);
+                    SET_TOP(NULL);
+                    goto error;
+                }
+            }
 
             SET_TOP(awaitable);
             DISPATCH();
@@ -2759,6 +2795,39 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
 
             while (oparg--) {
                 Py_DECREF(POP());
+                Py_DECREF(POP());
+            }
+            PUSH(map);
+            DISPATCH();
+        }
+
+        TARGET(BUILD_CONST_KEY_MAP) {
+            int i;
+            PyObject *map;
+            PyObject *keys = TOP();
+            if (!PyTuple_CheckExact(keys) ||
+                PyTuple_GET_SIZE(keys) != (Py_ssize_t)oparg) {
+                PyErr_SetString(PyExc_SystemError,
+                                "bad BUILD_CONST_KEY_MAP keys argument");
+                goto error;
+            }
+            map = _PyDict_NewPresized((Py_ssize_t)oparg);
+            if (map == NULL) {
+                goto error;
+            }
+            for (i = oparg; i > 0; i--) {
+                int err;
+                PyObject *key = PyTuple_GET_ITEM(keys, oparg - i);
+                PyObject *value = PEEK(i + 1);
+                err = PyDict_SetItem(map, key, value);
+                if (err != 0) {
+                    Py_DECREF(map);
+                    goto error;
+                }
+            }
+
+            Py_DECREF(POP());
+            while (oparg--) {
                 Py_DECREF(POP());
             }
             PUSH(map);
@@ -3464,116 +3533,36 @@ stackless_call_return:
             DISPATCH();
         }
 
-        TARGET(MAKE_CLOSURE)
         TARGET(MAKE_FUNCTION) {
-            int posdefaults = oparg & 0xff;
-            int kwdefaults = (oparg>>8) & 0xff;
-            int num_annotations = (oparg >> 16) & 0x7fff;
+            PyObject *qualname = POP();
+            PyObject *codeobj = POP();
+            PyFunctionObject *func = (PyFunctionObject *)
+                PyFunction_NewWithQualName(codeobj, f->f_globals, qualname);
 
-            PyObject *qualname = POP(); /* qualname */
-            PyObject *code = POP(); /* code object */
-            PyObject *func = PyFunction_NewWithQualName(code, f->f_globals, qualname);
-            Py_DECREF(code);
+            Py_DECREF(codeobj);
             Py_DECREF(qualname);
-
-            if (func == NULL)
+            if (func == NULL) {
                 goto error;
-
-            if (opcode == MAKE_CLOSURE) {
-                PyObject *closure = POP();
-                if (PyFunction_SetClosure(func, closure) != 0) {
-                    /* Can't happen unless bytecode is corrupt. */
-                    Py_DECREF(func);
-                    Py_DECREF(closure);
-                    goto error;
-                }
-                Py_DECREF(closure);
             }
 
-            if (num_annotations > 0) {
-                Py_ssize_t name_ix;
-                PyObject *names = POP(); /* names of args with annotations */
-                PyObject *anns = PyDict_New();
-                if (anns == NULL) {
-                    Py_DECREF(func);
-                    Py_DECREF(names);
-                    goto error;
-                }
-                name_ix = PyTuple_Size(names);
-                assert(num_annotations == name_ix+1);
-                while (name_ix > 0) {
-                    PyObject *name, *value;
-                    int err;
-                    --name_ix;
-                    name = PyTuple_GET_ITEM(names, name_ix);
-                    value = POP();
-                    err = PyDict_SetItem(anns, name, value);
-                    Py_DECREF(value);
-                    if (err != 0) {
-                        Py_DECREF(anns);
-                        Py_DECREF(func);
-                        Py_DECREF(names);
-                        goto error;
-                    }
-                }
-                Py_DECREF(names);
-
-                if (PyFunction_SetAnnotations(func, anns) != 0) {
-                    /* Can't happen unless
-                       PyFunction_SetAnnotations changes. */
-                    Py_DECREF(anns);
-                    Py_DECREF(func);
-                    goto error;
-                }
-                Py_DECREF(anns);
+            if (oparg & 0x08) {
+                assert(PyTuple_CheckExact(TOP()));
+                func ->func_closure = POP();
+            }
+            if (oparg & 0x04) {
+                assert(PyDict_CheckExact(TOP()));
+                func->func_annotations = POP();
+            }
+            if (oparg & 0x02) {
+                assert(PyDict_CheckExact(TOP()));
+                func->func_kwdefaults = POP();
+            }
+            if (oparg & 0x01) {
+                assert(PyTuple_CheckExact(TOP()));
+                func->func_defaults = POP();
             }
 
-            /* XXX Maybe this should be a separate opcode? */
-            if (kwdefaults > 0) {
-                PyObject *defs = PyDict_New();
-                if (defs == NULL) {
-                    Py_DECREF(func);
-                    goto error;
-                }
-                while (--kwdefaults >= 0) {
-                    PyObject *v = POP(); /* default value */
-                    PyObject *key = POP(); /* kw only arg name */
-                    int err = PyDict_SetItem(defs, key, v);
-                    Py_DECREF(v);
-                    Py_DECREF(key);
-                    if (err != 0) {
-                        Py_DECREF(defs);
-                        Py_DECREF(func);
-                        goto error;
-                    }
-                }
-                if (PyFunction_SetKwDefaults(func, defs) != 0) {
-                    /* Can't happen unless
-                       PyFunction_SetKwDefaults changes. */
-                    Py_DECREF(func);
-                    Py_DECREF(defs);
-                    goto error;
-                }
-                Py_DECREF(defs);
-            }
-            if (posdefaults > 0) {
-                PyObject *defs = PyTuple_New(posdefaults);
-                if (defs == NULL) {
-                    Py_DECREF(func);
-                    goto error;
-                }
-                while (--posdefaults >= 0)
-                    PyTuple_SET_ITEM(defs, posdefaults, POP());
-                if (PyFunction_SetDefaults(func, defs) != 0) {
-                    /* Can't happen unless
-                       PyFunction_SetDefaults changes. */
-                    Py_DECREF(defs);
-                    Py_DECREF(func);
-                    goto error;
-                }
-                Py_DECREF(defs);
-            }
-            PUSH(func);
+            PUSH((PyObject *)func);
             DISPATCH();
         }
 
