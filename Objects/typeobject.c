@@ -4586,8 +4586,10 @@ add_members(PyTypeObject *type, PyMemberDef *memb)
         descr = PyDescr_NewMember(type, memb);
         if (descr == NULL)
             return -1;
-        if (PyDict_SetItemString(dict, memb->name, descr) < 0)
+        if (PyDict_SetItemString(dict, memb->name, descr) < 0) {
+            Py_DECREF(descr);
             return -1;
+        }
         Py_DECREF(descr);
     }
     return 0;
@@ -4606,8 +4608,10 @@ add_getset(PyTypeObject *type, PyGetSetDef *gsp)
 
         if (descr == NULL)
             return -1;
-        if (PyDict_SetItemString(dict, gsp->name, descr) < 0)
+        if (PyDict_SetItemString(dict, gsp->name, descr) < 0) {
+            Py_DECREF(descr);
             return -1;
+        }
         Py_DECREF(descr);
     }
     return 0;
@@ -7349,8 +7353,10 @@ add_operators(PyTypeObject *type)
                 d->d_slpmask = ((signed char *) type->tp_as_mapping)[p->slp_offset];
             }
 #endif
-            if (PyDict_SetItem(dict, p->name_strobj, descr) < 0)
+            if (PyDict_SetItem(dict, p->name_strobj, descr) < 0) {
+                Py_DECREF(descr);
                 return -1;
+            }
             Py_DECREF(descr);
         }
     }
