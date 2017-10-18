@@ -156,6 +156,7 @@ PyObject *
 _PyCFunction_FastCall(PyObject *func_obj, PyObject **args, int nargs,
                       PyObject *kwargs)
 {
+    STACKLESS_GETARG();
     PyCFunctionObject* func = (PyCFunctionObject*)func_obj;
     PyCFunction meth = PyCFunction_GET_FUNCTION(func);
     PyObject *self = PyCFunction_GET_SELF(func);
@@ -167,7 +168,7 @@ _PyCFunction_FastCall(PyObject *func_obj, PyObject **args, int nargs,
        caller loses its exception */
     assert(!PyErr_Occurred());
 
-    flags = PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST);
+    flags = PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_STACKLESS);
 
     switch (flags)
     {
@@ -185,6 +186,7 @@ _PyCFunction_FastCall(PyObject *func_obj, PyObject **args, int nargs,
             return NULL;
         }
 
+        STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS);
         result = (*meth) (self, NULL);
         break;
 
@@ -202,6 +204,7 @@ _PyCFunction_FastCall(PyObject *func_obj, PyObject **args, int nargs,
             return NULL;
         }
 
+        STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS);
         result = (*meth) (self, args[0]);
         break;
 
@@ -223,6 +226,7 @@ _PyCFunction_FastCall(PyObject *func_obj, PyObject **args, int nargs,
             return NULL;
         }
 
+        STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS);
         if (flags & METH_KEYWORDS) {
             result = (*(PyCFunctionWithKeywords)meth) (self, tuple, kwargs);
         }
@@ -239,6 +243,7 @@ _PyCFunction_FastCall(PyObject *func_obj, PyObject **args, int nargs,
                         "METH_OLDARGS is no longer supported!");
         return NULL;
     }
+    STACKLESS_ASSERT();
 
     result = _Py_CheckFunctionResult(func_obj, result, NULL);
 

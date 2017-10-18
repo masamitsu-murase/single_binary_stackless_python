@@ -2187,8 +2187,8 @@ PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw)
 
 #ifdef STACKLESS
     /* only do recursion adjustment if there is no danger
-     * of softswitching, i.e. if we are not being called by
-     * run_cframe.  Were a softswitch to occur, the readjustment
+     * of soft-switching, i.e. if we are not being called by
+     * run_cframe.  Were a soft-switch to occur, the re-adjustment
      * of the recursion depth would happen for the wrong frame.
      */
     if (!stackless)
@@ -2230,6 +2230,7 @@ _PyStack_AsTuple(PyObject **stack, Py_ssize_t nargs)
 PyObject *
 _PyObject_FastCall(PyObject *func, PyObject **args, int nargs, PyObject *kwargs)
 {
+    STACKLESS_GETARG();
     ternaryfunc call;
     PyObject *result = NULL;
 
@@ -2245,14 +2246,24 @@ _PyObject_FastCall(PyObject *func, PyObject **args, int nargs, PyObject *kwargs)
        _PyFunction_FastCall() doesn't support keyword arguments yet */
     assert(kwargs == NULL);
 
+#ifdef STACKLESS
+    /* only do recursion adjustment if there is no danger
+     * of soft-switching, i.e. if we are not being called by
+     * run_cframe.  Were a soft-switch to occur, the re-adjustment
+     * of the recursion depth would happen for the wrong frame.
+     */
+    if (!stackless)
+#endif
     if (Py_EnterRecursiveCall(" while calling a Python object")) {
         return NULL;
     }
 
     if (PyFunction_Check(func)) {
+        STACKLESS_PROMOTE_ALL();
         result = _PyFunction_FastCall(func, args, nargs, kwargs);
     }
     else if (PyCFunction_Check(func)) {
+        STACKLESS_PROMOTE_ALL();
         result = _PyCFunction_FastCall(func, args, nargs, kwargs);
     }
     else {
@@ -2271,13 +2282,18 @@ _PyObject_FastCall(PyObject *func, PyObject **args, int nargs, PyObject *kwargs)
             goto exit;
         }
 
+        STACKLESS_PROMOTE(func);
         result = (*call)(func, tuple, kwargs);
         Py_DECREF(tuple);
     }
+    STACKLESS_ASSERT();
 
     result = _Py_CheckFunctionResult(func, result, NULL);
 
 exit:
+#ifdef STACKLESS
+    if (!stackless)
+#endif
     Py_LeaveRecursiveCall();
 
     return result;

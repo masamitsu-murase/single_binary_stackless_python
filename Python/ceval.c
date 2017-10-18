@@ -5224,7 +5224,7 @@ call_function(PyObject ***pp_stack, int oparg
             callargs = load_args(pp_stack, na);
             if (callargs != NULL) {
                 READ_TIMESTAMP(*pintr0);
-            STACKLESS_PROPOSE_ALL();
+                STACKLESS_PROPOSE_ALL();
                 C_TRACE(x, PyCFunction_Call(func,callargs,NULL));
                 READ_TIMESTAMP(*pintr1);
                 Py_XDECREF(callargs);
@@ -5289,6 +5289,7 @@ static PyObject*
 _PyFunction_FastCallNoKw(PyObject **args, Py_ssize_t na,
                          PyCodeObject *co, PyObject *globals)
 {
+    STACKLESS_GETARG();
     PyFrameObject *f;
     PyThreadState *tstate = PyThreadState_GET();
     PyObject **fastlocals;
@@ -5313,7 +5314,30 @@ _PyFunction_FastCallNoKw(PyObject **args, Py_ssize_t na,
         Py_INCREF(*args);
         fastlocals[i] = *args++;
     }
+
+#ifdef STACKLESS
+    f->f_execute = PyEval_EvalFrameEx_slp;
+    if (stackless) {
+        Py_INCREF(Py_None);
+        result = Py_None;
+        SLP_STORE_NEXT_FRAME(tstate, f);
+        Py_DECREF(f);
+        return STACKLESS_PACK(tstate, result);
+    }
+    if (f->f_back != NULL) {
+        /* use the faster path */
+        PyFrameObject *back = f->f_back;
+        Py_INCREF(Py_None);
+        Py_INCREF(back);
+        result = slp_frame_dispatch(f, back, 0, Py_None);
+        Py_DECREF(back);
+    }
+    else {
+        result = slp_eval_frame(f);
+    }
+#else /* #ifdef STACKLESS */
     result = PyEval_EvalFrameEx(f,0);
+#endif /* #ifdef STACKLESS */
 
     ++tstate->recursion_depth;
     Py_DECREF(f);
@@ -5331,15 +5355,19 @@ fast_function(PyObject *func, PyObject **stack, int n, int na, int nk)
     PyObject *kwdefs, *closure, *name, *qualname;
     PyObject **d;
     int nd;
+    PyObject *result;
 
     PCALL(PCALL_FUNCTION);
     PCALL(PCALL_FAST_FUNCTION);
 
     if (argdefs == NULL && co->co_argcount == na &&
         co->co_kwonlyargcount == 0 && nk == 0 &&
-        co->co_flags == (CO_OPTIMIZED | CO_NEWLOCALS | CO_NOFREE))
+        (co->co_flags & (~PyCF_MASK)) == (CO_OPTIMIZED | CO_NEWLOCALS | CO_NOFREE))
     {
-        return _PyFunction_FastCallNoKw(stack, na, co, globals);
+        STACKLESS_PROPOSE_ALL();
+        result = _PyFunction_FastCallNoKw(stack, na, co, globals);
+        STACKLESS_ASSERT();
+        return result;
     }
 
     kwdefs = PyFunction_GET_KW_DEFAULTS(func);
@@ -5356,22 +5384,26 @@ fast_function(PyObject *func, PyObject **stack, int n, int na, int nk)
         nd = 0;
     }
     STACKLESS_PROPOSE_ALL();
-    return _PyEval_EvalCodeWithName((PyObject*)co, globals, (PyObject *)NULL,
+    result = _PyEval_EvalCodeWithName((PyObject*)co, globals, (PyObject *)NULL,
                                     stack, na,
                                     stack + na, nk,
                                     d, nd, kwdefs,
                                     closure, name, qualname);
+    STACKLESS_ASSERT();
+    return result;
 }
 
 PyObject *
 _PyFunction_FastCall(PyObject *func, PyObject **args, int nargs, PyObject *kwargs)
 {
+    STACKLESS_GETARG();
     PyCodeObject *co = (PyCodeObject *)PyFunction_GET_CODE(func);
     PyObject *globals = PyFunction_GET_GLOBALS(func);
     PyObject *argdefs = PyFunction_GET_DEFAULTS(func);
     PyObject *kwdefs, *closure, *name, *qualname;
     PyObject **d;
     int nd;
+    PyObject *result;
 
     PCALL(PCALL_FUNCTION);
     PCALL(PCALL_FAST_FUNCTION);
@@ -5381,9 +5413,12 @@ _PyFunction_FastCall(PyObject *func, PyObject **args, int nargs, PyObject *kwarg
 
     if (argdefs == NULL && co->co_argcount == nargs &&
         co->co_kwonlyargcount == 0 &&
-        co->co_flags == (CO_OPTIMIZED | CO_NEWLOCALS | CO_NOFREE))
+        (co->co_flags & (~PyCF_MASK)) == (CO_OPTIMIZED | CO_NEWLOCALS | CO_NOFREE))
     {
-        return _PyFunction_FastCallNoKw(args, nargs, co, globals);
+        STACKLESS_PROMOTE_ALL();
+        result = _PyFunction_FastCallNoKw(args, nargs, co, globals);
+        STACKLESS_ASSERT();
+        return result;
     }
 
     kwdefs = PyFunction_GET_KW_DEFAULTS(func);
@@ -5399,11 +5434,14 @@ _PyFunction_FastCall(PyObject *func, PyObject **args, int nargs, PyObject *kwarg
         d = NULL;
         nd = 0;
     }
-    return _PyEval_EvalCodeWithName((PyObject*)co, globals, (PyObject *)NULL,
-                                     args, nargs,
+    STACKLESS_PROMOTE_ALL();
+    result = _PyEval_EvalCodeWithName((PyObject*)co, globals, (PyObject *)NULL,
+                                    args, nargs,
                                     NULL, 0,
                                     d, nd, kwdefs,
                                     closure, name, qualname);
+    STACKLESS_ASSERT();
+    return result;
 }
 
 static PyObject *
