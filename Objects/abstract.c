@@ -2308,12 +2308,14 @@ call_function_tail(PyObject *callable, PyObject *args)
     if (args == NULL)
         return NULL;
 
+    STACKLESS_PROMOTE_ALL();
     if (!PyTuple_Check(args)) {
         result = _PyObject_FastCall(callable, &args, 1, NULL);
     }
     else {
         result = PyObject_Call(callable, args, NULL);
     }
+    STACKLESS_ASSERT();
 
     Py_DECREF(args);
     return result;
