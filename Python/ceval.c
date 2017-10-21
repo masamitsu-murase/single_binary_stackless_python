@@ -5076,7 +5076,10 @@ PyEval_CallObjectWithKeywords(PyObject *func, PyObject *arg, PyObject *kw)
 
     if (arg == NULL) {
         if (kw == NULL) {
-            return _PyObject_FastCall(func, NULL, 0, 0);
+            STACKLESS_PROMOTE_ALL();
+            result = _PyObject_FastCall(func, NULL, 0, 0);
+            STACKLESS_ASSERT();
+            return result;
         }
 
         arg = PyTuple_New(0);
