@@ -372,34 +372,25 @@ static PyObject *
 call_trampoline(PyObject* callback,
                 PyFrameObject *frame, int what, PyObject *arg)
 {
-    PyObject *args;
-    PyObject *whatstr;
     PyObject *result;
+    PyObject *stack[3];
 
-    args = PyTuple_New(3);
-    if (args == NULL)
+    if (PyFrame_FastToLocalsWithError(frame) < 0) {
         return NULL;
-    if (PyFrame_FastToLocalsWithError(frame) < 0)
-        return NULL;
+    }
 
-    Py_INCREF(frame);
-    whatstr = whatstrings[what];
-    Py_INCREF(whatstr);
-    if (arg == NULL)
-        arg = Py_None;
-    Py_INCREF(arg);
-    PyTuple_SET_ITEM(args, 0, (PyObject *)frame);
-    PyTuple_SET_ITEM(args, 1, whatstr);
-    PyTuple_SET_ITEM(args, 2, arg);
+    stack[0] = (PyObject *)frame;
+    stack[1] = whatstrings[what];
+    stack[2] = (arg != NULL) ? arg : Py_None;
 
     /* call the Python-level function */
-    result = PyEval_CallObject(callback, args);
-    PyFrame_LocalsToFast(frame, 1);
-    if (result == NULL)
-        PyTraceBack_Here(frame);
+    result = _PyObject_FastCall(callback, stack, 3, NULL);
 
-    /* cleanup */
-    Py_DECREF(args);
+    PyFrame_LocalsToFast(frame, 1);
+    if (result == NULL) {
+        PyTraceBack_Here(frame);
+    }
+
     return result;
 }
 
@@ -2147,7 +2138,7 @@ PySys_SetArgv(int argc, wchar_t **argv)
 static int
 sys_pyfile_write_unicode(PyObject *unicode, PyObject *file)
 {
-    PyObject *writer = NULL, *args = NULL, *result = NULL;
+    PyObject *writer = NULL, *result = NULL;
     int err;
 
     if (file == NULL)
@@ -2157,11 +2148,7 @@ sys_pyfile_write_unicode(PyObject *unicode, PyObject *file)
     if (writer == NULL)
         goto error;
 
-    args = PyTuple_Pack(1, unicode);
-    if (args == NULL)
-        goto error;
-
-    result = PyEval_CallObject(writer, args);
+    result = _PyObject_FastCall(writer, &unicode, 1, NULL);
     if (result == NULL) {
         goto error;
     } else {
@@ -2173,7 +2160,6 @@ error:
     err = -1;
 finally:
     Py_XDECREF(writer);
-    Py_XDECREF(args);
     Py_XDECREF(result);
     return err;
 }
