@@ -5091,11 +5091,9 @@ PyEval_CallObjectWithKeywords(PyObject *func, PyObject *args, PyObject *kwargs)
         return NULL;
     }
 
-    Py_INCREF(args);
     STACKLESS_PROMOTE_ALL();
     result = PyObject_Call(func, args, kwargs);
     STACKLESS_ASSERT();
-    Py_DECREF(args);
 
     return result;
 }
