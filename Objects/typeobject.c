@@ -6419,18 +6419,15 @@ slot_tp_iter(PyObject *self)
                      Py_TYPE(self)->tp_name);
         return NULL;
     }
+
     if (func != NULL) {
-        PyObject *args;
-        args = res = PyTuple_New(0);
-        if (args != NULL) {
-            STACKLESS_PROMOTE_ALL();
-            res = PyObject_Call(func, args, NULL);
-            STACKLESS_ASSERT();
-            Py_DECREF(args);
-        }
+        STACKLESS_PROMOTE_ALL();
+        res = _PyObject_FastCall(func, NULL, 0, NULL);
+        STACKLESS_ASSERT();
         Py_DECREF(func);
         return res;
     }
+
     PyErr_Clear();
     func = lookup_method(self, &PyId___getitem__);
     if (func == NULL) {
