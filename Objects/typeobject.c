@@ -1476,7 +1476,7 @@ call_method(PyObject *o, _Py_Identifier *nameid, const char *format, ...)
     }
     else {
         STACKLESS_PROMOTE_ALL();
-        retval = _PyObject_FastCall(func, NULL, 0, NULL);
+        retval = _PyObject_CallNoArg(func);
         STACKLESS_ASSERT();
     }
 
@@ -1521,7 +1521,7 @@ call_maybe(PyObject *o, _Py_Identifier *nameid, const char *format, ...)
     }
     else {
         STACKLESS_PROMOTE_ALL();
-        retval = _PyObject_FastCall(func, NULL, 0, NULL);
+        retval = _PyObject_CallNoArg(func);
         STACKLESS_ASSERT();
     }
 
@@ -5938,7 +5938,7 @@ slot_sq_item(PyObject *self, Py_ssize_t i)
         goto error;
     }
 
-    retval = _PyObject_FastCall(func, &ival, 1, NULL);
+    retval = _PyObject_CallArg1(func, ival);
     Py_DECREF(func);
     Py_DECREF(ival);
     return retval;
@@ -5979,7 +5979,7 @@ slot_sq_contains(PyObject *self, PyObject *value)
         return -1;
     }
     if (func != NULL) {
-        res = _PyObject_FastCall(func, &value, 1, NULL);
+        res = _PyObject_CallArg1(func, value);
         Py_DECREF(func);
         if (res != NULL) {
             result = PyObject_IsTrue(res);
@@ -6071,7 +6071,7 @@ slot_nb_bool(PyObject *self)
         using_len = 1;
     }
 
-    value = _PyObject_FastCall(func, NULL, 0, NULL);
+    value = _PyObject_CallNoArg(func);
     if (value == NULL) {
         goto error;
     }
@@ -6398,7 +6398,7 @@ slot_tp_richcompare(PyObject *self, PyObject *other, int op)
         Py_RETURN_NOTIMPLEMENTED;
     }
     STACKLESS_PROMOTE_ALL();
-    res = _PyObject_FastCall(func, &other, 1, NULL);
+    res = _PyObject_CallArg1(func, other);
     STACKLESS_ASSERT();
     Py_DECREF(func);
     return res;
@@ -6422,7 +6422,7 @@ slot_tp_iter(PyObject *self)
 
     if (func != NULL) {
         STACKLESS_PROMOTE_ALL();
-        res = _PyObject_FastCall(func, NULL, 0, NULL);
+        res = _PyObject_CallNoArg(func);
         STACKLESS_ASSERT();
         Py_DECREF(func);
         return res;
