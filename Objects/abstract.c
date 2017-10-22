@@ -2378,6 +2378,7 @@ PyObject *
 _PyObject_FastCallKeywords(PyObject *func, PyObject **stack, Py_ssize_t nargs,
                            Py_ssize_t nkwargs)
 {
+    STACKLESS_GETARG();
     PyObject *args, *kwdict, *result;
 
     /* _PyObject_FastCallKeywords() must not be called with an exception set,
@@ -2392,11 +2393,17 @@ _PyObject_FastCallKeywords(PyObject *func, PyObject **stack, Py_ssize_t nargs,
 
     if (PyFunction_Check(func)) {
         /* Fast-path: avoid temporary tuple or dict */
-        return _PyFunction_FastCallKeywords(func, stack, nargs, nkwargs);
+        STACKLESS_PROMOTE_ALL();
+        result = _PyFunction_FastCallKeywords(func, stack, nargs, nkwargs);
+        STACKLESS_ASSERT();
+        return result;
     }
 
     if (PyCFunction_Check(func) && nkwargs == 0) {
-        return _PyCFunction_FastCallDict(func, args, nargs, NULL);
+        STACKLESS_PROMOTE_ALL();
+        result = _PyCFunction_FastCallDict(func, args, nargs, NULL);
+        STACKLESS_ASSERT();
+        return result;
     }
 
     /* Slow-path: build temporary tuple and/or dict */
@@ -2413,7 +2420,9 @@ _PyObject_FastCallKeywords(PyObject *func, PyObject **stack, Py_ssize_t nargs,
         kwdict = NULL;
     }
 
+    STACKLESS_PROMOTE_ALL();
     result = PyObject_Call(func, args, kwdict);
+    STACKLESS_ASSERT();
     Py_DECREF(args);
     Py_XDECREF(kwdict);
     return result;

@@ -5263,7 +5263,9 @@ call_function(PyObject ***pp_stack, int oparg
         }
         READ_TIMESTAMP(*pintr0);
         if (PyFunction_Check(func)) {
+            STACKLESS_PROPOSE_ALL();
             x = _PyFunction_FastCallKeywords(func, (*pp_stack) - n, nargs, nkwargs);
+            STACKLESS_ASSERT();
         }
         else {
             x = do_call(func, pp_stack, nargs, nkwargs);
@@ -5370,7 +5372,6 @@ _PyFunction_FastCallKeywords(PyObject *func, PyObject **stack,
     PyObject *kwdefs, *closure, *name, *qualname;
     PyObject **d;
     int nd;
-    PyObject *result;
 
     assert(func != NULL);
     assert(nargs >= 0);
@@ -5384,21 +5385,15 @@ _PyFunction_FastCallKeywords(PyObject *func, PyObject **stack,
         (co->co_flags & (~PyCF_MASK)) == (CO_OPTIMIZED | CO_NEWLOCALS | CO_NOFREE))
     {
         if (argdefs == NULL && co->co_argcount == nargs) {
-            STACKLESS_PROPOSE_ALL();
-            result = _PyFunction_FastCallNoKw(co, stack, nargs, globals);
-            STACKLESS_ASSERT();
-            return result;
+            return _PyFunction_FastCallNoKw(co, stack, nargs, globals);
         }
         else if (nargs == 0 && argdefs != NULL
                  && co->co_argcount == Py_SIZE(argdefs)) {
             /* function called with no arguments, but all parameters have
                a default value: use default values as arguments .*/
             stack = &PyTuple_GET_ITEM(argdefs, 0);
-            STACKLESS_PROPOSE_ALL();
-            result = _PyFunction_FastCallNoKw(co, stack, Py_SIZE(argdefs),
+            return _PyFunction_FastCallNoKw(co, stack, Py_SIZE(argdefs),
                                             globals);
-            STACKLESS_ASSERT();
-            return result;
         }
     }
 
@@ -5415,14 +5410,11 @@ _PyFunction_FastCallKeywords(PyObject *func, PyObject **stack,
         d = NULL;
         nd = 0;
     }
-    STACKLESS_PROPOSE_ALL();
-    result = _PyEval_EvalCodeWithName((PyObject*)co, globals, (PyObject *)NULL,
+    return _PyEval_EvalCodeWithName((PyObject*)co, globals, (PyObject *)NULL,
                                     stack, nargs,
                                     stack + nargs, nkwargs,
                                     d, nd, kwdefs,
                                     closure, name, qualname);
-    STACKLESS_ASSERT();
-    return result;
 }
 
 PyObject *
