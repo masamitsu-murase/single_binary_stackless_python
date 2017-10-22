@@ -52,6 +52,20 @@ PyErr_Restore(PyObject *type, PyObject *value, PyObject *traceback)
     Py_XDECREF(oldtraceback);
 }
 
+static PyObject*
+_PyErr_CreateException(PyObject *exception, PyObject *value)
+{
+    if (value == NULL || value == Py_None) {
+        return _PyObject_CallNoArg(exception);
+    }
+    else if (PyTuple_Check(value)) {
+        return PyObject_Call(exception, value, NULL);
+    }
+    else {
+        return _PyObject_CallArg1(exception, value);
+    }
+}
+
 void
 PyErr_SetObject(PyObject *exception, PyObject *value)
 {
@@ -66,6 +80,7 @@ PyErr_SetObject(PyObject *exception, PyObject *value)
                      exception);
         return;
     }
+
     Py_XINCREF(value);
     exc_value = tstate->exc_value;
     if (exc_value != NULL && exc_value != Py_None) {
@@ -73,28 +88,21 @@ PyErr_SetObject(PyObject *exception, PyObject *value)
         Py_INCREF(exc_value);
         if (value == NULL || !PyExceptionInstance_Check(value)) {
             /* We must normalize the value right now */
-            PyObject *args, *fixed_value;
+            PyObject *fixed_value;
 
-            /* Issue #23571: PyEval_CallObject() must not be called with an
+            /* Issue #23571: functions must not be called with an
                exception set */
             PyErr_Clear();
 
-            if (value == NULL || value == Py_None)
-                args = PyTuple_New(0);
-            else if (PyTuple_Check(value)) {
-                Py_INCREF(value);
-                args = value;
-            }
-            else
-                args = PyTuple_Pack(1, value);
-            fixed_value = args ?
-                PyEval_CallObject(exception, args) : NULL;
-            Py_XDECREF(args);
+            fixed_value = _PyErr_CreateException(exception, value);
             Py_XDECREF(value);
-            if (fixed_value == NULL)
+            if (fixed_value == NULL) {
                 return;
+            }
+
             value = fixed_value;
         }
+
         /* Avoid reference cycles through the context chain.
            This is O(chain length) but context chains are
            usually very short. Sensitive readers may try
@@ -110,7 +118,8 @@ PyErr_SetObject(PyObject *exception, PyObject *value)
                 o = context;
             }
             PyException_SetContext(value, exc_value);
-        } else {
+        }
+        else {
             Py_DECREF(exc_value);
         }
     }
@@ -258,25 +267,15 @@ PyErr_NormalizeException(PyObject **exc, PyObject **val, PyObject **tb)
            class.
         */
         if (!inclass || !is_subclass) {
-            PyObject *args, *res;
+            PyObject *fixed_value;
 
-            if (value == Py_None)
-                args = PyTuple_New(0);
-            else if (PyTuple_Check(value)) {
-                Py_INCREF(value);
-                args = value;
+            fixed_value = _PyErr_CreateException(type, value);
+            if (fixed_value == NULL) {
+                goto finally;
             }
-            else
-                args = PyTuple_Pack(1, value);
 
-            if (args == NULL)
-                goto finally;
-            res = PyEval_CallObject(type, args);
-            Py_DECREF(args);
-            if (res == NULL)
-                goto finally;
             Py_DECREF(value);
-            value = res;
+            value = fixed_value;
         }
         /* if the class of the instance doesn't exactly match the
            class of the type, believe the instance
@@ -700,18 +699,14 @@ PyObject *PyErr_SetFromWindowsErrWithUnicodeFilename(
 PyObject *
 PyErr_SetImportError(PyObject *msg, PyObject *name, PyObject *path)
 {
-    PyObject *args, *kwargs, *error;
+    PyObject *kwargs, *error;
 
-    if (msg == NULL)
+    if (msg == NULL) {
         return NULL;
-
-    args = PyTuple_New(1);
-    if (args == NULL)
-        return NULL;
+    }
 
     kwargs = PyDict_New();
     if (kwargs == NULL) {
-        Py_DECREF(args);
         return NULL;
     }
 
@@ -723,22 +718,20 @@ PyErr_SetImportError(PyObject *msg, PyObject *name, PyObject *path)
         path = Py_None;
     }
 
-    Py_INCREF(msg);
-    PyTuple_SET_ITEM(args, 0, msg);
-
-    if (PyDict_SetItemString(kwargs, "name", name) < 0)
+    if (PyDict_SetItemString(kwargs, "name", name) < 0) {
         goto done;
-    if (PyDict_SetItemString(kwargs, "path", path) < 0)
+    }
+    if (PyDict_SetItemString(kwargs, "path", path) < 0) {
         goto done;
+    }
 
-    error = PyObject_Call(PyExc_ImportError, args, kwargs);
+    error = _PyObject_FastCallDict(PyExc_ImportError, &msg, 1, kwargs);
     if (error != NULL) {
         PyErr_SetObject((PyObject *)Py_TYPE(error), error);
         Py_DECREF(error);
     }
 
 done:
-    Py_DECREF(args);
     Py_DECREF(kwargs);
     return NULL;
 }
