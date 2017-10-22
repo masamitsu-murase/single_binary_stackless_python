@@ -5294,8 +5294,8 @@ call_function(PyObject ***pp_stack, int oparg
 */
 
 static PyObject*
-_PyFunction_FastCallNoKw(PyObject **args, Py_ssize_t na,
-                         PyCodeObject *co, PyObject *globals)
+_PyFunction_FastCallNoKw(PyCodeObject *co, PyObject **args, Py_ssize_t na,
+                         PyObject *globals)
 {
     STACKLESS_GETARG();
     PyFrameObject *f;
@@ -5354,8 +5354,10 @@ _PyFunction_FastCallNoKw(PyObject **args, Py_ssize_t na,
     return result;
 }
 
+/* Similar to _PyFunction_FastCall() but keywords are passed a (key, value)
+   pairs in stack */
 static PyObject *
-fast_function(PyObject *func, PyObject **stack, int n, int na, int nk)
+fast_function(PyObject *func, PyObject **stack, int n, int nargs, int nk)
 {
     PyCodeObject *co = (PyCodeObject *)PyFunction_GET_CODE(func);
     PyObject *globals = PyFunction_GET_GLOBALS(func);
@@ -5368,14 +5370,26 @@ fast_function(PyObject *func, PyObject **stack, int n, int na, int nk)
     PCALL(PCALL_FUNCTION);
     PCALL(PCALL_FAST_FUNCTION);
 
-    if (argdefs == NULL && co->co_argcount == na &&
-        co->co_kwonlyargcount == 0 && nk == 0 &&
+    if (co->co_kwonlyargcount == 0 && nk == 0 &&
         (co->co_flags & (~PyCF_MASK)) == (CO_OPTIMIZED | CO_NEWLOCALS | CO_NOFREE))
     {
-        STACKLESS_PROPOSE_ALL();
-        result = _PyFunction_FastCallNoKw(stack, na, co, globals);
-        STACKLESS_ASSERT();
-        return result;
+        if (argdefs == NULL && co->co_argcount == nargs) {
+            STACKLESS_PROPOSE_ALL();
+            result = _PyFunction_FastCallNoKw(co, stack, nargs, globals);
+            STACKLESS_ASSERT();
+            return result;
+        }
+        else if (nargs == 0 && argdefs != NULL
+                 && co->co_argcount == Py_SIZE(argdefs)) {
+            /* function called with no arguments, but all parameters have
+               a default value: use default values as arguments .*/
+            stack = &PyTuple_GET_ITEM(argdefs, 0);
+            STACKLESS_PROPOSE_ALL();
+            result = _PyFunction_FastCallNoKw(co, stack, Py_SIZE(argdefs),
+                                            globals);
+            STACKLESS_ASSERT();
+            return result;
+        }
     }
 
     kwdefs = PyFunction_GET_KW_DEFAULTS(func);
@@ -5393,8 +5407,8 @@ fast_function(PyObject *func, PyObject **stack, int n, int na, int nk)
     }
     STACKLESS_PROPOSE_ALL();
     result = _PyEval_EvalCodeWithName((PyObject*)co, globals, (PyObject *)NULL,
-                                    stack, na,
-                                    stack + na, nk,
+                                    stack, nargs,
+                                    stack + nargs, nk,
                                     d, nd, kwdefs,
                                     closure, name, qualname);
     STACKLESS_ASSERT();
@@ -5419,14 +5433,26 @@ _PyFunction_FastCall(PyObject *func, PyObject **args, int nargs, PyObject *kwarg
     /* issue #27128: support for keywords will come later */
     assert(kwargs == NULL);
 
-    if (argdefs == NULL && co->co_argcount == nargs &&
-        co->co_kwonlyargcount == 0 &&
+    if (co->co_kwonlyargcount == 0 && kwargs == NULL &&
         (co->co_flags & (~PyCF_MASK)) == (CO_OPTIMIZED | CO_NEWLOCALS | CO_NOFREE))
     {
-        STACKLESS_PROMOTE_ALL();
-        result = _PyFunction_FastCallNoKw(args, nargs, co, globals);
-        STACKLESS_ASSERT();
-        return result;
+        if (argdefs == NULL && co->co_argcount == nargs) {
+            STACKLESS_PROMOTE_ALL();
+            result = _PyFunction_FastCallNoKw(co, args, nargs, globals);
+            STACKLESS_ASSERT();
+            return result;
+        }
+        else if (nargs == 0 && argdefs != NULL
+                 && co->co_argcount == Py_SIZE(argdefs)) {
+            /* function called with no arguments, but all parameters have
+               a default value: use default values as arguments .*/
+            args = &PyTuple_GET_ITEM(argdefs, 0);
+            STACKLESS_PROMOTE_ALL();
+            result = _PyFunction_FastCallNoKw(co, args, Py_SIZE(argdefs),
+                                            globals);
+            STACKLESS_ASSERT();
+            return result;
+        }
     }
 
     kwdefs = PyFunction_GET_KW_DEFAULTS(func);
