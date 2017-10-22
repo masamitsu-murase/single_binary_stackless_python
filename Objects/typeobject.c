@@ -5912,38 +5912,39 @@ slot_sq_length(PyObject *self)
 static PyObject *
 slot_sq_item(PyObject *self, Py_ssize_t i)
 {
-    PyObject *func, *args = NULL, *ival = NULL, *retval = NULL;
+    PyObject *func, *ival = NULL, *retval = NULL;
     descrgetfunc f;
 
     func = _PyType_LookupId(Py_TYPE(self), &PyId___getitem__);
-    if (func != NULL) {
-        if ((f = Py_TYPE(func)->tp_descr_get) == NULL)
-            Py_INCREF(func);
-        else {
-            func = f(func, self, (PyObject *)(Py_TYPE(self)));
-            if (func == NULL) {
-                return NULL;
-            }
-        }
-        ival = PyLong_FromSsize_t(i);
-        if (ival != NULL) {
-            args = PyTuple_New(1);
-            if (args != NULL) {
-                PyTuple_SET_ITEM(args, 0, ival);
-                retval = PyObject_Call(func, args, NULL);
-                Py_DECREF(args);
-                Py_DECREF(func);
-                return retval;
-            }
-        }
-    }
-    else {
+    if (func == NULL) {
         PyObject *getitem_str = _PyUnicode_FromId(&PyId___getitem__);
         PyErr_SetObject(PyExc_AttributeError, getitem_str);
+        return NULL;
     }
-    Py_XDECREF(args);
-    Py_XDECREF(ival);
-    Py_XDECREF(func);
+
+    f = Py_TYPE(func)->tp_descr_get;
+    if (f == NULL) {
+        Py_INCREF(func);
+    }
+    else {
+        func = f(func, self, (PyObject *)(Py_TYPE(self)));
+        if (func == NULL) {
+            return NULL;
+        }
+    }
+
+    ival = PyLong_FromSsize_t(i);
+    if (ival == NULL) {
+        goto error;
+    }
+
+    retval = _PyObject_FastCall(func, &ival, 1, NULL);
+    Py_DECREF(func);
+    Py_DECREF(ival);
+    return retval;
+
+error:
+    Py_DECREF(func);
     return NULL;
 }
 
@@ -6049,44 +6050,54 @@ SLOT0(slot_nb_absolute, "__abs__")
 static int
 slot_nb_bool(PyObject *self)
 {
-    PyObject *func, *args;
-    int result = -1;
+    PyObject *func, *value;
+    int result;
     int using_len = 0;
     _Py_IDENTIFIER(__bool__);
 
     func = lookup_maybe(self, &PyId___bool__);
     if (func == NULL) {
-        if (PyErr_Occurred())
+        if (PyErr_Occurred()) {
             return -1;
+        }
+
         func = lookup_maybe(self, &PyId___len__);
-        if (func == NULL)
-            return PyErr_Occurred() ? -1 : 1;
+        if (func == NULL) {
+            if (PyErr_Occurred()) {
+                return -1;
+            }
+            return 1;
+        }
         using_len = 1;
     }
-    args = PyTuple_New(0);
-    if (args != NULL) {
-        PyObject *temp = PyObject_Call(func, args, NULL);
-        Py_DECREF(args);
-        if (temp != NULL) {
-            if (using_len) {
-                /* enforced by slot_nb_len */
-                result = PyObject_IsTrue(temp);
-            }
-            else if (PyBool_Check(temp)) {
-                result = PyObject_IsTrue(temp);
-            }
-            else {
-                PyErr_Format(PyExc_TypeError,
-                             "__bool__ should return "
-                             "bool, returned %s",
-                             Py_TYPE(temp)->tp_name);
-                result = -1;
-            }
-            Py_DECREF(temp);
-        }
+
+    value = _PyObject_FastCall(func, NULL, 0, NULL);
+    if (value == NULL) {
+        goto error;
     }
+
+    if (using_len) {
+        /* bool type enforced by slot_nb_len */
+        result = PyObject_IsTrue(value);
+    }
+    else if (PyBool_Check(value)) {
+        result = PyObject_IsTrue(value);
+    }
+    else {
+        PyErr_Format(PyExc_TypeError,
+                     "__bool__ should return "
+                     "bool, returned %s",
+                     Py_TYPE(value)->tp_name);
+        result = -1;
+    }
+
+    Py_DECREF(value);
     Py_DECREF(func);
     return result;
+
+error:
+    Py_DECREF(func);
+    return -1;
 }
 
 
