@@ -1447,7 +1447,7 @@ call_method(PyObject *o, _Py_Identifier *nameid, const char *format, ...)
 {
     STACKLESS_GETARG();
     va_list va;
-    PyObject *args, *func = 0, *retval;
+    PyObject *func = NULL, *retval;
 
     func = lookup_maybe(o, nameid);
     if (func == NULL) {
@@ -1457,24 +1457,29 @@ call_method(PyObject *o, _Py_Identifier *nameid, const char *format, ...)
     }
 
     if (format && *format) {
+        PyObject *args;
+
         va_start(va, format);
         args = Py_VaBuildValue(format, va);
         va_end(va);
+
+        if (args == NULL) {
+            Py_DECREF(func);
+            return NULL;
+        }
+        assert(PyTuple_Check(args));
+
+        STACKLESS_PROMOTE_ALL();
+        retval = PyObject_Call(func, args, NULL);
+        STACKLESS_ASSERT();
+        Py_DECREF(args);
     }
     else {
-        args = PyTuple_New(0);
-    }
-    if (args == NULL) {
-        Py_DECREF(func);
-        return NULL;
+        STACKLESS_PROMOTE_ALL();
+        retval = _PyObject_FastCall(func, NULL, 0, NULL);
+        STACKLESS_ASSERT();
     }
 
-    assert(PyTuple_Check(args));
-    STACKLESS_PROMOTE_ALL();
-    retval = PyObject_Call(func, args, NULL);
-    STACKLESS_ASSERT();
-
-    Py_DECREF(args);
     Py_DECREF(func);
 
     return retval;
@@ -1487,7 +1492,7 @@ call_maybe(PyObject *o, _Py_Identifier *nameid, const char *format, ...)
 {
     STACKLESS_GETARG();
     va_list va;
-    PyObject *args, *func = 0, *retval;
+    PyObject *func = NULL, *retval;
 
     func = lookup_maybe(o, nameid);
     if (func == NULL) {
@@ -1497,24 +1502,29 @@ call_maybe(PyObject *o, _Py_Identifier *nameid, const char *format, ...)
     }
 
     if (format && *format) {
+        PyObject *args;
+
         va_start(va, format);
         args = Py_VaBuildValue(format, va);
         va_end(va);
+
+        if (args == NULL) {
+            Py_DECREF(func);
+            return NULL;
+        }
+        assert(PyTuple_Check(args));
+
+        STACKLESS_PROMOTE_ALL();
+        retval = PyObject_Call(func, args, NULL);
+        STACKLESS_ASSERT();
+        Py_DECREF(args);
     }
     else {
-        args = PyTuple_New(0);
-    }
-    if (args == NULL) {
-        Py_DECREF(func);
-        return NULL;
+        STACKLESS_PROMOTE_ALL();
+        retval = _PyObject_FastCall(func, NULL, 0, NULL);
+        STACKLESS_ASSERT();
     }
 
-    assert(PyTuple_Check(args));
-    STACKLESS_PROMOTE_ALL();
-    retval = PyObject_Call(func, args, NULL);
-    STACKLESS_ASSERT();
-
-    Py_DECREF(args);
     Py_DECREF(func);
 
     return retval;
