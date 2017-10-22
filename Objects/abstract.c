@@ -33,8 +33,10 @@ PyObject_Type(PyObject *o)
 {
     PyObject *v;
 
-    if (o == NULL)
+    if (o == NULL) {
         return null_error();
+    }
+
     v = (PyObject *)o->ob_type;
     Py_INCREF(v);
     return v;
@@ -138,8 +140,9 @@ PyObject_GetItem(PyObject *o, PyObject *key)
 {
     PyMappingMethods *m;
 
-    if (o == NULL || key == NULL)
+    if (o == NULL || key == NULL) {
         return null_error();
+    }
 
     m = o->ob_type->tp_as_mapping;
     if (m && m->mp_subscript) {
@@ -1126,8 +1129,10 @@ PyNumber_Negative(PyObject *o)
 {
     PyNumberMethods *m;
 
-    if (o == NULL)
+    if (o == NULL) {
         return null_error();
+    }
+
     m = o->ob_type->tp_as_number;
     if (m && m->nb_negative)
         return (*m->nb_negative)(o);
@@ -1140,8 +1145,10 @@ PyNumber_Positive(PyObject *o)
 {
     PyNumberMethods *m;
 
-    if (o == NULL)
+    if (o == NULL) {
         return null_error();
+    }
+
     m = o->ob_type->tp_as_number;
     if (m && m->nb_positive)
         return (*m->nb_positive)(o);
@@ -1154,8 +1161,10 @@ PyNumber_Invert(PyObject *o)
 {
     PyNumberMethods *m;
 
-    if (o == NULL)
+    if (o == NULL) {
         return null_error();
+    }
+
     m = o->ob_type->tp_as_number;
     if (m && m->nb_invert)
         return (*m->nb_invert)(o);
@@ -1168,8 +1177,10 @@ PyNumber_Absolute(PyObject *o)
 {
     PyNumberMethods *m;
 
-    if (o == NULL)
+    if (o == NULL) {
         return null_error();
+    }
+
     m = o->ob_type->tp_as_number;
     if (m && m->nb_absolute)
         return m->nb_absolute(o);
@@ -1185,8 +1196,10 @@ PyObject *
 PyNumber_Index(PyObject *item)
 {
     PyObject *result = NULL;
-    if (item == NULL)
+    if (item == NULL) {
         return null_error();
+    }
+
     if (PyLong_Check(item)) {
         Py_INCREF(item);
         return item;
@@ -1274,8 +1287,10 @@ PyNumber_Long(PyObject *o)
     Py_buffer view;
     _Py_IDENTIFIER(__trunc__);
 
-    if (o == NULL)
+    if (o == NULL) {
         return null_error();
+    }
+
     if (PyLong_CheckExact(o)) {
         Py_INCREF(o);
         return o;
@@ -1350,8 +1365,10 @@ PyNumber_Float(PyObject *o)
 {
     PyNumberMethods *m;
 
-    if (o == NULL)
+    if (o == NULL) {
         return null_error();
+    }
+
     if (PyFloat_CheckExact(o)) {
         Py_INCREF(o);
         return o;
@@ -1452,8 +1469,9 @@ PySequence_Concat(PyObject *s, PyObject *o)
 {
     PySequenceMethods *m;
 
-    if (s == NULL || o == NULL)
+    if (s == NULL || o == NULL) {
         return null_error();
+    }
 
     m = s->ob_type->tp_as_sequence;
     if (m && m->sq_concat)
@@ -1476,8 +1494,9 @@ PySequence_Repeat(PyObject *o, Py_ssize_t count)
 {
     PySequenceMethods *m;
 
-    if (o == NULL)
+    if (o == NULL) {
         return null_error();
+    }
 
     m = o->ob_type->tp_as_sequence;
     if (m && m->sq_repeat)
@@ -1505,8 +1524,9 @@ PySequence_InPlaceConcat(PyObject *s, PyObject *o)
 {
     PySequenceMethods *m;
 
-    if (s == NULL || o == NULL)
+    if (s == NULL || o == NULL) {
         return null_error();
+    }
 
     m = s->ob_type->tp_as_sequence;
     if (m && m->sq_inplace_concat)
@@ -1529,8 +1549,9 @@ PySequence_InPlaceRepeat(PyObject *o, Py_ssize_t count)
 {
     PySequenceMethods *m;
 
-    if (o == NULL)
+    if (o == NULL) {
         return null_error();
+    }
 
     m = o->ob_type->tp_as_sequence;
     if (m && m->sq_inplace_repeat)
@@ -1558,8 +1579,9 @@ PySequence_GetItem(PyObject *s, Py_ssize_t i)
 {
     PySequenceMethods *m;
 
-    if (s == NULL)
+    if (s == NULL) {
         return null_error();
+    }
 
     m = s->ob_type->tp_as_sequence;
     if (m && m->sq_item) {
@@ -1584,7 +1606,9 @@ PySequence_GetSlice(PyObject *s, Py_ssize_t i1, Py_ssize_t i2)
 {
     PyMappingMethods *mp;
 
-    if (!s) return null_error();
+    if (!s) {
+        return null_error();
+    }
 
     mp = s->ob_type->tp_as_mapping;
     if (mp && mp->mp_subscript) {
@@ -1711,8 +1735,9 @@ PySequence_Tuple(PyObject *v)
     PyObject *result = NULL;
     Py_ssize_t j;
 
-    if (v == NULL)
+    if (v == NULL) {
         return null_error();
+    }
 
     /* Special-case the common tuple and list cases, for efficiency. */
     if (PyTuple_CheckExact(v)) {
@@ -1792,8 +1817,9 @@ PySequence_List(PyObject *v)
     PyObject *result;  /* result list */
     PyObject *rv;          /* return value from PyList_Extend */
 
-    if (v == NULL)
+    if (v == NULL) {
         return null_error();
+    }
 
     result = PyList_New(0);
     if (result == NULL)
@@ -1813,8 +1839,9 @@ PySequence_Fast(PyObject *v, const char *m)
 {
     PyObject *it;
 
-    if (v == NULL)
+    if (v == NULL) {
         return null_error();
+    }
 
     if (PyList_CheckExact(v) || PyTuple_CheckExact(v)) {
         Py_INCREF(v);
@@ -1997,8 +2024,9 @@ PyMapping_GetItemString(PyObject *o, const char *key)
 {
     PyObject *okey, *r;
 
-    if (key == NULL)
+    if (key == NULL) {
         return null_error();
+    }
 
     okey = PyUnicode_FromString(key);
     if (okey == NULL)
@@ -2305,8 +2333,7 @@ call_function_tail(PyObject *callable, PyObject *args)
     STACKLESS_GETARG();
     PyObject *result;
 
-    if (args == NULL)
-        return NULL;
+    assert(args != NULL);
 
     STACKLESS_PROMOTE_ALL();
     if (!PyTuple_Check(args)) {
@@ -2317,7 +2344,6 @@ call_function_tail(PyObject *callable, PyObject *args)
     }
     STACKLESS_ASSERT();
 
-    Py_DECREF(args);
     return result;
 }
 
@@ -2327,22 +2353,26 @@ PyObject_CallFunction(PyObject *callable, const char *format, ...)
     /* Maybe need to pass this through.. need to check that.
       STACKLESS_GETARG(); */
     va_list va;
-    PyObject *args;
+    PyObject *args, *result;
 
-    if (callable == NULL)
+    if (callable == NULL) {
         return null_error();
-
-    if (format && *format) {
-        va_start(va, format);
-        args = Py_VaBuildValue(format, va);
-        va_end(va);
     }
-    else
-        args = PyTuple_New(0);
-    if (args == NULL)
-        return NULL;
 
-    return call_function_tail(callable, args);
+    if (!format || !*format) {
+        return _PyObject_FastCall(callable, NULL, 0, NULL);
+    }
+
+    va_start(va, format);
+    args = Py_VaBuildValue(format, va);
+    va_end(va);
+    if (args == NULL) {
+        return NULL;
+    }
+
+    result = call_function_tail(callable, args);
+    Py_DECREF(args);
+    return result;
 }
 
 PyObject *
@@ -2351,49 +2381,57 @@ _PyObject_CallFunction_SizeT(PyObject *callable, const char *format, ...)
     /* Maybe need to pass this through.. need to check that.
       STACKLESS_GETARG(); */
     va_list va;
-    PyObject *args;
+    PyObject *args, *result;
 
-    if (callable == NULL)
+    if (callable == NULL) {
         return null_error();
-
-    if (format && *format) {
-        va_start(va, format);
-        args = _Py_VaBuildValue_SizeT(format, va);
-        va_end(va);
     }
-    else
-        args = PyTuple_New(0);
 
-    return call_function_tail(callable, args);
+    if (!format || !*format) {
+        return _PyObject_FastCall(callable, NULL, 0, NULL);
+    }
+
+    va_start(va, format);
+    args = _Py_VaBuildValue_SizeT(format, va);
+    va_end(va);
+    if (args == NULL) {
+        return NULL;
+    }
+
+    result = call_function_tail(callable, args);
+    Py_DECREF(args);
+    return result;
 }
 
 static PyObject*
 callmethod(PyObject* func, const char *format, va_list va, int is_size_t)
 {
-    PyObject *retval = NULL;
-    PyObject *args;
+    PyObject *args, *result;
+
+    assert(func != NULL);
 
     if (!PyCallable_Check(func)) {
         type_error("attribute of type '%.200s' is not callable", func);
-        goto exit;
+        return NULL;
     }
 
-    if (format && *format) {
-        if (is_size_t)
-            args = _Py_VaBuildValue_SizeT(format, va);
-        else
-            args = Py_VaBuildValue(format, va);
+    if (!format || !*format) {
+        return _PyObject_FastCall(func, NULL, 0, NULL);
     }
-    else
-        args = PyTuple_New(0);
 
-    retval = call_function_tail(func, args);
+    if (is_size_t) {
+        args = _Py_VaBuildValue_SizeT(format, va);
+    }
+    else {
+        args = Py_VaBuildValue(format, va);
+    }
+    if (args == NULL) {
+        return NULL;
+    }
 
-  exit:
-    /* args gets consumed in call_function_tail */
-    Py_XDECREF(func);
-
-    return retval;
+    result = call_function_tail(func, args);
+    Py_DECREF(args);
+    return result;
 }
 
 PyObject *
@@ -2403,8 +2441,9 @@ PyObject_CallMethod(PyObject *o, const char *name, const char *format, ...)
     PyObject *func = NULL;
     PyObject *retval = NULL;
 
-    if (o == NULL || name == NULL)
+    if (o == NULL || name == NULL) {
         return null_error();
+    }
 
     func = PyObject_GetAttrString(o, name);
     if (func == NULL)
@@ -2413,6 +2452,7 @@ PyObject_CallMethod(PyObject *o, const char *name, const char *format, ...)
     va_start(va, format);
     retval = callmethod(func, format, va, 0);
     va_end(va);
+    Py_DECREF(func);
     return retval;
 }
 
@@ -2424,8 +2464,9 @@ _PyObject_CallMethodId(PyObject *o, _Py_Identifier *name,
     PyObject *func = NULL;
     PyObject *retval = NULL;
 
-    if (o == NULL || name == NULL)
+    if (o == NULL || name == NULL) {
         return null_error();
+    }
 
     func = _PyObject_GetAttrId(o, name);
     if (func == NULL)
@@ -2434,6 +2475,7 @@ _PyObject_CallMethodId(PyObject *o, _Py_Identifier *name,
     va_start(va, format);
     retval = callmethod(func, format, va, 0);
     va_end(va);
+    Py_DECREF(func);
     return retval;
 }
 
@@ -2445,8 +2487,9 @@ _PyObject_CallMethod_SizeT(PyObject *o, const char *name,
     PyObject *func = NULL;
     PyObject *retval;
 
-    if (o == NULL || name == NULL)
+    if (o == NULL || name == NULL) {
         return null_error();
+    }
 
     func = PyObject_GetAttrString(o, name);
     if (func == NULL)
@@ -2454,6 +2497,7 @@ _PyObject_CallMethod_SizeT(PyObject *o, const char *name,
     va_start(va, format);
     retval = callmethod(func, format, va, 1);
     va_end(va);
+    Py_DECREF(func);
     return retval;
 }
 
@@ -2465,8 +2509,9 @@ _PyObject_CallMethodId_SizeT(PyObject *o, _Py_Identifier *name,
     PyObject *func = NULL;
     PyObject *retval;
 
-    if (o == NULL || name == NULL)
+    if (o == NULL || name == NULL) {
         return null_error();
+    }
 
     func = _PyObject_GetAttrId(o, name);
     if (func == NULL) {
@@ -2475,6 +2520,7 @@ _PyObject_CallMethodId_SizeT(PyObject *o, _Py_Identifier *name,
     va_start(va, format);
     retval = callmethod(func, format, va, 1);
     va_end(va);
+    Py_DECREF(func);
     return retval;
 }
 
@@ -2507,8 +2553,9 @@ PyObject_CallMethodObjArgs(PyObject *callable, PyObject *name, ...)
     PyObject *args, *tmp;
     va_list vargs;
 
-    if (callable == NULL || name == NULL)
+    if (callable == NULL || name == NULL) {
         return null_error();
+    }
 
     callable = PyObject_GetAttr(callable, name);
     if (callable == NULL)
@@ -2538,8 +2585,9 @@ _PyObject_CallMethodIdObjArgs(PyObject *callable,
     PyObject *args, *tmp;
     va_list vargs;
 
-    if (callable == NULL || name == NULL)
+    if (callable == NULL || name == NULL) {
         return null_error();
+    }
 
     callable = _PyObject_GetAttrId(callable, name);
     if (callable == NULL)
@@ -2567,8 +2615,9 @@ PyObject_CallFunctionObjArgs(PyObject *callable, ...)
     PyObject *args, *tmp;
     va_list vargs;
 
-    if (callable == NULL)
+    if (callable == NULL) {
         return null_error();
+    }
 
     /* count the args */
     va_start(vargs, callable);
