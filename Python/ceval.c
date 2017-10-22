@@ -5073,33 +5073,25 @@ PyEval_CallObjectWithKeywords(PyObject *func, PyObject *args, PyObject *kwargs)
 #endif
 
     if (args == NULL) {
-        if (kwargs == NULL) {
-            STACKLESS_PROMOTE_ALL();
-            result = _PyObject_CallNoArg(func);
-            STACKLESS_ASSERT();
-            return result;
-        }
-
-        args = PyTuple_New(0);
-        if (args == NULL)
-            return NULL;
+        STACKLESS_PROMOTE_ALL();
+        result = _PyObject_FastCallDict(func, NULL, 0, kwargs);
+        STACKLESS_ASSERT();
+        return result;
     }
-    else if (!PyTuple_Check(args)) {
+
+    if (!PyTuple_Check(args)) {
         PyErr_SetString(PyExc_TypeError,
                         "argument list must be a tuple");
         return NULL;
-    }
-    else {
-        Py_INCREF(args);
     }
 
     if (kwargs != NULL && !PyDict_Check(kwargs)) {
         PyErr_SetString(PyExc_TypeError,
                         "keyword list must be a dictionary");
-        Py_DECREF(args);
         return NULL;
     }
 
+    Py_INCREF(args);
     STACKLESS_PROMOTE_ALL();
     result = PyObject_Call(func, args, kwargs);
     STACKLESS_ASSERT();
