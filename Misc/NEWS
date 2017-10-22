@@ -46,6 +46,15 @@ Core and Builtins
 Library
 -------
 
+- A new version of typing.py from https://github.com/python/typing:
+  - Collection (only for 3.6) (Issue #27598)
+  - Add FrozenSet to __all__ (upstream #261)
+  - fix crash in _get_type_vars() (upstream #259)
+  - Remove the dict constraint in ForwardRef._eval_type (upstream #252)
+
+- Issue #27832: Make ``_normalize`` parameter to ``Fraction`` constuctor
+  keyword-only, so that ``Fraction(2, 3, 4)`` now raises ``TypeError``.
+
 - Issue #27539: Fix unnormalised ``Fraction.__pow__`` result in the case
   of negative exponent and negative base.
 
@@ -59,9 +68,6 @@ Library
 
 - Issue #9998: On Linux, ctypes.util.find_library now looks in LD_LIBRARY_PATH
   for shared libraries.
-
-- Issue #12713: Allowed abbreviation of subcommands by end-users for users of
-  argparse.
 
 Tests
 -----
@@ -122,6 +128,9 @@ Core and Builtins
 
 Library
 -------
+
+- Issue 27598: Add Collections to collections.abc.
+  Patch by Ivan Levkivskyi, docs by Neil Girdhar.
 
 - Issue #25958: Support "anti-registration" of special methods from
   various ABCs, like __hash__, __iter__ or __len__.  All these (and
