@@ -2195,7 +2195,7 @@ _Py_CheckFunctionResult(PyObject *func, PyObject *result, const char *where)
 }
 
 PyObject *
-PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw)
+PyObject_Call(PyObject *func, PyObject *args, PyObject *kwargs)
 {
     STACKLESS_GETARG();
     ternaryfunc call;
@@ -2205,6 +2205,8 @@ PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw)
        because it may clear it (directly or indirectly) and so the
        caller loses its exception */
     assert(!PyErr_Occurred());
+    assert(PyTuple_Check(args));
+    assert(kwargs == NULL || PyDict_Check(kwargs));
 
     call = func->ob_type->tp_call;
     if (call == NULL) {
@@ -2224,7 +2226,8 @@ PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw)
     if (Py_EnterRecursiveCall(" while calling a Python object"))
         return NULL;
 
-    result = (STACKLESS_PROMOTE(func), (*call)(func, arg, kw) );
+    STACKLESS_PROMOTE(func);
+    result = (*call)(func, args, kwargs);
     STACKLESS_ASSERT();
 
 #ifdef STACKLESS

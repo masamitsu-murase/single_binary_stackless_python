@@ -5062,7 +5062,7 @@ PyEval_MergeCompilerFlags(PyCompilerFlags *cf)
    The arg must be a tuple or NULL.  The kw must be a dict or NULL. */
 
 PyObject *
-PyEval_CallObjectWithKeywords(PyObject *func, PyObject *arg, PyObject *kw)
+PyEval_CallObjectWithKeywords(PyObject *func, PyObject *args, PyObject *kwargs)
 {
     STACKLESS_GETARG();
     PyObject *result;
@@ -5074,37 +5074,38 @@ PyEval_CallObjectWithKeywords(PyObject *func, PyObject *arg, PyObject *kw)
     assert(!PyErr_Occurred());
 #endif
 
-    if (arg == NULL) {
-        if (kw == NULL) {
+    if (args == NULL) {
+        if (kwargs == NULL) {
             STACKLESS_PROMOTE_ALL();
             result = _PyObject_FastCall(func, NULL, 0, 0);
             STACKLESS_ASSERT();
             return result;
         }
 
-        arg = PyTuple_New(0);
-        if (arg == NULL)
+        args = PyTuple_New(0);
+        if (args == NULL)
             return NULL;
     }
-    else if (!PyTuple_Check(arg)) {
+    else if (!PyTuple_Check(args)) {
         PyErr_SetString(PyExc_TypeError,
                         "argument list must be a tuple");
         return NULL;
     }
-    else
-        Py_INCREF(arg);
+    else {
+        Py_INCREF(args);
+    }
 
-    if (kw != NULL && !PyDict_Check(kw)) {
+    if (kwargs != NULL && !PyDict_Check(kwargs)) {
         PyErr_SetString(PyExc_TypeError,
                         "keyword list must be a dictionary");
-        Py_DECREF(arg);
+        Py_DECREF(args);
         return NULL;
     }
 
     STACKLESS_PROMOTE_ALL();
-    result = PyObject_Call(func, arg, kw);
+    result = PyObject_Call(func, args, kwargs);
     STACKLESS_ASSERT();
-    Py_DECREF(arg);
+    Py_DECREF(args);
 
     return result;
 }
