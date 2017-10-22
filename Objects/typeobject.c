@@ -1448,25 +1448,26 @@ call_method(PyObject *o, _Py_Identifier *nameid, const char *format, ...)
     STACKLESS_GETARG();
     va_list va;
     PyObject *args, *func = 0, *retval;
-    va_start(va, format);
 
     func = lookup_maybe(o, nameid);
     if (func == NULL) {
-        va_end(va);
         if (!PyErr_Occurred())
             PyErr_SetObject(PyExc_AttributeError, nameid->object);
         return NULL;
     }
 
-    if (format && *format)
+    if (format && *format) {
+        va_start(va, format);
         args = Py_VaBuildValue(format, va);
-    else
+        va_end(va);
+    }
+    else {
         args = PyTuple_New(0);
-
-    va_end(va);
-
-    if (args == NULL)
+    }
+    if (args == NULL) {
+        Py_DECREF(func);
         return NULL;
+    }
 
     assert(PyTuple_Check(args));
     STACKLESS_PROMOTE_ALL();
@@ -1487,25 +1488,26 @@ call_maybe(PyObject *o, _Py_Identifier *nameid, const char *format, ...)
     STACKLESS_GETARG();
     va_list va;
     PyObject *args, *func = 0, *retval;
-    va_start(va, format);
 
     func = lookup_maybe(o, nameid);
     if (func == NULL) {
-        va_end(va);
         if (!PyErr_Occurred())
             Py_RETURN_NOTIMPLEMENTED;
         return NULL;
     }
 
-    if (format && *format)
+    if (format && *format) {
+        va_start(va, format);
         args = Py_VaBuildValue(format, va);
-    else
+        va_end(va);
+    }
+    else {
         args = PyTuple_New(0);
-
-    va_end(va);
-
-    if (args == NULL)
+    }
+    if (args == NULL) {
+        Py_DECREF(func);
         return NULL;
+    }
 
     assert(PyTuple_Check(args));
     STACKLESS_PROMOTE_ALL();
