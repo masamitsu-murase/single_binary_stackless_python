@@ -215,7 +215,7 @@ methoddescr_call(PyMethodDescrObject *descr, PyObject *args, PyObject *kwds)
 {
     STACKLESS_GETARG();
     Py_ssize_t argc;
-    PyObject *self, *func, *result;
+    PyObject *self, *func, *result, **stack;
 
     /* Make sure that the first argument is acceptable as 'self' */
     assert(PyTuple_Check(args));
@@ -244,15 +244,10 @@ methoddescr_call(PyMethodDescrObject *descr, PyObject *args, PyObject *kwds)
     func = PyCFunction_NewEx(descr->d_method, self, NULL);
     if (func == NULL)
         return NULL;
-    args = PyTuple_GetSlice(args, 1, argc);
-    if (args == NULL) {
-        Py_DECREF(func);
-        return NULL;
-    }
+    stack = &PyTuple_GET_ITEM(args, 1);
     STACKLESS_PROMOTE_ALL();
-    result = PyEval_CallObjectWithKeywords(func, args, kwds);
+    result = _PyObject_FastCallDict(func, stack, argc - 1, kwds);
     STACKLESS_ASSERT();
-    Py_DECREF(args);
     Py_DECREF(func);
     return result;
 }
@@ -263,7 +258,7 @@ classmethoddescr_call(PyMethodDescrObject *descr, PyObject *args,
 {
     STACKLESS_GETARG();
     Py_ssize_t argc;
-    PyObject *self, *func, *result;
+    PyObject *self, *func, *result, **stack;
 
     /* Make sure that the first argument is acceptable as 'self' */
     assert(PyTuple_Check(args));
@@ -300,16 +295,11 @@ classmethoddescr_call(PyMethodDescrObject *descr, PyObject *args,
     func = PyCFunction_NewEx(descr->d_method, self, NULL);
     if (func == NULL)
         return NULL;
-    args = PyTuple_GetSlice(args, 1, argc);
-    if (args == NULL) {
-        Py_DECREF(func);
-        return NULL;
-    }
+    stack = &PyTuple_GET_ITEM(args, 1);
     STACKLESS_PROMOTE_ALL();
-    result = PyEval_CallObjectWithKeywords(func, args, kwds);
+    result = _PyObject_FastCallDict(func, stack, argc - 1, kwds);
     STACKLESS_ASSERT();
     Py_DECREF(func);
-    Py_DECREF(args);
     return result;
 }
 
@@ -318,7 +308,7 @@ wrapperdescr_call(PyWrapperDescrObject *descr, PyObject *args, PyObject *kwds)
 {
     STACKLESS_GETARG();
     Py_ssize_t argc;
-    PyObject *self, *func, *result;
+    PyObject *self, *func, *result, **stack;
 
     /* Make sure that the first argument is acceptable as 'self' */
     assert(PyTuple_Check(args));
@@ -347,15 +337,11 @@ wrapperdescr_call(PyWrapperDescrObject *descr, PyObject *args, PyObject *kwds)
     func = PyWrapper_New((PyObject *)descr, self);
     if (func == NULL)
         return NULL;
-    args = PyTuple_GetSlice(args, 1, argc);
-    if (args == NULL) {
-        Py_DECREF(func);
-        return NULL;
-    }
+
+    stack = &PyTuple_GET_ITEM(args, 1);
     STACKLESS_PROMOTE_ALL();
-    result = PyEval_CallObjectWithKeywords(func, args, kwds);
+    result = _PyObject_FastCallDict(func, stack, argc - 1, kwds);
     STACKLESS_ASSERT();
-    Py_DECREF(args);
     Py_DECREF(func);
     return result;
 }
