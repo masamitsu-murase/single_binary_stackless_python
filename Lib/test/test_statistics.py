@@ -1041,11 +1041,11 @@ class Test_Product(NumericTestCase):
         self.assertEqual(mant, F(10))
         self.assertTrue(isinstance(mant, F))
 
-    @unittest.expectedFailure
     def test_decimal(self):
         D = Decimal
         data = [D('24.5'), D('17.6'), D('0.025'), D('1.3')]
-        assert False
+        expected = D('14.014000')
+        self.assertEqual(statistics._product(data), (0, expected))
 
     def test_mixed_decimal_float(self):
         # Test that mixed Decimal and float raises.
@@ -1094,13 +1094,6 @@ class Test_Nth_Root(NumericTestCase):
             for n in range(2, 9):
                 with self.subTest(n=n, inf=INF):
                     self.assertEqual(self.nroot(INF, n), INF)
-
-    def testNInf(self):
-        # Test that the root of -inf is -inf for odd n.
-        for NINF in (float('-inf'), decimal.Decimal('-inf')):
-            for n in range(3, 11, 2):
-                with self.subTest(n=n, inf=NINF):
-                    self.assertEqual(self.nroot(NINF, n), NINF)
 
     # FIXME: need to check Decimal zeroes too.
     def test_zero(self):
@@ -1157,13 +1150,15 @@ class Test_Nth_Root(NumericTestCase):
             with self.subTest(x=x):
                 self.assertRaises(TypeError, self.nroot, x, 3)
 
-    def testNegativeEvenPower(self):
-        # Test negative x with even n raises correctly.
+    def testNegativeError(self):
+        # Test negative x raises correctly.
         x = random.uniform(-20.0, -0.1)
         assert x < 0
-        for n in range(2, 9, 2):
+        for n in range(3, 7):
             with self.subTest(x=x, n=n):
                 self.assertRaises(ValueError, self.nroot, x, n)
+        # And Decimal.
+        self.assertRaises(ValueError, self.nroot, Decimal(-27), 3)
 
     # --- Test that nroot is never worse than calling math.pow() ---
 
@@ -1216,24 +1211,10 @@ class Test_Nth_Root(NumericTestCase):
                     x = i**n
                     self.assertEqual(self.nroot(x, n), i)
 
-    def testExactPowersNegatives(self):
-        # Test that small negative integer powers are calculated exactly.
-        for i in range(-1, -51, -1):
-            for n in range(3, 16, 2):
-                if (i, n) == (-35, 13):
-                    # See testExpectedFailure35p13
-                    continue
-                with self.subTest(i=i, n=n):
-                    x = i**n
-                    assert sign(x) == -1
-                    self.assertEqual(self.nroot(x, n), i)
-
     def testExpectedFailure35p13(self):
         # Test the expected failure 35**13 is almost exact.
         x = 35**13
         err = abs(self.nroot(x, 13) - 35)
-        self.assertLessEqual(err, 0.000000001)
-        err = abs(self.nroot(-x, 13) + 35)
         self.assertLessEqual(err, 0.000000001)
 
     def testOne(self):

@@ -11,6 +11,7 @@ Calculating averages
 Function            Description
 ==================  =============================================
 mean                Arithmetic mean (average) of data.
+geometric_mean      Geometric mean of data.
 harmonic_mean       Harmonic mean of data.
 median              Median (middle value) of data.
 median_low          Low median of data.
@@ -79,7 +80,7 @@ A single exception is defined: StatisticsError is a subclass of ValueError.
 __all__ = [ 'StatisticsError',
             'pstdev', 'pvariance', 'stdev', 'variance',
             'median',  'median_low', 'median_high', 'median_grouped',
-            'mean', 'mode', 'harmonic_mean',
+            'mean', 'mode', 'geometric_mean', 'harmonic_mean',
           ]
 
 import collections
@@ -334,10 +335,7 @@ class _nroot_NS:
         """Handle nth root of Reals, treated as a float."""
         assert isinstance(n, int) and n > 1
         if x < 0:
-            if n%2 == 0:
-                raise ValueError('domain error: even root of negative number')
-            else:
-                return -_nroot_NS.nroot(-x, n)
+            raise ValueError('domain error: root of negative number')
         elif x == 0:
             return math.copysign(0.0, x)
         elif x > 0:
@@ -432,6 +430,8 @@ class _nroot_NS:
             else:
                 # Preserve the input NAN.
                 return x
+        if x < 0:
+            raise ValueError('domain error: root of negative number')
         if x.is_infinite():
             return x
         # FIXME this hasn't had the extensive testing of the float

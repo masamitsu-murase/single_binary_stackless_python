@@ -2582,11 +2582,11 @@ objargs_mkstack(PyObject **small_stack, Py_ssize_t small_stack_size,
     *p_nargs = n;
 
     /* Copy arguments */
-    if (small_stack_size <= n) {
+    if (n <= small_stack_size) {
         stack = small_stack;
     }
     else {
-        stack = PyMem_Malloc(n * sizeof(PyObject**));
+        stack = PyMem_Malloc(n * sizeof(stack[0]));
         if (stack == NULL) {
             PyErr_NoMemory();
             return NULL;
