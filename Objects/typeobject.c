@@ -5953,7 +5953,7 @@ slot_sq_ass_item(PyObject *self, Py_ssize_t index, PyObject *value)
 static int
 slot_sq_contains(PyObject *self, PyObject *value)
 {
-    PyObject *func, *res, *args;
+    PyObject *func, *res;
     int result = -1;
     _Py_IDENTIFIER(__contains__);
 
@@ -5966,13 +5966,7 @@ slot_sq_contains(PyObject *self, PyObject *value)
         return -1;
     }
     if (func != NULL) {
-        args = PyTuple_Pack(1, value);
-        if (args == NULL)
-            res = NULL;
-        else {
-            res = PyObject_Call(func, args, NULL);
-            Py_DECREF(args);
-        }
+        res = _PyObject_FastCall(func, &value, 1, NULL);
         Py_DECREF(func);
         if (res != NULL) {
             result = PyObject_IsTrue(res);
@@ -6373,22 +6367,16 @@ static PyObject *
 slot_tp_richcompare(PyObject *self, PyObject *other, int op)
 {
     STACKLESS_GETARG();
-    PyObject *func, *args, *res;
+    PyObject *func, *res;
 
     func = lookup_method(self, &name_op[op]);
     if (func == NULL) {
         PyErr_Clear();
         Py_RETURN_NOTIMPLEMENTED;
     }
-    args = PyTuple_Pack(1, other);
-    if (args == NULL)
-        res = NULL;
-    else {
-        STACKLESS_PROMOTE_ALL();
-        res = PyObject_Call(func, args, NULL);
-        STACKLESS_ASSERT();
-        Py_DECREF(args);
-    }
+    STACKLESS_PROMOTE_ALL();
+    res = _PyObject_FastCall(func, &other, 1, NULL);
+    STACKLESS_ASSERT();
     Py_DECREF(func);
     return res;
 }
