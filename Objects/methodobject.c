@@ -153,8 +153,8 @@ PyCFunction_Call(PyObject *func, PyObject *args, PyObject *kwds)
 }
 
 PyObject *
-_PyCFunction_FastCall(PyObject *func_obj, PyObject **args, int nargs,
-                      PyObject *kwargs)
+_PyCFunction_FastCallDict(PyObject *func_obj, PyObject **args, int nargs,
+                          PyObject *kwargs)
 {
     STACKLESS_GETARG();
     PyCFunctionObject* func = (PyCFunctionObject*)func_obj;
@@ -163,7 +163,7 @@ _PyCFunction_FastCall(PyObject *func_obj, PyObject **args, int nargs,
     PyObject *result;
     int flags;
 
-    /* _PyCFunction_FastCall() must not be called with an exception set,
+    /* _PyCFunction_FastCallDict() must not be called with an exception set,
        because it may clear it (directly or indirectly) and so the
        caller loses its exception */
     assert(!PyErr_Occurred());

@@ -2270,7 +2270,8 @@ _PyStack_AsTuple(PyObject **stack, Py_ssize_t nargs)
 }
 
 PyObject *
-_PyObject_FastCallDict(PyObject *func, PyObject **args, int nargs, PyObject *kwargs)
+_PyObject_FastCallDict(PyObject *func, PyObject **args, int nargs,
+                       PyObject *kwargs)
 {
     STACKLESS_GETARG();
     ternaryfunc call;
@@ -2284,9 +2285,7 @@ _PyObject_FastCallDict(PyObject *func, PyObject **args, int nargs, PyObject *kwa
     assert(func != NULL);
     assert(nargs >= 0);
     assert(nargs == 0 || args != NULL);
-    /* issue #27128: support for keywords will come later:
-       _PyFunction_FastCall() doesn't support keyword arguments yet */
-    assert(kwargs == NULL);
+    assert(kwargs == NULL || PyDict_Check(kwargs));
 
 #ifdef STACKLESS
     /* only do recursion adjustment if there is no danger
@@ -2302,11 +2301,11 @@ _PyObject_FastCallDict(PyObject *func, PyObject **args, int nargs, PyObject *kwa
 
     if (PyFunction_Check(func)) {
         STACKLESS_PROMOTE_ALL();
-        result = _PyFunction_FastCall(func, args, nargs, kwargs);
+        result = _PyFunction_FastCallDict(func, args, nargs, kwargs);
     }
     else if (PyCFunction_Check(func)) {
         STACKLESS_PROMOTE_ALL();
-        result = _PyCFunction_FastCall(func, args, nargs, kwargs);
+        result = _PyCFunction_FastCallDict(func, args, nargs, kwargs);
     }
     else {
         PyObject *tuple;

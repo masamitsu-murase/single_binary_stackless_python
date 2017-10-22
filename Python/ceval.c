@@ -5416,26 +5416,30 @@ fast_function(PyObject *func, PyObject **stack, int n, int nargs, int nk)
 }
 
 PyObject *
-_PyFunction_FastCall(PyObject *func, PyObject **args, int nargs, PyObject *kwargs)
+_PyFunction_FastCallDict(PyObject *func, PyObject **args, int nargs,
+                         PyObject *kwargs)
 {
     STACKLESS_GETARG();
     PyCodeObject *co = (PyCodeObject *)PyFunction_GET_CODE(func);
     PyObject *globals = PyFunction_GET_GLOBALS(func);
     PyObject *argdefs = PyFunction_GET_DEFAULTS(func);
     PyObject *kwdefs, *closure, *name, *qualname;
+    PyObject *kwtuple, **k;
     PyObject **d;
     int nd;
+    Py_ssize_t nk;
     PyObject *result;
 
     PCALL(PCALL_FUNCTION);
     PCALL(PCALL_FAST_FUNCTION);
 
-    /* issue #27128: support for keywords will come later */
-    assert(kwargs == NULL);
+    assert(kwargs == NULL || PyDict_Check(kwargs));
 
-    if (co->co_kwonlyargcount == 0 && kwargs == NULL &&
+    if (co->co_kwonlyargcount == 0 &&
+        (kwargs == NULL || PyDict_Size(kwargs) == 0) &&
         (co->co_flags & (~PyCF_MASK)) == (CO_OPTIMIZED | CO_NEWLOCALS | CO_NOFREE))
     {
+        /* Fast paths */
         if (argdefs == NULL && co->co_argcount == nargs) {
             STACKLESS_PROMOTE_ALL();
             result = _PyFunction_FastCallNoKw(co, args, nargs, globals);
@@ -5455,6 +5459,30 @@ _PyFunction_FastCall(PyObject *func, PyObject **args, int nargs, PyObject *kwarg
         }
     }
 
+    if (kwargs != NULL) {
+        Py_ssize_t pos, i;
+        nk = PyDict_Size(kwargs);
+
+        kwtuple = PyTuple_New(2 * nk);
+        if (kwtuple == NULL) {
+            return NULL;
+        }
+
+        k = &PyTuple_GET_ITEM(kwtuple, 0);
+        pos = i = 0;
+        while (PyDict_Next(kwargs, &pos, &k[i], &k[i+1])) {
+            Py_INCREF(k[i]);
+            Py_INCREF(k[i+1]);
+            i += 2;
+        }
+        nk = i / 2;
+    }
+    else {
+        kwtuple = NULL;
+        k = NULL;
+        nk = 0;
+    }
+
     kwdefs = PyFunction_GET_KW_DEFAULTS(func);
     closure = PyFunction_GET_CLOSURE(func);
     name = ((PyFunctionObject *)func) -> func_name;
@@ -5468,13 +5496,15 @@ _PyFunction_FastCall(PyObject *func, PyObject **args, int nargs, PyObject *kwarg
         d = NULL;
         nd = 0;
     }
+
     STACKLESS_PROMOTE_ALL();
     result = _PyEval_EvalCodeWithName((PyObject*)co, globals, (PyObject *)NULL,
-                                    args, nargs,
-                                    NULL, 0,
-                                    d, nd, kwdefs,
-                                    closure, name, qualname);
+                                      args, nargs,
+                                      k, (int)nk,
+                                      d, nd, kwdefs,
+                                      closure, name, qualname);
     STACKLESS_ASSERT();
+    Py_XDECREF(kwtuple);
     return result;
 }
 
