@@ -2401,7 +2401,7 @@ _PyObject_FastCallKeywords(PyObject *func, PyObject **stack, Py_ssize_t nargs,
 
     if (PyCFunction_Check(func) && nkwargs == 0) {
         STACKLESS_PROMOTE_ALL();
-        result = _PyCFunction_FastCallDict(func, args, nargs, NULL);
+        result = _PyCFunction_FastCallDict(func, stack, nargs, NULL);
         STACKLESS_ASSERT();
         return result;
     }
