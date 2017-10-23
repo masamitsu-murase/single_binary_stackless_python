@@ -471,6 +471,7 @@ def _is_gui_available():
         try:
             from tkinter import Tk
             root = Tk()
+            root.withdraw()
             root.update()
             root.destroy()
         except Exception as e:
@@ -495,12 +496,12 @@ def is_resource_enabled(resource):
 
 def requires(resource, msg=None):
     """Raise ResourceDenied if the specified resource is not available."""
-    if resource == 'gui' and not _is_gui_available():
-        raise ResourceDenied(_is_gui_available.reason)
     if not is_resource_enabled(resource):
         if msg is None:
             msg = "Use of the %r resource not enabled" % resource
         raise ResourceDenied(msg)
+    if resource == 'gui' and not _is_gui_available():
+        raise ResourceDenied(_is_gui_available.reason)
 
 def _requires_unix_version(sysname, min_version):
     """Decorator raising SkipTest if the OS is `sysname` and the version is less
@@ -815,7 +816,7 @@ TESTFN_ENCODING = sys.getfilesystemencoding()
 # encoded by the filesystem encoding (in strict mode). It can be None if we
 # cannot generate such filename.
 TESTFN_UNENCODABLE = None
-if os.name in ('nt', 'ce'):
+if os.name == 'nt':
     # skip win32s (0) or Windows 9x/ME (1)
     if sys.getwindowsversion().platform >= 2:
         # Different kinds of characters from various languages to minimize the

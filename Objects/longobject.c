@@ -368,7 +368,7 @@ PyLong_FromDouble(double dval)
 /* Checking for overflow in PyLong_AsLong is a PITA since C doesn't define
  * anything about what happens when a signed integer operation overflows,
  * and some compilers think they're doing you a favor by being "clever"
- * then.  The bit pattern for the largest postive signed long is
+ * then.  The bit pattern for the largest positive signed long is
  * (unsigned long)LONG_MAX, and for the smallest negative signed long
  * it is abs(LONG_MIN), which we could write -(unsigned long)LONG_MIN.
  * However, some other compilers warn about applying unary minus to an
@@ -1591,6 +1591,7 @@ long_to_decimal_string_internal(PyObject *aa,
     Py_ssize_t size, strlen, size_a, i, j;
     digit *pout, *pin, rem, tenpow;
     int negative;
+    int d;
     enum PyUnicode_Kind kind;
 
     a = (PyLongObject *)aa;
@@ -1608,15 +1609,17 @@ long_to_decimal_string_internal(PyObject *aa,
 
        But log2(a) < size_a * PyLong_SHIFT, and
        log2(_PyLong_DECIMAL_BASE) = log2(10) * _PyLong_DECIMAL_SHIFT
-                                  > 3 * _PyLong_DECIMAL_SHIFT
+                                  > 3.3 * _PyLong_DECIMAL_SHIFT
+
+         size_a * PyLong_SHIFT / (3.3 * _PyLong_DECIMAL_SHIFT) =
+             size_a + size_a / d < size_a + size_a / floor(d),
+       where d = (3.3 * _PyLong_DECIMAL_SHIFT) /
+                 (PyLong_SHIFT - 3.3 * _PyLong_DECIMAL_SHIFT)
     */
-    if (size_a > PY_SSIZE_T_MAX / PyLong_SHIFT) {
-        PyErr_SetString(PyExc_OverflowError,
-                        "int too large to format");
-        return -1;
-    }
-    /* the expression size_a * PyLong_SHIFT is now safe from overflow */
-    size = 1 + size_a * PyLong_SHIFT / (3 * _PyLong_DECIMAL_SHIFT);
+    d = (33 * _PyLong_DECIMAL_SHIFT) /
+        (10 * PyLong_SHIFT - 33 * _PyLong_DECIMAL_SHIFT);
+    assert(size_a < PY_SSIZE_T_MAX/2);
+    size = 1 + size_a + size_a / d;
     scratch = _PyLong_New(size);
     if (scratch == NULL)
         return -1;
@@ -4170,8 +4173,10 @@ long_invert(PyLongObject *v)
     Py_DECREF(w);
     if (x == NULL)
         return NULL;
-    Py_SIZE(x) = -(Py_SIZE(x));
-    return (PyObject *)maybe_small_long(x);
+    _PyLong_Negate(&x);
+    /* No need for maybe_small_long here, since any small
+       longs will have been caught in the Py_SIZE <= 1 fast path. */
+    return (PyObject *)x;
 }
 
 static PyObject *
@@ -4276,6 +4281,11 @@ long_lshift(PyObject *v, PyObject *w)
         PyErr_SetString(PyExc_ValueError, "negative shift count");
         return NULL;
     }
+
+    if (Py_SIZE(a) == 0) {
+        return PyLong_FromLong(0);
+    }
+
     /* wordshift, remshift = divmod(shiftby, PyLong_SHIFT) */
     wordshift = shiftby / PyLong_SHIFT;
     remshift  = shiftby - wordshift * PyLong_SHIFT;

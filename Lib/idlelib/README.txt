@@ -65,7 +65,7 @@ pathbrowser.py    # Create path browser window.
 percolator.py     # Manage delegator stack (nim).
 pyparse.py        # Give information on code indentation
 pyshell.py        # Start IDLE, manage shell, complete editor window
-query.py          # Query user for informtion
+query.py          # Query user for information
 redirector.py     # Intercept widget subcommands (for percolator) (nim).
 replace.py        # Search and replace pattern in text.
 rpc.py            # Commuicate between idle and user processes (nim).
@@ -228,4 +228,23 @@ Help
 
 <No menu>
 Center Insert      # eEW.center_insert_event
-   
+
+  
+CODE STYLE -- Generally PEP 8.
+
+import
+------
+Put import at the top, unless there is a good reason otherwise.
+PEP 8 says to group stdlib, 3rd-party dependencies, and package imports.
+For idlelib, the groups are general stdlib, tkinter, and idlelib.
+Sort modules within each group, except that tkinter.ttk follows tkinter.
+Sort 'from idlelib import mod1' and 'from idlelib.mod2 import object'
+together by module, ignoring within module objects.
+Put 'import __main__' after other idlelib imports.
+
+Imports only needed for testing are put not at the top but in an
+htest function def or "if __name__ == '__main__'" clause.
+
+Within module imports like "from idlelib.mod import class" may cause
+circular imports to deadlock.  Even without this, circular imports may
+require at least one of the imports to be delayed until a function call.

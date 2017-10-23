@@ -785,7 +785,31 @@ cat >> conftest.c <<EOF
 #undef powerpc
 #undef sparc
 #undef unix
-#if defined(__linux__)
+#if defined(__ANDROID__)
+# if defined(__x86_64__) && defined(__LP64__)
+        x86_64-linux-android
+# elif defined(__i386__)
+        i686-linux-android
+# elif defined(__aarch64__) && defined(__AARCH64EL__)
+#  if defined(__ILP32__)
+        aarch64_ilp32-linux-android
+#  else
+        aarch64-linux-android
+#  endif
+# elif defined(__ARM_EABI__) && defined(__ARMEL__)
+        arm-linux-androideabi
+# elif defined(__mips_hard_float) && defined(_MIPSEL)
+#  if _MIPS_SIM == _ABIO32
+        mipsel-linux-android
+#  elif _MIPS_SIM == _ABI64
+        mips64el-linux-android
+#  else
+#   error unknown platform triplet
+#  endif
+# else
+#   error unknown platform triplet
+# endif
+#elif defined(__linux__)
 # if defined(__x86_64__) && defined(__LP64__)
         x86_64-linux-gnu
 # elif defined(__x86_64__) && defined(__ILP32__)
@@ -899,6 +923,8 @@ if test x$PLATFORM_TRIPLET != x && test x$MULTIARCH != x; then
   if test x$PLATFORM_TRIPLET != x$MULTIARCH; then
     AC_MSG_ERROR([internal configure error for the platform triplet, please file a bug report])
   fi
+elif test x$PLATFORM_TRIPLET != x && test x$MULTIARCH = x; then
+  MULTIARCH=$PLATFORM_TRIPLET
 fi
 if test x$PLATFORM_TRIPLET = x; then
   PLATDIR=plat-$MACHDEP
@@ -1655,7 +1681,7 @@ yes)
         # Calculate an appropriate deployment target for this build:
         # The deployment target value is used explicitly to enable certain
         # features are enabled (such as builtin libedit support for readline)
-        # through the use of Apple's Availabiliy Macros and is used as a
+        # through the use of Apple's Availability Macros and is used as a
         # component of the string returned by distutils.get_platform().
         #
         # Use the value from:
@@ -2333,7 +2359,7 @@ then
 	case $ac_sys_system/$ac_sys_release in
 	AIX*)
 		BLDSHARED="\$(srcdir)/Modules/ld_so_aix \$(CC) -bI:\$(srcdir)/Modules/python.exp"
-		LDSHARED="\$(BINLIBDEST)/config/ld_so_aix \$(CC) -bI:\$(BINLIBDEST)/config/python.exp"
+		LDSHARED="\$(LIBPL)/ld_so_aix \$(CC) -bI:\$(LIBPL)/python.exp"
 		;;
 	IRIX/5*) LDSHARED="ld -shared";;
 	IRIX*/6*) LDSHARED="ld ${SGI_ABI} -shared -all";;
@@ -3852,6 +3878,19 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 AC_MSG_RESULT($ac_cv_struct_sockaddr_storage)
 if test $ac_cv_struct_sockaddr_storage = yes; then
 	AC_DEFINE(HAVE_SOCKADDR_STORAGE, 1, [struct sockaddr_storage (sys/socket.h)])
+fi
+
+AC_MSG_CHECKING(for sockaddr_alg)
+AC_CACHE_VAL(ac_cv_struct_sockaddr_alg,
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#		include <sys/types.h>
+#		include <sys/socket.h>
+#		include <linux/if_alg.h>]], [[struct sockaddr_alg s]])],
+  [ac_cv_struct_sockaddr_alg=yes],
+  [ac_cv_struct_sockaddr_alg=no]))
+AC_MSG_RESULT($ac_cv_struct_sockaddr_alg)
+if test $ac_cv_struct_sockaddr_alg = yes; then
+	AC_DEFINE(HAVE_SOCKADDR_ALG, 1, [struct sockaddr_alg (linux/if_alg.h)])
 fi
 
 # checks for compiler characteristics

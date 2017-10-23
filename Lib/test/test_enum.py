@@ -3,7 +3,7 @@ import inspect
 import pydoc
 import unittest
 from collections import OrderedDict
-from enum import Enum, IntEnum, EnumMeta, unique
+from enum import Enum, IntEnum, EnumMeta, Flag, IntFlag, unique
 from io import StringIO
 from pickle import dumps, loads, PicklingError, HIGHEST_PROTOCOL
 from test import support
@@ -32,6 +32,14 @@ try:
         MOE = 3.142596
 except Exception as exc:
     FloatStooges = exc
+
+try:
+    class FlagStooges(Flag):
+        LARRY = 1
+        CURLY = 2
+        MOE = 3
+except Exception as exc:
+    FlagStooges = exc
 
 # for pickle test and subclass tests
 try:
@@ -1632,6 +1640,518 @@ class TestOrder(unittest.TestCase):
                 purple = 4
                 verde = green
 
+
+class TestFlag(unittest.TestCase):
+    """Tests of the Flags."""
+
+    class Perm(Flag):
+        R, W, X = 4, 2, 1
+
+    class Open(Flag):
+        RO = 0
+        WO = 1
+        RW = 2
+        AC = 3
+        CE = 1<<19
+
+    def test_str(self):
+        Perm = self.Perm
+        self.assertEqual(str(Perm.R), 'Perm.R')
+        self.assertEqual(str(Perm.W), 'Perm.W')
+        self.assertEqual(str(Perm.X), 'Perm.X')
+        self.assertEqual(str(Perm.R | Perm.W), 'Perm.R|W')
+        self.assertEqual(str(Perm.R | Perm.W | Perm.X), 'Perm.R|W|X')
+        self.assertEqual(str(Perm(0)), 'Perm.0')
+        self.assertEqual(str(~Perm.R), 'Perm.W|X')
+        self.assertEqual(str(~Perm.W), 'Perm.R|X')
+        self.assertEqual(str(~Perm.X), 'Perm.R|W')
+        self.assertEqual(str(~(Perm.R | Perm.W)), 'Perm.X')
+        self.assertEqual(str(~(Perm.R | Perm.W | Perm.X)), 'Perm.0')
+        self.assertEqual(str(Perm(~0)), 'Perm.R|W|X')
+
+        Open = self.Open
+        self.assertEqual(str(Open.RO), 'Open.RO')
+        self.assertEqual(str(Open.WO), 'Open.WO')
+        self.assertEqual(str(Open.AC), 'Open.AC')
+        self.assertEqual(str(Open.RO | Open.CE), 'Open.CE')
+        self.assertEqual(str(Open.WO | Open.CE), 'Open.CE|WO')
+        self.assertEqual(str(~Open.RO), 'Open.CE|AC')
+        self.assertEqual(str(~Open.WO), 'Open.CE|RW')
+        self.assertEqual(str(~Open.AC), 'Open.CE')
+        self.assertEqual(str(~(Open.RO | Open.CE)), 'Open.AC')
+        self.assertEqual(str(~(Open.WO | Open.CE)), 'Open.RW')
+
+    def test_repr(self):
+        Perm = self.Perm
+        self.assertEqual(repr(Perm.R), '<Perm.R: 4>')
+        self.assertEqual(repr(Perm.W), '<Perm.W: 2>')
+        self.assertEqual(repr(Perm.X), '<Perm.X: 1>')
+        self.assertEqual(repr(Perm.R | Perm.W), '<Perm.R|W: 6>')
+        self.assertEqual(repr(Perm.R | Perm.W | Perm.X), '<Perm.R|W|X: 7>')
+        self.assertEqual(repr(Perm(0)), '<Perm.0: 0>')
+        self.assertEqual(repr(~Perm.R), '<Perm.W|X: 3>')
+        self.assertEqual(repr(~Perm.W), '<Perm.R|X: 5>')
+        self.assertEqual(repr(~Perm.X), '<Perm.R|W: 6>')
+        self.assertEqual(repr(~(Perm.R | Perm.W)), '<Perm.X: 1>')
+        self.assertEqual(repr(~(Perm.R | Perm.W | Perm.X)), '<Perm.0: 0>')
+        self.assertEqual(repr(Perm(~0)), '<Perm.R|W|X: 7>')
+
+        Open = self.Open
+        self.assertEqual(repr(Open.RO), '<Open.RO: 0>')
+        self.assertEqual(repr(Open.WO), '<Open.WO: 1>')
+        self.assertEqual(repr(Open.AC), '<Open.AC: 3>')
+        self.assertEqual(repr(Open.RO | Open.CE), '<Open.CE: 524288>')
+        self.assertEqual(repr(Open.WO | Open.CE), '<Open.CE|WO: 524289>')
+        self.assertEqual(repr(~Open.RO), '<Open.CE|AC: 524291>')
+        self.assertEqual(repr(~Open.WO), '<Open.CE|RW: 524290>')
+        self.assertEqual(repr(~Open.AC), '<Open.CE: 524288>')
+        self.assertEqual(repr(~(Open.RO | Open.CE)), '<Open.AC: 3>')
+        self.assertEqual(repr(~(Open.WO | Open.CE)), '<Open.RW: 2>')
+
+    def test_or(self):
+        Perm = self.Perm
+        for i in Perm:
+            for j in Perm:
+                self.assertEqual((i | j), Perm(i.value | j.value))
+                self.assertEqual((i | j).value, i.value | j.value)
+                self.assertIs(type(i | j), Perm)
+        for i in Perm:
+            self.assertIs(i | i, i)
+        Open = self.Open
+        self.assertIs(Open.RO | Open.CE, Open.CE)
+
+    def test_and(self):
+        Perm = self.Perm
+        RW = Perm.R | Perm.W
+        RX = Perm.R | Perm.X
+        WX = Perm.W | Perm.X
+        RWX = Perm.R | Perm.W | Perm.X
+        values = list(Perm) + [RW, RX, WX, RWX, Perm(0)]
+        for i in values:
+            for j in values:
+                self.assertEqual((i & j).value, i.value & j.value)
+                self.assertIs(type(i & j), Perm)
+        for i in Perm:
+            self.assertIs(i & i, i)
+            self.assertIs(i & RWX, i)
+            self.assertIs(RWX & i, i)
+        Open = self.Open
+        self.assertIs(Open.RO & Open.CE, Open.RO)
+
+    def test_xor(self):
+        Perm = self.Perm
+        for i in Perm:
+            for j in Perm:
+                self.assertEqual((i ^ j).value, i.value ^ j.value)
+                self.assertIs(type(i ^ j), Perm)
+        for i in Perm:
+            self.assertIs(i ^ Perm(0), i)
+            self.assertIs(Perm(0) ^ i, i)
+        Open = self.Open
+        self.assertIs(Open.RO ^ Open.CE, Open.CE)
+        self.assertIs(Open.CE ^ Open.CE, Open.RO)
+
+    def test_invert(self):
+        Perm = self.Perm
+        RW = Perm.R | Perm.W
+        RX = Perm.R | Perm.X
+        WX = Perm.W | Perm.X
+        RWX = Perm.R | Perm.W | Perm.X
+        values = list(Perm) + [RW, RX, WX, RWX, Perm(0)]
+        for i in values:
+            self.assertIs(type(~i), Perm)
+            self.assertEqual(~~i, i)
+        for i in Perm:
+            self.assertIs(~~i, i)
+        Open = self.Open
+        self.assertIs(Open.WO & ~Open.WO, Open.RO)
+        self.assertIs((Open.WO|Open.CE) & ~Open.WO, Open.CE)
+
+    def test_bool(self):
+        Perm = self.Perm
+        for f in Perm:
+            self.assertTrue(f)
+        Open = self.Open
+        for f in Open:
+            self.assertEqual(bool(f.value), bool(f))
+
+    def test_programatic_function_string(self):
+        Perm = Flag('Perm', 'R W X')
+        lst = list(Perm)
+        self.assertEqual(len(lst), len(Perm))
+        self.assertEqual(len(Perm), 3, Perm)
+        self.assertEqual(lst, [Perm.R, Perm.W, Perm.X])
+        for i, n in enumerate('R W X'.split()):
+            v = 1<<i
+            e = Perm(v)
+            self.assertEqual(e.value, v)
+            self.assertEqual(type(e.value), int)
+            self.assertEqual(e.name, n)
+            self.assertIn(e, Perm)
+            self.assertIs(type(e), Perm)
+
+    def test_programatic_function_string_with_start(self):
+        Perm = Flag('Perm', 'R W X', start=8)
+        lst = list(Perm)
+        self.assertEqual(len(lst), len(Perm))
+        self.assertEqual(len(Perm), 3, Perm)
+        self.assertEqual(lst, [Perm.R, Perm.W, Perm.X])
+        for i, n in enumerate('R W X'.split()):
+            v = 8<<i
+            e = Perm(v)
+            self.assertEqual(e.value, v)
+            self.assertEqual(type(e.value), int)
+            self.assertEqual(e.name, n)
+            self.assertIn(e, Perm)
+            self.assertIs(type(e), Perm)
+
+    def test_programatic_function_string_list(self):
+        Perm = Flag('Perm', ['R', 'W', 'X'])
+        lst = list(Perm)
+        self.assertEqual(len(lst), len(Perm))
+        self.assertEqual(len(Perm), 3, Perm)
+        self.assertEqual(lst, [Perm.R, Perm.W, Perm.X])
+        for i, n in enumerate('R W X'.split()):
+            v = 1<<i
+            e = Perm(v)
+            self.assertEqual(e.value, v)
+            self.assertEqual(type(e.value), int)
+            self.assertEqual(e.name, n)
+            self.assertIn(e, Perm)
+            self.assertIs(type(e), Perm)
+
+    def test_programatic_function_iterable(self):
+        Perm = Flag('Perm', (('R', 2), ('W', 8), ('X', 32)))
+        lst = list(Perm)
+        self.assertEqual(len(lst), len(Perm))
+        self.assertEqual(len(Perm), 3, Perm)
+        self.assertEqual(lst, [Perm.R, Perm.W, Perm.X])
+        for i, n in enumerate('R W X'.split()):
+            v = 1<<(2*i+1)
+            e = Perm(v)
+            self.assertEqual(e.value, v)
+            self.assertEqual(type(e.value), int)
+            self.assertEqual(e.name, n)
+            self.assertIn(e, Perm)
+            self.assertIs(type(e), Perm)
+
+    def test_programatic_function_from_dict(self):
+        Perm = Flag('Perm', OrderedDict((('R', 2), ('W', 8), ('X', 32))))
+        lst = list(Perm)
+        self.assertEqual(len(lst), len(Perm))
+        self.assertEqual(len(Perm), 3, Perm)
+        self.assertEqual(lst, [Perm.R, Perm.W, Perm.X])
+        for i, n in enumerate('R W X'.split()):
+            v = 1<<(2*i+1)
+            e = Perm(v)
+            self.assertEqual(e.value, v)
+            self.assertEqual(type(e.value), int)
+            self.assertEqual(e.name, n)
+            self.assertIn(e, Perm)
+            self.assertIs(type(e), Perm)
+
+    def test_pickle(self):
+        if isinstance(FlagStooges, Exception):
+            raise FlagStooges
+        test_pickle_dump_load(self.assertIs, FlagStooges.CURLY|FlagStooges.MOE)
+        test_pickle_dump_load(self.assertIs, FlagStooges)
+
+
+    def test_containment(self):
+        Perm = self.Perm
+        R, W, X = Perm
+        RW = R | W
+        RX = R | X
+        WX = W | X
+        RWX = R | W | X
+        self.assertTrue(R in RW)
+        self.assertTrue(R in RX)
+        self.assertTrue(R in RWX)
+        self.assertTrue(W in RW)
+        self.assertTrue(W in WX)
+        self.assertTrue(W in RWX)
+        self.assertTrue(X in RX)
+        self.assertTrue(X in WX)
+        self.assertTrue(X in RWX)
+        self.assertFalse(R in WX)
+        self.assertFalse(W in RX)
+        self.assertFalse(X in RW)
+
+class TestIntFlag(unittest.TestCase):
+    """Tests of the IntFlags."""
+
+    class Perm(IntFlag):
+        X = 1 << 0
+        W = 1 << 1
+        R = 1 << 2
+
+    class Open(IntFlag):
+        RO = 0
+        WO = 1
+        RW = 2
+        AC = 3
+        CE = 1<<19
+
+    def test_str(self):
+        Perm = self.Perm
+        self.assertEqual(str(Perm.R), 'Perm.R')
+        self.assertEqual(str(Perm.W), 'Perm.W')
+        self.assertEqual(str(Perm.X), 'Perm.X')
+        self.assertEqual(str(Perm.R | Perm.W), 'Perm.R|W')
+        self.assertEqual(str(Perm.R | Perm.W | Perm.X), 'Perm.R|W|X')
+        self.assertEqual(str(Perm.R | 8), 'Perm.8|R')
+        self.assertEqual(str(Perm(0)), 'Perm.0')
+        self.assertEqual(str(Perm(8)), 'Perm.8')
+        self.assertEqual(str(~Perm.R), 'Perm.W|X|-8')
+        self.assertEqual(str(~Perm.W), 'Perm.R|X|-8')
+        self.assertEqual(str(~Perm.X), 'Perm.R|W|-8')
+        self.assertEqual(str(~(Perm.R | Perm.W)), 'Perm.X|-8')
+        self.assertEqual(str(~(Perm.R | Perm.W | Perm.X)), 'Perm.-8')
+        self.assertEqual(str(~(Perm.R | 8)), 'Perm.W|X|-16')
+        self.assertEqual(str(Perm(~0)), 'Perm.R|W|X|-8')
+        self.assertEqual(str(Perm(~8)), 'Perm.R|W|X|-16')
+
+        Open = self.Open
+        self.assertEqual(str(Open.RO), 'Open.RO')
+        self.assertEqual(str(Open.WO), 'Open.WO')
+        self.assertEqual(str(Open.AC), 'Open.AC')
+        self.assertEqual(str(Open.RO | Open.CE), 'Open.CE')
+        self.assertEqual(str(Open.WO | Open.CE), 'Open.CE|WO')
+        self.assertEqual(str(Open(4)), 'Open.4')
+        self.assertEqual(str(~Open.RO), 'Open.CE|AC|-524292')
+        self.assertEqual(str(~Open.WO), 'Open.CE|RW|-524292')
+        self.assertEqual(str(~Open.AC), 'Open.CE|-524292')
+        self.assertEqual(str(~(Open.RO | Open.CE)), 'Open.AC|-524292')
+        self.assertEqual(str(~(Open.WO | Open.CE)), 'Open.RW|-524292')
+        self.assertEqual(str(Open(~4)), 'Open.CE|AC|-524296')
+
+    def test_repr(self):
+        Perm = self.Perm
+        self.assertEqual(repr(Perm.R), '<Perm.R: 4>')
+        self.assertEqual(repr(Perm.W), '<Perm.W: 2>')
+        self.assertEqual(repr(Perm.X), '<Perm.X: 1>')
+        self.assertEqual(repr(Perm.R | Perm.W), '<Perm.R|W: 6>')
+        self.assertEqual(repr(Perm.R | Perm.W | Perm.X), '<Perm.R|W|X: 7>')
+        self.assertEqual(repr(Perm.R | 8), '<Perm.8|R: 12>')
+        self.assertEqual(repr(Perm(0)), '<Perm.0: 0>')
+        self.assertEqual(repr(Perm(8)), '<Perm.8: 8>')
+        self.assertEqual(repr(~Perm.R), '<Perm.W|X|-8: -5>')
+        self.assertEqual(repr(~Perm.W), '<Perm.R|X|-8: -3>')
+        self.assertEqual(repr(~Perm.X), '<Perm.R|W|-8: -2>')
+        self.assertEqual(repr(~(Perm.R | Perm.W)), '<Perm.X|-8: -7>')
+        self.assertEqual(repr(~(Perm.R | Perm.W | Perm.X)), '<Perm.-8: -8>')
+        self.assertEqual(repr(~(Perm.R | 8)), '<Perm.W|X|-16: -13>')
+        self.assertEqual(repr(Perm(~0)), '<Perm.R|W|X|-8: -1>')
+        self.assertEqual(repr(Perm(~8)), '<Perm.R|W|X|-16: -9>')
+
+        Open = self.Open
+        self.assertEqual(repr(Open.RO), '<Open.RO: 0>')
+        self.assertEqual(repr(Open.WO), '<Open.WO: 1>')
+        self.assertEqual(repr(Open.AC), '<Open.AC: 3>')
+        self.assertEqual(repr(Open.RO | Open.CE), '<Open.CE: 524288>')
+        self.assertEqual(repr(Open.WO | Open.CE), '<Open.CE|WO: 524289>')
+        self.assertEqual(repr(Open(4)), '<Open.4: 4>')
+        self.assertEqual(repr(~Open.RO), '<Open.CE|AC|-524292: -1>')
+        self.assertEqual(repr(~Open.WO), '<Open.CE|RW|-524292: -2>')
+        self.assertEqual(repr(~Open.AC), '<Open.CE|-524292: -4>')
+        self.assertEqual(repr(~(Open.RO | Open.CE)), '<Open.AC|-524292: -524289>')
+        self.assertEqual(repr(~(Open.WO | Open.CE)), '<Open.RW|-524292: -524290>')
+        self.assertEqual(repr(Open(~4)), '<Open.CE|AC|-524296: -5>')
+
+    def test_or(self):
+        Perm = self.Perm
+        for i in Perm:
+            for j in Perm:
+                self.assertEqual(i | j, i.value | j.value)
+                self.assertEqual((i | j).value, i.value | j.value)
+                self.assertIs(type(i | j), Perm)
+            for j in range(8):
+                self.assertEqual(i | j, i.value | j)
+                self.assertEqual((i | j).value, i.value | j)
+                self.assertIs(type(i | j), Perm)
+                self.assertEqual(j | i, j | i.value)
+                self.assertEqual((j | i).value, j | i.value)
+                self.assertIs(type(j | i), Perm)
+        for i in Perm:
+            self.assertIs(i | i, i)
+            self.assertIs(i | 0, i)
+            self.assertIs(0 | i, i)
+        Open = self.Open
+        self.assertIs(Open.RO | Open.CE, Open.CE)
+
+    def test_and(self):
+        Perm = self.Perm
+        RW = Perm.R | Perm.W
+        RX = Perm.R | Perm.X
+        WX = Perm.W | Perm.X
+        RWX = Perm.R | Perm.W | Perm.X
+        values = list(Perm) + [RW, RX, WX, RWX, Perm(0)]
+        for i in values:
+            for j in values:
+                self.assertEqual(i & j, i.value & j.value, 'i is %r, j is %r' % (i, j))
+                self.assertEqual((i & j).value, i.value & j.value, 'i is %r, j is %r' % (i, j))
+                self.assertIs(type(i & j), Perm, 'i is %r, j is %r' % (i, j))
+            for j in range(8):
+                self.assertEqual(i & j, i.value & j)
+                self.assertEqual((i & j).value, i.value & j)
+                self.assertIs(type(i & j), Perm)
+                self.assertEqual(j & i, j & i.value)
+                self.assertEqual((j & i).value, j & i.value)
+                self.assertIs(type(j & i), Perm)
+        for i in Perm:
+            self.assertIs(i & i, i)
+            self.assertIs(i & 7, i)
+            self.assertIs(7 & i, i)
+        Open = self.Open
+        self.assertIs(Open.RO & Open.CE, Open.RO)
+
+    def test_xor(self):
+        Perm = self.Perm
+        for i in Perm:
+            for j in Perm:
+                self.assertEqual(i ^ j, i.value ^ j.value)
+                self.assertEqual((i ^ j).value, i.value ^ j.value)
+                self.assertIs(type(i ^ j), Perm)
+            for j in range(8):
+                self.assertEqual(i ^ j, i.value ^ j)
+                self.assertEqual((i ^ j).value, i.value ^ j)
+                self.assertIs(type(i ^ j), Perm)
+                self.assertEqual(j ^ i, j ^ i.value)
+                self.assertEqual((j ^ i).value, j ^ i.value)
+                self.assertIs(type(j ^ i), Perm)
+        for i in Perm:
+            self.assertIs(i ^ 0, i)
+            self.assertIs(0 ^ i, i)
+        Open = self.Open
+        self.assertIs(Open.RO ^ Open.CE, Open.CE)
+        self.assertIs(Open.CE ^ Open.CE, Open.RO)
+
+    def test_invert(self):
+        Perm = self.Perm
+        RW = Perm.R | Perm.W
+        RX = Perm.R | Perm.X
+        WX = Perm.W | Perm.X
+        RWX = Perm.R | Perm.W | Perm.X
+        values = list(Perm) + [RW, RX, WX, RWX, Perm(0)]
+        for i in values:
+            self.assertEqual(~i, ~i.value)
+            self.assertEqual((~i).value, ~i.value)
+            self.assertIs(type(~i), Perm)
+            self.assertEqual(~~i, i)
+        for i in Perm:
+            self.assertIs(~~i, i)
+        Open = self.Open
+        self.assertIs(Open.WO & ~Open.WO, Open.RO)
+        self.assertIs((Open.WO|Open.CE) & ~Open.WO, Open.CE)
+
+    def test_programatic_function_string(self):
+        Perm = IntFlag('Perm', 'R W X')
+        lst = list(Perm)
+        self.assertEqual(len(lst), len(Perm))
+        self.assertEqual(len(Perm), 3, Perm)
+        self.assertEqual(lst, [Perm.R, Perm.W, Perm.X])
+        for i, n in enumerate('R W X'.split()):
+            v = 1<<i
+            e = Perm(v)
+            self.assertEqual(e.value, v)
+            self.assertEqual(type(e.value), int)
+            self.assertEqual(e, v)
+            self.assertEqual(e.name, n)
+            self.assertIn(e, Perm)
+            self.assertIs(type(e), Perm)
+
+    def test_programatic_function_string_with_start(self):
+        Perm = IntFlag('Perm', 'R W X', start=8)
+        lst = list(Perm)
+        self.assertEqual(len(lst), len(Perm))
+        self.assertEqual(len(Perm), 3, Perm)
+        self.assertEqual(lst, [Perm.R, Perm.W, Perm.X])
+        for i, n in enumerate('R W X'.split()):
+            v = 8<<i
+            e = Perm(v)
+            self.assertEqual(e.value, v)
+            self.assertEqual(type(e.value), int)
+            self.assertEqual(e, v)
+            self.assertEqual(e.name, n)
+            self.assertIn(e, Perm)
+            self.assertIs(type(e), Perm)
+
+    def test_programatic_function_string_list(self):
+        Perm = IntFlag('Perm', ['R', 'W', 'X'])
+        lst = list(Perm)
+        self.assertEqual(len(lst), len(Perm))
+        self.assertEqual(len(Perm), 3, Perm)
+        self.assertEqual(lst, [Perm.R, Perm.W, Perm.X])
+        for i, n in enumerate('R W X'.split()):
+            v = 1<<i
+            e = Perm(v)
+            self.assertEqual(e.value, v)
+            self.assertEqual(type(e.value), int)
+            self.assertEqual(e, v)
+            self.assertEqual(e.name, n)
+            self.assertIn(e, Perm)
+            self.assertIs(type(e), Perm)
+
+    def test_programatic_function_iterable(self):
+        Perm = IntFlag('Perm', (('R', 2), ('W', 8), ('X', 32)))
+        lst = list(Perm)
+        self.assertEqual(len(lst), len(Perm))
+        self.assertEqual(len(Perm), 3, Perm)
+        self.assertEqual(lst, [Perm.R, Perm.W, Perm.X])
+        for i, n in enumerate('R W X'.split()):
+            v = 1<<(2*i+1)
+            e = Perm(v)
+            self.assertEqual(e.value, v)
+            self.assertEqual(type(e.value), int)
+            self.assertEqual(e, v)
+            self.assertEqual(e.name, n)
+            self.assertIn(e, Perm)
+            self.assertIs(type(e), Perm)
+
+    def test_programatic_function_from_dict(self):
+        Perm = IntFlag('Perm', OrderedDict((('R', 2), ('W', 8), ('X', 32))))
+        lst = list(Perm)
+        self.assertEqual(len(lst), len(Perm))
+        self.assertEqual(len(Perm), 3, Perm)
+        self.assertEqual(lst, [Perm.R, Perm.W, Perm.X])
+        for i, n in enumerate('R W X'.split()):
+            v = 1<<(2*i+1)
+            e = Perm(v)
+            self.assertEqual(e.value, v)
+            self.assertEqual(type(e.value), int)
+            self.assertEqual(e, v)
+            self.assertEqual(e.name, n)
+            self.assertIn(e, Perm)
+            self.assertIs(type(e), Perm)
+
+
+    def test_containment(self):
+        Perm = self.Perm
+        R, W, X = Perm
+        RW = R | W
+        RX = R | X
+        WX = W | X
+        RWX = R | W | X
+        self.assertTrue(R in RW)
+        self.assertTrue(R in RX)
+        self.assertTrue(R in RWX)
+        self.assertTrue(W in RW)
+        self.assertTrue(W in WX)
+        self.assertTrue(W in RWX)
+        self.assertTrue(X in RX)
+        self.assertTrue(X in WX)
+        self.assertTrue(X in RWX)
+        self.assertFalse(R in WX)
+        self.assertFalse(W in RX)
+        self.assertFalse(X in RW)
+
+    def test_bool(self):
+        Perm = self.Perm
+        for f in Perm:
+            self.assertTrue(f)
+        Open = self.Open
+        for f in Open:
+            self.assertEqual(bool(f.value), bool(f))
 
 class TestUnique(unittest.TestCase):
 

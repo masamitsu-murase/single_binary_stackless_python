@@ -66,6 +66,10 @@ New syntax features:
 
 * PEP 498: :ref:`Formatted string literals <whatsnew-fstrings>`
 
+Standard library improvements:
+
+* PEP 519: :ref:`Adding a file system path protocol <pep-519>`
+
 Windows improvements:
 
 * The ``py.exe`` launcher, when used interactively, no longer prefers
@@ -88,9 +92,73 @@ Windows improvements:
     :pep:`4XX` - Python Virtual Environments
        PEP written by Carl Meyer
 
+.. XXX PEP 520: :ref:`Preserving Class Attribute Definition Order<whatsnew-deforder>`
 
 New Features
 ============
+
+.. _pep-519:
+
+PEP 519: Adding a file system path protocol
+===========================================
+
+File system paths have historically been represented as :class:`str`
+or :class:`bytes` objects. This has led to people who write code which
+operate on file system paths to assume that such objects are only one
+of those two types (an :class:`int` representing a file descriptor
+does not count as that is not a file path). Unfortunately that
+assumption prevents alternative object representations of file system
+paths like :mod:`pathlib` from working with pre-existing code,
+including Python's standard library.
+
+To fix this situation, a new interface represented by
+:class:`os.PathLike` has been defined. By implementing the
+:meth:`~os.PathLike.__fspath__` method, an object signals that it
+represents a path. An object can then provide a low-level
+representation of a file system path as a :class:`str` or
+:class:`bytes` object. This means an object is considered
+:term:`path-like <path-like object>` if it implements
+:class:`os.PathLike` or is a :class:`str` or :class:`bytes` object
+which represents a file system path. Code can use :func:`os.fspath`,
+:func:`os.fsdecode`, or :func:`os.fsencode` to explicitly get a
+:class:`str` and/or :class:`bytes` representation of a path-like
+object.
+
+The built-in :func:`open` function has been updated to accept
+:class:`os.PathLike` objects as have all relevant functions in the
+:mod:`os` and :mod:`os.path` modules. The :class:`os.DirEntry` class
+and relevant classes in :mod:`pathlib` have also been updated to
+implement :class:`os.PathLike`. The hope is that updating the
+fundamental functions for operating on file system paths will lead
+to third-party code to implicitly support all
+:term:`path-like objects <path-like object>` without any code changes
+or at least very minimal ones (e.g. calling :func:`os.fspath` at the
+beginning of code before operating on a path-like object).
+
+Here are some examples of how the new interface allows for
+:class:`pathlib.Path` to be used more easily and transparently with
+pre-existing code::
+
+  >>> import pathlib
+  >>> with open(pathlib.Path("README")) as f:
+  ...     contents = f.read()
+  ...
+  >>> import os.path
+  >>> os.path.splitext(pathlib.Path("some_file.txt"))
+  ('some_file', '.txt')
+  >>> os.path.join("/a/b", pathlib.Path("c"))
+  '/a/b/c'
+  >>> import os
+  >>> os.fspath(pathlib.Path("some_file.txt"))
+  'some_file.txt'
+
+(Implemented by Brett Cannon, Ethan Furman, Dusty Phillips, and Jelle Zijlstra.)
+
+.. seealso::
+
+    :pep:`519` - Adding a file system path protocol
+       PEP written by Brett Cannon and Koos Zevenhoven.
+
 
 .. _whatsnew-fstrings:
 
@@ -202,6 +270,31 @@ Example of fatal error on buffer overflow using
       ...
 
 (Contributed by Victor Stinner in :issue:`26516` and :issue:`26564`.)
+
+
+.. _whatsnew-deforder:
+
+PEP 520: Preserving Class Attribute Definition Order
+----------------------------------------------------
+
+Attributes in a class definition body have a natural ordering: the same
+order in which the names appear in the source.  This order is now
+preserved in the new class's ``__definition_order__`` attribute.  It is
+a tuple of the attribute names, in the order in which they appear in
+the class definition body.
+
+For types that don't have a definition (e.g. builtins), or the attribute
+order could not be determined, ``__definition_order__`` is ``None``.
+
+Also, the effective default class *execution* namespace (returned from
+``type.__prepare__()``) is now an insertion-order-preserving mapping.
+For CPython, it is now ``collections.OrderedDict``.  Note that the
+class namespace, ``cls.__dict__``, is unchanged.
+
+.. seealso::
+
+   :pep:`520` - Preserving Class Attribute Definition Order
+      PEP written and implemented by Eric Snow.
 
 
 Other Language Changes
@@ -512,8 +605,8 @@ The :class:`~unittest.mock.Mock` class has the following improvements:
 urllib.request
 --------------
 
-If a HTTP request has a non-empty body but no Content-Length header
-and the content length cannot be determined up front, rather than
+If a HTTP request has a file or iterable body (other than a
+bytes object) but no Content-Length header, rather than
 throwing an error, :class:`~urllib.request.AbstractHTTPHandler` now
 falls back to use chunked transfer encoding.
 (Contributed by Demian Brecht and Rolf Krahl in :issue:`12319`.)
@@ -715,6 +808,12 @@ Deprecated features
   now deprecated.
   (Contributed by Serhiy Storchaka in :issue:`25791` and :issue:`26754`.)
 
+* The undocumented ``extra_path`` argument to a distutils Distribution
+  is now considered
+  deprecated, will raise a warning during install if set. Support for this
+  parameter will be dropped in a future Python release and likely earlier
+  through third party tools. See :issue:`27919` for details.
+
 
 Deprecated Python behavior
 --------------------------
@@ -867,6 +966,13 @@ Changes in the Python API
 
   This behavior has also been backported to earlier Python versions
   by Setuptools 26.0.0.
+
+* In the :mod:`urllib.request` module and the
+  :meth:`http.client.HTTPConnection.request` method, if no Content-Length
+  header field has been specified and the request body is a file object,
+  it is now sent with HTTP 1.1 chunked encoding. If a file object has to
+  be sent to a HTTP 1.0 server, the Content-Length value now has to be
+  specified by the caller. See :issue:`12319`.
 
 Changes in the C API
 --------------------

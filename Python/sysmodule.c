@@ -2026,7 +2026,7 @@ sys_update_path(int argc, wchar_t **argv)
 #endif
 #if defined(HAVE_REALPATH)
     wchar_t fullpath[MAXPATHLEN];
-#elif defined(MS_WINDOWS) && !defined(MS_WINCE)
+#elif defined(MS_WINDOWS)
     wchar_t fullpath[MAX_PATH];
 #endif
 
@@ -2065,10 +2065,8 @@ sys_update_path(int argc, wchar_t **argv)
 #if SEP == '\\' /* Special case for MS filename syntax */
     if (_HAVE_SCRIPT_ARGUMENT(argc, argv)) {
         wchar_t *q;
-#if defined(MS_WINDOWS) && !defined(MS_WINCE)
-        /* This code here replaces the first element in argv with the full
-        path that it represents. Under CE, there are no relative paths so
-        the argument must be the full path anyway. */
+#if defined(MS_WINDOWS)
+        /* Replace the first element in argv with the full path. */
         wchar_t *ptemp;
         if (GetFullPathNameW(argv0,
                            Py_ARRAY_LENGTH(fullpath),

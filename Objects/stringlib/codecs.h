@@ -314,8 +314,9 @@ STRINGLIB(utf8_encoder)(PyObject *unicode,
         else if (Py_UNICODE_IS_SURROGATE(ch)) {
             Py_ssize_t startpos, endpos, newpos;
             Py_ssize_t k;
-            if (error_handler == _Py_ERROR_UNKNOWN)
+            if (error_handler == _Py_ERROR_UNKNOWN) {
                 error_handler = get_error_handler(errors);
+            }
 
             startpos = i-1;
             endpos = startpos+1;
@@ -347,7 +348,7 @@ STRINGLIB(utf8_encoder)(PyObject *unicode,
                 break;
 
             case _Py_ERROR_BACKSLASHREPLACE:
-                /* substract preallocated bytes */
+                /* subtract preallocated bytes */
                 writer.min_size -= max_char_size * (endpos - startpos);
                 p = backslashreplace(&writer, p,
                                      unicode, startpos, endpos);
@@ -357,7 +358,7 @@ STRINGLIB(utf8_encoder)(PyObject *unicode,
                 break;
 
             case _Py_ERROR_XMLCHARREFREPLACE:
-                /* substract preallocated bytes */
+                /* subtract preallocated bytes */
                 writer.min_size -= max_char_size * (endpos - startpos);
                 p = xmlcharrefreplace(&writer, p,
                                       unicode, startpos, endpos);
@@ -387,7 +388,7 @@ STRINGLIB(utf8_encoder)(PyObject *unicode,
                 if (!rep)
                     goto error;
 
-                /* substract preallocated bytes */
+                /* subtract preallocated bytes */
                 writer.min_size -= max_char_size;
 
                 if (PyBytes_Check(rep)) {

@@ -777,7 +777,6 @@ infodir
 docdir
 oldincludedir
 includedir
-runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -889,7 +888,6 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
-runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1142,15 +1140,6 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
-  -runstatedir | --runstatedir | --runstatedi | --runstated \
-  | --runstate | --runstat | --runsta | --runst | --runs \
-  | --run | --ru | --r)
-    ac_prev=runstatedir ;;
-  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
-  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
-  | --run=* | --ru=* | --r=*)
-    runstatedir=$ac_optarg ;;
-
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1288,7 +1277,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir runstatedir
+		libdir localedir mandir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -1441,7 +1430,6 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
-  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -5305,7 +5293,31 @@ cat >> conftest.c <<EOF
 #undef powerpc
 #undef sparc
 #undef unix
-#if defined(__linux__)
+#if defined(__ANDROID__)
+# if defined(__x86_64__) && defined(__LP64__)
+        x86_64-linux-android
+# elif defined(__i386__)
+        i686-linux-android
+# elif defined(__aarch64__) && defined(__AARCH64EL__)
+#  if defined(__ILP32__)
+        aarch64_ilp32-linux-android
+#  else
+        aarch64-linux-android
+#  endif
+# elif defined(__ARM_EABI__) && defined(__ARMEL__)
+        arm-linux-androideabi
+# elif defined(__mips_hard_float) && defined(_MIPSEL)
+#  if _MIPS_SIM == _ABIO32
+        mipsel-linux-android
+#  elif _MIPS_SIM == _ABI64
+        mips64el-linux-android
+#  else
+#   error unknown platform triplet
+#  endif
+# else
+#   error unknown platform triplet
+# endif
+#elif defined(__linux__)
 # if defined(__x86_64__) && defined(__LP64__)
         x86_64-linux-gnu
 # elif defined(__x86_64__) && defined(__ILP32__)
@@ -5421,6 +5433,8 @@ if test x$PLATFORM_TRIPLET != x && test x$MULTIARCH != x; then
   if test x$PLATFORM_TRIPLET != x$MULTIARCH; then
     as_fn_error $? "internal configure error for the platform triplet, please file a bug report" "$LINENO" 5
   fi
+elif test x$PLATFORM_TRIPLET != x && test x$MULTIARCH = x; then
+  MULTIARCH=$PLATFORM_TRIPLET
 fi
 if test x$PLATFORM_TRIPLET = x; then
   PLATDIR=plat-$MACHDEP
@@ -7137,7 +7151,7 @@ $as_echo "$CC" >&6; }
         # Calculate an appropriate deployment target for this build:
         # The deployment target value is used explicitly to enable certain
         # features are enabled (such as builtin libedit support for readline)
-        # through the use of Apple's Availabiliy Macros and is used as a
+        # through the use of Apple's Availability Macros and is used as a
         # component of the string returned by distutils.get_platform().
         #
         # Use the value from:
@@ -9106,7 +9120,7 @@ then
 	case $ac_sys_system/$ac_sys_release in
 	AIX*)
 		BLDSHARED="\$(srcdir)/Modules/ld_so_aix \$(CC) -bI:\$(srcdir)/Modules/python.exp"
-		LDSHARED="\$(BINLIBDEST)/config/ld_so_aix \$(CC) -bI:\$(BINLIBDEST)/config/python.exp"
+		LDSHARED="\$(LIBPL)/ld_so_aix \$(CC) -bI:\$(LIBPL)/python.exp"
 		;;
 	IRIX/5*) LDSHARED="ld -shared";;
 	IRIX*/6*) LDSHARED="ld ${SGI_ABI} -shared -all";;
@@ -13060,6 +13074,41 @@ $as_echo "$ac_cv_struct_sockaddr_storage" >&6; }
 if test $ac_cv_struct_sockaddr_storage = yes; then
 
 $as_echo "#define HAVE_SOCKADDR_STORAGE 1" >>confdefs.h
+
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for sockaddr_alg" >&5
+$as_echo_n "checking for sockaddr_alg... " >&6; }
+if ${ac_cv_struct_sockaddr_alg+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#		include <sys/types.h>
+#		include <sys/socket.h>
+#		include <linux/if_alg.h>
+int
+main ()
+{
+struct sockaddr_alg s
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  ac_cv_struct_sockaddr_alg=yes
+else
+  ac_cv_struct_sockaddr_alg=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_struct_sockaddr_alg" >&5
+$as_echo "$ac_cv_struct_sockaddr_alg" >&6; }
+if test $ac_cv_struct_sockaddr_alg = yes; then
+
+$as_echo "#define HAVE_SOCKADDR_ALG 1" >>confdefs.h
 
 fi
 

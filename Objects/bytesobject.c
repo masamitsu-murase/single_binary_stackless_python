@@ -247,7 +247,7 @@ PyBytes_FromFormatV(const char *format, va_list vargs)
             ++f;
         }
 
-        /* substract bytes preallocated for the format string
+        /* subtract bytes preallocated for the format string
            (ex: 2 for "%s") */
         writer.min_size -= (f - p + 1);
 
@@ -1093,7 +1093,7 @@ _PyBytes_DecodeEscapeRecode(const char **s, const char *end,
     assert(PyBytes_Check(w));
 
     /* Append bytes to output buffer. */
-    writer->min_size--;   /* substract 1 preallocated byte */
+    writer->min_size--;   /* subtract 1 preallocated byte */
     p = _PyBytesWriter_WriteBytes(writer, p,
                                   PyBytes_AS_STRING(w),
                                   PyBytes_GET_SIZE(w));
@@ -2045,21 +2045,19 @@ bytes.translate
 
     table: object
         Translation table, which must be a bytes object of length 256.
-    [
-    deletechars: object
-    ]
     /
+    delete as deletechars: object(c_default="NULL") = b''
 
 Return a copy with each character mapped by the given translation table.
 
-All characters occurring in the optional argument deletechars are removed.
+All characters occurring in the optional argument delete are removed.
 The remaining characters are mapped through the given translation table.
 [clinic start generated code]*/
 
 static PyObject *
-bytes_translate_impl(PyBytesObject *self, PyObject *table, int group_right_1,
+bytes_translate_impl(PyBytesObject *self, PyObject *table,
                      PyObject *deletechars)
-/*[clinic end generated code: output=233df850eb50bf8d input=ca20edf39d780d49]*/
+/*[clinic end generated code: output=43be3437f1956211 input=0ecdf159f654233c]*/
 {
     char *input, *output;
     Py_buffer table_view = {NULL, NULL};

@@ -10,6 +10,9 @@ import csv
 import gc
 import pickle
 from test import support
+from itertools import permutations
+from textwrap import dedent
+from collections import OrderedDict
 
 class Test_Csv(unittest.TestCase):
     """
@@ -1091,6 +1094,57 @@ class TestUnicode(unittest.TestCase):
             expected = ",".join(self.names)+"\r\n"
             fileobj.seek(0)
             self.assertEqual(fileobj.read(), expected)
+
+class KeyOrderingTest(unittest.TestCase):
+
+    def test_ordering_for_the_dict_reader_and_writer(self):
+        resultset = set()
+        for keys in permutations("abcde"):
+            with TemporaryFile('w+', newline='', encoding="utf-8") as fileobject:
+                dw = csv.DictWriter(fileobject, keys)
+                dw.writeheader()
+                fileobject.seek(0)
+                dr = csv.DictReader(fileobject)
+                kt = tuple(dr.fieldnames)
+                self.assertEqual(keys, kt)
+                resultset.add(kt)
+        # Final sanity check: were all permutations unique?
+        self.assertEqual(len(resultset), 120, "Key ordering: some key permutations not collected (expected 120)")
+
+    def test_ordered_dict_reader(self):
+        data = dedent('''\
+            FirstName,LastName
+            Eric,Idle
+            Graham,Chapman,Over1,Over2
+
+            Under1
+            John,Cleese
+        ''').splitlines()
+
+        self.assertEqual(list(csv.DictReader(data)),
+            [OrderedDict([('FirstName', 'Eric'), ('LastName', 'Idle')]),
+             OrderedDict([('FirstName', 'Graham'), ('LastName', 'Chapman'),
+                          (None, ['Over1', 'Over2'])]),
+             OrderedDict([('FirstName', 'Under1'), ('LastName', None)]),
+             OrderedDict([('FirstName', 'John'), ('LastName', 'Cleese')]),
+            ])
+
+        self.assertEqual(list(csv.DictReader(data, restkey='OtherInfo')),
+            [OrderedDict([('FirstName', 'Eric'), ('LastName', 'Idle')]),
+             OrderedDict([('FirstName', 'Graham'), ('LastName', 'Chapman'),
+                          ('OtherInfo', ['Over1', 'Over2'])]),
+             OrderedDict([('FirstName', 'Under1'), ('LastName', None)]),
+             OrderedDict([('FirstName', 'John'), ('LastName', 'Cleese')]),
+            ])
+
+        del data[0]            # Remove the header row
+        self.assertEqual(list(csv.DictReader(data, fieldnames=['fname', 'lname'])),
+            [OrderedDict([('fname', 'Eric'), ('lname', 'Idle')]),
+             OrderedDict([('fname', 'Graham'), ('lname', 'Chapman'),
+                          (None, ['Over1', 'Over2'])]),
+             OrderedDict([('fname', 'Under1'), ('lname', None)]),
+             OrderedDict([('fname', 'John'), ('lname', 'Cleese')]),
+            ])
 
 
 class MiscTestCase(unittest.TestCase):

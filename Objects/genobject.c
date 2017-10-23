@@ -26,18 +26,6 @@ _PyGen_Finalize(PyObject *self)
     PyObject *res;
     PyObject *error_type, *error_value, *error_traceback;
 
-    /* If `gen` is a coroutine, and if it was never awaited on,
-       issue a RuntimeWarning. */
-    if (gen->gi_code != NULL
-            && ((PyCodeObject *)gen->gi_code)->co_flags & CO_COROUTINE
-            && gen->gi_frame != NULL
-            && gen->gi_frame->f_lasti == -1
-            && !PyErr_Occurred()
-            && PyErr_WarnFormat(PyExc_RuntimeWarning, 1,
-                                "coroutine '%.50S' was never awaited",
-                                gen->gi_qualname))
-        return;
-
     if (gen->gi_frame == NULL || gen->gi_frame->f_stacktop == NULL)
         /* Generator isn't paused, so no need to close */
         return;
@@ -45,7 +33,20 @@ _PyGen_Finalize(PyObject *self)
     /* Save the current exception, if any. */
     PyErr_Fetch(&error_type, &error_value, &error_traceback);
 
-    res = gen_close(gen, NULL);
+    /* If `gen` is a coroutine, and if it was never awaited on,
+       issue a RuntimeWarning. */
+    if (gen->gi_code != NULL
+            && ((PyCodeObject *)gen->gi_code)->co_flags & CO_COROUTINE
+            && gen->gi_frame->f_lasti == -1
+            && !PyErr_Occurred()
+            && PyErr_WarnFormat(PyExc_RuntimeWarning, 1,
+                                "coroutine '%.50S' was never awaited",
+                                gen->gi_qualname)) {
+        res = NULL;  /* oops, exception */
+    }
+    else {
+        res = gen_close(gen, NULL);
+    }
 
     if (res == NULL)
         PyErr_WriteUnraisable(self);
@@ -72,7 +73,10 @@ gen_dealloc(PyGenObject *gen)
         return;                     /* resurrected.  :( */
 
     _PyObject_GC_UNTRACK(self);
-    Py_CLEAR(gen->gi_frame);
+    if (gen->gi_frame != NULL) {
+        gen->gi_frame->f_gen = NULL;
+        Py_CLEAR(gen->gi_frame);
+    }
     Py_CLEAR(gen->gi_code);
     Py_CLEAR(gen->gi_name);
     Py_CLEAR(gen->gi_qualname);

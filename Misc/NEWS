@@ -10,6 +10,34 @@ What's New in Python 3.6.0 beta 1
 Core and Builtins
 -----------------
 
+- Issue #27355: Removed support for Windows CE.  It was never finished,
+  and Windows CE is no longer a relevant platform for Python.
+
+- Issue #27921: Disallow backslashes in f-strings. This is a temporary
+  restriction: in beta 2, backslashes will only be disallowed inside
+  the braces (where the expressions are). This is a breaking change
+  from the 3.6 alpha releases.
+  
+- Issue #27870: A left shift of zero by a large integer no longer attempts
+  to allocate large amounts of memory.
+
+- Issue #25402: In int-to-decimal-string conversion, improve the estimate
+  of the intermediate memory required, and remove an unnecessarily strict
+  overflow check. Patch by Serhiy Storchaka.
+
+- Issue #27214: In long_invert, be more careful about modifying object
+  returned by long_add, and remove an unnecessary check for small longs.
+  Thanks Oren Milman for analysis and patch.
+
+- Issue #27506: Support passing the bytes/bytearray.translate() "delete"
+  argument by keyword.
+
+- Issue #27812: Properly clear out a generator's frame's backreference to the
+  generator to prevent crashes in frame.clear().
+
+- Issue #27811: Fix a crash when a coroutine that has not been awaited is
+  finalized with warnings-as-errors enabled.
+
 - Issue #27587: Fix another issue found by PVS-Studio: Null pointer check
   after use of 'def' in _PyState_AddModule().
   Initial patch by Christian Heimes.
@@ -24,6 +52,8 @@ Core and Builtins
   potentially have caused off-by-one-ulp results on platforms with
   unreliable ldexp implementations.
 
+- Issue #24254: Make class definition namespace ordered by default.
+
 - Issue #27662: Fix an overflow check in ``List_New``: the original code was
   checking against ``Py_SIZE_MAX`` instead of the correct upper bound of
   ``Py_SSIZE_T_MAX``. Patch by Xiang Zhang.
@@ -31,6 +61,10 @@ Core and Builtins
 - Issue #27782: Multi-phase extension module import now correctly allows the
   ``m_methods`` field to be used to add module level functions to instances
   of non-module types returned from ``Py_create_mod``. Patch by Xiang Zhang.
+
+- Issue #27936: The round() function accepted a second None argument
+  for some types but not for others.  Fixed the inconsistency by
+  accepting None for all numeric types.
 
 - Issue #27487: Warn if a submodule argument to "python -m" or
   runpy.run_module() is found in sys.modules after parent packages are
@@ -46,13 +80,55 @@ Core and Builtins
 Library
 -------
 
+- Issue #25387: Check return value of winsound.MessageBeep.
+
+- Issue #27866: Add SSLContext.get_ciphers() method to get a list of all
+  enabled ciphers.
+
+- Issue #27744: Add AF_ALG (Linux Kernel crypto) to socket module.
+
+- Issue #26470: Port ssl and hashlib module to OpenSSL 1.1.0.
+
+- Issue #11620: Fix support for SND_MEMORY in winsound.PlaySound.  Based on a
+  patch by Tim Lesher.
+
+- Issue #11734: Add support for IEEE 754 half-precision floats to the
+  struct module. Based on a patch by Eli Stevens.
+
+- Issue #27919: Deprecated ``extra_path`` distribution option in distutils
+  packaging.
+
+- Issue #23229: Add new ``cmath`` constants: ``cmath.inf`` and ``cmath.nan`` to
+  match ``math.inf`` and ``math.nan``, and also ``cmath.infj`` and
+  ``cmath.nanj`` to match the format used by complex repr.
+
+- Issue #27842: The csv.DictReader now returns rows of type OrderedDict.
+  (Contributed by Steve Holden.)
+
+- Issue #12885: Fix error when distutils encounters symlink.
+
+- Issue #27881: Fixed possible bugs when setting sqlite3.Connection.isolation_level.
+  Based on patch by Xiang Zhang.
+
+- Issue #27861: Fixed a crash in sqlite3.Connection.cursor() when a factory
+  creates not a cursor.  Patch by Xiang Zhang.
+
+- Issue #19884: Avoid spurious output on OS X with Gnu Readline.
+
+- Issue #27706: Restore deterministic behavior of random.Random().seed()
+  for string seeds using seeding version 1.  Allows sequences of calls
+  to random() to exactly match those obtained in Python 2.
+  Patch by Nofar Schnider.
+
+- Issue #10513: Fix a regression in Connection.commit().  Statements should
+  not be reset after a commit.
+
 - Issue #12319: Chunked transfer encoding support added to
   http.client.HTTPConnection requests.  The
   urllib.request.AbstractHTTPHandler class does not enforce a Content-Length
-  header any more.  If a HTTP request has a non-empty body, but no
-  Content-Length header, and the content length cannot be determined
-  up front, rather than throwing an error, the library now falls back
-  to use chunked transfer encoding.
+  header any more.  If a HTTP request has a file or iterable body, but no
+  Content-Length header, the library now falls back to use chunked transfer-
+  encoding.
 
 - A new version of typing.py from https://github.com/python/typing:
   - Collection (only for 3.6) (Issue #27598)
@@ -82,9 +158,32 @@ Library
 Tests
 -----
 
+- Issue #27427: Additional tests for the math module. Patch by Francisco Couzo.
+
+- Issue #27953: Skip math and cmath tests that fail on OS X 10.4 due to a
+  poor libm implementation of tan.
+
+- Issue #26040: Improve test_math and test_cmath coverage and rigour. Patch by
+  Jeff Allen.
+
 - Issue #27787: Call gc.collect() before checking each test for "dangling
   threads", since the dangling threads are weak references.
 
+Build
+-----
+
+- Issue #27883: Update sqlite to 3.14.1.0 on Windows.
+
+- Issue #27917: Set platform triplets for Android builds.
+
+- Issue #25825: Update references to the $(LIBPL) installation path on AIX.
+  This path was changed in 3.2a4.
+
+Windows
+-------
+
+- Issue #27756: Adds new icons for Python files and processes on Windows.
+  Designs by Cherry Wang.
 
 What's New in Python 3.6.0 alpha 4
 ==================================
@@ -139,7 +238,10 @@ Core and Builtins
 Library
 -------
 
-- Issue 27598: Add Collections to collections.abc.
+- Issue #26027, #27524: Add PEP 519/__fspath__() support to the os and os.path
+  modules. Includes code from Jelle Zijlstra.
+
+- Issue #27598: Add Collections to collections.abc.
   Patch by Ivan Levkivskyi, docs by Neil Girdhar.
 
 - Issue #25958: Support "anti-registration" of special methods from
@@ -391,7 +493,7 @@ Library
 - Issue #27079: Fixed curses.ascii functions isblank(), iscntrl() and ispunct().
 
 - Issue #27294: Numerical state in the repr for Tkinter event objects is now
-  represented as a compination of known flags.
+  represented as a combination of known flags.
 
 - Issue #27177: Match objects in the re module now support index-like objects
   as group indices.  Based on patches by Jeroen Demeyer and Xiang Zhang.
@@ -5628,7 +5730,7 @@ Tools/Demos
 
 - Issue #22120: For functions using an unsigned integer return converter,
   Argument Clinic now generates a cast to that type for the comparison
-  to -1 in the generated code.  (This supresses a compilation warning.)
+  to -1 in the generated code.  (This suppresses a compilation warning.)
 
 - Issue #18974: Tools/scripts/diff.py now uses argparse instead of optparse.
 
@@ -6728,7 +6830,7 @@ Core and Builtins
 
 - Issue #19466: Clear the frames of daemon threads earlier during the
   Python shutdown to call objects destructors. So "unclosed file" resource
-  warnings are now corretly emitted for daemon threads.
+  warnings are now correctly emitted for daemon threads.
 
 - Issue #19514: Deduplicate some _Py_IDENTIFIER declarations.
   Patch by Andrei Dorian Duma.
@@ -7658,7 +7760,7 @@ Library
 
 - Issue #18709: Fix CVE-2013-4238. The SSL module now handles NULL bytes
   inside subjectAltName correctly. Formerly the module has used OpenSSL's
-  GENERAL_NAME_print() function to get the string represention of ASN.1
+  GENERAL_NAME_print() function to get the string representation of ASN.1
   strings for ``rfc822Name`` (email), ``dNSName`` (DNS) and
   ``uniformResourceIdentifier`` (URI).
 
@@ -7751,7 +7853,7 @@ IDLE
 Documentation
 -------------
 
-- Issue #18743: Fix references to non-existant "StringIO" module.
+- Issue #18743: Fix references to non-existent "StringIO" module.
 
 - Issue #18783: Removed existing mentions of Python long type in docstrings,
   error messages and comments.
@@ -8690,7 +8792,7 @@ Library
   specifically addresses a stack misalignment issue on x86 and issues on
   some more recent platforms.
 
-- Issue #8862: Fixed curses cleanup when getkey is interrputed by a signal.
+- Issue #8862: Fixed curses cleanup when getkey is interrupted by a signal.
 
 - Issue #17443: imaplib.IMAP4_stream was using the default unbuffered IO
   in subprocess, but the imap code assumes buffered IO.  In Python2 this

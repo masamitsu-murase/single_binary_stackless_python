@@ -316,20 +316,27 @@ typedef enum {
 static _Py_error_handler
 get_error_handler(const char *errors)
 {
-    if (errors == NULL || strcmp(errors, "strict") == 0)
+    if (errors == NULL || strcmp(errors, "strict") == 0) {
         return _Py_ERROR_STRICT;
-    if (strcmp(errors, "surrogateescape") == 0)
+    }
+    if (strcmp(errors, "surrogateescape") == 0) {
         return _Py_ERROR_SURROGATEESCAPE;
-    if (strcmp(errors, "replace") == 0)
+    }
+    if (strcmp(errors, "replace") == 0) {
         return _Py_ERROR_REPLACE;
-    if (strcmp(errors, "ignore") == 0)
+    }
+    if (strcmp(errors, "ignore") == 0) {
         return _Py_ERROR_IGNORE;
-    if (strcmp(errors, "backslashreplace") == 0)
+    }
+    if (strcmp(errors, "backslashreplace") == 0) {
         return _Py_ERROR_BACKSLASHREPLACE;
-    if (strcmp(errors, "surrogatepass") == 0)
+    }
+    if (strcmp(errors, "surrogatepass") == 0) {
         return _Py_ERROR_SURROGATEPASS;
-    if (strcmp(errors, "xmlcharrefreplace") == 0)
+    }
+    if (strcmp(errors, "xmlcharrefreplace") == 0) {
         return _Py_ERROR_XMLCHARREFREPLACE;
+    }
     return _Py_ERROR_OTHER;
 }
 
@@ -5636,36 +5643,45 @@ _PyUnicode_EncodeUTF16(PyObject *str,
     if (kind == PyUnicode_4BYTE_KIND) {
         const Py_UCS4 *in = (const Py_UCS4 *)data;
         const Py_UCS4 *end = in + len;
-        while (in < end)
-            if (*in++ >= 0x10000)
+        while (in < end) {
+            if (*in++ >= 0x10000) {
                 pairs++;
+            }
+        }
     }
-    if (len > PY_SSIZE_T_MAX / 2 - pairs - (byteorder == 0))
+    if (len > PY_SSIZE_T_MAX / 2 - pairs - (byteorder == 0)) {
         return PyErr_NoMemory();
+    }
     nsize = len + pairs + (byteorder == 0);
     v = PyBytes_FromStringAndSize(NULL, nsize * 2);
-    if (v == NULL)
+    if (v == NULL) {
         return NULL;
+    }
 
     /* output buffer is 2-bytes aligned */
     assert(_Py_IS_ALIGNED(PyBytes_AS_STRING(v), 2));
     out = (unsigned short *)PyBytes_AS_STRING(v);
-    if (byteorder == 0)
+    if (byteorder == 0) {
         *out++ = 0xFEFF;
-    if (len == 0)
+    }
+    if (len == 0) {
         goto done;
+    }
 
     if (kind == PyUnicode_1BYTE_KIND) {
         ucs1lib_utf16_encode((const Py_UCS1 *)data, len, &out, native_ordering);
         goto done;
     }
 
-    if (byteorder < 0)
+    if (byteorder < 0) {
         encoding = "utf-16-le";
-    else if (byteorder > 0)
+    }
+    else if (byteorder > 0) {
         encoding = "utf-16-be";
-    else
+    }
+    else {
         encoding = "utf-16";
+    }
 
     pos = 0;
     while (pos < len) {
@@ -6110,7 +6126,7 @@ PyUnicode_AsUnicodeEscapeString(PyObject *unicode)
 
         /* Escape backslashes */
         if (ch == '\\') {
-            /* -1: substract 1 preallocated byte */
+            /* -1: subtract 1 preallocated byte */
             p = _PyBytesWriter_Prepare(&writer, p, 2-1);
             if (p == NULL)
                 goto error;
@@ -6183,7 +6199,7 @@ PyUnicode_AsUnicodeEscapeString(PyObject *unicode)
 
         /* Map non-printable US ASCII to '\xhh' */
         else if (ch < ' ' || ch >= 0x7F) {
-            /* -1: substract 1 preallocated byte */
+            /* -1: subtract 1 preallocated byte */
             p = _PyBytesWriter_Prepare(&writer, p, 4-1);
             if (p == NULL)
                 goto error;
@@ -6363,7 +6379,7 @@ PyUnicode_AsRawUnicodeEscapeString(PyObject *unicode)
         if (ch >= 0x10000) {
             assert(ch <= MAX_UNICODE);
 
-            /* -1: substract 1 preallocated byte */
+            /* -1: subtract 1 preallocated byte */
             p = _PyBytesWriter_Prepare(&writer, p, 10-1);
             if (p == NULL)
                 goto error;
@@ -6381,7 +6397,7 @@ PyUnicode_AsRawUnicodeEscapeString(PyObject *unicode)
         }
         /* Map 16-bit characters to '\uxxxx' */
         else if (ch >= 256) {
-            /* -1: substract 1 preallocated byte */
+            /* -1: subtract 1 preallocated byte */
             p = _PyBytesWriter_Prepare(&writer, p, 6-1);
             if (p == NULL)
                 goto error;
@@ -6705,7 +6721,7 @@ unicode_encode_ucs1(PyObject *unicode,
                 break;
 
             case _Py_ERROR_BACKSLASHREPLACE:
-                /* substract preallocated bytes */
+                /* subtract preallocated bytes */
                 writer.min_size -= (collend - collstart);
                 str = backslashreplace(&writer, str,
                                        unicode, collstart, collend);
@@ -6715,7 +6731,7 @@ unicode_encode_ucs1(PyObject *unicode,
                 break;
 
             case _Py_ERROR_XMLCHARREFREPLACE:
-                /* substract preallocated bytes */
+                /* subtract preallocated bytes */
                 writer.min_size -= (collend - collstart);
                 str = xmlcharrefreplace(&writer, str,
                                         unicode, collstart, collend);
@@ -6747,7 +6763,7 @@ unicode_encode_ucs1(PyObject *unicode,
                 if (rep == NULL)
                     goto onError;
 
-                /* substract preallocated bytes */
+                /* subtract preallocated bytes */
                 writer.min_size -= 1;
 
                 if (PyBytes_Check(rep)) {

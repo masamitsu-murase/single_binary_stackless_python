@@ -64,8 +64,11 @@ Bookkeeping functions:
    If *a* is an int, it is used directly.
 
    With version 2 (the default), a :class:`str`, :class:`bytes`, or :class:`bytearray`
-   object gets converted to an :class:`int` and all of its bits are used.  With version 1,
-   the :func:`hash` of *a* is used instead.
+   object gets converted to an :class:`int` and all of its bits are used.
+
+   With version 1 (provided for reproducing random sequences from older versions
+   of Python), the algorithm for :class:`str` and :class:`bytes` generates a
+   narrower range of seeds.
 
    .. versionchanged:: 3.2
       Moved to the version 2 scheme which uses all of the bits in a string seed.
@@ -326,6 +329,9 @@ population with repeats::
 
     >>> weighted_choices = [('Red', 3), ('Blue', 2), ('Yellow', 1), ('Green', 4)]
     >>> population = [val for val, cnt in weighted_choices for i in range(cnt)]
+    >>> population
+    ['Red', 'Red', 'Red', 'Blue', 'Blue', 'Yellow', 'Green', 'Green', 'Green', 'Green']
+
     >>> random.choice(population)
     'Green'
 
@@ -335,6 +341,9 @@ with :func:`itertools.accumulate`, and then locate the random value with
 
     >>> choices, weights = zip(*weighted_choices)
     >>> cumdist = list(itertools.accumulate(weights))
+    >>> cumdist            # [3, 3+2, 3+2+1, 3+2+1+4]
+    [3, 5, 6, 10]
+
     >>> x = random.random() * cumdist[-1]
     >>> choices[bisect.bisect(cumdist, x)]
     'Blue'
