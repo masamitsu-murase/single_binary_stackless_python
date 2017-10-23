@@ -2433,6 +2433,7 @@ PyObject *
 _PyObject_Call_Prepend(PyObject *func,
                        PyObject *obj, PyObject *args, PyObject *kwargs)
 {
+    STACKLESS_GETARG();
     PyObject *small_stack[8];
     PyObject **stack;
     Py_ssize_t argcount;
@@ -2458,9 +2459,11 @@ _PyObject_Call_Prepend(PyObject *func,
               &PyTuple_GET_ITEM(args, 0),
               argcount * sizeof(PyObject *));
 
+    STACKLESS_PROMOTE_ALL();
     result = _PyObject_FastCallDict(func,
                                     stack, argcount + 1,
                                     kwargs);
+    STACKLESS_ASSERT();
     if (stack != small_stack) {
         PyMem_Free(stack);
     }
