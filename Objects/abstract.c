@@ -2326,10 +2326,10 @@ _PyObject_FastCallDict(PyObject *func, PyObject **args, Py_ssize_t nargs,
         STACKLESS_PROMOTE(func);
         result = (*call)(func, tuple, kwargs);
         Py_DECREF(tuple);
+
+        result = _Py_CheckFunctionResult(func, result, NULL);
     }
     STACKLESS_ASSERT();
-
-    result = _Py_CheckFunctionResult(func, result, NULL);
 
 exit:
 #ifdef STACKLESS
