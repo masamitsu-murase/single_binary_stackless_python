@@ -797,18 +797,18 @@ PyEval_EvalFrame(PyFrameObject *f) {
 }
 
 PyObject *
-#ifdef STACKLESS
-slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
-#else
 PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
-#endif
 {
     PyThreadState *tstate = PyThreadState_GET();
     return tstate->interp->eval_frame(f, throwflag);
 }
 
 PyObject *
+#ifdef STACKLESS
+slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
+#else
 _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
+#endif
 {
 #ifdef DXPAIRS
     int lastopcode = 0;
@@ -4006,7 +4006,7 @@ slp_eval_frame_with_cleanup(PyFrameObject *f, int throwflag, PyObject *retval)
 }
 
 PyObject *
-PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
+_PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
 {
     return PyEval_EvalFrameEx_slp(f, throwflag, NULL);
 }
