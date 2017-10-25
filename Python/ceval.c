@@ -803,6 +803,13 @@ slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
 PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
 #endif
 {
+    PyThreadState *tstate = PyThreadState_GET();
+    return tstate->interp->eval_frame(f, throwflag);
+}
+
+PyObject *
+_PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
+{
 #ifdef DXPAIRS
     int lastopcode = 0;
 #endif
