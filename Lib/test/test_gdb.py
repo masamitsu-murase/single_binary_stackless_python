@@ -24,6 +24,7 @@ def get_gdb_version():
     try:
         proc = subprocess.Popen(["gdb", "-nx", "--version"],
                                 stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
                                 universal_newlines=True)
         with proc:
             version = proc.communicate()[0]
@@ -109,6 +110,7 @@ HAS_PYUP_PYDOWN = gdb_has_frame_select()
 
 BREAKPOINT_FN='builtin_id'
 
+@unittest.skipIf(support.PGO, "not useful for PGO")
 class DebuggerTests(unittest.TestCase):
 
     """Test that the debugger can debug Python."""

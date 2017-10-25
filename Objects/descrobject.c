@@ -1038,7 +1038,7 @@ wrapper_dealloc(wrapperobject *wp)
 static PyObject *
 wrapper_richcompare(PyObject *a, PyObject *b, int op)
 {
-    Py_intptr_t result;
+    intptr_t result;
     PyObject *v;
     PyWrapperDescrObject *a_descr, *b_descr;
 

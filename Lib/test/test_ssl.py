@@ -65,6 +65,8 @@ SIGNED_CERTFILE = data_file("keycert3.pem")
 SIGNED_CERTFILE2 = data_file("keycert4.pem")
 # Same certificate as pycacert.pem, but without extra text in file
 SIGNING_CA = data_file("capath", "ceff1710.0")
+# cert with all kinds of subject alt names
+ALLSANFILE = data_file("allsans.pem")
 
 REMOTE_HOST = "self-signed.pythontest.net"
 
@@ -285,6 +287,27 @@ class BasicSocketTests(unittest.TestCase):
                    ('IP Address', '<invalid>'))
 
         self.assertEqual(p['subjectAltName'], san)
+
+    def test_parse_all_sans(self):
+        p = ssl._ssl._test_decode_cert(ALLSANFILE)
+        self.assertEqual(p['subjectAltName'],
+            (
+                ('DNS', 'allsans'),
+                ('othername', '<unsupported>'),
+                ('othername', '<unsupported>'),
+                ('email', 'user@example.org'),
+                ('DNS', 'www.example.org'),
+                ('DirName',
+                    ((('countryName', 'XY'),),
+                    (('localityName', 'Castle Anthrax'),),
+                    (('organizationName', 'Python Software Foundation'),),
+                    (('commonName', 'dirname example'),))),
+                ('URI', 'https://www.python.org/'),
+                ('IP Address', '127.0.0.1'),
+                ('IP Address', '0:0:0:0:0:0:0:1\n'),
+                ('Registered ID', '1.2.3.4.5')
+            )
+        )
 
     def test_DER_to_PEM(self):
         with open(CAFILE_CACERT, 'r') as f:
@@ -837,11 +860,10 @@ class ContextTests(unittest.TestCase):
     @unittest.skipIf(ssl.OPENSSL_VERSION_INFO < (1, 0, 2, 0, 0), 'OpenSSL too old')
     def test_get_ciphers(self):
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
-        ctx.set_ciphers('ECDHE+AESGCM:!ECDSA')
+        ctx.set_ciphers('AESGCM')
         names = set(d['name'] for d in ctx.get_ciphers())
-        self.assertEqual(names,
-                        {'ECDHE-RSA-AES256-GCM-SHA384',
-                         'ECDHE-RSA-AES128-GCM-SHA256'})
+        self.assertIn('AES256-GCM-SHA384', names)
+        self.assertIn('AES128-GCM-SHA256', names)
 
     @skip_if_broken_ubuntu_ssl
     def test_options(self):

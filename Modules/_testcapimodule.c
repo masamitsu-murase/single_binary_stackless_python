@@ -60,7 +60,7 @@ test_config(PyObject *self)
     CHECK_SIZEOF(SIZEOF_LONG, long);
     CHECK_SIZEOF(SIZEOF_VOID_P, void*);
     CHECK_SIZEOF(SIZEOF_TIME_T, time_t);
-    CHECK_SIZEOF(SIZEOF_LONG_LONG, PY_LONG_LONG);
+    CHECK_SIZEOF(SIZEOF_LONG_LONG, long long);
 
 #undef CHECK_SIZEOF
 
@@ -98,22 +98,14 @@ test_sizeof_c_types(PyObject *self)
     CHECK_SIGNNESS(Py_UCS1, 0);
     CHECK_SIGNNESS(Py_UCS2, 0);
     CHECK_SIGNNESS(Py_UCS4, 0);
-#ifdef HAVE_INT32_T
-    CHECK_SIZEOF(PY_INT32_T, 4);
-    CHECK_SIGNNESS(PY_INT32_T, 1);
-#endif
-#ifdef HAVE_UINT32_T
-    CHECK_SIZEOF(PY_UINT32_T, 4);
-    CHECK_SIGNNESS(PY_UINT32_T, 0);
-#endif
-#ifdef HAVE_INT64_T
-    CHECK_SIZEOF(PY_INT64_T, 8);
-    CHECK_SIGNNESS(PY_INT64_T, 1);
-#endif
-#ifdef HAVE_UINT64_T
-    CHECK_SIZEOF(PY_UINT64_T, 8);
-    CHECK_SIGNNESS(PY_UINT64_T, 0);
-#endif
+    CHECK_SIZEOF(int32_t, 4);
+    CHECK_SIGNNESS(int32_t, 1);
+    CHECK_SIZEOF(uint32_t, 4);
+    CHECK_SIGNNESS(uint32_t, 0);
+    CHECK_SIZEOF(int64_t, 8);
+    CHECK_SIGNNESS(int64_t, 1);
+    CHECK_SIZEOF(uint64_t, 8);
+    CHECK_SIGNNESS(uint64_t, 0);
 
     /* pointer/size types */
     CHECK_SIZEOF(size_t, sizeof(void *));
@@ -121,10 +113,10 @@ test_sizeof_c_types(PyObject *self)
     CHECK_SIZEOF(Py_ssize_t, sizeof(void *));
     CHECK_SIGNNESS(Py_ssize_t, 1);
 
-    CHECK_SIZEOF(Py_uintptr_t, sizeof(void *));
-    CHECK_SIGNNESS(Py_uintptr_t, 0);
-    CHECK_SIZEOF(Py_intptr_t, sizeof(void *));
-    CHECK_SIGNNESS(Py_intptr_t, 1);
+    CHECK_SIZEOF(uintptr_t, sizeof(void *));
+    CHECK_SIGNNESS(uintptr_t, 0);
+    CHECK_SIZEOF(intptr_t, sizeof(void *));
+    CHECK_SIGNNESS(intptr_t, 1);
 
     Py_INCREF(Py_None);
     return Py_None;
@@ -360,7 +352,7 @@ test_lazy_hash_inheritance(PyObject* self)
 
    Note that the meat of the test is contained in testcapi_long.h.
    This is revolting, but delicate code duplication is worse:  "almost
-   exactly the same" code is needed to test PY_LONG_LONG, but the ubiquitous
+   exactly the same" code is needed to test long long, but the ubiquitous
    dependence on type names makes it impossible to use a parameterized
    function.  A giant macro would be even worse than this.  A C++ template
    would be perfect.
@@ -407,7 +399,7 @@ raise_test_longlong_error(const char* msg)
 }
 
 #define TESTNAME        test_longlong_api_inner
-#define TYPENAME        PY_LONG_LONG
+#define TYPENAME        long long
 #define F_S_TO_PY       PyLong_FromLongLong
 #define F_PY_TO_S       PyLong_AsLongLong
 #define F_U_TO_PY       PyLong_FromUnsignedLongLong
@@ -594,7 +586,7 @@ test_long_and_overflow(PyObject *self)
 }
 
 /* Test the PyLong_AsLongLongAndOverflow API. General conversion to
-   PY_LONG_LONG is tested by test_long_api_inner. This test will
+   long long is tested by test_long_api_inner. This test will
    concentrate on proper handling of overflow.
 */
 
@@ -602,7 +594,7 @@ static PyObject *
 test_long_long_and_overflow(PyObject *self)
 {
     PyObject *num, *one, *temp;
-    PY_LONG_LONG value;
+    long long value;
     int overflow;
 
     /* Test that overflow is set properly for a large value. */
@@ -820,7 +812,7 @@ test_long_as_double(PyObject *self)
     return Py_None;
 }
 
-/* Test the L code for PyArg_ParseTuple.  This should deliver a PY_LONG_LONG
+/* Test the L code for PyArg_ParseTuple.  This should deliver a long long
    for both long and int arguments.  The test may leak a little memory if
    it fails.
 */
@@ -828,7 +820,7 @@ static PyObject *
 test_L_code(PyObject *self)
 {
     PyObject *tuple, *num;
-    PY_LONG_LONG value;
+    long long value;
 
     tuple = PyTuple_New(1);
     if (tuple == NULL)
@@ -1133,7 +1125,7 @@ getargs_p(PyObject *self, PyObject *args)
 static PyObject *
 getargs_L(PyObject *self, PyObject *args)
 {
-    PY_LONG_LONG value;
+    long long value;
     if (!PyArg_ParseTuple(args, "L", &value))
         return NULL;
     return PyLong_FromLongLong(value);
@@ -1142,7 +1134,7 @@ getargs_L(PyObject *self, PyObject *args)
 static PyObject *
 getargs_K(PyObject *self, PyObject *args)
 {
-    unsigned PY_LONG_LONG value;
+    unsigned long long value;
     if (!PyArg_ParseTuple(args, "K", &value))
         return NULL;
     return PyLong_FromUnsignedLongLong(value);
@@ -2137,7 +2129,7 @@ _make_call(void *callable)
     PyObject *rc;
     int success;
     PyGILState_STATE s = PyGILState_Ensure();
-    rc = PyObject_CallFunction((PyObject *)callable, "");
+    rc = _PyObject_CallNoArg((PyObject *)callable);
     success = (rc != NULL);
     Py_XDECREF(rc);
     PyGILState_Release(s);
@@ -2271,8 +2263,8 @@ test_string_from_format(PyObject *self, PyObject *args)
     CHECK_1_FORMAT("%zu", size_t);
 
     /* "%lld" and "%llu" support added in Python 2.7. */
-    CHECK_1_FORMAT("%llu", unsigned PY_LONG_LONG);
-    CHECK_1_FORMAT("%lld", PY_LONG_LONG);
+    CHECK_1_FORMAT("%llu", unsigned long long);
+    CHECK_1_FORMAT("%lld", long long);
 
     Py_RETURN_NONE;
 
@@ -3406,7 +3398,7 @@ temporary_c_thread(void *data)
     /* Allocate a Python thread state for this thread */
     state = PyGILState_Ensure();
 
-    res = PyObject_CallFunction(test_c_thread->callback, "", NULL);
+    res = _PyObject_CallNoArg(test_c_thread->callback);
     Py_CLEAR(test_c_thread->callback);
 
     if (res == NULL) {
@@ -3696,7 +3688,7 @@ test_pytime_fromsecondsobject(PyObject *self, PyObject *args)
 static PyObject *
 test_pytime_assecondsdouble(PyObject *self, PyObject *args)
 {
-    PY_LONG_LONG ns;
+    long long ns;
     _PyTime_t ts;
     double d;
 
@@ -3710,7 +3702,7 @@ test_pytime_assecondsdouble(PyObject *self, PyObject *args)
 static PyObject *
 test_PyTime_AsTimeval(PyObject *self, PyObject *args)
 {
-    PY_LONG_LONG ns;
+    long long ns;
     int round;
     _PyTime_t t;
     struct timeval tv;
@@ -3724,7 +3716,7 @@ test_PyTime_AsTimeval(PyObject *self, PyObject *args)
     if (_PyTime_AsTimeval(t, &tv, round) < 0)
         return NULL;
 
-    seconds = PyLong_FromLong((PY_LONG_LONG)tv.tv_sec);
+    seconds = PyLong_FromLong((long long)tv.tv_sec);
     if (seconds == NULL)
         return NULL;
     return Py_BuildValue("Nl", seconds, tv.tv_usec);
@@ -3734,7 +3726,7 @@ test_PyTime_AsTimeval(PyObject *self, PyObject *args)
 static PyObject *
 test_PyTime_AsTimespec(PyObject *self, PyObject *args)
 {
-    PY_LONG_LONG ns;
+    long long ns;
     _PyTime_t t;
     struct timespec ts;
 
@@ -3750,7 +3742,7 @@ test_PyTime_AsTimespec(PyObject *self, PyObject *args)
 static PyObject *
 test_PyTime_AsMilliseconds(PyObject *self, PyObject *args)
 {
-    PY_LONG_LONG ns;
+    long long ns;
     int round;
     _PyTime_t t, ms;
 
@@ -3768,7 +3760,7 @@ test_PyTime_AsMilliseconds(PyObject *self, PyObject *args)
 static PyObject *
 test_PyTime_AsMicroseconds(PyObject *self, PyObject *args)
 {
-    PY_LONG_LONG ns;
+    long long ns;
     int round;
     _PyTime_t t, ms;
 
@@ -3869,11 +3861,11 @@ tracemalloc_track(PyObject *self, PyObject *args)
 
     if (release_gil) {
         Py_BEGIN_ALLOW_THREADS
-        res = _PyTraceMalloc_Track(domain, (Py_uintptr_t)ptr, size);
+        res = _PyTraceMalloc_Track(domain, (uintptr_t)ptr, size);
         Py_END_ALLOW_THREADS
     }
     else {
-        res = _PyTraceMalloc_Track(domain, (Py_uintptr_t)ptr, size);
+        res = _PyTraceMalloc_Track(domain, (uintptr_t)ptr, size);
     }
 
     if (res < 0) {
@@ -3898,7 +3890,7 @@ tracemalloc_untrack(PyObject *self, PyObject *args)
     if (PyErr_Occurred())
         return NULL;
 
-    res = _PyTraceMalloc_Untrack(domain, (Py_uintptr_t)ptr);
+    res = _PyTraceMalloc_Untrack(domain, (uintptr_t)ptr);
     if (res < 0) {
         PyErr_SetString(PyExc_RuntimeError, "_PyTraceMalloc_Track error");
         return NULL;
@@ -3920,7 +3912,7 @@ tracemalloc_get_traceback(PyObject *self, PyObject *args)
     if (PyErr_Occurred())
         return NULL;
 
-    return _PyTraceMalloc_GetTraceback(domain, (Py_uintptr_t)ptr);
+    return _PyTraceMalloc_GetTraceback(domain, (uintptr_t)ptr);
 }
 
 
@@ -4141,8 +4133,8 @@ typedef struct {
     float float_member;
     double double_member;
     char inplace_member[6];
-    PY_LONG_LONG longlong_member;
-    unsigned PY_LONG_LONG ulonglong_member;
+    long long longlong_member;
+    unsigned long long ulonglong_member;
 } all_structmembers;
 
 typedef struct {

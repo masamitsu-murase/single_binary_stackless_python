@@ -70,12 +70,22 @@ Standard library improvements:
 
 * PEP 519: :ref:`Adding a file system path protocol <pep-519>`
 
+Security improvements:
+
+* On Linux, :func:`os.urandom` now blocks until the system urandom entropy pool
+  is initialized to increase the security. See the :pep:`524` for the
+  rationale.
+
 Windows improvements:
 
 * The ``py.exe`` launcher, when used interactively, no longer prefers
   Python 2 over Python 3 when the user doesn't specify a version (via
   command line arguments or a config file).  Handling of shebang lines
   remains unchanged - "python" refers to Python 2 in that case.
+
+* ``python.exe`` and ``pythonw.exe`` have been marked as long-path aware,
+  which means that when the 260 character path limit may no longer apply.
+  See :ref:`removing the MAX_PATH limitation <max-path>` for details.
 
 .. PEP-sized items next.
 
@@ -154,14 +164,18 @@ object.
 
 The built-in :func:`open` function has been updated to accept
 :class:`os.PathLike` objects as have all relevant functions in the
-:mod:`os` and :mod:`os.path` modules. The :class:`os.DirEntry` class
+:mod:`os` and :mod:`os.path` modules. :c:func:`PyUnicode_FSConverter`
+and :c:func:`PyUnicode_FSConverter` have been changed to accept
+path-like objects. The :class:`os.DirEntry` class
 and relevant classes in :mod:`pathlib` have also been updated to
-implement :class:`os.PathLike`. The hope is that updating the
-fundamental functions for operating on file system paths will lead
-to third-party code to implicitly support all
-:term:`path-like objects <path-like object>` without any code changes
-or at least very minimal ones (e.g. calling :func:`os.fspath` at the
-beginning of code before operating on a path-like object).
+implement :class:`os.PathLike`.
+
+The hope in is that updating the fundamental functions for operating
+on file system paths will lead to third-party code to implicitly
+support all :term:`path-like objects <path-like object>` without any
+code changes or at least very minimal ones (e.g. calling
+:func:`os.fspath` at the beginning of code before operating on a
+path-like object).
 
 Here are some examples of how the new interface allows for
 :class:`pathlib.Path` to be used more easily and transparently with
@@ -345,6 +359,9 @@ New Modules
 Improved Modules
 ================
 
+On Linux, :func:`os.urandom` now blocks until the system urandom entropy pool
+is initialized to increase the security. See the :pep:`524` for the rationale.
+
 
 asyncio
 -------
@@ -437,6 +454,12 @@ Any code relying on the presence of ``default_format`` may
 need to be adapted. See :issue:`27819` for more details.
 
 
+encodings
+---------
+
+On Windows, added the ``'oem'`` encoding to use ``CP_OEMCP`` and the ``'ansi'``
+alias for the existing ``'mbcs'`` encoding, which uses the ``CP_ACP`` code page.
+
 faulthandler
 ------------
 
@@ -484,6 +507,9 @@ iterator is neither exhausted nor explicitly closed a :exc:`ResourceWarning`
 will be emitted in its destructor.
 (Contributed by Serhiy Storchaka in :issue:`25994`.)
 
+The Linux ``getrandom()`` syscall (get random bytes) is now exposed as the new
+:func:`os.getrandom` function.
+(Contributed by Victor Stinner, part of the :pep:`524`)
 
 pickle
 ------
@@ -525,8 +551,8 @@ you may now specify file paths on top of directories (e.g. zip files).
 sqlite3
 -------
 
-* :attr:`sqlite3.Cursor.lastrowid` now supports the ``REPLACE`` statement.
-  (Contributed by Alex LordThorsen in :issue:`16864`.)
+:attr:`sqlite3.Cursor.lastrowid` now supports the ``REPLACE`` statement.
+(Contributed by Alex LordThorsen in :issue:`16864`.)
 
 
 socket
@@ -566,6 +592,9 @@ proc: ...``) or call explicitly the :meth:`~subprocess.Popen.wait` method to
 read the exit status of the child process (Contributed by Victor Stinner in
 :issue:`26741`).
 
+The :class:`subprocess.Popen` constructor and all functions that pass arguments
+through to it now accept *encoding* and *errors* arguments. Specifying either
+of these will enable text mode for the *stdin*, *stdout* and *stderr* streams.
 
 telnetlib
 ---------
@@ -692,6 +721,14 @@ Added the 64-bit integer type :data:`REG_QWORD <winreg.REG_QWORD>`.
 (Contributed by Clement Rouault in :issue:`23026`.)
 
 
+winsound
+--------
+
+Allowed keyword arguments to be passed to :func:`Beep <winsound.Beep>`,
+:func:`MessageBeep <winsound.MessageBeep>`, and :func:`PlaySound
+<winsound.PlaySound>` (:issue:`27982`).
+
+
 zipfile
 -------
 
@@ -767,9 +804,20 @@ Optimizations
   Argument Clinic this overhead is significantly decreased.
   (Contributed by Serhiy Storchaka in :issue:`27574`).
 
+* Optimized :func:`~glob.glob` and :func:`~glob.iglob` functions in the
+  :mod:`glob` module; they are now about 3--6 times faster.
+  (Contributed by Serhiy Storchaka in :issue:`25596`).
+
+* Optimized globbing in :mod:`pathlib` by using :func:`os.scandir`;
+  it is now about 1.5--4 times faster.
+  (Contributed by Serhiy Storchaka in :issue:`26032`).
 
 Build and C API Changes
 =======================
+
+* The ``--with-optimizations`` configure flag has been added. Turning it on
+  will activate LTO and PGO build support (when available).
+  (Original patch by Alecsandru Patrascu of Intel in :issue:`26539`.)
 
 * New :c:func:`Py_FinalizeEx` API which indicates if flushing buffered data
   failed (:issue:`5319`).
@@ -896,6 +944,9 @@ Changes in 'python' Command Behavior
 
 Changes in the Python API
 -------------------------
+
+* On Linux, :func:`os.urandom` now blocks until the system urandom entropy pool
+  is initialized to increase the security.
 
 * When :meth:`importlib.abc.Loader.exec_module` is defined,
   :meth:`importlib.abc.Loader.create_module` must also be defined.

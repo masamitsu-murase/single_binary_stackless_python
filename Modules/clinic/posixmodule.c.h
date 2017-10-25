@@ -3011,13 +3011,13 @@ PyDoc_STRVAR(os_waitpid__doc__,
     {"waitpid", (PyCFunction)os_waitpid, METH_VARARGS, os_waitpid__doc__},
 
 static PyObject *
-os_waitpid_impl(PyObject *module, Py_intptr_t pid, int options);
+os_waitpid_impl(PyObject *module, intptr_t pid, int options);
 
 static PyObject *
 os_waitpid(PyObject *module, PyObject *args)
 {
     PyObject *return_value = NULL;
-    Py_intptr_t pid;
+    intptr_t pid;
     int options;
 
     if (!PyArg_ParseTuple(args, "" _Py_PARSE_INTPTR "i:waitpid",
@@ -5479,13 +5479,13 @@ PyDoc_STRVAR(os_get_handle_inheritable__doc__,
     {"get_handle_inheritable", (PyCFunction)os_get_handle_inheritable, METH_O, os_get_handle_inheritable__doc__},
 
 static int
-os_get_handle_inheritable_impl(PyObject *module, Py_intptr_t handle);
+os_get_handle_inheritable_impl(PyObject *module, intptr_t handle);
 
 static PyObject *
 os_get_handle_inheritable(PyObject *module, PyObject *arg)
 {
     PyObject *return_value = NULL;
-    Py_intptr_t handle;
+    intptr_t handle;
     int _return_value;
 
     if (!PyArg_Parse(arg, "" _Py_PARSE_INTPTR ":get_handle_inheritable", &handle)) {
@@ -5515,14 +5515,14 @@ PyDoc_STRVAR(os_set_handle_inheritable__doc__,
     {"set_handle_inheritable", (PyCFunction)os_set_handle_inheritable, METH_VARARGS, os_set_handle_inheritable__doc__},
 
 static PyObject *
-os_set_handle_inheritable_impl(PyObject *module, Py_intptr_t handle,
+os_set_handle_inheritable_impl(PyObject *module, intptr_t handle,
                                int inheritable);
 
 static PyObject *
 os_set_handle_inheritable(PyObject *module, PyObject *args)
 {
     PyObject *return_value = NULL;
-    Py_intptr_t handle;
+    intptr_t handle;
     int inheritable;
 
     if (!PyArg_ParseTuple(args, "" _Py_PARSE_INTPTR "p:set_handle_inheritable",
@@ -5570,6 +5570,41 @@ os_fspath(PyObject *module, PyObject *args, PyObject *kwargs)
 exit:
     return return_value;
 }
+
+#if defined(HAVE_GETRANDOM_SYSCALL)
+
+PyDoc_STRVAR(os_getrandom__doc__,
+"getrandom($module, /, size, flags=0)\n"
+"--\n"
+"\n"
+"Obtain a series of random bytes.");
+
+#define OS_GETRANDOM_METHODDEF    \
+    {"getrandom", (PyCFunction)os_getrandom, METH_VARARGS|METH_KEYWORDS, os_getrandom__doc__},
+
+static PyObject *
+os_getrandom_impl(PyObject *module, Py_ssize_t size, int flags);
+
+static PyObject *
+os_getrandom(PyObject *module, PyObject *args, PyObject *kwargs)
+{
+    PyObject *return_value = NULL;
+    static const char * const _keywords[] = {"size", "flags", NULL};
+    static _PyArg_Parser _parser = {"n|i:getrandom", _keywords, 0};
+    Py_ssize_t size;
+    int flags = 0;
+
+    if (!_PyArg_ParseTupleAndKeywordsFast(args, kwargs, &_parser,
+        &size, &flags)) {
+        goto exit;
+    }
+    return_value = os_getrandom_impl(module, size, flags);
+
+exit:
+    return return_value;
+}
+
+#endif /* defined(HAVE_GETRANDOM_SYSCALL) */
 
 #ifndef OS_TTYNAME_METHODDEF
     #define OS_TTYNAME_METHODDEF
@@ -6042,4 +6077,8 @@ exit:
 #ifndef OS_SET_HANDLE_INHERITABLE_METHODDEF
     #define OS_SET_HANDLE_INHERITABLE_METHODDEF
 #endif /* !defined(OS_SET_HANDLE_INHERITABLE_METHODDEF) */
-/*[clinic end generated code: output=2b85bb3703a6488a input=a9049054013a1b77]*/
+
+#ifndef OS_GETRANDOM_METHODDEF
+    #define OS_GETRANDOM_METHODDEF
+#endif /* !defined(OS_GETRANDOM_METHODDEF) */
+/*[clinic end generated code: output=fce51c7d432662c2 input=a9049054013a1b77]*/

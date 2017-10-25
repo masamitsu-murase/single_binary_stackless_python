@@ -1299,6 +1299,37 @@ else AC_MSG_RESULT(no); Py_DEBUG='false'
 fi],
 [AC_MSG_RESULT(no)])
 
+# Enable optimization flags
+AC_SUBST(DEF_MAKE_ALL_RULE)
+AC_SUBST(DEF_MAKE_RULE)
+Py_OPT='false'
+AC_MSG_CHECKING(for --with-optimizations)
+AC_ARG_WITH(optimizations, AS_HELP_STRING([--with-optimizations], [Enable all optimizations when available (LTO, PGO, etc). Disabled by default.]),
+[
+if test "$withval" != no
+then
+  Py_OPT='true'
+  AC_MSG_RESULT(yes);
+else
+  Py_OPT='false'
+  AC_MSG_RESULT(no);
+fi],
+[AC_MSG_RESULT(no)])
+if test "$Py_OPT" = 'true' ; then
+  Py_LTO='true'
+  case $ac_sys_system in
+    Darwin*)
+      # At least on macOS El Capitan, LTO does not work with PGO.
+      Py_LTO='false'
+      ;;
+    esac
+  DEF_MAKE_ALL_RULE="profile-opt"
+  DEF_MAKE_RULE="build_all"
+else
+  DEF_MAKE_ALL_RULE="build_all"
+  DEF_MAKE_RULE="all"
+fi
+
 # Enable LTO flags
 AC_SUBST(LTOFLAGS)
 AC_MSG_CHECKING(for --with-lto)
@@ -1316,13 +1347,20 @@ fi],
 if test "$Py_LTO" = 'true' ; then
   case $CC in
     *clang*)
-      # Any changes made here should be reflected in the GCC+Darwin case below
-      LTOFLAGS="-flto"
+      case $ac_sys_system in
+        Darwin*)
+          # Any changes made here should be reflected in the GCC+Darwin case below
+          LTOFLAGS="-flto -Wl,-export_dynamic"
+          ;;
+        *)
+          LTOFLAGS="-flto"
+          ;;
+      esac
       ;;
     *gcc*)
       case $ac_sys_system in
         Darwin*)
-          LTOFLAGS="-flto"
+          LTOFLAGS="-flto -Wl,-export_dynamic"
           ;;
         *)
           LTOFLAGS="-flto -fuse-linker-plugin -ffat-lto-objects -flto-partition=none"
@@ -1936,7 +1974,7 @@ AC_HEADER_STDC
 AC_CHECK_HEADERS(asm/types.h conio.h direct.h dlfcn.h errno.h \
 fcntl.h grp.h \
 ieeefp.h io.h langinfo.h libintl.h process.h pthread.h \
-sched.h shadow.h signal.h stdint.h stropts.h termios.h \
+sched.h shadow.h signal.h stropts.h termios.h \
 unistd.h utime.h \
 poll.h sys/devpoll.h sys/epoll.h sys/poll.h \
 sys/audioio.h sys/xattr.h sys/bsdtty.h sys/event.h sys/file.h sys/ioctl.h \
@@ -2078,29 +2116,6 @@ AC_DEFINE_UNQUOTED([RETSIGTYPE],[void],[assume C89 semantics that RETSIGTYPE is 
 AC_TYPE_SIZE_T
 AC_TYPE_UID_T
 
-# There are two separate checks for each of the exact-width integer types we
-# need.  First we check whether the type is available using the usual
-# AC_CHECK_TYPE macro with the default includes (which includes <inttypes.h>
-# and <stdint.h> where available).  We then also use the special type checks of
-# the form AC_TYPE_UINT32_T, which in the case that uint32_t is not available
-# directly, #define's uint32_t to be a suitable type.
-
-AC_CHECK_TYPE(uint32_t,
-  AC_DEFINE(HAVE_UINT32_T, 1, [Define if your compiler provides uint32_t.]),,)
-AC_TYPE_UINT32_T
-
-AC_CHECK_TYPE(uint64_t,
-  AC_DEFINE(HAVE_UINT64_T, 1, [Define if your compiler provides uint64_t.]),,)
-AC_TYPE_UINT64_T
-
-AC_CHECK_TYPE(int32_t,
-  AC_DEFINE(HAVE_INT32_T, 1, [Define if your compiler provides int32_t.]),,)
-AC_TYPE_INT32_T
-
-AC_CHECK_TYPE(int64_t,
-  AC_DEFINE(HAVE_INT64_T, 1, [Define if your compiler provides int64_t.]),,)
-AC_TYPE_INT64_T
-
 AC_CHECK_TYPE(ssize_t,
   AC_DEFINE(HAVE_SSIZE_T, 1, [Define if your compiler provides ssize_t]),,)
 AC_CHECK_TYPE(__uint128_t,
@@ -2118,6 +2133,7 @@ AC_CHECK_SIZEOF(double, 8)
 AC_CHECK_SIZEOF(fpos_t, 4)
 AC_CHECK_SIZEOF(size_t, 4)
 AC_CHECK_SIZEOF(pid_t, 4)
+AC_CHECK_SIZEOF(uintptr_t)
 
 AC_MSG_CHECKING(for long double support)
 have_long_double=no
@@ -2130,26 +2146,7 @@ if test "$have_long_double" = yes ; then
 AC_CHECK_SIZEOF(long double, 16)
 fi
 
-
-AC_MSG_CHECKING(for _Bool support)
-have_c99_bool=no
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[_Bool x; x = (_Bool)0;]])],[
-  AC_DEFINE(HAVE_C99_BOOL, 1, [Define this if you have the type _Bool.])
-  have_c99_bool=yes
-],[])
-AC_MSG_RESULT($have_c99_bool)
-if test "$have_c99_bool" = yes ; then
 AC_CHECK_SIZEOF(_Bool, 1)
-fi
-
-AC_CHECK_TYPES(uintptr_t,
-   [AC_CHECK_SIZEOF(uintptr_t, 4)],
-   [], [#ifdef HAVE_STDINT_H
-        #include <stdint.h>
-        #endif
-        #ifdef HAVE_INTTYPES_H
-        #include <inttypes.h>
-        #endif])
 
 AC_CHECK_SIZEOF(off_t, [], [
 #ifdef HAVE_SYS_TYPES_H
@@ -3760,6 +3757,8 @@ int main()
         break;
       }
     }
+    freeaddrinfo(aitop);
+    aitop = NULL;
   }
 
   if (!(inet4 == 0 || inet4 == 2))
@@ -5377,3 +5376,13 @@ $SHELL $srcdir/Modules/makesetup -c $srcdir/Modules/config.c.in \
 			-s Modules Modules/Setup.config \
 			Modules/Setup.local Modules/Setup
 mv config.c Modules
+
+if test "$Py_OPT" = 'false' -a "$Py_DEBUG" != 'true'; then
+    echo "" >&AS_MESSAGE_FD
+    echo "" >&AS_MESSAGE_FD
+    echo "If you want a release build with all optimizations active (LTO, PGO, etc),"
+    echo "please run ./configure --with-optimizations" >&AS_MESSAGE_FD
+    echo "" >&AS_MESSAGE_FD
+    echo "" >&AS_MESSAGE_FD
+fi
+

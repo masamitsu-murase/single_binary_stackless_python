@@ -3,15 +3,7 @@
 
 #include "pyconfig.h" /* include for defines */
 
-/* Some versions of HP-UX & Solaris need inttypes.h for int32_t,
-   INT32_MAX, etc. */
-#ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
-#endif
-
-#ifdef HAVE_STDINT_H
-#include <stdint.h>
-#endif
 
 /**************************************************************************
 Symbols and macros to supply platform-independent interfaces to basic
@@ -30,10 +22,6 @@ Used in:  Py_ARITHMETIC_RIGHT_SHIFT
 Py_DEBUG
 Meaning:  Extra checks compiled in for debug mode.
 Used in:  Py_SAFE_DOWNCAST
-
-HAVE_UINTPTR_T
-Meaning:  The C9X type uintptr_t is supported by the compiler
-Used in:  Py_uintptr_t
 
 **************************************************************************/
 
@@ -74,64 +62,19 @@ Used in:  Py_uintptr_t
 #endif /* LLONG_MAX */
 #endif
 
-/* a build with 30-bit digits for Python integers needs an exact-width
- * 32-bit unsigned integer type to store those digits.  (We could just use
- * type 'unsigned long', but that would be wasteful on a system where longs
- * are 64-bits.)  On Unix systems, the autoconf macro AC_TYPE_UINT32_T defines
- * uint32_t to be such a type unless stdint.h or inttypes.h defines uint32_t.
- * However, it doesn't set HAVE_UINT32_T, so we do that here.
- */
-#ifdef uint32_t
-#define HAVE_UINT32_T 1
-#endif
-
-#ifdef HAVE_UINT32_T
-#ifndef PY_UINT32_T
 #define PY_UINT32_T uint32_t
-#endif
-#endif
-
-/* Macros for a 64-bit unsigned integer type; used for type 'twodigits' in the
- * integer implementation, when 30-bit digits are enabled.
- */
-#ifdef uint64_t
-#define HAVE_UINT64_T 1
-#endif
-
-#ifdef HAVE_UINT64_T
-#ifndef PY_UINT64_T
 #define PY_UINT64_T uint64_t
-#endif
-#endif
 
 /* Signed variants of the above */
-#ifdef int32_t
-#define HAVE_INT32_T 1
-#endif
-
-#ifdef HAVE_INT32_T
-#ifndef PY_INT32_T
 #define PY_INT32_T int32_t
-#endif
-#endif
-
-#ifdef int64_t
-#define HAVE_INT64_T 1
-#endif
-
-#ifdef HAVE_INT64_T
-#ifndef PY_INT64_T
 #define PY_INT64_T int64_t
-#endif
-#endif
 
 /* If PYLONG_BITS_IN_DIGIT is not defined then we'll use 30-bit digits if all
    the necessary integer types are available, and we're on a 64-bit platform
    (as determined by SIZEOF_VOID_P); otherwise we use 15-bit digits. */
 
 #ifndef PYLONG_BITS_IN_DIGIT
-#if (defined HAVE_UINT64_T && defined HAVE_INT64_T && \
-     defined HAVE_UINT32_T && defined HAVE_INT32_T && SIZEOF_VOID_P >= 8)
+#if SIZEOF_VOID_P >= 8
 #define PYLONG_BITS_IN_DIGIT 30
 #else
 #define PYLONG_BITS_IN_DIGIT 15
@@ -143,25 +86,8 @@ Used in:  Py_uintptr_t
  * without loss of information.  Similarly for intptr_t, wrt a signed
  * integral type.
  */
-#ifdef HAVE_UINTPTR_T
 typedef uintptr_t       Py_uintptr_t;
 typedef intptr_t        Py_intptr_t;
-
-#elif SIZEOF_VOID_P <= SIZEOF_INT
-typedef unsigned int    Py_uintptr_t;
-typedef int             Py_intptr_t;
-
-#elif SIZEOF_VOID_P <= SIZEOF_LONG
-typedef unsigned long   Py_uintptr_t;
-typedef long            Py_intptr_t;
-
-#elif SIZEOF_VOID_P <= SIZEOF_LONG_LONG
-typedef unsigned PY_LONG_LONG   Py_uintptr_t;
-typedef PY_LONG_LONG            Py_intptr_t;
-
-#else
-#   error "Python needs a typedef for Py_uintptr_t in pyport.h."
-#endif /* HAVE_UINTPTR_T */
 
 /* Py_ssize_t is a signed integral type such that sizeof(Py_ssize_t) ==
  * sizeof(size_t).  C99 doesn't define such a thing directly (size_t is an
@@ -189,16 +115,8 @@ typedef Py_ssize_t Py_ssize_clean_t;
 typedef int Py_ssize_clean_t;
 #endif
 
-/* Largest possible value of size_t.
-   SIZE_MAX is part of C99, so it might be defined on some
-   platforms. If it is not defined, (size_t)-1 is a portable
-   definition for C89, due to the way signed->unsigned
-   conversion is defined. */
-#ifdef SIZE_MAX
+/* Largest possible value of size_t. */
 #define PY_SIZE_MAX SIZE_MAX
-#else
-#define PY_SIZE_MAX ((size_t)-1)
-#endif
 
 /* Largest positive value of type Py_ssize_t. */
 #define PY_SSIZE_T_MAX ((Py_ssize_t)(((size_t)-1)>>1))

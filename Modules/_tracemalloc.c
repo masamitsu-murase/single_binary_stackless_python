@@ -67,7 +67,7 @@ typedef struct
 __attribute__((packed))
 #endif
 {
-    Py_uintptr_t ptr;
+    uintptr_t ptr;
     _PyTraceMalloc_domain_t domain;
 } pointer_t;
 
@@ -527,7 +527,7 @@ static int
 tracemalloc_use_domain_cb(_Py_hashtable_t *old_traces,
                            _Py_hashtable_entry_t *entry, void *user_data)
 {
-    Py_uintptr_t ptr;
+    uintptr_t ptr;
     pointer_t key;
     _Py_hashtable_t *new_traces = (_Py_hashtable_t *)user_data;
     const void *pdata = _Py_HASHTABLE_ENTRY_PDATA(old_traces, entry);
@@ -542,7 +542,7 @@ tracemalloc_use_domain_cb(_Py_hashtable_t *old_traces,
 }
 
 
-/* Convert tracemalloc_traces from compact key (Py_uintptr_t) to pointer_t key.
+/* Convert tracemalloc_traces from compact key (uintptr_t) to pointer_t key.
  * Return 0 on success, -1 on error. */
 static int
 tracemalloc_use_domain(void)
@@ -576,7 +576,7 @@ tracemalloc_use_domain(void)
 
 
 static void
-tracemalloc_remove_trace(_PyTraceMalloc_domain_t domain, Py_uintptr_t ptr)
+tracemalloc_remove_trace(_PyTraceMalloc_domain_t domain, uintptr_t ptr)
 {
     trace_t trace;
     int removed;
@@ -599,11 +599,11 @@ tracemalloc_remove_trace(_PyTraceMalloc_domain_t domain, Py_uintptr_t ptr)
 }
 
 #define REMOVE_TRACE(ptr) \
-            tracemalloc_remove_trace(DEFAULT_DOMAIN, (Py_uintptr_t)(ptr))
+            tracemalloc_remove_trace(DEFAULT_DOMAIN, (uintptr_t)(ptr))
 
 
 static int
-tracemalloc_add_trace(_PyTraceMalloc_domain_t domain, Py_uintptr_t ptr,
+tracemalloc_add_trace(_PyTraceMalloc_domain_t domain, uintptr_t ptr,
                       size_t size)
 {
     pointer_t key = {ptr, domain};
@@ -621,7 +621,7 @@ tracemalloc_add_trace(_PyTraceMalloc_domain_t domain, Py_uintptr_t ptr,
 
     if (!tracemalloc_config.use_domain && domain != DEFAULT_DOMAIN) {
         /* first trace using a non-zero domain whereas traces use compact
-           (Py_uintptr_t) keys: switch to pointer_t keys. */
+           (uintptr_t) keys: switch to pointer_t keys. */
         if (tracemalloc_use_domain() < 0) {
             return -1;
         }
@@ -659,7 +659,7 @@ tracemalloc_add_trace(_PyTraceMalloc_domain_t domain, Py_uintptr_t ptr,
         }
     }
 
-    assert(tracemalloc_traced_memory <= PY_SIZE_MAX - size);
+    assert(tracemalloc_traced_memory <= SIZE_MAX - size);
     tracemalloc_traced_memory += size;
     if (tracemalloc_traced_memory > tracemalloc_peak_traced_memory)
         tracemalloc_peak_traced_memory = tracemalloc_traced_memory;
@@ -667,7 +667,7 @@ tracemalloc_add_trace(_PyTraceMalloc_domain_t domain, Py_uintptr_t ptr,
 }
 
 #define ADD_TRACE(ptr, size) \
-            tracemalloc_add_trace(DEFAULT_DOMAIN, (Py_uintptr_t)(ptr), size)
+            tracemalloc_add_trace(DEFAULT_DOMAIN, (uintptr_t)(ptr), size)
 
 
 static void*
@@ -676,7 +676,7 @@ tracemalloc_alloc(int use_calloc, void *ctx, size_t nelem, size_t elsize)
     PyMemAllocatorEx *alloc = (PyMemAllocatorEx *)ctx;
     void *ptr;
 
-    assert(elsize == 0 || nelem <= PY_SIZE_MAX / elsize);
+    assert(elsize == 0 || nelem <= SIZE_MAX / elsize);
 
     if (use_calloc)
         ptr = alloc->calloc(alloc->ctx, nelem, elsize);
@@ -1027,7 +1027,7 @@ tracemalloc_init(void)
                                            hashtable_compare_pointer_t);
     }
     else {
-        tracemalloc_traces = hashtable_new(sizeof(Py_uintptr_t),
+        tracemalloc_traces = hashtable_new(sizeof(uintptr_t),
                                            sizeof(trace_t),
                                            _Py_hashtable_hash_ptr,
                                            _Py_hashtable_compare_direct);
@@ -1418,7 +1418,7 @@ finally:
 
 
 static traceback_t*
-tracemalloc_get_traceback(_PyTraceMalloc_domain_t domain, Py_uintptr_t ptr)
+tracemalloc_get_traceback(_PyTraceMalloc_domain_t domain, uintptr_t ptr)
 {
     trace_t trace;
     int found;
@@ -1465,7 +1465,7 @@ py_tracemalloc_get_object_traceback(PyObject *self, PyObject *obj)
     else
         ptr = (void *)obj;
 
-    traceback = tracemalloc_get_traceback(DEFAULT_DOMAIN, (Py_uintptr_t)ptr);
+    traceback = tracemalloc_get_traceback(DEFAULT_DOMAIN, (uintptr_t)ptr);
     if (traceback == NULL)
         Py_RETURN_NONE;
 
@@ -1493,7 +1493,7 @@ _PyMem_DumpTraceback(int fd, const void *ptr)
     traceback_t *traceback;
     int i;
 
-    traceback = tracemalloc_get_traceback(DEFAULT_DOMAIN, (Py_uintptr_t)ptr);
+    traceback = tracemalloc_get_traceback(DEFAULT_DOMAIN, (uintptr_t)ptr);
     if (traceback == NULL)
         return;
 
@@ -1766,7 +1766,7 @@ _PyTraceMalloc_Fini(void)
 }
 
 int
-_PyTraceMalloc_Track(_PyTraceMalloc_domain_t domain, Py_uintptr_t ptr,
+_PyTraceMalloc_Track(_PyTraceMalloc_domain_t domain, uintptr_t ptr,
                      size_t size)
 {
     int res;
@@ -1795,7 +1795,7 @@ _PyTraceMalloc_Track(_PyTraceMalloc_domain_t domain, Py_uintptr_t ptr,
 
 
 int
-_PyTraceMalloc_Untrack(_PyTraceMalloc_domain_t domain, Py_uintptr_t ptr)
+_PyTraceMalloc_Untrack(_PyTraceMalloc_domain_t domain, uintptr_t ptr)
 {
     if (!tracemalloc_config.tracing) {
         /* tracemalloc is not tracing: do nothing */
@@ -1811,7 +1811,7 @@ _PyTraceMalloc_Untrack(_PyTraceMalloc_domain_t domain, Py_uintptr_t ptr)
 
 
 PyObject*
-_PyTraceMalloc_GetTraceback(_PyTraceMalloc_domain_t domain, Py_uintptr_t ptr)
+_PyTraceMalloc_GetTraceback(_PyTraceMalloc_domain_t domain, uintptr_t ptr)
 {
     traceback_t *traceback;
 

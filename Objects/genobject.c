@@ -23,7 +23,7 @@ void
 _PyGen_Finalize(PyObject *self)
 {
     PyGenObject *gen = (PyGenObject *)self;
-    PyObject *res;
+    PyObject *res = NULL;
     PyObject *error_type, *error_value, *error_traceback;
 
     if (gen->gi_frame == NULL || gen->gi_frame->f_stacktop == NULL)
@@ -35,23 +35,26 @@ _PyGen_Finalize(PyObject *self)
 
     /* If `gen` is a coroutine, and if it was never awaited on,
        issue a RuntimeWarning. */
-    if (gen->gi_code != NULL
-            && ((PyCodeObject *)gen->gi_code)->co_flags & CO_COROUTINE
-            && gen->gi_frame->f_lasti == -1
-            && !PyErr_Occurred()
-            && PyErr_WarnFormat(PyExc_RuntimeWarning, 1,
-                                "coroutine '%.50S' was never awaited",
-                                gen->gi_qualname)) {
-        res = NULL;  /* oops, exception */
+    if (gen->gi_code != NULL &&
+        ((PyCodeObject *)gen->gi_code)->co_flags & CO_COROUTINE &&
+        gen->gi_frame->f_lasti == -1) {
+        if (!error_value) {
+            PyErr_WarnFormat(PyExc_RuntimeWarning, 1,
+                             "coroutine '%.50S' was never awaited",
+                             gen->gi_qualname);
+        }
     }
     else {
         res = gen_close(gen, NULL);
     }
 
-    if (res == NULL)
-        PyErr_WriteUnraisable(self);
-    else
+    if (res == NULL) {
+        if (PyErr_Occurred())
+            PyErr_WriteUnraisable(self);
+    }
+    else {
         Py_DECREF(res);
+    }
 
     /* Restore the saved exception. */
     PyErr_Restore(error_type, error_value, error_traceback);
@@ -372,7 +375,7 @@ gen_close_iter(PyObject *yf)
                 PyErr_WriteUnraisable(yf);
             PyErr_Clear();
         } else {
-            retval = PyObject_CallFunction(meth, "");
+            retval = _PyObject_CallNoArg(meth);
             Py_DECREF(meth);
             if (retval == NULL)
                 return -1;

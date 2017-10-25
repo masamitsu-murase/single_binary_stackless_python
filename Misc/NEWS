@@ -10,7 +10,13 @@ What's New in Python 3.6.0 beta 1
 Core and Builtins
 -----------------
 
-- Issue #27961?: Require platforms to support ``long long``. Python hasn't
+- Issue #26307: The profile-opt build now applys PGO to the built-in modules.
+
+- Issue #27078: Added BUILD_STRING opcode.  Optimized f-strings evaluation.
+
+- Issue #17884: Python now requires systems with inttypes.h and stdint.h
+
+- Issue #27961: Require platforms to support ``long long``. Python hasn't
   compiled without ``long long`` for years, so this is basically a formality.
 
 - Issue #27355: Removed support for Windows CE.  It was never finished,
@@ -84,6 +90,43 @@ Core and Builtins
 
 Library
 -------
+
+- Issue 27988: Fix email iter_attachments incorrect mutation of payload list.
+
+- Issue #16113: Add SHA-3 and SHAKE support to hashlib module.
+
+- Issue #27776: The :func:`os.urandom` function does now block on Linux 3.17
+  and newer until the system urandom entropy pool is initialized to increase
+  the security. This change is part of the :pep:`524`.
+
+- Issue #27778: Expose the Linux ``getrandom()`` syscall as a new
+  :func:`os.getrandom` function. This change is part of the :pep:`524`.
+
+- Issue #27691: Fix ssl module's parsing of GEN_RID subject alternative name
+  fields in X.509 certs.
+
+- Issue #18844: Add random.choices().
+
+- Issue #25761: Improved error reporting about truncated pickle data in
+  C implementation of unpickler.  UnpicklingError is now raised instead of
+  AttributeError and ValueError in some cases.
+
+- Issue #26798: Add BLAKE2 (blake2b and blake2s) to hashlib.
+
+- Issue #26032: Optimized globbing in pathlib by using os.scandir(); it is now
+  about 1.5--4 times faster.
+
+- Issue #25596: Optimized glob() and iglob() functions in the
+  glob module; they are now about 3--6 times faster.
+
+- Issue #27928: Add scrypt (password-based key derivation function) to
+  hashlib module (requires OpenSSL 1.1.0).
+
+- Issue #27850: Remove 3DES from ssl module's default cipher list to counter
+  measure sweet32 attack (CVE-2016-2183).
+
+- Issue #27766: Add ChaCha20 Poly1305 to ssl module's default ciper list.
+  (Required OpenSSL 1.1.0 or LibreSSL).
 
 - Issue #25387: Check return value of winsound.MessageBeep.
 
@@ -163,6 +206,12 @@ Library
 
 - Issue #27573: exit message for code.interact is now configurable.
 
+C API
+-----
+
+- Issue #26027: Add support for path-like objects in PyUnicode_FSConverter() &
+  PyUnicode_FSDecoder().
+
 Tests
 -----
 
@@ -180,6 +229,9 @@ Tests
 Build
 -----
 
+- Issue #26539: Add the --with-optimizations flag to turn on LTO and PGO build
+  support when available.
+
 - Issue #27917: Set platform triplets for Android builds.
 
 - Issue #25825: Update references to the $(LIBPL) installation path on AIX.
@@ -187,8 +239,20 @@ Build
 
 - Update OS X installer to use SQLite 3.14.1 and XZ 5.2.2.
 
+- Issue #21122: Fix LTO builds on OS X.
+
 Windows
 -------
+
+- Issue #27731: Opt-out of MAX_PATH on Windows 10
+
+- Issue #6135: Adds encoding and errors parameters to subprocess.
+
+- Issue #27959: Adds oem encoding, alias ansi to mbcs, move aliasmbcs to
+  codec lookup.
+
+- Issue #27982: The functions of the winsound module now accept keyword
+  arguments.
 
 - Issue #20366: Build full text search support into SQLite on Windows.
 

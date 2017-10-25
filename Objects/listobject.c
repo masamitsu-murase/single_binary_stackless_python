@@ -49,7 +49,7 @@ list_resize(PyListObject *self, Py_ssize_t newsize)
     new_allocated = (newsize >> 3) + (newsize < 9 ? 3 : 6);
 
     /* check for integer overflow */
-    if (new_allocated > PY_SIZE_MAX - newsize) {
+    if (new_allocated > SIZE_MAX - newsize) {
         PyErr_NoMemory();
         return -1;
     } else {
@@ -59,7 +59,7 @@ list_resize(PyListObject *self, Py_ssize_t newsize)
     if (newsize == 0)
         new_allocated = 0;
     items = self->ob_item;
-    if (new_allocated <= (PY_SIZE_MAX / sizeof(PyObject *)))
+    if (new_allocated <= (SIZE_MAX / sizeof(PyObject *)))
         PyMem_RESIZE(items, PyObject *, new_allocated);
     else
         items = NULL;
@@ -634,14 +634,17 @@ list_ass_slice(PyListObject *a, Py_ssize_t ilow, Py_ssize_t ihigh, PyObject *v)
     item = a->ob_item;
     /* recycle the items that we are about to remove */
     s = norig * sizeof(PyObject *);
-    if (s > sizeof(recycle_on_stack)) {
-        recycle = (PyObject **)PyMem_MALLOC(s);
-        if (recycle == NULL) {
-            PyErr_NoMemory();
-            goto Error;
+    /* If norig == 0, item might be NULL, in which case we may not memcpy from it. */
+    if (s) {
+        if (s > sizeof(recycle_on_stack)) {
+            recycle = (PyObject **)PyMem_MALLOC(s);
+            if (recycle == NULL) {
+                PyErr_NoMemory();
+                goto Error;
+            }
         }
+        memcpy(recycle, &item[ilow], s);
     }
-    memcpy(recycle, &item[ilow], s);
 
     if (d < 0) { /* Delete -d items */
         Py_ssize_t tail;

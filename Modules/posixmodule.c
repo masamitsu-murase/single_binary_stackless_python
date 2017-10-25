@@ -133,6 +133,13 @@ corresponding Unix manual entries for more information on calls.");
 #include <sys/sysctl.h>
 #endif
 
+#ifdef HAVE_LINUX_RANDOM_H
+#  include <linux/random.h>
+#endif
+#ifdef HAVE_GETRANDOM_SYSCALL
+#  include <sys/syscall.h>
+#endif
+
 #if defined(MS_WINDOWS)
 #  define TERMSIZE_USE_CONIO
 #elif defined(HAVE_SYS_IOCTL_H)
@@ -1108,7 +1115,7 @@ dir_fd_and_follow_symlinks_invalid(const char *function_name, int dir_fd,
 }
 
 #ifdef MS_WINDOWS
-    typedef PY_LONG_LONG Py_off_t;
+    typedef long long Py_off_t;
 #else
     typedef off_t Py_off_t;
 #endif
@@ -2073,7 +2080,7 @@ _pystat_fromstructstat(STRUCT_STAT *st)
     PyStructSequence_SET_ITEM(v, 0, PyLong_FromLong((long)st->st_mode));
 #ifdef HAVE_LARGEFILE_SUPPORT
     PyStructSequence_SET_ITEM(v, 1,
-                              PyLong_FromLongLong((PY_LONG_LONG)st->st_ino));
+                              PyLong_FromLongLong((long long)st->st_ino));
 #else
     PyStructSequence_SET_ITEM(v, 1, PyLong_FromLong((long)st->st_ino));
 #endif
@@ -2092,7 +2099,7 @@ _pystat_fromstructstat(STRUCT_STAT *st)
 #endif
 #ifdef HAVE_LARGEFILE_SUPPORT
     PyStructSequence_SET_ITEM(v, 6,
-                              PyLong_FromLongLong((PY_LONG_LONG)st->st_size));
+                              PyLong_FromLongLong((long long)st->st_size));
 #else
     PyStructSequence_SET_ITEM(v, 6, PyLong_FromLong(st->st_size));
 #endif
@@ -2492,8 +2499,8 @@ class id_t_converter(CConverter):
     type = 'id_t'
     format_unit = '" _Py_PARSE_PID "'
 
-class Py_intptr_t_converter(CConverter):
-    type = 'Py_intptr_t'
+class intptr_t_converter(CConverter):
+    type = 'intptr_t'
     format_unit = '" _Py_PARSE_INTPTR "'
 
 class Py_off_t_converter(CConverter):
@@ -2520,7 +2527,7 @@ class sched_param_converter(CConverter):
     impl_by_reference = True;
 
 [python start generated code]*/
-/*[python end generated code: output=da39a3ee5e6b4b0d input=affe68316f160401]*/
+/*[python end generated code: output=da39a3ee5e6b4b0d input=418fce0e01144461]*/
 
 /*[clinic input]
 
@@ -5244,7 +5251,7 @@ os_spawnv_impl(PyObject *module, int mode, PyObject *path, PyObject *argv)
     char **argvlist;
     int i;
     Py_ssize_t argc;
-    Py_intptr_t spawnval;
+    intptr_t spawnval;
     PyObject *(*getitem)(PyObject *, Py_ssize_t);
 
     /* spawnv has three arguments: (mode, path, argv), where
@@ -5323,7 +5330,7 @@ os_spawnve_impl(PyObject *module, int mode, PyObject *path, PyObject *argv,
     char **envlist;
     PyObject *res = NULL;
     Py_ssize_t argc, i, envc;
-    Py_intptr_t spawnval;
+    intptr_t spawnval;
     PyObject *(*getitem)(PyObject *, Py_ssize_t);
     Py_ssize_t lastarg = 0;
 
@@ -7078,7 +7085,7 @@ os_waitpid_impl(PyObject *module, pid_t pid, int options)
 /* MS C has a variant of waitpid() that's usable for most purposes. */
 /*[clinic input]
 os.waitpid
-    pid: Py_intptr_t
+    pid: intptr_t
     options: int
     /
 
@@ -7091,11 +7098,11 @@ The options argument is ignored on Windows.
 [clinic start generated code]*/
 
 static PyObject *
-os_waitpid_impl(PyObject *module, Py_intptr_t pid, int options)
-/*[clinic end generated code: output=15f1ce005a346b09 input=444c8f51cca5b862]*/
+os_waitpid_impl(PyObject *module, intptr_t pid, int options)
+/*[clinic end generated code: output=be836b221271d538 input=40f2440c515410f8]*/
 {
     int status;
-    Py_intptr_t res;
+    intptr_t res;
     int async_err = 0;
 
     do {
@@ -8559,8 +8566,8 @@ os_pipe_impl(PyObject *module)
     Py_BEGIN_ALLOW_THREADS
     ok = CreatePipe(&read, &write, &attr, 0);
     if (ok) {
-        fds[0] = _open_osfhandle((Py_intptr_t)read, _O_RDONLY);
-        fds[1] = _open_osfhandle((Py_intptr_t)write, _O_WRONLY);
+        fds[0] = _open_osfhandle((intptr_t)read, _O_RDONLY);
+        fds[1] = _open_osfhandle((intptr_t)write, _O_WRONLY);
         if (fds[0] == -1 || fds[1] == -1) {
             CloseHandle(read);
             CloseHandle(write);
@@ -9420,17 +9427,17 @@ _pystatvfs_fromstructstatvfs(struct statvfs st) {
     PyStructSequence_SET_ITEM(v, 0, PyLong_FromLong((long) st.f_bsize));
     PyStructSequence_SET_ITEM(v, 1, PyLong_FromLong((long) st.f_frsize));
     PyStructSequence_SET_ITEM(v, 2,
-                              PyLong_FromLongLong((PY_LONG_LONG) st.f_blocks));
+                              PyLong_FromLongLong((long long) st.f_blocks));
     PyStructSequence_SET_ITEM(v, 3,
-                              PyLong_FromLongLong((PY_LONG_LONG) st.f_bfree));
+                              PyLong_FromLongLong((long long) st.f_bfree));
     PyStructSequence_SET_ITEM(v, 4,
-                              PyLong_FromLongLong((PY_LONG_LONG) st.f_bavail));
+                              PyLong_FromLongLong((long long) st.f_bavail));
     PyStructSequence_SET_ITEM(v, 5,
-                              PyLong_FromLongLong((PY_LONG_LONG) st.f_files));
+                              PyLong_FromLongLong((long long) st.f_files));
     PyStructSequence_SET_ITEM(v, 6,
-                              PyLong_FromLongLong((PY_LONG_LONG) st.f_ffree));
+                              PyLong_FromLongLong((long long) st.f_ffree));
     PyStructSequence_SET_ITEM(v, 7,
-                              PyLong_FromLongLong((PY_LONG_LONG) st.f_favail));
+                              PyLong_FromLongLong((long long) st.f_favail));
     PyStructSequence_SET_ITEM(v, 8, PyLong_FromLong((long) st.f_flag));
     PyStructSequence_SET_ITEM(v, 9, PyLong_FromLong((long) st.f_namemax));
 #endif
@@ -11161,8 +11168,7 @@ os_urandom_impl(PyObject *module, Py_ssize_t size)
     if (bytes == NULL)
         return NULL;
 
-    result = _PyOS_URandom(PyBytes_AS_STRING(bytes),
-                        PyBytes_GET_SIZE(bytes));
+    result = _PyOS_URandom(PyBytes_AS_STRING(bytes), PyBytes_GET_SIZE(bytes));
     if (result == -1) {
         Py_DECREF(bytes);
         return NULL;
@@ -11375,15 +11381,15 @@ os_set_inheritable_impl(PyObject *module, int fd, int inheritable)
 #ifdef MS_WINDOWS
 /*[clinic input]
 os.get_handle_inheritable -> bool
-    handle: Py_intptr_t
+    handle: intptr_t
     /
 
 Get the close-on-exe flag of the specified file descriptor.
 [clinic start generated code]*/
 
 static int
-os_get_handle_inheritable_impl(PyObject *module, Py_intptr_t handle)
-/*[clinic end generated code: output=9e5389b0aa0916ce input=5f7759443aae3dc5]*/
+os_get_handle_inheritable_impl(PyObject *module, intptr_t handle)
+/*[clinic end generated code: output=36be5afca6ea84d8 input=cfe99f9c05c70ad1]*/
 {
     DWORD flags;
 
@@ -11398,7 +11404,7 @@ os_get_handle_inheritable_impl(PyObject *module, Py_intptr_t handle)
 
 /*[clinic input]
 os.set_handle_inheritable
-    handle: Py_intptr_t
+    handle: intptr_t
     inheritable: bool
     /
 
@@ -11406,9 +11412,9 @@ Set the inheritable flag of the specified handle.
 [clinic start generated code]*/
 
 static PyObject *
-os_set_handle_inheritable_impl(PyObject *module, Py_intptr_t handle,
+os_set_handle_inheritable_impl(PyObject *module, intptr_t handle,
                                int inheritable)
-/*[clinic end generated code: output=b1e67bfa3213d745 input=e64b2b2730469def]*/
+/*[clinic end generated code: output=021d74fe6c96baa3 input=7a7641390d8364fc]*/
 {
     DWORD flags = inheritable ? HANDLE_FLAG_INHERIT : 0;
     if (!SetHandleInformation((HANDLE)handle, HANDLE_FLAG_INHERIT, flags)) {
@@ -11763,10 +11769,10 @@ DirEntry_inode(DirEntry *self)
         self->win32_file_index = stat.st_ino;
         self->got_file_index = 1;
     }
-    return PyLong_FromLongLong((PY_LONG_LONG)self->win32_file_index);
+    return PyLong_FromLongLong((long long)self->win32_file_index);
 #else /* POSIX */
 #ifdef HAVE_LARGEFILE_SUPPORT
-    return PyLong_FromLongLong((PY_LONG_LONG)self->d_ino);
+    return PyLong_FromLongLong((long long)self->d_ino);
 #else
     return PyLong_FromLong((long)self->d_ino);
 #endif
@@ -12421,6 +12427,59 @@ os_fspath_impl(PyObject *module, PyObject *path)
     return PyOS_FSPath(path);
 }
 
+#ifdef HAVE_GETRANDOM_SYSCALL
+/*[clinic input]
+os.getrandom
+
+    size: Py_ssize_t
+    flags: int=0
+
+Obtain a series of random bytes.
+[clinic start generated code]*/
+
+static PyObject *
+os_getrandom_impl(PyObject *module, Py_ssize_t size, int flags)
+/*[clinic end generated code: output=b3a618196a61409c input=59bafac39c594947]*/
+{
+    char *buffer;
+    Py_ssize_t n;
+    PyObject *bytes;
+
+    if (size < 0) {
+        errno = EINVAL;
+        return posix_error();
+    }
+
+    buffer = PyMem_Malloc(size);
+    if (buffer == NULL) {
+        PyErr_NoMemory();
+        return NULL;
+    }
+
+    while (1) {
+        n = syscall(SYS_getrandom, buffer, size, flags);
+        if (n < 0 && errno == EINTR) {
+            if (PyErr_CheckSignals() < 0) {
+                return NULL;
+            }
+            continue;
+        }
+        break;
+    }
+
+    if (n < 0) {
+        PyMem_Free(buffer);
+        PyErr_SetFromErrno(PyExc_OSError);
+        return NULL;
+    }
+
+    bytes = PyBytes_FromStringAndSize(buffer, n);
+    PyMem_Free(buffer);
+
+    return bytes;
+}
+#endif   /* HAVE_GETRANDOM_SYSCALL */
+
 #include "clinic/posixmodule.c.h"
 
 /*[clinic input]
@@ -12621,6 +12680,7 @@ static PyMethodDef posix_methods[] = {
                         METH_VARARGS | METH_KEYWORDS,
                         posix_scandir__doc__},
     OS_FSPATH_METHODDEF
+    OS_GETRANDOM_METHODDEF
     {NULL,              NULL}            /* Sentinel */
 };
 
@@ -13064,6 +13124,11 @@ all_ins(PyObject *m)
 #endif
 #if HAVE_DECL_RTLD_DEEPBIND
     if (PyModule_AddIntMacro(m, RTLD_DEEPBIND)) return -1;
+#endif
+
+#ifdef HAVE_GETRANDOM_SYSCALL
+    if (PyModule_AddIntMacro(m, GRND_RANDOM)) return -1;
+    if (PyModule_AddIntMacro(m, GRND_NONBLOCK)) return -1;
 #endif
 
     return 0;

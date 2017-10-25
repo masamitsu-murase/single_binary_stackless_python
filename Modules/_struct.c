@@ -60,6 +60,7 @@ typedef struct { char c; float x; } st_float;
 typedef struct { char c; double x; } st_double;
 typedef struct { char c; void *x; } st_void_p;
 typedef struct { char c; size_t x; } st_size_t;
+typedef struct { char c; _Bool x; } st_bool;
 
 #define SHORT_ALIGN (sizeof(st_short) - sizeof(short))
 #define INT_ALIGN (sizeof(st_int) - sizeof(int))
@@ -68,20 +69,12 @@ typedef struct { char c; size_t x; } st_size_t;
 #define DOUBLE_ALIGN (sizeof(st_double) - sizeof(double))
 #define VOID_P_ALIGN (sizeof(st_void_p) - sizeof(void *))
 #define SIZE_T_ALIGN (sizeof(st_size_t) - sizeof(size_t))
+#define BOOL_ALIGN (sizeof(st_bool) - sizeof(_Bool))
 
 /* We can't support q and Q in native mode unless the compiler does;
    in std mode, they're 8 bytes on all platforms. */
-typedef struct { char c; PY_LONG_LONG x; } s_long_long;
-#define LONG_LONG_ALIGN (sizeof(s_long_long) - sizeof(PY_LONG_LONG))
-
-#ifdef HAVE_C99_BOOL
-#define BOOL_TYPE _Bool
-typedef struct { char c; _Bool x; } s_bool;
-#define BOOL_ALIGN (sizeof(s_bool) - sizeof(BOOL_TYPE))
-#else
-#define BOOL_TYPE char
-#define BOOL_ALIGN 0
-#endif
+typedef struct { char c; long long x; } s_long_long;
+#define LONG_LONG_ALIGN (sizeof(s_long_long) - sizeof(long long))
 
 #ifdef __powerc
 #pragma options align=reset
@@ -165,9 +158,9 @@ get_ulong(PyObject *v, unsigned long *p)
 /* Same, but handling native long long. */
 
 static int
-get_longlong(PyObject *v, PY_LONG_LONG *p)
+get_longlong(PyObject *v, long long *p)
 {
-    PY_LONG_LONG x;
+    long long x;
 
     v = get_pylong(v);
     if (v == NULL)
@@ -175,7 +168,7 @@ get_longlong(PyObject *v, PY_LONG_LONG *p)
     assert(PyLong_Check(v));
     x = PyLong_AsLongLong(v);
     Py_DECREF(v);
-    if (x == (PY_LONG_LONG)-1 && PyErr_Occurred()) {
+    if (x == (long long)-1 && PyErr_Occurred()) {
         if (PyErr_ExceptionMatches(PyExc_OverflowError))
             PyErr_SetString(StructError,
                             "argument out of range");
@@ -188,9 +181,9 @@ get_longlong(PyObject *v, PY_LONG_LONG *p)
 /* Same, but handling native unsigned long long. */
 
 static int
-get_ulonglong(PyObject *v, unsigned PY_LONG_LONG *p)
+get_ulonglong(PyObject *v, unsigned long long *p)
 {
-    unsigned PY_LONG_LONG x;
+    unsigned long long x;
 
     v = get_pylong(v);
     if (v == NULL)
@@ -198,7 +191,7 @@ get_ulonglong(PyObject *v, unsigned PY_LONG_LONG *p)
     assert(PyLong_Check(v));
     x = PyLong_AsUnsignedLongLong(v);
     Py_DECREF(v);
-    if (x == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred()) {
+    if (x == (unsigned long long)-1 && PyErr_Occurred()) {
         if (PyErr_ExceptionMatches(PyExc_OverflowError))
             PyErr_SetString(StructError,
                             "argument out of range");
@@ -460,27 +453,27 @@ nu_size_t(const char *p, const formatdef *f)
 static PyObject *
 nu_longlong(const char *p, const formatdef *f)
 {
-    PY_LONG_LONG x;
+    long long x;
     memcpy((char *)&x, p, sizeof x);
     if (x >= LONG_MIN && x <= LONG_MAX)
-        return PyLong_FromLong(Py_SAFE_DOWNCAST(x, PY_LONG_LONG, long));
+        return PyLong_FromLong(Py_SAFE_DOWNCAST(x, long long, long));
     return PyLong_FromLongLong(x);
 }
 
 static PyObject *
 nu_ulonglong(const char *p, const formatdef *f)
 {
-    unsigned PY_LONG_LONG x;
+    unsigned long long x;
     memcpy((char *)&x, p, sizeof x);
     if (x <= LONG_MAX)
-        return PyLong_FromLong(Py_SAFE_DOWNCAST(x, unsigned PY_LONG_LONG, long));
+        return PyLong_FromLong(Py_SAFE_DOWNCAST(x, unsigned long long, long));
     return PyLong_FromUnsignedLongLong(x);
 }
 
 static PyObject *
 nu_bool(const char *p, const formatdef *f)
 {
-    BOOL_TYPE x;
+    _Bool x;
     memcpy((char *)&x, p, sizeof x);
     return PyBool_FromLong(x != 0);
 }
@@ -673,7 +666,7 @@ np_size_t(char *p, PyObject *v, const formatdef *f)
 static int
 np_longlong(char *p, PyObject *v, const formatdef *f)
 {
-    PY_LONG_LONG x;
+    long long x;
     if (get_longlong(v, &x) < 0)
         return -1;
     memcpy(p, (char *)&x, sizeof x);
@@ -683,7 +676,7 @@ np_longlong(char *p, PyObject *v, const formatdef *f)
 static int
 np_ulonglong(char *p, PyObject *v, const formatdef *f)
 {
-    unsigned PY_LONG_LONG x;
+    unsigned long long x;
     if (get_ulonglong(v, &x) < 0)
         return -1;
     memcpy(p, (char *)&x, sizeof x);
@@ -695,7 +688,7 @@ static int
 np_bool(char *p, PyObject *v, const formatdef *f)
 {
     int y;
-    BOOL_TYPE x;
+    _Bool x;
     y = PyObject_IsTrue(v);
     if (y < 0)
         return -1;
@@ -772,9 +765,9 @@ static const formatdef native_table[] = {
     {'L',       sizeof(long),   LONG_ALIGN,     nu_ulong,       np_ulong},
     {'n',       sizeof(size_t), SIZE_T_ALIGN,   nu_ssize_t,     np_ssize_t},
     {'N',       sizeof(size_t), SIZE_T_ALIGN,   nu_size_t,      np_size_t},
-    {'q',       sizeof(PY_LONG_LONG), LONG_LONG_ALIGN, nu_longlong, np_longlong},
-    {'Q',       sizeof(PY_LONG_LONG), LONG_LONG_ALIGN, nu_ulonglong,np_ulonglong},
-    {'?',       sizeof(BOOL_TYPE),      BOOL_ALIGN,     nu_bool,        np_bool},
+    {'q',       sizeof(long long), LONG_LONG_ALIGN, nu_longlong, np_longlong},
+    {'Q',       sizeof(long long), LONG_LONG_ALIGN, nu_ulonglong,np_ulonglong},
+    {'?',       sizeof(_Bool),      BOOL_ALIGN,     nu_bool,        np_bool},
     {'e',       sizeof(short),  SHORT_ALIGN,    nu_halffloat,   np_halffloat},
     {'f',       sizeof(float),  FLOAT_ALIGN,    nu_float,       np_float},
     {'d',       sizeof(double), DOUBLE_ALIGN,   nu_double,      np_double},
@@ -816,7 +809,7 @@ bu_uint(const char *p, const formatdef *f)
 static PyObject *
 bu_longlong(const char *p, const formatdef *f)
 {
-    PY_LONG_LONG x = 0;
+    long long x = 0;
     Py_ssize_t i = f->size;
     const unsigned char *bytes = (const unsigned char *)p;
     do {
@@ -824,23 +817,23 @@ bu_longlong(const char *p, const formatdef *f)
     } while (--i > 0);
     /* Extend the sign bit. */
     if (SIZEOF_LONG_LONG > f->size)
-        x |= -(x & ((PY_LONG_LONG)1 << ((8 * f->size) - 1)));
+        x |= -(x & ((long long)1 << ((8 * f->size) - 1)));
     if (x >= LONG_MIN && x <= LONG_MAX)
-        return PyLong_FromLong(Py_SAFE_DOWNCAST(x, PY_LONG_LONG, long));
+        return PyLong_FromLong(Py_SAFE_DOWNCAST(x, long long, long));
     return PyLong_FromLongLong(x);
 }
 
 static PyObject *
 bu_ulonglong(const char *p, const formatdef *f)
 {
-    unsigned PY_LONG_LONG x = 0;
+    unsigned long long x = 0;
     Py_ssize_t i = f->size;
     const unsigned char *bytes = (const unsigned char *)p;
     do {
         x = (x<<8) | *bytes++;
     } while (--i > 0);
     if (x <= LONG_MAX)
-        return PyLong_FromLong(Py_SAFE_DOWNCAST(x, unsigned PY_LONG_LONG, long));
+        return PyLong_FromLong(Py_SAFE_DOWNCAST(x, unsigned long long, long));
     return PyLong_FromUnsignedLongLong(x);
 }
 
@@ -1043,7 +1036,7 @@ lu_uint(const char *p, const formatdef *f)
 static PyObject *
 lu_longlong(const char *p, const formatdef *f)
 {
-    PY_LONG_LONG x = 0;
+    long long x = 0;
     Py_ssize_t i = f->size;
     const unsigned char *bytes = (const unsigned char *)p;
     do {
@@ -1051,23 +1044,23 @@ lu_longlong(const char *p, const formatdef *f)
     } while (i > 0);
     /* Extend the sign bit. */
     if (SIZEOF_LONG_LONG > f->size)
-        x |= -(x & ((PY_LONG_LONG)1 << ((8 * f->size) - 1)));
+        x |= -(x & ((long long)1 << ((8 * f->size) - 1)));
     if (x >= LONG_MIN && x <= LONG_MAX)
-        return PyLong_FromLong(Py_SAFE_DOWNCAST(x, PY_LONG_LONG, long));
+        return PyLong_FromLong(Py_SAFE_DOWNCAST(x, long long, long));
     return PyLong_FromLongLong(x);
 }
 
 static PyObject *
 lu_ulonglong(const char *p, const formatdef *f)
 {
-    unsigned PY_LONG_LONG x = 0;
+    unsigned long long x = 0;
     Py_ssize_t i = f->size;
     const unsigned char *bytes = (const unsigned char *)p;
     do {
         x = (x<<8) | bytes[--i];
     } while (i > 0);
     if (x <= LONG_MAX)
-        return PyLong_FromLong(Py_SAFE_DOWNCAST(x, unsigned PY_LONG_LONG, long));
+        return PyLong_FromLong(Py_SAFE_DOWNCAST(x, unsigned long long, long));
     return PyLong_FromUnsignedLongLong(x);
 }
 

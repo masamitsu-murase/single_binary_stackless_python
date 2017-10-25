@@ -65,10 +65,20 @@ concatenation of the data fed to it so far using the :meth:`digest` or
 
 Constructors for hash algorithms that are always present in this module are
 :func:`sha1`, :func:`sha224`, :func:`sha256`, :func:`sha384`,
-and :func:`sha512`.  :func:`md5` is normally available as well, though it
+:func:`sha512`, :func:`blake2b`, and :func:`blake2s`.
+:func:`md5` is normally available as well, though it
 may be missing if you are using a rare "FIPS compliant" build of Python.
 Additional algorithms may also be available depending upon the OpenSSL
-library that Python uses on your platform.
+library that Python uses on your platform. On most platforms the
+:func:`sha3_224`, :func:`sha3_256`, :func:`sha3_384`, :func:`sha3_512`,
+:func:`shake_128`, :func:`shake_256` are also available.
+
+.. versionadded:: 3.6
+   SHA3 (Keccak) and SHAKE constructors :func:`sha3_224`, :func:`sha3_256`,
+   :func:`sha3_384`, :func:`sha3_512`, :func:`shake_128`, :func:`shake_256`.
+
+.. versionadded:: 3.6
+   :func:`blake2b` and :func:`blake2s` were added.
 
 For example, to obtain the digest of the byte string ``b'Nobody inspects the
 spammish repetition'``::
@@ -185,6 +195,28 @@ A hash object has the following methods:
    compute the digests of data sharing a common initial substring.
 
 
+SHAKE variable length digests
+-----------------------------
+
+The :func:`shake_128` and :func:`shake_256` algorithms provide variable
+length digests with length_in_bits//2 up to 128 or 256 bits of security.
+As such, their digest methods require a length. Maximum length is not limited
+by the SHAKE algorithm.
+
+.. method:: shake.digest(length)
+
+   Return the digest of the data passed to the :meth:`update` method so far.
+   This is a bytes object of size ``length`` which may contain bytes in
+   the whole range from 0 to 255.
+
+
+.. method:: shake.hexdigest(length)
+
+   Like :meth:`digest` except the digest is returned as a string object of
+   double length, containing only hexadecimal digits.  This may be used to
+   exchange the value safely in email or other non-binary environments.
+
+
 Key derivation
 --------------
 
@@ -225,6 +257,29 @@ include a `salt <https://en.wikipedia.org/wiki/Salt_%28cryptography%29>`_.
       Python implementation uses an inline version of :mod:`hmac`. It is about
       three times slower and doesn't release the GIL.
 
+.. function:: scrypt(password, *, salt, n, r, p, maxmem=0, dklen=64)
+
+   The function provides scrypt password-based key derivation function as
+   defined in :rfc:`7914`.
+
+   *password* and *salt* must be bytes-like objects. Applications and
+   libraries should limit *password* to a sensible length (e.g. 1024). *salt*
+   should be about 16 or more bytes from a proper source, e.g. :func:`os.urandom`.
+
+   *n* is the CPU/Memory cost factor, *r* the block size, *p* parallelization
+   factor and *maxmem* limits memory (OpenSSL 1.1.0 defaults to 32 MB).
+   *dklen* is the length of the derived key.
+
+   Availability: OpenSSL 1.1+
+
+   .. versionadded:: 3.6
+
+
+BLAKE2
+------
+
+BLAKE2 takes additional arguments, see :ref:`hashlib-blake2`.
+
 
 .. seealso::
 
@@ -233,6 +288,8 @@ include a `salt <https://en.wikipedia.org/wiki/Salt_%28cryptography%29>`_.
 
    Module :mod:`base64`
       Another way to encode binary hashes for non-binary environments.
+
+   See :ref:`hashlib-blake2`.
 
    http://csrc.nist.gov/publications/fips/fips180-2/fips180-2.pdf
       The FIPS 180-2 publication on Secure Hash Algorithms.

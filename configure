@@ -674,6 +674,8 @@ LLVM_PROF_MERGER
 PGO_PROF_USE_FLAG
 PGO_PROF_GEN_FLAG
 LTOFLAGS
+DEF_MAKE_RULE
+DEF_MAKE_ALL_RULE
 ABIFLAGS
 LN
 MKDIR_P
@@ -812,6 +814,7 @@ with_suffix
 enable_shared
 enable_profiling
 with_pydebug
+with_optimizations
 with_lto
 with_hash_algorithm
 with_address_sanitizer
@@ -1506,6 +1509,8 @@ Optional Packages:
                           compiler
   --with-suffix=.exe      set executable suffix
   --with-pydebug          build with Py_DEBUG defined
+  --with-optimizations    Enable all optimizations when available (LTO, PGO,
+                          etc). Disabled by default.
   --with-lto              Enable Link Time Optimization in PGO builds.
                           Disabled by default.
   --with-hash-algorithm=[fnv|siphash24]
@@ -1978,136 +1983,6 @@ $as_echo "$ac_res" >&6; }
   eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
 
 } # ac_fn_c_check_type
-
-# ac_fn_c_find_uintX_t LINENO BITS VAR
-# ------------------------------------
-# Finds an unsigned integer type with width BITS, setting cache variable VAR
-# accordingly.
-ac_fn_c_find_uintX_t ()
-{
-  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for uint$2_t" >&5
-$as_echo_n "checking for uint$2_t... " >&6; }
-if eval \${$3+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  eval "$3=no"
-     # Order is important - never check a type that is potentially smaller
-     # than half of the expected target width.
-     for ac_type in uint$2_t 'unsigned int' 'unsigned long int' \
-	 'unsigned long long int' 'unsigned short int' 'unsigned char'; do
-       cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-$ac_includes_default
-int
-main ()
-{
-static int test_array [1 - 2 * !((($ac_type) -1 >> ($2 / 2 - 1)) >> ($2 / 2 - 1) == 3)];
-test_array [0] = 0;
-return test_array [0];
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  case $ac_type in #(
-  uint$2_t) :
-    eval "$3=yes" ;; #(
-  *) :
-    eval "$3=\$ac_type" ;;
-esac
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-       if eval test \"x\$"$3"\" = x"no"; then :
-
-else
-  break
-fi
-     done
-fi
-eval ac_res=\$$3
-	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
-$as_echo "$ac_res" >&6; }
-  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
-
-} # ac_fn_c_find_uintX_t
-
-# ac_fn_c_find_intX_t LINENO BITS VAR
-# -----------------------------------
-# Finds a signed integer type with width BITS, setting cache variable VAR
-# accordingly.
-ac_fn_c_find_intX_t ()
-{
-  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for int$2_t" >&5
-$as_echo_n "checking for int$2_t... " >&6; }
-if eval \${$3+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  eval "$3=no"
-     # Order is important - never check a type that is potentially smaller
-     # than half of the expected target width.
-     for ac_type in int$2_t 'int' 'long int' \
-	 'long long int' 'short int' 'signed char'; do
-       cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-$ac_includes_default
-	     enum { N = $2 / 2 - 1 };
-int
-main ()
-{
-static int test_array [1 - 2 * !(0 < ($ac_type) ((((($ac_type) 1 << N) << N) - 1) * 2 + 1))];
-test_array [0] = 0;
-return test_array [0];
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-$ac_includes_default
-	        enum { N = $2 / 2 - 1 };
-int
-main ()
-{
-static int test_array [1 - 2 * !(($ac_type) ((((($ac_type) 1 << N) << N) - 1) * 2 + 1)
-		 < ($ac_type) ((((($ac_type) 1 << N) << N) - 1) * 2 + 2))];
-test_array [0] = 0;
-return test_array [0];
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-
-else
-  case $ac_type in #(
-  int$2_t) :
-    eval "$3=yes" ;; #(
-  *) :
-    eval "$3=\$ac_type" ;;
-esac
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-       if eval test \"x\$"$3"\" = x"no"; then :
-
-else
-  break
-fi
-     done
-fi
-eval ac_res=\$$3
-	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
-$as_echo "$ac_res" >&6; }
-  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
-
-} # ac_fn_c_find_intX_t
 
 # ac_fn_c_compute_int LINENO EXPR VAR INCLUDES
 # --------------------------------------------
@@ -6614,6 +6489,46 @@ $as_echo "no" >&6; }
 fi
 
 
+# Enable optimization flags
+
+
+Py_OPT='false'
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-optimizations" >&5
+$as_echo_n "checking for --with-optimizations... " >&6; }
+
+# Check whether --with-optimizations was given.
+if test "${with_optimizations+set}" = set; then :
+  withval=$with_optimizations;
+if test "$withval" != no
+then
+  Py_OPT='true'
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; };
+else
+  Py_OPT='false'
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; };
+fi
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+if test "$Py_OPT" = 'true' ; then
+  Py_LTO='true'
+  case $ac_sys_system in
+    Darwin*)
+      # At least on macOS El Capitan, LTO does not work with PGO.
+      Py_LTO='false'
+      ;;
+    esac
+  DEF_MAKE_ALL_RULE="profile-opt"
+  DEF_MAKE_RULE="build_all"
+else
+  DEF_MAKE_ALL_RULE="build_all"
+  DEF_MAKE_RULE="all"
+fi
+
 # Enable LTO flags
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-lto" >&5
@@ -6640,13 +6555,20 @@ fi
 if test "$Py_LTO" = 'true' ; then
   case $CC in
     *clang*)
-      # Any changes made here should be reflected in the GCC+Darwin case below
-      LTOFLAGS="-flto"
+      case $ac_sys_system in
+        Darwin*)
+          # Any changes made here should be reflected in the GCC+Darwin case below
+          LTOFLAGS="-flto -Wl,-export_dynamic"
+          ;;
+        *)
+          LTOFLAGS="-flto"
+          ;;
+      esac
       ;;
     *gcc*)
       case $ac_sys_system in
         Darwin*)
-          LTOFLAGS="-flto"
+          LTOFLAGS="-flto -Wl,-export_dynamic"
           ;;
         *)
           LTOFLAGS="-flto -fuse-linker-plugin -ffat-lto-objects -flto-partition=none"
@@ -7609,7 +7531,7 @@ fi
 for ac_header in asm/types.h conio.h direct.h dlfcn.h errno.h \
 fcntl.h grp.h \
 ieeefp.h io.h langinfo.h libintl.h process.h pthread.h \
-sched.h shadow.h signal.h stdint.h stropts.h termios.h \
+sched.h shadow.h signal.h stropts.h termios.h \
 unistd.h utime.h \
 poll.h sys/devpoll.h sys/epoll.h sys/poll.h \
 sys/audioio.h sys/xattr.h sys/bsdtty.h sys/event.h sys/file.h sys/ioctl.h \
@@ -8157,95 +8079,6 @@ $as_echo "#define gid_t int" >>confdefs.h
 fi
 
 
-# There are two separate checks for each of the exact-width integer types we
-# need.  First we check whether the type is available using the usual
-# AC_CHECK_TYPE macro with the default includes (which includes <inttypes.h>
-# and <stdint.h> where available).  We then also use the special type checks of
-# the form AC_TYPE_UINT32_T, which in the case that uint32_t is not available
-# directly, #define's uint32_t to be a suitable type.
-
-ac_fn_c_check_type "$LINENO" "uint32_t" "ac_cv_type_uint32_t" "$ac_includes_default"
-if test "x$ac_cv_type_uint32_t" = xyes; then :
-
-$as_echo "#define HAVE_UINT32_T 1" >>confdefs.h
-
-fi
-
-ac_fn_c_find_uintX_t "$LINENO" "32" "ac_cv_c_uint32_t"
-case $ac_cv_c_uint32_t in #(
-  no|yes) ;; #(
-  *)
-
-$as_echo "#define _UINT32_T 1" >>confdefs.h
-
-
-cat >>confdefs.h <<_ACEOF
-#define uint32_t $ac_cv_c_uint32_t
-_ACEOF
-;;
-  esac
-
-
-ac_fn_c_check_type "$LINENO" "uint64_t" "ac_cv_type_uint64_t" "$ac_includes_default"
-if test "x$ac_cv_type_uint64_t" = xyes; then :
-
-$as_echo "#define HAVE_UINT64_T 1" >>confdefs.h
-
-fi
-
-ac_fn_c_find_uintX_t "$LINENO" "64" "ac_cv_c_uint64_t"
-case $ac_cv_c_uint64_t in #(
-  no|yes) ;; #(
-  *)
-
-$as_echo "#define _UINT64_T 1" >>confdefs.h
-
-
-cat >>confdefs.h <<_ACEOF
-#define uint64_t $ac_cv_c_uint64_t
-_ACEOF
-;;
-  esac
-
-
-ac_fn_c_check_type "$LINENO" "int32_t" "ac_cv_type_int32_t" "$ac_includes_default"
-if test "x$ac_cv_type_int32_t" = xyes; then :
-
-$as_echo "#define HAVE_INT32_T 1" >>confdefs.h
-
-fi
-
-ac_fn_c_find_intX_t "$LINENO" "32" "ac_cv_c_int32_t"
-case $ac_cv_c_int32_t in #(
-  no|yes) ;; #(
-  *)
-
-cat >>confdefs.h <<_ACEOF
-#define int32_t $ac_cv_c_int32_t
-_ACEOF
-;;
-esac
-
-
-ac_fn_c_check_type "$LINENO" "int64_t" "ac_cv_type_int64_t" "$ac_includes_default"
-if test "x$ac_cv_type_int64_t" = xyes; then :
-
-$as_echo "#define HAVE_INT64_T 1" >>confdefs.h
-
-fi
-
-ac_fn_c_find_intX_t "$LINENO" "64" "ac_cv_c_int64_t"
-case $ac_cv_c_int64_t in #(
-  no|yes) ;; #(
-  *)
-
-cat >>confdefs.h <<_ACEOF
-#define int64_t $ac_cv_c_int64_t
-_ACEOF
-;;
-esac
-
-
 ac_fn_c_check_type "$LINENO" "ssize_t" "ac_cv_type_ssize_t" "$ac_includes_default"
 if test "x$ac_cv_type_ssize_t" = xyes; then :
 
@@ -8593,6 +8426,39 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
+# The cast to long int works around a bug in the HP C Compiler
+# version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
+# declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
+# This bug is HP SR number 8606223364.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking size of uintptr_t" >&5
+$as_echo_n "checking size of uintptr_t... " >&6; }
+if ${ac_cv_sizeof_uintptr_t+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (uintptr_t))" "ac_cv_sizeof_uintptr_t"        "$ac_includes_default"; then :
+
+else
+  if test "$ac_cv_type_uintptr_t" = yes; then
+     { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error 77 "cannot compute sizeof (uintptr_t)
+See \`config.log' for more details" "$LINENO" 5; }
+   else
+     ac_cv_sizeof_uintptr_t=0
+   fi
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sizeof_uintptr_t" >&5
+$as_echo "$ac_cv_sizeof_uintptr_t" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define SIZEOF_UINTPTR_T $ac_cv_sizeof_uintptr_t
+_ACEOF
+
+
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for long double support" >&5
 $as_echo_n "checking for long double support... " >&6; }
@@ -8655,33 +8521,6 @@ _ACEOF
 
 fi
 
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for _Bool support" >&5
-$as_echo_n "checking for _Bool support... " >&6; }
-have_c99_bool=no
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-_Bool x; x = (_Bool)0;
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-
-
-$as_echo "#define HAVE_C99_BOOL 1" >>confdefs.h
-
-  have_c99_bool=yes
-
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_c99_bool" >&5
-$as_echo "$have_c99_bool" >&6; }
-if test "$have_c99_bool" = yes ; then
 # The cast to long int works around a bug in the HP C Compiler
 # version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
 # declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
@@ -8714,56 +8553,6 @@ cat >>confdefs.h <<_ACEOF
 #define SIZEOF__BOOL $ac_cv_sizeof__Bool
 _ACEOF
 
-
-fi
-
-ac_fn_c_check_type "$LINENO" "uintptr_t" "ac_cv_type_uintptr_t" "#ifdef HAVE_STDINT_H
-        #include <stdint.h>
-        #endif
-        #ifdef HAVE_INTTYPES_H
-        #include <inttypes.h>
-        #endif
-"
-if test "x$ac_cv_type_uintptr_t" = xyes; then :
-
-cat >>confdefs.h <<_ACEOF
-#define HAVE_UINTPTR_T 1
-_ACEOF
-
-# The cast to long int works around a bug in the HP C Compiler
-# version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
-# declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
-# This bug is HP SR number 8606223364.
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking size of uintptr_t" >&5
-$as_echo_n "checking size of uintptr_t... " >&6; }
-if ${ac_cv_sizeof_uintptr_t+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (uintptr_t))" "ac_cv_sizeof_uintptr_t"        "$ac_includes_default"; then :
-
-else
-  if test "$ac_cv_type_uintptr_t" = yes; then
-     { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
-$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error 77 "cannot compute sizeof (uintptr_t)
-See \`config.log' for more details" "$LINENO" 5; }
-   else
-     ac_cv_sizeof_uintptr_t=0
-   fi
-fi
-
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sizeof_uintptr_t" >&5
-$as_echo "$ac_cv_sizeof_uintptr_t" >&6; }
-
-
-
-cat >>confdefs.h <<_ACEOF
-#define SIZEOF_UINTPTR_T $ac_cv_sizeof_uintptr_t
-_ACEOF
-
-
-fi
 
 
 # The cast to long int works around a bug in the HP C Compiler
@@ -12639,6 +12428,8 @@ int main()
         break;
       }
     }
+    freeaddrinfo(aitop);
+    aitop = NULL;
   }
 
   if (!(inet4 == 0 || inet4 == 2))
@@ -17834,3 +17625,13 @@ $SHELL $srcdir/Modules/makesetup -c $srcdir/Modules/config.c.in \
 			-s Modules Modules/Setup.config \
 			Modules/Setup.local Modules/Setup
 mv config.c Modules
+
+if test "$Py_OPT" = 'false' -a "$Py_DEBUG" != 'true'; then
+    echo "" >&6
+    echo "" >&6
+    echo "If you want a release build with all optimizations active (LTO, PGO, etc),"
+    echo "please run ./configure --with-optimizations" >&6
+    echo "" >&6
+    echo "" >&6
+fi
+
