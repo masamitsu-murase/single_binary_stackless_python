@@ -5862,7 +5862,7 @@ static PyObject * \
 FUNCNAME(PyObject *self) \
 { \
     _Py_static_string(id, OPSTR); \
-    return call_method(self, &id, "()"); \
+    return call_method(self, &id, NULL); \
 }
 
 #define SLOT1(FUNCNAME, OPSTR, ARG1TYPE, ARGCODES) \
@@ -5955,7 +5955,7 @@ FUNCNAME(PyObject *self, ARG1TYPE arg1, ARG2TYPE arg2) \
 static Py_ssize_t
 slot_sq_length(PyObject *self)
 {
-    PyObject *res = call_method(self, &PyId___len__, "()");
+    PyObject *res = call_method(self, &PyId___len__, NULL);
     Py_ssize_t len;
 
     if (res == NULL)
@@ -6169,7 +6169,7 @@ static PyObject *
 slot_nb_index(PyObject *self)
 {
     _Py_IDENTIFIER(__index__);
-    return call_method(self, &PyId___index__, "()");
+    return call_method(self, &PyId___index__, NULL);
 }
 
 
@@ -6512,7 +6512,7 @@ slot_tp_iternext(PyObject *self)
     PyObject *ret;
 
     STACKLESS_PROMOTE_ALL();
-    ret = call_method(self, &PyId___next__, "()");
+    ret = call_method(self, &PyId___next__, NULL);
     STACKLESS_ASSERT();
     return ret;
 }
