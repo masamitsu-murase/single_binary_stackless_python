@@ -65,9 +65,21 @@ def _have_socket_rds():
         s.close()
     return True
 
+def _have_socket_alg():
+    """Check whether AF_ALG sockets are supported on this host."""
+    try:
+        s = socket.socket(socket.AF_ALG, socket.SOCK_SEQPACKET, 0)
+    except (AttributeError, OSError):
+        return False
+    else:
+        s.close()
+    return True
+
 HAVE_SOCKET_CAN = _have_socket_can()
 
 HAVE_SOCKET_RDS = _have_socket_rds()
+
+HAVE_SOCKET_ALG = _have_socket_alg()
 
 # Size in bytes of the int type
 SIZEOF_INT = array.array("i").itemsize
@@ -5325,7 +5337,8 @@ class SendfileUsingSendfileTest(SendfileUsingSendTest):
     def meth_from_sock(self, sock):
         return getattr(sock, "_sendfile_use_sendfile")
 
-@unittest.skipUnless(hasattr(socket, "AF_ALG"), 'AF_ALG required')
+
+@unittest.skipUnless(HAVE_SOCKET_ALG, 'AF_ALG required')
 class LinuxKernelCryptoAPI(unittest.TestCase):
     # tests for AF_ALG
     def create_alg(self, typ, name):
@@ -5359,6 +5372,7 @@ class LinuxKernelCryptoAPI(unittest.TestCase):
                 op.sendall(b"what do ya want for nothing?")
                 self.assertEqual(op.recv(512), expected)
 
+    @support.requires_linux_version(3, 19)
     def test_aes_cbc(self):
         key = bytes.fromhex('06a9214036b8a15b512e03d534120006')
         iv = bytes.fromhex('3dafba429d9eb430b422da802c9fac41')
@@ -5463,6 +5477,7 @@ class LinuxKernelCryptoAPI(unittest.TestCase):
                 res = op.recv(len(msg))
                 self.assertEqual(plain, res[assoclen:-taglen])
 
+    @support.requires_linux_version(3, 19)
     def test_drbg_pr_sha256(self):
         # deterministic random bit generator, prediction resistance, sha256
         with self.create_alg('rng', 'drbg_pr_sha256') as algo:

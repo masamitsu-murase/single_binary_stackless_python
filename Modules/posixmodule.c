@@ -640,22 +640,14 @@ fail:
 #endif /* MS_WINDOWS */
 
 
-#ifdef HAVE_LONG_LONG
-#  define _PyLong_FromDev PyLong_FromLongLong
-#else
-#  define _PyLong_FromDev PyLong_FromLong
-#endif
+#define _PyLong_FromDev PyLong_FromLongLong
 
 
 #if defined(HAVE_MKNOD) && defined(HAVE_MAKEDEV)
 static int
 _Py_Dev_Converter(PyObject *obj, void *p)
 {
-#ifdef HAVE_LONG_LONG
     *((dev_t *)p) = PyLong_AsUnsignedLongLong(obj);
-#else
-    *((dev_t *)p) = PyLong_AsUnsignedLong(obj);
-#endif
     if (PyErr_Occurred())
         return 0;
     return 1;
@@ -2595,8 +2587,8 @@ os_lstat_impl(PyObject *module, path_t *path, int dir_fd)
 /*[clinic input]
 os.access -> bool
 
-    path: path_t(allow_fd=True)
-        Path to be tested; can be string, bytes, or open-file-descriptor int.
+    path: path_t
+        Path to be tested; can be string or bytes
 
     mode: int
         Operating-system mode bitfield.  Can be F_OK to test existence,
@@ -2634,7 +2626,7 @@ Note that most operations will use the effective uid/gid, therefore this
 static int
 os_access_impl(PyObject *module, path_t *path, int mode, int dir_fd,
                int effective_ids, int follow_symlinks)
-/*[clinic end generated code: output=cf84158bc90b1a77 input=b75a756797af45ec]*/
+/*[clinic end generated code: output=cf84158bc90b1a77 input=8e8c3a6ba791fee3]*/
 {
     int return_value;
 

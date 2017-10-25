@@ -10,6 +10,9 @@ What's New in Python 3.6.0 beta 1
 Core and Builtins
 -----------------
 
+- Issue #27961?: Require platforms to support ``long long``. Python hasn't
+  compiled without ``long long`` for years, so this is basically a formality.
+
 - Issue #27355: Removed support for Windows CE.  It was never finished,
   and Windows CE is no longer a relevant platform for Python.
 
@@ -107,6 +110,9 @@ Library
 - Issue #27842: The csv.DictReader now returns rows of type OrderedDict.
   (Contributed by Steve Holden.)
 
+- Remove support for passing a file descriptor to os.access. It never worked but
+  previously didn't raise.
+
 - Issue #12885: Fix error when distutils encounters symlink.
 
 - Issue #27881: Fixed possible bugs when setting sqlite3.Connection.isolation_level.
@@ -174,18 +180,23 @@ Tests
 Build
 -----
 
-- Issue #27883: Update sqlite to 3.14.1.0 on Windows.
-
 - Issue #27917: Set platform triplets for Android builds.
 
 - Issue #25825: Update references to the $(LIBPL) installation path on AIX.
   This path was changed in 3.2a4.
 
+- Update OS X installer to use SQLite 3.14.1 and XZ 5.2.2.
+
 Windows
 -------
 
+- Issue #20366: Build full text search support into SQLite on Windows.
+
 - Issue #27756: Adds new icons for Python files and processes on Windows.
   Designs by Cherry Wang.
+
+- Issue #27883: Update sqlite to 3.14.1.0 on Windows.
+
 
 What's New in Python 3.6.0 alpha 4
 ==================================
