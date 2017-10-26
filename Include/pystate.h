@@ -11,6 +11,10 @@
 extern "C" {
 #endif
 
+/* This limitation is for performance and simplicity. If needed it can be
+removed (with effort). */
+#define MAX_CO_EXTRA_USERS 255
+
 /* State shared between threads */
 
 struct _ts; /* Forward */
@@ -147,6 +151,9 @@ PyStacklessState st;
 
     PyObject *coroutine_wrapper;
     int in_coroutine_wrapper;
+
+    Py_ssize_t co_extra_user_count;
+    freefunc co_extra_freefuncs[MAX_CO_EXTRA_USERS];
 
     /* XXX signal handlers should also be here */
 
