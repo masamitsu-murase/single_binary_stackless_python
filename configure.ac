@@ -1493,6 +1493,8 @@ AC_SUBST(UNIVERSAL_ARCH_FLAGS)
 # tweak BASECFLAGS based on compiler and platform
 case $GCC in
 yes)
+    CFLAGS_NODIST="$CFLAGS_NODIST -std=c99"
+
     # Python doesn't violate C99 aliasing rules, but older versions of
     # GCC produce warnings for legal Python code.  Enable
     # -fno-strict-aliasing on versions of GCC that support but produce
@@ -1557,28 +1559,6 @@ yes)
     if test $ac_cv_disable_unused_result_warning = yes
     then
       BASECFLAGS="$BASECFLAGS -Wno-unused-result"
-    fi
-
-    AC_MSG_CHECKING(for -Werror=declaration-after-statement)
-     ac_save_cc="$CC"
-     CC="$CC -Werror=declaration-after-statement"
-     save_CFLAGS="$CFLAGS"
-     AC_CACHE_VAL(ac_cv_declaration_after_statement_warning,
-       AC_COMPILE_IFELSE(
-         [
-	   AC_LANG_PROGRAM([[]], [[]])
-	 ],[
-           ac_cv_declaration_after_statement_warning=yes
-	 ],[
-           ac_cv_declaration_after_statement_warning=no
-	 ]))
-     CFLAGS="$save_CFLAGS"
-     CC="$ac_save_cc"
-    AC_MSG_RESULT($ac_cv_declaration_after_statement_warning)
-
-    if test $ac_cv_declaration_after_statement_warning = yes
-    then
-      CFLAGS_NODIST="$CFLAGS_NODIST -Werror=declaration-after-statement"
     fi
 
     AC_MSG_CHECKING(if we can turn on $CC mixed sign comparison warning)
