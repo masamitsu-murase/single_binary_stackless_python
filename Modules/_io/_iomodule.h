@@ -19,6 +19,12 @@ extern PyTypeObject PyBufferedRandom_Type;
 extern PyTypeObject PyTextIOWrapper_Type;
 extern PyTypeObject PyIncrementalNewlineDecoder_Type;
 
+#ifndef Py_LIMITED_API
+#ifdef MS_WINDOWS
+extern PyTypeObject PyWindowsConsoleIO_Type;
+#define PyWindowsConsoleIO_Check(op) (PyObject_TypeCheck((op), &PyWindowsConsoleIO_Type))
+#endif /* MS_WINDOWS */
+#endif /* Py_LIMITED_API */
 
 extern int _PyIO_ConvertSsize_t(PyObject *, void *);
 
@@ -85,12 +91,12 @@ extern int _PyIO_trap_eintr(void);
 #ifdef MS_WINDOWS
 
 /* Windows uses long long for offsets */
-typedef PY_LONG_LONG Py_off_t;
+typedef long long Py_off_t;
 # define PyLong_AsOff_t     PyLong_AsLongLong
 # define PyLong_FromOff_t   PyLong_FromLongLong
-# define PY_OFF_T_MAX       PY_LLONG_MAX
-# define PY_OFF_T_MIN       PY_LLONG_MIN
-# define PY_OFF_T_COMPAT    PY_LONG_LONG /* type compatible with off_t */
+# define PY_OFF_T_MAX       LLONG_MAX
+# define PY_OFF_T_MIN       LLONG_MIN
+# define PY_OFF_T_COMPAT    long long    /* type compatible with off_t */
 # define PY_PRIdOFF         "lld"        /* format to use for that type */
 
 #else
@@ -107,9 +113,9 @@ typedef off_t Py_off_t;
 #elif (SIZEOF_OFF_T == SIZEOF_LONG_LONG)
 # define PyLong_AsOff_t     PyLong_AsLongLong
 # define PyLong_FromOff_t   PyLong_FromLongLong
-# define PY_OFF_T_MAX       PY_LLONG_MAX
-# define PY_OFF_T_MIN       PY_LLONG_MIN
-# define PY_OFF_T_COMPAT    PY_LONG_LONG
+# define PY_OFF_T_MAX       LLONG_MAX
+# define PY_OFF_T_MIN       LLONG_MIN
+# define PY_OFF_T_COMPAT    long long
 # define PY_PRIdOFF         "lld"
 #elif (SIZEOF_OFF_T == SIZEOF_LONG)
 # define PyLong_AsOff_t     PyLong_AsLong
@@ -144,6 +150,10 @@ typedef struct {
 
 extern _PyIO_State *_PyIO_get_module_state(void);
 extern PyObject *_PyIO_get_locale_module(_PyIO_State *);
+
+#ifdef MS_WINDOWS
+extern char _PyIO_get_console_type(PyObject *);
+#endif
 
 extern PyObject *_PyIO_str_close;
 extern PyObject *_PyIO_str_closed;

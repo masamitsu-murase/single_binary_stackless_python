@@ -153,7 +153,7 @@ if_indextoname(index) -- return the corresponding interface name\n\
    On the other hand, not all Linux versions agree, so there the settings
    computed by the configure script are needed! */
 
-#ifndef linux
+#ifndef __linux__
 # undef HAVE_GETHOSTBYNAME_R_3_ARG
 # undef HAVE_GETHOSTBYNAME_R_5_ARG
 # undef HAVE_GETHOSTBYNAME_R_6_ARG
@@ -176,7 +176,7 @@ if_indextoname(index) -- return the corresponding interface name\n\
 #  define HAVE_GETHOSTBYNAME_R_3_ARG
 # elif defined(__sun) || defined(__sgi)
 #  define HAVE_GETHOSTBYNAME_R_5_ARG
-# elif defined(linux)
+# elif defined(__linux__)
 /* Rely on the configure script */
 # else
 #  undef HAVE_GETHOSTBYNAME_R
@@ -640,24 +640,35 @@ internal_setblocking(PySocketSockObject *s, int block)
 #ifndef MS_WINDOWS
 #if (defined(HAVE_SYS_IOCTL_H) && defined(FIONBIO))
     block = !block;
-    ioctl(s->sock_fd, FIONBIO, (unsigned int *)&block);
+    if (ioctl(s->sock_fd, FIONBIO, (unsigned int *)&block) == -1)
+        goto error;
 #else
     delay_flag = fcntl(s->sock_fd, F_GETFL, 0);
+    if (delay_flag == -1)
+        goto error;
     if (block)
         new_delay_flag = delay_flag & (~O_NONBLOCK);
     else
         new_delay_flag = delay_flag | O_NONBLOCK;
     if (new_delay_flag != delay_flag)
-        fcntl(s->sock_fd, F_SETFL, new_delay_flag);
+        if (fcntl(s->sock_fd, F_SETFL, new_delay_flag) == -1)
+            goto error;
 #endif
 #else /* MS_WINDOWS */
     arg = !block;
-    ioctlsocket(s->sock_fd, FIONBIO, &arg);
+    if (ioctlsocket(s->sock_fd, FIONBIO, &arg) != 0)
+        goto error;
 #endif /* MS_WINDOWS */
     Py_END_ALLOW_THREADS
 
-    /* Since these don't return anything */
-    return 1;
+    return 0;
+  error:
+#ifndef MS_WINDOWS
+    PyErr_SetFromErrno(PyExc_OSError);
+#else
+    PyErr_SetExcFromWindowsErr(PyExc_OSError, WSAGetLastError());
+#endif
+    return -1;
 }
 
 static int
@@ -905,7 +916,7 @@ sock_call(PySocketSockObject *s,
 /* Default timeout for new sockets */
 static _PyTime_t defaulttimeout = _PYTIME_FROMSECONDS(-1);
 
-static void
+static int
 init_sockobject(PySocketSockObject *s,
                 SOCKET_T fd, int family, int type, int proto)
 {
@@ -922,10 +933,13 @@ init_sockobject(PySocketSockObject *s,
 #endif
     {
         s->sock_timeout = defaulttimeout;
-        if (defaulttimeout >= 0)
-            internal_setblocking(s, 0);
+        if (defaulttimeout >= 0) {
+            if (internal_setblocking(s, 0) == -1) {
+                return -1;
+            }
+        }
     }
-
+    return 0;
 }
 
 
@@ -940,8 +954,12 @@ new_sockobject(SOCKET_T fd, int family, int type, int proto)
     PySocketSockObject *s;
     s = (PySocketSockObject *)
         PyType_GenericNew(&sock_type, NULL, NULL);
-    if (s != NULL)
-        init_sockobject(s, fd, family, type, proto);
+    if (s == NULL)
+        return NULL;
+    if (init_sockobject(s, fd, family, type, proto) == -1) {
+        Py_DECREF(s);
+        return NULL;
+    }
     return s;
 }
 
@@ -1214,7 +1232,7 @@ makesockaddr(SOCKET_T sockfd, struct sockaddr *addr, size_t addrlen, int proto)
     case AF_UNIX:
     {
         struct sockaddr_un *a = (struct sockaddr_un *) addr;
-#ifdef linux
+#ifdef __linux__
         if (a->sun_path[0] == 0) {  /* Linux abstract namespace */
             addrlen -= offsetof(struct sockaddr_un, sun_path);
             return PyBytes_FromStringAndSize(a->sun_path, addrlen);
@@ -1529,7 +1547,7 @@ getsockaddrarg(PySocketSockObject *s, PyObject *args,
         assert(path.len >= 0);
 
         addr = (struct sockaddr_un*)addr_ret;
-#ifdef linux
+#ifdef __linux__
         if (path.len > 0 && *(const char *)path.buf == 0) {
             /* Linux abstract namespace extension */
             if ((size_t)path.len > sizeof addr->sun_path) {
@@ -2423,10 +2441,10 @@ sock_setblocking(PySocketSockObject *s, PyObject *arg)
         return NULL;
 
     s->sock_timeout = _PyTime_FromSeconds(block ? -1 : 0);
-    internal_setblocking(s, block);
-
-    Py_INCREF(Py_None);
-    return Py_None;
+    if (internal_setblocking(s, block) == -1) {
+        return NULL;
+    }
+    Py_RETURN_NONE;
 }
 
 PyDoc_STRVAR(setblocking_doc,
@@ -2492,10 +2510,10 @@ sock_settimeout(PySocketSockObject *s, PyObject *arg)
         return NULL;
 
     s->sock_timeout = timeout;
-    internal_setblocking(s, timeout < 0);
-
-    Py_INCREF(Py_None);
-    return Py_None;
+    if (internal_setblocking(s, timeout < 0) == -1) {
+        return NULL;
+    }
+    Py_RETURN_NONE;
 }
 
 PyDoc_STRVAR(settimeout_doc,
@@ -4720,7 +4738,10 @@ sock_initobj(PyObject *self, PyObject *args, PyObject *kwds)
         }
 #endif
     }
-    init_sockobject(s, fd, family, type, proto);
+    if (init_sockobject(s, fd, family, type, proto) == -1) {
+        SOCKETCLOSE(fd);
+        return -1;
+    }
 
     return 0;
 

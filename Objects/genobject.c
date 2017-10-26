@@ -264,7 +264,7 @@ gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result)
         /* Check for __future__ generator_stop and conditionally turn
          * a leaking StopIteration into RuntimeError (with its cause
          * set appropriately). */
-        if (((PyCodeObject *)gen->gi_code)->co_flags &
+        if (gen->gi_code != NULL && ((PyCodeObject *)gen->gi_code)->co_flags &
               (CO_FUTURE_GENERATOR_STOP | CO_COROUTINE | CO_ITERABLE_COROUTINE))
         {
             PyObject *exc, *val, *val2, *tb;

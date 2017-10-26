@@ -559,6 +559,10 @@ conflict.
    .. versionchanged:: 3.4
       The ``encodingname`` part is now optional.
 
+   .. versionchanged:: 3.6
+      On Windows, the encoding specified by this variable is ignored for interactive
+      console buffers unless :envvar:`PYTHONLEGACYWINDOWSIOENCODING` is also specified.
+      Files and pipes redirected through the standard streams are not affected.
 
 .. envvar:: PYTHONNOUSERSITE
 
@@ -671,6 +675,33 @@ conflict.
       This variable can now also be used on Python compiled in release mode.
       It now has no effect if set to an empty string.
 
+
+.. envvar:: PYTHONLEGACYWINDOWSFSENCODING
+
+   If set to a non-empty string, the default filesystem encoding and errors mode
+   will revert to their pre-3.6 values of 'mbcs' and 'replace', respectively.
+   Otherwise, the new defaults 'utf-8' and 'surrogatepass' are used.
+
+   This may also be enabled at runtime with
+   :func:`sys._enablelegacywindowsfsencoding()`.
+
+   Availability: Windows
+
+   .. versionadded:: 3.6
+      See :pep:`529` for more details.
+
+.. envvar:: PYTHONLEGACYWINDOWSIOENCODING
+
+   If set to a non-empty string, does not use the new console reader and
+   writer. This means that Unicode characters will be encoded according to
+   the active console code page, rather than using utf-8.
+
+   This variable is ignored if the standard streams are redirected (to files
+   or pipes) rather than referring to console buffers.
+
+   Availability: Windows
+
+   .. versionadded:: 3.6
 
 Debug-mode variables
 ~~~~~~~~~~~~~~~~~~~~

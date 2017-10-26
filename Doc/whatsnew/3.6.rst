@@ -68,8 +68,6 @@ New syntax features:
 
 Standard library improvements:
 
-* PEP 519: :ref:`Adding a file system path protocol <pep-519>`
-
 Security improvements:
 
 * On Linux, :func:`os.urandom` now blocks until the system urandom entropy pool
@@ -77,6 +75,10 @@ Security improvements:
   rationale.
 
 Windows improvements:
+
+* PEP 529: :ref:`Change Windows filesystem encoding to UTF-8 <pep-529>`
+
+* PEP 528: :ref:`Change Windows console encoding to UTF-8 <pep-528>`
 
 * The ``py.exe`` launcher, when used interactively, no longer prefers
   Python 2 over Python 3 when the user doesn't specify a version (via
@@ -220,9 +222,36 @@ evaluated at run time, and then formatted using the :func:`format` protocol.
 
 See :pep:`498` and the main documentation at :ref:`f-strings`.
 
+.. _pep-529:
+
+PEP 529: Change Windows filesystem encoding to UTF-8
+====================================================
+
+Representing filesystem paths is best performed with str (Unicode) rather than
+bytes. However, there are some situations where using bytes is sufficient and
+correct.
+
+Prior to Python 3.6, data loss could result when using bytes paths on Windows.
+With this change, using bytes to represent paths is now supported on Windows,
+provided those bytes are encoded with the encoding returned by
+:func:`sys.getfilesystemencoding()`, which now defaults to ``'utf-8'``.
+
+Applications that do not use str to represent paths should use
+:func:`os.fsencode()` and :func:`os.fsdecode()` to ensure their bytes are
+correctly encoded. To revert to the previous behaviour, set
+:envvar:`PYTHONLEGACYWINDOWSFSENCODING` or call
+:func:`sys._enablelegacywindowsfsencoding`.
+
+See :pep:`529` for more information and discussion of code modifications that
+may be required.
+
+.. note::
+
+   This change is considered experimental for 3.6.0 beta releases. The default
+   encoding may change before the final release.
 
 PEP 487: Simpler customization of class creation
-------------------------------------------------
+================================================
 
 Upon subclassing a class, the ``__init_subclass__`` classmethod (if defined) is
 called on the base class. This makes it straightforward to write classes that
@@ -240,9 +269,26 @@ Also see :pep:`487` and the updated class customization documentation at
 
 (Contributed by Martin Teichmann in :issue:`27366`)
 
+.. _pep-528:
+
+PEP 528: Change Windows console encoding to UTF-8
+-------------------------------------------------
+
+The default console on Windows will now accept all Unicode characters and
+provide correctly read str objects to Python code. ``sys.stdin``,
+``sys.stdout`` and ``sys.stderr`` now default to utf-8 encoding.
+
+This change only applies when using an interactive console, and not when
+redirecting files or pipes. To revert to the previous behaviour for interactive
+console use, set :envvar:`PYTHONLEGACYWINDOWSIOENCODING`.
+
+.. seealso::
+
+   :pep:`528` -- Change Windows console encoding to UTF-8
+      PEP written and implemented by Steve Dower.
 
 PYTHONMALLOC environment variable
----------------------------------
+=================================
 
 The new :envvar:`PYTHONMALLOC` environment variable allows setting the Python
 memory allocators and/or install debug hooks.
@@ -318,7 +364,7 @@ Example of fatal error on buffer overflow using
 .. _whatsnew-deforder:
 
 PEP 520: Preserving Class Attribute Definition Order
-----------------------------------------------------
+====================================================
 
 Attributes in a class definition body have a natural ordering: the same
 order in which the names appear in the source.  This order is now
@@ -340,15 +386,34 @@ class namespace, ``cls.__dict__``, is unchanged.
       PEP written and implemented by Eric Snow.
 
 
+PEP 509: Add a private version to dict
+--------------------------------------
+
+Add a new private version to the builtin ``dict`` type, incremented at
+each dictionary creation and at each dictionary change, to implement
+fast guards on namespaces.
+
+(Contributed by Victor Stinner in :issue:`26058`.)
+
+
 Other Language Changes
 ======================
 
 Some smaller changes made to the core Python language are:
 
+* :func:`dict` now uses a "compact" representation `pioneered by PyPy
+  <https://morepypy.blogspot.com/2015/01/faster-more-memory-efficient-and-more.html>`_.
+  :pep:`468` (Preserving the order of ``**kwargs`` in a function.) is
+  implemented by this.  (Contributed by INADA Naoki in :issue:`27350`.)
+
 * Long sequences of repeated traceback lines are now abbreviated as
   ``"[Previous line repeated {count} more times]"`` (see
   :ref:`py36-traceback` for an example).
   (Contributed by Emanuel Barry in :issue:`26823`.)
+
+* Import now raises the new exception :exc:`ModuleNotFoundError`
+  (subclass of :exc:`ImportError`) when it cannot find a module.  Code
+  that current checks for ImportError (in try-except) will still work.
 
 
 New Modules
@@ -455,11 +520,27 @@ Any code relying on the presence of ``default_format`` may
 need to be adapted. See :issue:`27819` for more details.
 
 
+email
+-----
+
+The new email API, enabled via the *policy* keyword to various constructors, is
+no longer provisional.  The :mod:`email` documentation has been reorganized and
+rewritten to focus on the new API, while retaining the old documentation for
+the legacy API.  (Contributed by R. David Murray in :issue:`24277`.)
+
+The :mod:`email.mime` classes now all accept an optional *policy* keyword.
+(Contributed by Berker Peksag in :issue:`27331`.)
+
+The :class:`~email.generator.DecodedGenerator` now supports the *policy*
+keyword.
+
+
 encodings
 ---------
 
 On Windows, added the ``'oem'`` encoding to use ``CP_OEMCP`` and the ``'ansi'``
 alias for the existing ``'mbcs'`` encoding, which uses the ``CP_ACP`` code page.
+
 
 faulthandler
 ------------
@@ -497,6 +578,11 @@ restriction that :class:`importlib.machinery.BuiltinImporter` and
 :class:`importlib.machinery.ExtensionFileLoader` couldn't be used with
 :class:`importlib.util.LazyLoader`.
 
+:func:`importlib.util.cache_from_source`,
+:func:`importlib.util.source_from_cache`, and
+:func:`importlib.util.spec_from_file_location` now accept a
+:term:`path-like object`.
+
 
 os
 --
@@ -511,6 +597,11 @@ will be emitted in its destructor.
 The Linux ``getrandom()`` syscall (get random bytes) is now exposed as the new
 :func:`os.getrandom` function.
 (Contributed by Victor Stinner, part of the :pep:`524`)
+
+See the summary for :ref:`PEP 519 <pep-519>` for details on how the
+:mod:`os` and :mod:`os.path` modules now support
+:term:`path-like objects <path-like object>`.
+
 
 pickle
 ------
@@ -816,6 +907,9 @@ Optimizations
 Build and C API Changes
 =======================
 
+* Python now requires some C99 support in the toolchain to build. For more
+  information, see :pep:`7`.
+
 * The ``--with-optimizations`` configure flag has been added. Turning it on
   will activate LTO and PGO build support (when available).
   (Original patch by Alecsandru Patrascu of Intel in :issue:`26539`.)
@@ -891,6 +985,11 @@ Deprecated features
   parameter will be dropped in a future Python release and likely earlier
   through third party tools. See :issue:`27919` for details.
 
+* A backslash-character pair that is not a valid escape sequence now generates
+  a DeprecationWarning.  Although this will eventually become a SyntaxError,
+  that will not be for several Python releases.  (Contributed by Emanuel Barry
+  in :issue:`27364`.)
+
 
 Deprecated Python behavior
 --------------------------
@@ -926,6 +1025,13 @@ API and Feature Removals
   Use :class:`io.TextIOWrapper` for reading compressed text files in
   :term:`universal newlines` mode.
 
+* The undocumented ``IN``, ``CDROM``, ``DLFCN``, ``TYPES``, ``CDIO``, and
+  ``STROPTS`` modules have been removed.  They had been available in the
+  platform specific ``Lib/plat-*/`` directories, but were chronically out of
+  date, inconsistently available across platforms, and unmaintained.  The
+  script that created these modules is still available in the source
+  distribution at :source:`Tools/scripts/h2py.py`.
+
 
 Porting to Python 3.6
 =====================
@@ -951,6 +1057,9 @@ Changes in the Python API
 
 * When :meth:`importlib.abc.Loader.exec_module` is defined,
   :meth:`importlib.abc.Loader.create_module` must also be defined.
+
+* :c:func:`PyErr_SetImportError` now sets :exc:`TypeError` when its **msg**
+  argument is not set. Previously only ``NULL`` was returned.
 
 * The format of the ``co_lnotab`` attribute of code objects changed to support
   negative line number delta. By default, Python does not emit bytecode with

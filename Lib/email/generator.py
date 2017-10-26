@@ -97,7 +97,7 @@ class Generator:
         self._NL = policy.linesep
         self._encoded_NL = self._encode(self._NL)
         self._EMPTY = ''
-        self._encoded_EMPTY = self._encode('')
+        self._encoded_EMPTY = self._encode(self._EMPTY)
         # Because we use clone (below) when we recursively process message
         # subparts, and because clone uses the computed policy (not None),
         # submessages will automatically get set to the computed policy when
@@ -136,10 +136,6 @@ class Generator:
     # always using write and having the Bytes subclass write method detect when
     # it has already transformed the input; but, since this whole thing is a
     # hack anyway this seems good enough.
-
-    # Similarly, we have _XXX and _encoded_XXX attributes that are used on
-    # source and buffer data, respectively.
-    _encoded_EMPTY = ''
 
     def _new_buffer(self):
         # BytesGenerator overrides this to return BytesIO.
@@ -402,10 +398,6 @@ class BytesGenerator(Generator):
     The outfp object must accept bytes in its write method.
     """
 
-    # Bytes versions of this constant for use in manipulating data from
-    # the BytesIO buffer.
-    _encoded_EMPTY = b''
-
     def write(self, s):
         self._fp.write(s.encode('ascii', 'surrogateescape'))
 
@@ -452,7 +444,8 @@ class DecodedGenerator(Generator):
     Like the Generator base class, except that non-text parts are substituted
     with a format string representing the part.
     """
-    def __init__(self, outfp, mangle_from_=None, maxheaderlen=78, fmt=None):
+    def __init__(self, outfp, mangle_from_=None, maxheaderlen=None, fmt=None, *,
+                 policy=None):
         """Like Generator.__init__() except that an additional optional
         argument is allowed.
 
@@ -474,7 +467,8 @@ class DecodedGenerator(Generator):
 
         [Non-text (%(type)s) part of message omitted, filename %(filename)s]
         """
-        Generator.__init__(self, outfp, mangle_from_, maxheaderlen)
+        Generator.__init__(self, outfp, mangle_from_, maxheaderlen,
+                           policy=policy)
         if fmt is None:
             self._fmt = _FMT
         else:

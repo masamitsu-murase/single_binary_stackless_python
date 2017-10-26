@@ -83,6 +83,8 @@ CLASSES
      |  Data and other attributes defined here:
      |\x20\x20
      |  NO_MEANING = 'eggs'
+     |\x20\x20
+     |  __annotations__ = {'NO_MEANING': <class 'str'>}
 \x20\x20\x20\x20
     class C(builtins.object)
      |  Methods defined here:
@@ -195,6 +197,8 @@ Data descriptors defined here:<br>
 Data and other attributes defined here:<br>
 <dl><dt><strong>NO_MEANING</strong> = 'eggs'</dl>
 
+<dl><dt><strong>__annotations__</strong> = {'NO_MEANING': &lt;class 'str'&gt;}</dl>
+
 </td></tr></table> <p>
 <table width="100%%" cellspacing=0 cellpadding=2 border=0 summary="section">
 <tr bgcolor="#ffc8d8">
@@ -263,7 +267,7 @@ Use help() to get the interactive help utility.
 Use help(str) for help on the str class.'''.replace('\n', os.linesep)
 
 # output pattern for module with bad imports
-badimport_pattern = "problem in %s - ImportError: No module named %r"
+badimport_pattern = "problem in %s - ModuleNotFoundError: No module named %r"
 
 expected_dynamicattribute_pattern = """
 Help on class DA in module %s:
@@ -427,7 +431,6 @@ class PydocDocTest(unittest.TestCase):
         expected_html = expected_html_pattern % (
                         (mod_url, mod_file, doc_loc) +
                         expected_html_data_docstrings)
-        self.maxDiff = None
         self.assertEqual(result, expected_html)
 
     @unittest.skipIf(sys.flags.optimize >= 2,
@@ -474,18 +477,13 @@ class PydocDocTest(unittest.TestCase):
     def test_non_str_name(self):
         # issue14638
         # Treat illegal (non-str) name like no name
-        # Definition order is set to None so it looks the same in both
-        # cases.
         class A:
-            __definition_order__ = None
             __name__ = 42
         class B:
             pass
         adoc = pydoc.render_doc(A())
         bdoc = pydoc.render_doc(B())
-        self.maxDiff = None
-        expected = adoc.replace("A", "B")
-        self.assertEqual(bdoc, expected)
+        self.assertEqual(adoc.replace("A", "B"), bdoc)
 
     def test_not_here(self):
         missing_module = "test.i_am_not_here"

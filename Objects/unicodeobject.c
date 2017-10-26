@@ -204,7 +204,7 @@ static PyObject *unicode_empty = NULL;
     } while (0)
 
 /* Forward declaration */
-Py_LOCAL_INLINE(int)
+static inline int
 _PyUnicodeWriter_WriteCharInline(_PyUnicodeWriter *writer, Py_UCS4 ch);
 
 /* List of static strings. */
@@ -720,7 +720,7 @@ static BLOOM_MASK bloom_linebreak = ~(BLOOM_MASK)0;
     ((ch) < 128U ? ascii_linebreak[(ch)] :                              \
      (BLOOM(bloom_linebreak, (ch)) && Py_UNICODE_ISLINEBREAK(ch)))
 
-Py_LOCAL_INLINE(BLOOM_MASK)
+static inline BLOOM_MASK
 make_bloom_mask(int kind, void* ptr, Py_ssize_t len)
 {
 #define BLOOM_UPDATE(TYPE, MASK, PTR, LEN)             \
@@ -826,9 +826,10 @@ ensure_unicode(PyObject *obj)
 static PyObject *
 fixup(PyObject *self, Py_UCS4 (*fixfct)(PyObject *s));
 
-Py_LOCAL_INLINE(Py_ssize_t) findchar(const void *s, int kind,
-                                     Py_ssize_t size, Py_UCS4 ch,
-                                     int direction)
+static inline Py_ssize_t
+findchar(const void *s, int kind,
+         Py_ssize_t size, Py_UCS4 ch,
+         int direction)
 {
     switch (kind) {
     case PyUnicode_1BYTE_KIND:
@@ -2138,7 +2139,7 @@ kind_maxchar_limit(unsigned int kind)
     }
 }
 
-Py_LOCAL_INLINE(Py_UCS4)
+static inline Py_UCS4
 align_maxchar(Py_UCS4 maxchar)
 {
     if (maxchar <= 127)
@@ -2679,7 +2680,7 @@ unicode_fromformat_arg(_PyUnicodeWriter *writer,
                 len = sprintf(buffer, "%lu",
                         va_arg(*vargs, unsigned long));
             else if (longlongflag)
-                len = sprintf(buffer, "%" PY_FORMAT_LONG_LONG "u",
+                len = sprintf(buffer, "%llu",
                         va_arg(*vargs, unsigned long long));
             else if (size_tflag)
                 len = sprintf(buffer, "%" PY_FORMAT_SIZE_T "u",
@@ -2696,7 +2697,7 @@ unicode_fromformat_arg(_PyUnicodeWriter *writer,
                 len = sprintf(buffer, "%li",
                         va_arg(*vargs, long));
             else if (longlongflag)
-                len = sprintf(buffer, "%" PY_FORMAT_LONG_LONG "i",
+                len = sprintf(buffer, "%lli",
                         va_arg(*vargs, long long));
             else if (size_tflag)
                 len = sprintf(buffer, "%" PY_FORMAT_SIZE_T "i",
@@ -3184,7 +3185,7 @@ PyUnicode_Decode(const char *s,
                 || strcmp(lower, "us_ascii") == 0) {
                 return PyUnicode_DecodeASCII(s, size, errors);
             }
-    #ifdef HAVE_MBCS
+    #ifdef MS_WINDOWS
             else if (strcmp(lower, "mbcs") == 0) {
                 return PyUnicode_DecodeMBCS(s, size, errors);
             }
@@ -3506,10 +3507,8 @@ encode_error:
 PyObject *
 PyUnicode_EncodeFSDefault(PyObject *unicode)
 {
-#ifdef HAVE_MBCS
-    return PyUnicode_EncodeCodePage(CP_ACP, unicode, NULL);
-#elif defined(__APPLE__)
-    return _PyUnicode_AsUTF8String(unicode, "surrogateescape");
+#if defined(__APPLE__)
+    return _PyUnicode_AsUTF8String(unicode, Py_FileSystemDefaultEncodeErrors);
 #else
     PyInterpreterState *interp = PyThreadState_GET()->interp;
     /* Bootstrap check: if the filesystem codec is implemented in Python, we
@@ -3524,10 +3523,10 @@ PyUnicode_EncodeFSDefault(PyObject *unicode)
     if (Py_FileSystemDefaultEncoding && interp->fscodec_initialized) {
         return PyUnicode_AsEncodedString(unicode,
                                          Py_FileSystemDefaultEncoding,
-                                         "surrogateescape");
+                                         Py_FileSystemDefaultEncodeErrors);
     }
     else {
-        return PyUnicode_EncodeLocale(unicode, "surrogateescape");
+        return PyUnicode_EncodeLocale(unicode, Py_FileSystemDefaultEncodeErrors);
     }
 #endif
 }
@@ -3576,7 +3575,7 @@ PyUnicode_AsEncodedString(PyObject *unicode,
                 || strcmp(lower, "us_ascii") == 0) {
                 return _PyUnicode_AsASCIIString(unicode, errors);
             }
-#ifdef HAVE_MBCS
+#ifdef MS_WINDOWS
             else if (strcmp(lower, "mbcs") == 0) {
                 return PyUnicode_EncodeCodePage(CP_ACP, unicode, errors);
             }
@@ -3812,10 +3811,8 @@ PyUnicode_DecodeFSDefault(const char *s) {
 PyObject*
 PyUnicode_DecodeFSDefaultAndSize(const char *s, Py_ssize_t size)
 {
-#ifdef HAVE_MBCS
-    return PyUnicode_DecodeMBCS(s, size, NULL);
-#elif defined(__APPLE__)
-    return PyUnicode_DecodeUTF8Stateful(s, size, "surrogateescape", NULL);
+#if defined(__APPLE__)
+    return PyUnicode_DecodeUTF8Stateful(s, size, Py_FileSystemDefaultEncodeErrors, NULL);
 #else
     PyInterpreterState *interp = PyThreadState_GET()->interp;
     /* Bootstrap check: if the filesystem codec is implemented in Python, we
@@ -3828,12 +3825,24 @@ PyUnicode_DecodeFSDefaultAndSize(const char *s, Py_ssize_t size)
        cannot only rely on it: check also interp->fscodec_initialized for
        subinterpreters. */
     if (Py_FileSystemDefaultEncoding && interp->fscodec_initialized) {
-        return PyUnicode_Decode(s, size,
+        PyObject *res = PyUnicode_Decode(s, size,
                                 Py_FileSystemDefaultEncoding,
-                                "surrogateescape");
+                                Py_FileSystemDefaultEncodeErrors);
+#ifdef MS_WINDOWS
+        if (!res && PyErr_ExceptionMatches(PyExc_UnicodeDecodeError)) {
+            PyObject *exc, *val, *tb;
+            PyErr_Fetch(&exc, &val, &tb);
+            PyErr_Format(PyExc_RuntimeError,
+                "filesystem path bytes were not correctly encoded with '%s'. " \
+                "Please report this at http://bugs.python.org/issue27781",
+                Py_FileSystemDefaultEncoding);
+            _PyErr_ChainExceptions(exc, val, tb);
+        }
+#endif
+        return res;
     }
     else {
-        return PyUnicode_DecodeLocaleAndSize(s, size, "surrogateescape");
+        return PyUnicode_DecodeLocaleAndSize(s, size, Py_FileSystemDefaultEncodeErrors);
     }
 #endif
 }
@@ -4217,7 +4226,7 @@ onError:
     Py_CLEAR(*exceptionObject);
 }
 
-#ifdef HAVE_MBCS
+#ifdef MS_WINDOWS
 /* error handling callback helper:
    build arguments, call the callback and check the arguments,
    if no exception occurred, copy the replacement to the output
@@ -4331,7 +4340,7 @@ unicode_decode_call_errorhandler_wchar(
     Py_XDECREF(restuple);
     return -1;
 }
-#endif   /* HAVE_MBCS */
+#endif   /* MS_WINDOWS */
 
 static int
 unicode_decode_call_errorhandler_writer(
@@ -6056,6 +6065,9 @@ PyUnicode_DecodeUnicodeEscape(const char *s,
             goto error;
 
         default:
+            if (PyErr_WarnFormat(PyExc_DeprecationWarning, 1,
+                                 "invalid escape sequence '\\%c'", c) < 0)
+                goto onError;
             WRITE_ASCII_CHAR('\\');
             WRITE_CHAR(c);
             continue;
@@ -7021,7 +7033,7 @@ PyUnicode_AsASCIIString(PyObject *unicode)
     return _PyUnicode_AsASCIIString(unicode, NULL);
 }
 
-#ifdef HAVE_MBCS
+#ifdef MS_WINDOWS
 
 /* --- MBCS codecs for Windows -------------------------------------------- */
 
@@ -7740,7 +7752,7 @@ PyUnicode_AsMBCSString(PyObject *unicode)
 
 #undef NEED_RETRY
 
-#endif /* HAVE_MBCS */
+#endif /* MS_WINDOWS */
 
 /* --- Character Mapping Codec -------------------------------------------- */
 
@@ -11290,7 +11302,7 @@ Wraps stringlib_parse_args_finds() and additionally ensures that the
 first argument is a unicode object.
 */
 
-Py_LOCAL_INLINE(int)
+static inline int
 parse_args_finds_unicode(const char * function_name, PyObject *args,
                          PyObject **substring,
                          Py_ssize_t *start, Py_ssize_t *end)
@@ -13267,7 +13279,7 @@ unicode_endswith(PyObject *self,
     return PyBool_FromLong(result);
 }
 
-Py_LOCAL_INLINE(void)
+static inline void
 _PyUnicodeWriter_Update(_PyUnicodeWriter *writer)
 {
     writer->maxchar = PyUnicode_MAX_CHAR_VALUE(writer->buffer);
@@ -13403,7 +13415,7 @@ _PyUnicodeWriter_PrepareKindInternal(_PyUnicodeWriter *writer,
     return _PyUnicodeWriter_PrepareInternal(writer, 0, maxchar);
 }
 
-Py_LOCAL_INLINE(int)
+static inline int
 _PyUnicodeWriter_WriteCharInline(_PyUnicodeWriter *writer, Py_UCS4 ch)
 {
     assert(ch <= MAX_UNICODE);

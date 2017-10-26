@@ -31,7 +31,7 @@ union value {
                 long l;
                 float f;
                 double d;
-                PY_LONG_LONG ll;
+                long long ll;
                 long double D;
 };
 
@@ -301,7 +301,7 @@ struct tagPyCArgObject {
         short h;
         int i;
         long l;
-        PY_LONG_LONG q;
+        long long q;
         long double D;
         double d;
         float f;

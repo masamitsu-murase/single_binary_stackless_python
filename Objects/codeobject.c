@@ -7,6 +7,12 @@
 #define NAME_CHARS \
     "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz"
 
+/* Holder for co_extra information */
+typedef struct {
+    Py_ssize_t ce_size;
+    void **ce_extras;
+} _PyCodeObjectExtra;
+
 /* all_name_chars(s): true iff all chars in s are valid NAME_CHARS */
 
 static int
@@ -366,12 +372,13 @@ code_dealloc(PyCodeObject *co)
 {
     if (co->co_extra != NULL) {
         PyThreadState *tstate = PyThreadState_Get();
+        _PyCodeObjectExtra *co_extra = co->co_extra;
 
-        for (Py_ssize_t i = 0; i < co->co_extra->ce_size; i++) {
+        for (Py_ssize_t i = 0; i < co_extra->ce_size; i++) {
             freefunc free_extra = tstate->co_extra_freefuncs[i];
 
             if (free_extra != NULL) {
-                free_extra(co->co_extra->ce_extras[i]);
+                free_extra(co_extra->ce_extras[i]);
             }
         }
 
@@ -774,22 +781,22 @@ _PyCode_CheckLineNumber(PyCodeObject* co, int lasti, PyAddrPair *bounds)
 int
 _PyCode_GetExtra(PyObject *code, Py_ssize_t index, void **extra)
 {
-    PyCodeObject *o;
-
     assert(*extra == NULL);
 
     if (!PyCode_Check(code)) {
         PyErr_BadInternalCall();
-        return 1;
+        return -1;
     }
 
-    o = (PyCodeObject*) code;
+    PyCodeObject *o = (PyCodeObject*) code;
+    _PyCodeObjectExtra *co_extra = (_PyCodeObjectExtra*) o->co_extra;
 
-    if (o->co_extra == NULL || o->co_extra->ce_size <= index) {
+
+    if (co_extra == NULL || co_extra->ce_size <= index) {
         return 0;
     }
 
-    *extra = o->co_extra->ce_extras[index];
+    *extra = co_extra->ce_extras[index];
     return 0;
 }
 
@@ -797,51 +804,52 @@ _PyCode_GetExtra(PyObject *code, Py_ssize_t index, void **extra)
 int
 _PyCode_SetExtra(PyObject *code, Py_ssize_t index, void *extra)
 {
-    PyCodeObject *o;
     PyThreadState *tstate = PyThreadState_Get();
 
     if (!PyCode_Check(code) || index < 0 ||
             index >= tstate->co_extra_user_count) {
         PyErr_BadInternalCall();
-        return 1;
+        return -1;
     }
 
-    o = (PyCodeObject*) code;
+    PyCodeObject *o = (PyCodeObject*) code;
+    _PyCodeObjectExtra *co_extra = (_PyCodeObjectExtra *) o->co_extra;
 
-    if (o->co_extra == NULL) {
+    if (co_extra == NULL) {
         o->co_extra = (_PyCodeObjectExtra*) PyMem_Malloc(
             sizeof(_PyCodeObjectExtra));
         if (o->co_extra == NULL) {
-            return 1;
+            return -1;
         }
+        co_extra = (_PyCodeObjectExtra *) o->co_extra;
 
-        o->co_extra->ce_extras = PyMem_Malloc(
+        co_extra->ce_extras = PyMem_Malloc(
             tstate->co_extra_user_count * sizeof(void*));
-        if (o->co_extra->ce_extras == NULL) {
-            return 1;
+        if (co_extra->ce_extras == NULL) {
+            return -1;
         }
 
-        o->co_extra->ce_size = tstate->co_extra_user_count;
+        co_extra->ce_size = tstate->co_extra_user_count;
 
-        for (Py_ssize_t i = 0; i < o->co_extra->ce_size; i++) {
-            o->co_extra->ce_extras[i] = NULL;
-        }
-    }
-    else if (o->co_extra->ce_size <= index) {
-        o->co_extra->ce_extras = PyMem_Realloc(
-            o->co_extra->ce_extras, tstate->co_extra_user_count * sizeof(void*));
-
-        if (o->co_extra->ce_extras == NULL) {
-            return 1;
-        }
-
-        o->co_extra->ce_size = tstate->co_extra_user_count;
-
-        for (Py_ssize_t i = o->co_extra->ce_size; i < o->co_extra->ce_size; i++) {
-            o->co_extra->ce_extras[i] = NULL;
+        for (Py_ssize_t i = 0; i < co_extra->ce_size; i++) {
+            co_extra->ce_extras[i] = NULL;
         }
     }
+    else if (co_extra->ce_size <= index) {
+        co_extra->ce_extras = PyMem_Realloc(
+            co_extra->ce_extras, tstate->co_extra_user_count * sizeof(void*));
 
-    o->co_extra->ce_extras[index] = extra;
+        if (co_extra->ce_extras == NULL) {
+            return -1;
+        }
+
+        co_extra->ce_size = tstate->co_extra_user_count;
+
+        for (Py_ssize_t i = co_extra->ce_size; i < co_extra->ce_size; i++) {
+            co_extra->ce_extras[i] = NULL;
+        }
+    }
+
+    co_extra->ce_extras[index] = extra;
     return 0;
 }

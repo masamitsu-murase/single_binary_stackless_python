@@ -31,6 +31,9 @@
 #ifdef MS_WINDOWS
 #undef BYTE
 #include "windows.h"
+
+extern PyTypeObject PyWindowsConsoleIO_Type;
+#define PyWindowsConsoleIO_Check(op) (PyObject_TypeCheck((op), &PyWindowsConsoleIO_Type))
 #endif
 
 #include "core/stackless_impl.h"
@@ -92,6 +95,10 @@ int Py_NoUserSiteDirectory = 0; /* for -s and site.py */
 int Py_UnbufferedStdioFlag = 0; /* Unbuffered binary std{in,out,err} */
 int Py_HashRandomizationFlag = 0; /* for -R and PYTHONHASHSEED */
 int Py_IsolatedFlag = 0; /* for -I, isolate from user's env */
+#ifdef MS_WINDOWS
+int Py_LegacyWindowsFSEncodingFlag = 0; /* Uses mbcs instead of utf-8 */
+int Py_LegacyWindowsStdioFlag = 0; /* Uses FileIO instead of WindowsConsoleIO */
+#endif
 
 PyThreadState *_Py_Finalizing = NULL;
 
@@ -153,6 +160,12 @@ Py_SetStandardStreamEncoding(const char *encoding, const char *errors)
             return -3;
         }
     }
+#ifdef MS_WINDOWS
+    if (_Py_StandardStreamEncoding) {
+        /* Overriding the stream encoding implies legacy streams */
+        Py_LegacyWindowsStdioFlag = 1;
+    }
+#endif
     return 0;
 }
 
@@ -323,6 +336,12 @@ _Py_InitializeEx_Private(int install_sigs, int install_importlib)
        check its value further. */
     if ((p = Py_GETENV("PYTHONHASHSEED")) && *p != '\0')
         Py_HashRandomizationFlag = add_flag(Py_HashRandomizationFlag, p);
+#ifdef MS_WINDOWS
+    if ((p = Py_GETENV("PYTHONLEGACYWINDOWSFSENCODING")) && *p != '\0')
+        Py_LegacyWindowsFSEncodingFlag = add_flag(Py_LegacyWindowsFSEncodingFlag, p);
+    if ((p = Py_GETENV("PYTHONLEGACYWINDOWSSTDIO")) && *p != '\0')
+        Py_LegacyWindowsStdioFlag = add_flag(Py_LegacyWindowsStdioFlag, p);
+#endif
 
     _PyRandom_Init();
 
@@ -933,11 +952,17 @@ Py_GetPythonHome(void)
 static void
 initmain(PyInterpreterState *interp)
 {
-    PyObject *m, *d, *loader;
+    PyObject *m, *d, *loader, *ann_dict;
     m = PyImport_AddModule("__main__");
     if (m == NULL)
         Py_FatalError("can't create __main__ module");
     d = PyModule_GetDict(m);
+    ann_dict = PyDict_New();
+    if ((ann_dict == NULL) ||
+        (PyDict_SetItemString(d, "__annotations__", ann_dict) < 0)) {
+        Py_FatalError("Failed to initialize __main__.__annotations__");
+    }
+    Py_DECREF(ann_dict);
     if (PyDict_GetItemString(d, "__builtins__") == NULL) {
         PyObject *bimod = PyImport_ImportModule("builtins");
         if (bimod == NULL) {
@@ -973,6 +998,18 @@ initfsencoding(PyInterpreterState *interp)
 {
     PyObject *codec;
 
+#ifdef MS_WINDOWS
+    if (Py_LegacyWindowsFSEncodingFlag)
+    {
+        Py_FileSystemDefaultEncoding = "mbcs";
+        Py_FileSystemDefaultEncodeErrors = "replace";
+    }
+    else
+    {
+        Py_FileSystemDefaultEncoding = "utf-8";
+        Py_FileSystemDefaultEncodeErrors = "surrogatepass";
+    }
+#else
     if (Py_FileSystemDefaultEncoding == NULL)
     {
         Py_FileSystemDefaultEncoding = get_locale_encoding();
@@ -983,6 +1020,7 @@ initfsencoding(PyInterpreterState *interp)
         interp->fscodec_initialized = 1;
         return 0;
     }
+#endif
 
     /* the encoding is mbcs, utf-8 or ascii */
     codec = _PyCodec_Lookup(Py_FileSystemDefaultEncoding);
@@ -1021,7 +1059,7 @@ static int
 is_valid_fd(int fd)
 {
     int fd2;
-    if (fd < 0 || !_PyVerify_fd(fd))
+    if (fd < 0)
         return 0;
     _Py_BEGIN_SUPPRESS_IPH
     /* Prefer dup() over fstat(). fstat() can require input/output whereas
@@ -1083,6 +1121,12 @@ create_stdio(PyObject* io,
         raw = buf;
         Py_INCREF(raw);
     }
+
+#ifdef MS_WINDOWS
+    /* Windows console IO is always UTF-8 encoded */
+    if (PyWindowsConsoleIO_Check(raw))
+        encoding = "utf-8";
+#endif
 
     text = PyUnicode_FromString(name);
     if (text == NULL || _PyObject_SetAttrId(raw, &PyId_name, text) < 0)

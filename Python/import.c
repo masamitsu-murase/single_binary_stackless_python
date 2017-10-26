@@ -1077,6 +1077,10 @@ _imp_create_builtin(PyObject *module, PyObject *spec)
             } else {
                 /* Remember pointer to module init function. */
                 def = PyModule_GetDef(mod);
+                if (def == NULL) {
+                    Py_DECREF(name);
+                    return NULL;
+                }
                 def->m_base.m_init = p->initfunc;
                 if (_PyImport_FixupExtensionObject(mod, name, name) < 0) {
                     Py_DECREF(name);
@@ -1539,7 +1543,8 @@ PyImport_ImportModuleLevelObject(PyObject *name, PyObject *globals,
         PyObject *msg = PyUnicode_FromFormat("import of %R halted; "
                                              "None in sys.modules", abs_name);
         if (msg != NULL) {
-            PyErr_SetImportError(msg, abs_name, NULL);
+            PyErr_SetImportErrorSubclass(PyExc_ModuleNotFoundError, msg,
+                    abs_name, NULL);
             Py_DECREF(msg);
         }
         mod = NULL;
@@ -1941,19 +1946,15 @@ exec_builtin_or_dynamic(PyObject *mod) {
 
     def = PyModule_GetDef(mod);
     if (def == NULL) {
-        if (PyErr_Occurred()) {
-            return -1;
-        }
         return 0;
     }
+
     state = PyModule_GetState(mod);
-    if (PyErr_Occurred()) {
-        return -1;
-    }
     if (state) {
         /* Already initialized; skip reload */
         return 0;
     }
+
     return PyModule_ExecDef(mod, def);
 }
 

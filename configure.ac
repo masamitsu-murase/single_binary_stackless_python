@@ -1304,7 +1304,7 @@ AC_SUBST(DEF_MAKE_ALL_RULE)
 AC_SUBST(DEF_MAKE_RULE)
 Py_OPT='false'
 AC_MSG_CHECKING(for --with-optimizations)
-AC_ARG_WITH(optimizations, AS_HELP_STRING([--with-optimizations], [Enable all optimizations when available (LTO, PGO, etc). Disabled by default.]),
+AC_ARG_WITH(optimizations, AS_HELP_STRING([--with-optimizations], [Enable expensive optimizations (PGO, maybe LTO, etc).  Disabled by default.]),
 [
 if test "$withval" != no
 then
@@ -1316,17 +1316,16 @@ else
 fi],
 [AC_MSG_RESULT(no)])
 if test "$Py_OPT" = 'true' ; then
-  Py_LTO='true'
-  case $ac_sys_system in
-    Darwin*)
-      # At least on macOS El Capitan, LTO does not work with PGO.
-      Py_LTO='false'
-      ;;
-    esac
+  # Intentionally not forcing Py_LTO='true' here.  Too many toolchains do not
+  # compile working code using it and both test_distutils and test_gdb are
+  # broken when you do managed to get a toolchain that works with it.  People
+  # who want LTO need to use --with-lto themselves.
   DEF_MAKE_ALL_RULE="profile-opt"
+  REQUIRE_PGO="yes"
   DEF_MAKE_RULE="build_all"
 else
   DEF_MAKE_ALL_RULE="build_all"
+  REQUIRE_PGO="no"
   DEF_MAKE_RULE="all"
 fi
 
@@ -1376,19 +1375,60 @@ AC_SUBST(PGO_PROF_USE_FLAG)
 AC_SUBST(LLVM_PROF_MERGER)
 AC_SUBST(LLVM_PROF_FILE)
 AC_SUBST(LLVM_PROF_ERR)
+# Make this work on systems where llvm tools are not installed with their
+# normal names in the default $PATH (ie: Ubuntu).  They exist under the
+# non-suffixed name in their versioned llvm directory.
+llvm_bin_dir=''
+llvm_path="${PATH}"
+if test "${CC}" = "clang"
+then
+  clang_bin=`which clang`
+  # Some systems install clang elsewhere as a symlink to the real path
+  # which is where the related llvm tools are located.
+  if test -L "${clang_bin}"
+  then
+    clang_dir=`dirname "${clang_bin}"`
+    clang_bin=`readlink "${clang_bin}"`
+    llvm_bin_dir="${clang_dir}/"`dirname "${clang_bin}"`
+    llvm_path="${llvm_path}${PATH_SEPARATOR}${llvm_bin_dir}"
+  fi
+fi
+AC_SUBST(LLVM_PROFDATA)
+AC_PATH_TARGET_TOOL(LLVM_PROFDATA, llvm-profdata, '', ${llvm_path})
 AC_SUBST(LLVM_PROF_FOUND)
-AC_CHECK_PROG(LLVM_PROF_FOUND, llvm-profdata, found, not-found)
+if test -n "${LLVM_PROFDATA}" -a -x "${LLVM_PROFDATA}"
+then
+  LLVM_PROF_FOUND="found"
+else
+  LLVM_PROF_FOUND="not-found"
+fi
+if test "$ac_sys_system" = "Darwin" -a "${LLVM_PROF_FOUND}" = "not-found"
+then
+  found_llvm_profdata=`/usr/bin/xcrun -find llvm-profdata 2>/dev/null`
+  if test -n "${found_llvm_profdata}"
+  then
+    # llvm-profdata isn't directly in $PATH in some cases.
+    # https://apple.stackexchange.com/questions/197053/
+    LLVM_PROFDATA='/usr/bin/xcrun llvm-profdata'
+    LLVM_PROF_FOUND=found
+    AC_MSG_NOTICE([llvm-profdata found via xcrun: ${LLVM_PROFDATA}])
+  fi
+fi
 LLVM_PROF_ERR=no
 case $CC in
   *clang*)
     # Any changes made here should be reflected in the GCC+Darwin case below
     PGO_PROF_GEN_FLAG="-fprofile-instr-generate"
     PGO_PROF_USE_FLAG="-fprofile-instr-use=code.profclangd"
-    LLVM_PROF_MERGER="llvm-profdata merge -output=code.profclangd *.profclangr"
+    LLVM_PROF_MERGER="${LLVM_PROFDATA} merge -output=code.profclangd *.profclangr"
     LLVM_PROF_FILE="LLVM_PROFILE_FILE=\"code-%p.profclangr\""
     if test $LLVM_PROF_FOUND = not-found
     then
       LLVM_PROF_ERR=yes
+      if test "${REQUIRE_PGO}" = "yes"
+      then
+        AC_MSG_ERROR([llvm-profdata is required for a --with-optimizations build but could not be found.])
+      fi
     fi
     ;;
   *gcc*)
@@ -1396,11 +1436,15 @@ case $CC in
       Darwin*)
         PGO_PROF_GEN_FLAG="-fprofile-instr-generate"
         PGO_PROF_USE_FLAG="-fprofile-instr-use=code.profclangd"
-        LLVM_PROF_MERGER="llvm-profdata merge -output=code.profclangd *.profclangr"
+        LLVM_PROF_MERGER="${LLVM_PROFDATA} merge -output=code.profclangd *.profclangr"
         LLVM_PROF_FILE="LLVM_PROFILE_FILE=\"code-%p.profclangr\""
-        if test $LLVM_PROF_FOUND = not-found
+        if test "${LLVM_PROF_FOUND}" = "not-found"
         then
           LLVM_PROF_ERR=yes
+          if test "${REQUIRE_PGO}" = "yes"
+	  then
+	    AC_MSG_ERROR([llvm-profdata is required for a --with-optimizations build but could not be found.])
+	  fi
         fi
         ;;
       *)
@@ -1493,7 +1537,9 @@ AC_SUBST(UNIVERSAL_ARCH_FLAGS)
 # tweak BASECFLAGS based on compiler and platform
 case $GCC in
 yes)
-    CFLAGS_NODIST="$CFLAGS_NODIST -std=c99"
+    # GNU dialect of C99, enables GNU extensions like __attribute__. GNU99
+    # is required by bluetooth.h on big endian machines.
+    CFLAGS_NODIST="$CFLAGS_NODIST -std=gnu99"
 
     # Python doesn't violate C99 aliasing rules, but older versions of
     # GCC produce warnings for legal Python code.  Enable
@@ -4905,67 +4951,6 @@ AC_CHECK_FILE(/dev/ptc, [], [])
 if test "x$ac_cv_file__dev_ptc" = xyes; then
   AC_DEFINE(HAVE_DEV_PTC, 1,
   [Define to 1 if you have the /dev/ptc device file.])
-fi
-
-AC_MSG_CHECKING(for %lld and %llu printf() format support)
-AC_CACHE_VAL(ac_cv_have_long_long_format,
-AC_RUN_IFELSE([AC_LANG_SOURCE([[[
-#include <stdio.h>
-#include <stddef.h>
-#include <string.h>
-
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-
-int main()
-{
-char buffer[256];
-
-if (sprintf(buffer, "%lld", (long long)123) < 0)
-return 1;
-if (strcmp(buffer, "123"))
-return 1;
-
-if (sprintf(buffer, "%lld", (long long)-123) < 0)
-return 1;
-if (strcmp(buffer, "-123"))
-return 1;
-
-if (sprintf(buffer, "%llu", (unsigned long long)123) < 0)
-return 1;
-if (strcmp(buffer, "123"))
-return 1;
-
-return 0;
-}
-]]])],
-[ac_cv_have_long_long_format=yes],
-[ac_cv_have_long_long_format=no],
-[ac_cv_have_long_long_format="cross -- assuming no"
-if test x$GCC = xyes; then
-save_CFLAGS=$CFLAGS
-CFLAGS="$CFLAGS -Werror -Wformat"
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-#include <stdio.h>
-#include <stddef.h>
-]], [[
-char *buffer;
-sprintf(buffer, "%lld", (long long)123);
-sprintf(buffer, "%lld", (long long)-123);
-sprintf(buffer, "%llu", (unsigned long long)123);
-]])],
-ac_cv_have_long_long_format=yes
-)
-CFLAGS=$save_CFLAGS
-fi])
-)
-AC_MSG_RESULT($ac_cv_have_long_long_format)
-
-if test "$ac_cv_have_long_long_format" = yes
-then
-  AC_DEFINE(PY_FORMAT_LONG_LONG, "ll",
-  [Define to printf format modifier for long long type])
 fi
 
 if test $ac_sys_system = Darwin

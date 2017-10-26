@@ -5,10 +5,6 @@ from test import support
 # Skip this test if the _testcapi module isn't available.
 support.import_module('_testcapi')
 from _testcapi import getargs_keywords, getargs_keyword_only
-try:
-    from _testcapi import getargs_L, getargs_K
-except ImportError:
-    getargs_L = None # PY_LONG_LONG not available
 
 # > How about the following counterproposal. This also changes some of
 # > the other format codes to be a little more regular.
@@ -309,7 +305,6 @@ class Signed_TestCase(unittest.TestCase):
         self.assertRaises(OverflowError, getargs_n, VERY_LARGE)
 
 
-@unittest.skipIf(getargs_L is None, 'PY_LONG_LONG is not available')
 class LongLong_TestCase(unittest.TestCase):
     def test_L(self):
         from _testcapi import getargs_L
@@ -630,20 +625,20 @@ class KeywordOnly_TestCase(unittest.TestCase):
             )
         # required arg missing
         with self.assertRaisesRegex(TypeError,
-            "Required argument 'required' \(pos 1\) not found"):
+            r"Required argument 'required' \(pos 1\) not found"):
             getargs_keyword_only(optional=2)
 
         with self.assertRaisesRegex(TypeError,
-            "Required argument 'required' \(pos 1\) not found"):
+            r"Required argument 'required' \(pos 1\) not found"):
             getargs_keyword_only(keyword_only=3)
 
     def test_too_many_args(self):
         with self.assertRaisesRegex(TypeError,
-            "Function takes at most 2 positional arguments \(3 given\)"):
+            r"Function takes at most 2 positional arguments \(3 given\)"):
             getargs_keyword_only(1, 2, 3)
 
         with self.assertRaisesRegex(TypeError,
-            "function takes at most 3 arguments \(4 given\)"):
+            r"function takes at most 3 arguments \(4 given\)"):
             getargs_keyword_only(1, 2, 3, keyword_only=5)
 
     def test_invalid_keyword(self):
@@ -678,11 +673,11 @@ class PositionalOnlyAndKeywords_TestCase(unittest.TestCase):
         self.assertEqual(self.getargs(1), (1, -1, -1))
         # required positional arg missing
         with self.assertRaisesRegex(TypeError,
-            "Function takes at least 1 positional arguments \(0 given\)"):
+            r"Function takes at least 1 positional arguments \(0 given\)"):
             self.getargs()
 
         with self.assertRaisesRegex(TypeError,
-            "Function takes at least 1 positional arguments \(0 given\)"):
+            r"Function takes at least 1 positional arguments \(0 given\)"):
             self.getargs(keyword=3)
 
     def test_empty_keyword(self):

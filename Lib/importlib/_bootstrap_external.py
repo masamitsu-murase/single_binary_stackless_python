@@ -234,6 +234,8 @@ _code_type = type(_write_atomic.__code__)
 #     Python 3.6a1  3372 (MAKE_FUNCTION simplification, remove MAKE_CLOSURE
 #                         #27095)
 #     Python 3.6b1  3373 (add BUILD_STRING opcode #27078)
+#     Python 3.6b1  3375 (add SETUP_ANNOTATIONS and STORE_ANNOTATION opcodes
+#                         #27985)
 #
 # MAGIC must change whenever the bytecode emitted by the compiler may no
 # longer be understood by older implementations of the eval loop (usually
@@ -242,7 +244,7 @@ _code_type = type(_write_atomic.__code__)
 # Whenever MAGIC_NUMBER is changed, the ranges in the magic_values array
 # in PC/launcher.c must also be updated.
 
-MAGIC_NUMBER = (3373).to_bytes(2, 'little') + b'\r\n'
+MAGIC_NUMBER = (3375).to_bytes(2, 'little') + b'\r\n'
 _RAW_MAGIC_NUMBER = int.from_bytes(MAGIC_NUMBER, 'little')  # For import.c
 
 _PYCACHE = '__pycache__'
@@ -279,6 +281,7 @@ def cache_from_source(path, debug_override=None, *, optimization=None):
             message = 'debug_override or optimization must be set to None'
             raise TypeError(message)
         optimization = '' if debug_override else 1
+    path = _os.fspath(path)
     head, tail = _path_split(path)
     base, sep, rest = tail.rpartition('.')
     tag = sys.implementation.cache_tag
@@ -309,6 +312,7 @@ def source_from_cache(path):
     """
     if sys.implementation.cache_tag is None:
         raise NotImplementedError('sys.implementation.cache_tag is None')
+    path = _os.fspath(path)
     head, pycache_filename = _path_split(path)
     head, pycache = _path_split(head)
     if pycache != _PYCACHE:
@@ -536,6 +540,8 @@ def spec_from_file_location(name, location=None, *, loader=None,
                 location = loader.get_filename(name)
             except ImportError:
                 pass
+    else:
+        location = _os.fspath(location)
 
     # If the location is on the filesystem, but doesn't actually exist,
     # we could return None here, indicating that the location is not

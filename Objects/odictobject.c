@@ -39,7 +39,7 @@ we've considered:
    __getitem__(), get(), etc. accordingly.
 
 The approach with the least performance impact (time and space) is #2,
-mirroring the key order of dict's dk_enties with an array of node pointers.
+mirroring the key order of dict's dk_entries with an array of node pointers.
 While lookdict() and friends (dk_lookup) don't give us the index into the
 array, we make use of pointer arithmetic to get that index.  An alternative
 would be to refactor lookdict() to provide the index, explicitly exposing
@@ -536,14 +536,17 @@ static Py_ssize_t
 _odict_get_index_raw(PyODictObject *od, PyObject *key, Py_hash_t hash)
 {
     PyObject **value_addr = NULL;
-    PyDictKeyEntry *ep;
     PyDictKeysObject *keys = ((PyDictObject *)od)->ma_keys;
+    Py_ssize_t ix;
 
-    ep = (keys->dk_lookup)((PyDictObject *)od, key, hash, &value_addr);
-    if (ep == NULL)
+    ix = (keys->dk_lookup)((PyDictObject *)od, key, hash, &value_addr, NULL);
+    if (ix == DKIX_EMPTY) {
+        return keys->dk_nentries;  /* index of new entry */
+    }
+    if (ix < 0)
         return -1;
     /* We use pointer arithmetic to get the entry's index into the table. */
-    return ep - keys->dk_entries;
+    return ix;
 }
 
 /* Replace od->od_fast_nodes with a new table matching the size of dict's. */
@@ -565,7 +568,7 @@ _odict_resize(PyODictObject *od) {
     /* Copy the current nodes into the table. */
     _odict_FOREACH(od, node) {
         i = _odict_get_index_raw(od, _odictnode_KEY(node),
-                                  _odictnode_HASH(node));
+                                 _odictnode_HASH(node));
         if (i < 0) {
             PyMem_FREE(fast_nodes);
             return -1;
@@ -1760,21 +1763,6 @@ PyODict_DelItem(PyObject *od, PyObject *key)
     if (res < 0)
         return -1;
     return _PyDict_DelItem_KnownHash(od, key, hash);
-}
-
-PyObject *
-_PyODict_KeysAsTuple(PyObject *od) {
-    Py_ssize_t i = 0;
-    _ODictNode *node;
-    PyObject *keys = PyTuple_New(PyODict_Size(od));
-    if (keys == NULL)
-        return NULL;
-    _odict_FOREACH((PyODictObject *)od, node) {
-        Py_INCREF(_odictnode_KEY(node));
-        PyTuple_SET_ITEM(keys, i, _odictnode_KEY(node));
-        i++;
-    }
-    return keys;
 }
 
 

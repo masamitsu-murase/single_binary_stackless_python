@@ -10,6 +10,7 @@ import codecs
 import gc
 import sysconfig
 import platform
+import locale
 
 # count the number of test runs, used to create unique
 # strings to intern in test_intern()
@@ -627,6 +628,8 @@ class SysModuleTest(unittest.TestCase):
 
     @unittest.skipUnless(test.support.FS_NONASCII,
                          'requires OS support of non-ASCII encodings')
+    @unittest.skipUnless(sys.getfilesystemencoding() == locale.getpreferredencoding(False),
+                         'requires FS encoding to match locale')
     def test_ioencoding_nonascii(self):
         env = dict(os.environ)
 
@@ -669,8 +672,6 @@ class SysModuleTest(unittest.TestCase):
         fs_encoding = sys.getfilesystemencoding()
         if sys.platform == 'darwin':
             expected = 'utf-8'
-        elif sys.platform == 'win32':
-            expected = 'mbcs'
         else:
             expected = None
         self.check_fsencoding(fs_encoding, expected)
@@ -912,13 +913,13 @@ class SizeofTest(unittest.TestCase):
             return inner
         check(get_cell().__closure__[0], size('P'))
         # code
-        check(get_cell().__code__, size('5i9Pi3P'))
-        check(get_cell.__code__, size('5i9Pi3P'))
+        check(get_cell().__code__, size('6i13P'))
+        check(get_cell.__code__, size('6i13P'))
         def get_cell2(x):
             def inner():
                 return x
             return inner
-        check(get_cell2.__code__, size('5i9Pi3P') + 1)
+        check(get_cell2.__code__, size('6i13P') + 1)
         # complex
         check(complex(0,1), size('2d'))
         # method_descriptor (descriptor object)
@@ -937,9 +938,9 @@ class SizeofTest(unittest.TestCase):
         # method-wrapper (descriptor object)
         check({}.__iter__, size('2P'))
         # dict
-        check({}, size('n2P') + calcsize('2nPn') + 8*calcsize('n2P'))
+        check({}, size('n2P') + 8 + calcsize('2nP2n') + 8 + (8*2//3)*calcsize('n2P'))
         longdict = {1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 7:7, 8:8}
-        check(longdict, size('n2P') + calcsize('2nPn') + 16*calcsize('n2P'))
+        check(longdict, size('n2P') + 8 + calcsize('2nP2n') + 16 + (16*2//3)*calcsize('n2P'))
         # dictionary-keyview
         check({}.keys(), size('P'))
         # dictionary-valueview
@@ -1086,7 +1087,7 @@ class SizeofTest(unittest.TestCase):
         check((1,2,3), vsize('') + 3*self.P)
         # type
         # static type: PyTypeObject
-        fmt = 'P2n15Pl4Pn9Pn11PIPP'
+        fmt = 'P2n15Pl4Pn9Pn11PIP'
         if hasattr(sys, 'getcounts'):
             fmt += '3n2P'
         s = vsize(fmt)
@@ -1098,13 +1099,13 @@ class SizeofTest(unittest.TestCase):
                   '10P'                 # PySequenceMethods
                   '2P'                  # PyBufferProcs
                   '4P')
-        # Separate block for PyDictKeysObject with 4 entries
-        s += calcsize("2nPn") + 4*calcsize("n2P")
+        # Separate block for PyDictKeysObject with 8 keys and 5 entries
+        s += calcsize("2nP2n") + 8 + 5*calcsize("n2P")
         # class
         class newstyleclass(object): pass
         check(newstyleclass, s)
         # dict with shared keys
-        check(newstyleclass().__dict__, size('n2P' + '2nPn'))
+        check(newstyleclass().__dict__, size('n2P' + '2nP2n') + 8)
         # unicode
         # each tuple contains a string and its expected character size
         # don't put any static strings here, as they may contain

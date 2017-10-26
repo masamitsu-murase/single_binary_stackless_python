@@ -10,6 +10,7 @@ import codecs
 import itertools
 import operator
 import struct
+import string
 import sys
 import unittest
 import warnings
@@ -1564,7 +1565,7 @@ class UnicodeTest(string_tests.CommonTest,
             ('+', b'+-'),
             ('+-', b'+--'),
             ('+?', b'+-?'),
-            ('\?', b'+AFw?'),
+            (r'\?', b'+AFw?'),
             ('+?', b'+-?'),
             (r'\\?', b'+AFwAXA?'),
             (r'\\\?', b'+AFwAXABc?'),
@@ -2326,7 +2327,7 @@ class UnicodeTest(string_tests.CommonTest,
         # non-ascii format, ascii argument: ensure that PyUnicode_FromFormatV()
         # raises an error
         self.assertRaisesRegex(ValueError,
-            '^PyUnicode_FromFormatV\(\) expects an ASCII-encoded format '
+            r'^PyUnicode_FromFormatV\(\) expects an ASCII-encoded format '
             'string, got a non-ASCII byte: 0xe9$',
             PyUnicode_FromFormat, b'unicode\xe9=%s', 'ascii')
 
@@ -2752,6 +2753,12 @@ class UnicodeTest(string_tests.CommonTest,
         support.check_free_after_iterating(self, iter, str)
         support.check_free_after_iterating(self, reversed, str)
 
+    def test_invalid_sequences(self):
+        for letter in string.ascii_letters + "89": # 0-7 are octal escapes
+            if letter in "abfnrtuvxNU":
+                continue
+            with self.assertWarns(DeprecationWarning):
+                eval(r"'\%s'" % letter)
 
 class StringModuleTest(unittest.TestCase):
     def test_formatter_parser(self):

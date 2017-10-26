@@ -10,7 +10,19 @@ What's New in Python 3.6.0 beta 1
 Core and Builtins
 -----------------
 
-- Issue #26307: The profile-opt build now applys PGO to the built-in modules.
+- Issue #26058: Add a new private version to the builtin dict type, incremented
+  at each dictionary creation and at each dictionary change. Implementation of
+  the PEP 509.
+
+- Issue #27364: A backslash-character pair that is not a valid escape sequence
+  now generates a DeprecationWarning.  Patch by Emanuel Barry.
+
+- Issue #27350: `dict` implementation is changed like PyPy. It is more compact
+  and preserves insertion order.
+  (Concept developed by Raymond Hettinger and patch by Inada Naoki.)
+
+- Issue #27911: Remove unnecessary error checks in
+  ``exec_builtin_or_dynamic()``.
 
 - Issue #27078: Added BUILD_STRING opcode.  Optimized f-strings evaluation.
 
@@ -88,12 +100,45 @@ Core and Builtins
   In a brand new thread, raise a RuntimeError since there is no active
   exception to reraise. Patch written by Xiang Zhang.
 
+- Issue #27985: Implement PEP 526 -- Syntax for Variable Annotations.
+  Patch by Ivan Levkivskyi.
+
 Library
 -------
+
+- email.generator.DecodedGenerator now supports the policy keyword.
+
+- Issue #28027: Remove undocumented modules from ``Lib/plat-*``: IN, CDROM,
+  DLFCN, TYPES, CDIO, and STROPTS.
+
+- Issue #27445: Don't pass str(_charset) to MIMEText.set_payload().
+  Patch by Claude Paroz.
+
+- Issue #24277: The new email API is no longer provisional, and the docs
+  have been reorganized and rewritten to emphasize the new API.
+
+- lib2to3.pgen3.driver.load_grammar() now creates a stable cache file
+  between runs given the same Grammar.txt input regardless of the hash
+  randomization setting.
+
+- Issue #28005: Allow ImportErrors in encoding implementation to propagate.
+
+- Issue #26667: Support path-like objects in importlib.util.
+
+- Issue #27570: Avoid zero-length memcpy() etc calls with null source
+  pointers in the "ctypes" and "array" modules.
+
+- Issue #22233: Break email header lines *only* on the RFC specified CR and LF
+  characters, not on arbitrary unicode line breaks.  This also fixes a bug in
+  HTTP header parsing.
+
+- Issue 27331: The email.mime classes now all accept an optional policy keyword.
 
 - Issue 27988: Fix email iter_attachments incorrect mutation of payload list.
 
 - Issue #16113: Add SHA-3 and SHAKE support to hashlib module.
+
+- Eliminate a tautological-pointer-compare warning in _scproxy.c.
 
 - Issue #27776: The :func:`os.urandom` function does now block on Linux 3.17
   and newer until the system urandom entropy pool is initialized to increase
@@ -206,6 +251,15 @@ Library
 
 - Issue #27573: exit message for code.interact is now configurable.
 
+- Issue #27930: Improved behaviour of logging.handlers.QueueListener.
+  Thanks to Paulo Andrade and Petr Viktorin for the analysis and patch.
+
+- Issue #6766: Distributed reference counting added to multiprocessing
+  to support nesting of shared values / proxy objects.
+
+- Issue #21201: Improves readability of multiprocessing error message.  Thanks
+  to Wojciech Walczak for patch.
+
 C API
 -----
 
@@ -229,6 +283,13 @@ Tests
 Build
 -----
 
+- Issue #27983: Cause lack of llvm-profdata tool when using clang as
+  required for PGO linking to be a configure time error rather than
+  make time when --with-optimizations is enabled.  Also improve our
+  ability to find the llvm-profdata tool on MacOS and some Linuxes.
+
+- Issue #26307: The profile-opt build now applys PGO to the built-in modules.
+
 - Issue #26539: Add the --with-optimizations flag to turn on LTO and PGO build
   support when available.
 
@@ -243,6 +304,10 @@ Build
 
 Windows
 -------
+
+- Issue #1602: Windows console doesn't input or print Unicode (PEP 528)
+
+- Issue #27781: Change file system encoding on Windows to UTF-8 (PEP 529)
 
 - Issue #27731: Opt-out of MAX_PATH on Windows 10
 
@@ -497,7 +562,6 @@ Build
 
 - Issue #10910: Avoid C++ compilation errors on FreeBSD and OS X.
   Also update FreedBSD version checks for the original ctype UTF-8 workaround.
-
 
 What's New in Python 3.6.0 alpha 3
 ==================================
@@ -2590,7 +2654,7 @@ Library
 - Issue #24774: Fix docstring in http.server.test. Patch from Chiu-Hsiang Hsu.
 
 - Issue #21159: Improve message in configparser.InterpolationMissingOptionError.
-  Patch from ≈Åukasz Langa.
+  Patch from ≈?ukasz Langa.
 
 - Issue #20362: Honour TestCase.longMessage correctly in assertRegex.
   Patch from Ilia Kurenkov.
@@ -4518,7 +4582,7 @@ Library
   Based on patch by Martin Panter.
 
 - Issue #17293: uuid.getnode() now determines MAC address on AIX using netstat.
-  Based on patch by Aivars KalvƒÅns.
+  Based on patch by Aivars Kalvƒ?ns.
 
 - Issue #22769: Fixed ttk.Treeview.tag_has() when called without arguments.
 
@@ -6001,7 +6065,7 @@ Core and Builtins
 
 - Issue #20588: Make Python-ast.c C89 compliant.
 
-- Issue #20437: Fixed 22 potential bugs when deleting objects references.
+- Issue #20437: Fixed 22 potential bugs when deleting object references.
 
 - Issue #20500: Displaying an exception at interpreter shutdown no longer
   risks triggering an assertion failure in PyObject_Str.
@@ -6906,7 +6970,7 @@ Core and Builtins
   when the creation of the replacement exception won't lose any information.
 
 - Issue #19466: Clear the frames of daemon threads earlier during the
-  Python shutdown to call objects destructors. So "unclosed file" resource
+  Python shutdown to call object destructors. So "unclosed file" resource
   warnings are now correctly emitted for daemon threads.
 
 - Issue #19514: Deduplicate some _Py_IDENTIFIER declarations.
@@ -6923,6 +6987,9 @@ Core and Builtins
   PyEval_GetLocals() now raises an exception and return NULL on failure.
 
 - Issue #19369: Optimized the usage of __length_hint__().
+
+- Issue #28026: Raise ImportError when exec_module() exists but
+  create_module() is missing.
 
 - Issue #18603: Ensure that PyOS_mystricmp and PyOS_mystrnicmp are in the
   Python executable and not removed by the linker's optimizer.
@@ -7811,6 +7878,9 @@ Library
 - Issue #16809: Tkinter's splitlist() and split() methods now accept Tcl_Obj
   argument.
 
+- Issue #17211: Yield a namedtuple in pkgutil.
+  Patch by Ramchandra Apte.
+
 - Issue #18324: set_payload now correctly handles binary input.  This also
   supersedes the previous fixes for #14360, #1717, and #16564.
 
@@ -7819,6 +7889,8 @@ Library
 
 - Issue #17119: Fixed integer overflows when processing large strings and tuples
   in the tkinter module.
+
+- Issue #15352: Rebuild frozen modules when marshal.c is changed.
 
 - Issue #18747: Re-seed OpenSSL's pseudo-random number generator after fork.
   A pthread_atfork() parent handler is used to seed the PRNG with pid, time
@@ -8026,6 +8098,9 @@ Core and Builtins
 
 - Issue #18137: Detect integer overflow on precision in float.__format__()
   and complex.__format__().
+
+- Issue #15767: Introduce ModuleNotFoundError which is raised when a module
+  could not be found.
 
 - Issue #18183: Fix various unicode operations on strings with large unicode
   codepoints.
@@ -9946,6 +10021,10 @@ C-API
 - Issue #18351: Fix various issues in a function in importlib provided to help
   PyImport_ExecCodeModuleWithPathnames() (and thus by extension
   PyImport_ExecCodeModule() and PyImport_ExecCodeModuleEx()).
+
+- Issue #15767: Added PyErr_SetImportErrorSubclass().
+
+- PyErr_SetImportError() now sets TypeError when its msg argument is set.
 
 - Issue #9369: The types of `char*` arguments of PyObject_CallFunction() and
   PyObject_CallMethod() now changed to `const char*`.  Based on patches by
