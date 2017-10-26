@@ -258,6 +258,9 @@ new_threadstate(PyInterpreterState *interp, int init)
         STACKLESS_PYSTATE_NEW;
 #endif
 
+        tstate->async_gen_firstiter = NULL;
+        tstate->async_gen_finalizer = NULL;
+
         if (init)
             _PyThreadState_Init(tstate);
 
@@ -440,6 +443,8 @@ PyThreadState_Clear(PyThreadState *tstate)
     Py_CLEAR(tstate->c_traceobj);
 
     Py_CLEAR(tstate->coroutine_wrapper);
+    Py_CLEAR(tstate->async_gen_firstiter);
+    Py_CLEAR(tstate->async_gen_finalizer);
 #ifdef STACKLESS
     STACKLESS_PYSTATE_CLEAR;
 #endif
