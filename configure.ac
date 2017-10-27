@@ -1537,9 +1537,7 @@ AC_SUBST(UNIVERSAL_ARCH_FLAGS)
 # tweak BASECFLAGS based on compiler and platform
 case $GCC in
 yes)
-    # GNU dialect of C99, enables GNU extensions like __attribute__. GNU99
-    # is required by bluetooth.h on big endian machines.
-    CFLAGS_NODIST="$CFLAGS_NODIST -std=gnu99"
+    CFLAGS_NODIST="$CFLAGS_NODIST -std=c99"
 
     # Python doesn't violate C99 aliasing rules, but older versions of
     # GCC produce warnings for legal Python code.  Enable
@@ -2009,10 +2007,17 @@ sys/param.h sys/select.h sys/sendfile.h sys/socket.h sys/statvfs.h \
 sys/stat.h sys/syscall.h sys/sys_domain.h sys/termio.h sys/time.h \
 sys/times.h sys/types.h sys/uio.h sys/un.h sys/utsname.h sys/wait.h pty.h \
 libutil.h sys/resource.h netpacket/packet.h sysexits.h bluetooth.h \
-bluetooth/bluetooth.h linux/tipc.h linux/random.h spawn.h util.h alloca.h endian.h \
+linux/tipc.h linux/random.h spawn.h util.h alloca.h endian.h \
 sys/endian.h)
 AC_HEADER_DIRENT
 AC_HEADER_MAJOR
+
+# bluetooth/bluetooth.h has been known to not compile with -std=c99.
+# http://permalink.gmane.org/gmane.linux.bluez.kernel/22294
+SAVE_CFLAGS=$CFLAGS
+CFLAGS="-std=c99 $CFLAGS"
+AC_CHECK_HEADERS(bluetooth/bluetooth.h)
+CFLAGS=$SAVE_CFLAGS
 
 # On Darwin (OS X) net/if.h requires sys/socket.h to be imported first.
 AC_CHECK_HEADERS([net/if.h], [], [],
@@ -2827,26 +2832,6 @@ else
 fi])
 AC_MSG_RESULT($with_dbmliborder)
 
-# Determine if signalmodule should be used.
-AC_SUBST(USE_SIGNAL_MODULE)
-AC_SUBST(SIGNAL_OBJS)
-AC_MSG_CHECKING(for --with-signal-module)
-AC_ARG_WITH(signal-module,
-            AS_HELP_STRING([--with-signal-module], [disable/enable signal module]))
-
-if test -z "$with_signal_module"
-then with_signal_module="yes"
-fi
-AC_MSG_RESULT($with_signal_module)
-
-if test "${with_signal_module}" = "yes"; then
-	USE_SIGNAL_MODULE=""
-	SIGNAL_OBJS=""
-else
-	USE_SIGNAL_MODULE="#"
-	SIGNAL_OBJS="Parser/intrcheck.o Python/sigcheck.o"
-fi
-
 # This is used to generate Setup.config
 AC_SUBST(USE_THREAD_MODULE)
 USE_THREAD_MODULE=""
@@ -3211,16 +3196,6 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[ /* CAN_RAW_FD_FRAMES available check */
 #include <linux/can/raw.h>]],
 [[int can_raw_fd_frames = CAN_RAW_FD_FRAMES;]])],[
   AC_DEFINE(HAVE_LINUX_CAN_RAW_FD_FRAMES, 1, [Define if compiling using Linux 3.6 or later.])
-  AC_MSG_RESULT(yes)
-],[
-  AC_MSG_RESULT(no)
-])
-
-AC_MSG_CHECKING(for OSX 10.5 SDK or later)
-AC_COMPILE_IFELSE([
-  AC_LANG_PROGRAM([[#include <Carbon/Carbon.h>]], [[FSIORefNum fRef = 0]])
-],[
-  AC_DEFINE(HAVE_OSX105_SDK, 1, [Define if compiling using MacOS X 10.5 SDK or later.])
   AC_MSG_RESULT(yes)
 ],[
   AC_MSG_RESULT(no)

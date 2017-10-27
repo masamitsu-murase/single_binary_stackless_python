@@ -64,7 +64,19 @@ Summary -- Release highlights
 
 New syntax features:
 
+* A ``global`` or ``nonlocal`` statement must now textually appear
+  before the first use of the affected name in the same scope.
+  Previously this was a SyntaxWarning.
+
 * PEP 498: :ref:`Formatted string literals <whatsnew-fstrings>`
+
+* PEP 515: Underscores in Numeric Literals
+
+* PEP 526: Syntax for Variable Annotations
+
+* PEP 525: Asynchronous Generators
+
+* PEP 530: Asynchronous Comprehensions
 
 Standard library improvements:
 
@@ -104,7 +116,10 @@ Windows improvements:
     :pep:`4XX` - Python Virtual Environments
        PEP written by Carl Meyer
 
-.. XXX PEP 520: :ref:`Preserving Class Attribute Definition Order<whatsnew-deforder>`
+* PEP 520: :ref:`Preserving Class Attribute Definition Order<whatsnew-deforder>`
+
+* PEP 468: :ref:`Preserving Keyword Argument Order<whatsnew-kwargs>`
+
 
 New Features
 ============
@@ -368,21 +383,28 @@ PEP 520: Preserving Class Attribute Definition Order
 
 Attributes in a class definition body have a natural ordering: the same
 order in which the names appear in the source.  This order is now
-preserved in the new class's ``__definition_order__`` attribute.  It is
-a tuple of the attribute names, in the order in which they appear in
-the class definition body.
-
-For types that don't have a definition (e.g. builtins), or the attribute
-order could not be determined, ``__definition_order__`` is ``None``.
+preserved in the new class's ``__dict__`` attribute.
 
 Also, the effective default class *execution* namespace (returned from
 ``type.__prepare__()``) is now an insertion-order-preserving mapping.
-For CPython, it is now ``collections.OrderedDict``.  Note that the
-class namespace, ``cls.__dict__``, is unchanged.
 
 .. seealso::
 
    :pep:`520` - Preserving Class Attribute Definition Order
+      PEP written and implemented by Eric Snow.
+
+
+.. _whatsnew-kwargs:
+
+PEP 468: Preserving Keyword Argument Order
+==========================================
+
+``**kwargs`` in a function signature is now guaranteed to be an
+insertion-order-preserving mapping.
+
+.. seealso::
+
+   :pep:`468` - Preserving Keyword Argument Order
       PEP written and implemented by Eric Snow.
 
 
@@ -404,7 +426,18 @@ Some smaller changes made to the core Python language are:
 * :func:`dict` now uses a "compact" representation `pioneered by PyPy
   <https://morepypy.blogspot.com/2015/01/faster-more-memory-efficient-and-more.html>`_.
   :pep:`468` (Preserving the order of ``**kwargs`` in a function.) is
-  implemented by this.  (Contributed by INADA Naoki in :issue:`27350`.)
+  implemented by this. The order-preserving aspect of this new
+  implementation is considered an implementation detail and should
+  not be relied upon (this may change in the future, but it is desired
+  to have this new dict implementation in the language for a few
+  releases before changing the language spec to mandate
+  order-preserving semantics for all current and future Python
+  implementations; this also helps preserve backwards-compatibility
+  with older versions of the language where random iteration order is
+  still in effect, e.g. Python 3.5).
+  (Contributed by INADA Naoki in :issue:`27350`. Idea
+  `originally suggested by Raymond Hettinger
+  <https://mail.python.org/pipermail/python-dev/2012-December/123028.html>`_.)
 
 * Long sequences of repeated traceback lines are now abbreviated as
   ``"[Previous line repeated {count} more times]"`` (see

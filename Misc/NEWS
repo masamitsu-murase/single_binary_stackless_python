@@ -10,6 +10,14 @@ What's New in Python 3.6.0 beta 1
 Core and Builtins
 -----------------
 
+- Issue #27999: Make "global after use" a SyntaxError, and ditto for nonlocal.
+  Patch by Ivan Levkivskyi.
+
+- Issue #28003: Implement PEP 525 -- Asynchronous Generators.
+
+- Issue #27985: Implement PEP 526 -- Syntax for Variable Annotations.
+  Patch by Ivan Levkivskyi.
+
 - Issue #26058: Add a new private version to the builtin dict type, incremented
   at each dictionary creation and at each dictionary change. Implementation of
   the PEP 509.
@@ -100,14 +108,17 @@ Core and Builtins
   In a brand new thread, raise a RuntimeError since there is no active
   exception to reraise. Patch written by Xiang Zhang.
 
-- Issue #27985: Implement PEP 526 -- Syntax for Variable Annotations.
-  Patch by Ivan Levkivskyi.
-
-- Issue #28003: Implement PEP 525 -- Asynchronous Generators.
-
+- Issue #28008: Implement PEP 530 -- asynchronous comprehensions.
 
 Library
 -------
+
+- Issue #24594: Validates persist parameter when opening MSI database
+
+- Issue #28047: Fixed calculation of line length used for the base64 CTE
+  in the new email policies.
+
+- Issue #27576: Fix call order in OrderedDict.__init__().
 
 - email.generator.DecodedGenerator now supports the policy keyword.
 

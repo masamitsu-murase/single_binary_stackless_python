@@ -645,8 +645,6 @@ DLINCLDIR
 THREADOBJ
 LDLAST
 USE_THREAD_MODULE
-SIGNAL_OBJS
-USE_SIGNAL_MODULE
 TCLTK_LIBS
 TCLTK_INCLUDES
 LIBFFI_INCLUDEDIR
@@ -831,7 +829,6 @@ enable_loadable_sqlite_extensions
 with_tcltk_includes
 with_tcltk_libs
 with_dbmliborder
-with_signal_module
 with_threads
 with_thread
 enable_ipv6
@@ -1537,7 +1534,6 @@ Optional Packages:
                           order to check db backends for dbm. Valid value is a
                           colon separated string with the backend names
                           `ndbm', `gdbm' and `bdb'.
-  --with-signal-module    disable/enable signal module
   --with(out)-threads[=DIRECTORY]
                           disable/enable thread support
   --with(out)-thread[=DIRECTORY]
@@ -6881,9 +6877,7 @@ UNIVERSAL_ARCH_FLAGS=
 # tweak BASECFLAGS based on compiler and platform
 case $GCC in
 yes)
-    # GNU dialect of C99, enables GNU extensions like __attribute__. GNU99
-    # is required by bluetooth.h on big endian machines.
-    CFLAGS_NODIST="$CFLAGS_NODIST -std=gnu99"
+    CFLAGS_NODIST="$CFLAGS_NODIST -std=c99"
 
     # Python doesn't violate C99 aliasing rules, but older versions of
     # GCC produce warnings for legal Python code.  Enable
@@ -7644,7 +7638,7 @@ sys/param.h sys/select.h sys/sendfile.h sys/socket.h sys/statvfs.h \
 sys/stat.h sys/syscall.h sys/sys_domain.h sys/termio.h sys/time.h \
 sys/times.h sys/types.h sys/uio.h sys/un.h sys/utsname.h sys/wait.h pty.h \
 libutil.h sys/resource.h netpacket/packet.h sysexits.h bluetooth.h \
-bluetooth/bluetooth.h linux/tipc.h linux/random.h spawn.h util.h alloca.h endian.h \
+linux/tipc.h linux/random.h spawn.h util.h alloca.h endian.h \
 sys/endian.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
@@ -7866,6 +7860,24 @@ fi
   fi
 fi
 
+
+# bluetooth/bluetooth.h has been known to not compile with -std=c99.
+# http://permalink.gmane.org/gmane.linux.bluez.kernel/22294
+SAVE_CFLAGS=$CFLAGS
+CFLAGS="-std=c99 $CFLAGS"
+for ac_header in bluetooth/bluetooth.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "bluetooth/bluetooth.h" "ac_cv_header_bluetooth_bluetooth_h" "$ac_includes_default"
+if test "x$ac_cv_header_bluetooth_bluetooth_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_BLUETOOTH_BLUETOOTH_H 1
+_ACEOF
+
+fi
+
+done
+
+CFLAGS=$SAVE_CFLAGS
 
 # On Darwin (OS X) net/if.h requires sys/socket.h to be imported first.
 for ac_header in net/if.h
@@ -9975,32 +9987,6 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $with_dbmliborder" >&5
 $as_echo "$with_dbmliborder" >&6; }
 
-# Determine if signalmodule should be used.
-
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-signal-module" >&5
-$as_echo_n "checking for --with-signal-module... " >&6; }
-
-# Check whether --with-signal-module was given.
-if test "${with_signal_module+set}" = set; then :
-  withval=$with_signal_module;
-fi
-
-
-if test -z "$with_signal_module"
-then with_signal_module="yes"
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $with_signal_module" >&5
-$as_echo "$with_signal_module" >&6; }
-
-if test "${with_signal_module}" = "yes"; then
-	USE_SIGNAL_MODULE=""
-	SIGNAL_OBJS=""
-else
-	USE_SIGNAL_MODULE="#"
-	SIGNAL_OBJS="Parser/intrcheck.o Python/sigcheck.o"
-fi
-
 # This is used to generate Setup.config
 
 USE_THREAD_MODULE=""
@@ -10805,37 +10791,6 @@ if ac_fn_c_try_compile "$LINENO"; then :
 
 
 $as_echo "#define HAVE_LINUX_CAN_RAW_FD_FRAMES 1" >>confdefs.h
-
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-
-else
-
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for OSX 10.5 SDK or later" >&5
-$as_echo_n "checking for OSX 10.5 SDK or later... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-  #include <Carbon/Carbon.h>
-int
-main ()
-{
-FSIORefNum fRef = 0
-  ;
-  return 0;
-}
-
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-
-
-$as_echo "#define HAVE_OSX105_SDK 1" >>confdefs.h
 
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
