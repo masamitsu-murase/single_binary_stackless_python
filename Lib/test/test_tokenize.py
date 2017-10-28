@@ -3,7 +3,7 @@ from tokenize import (tokenize, _tokenize, untokenize, NUMBER, NAME, OP,
                      STRING, ENDMARKER, ENCODING, tok_name, detect_encoding,
                      open as tokenize_open, Untokenizer)
 from io import BytesIO
-from unittest import TestCase, mock
+from unittest import TestCase, mock, main
 import os
 import token
 
@@ -1529,12 +1529,13 @@ class TestRoundtrip(TestCase):
         tempdir = os.path.dirname(fn) or os.curdir
         testfiles = glob.glob(os.path.join(tempdir, "test*.py"))
 
-        # Tokenize is broken on test_pep3131.py because regular expressions are
-        # broken on the obscure unicode identifiers in it. *sigh*
-        # With roundtrip extended to test the 5-tuple mode of  untokenize,
-        # 7 more testfiles fail.  Remove them also until the failure is diagnosed.
+        # Tokenize is broken on test_unicode_identifiers.py because regular
+        # expressions are broken on the obscure unicode identifiers in it.
+        # *sigh* With roundtrip extended to test the 5-tuple mode of
+        # untokenize, 7 more testfiles fail.  Remove them also until the
+        # failure is diagnosed.
 
-        testfiles.remove(os.path.join(tempdir, "test_pep3131.py"))
+        testfiles.remove(os.path.join(tempdir, "test_unicode_identifiers.py"))
         for f in ('buffer', 'builtin', 'fileio', 'inspect', 'os', 'platform', 'sys'):
             testfiles.remove(os.path.join(tempdir, "test_%s.py") % f)
 
@@ -1564,4 +1565,4 @@ class TestRoundtrip(TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()
