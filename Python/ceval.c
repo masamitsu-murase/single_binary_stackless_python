@@ -3634,8 +3634,14 @@ stackless_call_return:
             res = call_function(&sp, oparg, names);
 #endif
             stack_pointer = sp;
-            PUSH(res);
             Py_DECREF(names);
+#ifdef STACKLESS
+            if (STACKLESS_UNWINDING(res)) {
+                retval = res;
+                goto stackless_call;
+            }
+#endif
+            PUSH(res);
 
             if (res == NULL) {
                 goto error;
@@ -3660,6 +3666,13 @@ stackless_call_return:
             Py_DECREF(func);
             Py_DECREF(callargs);
             Py_XDECREF(kwargs);
+#ifdef STACKLESS
+            if (STACKLESS_UNWINDING(result)) {
+                retval = result;
+                POP();  /* compensate for the PUSH(res) after label stackless_call_return: */
+                goto stackless_call;
+            }
+#endif
 
             SET_TOP(result);
             if (result == NULL) {
@@ -5507,13 +5520,13 @@ call_function(PyObject ***pp_stack, Py_ssize_t oparg, PyObject *names
       }
       else {
           Py_INCREF(func);
-          STACKLESS_ASSERT();
       }
 
       READ_TIMESTAMP(*pintr0);
       if (PyFunction_Check(func)) {
           STACKLESS_PROPOSE_ALL();
           x = fast_function(func, pp_stack, nargs, names);
+          STACKLESS_ASSERT();
       } else {
           x = do_call(func, pp_stack, nargs, names);
       }
@@ -5837,6 +5850,7 @@ do_call(PyObject *func, PyObject ***pp_stack, Py_ssize_t nargs, PyObject *kwname
 static PyObject *
 do_call_core(PyObject *func, PyObject *callargs, PyObject *kwdict)
 {
+    PyObject *result;
 #ifdef CALL_PROFILE
     /* At this point, we have to look at the type of func to
        update the call stats properly.  Do it here so as to avoid
@@ -5853,15 +5867,19 @@ do_call_core(PyObject *func, PyObject *callargs, PyObject *kwdict)
     else
         PCALL(PCALL_OTHER);
 #endif
+
+    STACKLESS_PROPOSE_ALL();
     if (PyCFunction_Check(func)) {
-        PyObject *result;
         PyThreadState *tstate = PyThreadState_GET();
         C_TRACE(result, PyCFunction_Call(func, callargs, kwdict));
         return result;
     }
     else {
-        return PyObject_Call(func, callargs, kwdict);
+        result = PyObject_Call(func, callargs, kwdict);
     }
+    STACKLESS_ASSERT();
+
+    return result;
 }
 
 /* Extract a slice index from a PyLong or an object with the
