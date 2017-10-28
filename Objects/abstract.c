@@ -2441,6 +2441,7 @@ PyObject *
 _PyObject_FastCallKeywords(PyObject *func, PyObject **stack, Py_ssize_t nargs,
                            PyObject *kwnames)
 {
+    STACKLESS_GETARG();
     PyObject *kwdict, *result;
     Py_ssize_t nkwargs = (kwnames == NULL) ? 0 : PyTuple_GET_SIZE(kwnames);
 
@@ -2450,7 +2451,10 @@ _PyObject_FastCallKeywords(PyObject *func, PyObject **stack, Py_ssize_t nargs,
 
     if (PyFunction_Check(func)) {
         /* Fast-path: avoid temporary tuple or dict */
-        return _PyFunction_FastCallKeywords(func, stack, nargs, kwnames);
+        STACKLESS_PROMOTE_ALL();
+        result = _PyFunction_FastCallKeywords(func, stack, nargs, kwnames);
+        STACKLESS_ASSERT();
+        return result;
     }
 
     if (nkwargs > 0) {
@@ -2463,7 +2467,9 @@ _PyObject_FastCallKeywords(PyObject *func, PyObject **stack, Py_ssize_t nargs,
         kwdict = NULL;
     }
 
+    STACKLESS_PROMOTE_ALL();
     result = _PyObject_FastCallDict(func, stack, nargs, kwdict);
+    STACKLESS_ASSERT();
     Py_XDECREF(kwdict);
     return result;
 }

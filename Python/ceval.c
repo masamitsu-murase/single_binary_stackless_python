@@ -3659,9 +3659,11 @@ stackless_call_return:
             assert(PyTuple_CheckExact(callargs));
             func = TOP();
 
+            STACKLESS_PROPOSE_ALL();
             READ_TIMESTAMP(intr0);
             result = do_call_core(func, callargs, kwargs);
             READ_TIMESTAMP(intr1);
+            STACKLESS_ASSERT();
             Py_DECREF(func);
             Py_DECREF(callargs);
             Py_XDECREF(kwargs);
@@ -5526,16 +5528,16 @@ call_function(PyObject ***pp_stack, Py_ssize_t oparg, PyObject *kwnames
 
       stack = (*pp_stack) - nargs - nkwargs;
 
+      STACKLESS_PROPOSE_ALL();
       READ_TIMESTAMP(*pintr0);
       if (PyFunction_Check(func)) {
-          STACKLESS_PROPOSE_ALL();
           x = fast_function(func, stack, nargs, kwnames);
-          STACKLESS_ASSERT();
       }
       else {
           x = _PyObject_FastCallKeywords(func, stack, nargs, kwnames);
       }
       READ_TIMESTAMP(*pintr1);
+      STACKLESS_ASSERT();
 
       Py_DECREF(func);
     }
@@ -5851,7 +5853,6 @@ do_call_core(PyObject *func, PyObject *callargs, PyObject *kwdict)
         PCALL(PCALL_OTHER);
 #endif
 
-    STACKLESS_PROPOSE_ALL();
     if (PyCFunction_Check(func)) {
         PyThreadState *tstate = PyThreadState_GET();
         C_TRACE(result, PyCFunction_Call(func, callargs, kwdict));
@@ -5860,7 +5861,6 @@ do_call_core(PyObject *func, PyObject *callargs, PyObject *kwdict)
     else {
         result = PyObject_Call(func, callargs, kwdict);
     }
-    STACKLESS_ASSERT();
 
     return result;
 }
