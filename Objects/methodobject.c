@@ -103,6 +103,7 @@ PyCFunction_Call(PyObject *func, PyObject *args, PyObject *kwds)
     else if (flags == METH_FASTCALL) {
         PyObject **stack = &PyTuple_GET_ITEM(args, 0);
         Py_ssize_t nargs = PyTuple_GET_SIZE(args);
+        STACKLESS_PROMOTE_ALL();
         res = _PyCFunction_FastCallDict(func, stack, nargs, kwds);
     }
     else {
@@ -259,6 +260,7 @@ _PyCFunction_FastCallDict(PyObject *func_obj, PyObject **args, Py_ssize_t nargs,
             return NULL;
         }
 
+        STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS);
         result = (*fastmeth) (self, stack, nargs, kwnames);
         if (stack != args) {
             PyMem_Free(stack);
