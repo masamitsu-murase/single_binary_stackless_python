@@ -260,6 +260,7 @@ PyObject *
 _PyCFunction_FastCallKeywords(PyObject *func, PyObject **stack,
                               Py_ssize_t nargs, PyObject *kwnames)
 {
+    STACKLESS_GETARG();
     PyObject *kwdict, *result;
     Py_ssize_t nkwargs;
 
@@ -276,7 +277,9 @@ _PyCFunction_FastCallKeywords(PyObject *func, PyObject **stack,
         kwdict = NULL;
     }
 
+    STACKLESS_PROMOTE_ALL();
     result = _PyCFunction_FastCallDict(func, stack, nargs, kwdict);
+    STACKLESS_ASSERT();
     Py_XDECREF(kwdict);
     return result;
 }
