@@ -423,7 +423,7 @@ This can be used to instrument running interpreters in production,
 without the need to recompile specific debug builds or providing
 application-specific profiling/debugging code.
 
-More details in:ref:`instrumentation`.
+More details in :ref:`instrumentation`.
 
 The current implementation is tested on Linux and macOS.  Additional
 markers may be added in the future.
@@ -680,6 +680,14 @@ restriction that :class:`importlib.machinery.BuiltinImporter` and
 :term:`path-like object`.
 
 
+json
+----
+
+:func:`json.load` and :func:`json.loads` now support binary input.  Encoded
+JSON should be represented using either UTF-8, UTF-16, or UTF-32.
+(Contributed by Serhiy Storchaka in :issue:`17909`.)
+
+
 os
 --
 
@@ -926,6 +934,14 @@ Allowed keyword arguments to be passed to :func:`Beep <winsound.Beep>`,
 <winsound.PlaySound>` (:issue:`27982`).
 
 
+xmlrpc.client
+-------------
+
+The module now supports unmarshalling additional data types used by
+Apache XML-RPC implementation for numerics and ``None``.
+(Contributed by Serhiy Storchaka in :issue:`26885`.)
+
+
 zipfile
 -------
 
@@ -1108,6 +1124,15 @@ Deprecated features
   that will not be for several Python releases.  (Contributed by Emanuel Barry
   in :issue:`27364`.)
 
+* Inline flags ``(?letters)`` now should be used only at the start of the
+  regular expression.  Inline flags in the middle of the regular expression
+  affects global flags in Python :mod:`re` module.  This is an exception to
+  other regular expression engines that either apply flags to only part of
+  the regular expression or treat them as an error.  To avoid distinguishing
+  inline flags in the middle of the regular expression now emit a deprecation
+  warning.  It will be an error in future Python releases.
+  (Contributed by Serhiy Storchaka in :issue:`22493`.)
+
 
 Deprecated Python behavior
 --------------------------
@@ -1169,6 +1194,9 @@ Changes in 'python' Command Behavior
 
 Changes in the Python API
 -------------------------
+
+* :mod:`sqlite3` no longer implicitly commit an open transaction before DDL
+  statements.
 
 * On Linux, :func:`os.urandom` now blocks until the system urandom entropy pool
   is initialized to increase the security.

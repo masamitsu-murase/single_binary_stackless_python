@@ -99,7 +99,7 @@ from enum import Enum as _Enum, IntEnum as _IntEnum, IntFlag as _IntFlag
 import _ssl             # if we can't import it, let the error propagate
 
 from _ssl import OPENSSL_VERSION_NUMBER, OPENSSL_VERSION_INFO, OPENSSL_VERSION
-from _ssl import _SSLContext, MemoryBIO
+from _ssl import _SSLContext, MemoryBIO, SSLSession
 from _ssl import (
     SSLError, SSLZeroReturnError, SSLWantReadError, SSLWantWriteError,
     SSLSyscallError, SSLEOFError,
@@ -391,18 +391,18 @@ class SSLContext(_SSLContext):
     def wrap_socket(self, sock, server_side=False,
                     do_handshake_on_connect=True,
                     suppress_ragged_eofs=True,
-                    server_hostname=None):
+                    server_hostname=None, session=None):
         return SSLSocket(sock=sock, server_side=server_side,
                          do_handshake_on_connect=do_handshake_on_connect,
                          suppress_ragged_eofs=suppress_ragged_eofs,
                          server_hostname=server_hostname,
-                         _context=self)
+                         _context=self, _session=session)
 
     def wrap_bio(self, incoming, outgoing, server_side=False,
-                 server_hostname=None):
+                 server_hostname=None, session=None):
         sslobj = self._wrap_bio(incoming, outgoing, server_side=server_side,
                                 server_hostname=server_hostname)
-        return SSLObject(sslobj)
+        return SSLObject(sslobj, session=session)
 
     def set_npn_protocols(self, npn_protocols):
         protos = bytearray()
@@ -488,32 +488,16 @@ def create_default_context(purpose=Purpose.SERVER_AUTH, *, cafile=None,
     if not isinstance(purpose, _ASN1Object):
         raise TypeError(purpose)
 
+    # SSLContext sets OP_NO_SSLv2, OP_NO_SSLv3, OP_NO_COMPRESSION,
+    # OP_CIPHER_SERVER_PREFERENCE, OP_SINGLE_DH_USE and OP_SINGLE_ECDH_USE
+    # by default.
     context = SSLContext(PROTOCOL_TLS)
-
-    # SSLv2 considered harmful.
-    context.options |= OP_NO_SSLv2
-
-    # SSLv3 has problematic security and is only required for really old
-    # clients such as IE6 on Windows XP
-    context.options |= OP_NO_SSLv3
-
-    # disable compression to prevent CRIME attacks (OpenSSL 1.0+)
-    context.options |= getattr(_ssl, "OP_NO_COMPRESSION", 0)
 
     if purpose == Purpose.SERVER_AUTH:
         # verify certs and host name in client mode
         context.verify_mode = CERT_REQUIRED
         context.check_hostname = True
     elif purpose == Purpose.CLIENT_AUTH:
-        # Prefer the server's ciphers by default so that we get stronger
-        # encryption
-        context.options |= getattr(_ssl, "OP_CIPHER_SERVER_PREFERENCE", 0)
-
-        # Use single use keys in order to improve forward secrecy
-        context.options |= getattr(_ssl, "OP_SINGLE_DH_USE", 0)
-        context.options |= getattr(_ssl, "OP_SINGLE_ECDH_USE", 0)
-
-        # disallow ciphers with known vulnerabilities
         context.set_ciphers(_RESTRICTED_SERVER_CIPHERS)
 
     if cafile or capath or cadata:
@@ -539,12 +523,10 @@ def _create_unverified_context(protocol=PROTOCOL_TLS, *, cert_reqs=None,
     if not isinstance(purpose, _ASN1Object):
         raise TypeError(purpose)
 
+    # SSLContext sets OP_NO_SSLv2, OP_NO_SSLv3, OP_NO_COMPRESSION,
+    # OP_CIPHER_SERVER_PREFERENCE, OP_SINGLE_DH_USE and OP_SINGLE_ECDH_USE
+    # by default.
     context = SSLContext(protocol)
-    # SSLv2 considered harmful.
-    context.options |= OP_NO_SSLv2
-    # SSLv3 has problematic security and is only required for really old
-    # clients such as IE6 on Windows XP
-    context.options |= OP_NO_SSLv3
 
     if cert_reqs is not None:
         context.verify_mode = cert_reqs
@@ -590,10 +572,12 @@ class SSLObject:
      * The ``do_handshake_on_connect`` and ``suppress_ragged_eofs`` machinery.
     """
 
-    def __init__(self, sslobj, owner=None):
+    def __init__(self, sslobj, owner=None, session=None):
         self._sslobj = sslobj
         # Note: _sslobj takes a weak reference to owner
         self._sslobj.owner = owner or self
+        if session is not None:
+            self._sslobj.session = session
 
     @property
     def context(self):
@@ -603,6 +587,20 @@ class SSLObject:
     @context.setter
     def context(self, ctx):
         self._sslobj.context = ctx
+
+    @property
+    def session(self):
+        """The SSLSession for client socket."""
+        return self._sslobj.session
+
+    @session.setter
+    def session(self, session):
+        self._sslobj.session = session
+
+    @property
+    def session_reused(self):
+        """Was the client session reused during handshake"""
+        return self._sslobj.session_reused
 
     @property
     def server_side(self):
@@ -721,7 +719,7 @@ class SSLSocket(socket):
                  family=AF_INET, type=SOCK_STREAM, proto=0, fileno=None,
                  suppress_ragged_eofs=True, npn_protocols=None, ciphers=None,
                  server_hostname=None,
-                 _context=None):
+                 _context=None, _session=None):
 
         if _context:
             self._context = _context
@@ -753,11 +751,16 @@ class SSLSocket(socket):
         # mixed in.
         if sock.getsockopt(SOL_SOCKET, SO_TYPE) != SOCK_STREAM:
             raise NotImplementedError("only stream sockets are supported")
-        if server_side and server_hostname:
-            raise ValueError("server_hostname can only be specified "
-                             "in client mode")
+        if server_side:
+            if server_hostname:
+                raise ValueError("server_hostname can only be specified "
+                                 "in client mode")
+            if _session is not None:
+                raise ValueError("session can only be specified in "
+                                 "client mode")
         if self._context.check_hostname and not server_hostname:
             raise ValueError("check_hostname requires server_hostname")
+        self._session = _session
         self.server_side = server_side
         self.server_hostname = server_hostname
         self.do_handshake_on_connect = do_handshake_on_connect
@@ -793,7 +796,8 @@ class SSLSocket(socket):
             try:
                 sslobj = self._context._wrap_socket(self, server_side,
                                                     server_hostname)
-                self._sslobj = SSLObject(sslobj, owner=self)
+                self._sslobj = SSLObject(sslobj, owner=self,
+                                         session=self._session)
                 if do_handshake_on_connect:
                     timeout = self.gettimeout()
                     if timeout == 0.0:
@@ -813,6 +817,24 @@ class SSLSocket(socket):
     def context(self, ctx):
         self._context = ctx
         self._sslobj.context = ctx
+
+    @property
+    def session(self):
+        """The SSLSession for client socket."""
+        if self._sslobj is not None:
+            return self._sslobj.session
+
+    @session.setter
+    def session(self, session):
+        self._session = session
+        if self._sslobj is not None:
+            self._sslobj.session = session
+
+    @property
+    def session_reused(self):
+        """Was the client session reused during handshake"""
+        if self._sslobj is not None:
+            return self._sslobj.session_reused
 
     def dup(self):
         raise NotImplemented("Can't dup() %s instances" %
@@ -1046,7 +1068,8 @@ class SSLSocket(socket):
         if self._connected:
             raise ValueError("attempt to connect already-connected SSLSocket!")
         sslobj = self.context._wrap_socket(self, False, self.server_hostname)
-        self._sslobj = SSLObject(sslobj, owner=self)
+        self._sslobj = SSLObject(sslobj, owner=self,
+                                 session=self._session)
         try:
             if connect_ex:
                 rc = socket.connect_ex(self, addr)
@@ -1109,7 +1132,6 @@ def wrap_socket(sock, keyfile=None, certfile=None,
                 do_handshake_on_connect=True,
                 suppress_ragged_eofs=True,
                 ciphers=None):
-
     return SSLSocket(sock=sock, keyfile=keyfile, certfile=certfile,
                      server_side=server_side, cert_reqs=cert_reqs,
                      ssl_version=ssl_version, ca_certs=ca_certs,

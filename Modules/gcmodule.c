@@ -1644,6 +1644,15 @@ PyGC_Collect(void)
 }
 
 Py_ssize_t
+_PyGC_CollectIfEnabled(void)
+{
+    if (!enabled)
+        return 0;
+
+    return PyGC_Collect();
+}
+
+Py_ssize_t
 _PyGC_CollectNoFail(void)
 {
     Py_ssize_t n;

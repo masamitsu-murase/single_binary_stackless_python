@@ -230,7 +230,6 @@ instead.
    .. versionchanged:: 3.2
       New optional argument *ciphers*.
 
-
 Context creation
 ^^^^^^^^^^^^^^^^
 
@@ -777,6 +776,10 @@ Constants
 
    :class:`enum.IntFlag` collection of OP_* constants.
 
+.. data:: OP_NO_TICKET
+
+   Prevent client side from requesting a session ticket.
+
    .. versionadded:: 3.6
 
 .. data:: HAS_ALPN
@@ -925,7 +928,7 @@ SSL Sockets
    :ref:`notes on non-blocking sockets <ssl-nonblocking>`.
 
    Usually, :class:`SSLSocket` are not created directly, but using the
-   :func:`wrap_socket` function or the :meth:`SSLContext.wrap_socket` method.
+   the :meth:`SSLContext.wrap_socket` method.
 
    .. versionchanged:: 3.5
       The :meth:`sendfile` method was added.
@@ -934,6 +937,10 @@ SSL Sockets
       The :meth:`shutdown` does not reset the socket timeout each time bytes
       are received or sent. The socket timeout is now to maximum total duration
       of the shutdown.
+
+   .. deprecated:: 3.6
+      It is deprecated to create a :class:`SSLSocket` instance directly, use
+      :meth:`SSLContext.wrap_socket` to wrap a socket.
 
 
 SSL sockets also have the following additional methods and attributes:
@@ -955,6 +962,9 @@ SSL sockets also have the following additional methods and attributes:
       The socket timeout is now to maximum total duration to read up to *len*
       bytes.
 
+   .. deprecated:: 3.6
+      Use :meth:`~SSLSocket.recv` instead of :meth:`~SSLSocket.read`.
+
 .. method:: SSLSocket.write(buf)
 
    Write *buf* to the SSL socket and return the number of bytes written. The
@@ -969,6 +979,9 @@ SSL sockets also have the following additional methods and attributes:
    .. versionchanged:: 3.5
       The socket timeout is no more reset each time bytes are received or sent.
       The socket timeout is now to maximum total duration to write *buf*.
+
+   .. deprecated:: 3.6
+      Use :meth:`~SSLSocket.send` instead of :meth:`~SSLSocket.write`.
 
 .. note::
 
@@ -1167,6 +1180,19 @@ SSL sockets also have the following additional methods and attributes:
 
    .. versionadded:: 3.2
 
+.. attribute:: SSLSocket.session
+
+   The :class:`SSLSession` for this SSL connection. The session is available
+   for client and server side sockets after the TLS handshake has been
+   performed. For client sockets the session can be set before
+   :meth:`~SSLSocket.do_handshake` has been called to reuse a session.
+
+   .. versionadded:: 3.6
+
+.. attribute:: SSLSocket.session_reused
+
+   .. versionadded:: 3.6
+
 
 SSL Contexts
 ------------
@@ -1191,7 +1217,14 @@ to speed up repeated connections from the same clients.
 
    .. versionchanged:: 3.6
 
-      :data:`PROTOCOL_TLS` is the default value.
+      The context is created with secure default values. The options
+      :data:`OP_NO_COMPRESSION`, :data:`OP_CIPHER_SERVER_PREFERENCE`,
+      :data:`OP_SINGLE_DH_USE`, :data:`OP_SINGLE_ECDH_USE`,
+      :data:`OP_NO_SSLv2` (except for :data:`PROTOCOL_SSLv2`),
+      and :data:`OP_NO_SSLv3` (except for :data:`PROTOCOL_SSLv3`) are
+      set by default. The initial cipher suite list contains only ``HIGH``
+      ciphers, no ``NULL`` ciphers and no ``MD5`` ciphers (except for
+      :data:`PROTOCOL_SSLv2`).
 
 
 :class:`SSLContext` objects have the following methods and attributes:
@@ -1493,7 +1526,7 @@ to speed up repeated connections from the same clients.
 
 .. method:: SSLContext.wrap_socket(sock, server_side=False, \
       do_handshake_on_connect=True, suppress_ragged_eofs=True, \
-      server_hostname=None)
+      server_hostname=None, session=None)
 
    Wrap an existing Python socket *sock* and return an :class:`SSLSocket`
    object.  *sock* must be a :data:`~socket.SOCK_STREAM` socket; other socket
@@ -1510,19 +1543,27 @@ to speed up repeated connections from the same clients.
    quite similarly to HTTP virtual hosts. Specifying *server_hostname* will
    raise a :exc:`ValueError` if *server_side* is true.
 
+   *session*, see :attr:`~SSLSocket.session`.
+
    .. versionchanged:: 3.5
       Always allow a server_hostname to be passed, even if OpenSSL does not
       have SNI.
 
+   .. versionchanged:: 3.6
+      *session* argument was added.
+
 .. method:: SSLContext.wrap_bio(incoming, outgoing, server_side=False, \
-                                server_hostname=None)
+                                server_hostname=None, session=None)
 
    Create a new :class:`SSLObject` instance by wrapping the BIO objects
    *incoming* and *outgoing*. The SSL routines will read input data from the
    incoming BIO and write data to the outgoing BIO.
 
-   The *server_side* and *server_hostname* parameters have the same meaning as
-   in :meth:`SSLContext.wrap_socket`.
+   The *server_side*, *server_hostname* and *session* parameters have the
+   same meaning as in :meth:`SSLContext.wrap_socket`.
+
+   .. versionchanged:: 3.6
+      *session* argument was added.
 
 .. method:: SSLContext.session_stats()
 
@@ -2029,6 +2070,8 @@ provided.
    - :attr:`~SSLSocket.context`
    - :attr:`~SSLSocket.server_side`
    - :attr:`~SSLSocket.server_hostname`
+   - :attr:`~SSLSocket.session`
+   - :attr:`~SSLSocket.session_reused`
    - :meth:`~SSLSocket.read`
    - :meth:`~SSLSocket.write`
    - :meth:`~SSLSocket.getpeercert`
@@ -2108,6 +2151,22 @@ purpose.  It wraps an OpenSSL memory BIO (Basic IO) object:
       Write an EOF marker to the memory BIO. After this method has been called, it
       is illegal to call :meth:`~MemoryBIO.write`. The attribute :attr:`eof` will
       become true after all data currently in the buffer has been read.
+
+
+SSL session
+-----------
+
+.. versionadded:: 3.6
+
+.. class:: SSLSession
+
+   Session object used by :attr:`~SSLSocket.session`.
+
+   .. attribute:: id
+   .. attribute:: time
+   .. attribute:: timeout
+   .. attribute:: ticket_lifetime_hint
+   .. attribute:: has_ticket
 
 
 .. _ssl-security:

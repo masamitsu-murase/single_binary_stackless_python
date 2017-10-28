@@ -10,6 +10,14 @@ What's New in Python 3.6.0 beta 1
 Core and Builtins
 -----------------
 
+- Issue #23722: The __class__ cell used by zero-argument super() is now
+  initialized from type.__new__ rather than __build_class__, so class methods
+  relying on that will now work correctly when called from metaclass methods
+  during class creation. Patch by Martin Teichmann.
+
+- Issue #25221: Fix corrupted result from PyLong_FromLong(0) when Python
+  is compiled with NSMALLPOSINTS = 0.
+
 - Issue #27080: Implement formatting support for PEP 515.  Initial patch
   by Chris Angelico.
 
@@ -135,10 +143,48 @@ Core and Builtins
 Library
 -------
 
+- Issue #10740: sqlite3 no longer implicitly commit an open transaction
+  before DDL statements.
+
+- Issue #22493: Inline flags now should be used only at the start of the
+  regular expression.  Deprecation warning is emitted if uses them in the
+  middle of the regular expression.
+
+- Issue #26885: xmlrpc now supports unmarshalling additional data types used
+  by Apache XML-RPC implementation for numerics and None.
+
+- Issue #28070: Fixed parsing inline verbose flag in regular expressions.
+
+- Issue #19500: Add client-side SSL session resumption to the ssl module.
+
+- Issue #28022: Deprecate ssl-related arguments in favor of SSLContext. The
+  deprecation include manual creation of SSLSocket and certfile/keyfile
+  (or similar) in ftplib, httplib, imaplib, smtplib, poplib and urllib.
+
+- Issue #28043: SSLContext has improved default settings: OP_NO_SSLv2,
+  OP_NO_SSLv3, OP_NO_COMPRESSION, OP_CIPHER_SERVER_PREFERENCE,
+  OP_SINGLE_DH_USE, OP_SINGLE_ECDH_USE and HIGH ciphers without MD5.
+
+- Issue #24693: Changed some RuntimeError's in the zipfile module to more
+  appropriate types. Improved some error messages and debugging output.
+
+- Issue #17909: ``json.load`` and ``json.loads`` now support binary input
+  encoded as UTF-8, UTF-16 or UTF-32. Patch by Serhiy Storchaka.
+
+- Issue #27137: the pure Python fallback implementation of ``functools.partial``
+  now matches the behaviour of its accelerated C counterpart for subclassing,
+  pickling and text representation purposes. Patch by Emanuel Barry and
+  Serhiy Storchaka.
+
+- Issue #28019: itertools.count() no longer rounds non-integer step in range
+  between 1.0 and 2.0 to 1.
+
+- Issue #18401: Pdb now supports the 'readrc' keyword argument to control
+  whether .pdbrc files should be read.  Patch by Martin Matusiak and
+  Sam Kimbrel.
+
 - Issue #25969: Update the lib2to3 grammar to handle the unpacking
   generalizations added in 3.5.
-
-- Issue #27932: Fixes memory leak in platform.win32_ver()
 
 - Issue #14977: mailcap now respects the order of the lines in the mailcap
   files ("first match"), as required by RFC 1542.  Patch by Michael Lazar.
@@ -313,8 +359,27 @@ Library
 - Issue #21201: Improves readability of multiprocessing error message.  Thanks
   to Wojciech Walczak for patch.
 
+IDLE
+----
+
+- Issue #27922: Stop IDLE tests from 'flashing' gui widgets on the screen.
+
+- Issue #27891: Consistently group and sort imports within idlelib modules.
+
+- Issue #17642: add larger font sizes for classroom projection.
+
+- Add version to title of IDLE help window.
+
+- Issue #25564: In section on IDLE -- console differences, mention that
+  using exec means that __builtins__ is defined for each statement.
+
+- Issue #27821: Fix 3.6.0a3 regression that prevented custom key sets
+  from being selected when no custom theme was defined.
+
 C API
 -----
+
+- Issue #26900: Excluded underscored names and other private API from limited API.
 
 - Issue #26027: Add support for path-like objects in PyUnicode_FSConverter() &
   PyUnicode_FSDecoder().
@@ -363,6 +428,13 @@ Build
 - Update OS X installer to use SQLite 3.14.1 and XZ 5.2.2.
 
 - Issue #21122: Fix LTO builds on OS X.
+
+Tools/Demos
+-----------
+
+- Issue #27952: Get Tools/scripts/fixcid.py working with Python 3 and the
+  current "re" module, avoid invalid Python backslash escapes, and fix a bug
+  parsing escaped C quote signs.
 
 Windows
 -------
