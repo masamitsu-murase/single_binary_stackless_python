@@ -165,7 +165,6 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
     self->statement_cache->decref_factory = 0;
     Py_DECREF(self);
 
-    self->inTransaction = 0;
     self->detect_types = detect_types;
     self->timeout = timeout;
     (void)sqlite3_busy_timeout(self->db, (int)(timeout*1000));
@@ -200,26 +199,6 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
     self->NotSupportedError     = pysqlite_NotSupportedError;
 
     return 0;
-}
-
-/* Empty the entire statement cache of this connection */
-void pysqlite_flush_statement_cache(pysqlite_Connection* self)
-{
-    pysqlite_Node* node;
-    pysqlite_Statement* statement;
-
-    node = self->statement_cache->first;
-
-    while (node) {
-        statement = (pysqlite_Statement*)(node->data);
-        (void)pysqlite_statement_finalize(statement);
-        node = node->next;
-    }
-
-    Py_SETREF(self->statement_cache,
-              (pysqlite_Cache *)PyObject_CallFunction((PyObject *)&pysqlite_CacheType, "O", self));
-    Py_DECREF(self);
-    self->statement_cache->decref_factory = 0;
 }
 
 /* action in (ACTION_RESET, ACTION_FINALIZE) */
@@ -405,9 +384,7 @@ PyObject* _pysqlite_connection_begin(pysqlite_Connection* self)
     }
 
     rc = pysqlite_step(statement, self);
-    if (rc == SQLITE_DONE) {
-        self->inTransaction = 1;
-    } else {
+    if (rc != SQLITE_DONE) {
         _pysqlite_seterror(self->db, statement);
     }
 
@@ -438,7 +415,7 @@ PyObject* pysqlite_connection_commit(pysqlite_Connection* self, PyObject* args)
         return NULL;
     }
 
-    if (self->inTransaction) {
+    if (!sqlite3_get_autocommit(self->db)) {
 
         Py_BEGIN_ALLOW_THREADS
         rc = sqlite3_prepare(self->db, "COMMIT", -1, &statement, &tail);
@@ -449,9 +426,7 @@ PyObject* pysqlite_connection_commit(pysqlite_Connection* self, PyObject* args)
         }
 
         rc = pysqlite_step(statement, self);
-        if (rc == SQLITE_DONE) {
-            self->inTransaction = 0;
-        } else {
+        if (rc != SQLITE_DONE) {
             _pysqlite_seterror(self->db, statement);
         }
 
@@ -483,7 +458,7 @@ PyObject* pysqlite_connection_rollback(pysqlite_Connection* self, PyObject* args
         return NULL;
     }
 
-    if (self->inTransaction) {
+    if (!sqlite3_get_autocommit(self->db)) {
         pysqlite_do_all_statements(self, ACTION_RESET, 1);
 
         Py_BEGIN_ALLOW_THREADS
@@ -495,9 +470,7 @@ PyObject* pysqlite_connection_rollback(pysqlite_Connection* self, PyObject* args
         }
 
         rc = pysqlite_step(statement, self);
-        if (rc == SQLITE_DONE) {
-            self->inTransaction = 0;
-        } else {
+        if (rc != SQLITE_DONE) {
             _pysqlite_seterror(self->db, statement);
         }
 
@@ -1178,6 +1151,17 @@ static PyObject* pysqlite_connection_get_total_changes(pysqlite_Connection* self
     }
 }
 
+static PyObject* pysqlite_connection_get_in_transaction(pysqlite_Connection* self, void* unused)
+{
+    if (!pysqlite_check_connection(self)) {
+        return NULL;
+    }
+    if (!sqlite3_get_autocommit(self->db)) {
+        Py_RETURN_TRUE;
+    }
+    Py_RETURN_FALSE;
+}
+
 static int pysqlite_connection_set_isolation_level(pysqlite_Connection* self, PyObject* isolation_level)
 {
     if (isolation_level == Py_None) {
@@ -1188,7 +1172,6 @@ static int pysqlite_connection_set_isolation_level(pysqlite_Connection* self, Py
         Py_DECREF(res);
 
         self->begin_statement = NULL;
-        self->inTransaction = 0;
     } else {
         const char * const *candidate;
         PyObject *uppercase_level;
@@ -1626,6 +1609,7 @@ PyDoc_STR("SQLite database connection object.");
 static PyGetSetDef connection_getset[] = {
     {"isolation_level",  (getter)pysqlite_connection_get_isolation_level, (setter)pysqlite_connection_set_isolation_level},
     {"total_changes",  (getter)pysqlite_connection_get_total_changes, (setter)0},
+    {"in_transaction",  (getter)pysqlite_connection_get_in_transaction, (setter)0},
     {NULL}
 };
 
@@ -1687,7 +1671,6 @@ static struct PyMemberDef connection_members[] =
     {"NotSupportedError", T_OBJECT, offsetof(pysqlite_Connection, NotSupportedError), READONLY},
     {"row_factory", T_OBJECT, offsetof(pysqlite_Connection, row_factory)},
     {"text_factory", T_OBJECT, offsetof(pysqlite_Connection, text_factory)},
-    {"in_transaction", T_BOOL, offsetof(pysqlite_Connection, inTransaction), READONLY},
     {NULL}
 };
 

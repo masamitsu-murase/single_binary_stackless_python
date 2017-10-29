@@ -2401,9 +2401,9 @@ _PyObject_Call_Prepend(PyObject *func,
 }
 
 PyObject *
-_PyStack_AsDict(PyObject **values, Py_ssize_t nkwargs, PyObject *kwnames,
-                PyObject *func)
+_PyStack_AsDict(PyObject **values, PyObject *kwnames)
 {
+    Py_ssize_t nkwargs = PyTuple_GET_SIZE(kwnames);
     PyObject *kwdict;
     Py_ssize_t i;
 
@@ -2412,24 +2412,12 @@ _PyStack_AsDict(PyObject **values, Py_ssize_t nkwargs, PyObject *kwnames,
         return NULL;
     }
 
-    for (i=0; i < nkwargs; i++) {
-        int err;
+    for (i = 0; i < nkwargs; i++) {
         PyObject *key = PyTuple_GET_ITEM(kwnames, i);
         PyObject *value = *values++;
-
-        if (PyDict_GetItem(kwdict, key) != NULL) {
-            PyErr_Format(PyExc_TypeError,
-                         "%.200s%s got multiple values "
-                         "for keyword argument '%U'",
-                         PyEval_GetFuncName(func),
-                         PyEval_GetFuncDesc(func),
-                         key);
-            Py_DECREF(kwdict);
-            return NULL;
-        }
-
-        err = PyDict_SetItem(kwdict, key, value);
-        if (err) {
+        assert(PyUnicode_CheckExact(key));
+        assert(PyDict_GetItem(kwdict, key) == NULL);
+        if (PyDict_SetItem(kwdict, key, value)) {
             Py_DECREF(kwdict);
             return NULL;
         }
@@ -2504,6 +2492,9 @@ _PyObject_FastCallKeywords(PyObject *func, PyObject **stack, Py_ssize_t nargs,
     assert(nargs >= 0);
     assert(kwnames == NULL || PyTuple_CheckExact(kwnames));
     assert((nargs == 0 && nkwargs == 0) || stack != NULL);
+    /* kwnames must only contains str strings, no subclass, and all keys must
+       be unique: these are implemented in Python/ceval.c and
+       _PyArg_ParseStack(). */
 
     if (PyFunction_Check(func)) {
         STACKLESS_PROMOTE_ALL();
@@ -2520,7 +2511,7 @@ _PyObject_FastCallKeywords(PyObject *func, PyObject **stack, Py_ssize_t nargs,
     }
 
     if (nkwargs > 0) {
-        kwdict = _PyStack_AsDict(stack + nargs, nkwargs, kwnames, func);
+        kwdict = _PyStack_AsDict(stack + nargs, kwnames);
         if (kwdict == NULL) {
             return NULL;
         }

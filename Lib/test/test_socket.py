@@ -5347,8 +5347,10 @@ class LinuxKernelCryptoAPI(unittest.TestCase):
             sock.bind((typ, name))
         except FileNotFoundError as e:
             # type / algorithm is not available
+            sock.close()
             raise unittest.SkipTest(str(e), typ, name)
-        return sock
+        else:
+            return sock
 
     def test_sha256(self):
         expected = bytes.fromhex("ba7816bf8f01cfea414140de5dae2223b00361a396"
@@ -5376,7 +5378,9 @@ class LinuxKernelCryptoAPI(unittest.TestCase):
                 op.sendall(b"what do ya want for nothing?")
                 self.assertEqual(op.recv(512), expected)
 
-    @support.requires_linux_version(3, 19)
+    # Although it should work with 3.19 and newer the test blocks on
+    # Ubuntu 15.10 with Kernel 4.2.0-19.
+    @support.requires_linux_version(4, 3)
     def test_aes_cbc(self):
         key = bytes.fromhex('06a9214036b8a15b512e03d534120006')
         iv = bytes.fromhex('3dafba429d9eb430b422da802c9fac41')
@@ -5417,7 +5421,7 @@ class LinuxKernelCryptoAPI(unittest.TestCase):
             self.assertEqual(len(dec), msglen * multiplier)
             self.assertEqual(dec, msg * multiplier)
 
-    @support.requires_linux_version(3, 19)
+    @support.requires_linux_version(4, 3)  # see test_aes_cbc
     def test_aead_aes_gcm(self):
         key = bytes.fromhex('c939cc13397c1d37de6ae0e1cb7c423c')
         iv = bytes.fromhex('b3d8cc017cbb89b39e0f67e2')
@@ -5481,7 +5485,7 @@ class LinuxKernelCryptoAPI(unittest.TestCase):
                 res = op.recv(len(msg))
                 self.assertEqual(plain, res[assoclen:-taglen])
 
-    @support.requires_linux_version(3, 19)
+    @support.requires_linux_version(4, 3)  # see test_aes_cbc
     def test_drbg_pr_sha256(self):
         # deterministic random bit generator, prediction resistance, sha256
         with self.create_alg('rng', 'drbg_pr_sha256') as algo:
@@ -5494,20 +5498,22 @@ class LinuxKernelCryptoAPI(unittest.TestCase):
 
     def test_sendmsg_afalg_args(self):
         sock = socket.socket(socket.AF_ALG, socket.SOCK_SEQPACKET, 0)
-        with self.assertRaises(TypeError):
-            sock.sendmsg_afalg()
+        with sock:
+            with self.assertRaises(TypeError):
+                sock.sendmsg_afalg()
 
-        with self.assertRaises(TypeError):
-            sock.sendmsg_afalg(op=None)
+            with self.assertRaises(TypeError):
+                sock.sendmsg_afalg(op=None)
 
-        with self.assertRaises(TypeError):
-            sock.sendmsg_afalg(1)
+            with self.assertRaises(TypeError):
+                sock.sendmsg_afalg(1)
 
-        with self.assertRaises(TypeError):
-            sock.sendmsg_afalg(op=socket.ALG_OP_ENCRYPT, assoclen=None)
+            with self.assertRaises(TypeError):
+                sock.sendmsg_afalg(op=socket.ALG_OP_ENCRYPT, assoclen=None)
 
-        with self.assertRaises(TypeError):
-            sock.sendmsg_afalg(op=socket.ALG_OP_ENCRYPT, assoclen=-1)
+            with self.assertRaises(TypeError):
+                sock.sendmsg_afalg(op=socket.ALG_OP_ENCRYPT, assoclen=-1)
+
 
 def test_main():
     tests = [GeneralModuleTests, BasicTCPTest, TCPCloserTest, TCPTimeoutTest,

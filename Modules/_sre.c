@@ -2121,6 +2121,12 @@ match_group(MatchObject* self, PyObject* args)
     return result;
 }
 
+static PyObject*
+match_getitem(MatchObject* self, PyObject* name)
+{
+    return match_getslice(self, name, Py_None);
+}
+
 /*[clinic input]
 _sre.SRE_Match.groups
 
@@ -2706,6 +2712,13 @@ static PyTypeObject Pattern_Type = {
     pattern_getset,                     /* tp_getset */
 };
 
+/* Match objects do not support length or assignment, but do support
+   __getitem__. */
+static PyMappingMethods match_as_mapping = {
+    NULL,
+    (binaryfunc)match_getitem,
+    NULL
+};
 
 static PyMethodDef match_methods[] = {
     {"group", (PyCFunction) match_group, METH_VARARGS, match_group_doc},
@@ -2751,7 +2764,7 @@ static PyTypeObject Match_Type = {
     (reprfunc)match_repr,       /* tp_repr */
     0,                          /* tp_as_number */
     0,                          /* tp_as_sequence */
-    0,                          /* tp_as_mapping */
+    &match_as_mapping,          /* tp_as_mapping */
     0,                          /* tp_hash */
     0,                          /* tp_call */
     0,                          /* tp_str */

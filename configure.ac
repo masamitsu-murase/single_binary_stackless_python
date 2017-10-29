@@ -10,7 +10,7 @@ AC_PREREQ(2.65)
 AC_INIT(python, PYTHON_VERSION, https://bugs.python.org/)
 
 AC_SUBST(BASECPPFLAGS)
-if test "$abs_srcdir" != "$abs_builddir"; then
+if test "$srcdir" != . -a "$srcdir" != "$(pwd)"; then
     # If we're building out-of-tree, we need to make sure the following
     # resources get picked up before their $srcdir counterparts.
     #   Objects/ -> typeslots.inc
@@ -78,7 +78,7 @@ if test "$cross_compiling" = yes; then
 	    AC_MSG_ERROR([python$PACKAGE_VERSION interpreter not found])
 	fi
         AC_MSG_RESULT($interp)
-	PYTHON_FOR_BUILD='_PYTHON_PROJECT_BASE=$(abs_builddir) _PYTHON_HOST_PLATFORM=$(_PYTHON_HOST_PLATFORM) PYTHONPATH=$(shell test -f pybuilddir.txt && echo $(abs_builddir)/`cat pybuilddir.txt`:)$(srcdir)/Lib '$interp
+	PYTHON_FOR_BUILD='_PYTHON_PROJECT_BASE=$(abs_builddir) _PYTHON_HOST_PLATFORM=$(_PYTHON_HOST_PLATFORM) PYTHONPATH=$(shell test -f pybuilddir.txt && echo $(abs_builddir)/`cat pybuilddir.txt`:)$(srcdir)/Lib _PYTHON_SYSCONFIGDATA_NAME=_sysconfigdata_$(ABIFLAGS)_$(MACHDEP)_$(MULTIARCH) '$interp
     fi
     # Used to comment out stuff for rebuilding generated files
     GENERATED_COMMENT='#'
@@ -1534,6 +1534,26 @@ case $GCC in
 yes)
     CFLAGS_NODIST="$CFLAGS_NODIST -std=c99"
 
+    AC_MSG_CHECKING(for -Wextra)
+     ac_save_cc="$CC"
+     CC="$CC -Wextra -Werror"
+     AC_CACHE_VAL(ac_cv_extra_warnings,
+       AC_COMPILE_IFELSE(
+         [
+           AC_LANG_PROGRAM([[]], [[]])
+         ],[
+           ac_cv_extra_warnings=yes
+         ],[
+           ac_cv_extra_warnings=no
+         ]))
+     CC="$ac_save_cc"
+    AC_MSG_RESULT($ac_cv_extra_warnings)
+
+    if test $ac_cv_extra_warnings = yes
+    then
+      CFLAGS_NODIST="$CFLAGS_NODIST -Wextra"
+    fi
+
     # Python doesn't violate C99 aliasing rules, but older versions of
     # GCC produce warnings for legal Python code.  Enable
     # -fno-strict-aliasing on versions of GCC that support but produce
@@ -1598,6 +1618,47 @@ yes)
     if test $ac_cv_disable_unused_result_warning = yes
     then
       BASECFLAGS="$BASECFLAGS -Wno-unused-result"
+      CFLAGS_NODIST="$CFLAGS_NODIST -Wno-unused-result"
+    fi
+
+    AC_MSG_CHECKING(if we can turn off $CC unused parameter warning)
+     ac_save_cc="$CC"
+     CC="$CC -Wunused-parameter -Werror"
+     AC_CACHE_VAL(ac_cv_disable_unused_parameter_warning,
+       AC_COMPILE_IFELSE(
+         [
+           AC_LANG_PROGRAM([[]], [[]])
+         ],[
+           ac_cv_disable_unused_parameter_warning=yes
+         ],[
+           ac_cv_disable_unused_parameter_warning=no
+         ]))
+     CC="$ac_save_cc"
+    AC_MSG_RESULT($ac_cv_disable_unused_parameter_warning)
+
+    if test $ac_cv_disable_unused_parameter_warning = yes
+    then
+      CFLAGS_NODIST="$CFLAGS_NODIST -Wno-unused-parameter"
+    fi
+
+    AC_MSG_CHECKING(if we can turn off $CC missing field initializers warning)
+     ac_save_cc="$CC"
+     CC="$CC -Wmissing-field-initializers -Werror"
+     AC_CACHE_VAL(ac_cv_disable_missing_field_initializers,
+       AC_COMPILE_IFELSE(
+         [
+           AC_LANG_PROGRAM([[]], [[]])
+         ],[
+           ac_cv_disable_missing_field_initializers=yes
+         ],[
+           ac_cv_disable_missing_field_initializers=no
+         ]))
+     CC="$ac_save_cc"
+    AC_MSG_RESULT($ac_cv_disable_missing_field_initializers)
+
+    if test $ac_cv_disable_missing_field_initializers = yes
+    then
+      CFLAGS_NODIST="$CFLAGS_NODIST -Wno-missing-field-initializers"
     fi
 
     AC_MSG_CHECKING(if we can turn on $CC mixed sign comparison warning)

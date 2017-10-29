@@ -182,9 +182,12 @@ f'{a * x()}'"""
         self.assertEqual(f'{"#"}', '#')
         self.assertEqual(f'{d["#"]}', 'hash')
 
-        self.assertAllRaise(SyntaxError, "f-string cannot include '#'",
+        self.assertAllRaise(SyntaxError, "f-string expression part cannot include '#'",
                             ["f'{1#}'",   # error because the expression becomes "(1#)"
                              "f'{3(#)}'",
+                             "f'{#}'",
+                             "f'{)#}'",   # When wrapped in parens, this becomes
+                                          #  '()#)'.  Make sure that doesn't compile.
                              ])
 
     def test_many_expressions(self):
