@@ -288,7 +288,7 @@ _PyCFunction_FastCallKeywords(PyObject *func, PyObject **stack,
 {
     STACKLESS_GETARG();
     PyObject *kwdict, *result;
-    Py_ssize_t nkwargs;
+    Py_ssize_t nkwargs = (kwnames == NULL) ? 0 : PyTuple_GET_SIZE(kwnames);
 
     assert(PyCFunction_Check(func));
     assert(nargs >= 0);
@@ -297,7 +297,6 @@ _PyCFunction_FastCallKeywords(PyObject *func, PyObject **stack,
     /* kwnames must only contains str strings, no subclass, and all keys must
        be unique */
 
-    nkwargs = (kwnames == NULL) ? 0 : PyTuple_GET_SIZE(kwnames);
     if (nkwargs > 0) {
         kwdict = _PyStack_AsDict(stack + nargs, kwnames);
         if (kwdict == NULL) {
