@@ -498,29 +498,36 @@ PyTaskletObject * slp_get_watchdog(PyThreadState *ts, int interrupt);
   There is one global variable slp_try_stackless which is used
   like an implicit parameter. Since we don't have a real parameter,
   the flag is copied into the local variable "stackless" and cleared.
-  This is done by the GETARG() macro, which should be added to
+  This is done by the STACKLESS_GETARG() macro, which should be added to
   the top of the function's declarations.
   The idea is to keep the chances to introduce error to the minimum.
   A function can safely do some tests and return before calling
   anything, since the flag is in a local variable.
   Depending on context, this flag is propagated to other called
   functions. They *must* obey the protocol. To make this sure,
-  the ASSERT() macro has to be called after every such call.
+  the STACKLESS_ASSERT() macro has to be called after every such call.
 
   Many internal functions have been patched to support this protocol.
 
-  GETARG()
+  STACKLESS_GETARG()
 
     move the slp_try_stackless flag into the local variable "stackless".
 
-  PROMOTE(func)
+  STACKLESS_PROMOTE_ALL()
+
+    is used for cases where we know that the called function will take
+    care of our object, and we need no test. For example, PyObject_Call
+    and all other Py{Object,Function,CFunction}_*Call* functions use
+    STACKLESS_PROMOTE_xxx, itself, so we don't need to check further.
+
+  STACKLESS_PROMOTE(func)
 
     if stackless was set and the function's type has set
     Py_TPFLAGS_HAVE_STACKLESS_CALL, then this flag will be
     put back into slp_try_stackless, and we expect that the
     function handles it correctly.
 
-  PROMOTE_FLAG(flag)
+  STACKLESS_PROMOTE_FLAG(flag)
 
     is used for special cases, like PyCFunction objects. PyCFunction_Type
     says that it supports a stackless call, but the final action depends
@@ -535,20 +542,14 @@ PyTaskletObject * slp_get_watchdog(PyThreadState *ts, int interrupt);
     It also checks whether Py_TPFLAGS_HAVE_STACKLESS_CALL is set
     for the iterator's type.
 
-  PROMOTE_ALL()
-
-    is used for cases where we know that the called function will take
-    care of our object, and we need no test. For example, PyObject_Call
-    uses PROMOTE, itself, so we don't need to check further.
-
-  ASSERT()
+  STACKLESS_ASSERT()
 
     make sure that slp_try_stackless was cleared. This debug feature
     tries to ensure that no unexpected nonrecursive call can happen.
 
   Some functions which are known to be stackless by nature
-  just use the PROPOSE macros. They do not care about prior state.
-  Most of them are used in ceval.c and other contexts which are
+  just use the STACKLESS_PROPOSE_xxx macros. They do not care about prior
+  state. Most of them are used in ceval.c and other contexts which are
   stackless by definition. All possible nonrecursive calls are
   initiated by these macros.
 
