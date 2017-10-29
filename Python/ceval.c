@@ -3887,9 +3887,12 @@ stackless_call:
      */
     f->f_stacktop = stack_pointer;
 
-    /* the -1 is to adjust for the f_lasti change.
-       (look for the word 'Promise' above) */
-    f->f_lasti = INSTR_OFFSET() - 2;
+    /* Set f->f_lasti to the instruction before the current one or to the
+     * first instruction (-1). See "f->f_lasti refers to ..." above.
+     */
+    f->f_lasti = INSTR_OFFSET() ?
+            assert(INSTR_OFFSET() >= sizeof(_Py_CODEUNIT)),
+            (int)(INSTR_OFFSET() - sizeof(_Py_CODEUNIT)) : -1;
     if (SLP_PEEK_NEXT_FRAME(tstate)->f_back != f)
         return retval;
     STACKLESS_UNPACK(tstate, retval);
@@ -3935,9 +3938,12 @@ stackless_interrupt_call:
     f->f_execute = slp_eval_frame_noval;
     f->f_stacktop = stack_pointer;
 
-    /* the -1 is to adjust for the f_lasti change.
-       (look for the word 'Promise' above) */
-    f->f_lasti = INSTR_OFFSET() - 2;
+    /* Set f->f_lasti to the instruction before the current one or to the
+     * first instruction (-1). See "f->f_lasti refers to ..." above.
+     */
+    f->f_lasti = INSTR_OFFSET() ?
+            assert(INSTR_OFFSET() >= sizeof(_Py_CODEUNIT)),
+            (int)(INSTR_OFFSET() - sizeof(_Py_CODEUNIT)) : -1;
     return (PyObject *) Py_UnwindToken;
 #endif
 }
