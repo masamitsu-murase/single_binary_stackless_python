@@ -85,7 +85,9 @@ PyAPI_FUNC(PyObject *) PyCFunction_NewEx(PyMethodDef *, PyObject *,
 
 #define METH_COEXIST   0x0040
 
+#ifndef Py_LIMITED_API
 #define METH_FASTCALL  0x0080
+#endif
 
 #ifdef STACKLESS
 #define METH_STACKLESS 0x0100
