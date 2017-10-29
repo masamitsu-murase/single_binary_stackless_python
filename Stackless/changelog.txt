@@ -24,6 +24,12 @@ What's New in Stackless 3.X.X?
 - https://github.com/stackless-dev/stackless/issues/138
   Correctly propose Stackless calls for C-functions.
 
+- https://github.com/stackless-dev/stackless/issues/136
+  Replace 'xrange' with 'range' in *.py. Python 3 has no xrange.
+
+- https://github.com/stackless-dev/stackless/issues/135
+  Fix small memory leaks for types with Stackless extensions.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/129
   C-API: Calling PyTasklet_New( NULL, ...) no longer crashes.
 
