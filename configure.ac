@@ -711,6 +711,7 @@ fi
 AC_PROG_CC
 AC_PROG_CPP
 AC_PROG_GREP
+AC_PROG_SED
 
 AC_SUBST(CXX)
 AC_SUBST(MAINCC)
@@ -2755,9 +2756,25 @@ AC_MSG_RESULT($with_system_expat)
 # Check for use of the system libffi library
 AC_MSG_CHECKING(for --with-system-ffi)
 AC_ARG_WITH(system_ffi,
-            AS_HELP_STRING([--with-system-ffi], [build _ctypes module using an installed ffi library]),
-            [],
-            [with_system_ffi="no"])
+            AS_HELP_STRING([--with-system-ffi], [build _ctypes module using an installed ffi library]),,,)
+
+case "$with_system_ffi" in
+    "")
+        case $ac_sys_system in
+            Darwin)
+                with_system_ffi="no"
+                ;;
+            *)
+                with_system_ffi="yes"
+                ;;
+        esac
+        ;;
+    yes|no)
+        ;;
+    *)
+        AC_MSG_ERROR([--with-system-ffi accepts no arguments])
+        ;;
+esac
 
 if test "$with_system_ffi" = "yes" && test -n "$PKG_CONFIG"; then
     LIBFFI_INCLUDEDIR="`"$PKG_CONFIG" libffi --cflags-only-I 2>/dev/null | sed -e 's/^-I//;s/ *$//'`"
@@ -3245,6 +3262,47 @@ if test "$with_valgrind" != no; then
       [AC_MSG_ERROR([Valgrind support requested but headers not available])]
     )
     OPT="-DDYNAMIC_ANNOTATIONS_ENABLED=1 $OPT"
+fi
+
+# Check for DTrace support
+AC_MSG_CHECKING(for --with-dtrace)
+AC_ARG_WITH(dtrace,
+  AC_HELP_STRING(--with(out)-dtrace, [disable/enable DTrace support]),,
+  with_dtrace=no)
+AC_MSG_RESULT($with_dtrace)
+
+AC_SUBST(DTRACE)
+AC_SUBST(DFLAGS)
+AC_SUBST(DTRACE_HEADERS)
+AC_SUBST(DTRACE_OBJS)
+DTRACE=
+DFLAGS=
+DTRACE_HEADERS=
+DTRACE_OBJS=
+
+if test "$with_dtrace" = "yes"
+then
+    AC_PATH_PROG(DTRACE, [dtrace], [not found])
+    if test "$DTRACE" = "not found"; then
+        AC_MSG_ERROR([dtrace command not found on \$PATH])
+    fi
+    AC_DEFINE(WITH_DTRACE, 1, [Define if you want to compile in DTrace support])
+    DTRACE_HEADERS="Include/pydtrace_probes.h"
+
+    # On OS X, DTrace providers do not need to be explicitly compiled and
+    # linked into the binary. Correspondingly, dtrace(1) is missing the ELF
+    # generation flag '-G'. We check for presence of this flag, rather than
+    # hardcoding support by OS, in the interest of robustness.
+    AC_CACHE_CHECK([whether DTrace probes require linking],
+        [ac_cv_dtrace_link], [dnl
+            ac_cv_dtrace_link=no
+            echo 'BEGIN' > conftest.d
+            "$DTRACE" -G -s conftest.d -o conftest.o > /dev/null 2>&1 && \
+                ac_cv_dtrace_link=yes
+      ])
+    if test "$ac_cv_dtrace_link" = "yes"; then
+        DTRACE_OBJS="Python/pydtrace.o"
+    fi
 fi
 
 # -I${DLINCLDIR} is added to the compile rule for importdl.o

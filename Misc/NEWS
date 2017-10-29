@@ -10,6 +10,9 @@ What's New in Python 3.6.0 beta 1
 Core and Builtins
 -----------------
 
+- Issue #25758: Prevents zipimport from unnecessarily encoding a filename
+  (patch by Eryk Sun)
+
 - Issue #25856: The __module__ attribute of extension classes and functions
   now is interned. This leads to more compact pickle data with protocol 4.
 
@@ -122,6 +125,14 @@ Core and Builtins
 Library
 -------
 
+- Issue #14977: mailcap now respects the order of the lines in the mailcap
+  files ("first match"), as required by RFC 1542.  Patch by Michael Lazar.
+
+- Issue #28025: Convert all ssl module constants to IntEnum and IntFlags.
+  SSLContext properties now return flags and enums.
+
+- Issue #433028: Added support of modifier spans in regular expressions.
+
 - Issue #24594: Validates persist parameter when opening MSI database
 
 - Issue #28047: Fixed calculation of line length used for the base64 CTE
@@ -139,6 +150,10 @@ Library
 
 - Issue #24277: The new email API is no longer provisional, and the docs
   have been reorganized and rewritten to emphasize the new API.
+
+- Issue #22450: urllib now includes an "Accept: */*" header among the
+  default headers.  This makes the results of REST API requests more
+  consistent and predictable especially when proxy servers are involved.
 
 - lib2to3.pgen3.driver.load_grammar() now creates a stable cache file
   between runs given the same Grammar.txt input regardless of the hash
@@ -306,10 +321,15 @@ Tests
 Build
 -----
 
+- Issue #27976: Deprecate building _ctypes with the bundled copy of libffi on
+  non-OSX UNIX platforms.
+
 - Issue #27983: Cause lack of llvm-profdata tool when using clang as
   required for PGO linking to be a configure time error rather than
   make time when --with-optimizations is enabled.  Also improve our
   ability to find the llvm-profdata tool on MacOS and some Linuxes.
+
+- Issue #21590: Support for DTrace and SystemTap probes.
 
 - Issue #26307: The profile-opt build now applys PGO to the built-in modules.
 
@@ -327,6 +347,9 @@ Build
 
 Windows
 -------
+
+- Issue #25144: Ensures TargetDir is set before continuing with custom
+  install.
 
 - Issue #1602: Windows console doesn't input or print Unicode (PEP 528)
 
@@ -994,10 +1017,10 @@ IDLE
 - Issue #27156: Remove obsolete code not used by IDLE.  Replacements:
   1. help.txt, replaced by help.html, is out-of-date and should not be used.
   Its dedicated viewer has be replaced by the html viewer in help.py.
-  2. ‘`import idlever; I = idlever.IDLE_VERSION`’ is the same as
-  ‘`import sys; I = version[:version.index(' ')]`’
-  3. After ‘`ob = stackviewer.VariablesTreeItem(*args)`’,
-  ‘`ob.keys() == list(ob.object.keys)`’.
+  2. ``import idlever; I = idlever.IDLE_VERSION`` is the same as
+  ``import sys; I = version[:version.index(' ')]``
+  3. After ``ob = stackviewer.VariablesTreeItem(*args)``,
+  ``ob.keys() == list(ob.object.keys)``.
   4. In macosc, runningAsOSXAPP == isAquaTk; idCarbonAquaTk == isCarbonTk
 
 - Issue #27117: Make colorizer htest and turtledemo work with dark themes.

@@ -101,6 +101,14 @@ Windows improvements:
   which means that when the 260 character path limit may no longer apply.
   See :ref:`removing the MAX_PATH limitation <max-path>` for details.
 
+* A ``sys.path`` file can be added to force isolated mode and fully specify
+  all search paths to avoid registry and environment lookup. See
+  :ref:`the documentation <finding_modules>` for more information.
+
+* A ``python36.zip`` file now works as a landmark to infer
+  :envvar:`PYTHONHOME`. See :ref:`the documentation <finding_modules>` for
+  more information.
+
 .. PEP-sized items next.
 
 .. _pep-4XX:
@@ -399,6 +407,31 @@ Example of fatal error on buffer overflow using
 (Contributed by Victor Stinner in :issue:`26516` and :issue:`26564`.)
 
 
+DTrace and SystemTap probing support
+------------------------------------
+
+Python can now be built ``--with-dtrace`` which enables static markers
+for the following events in the interpreter:
+
+* function call/return
+
+* garbage collection started/finished
+
+* line of code executed.
+
+This can be used to instrument running interpreters in production,
+without the need to recompile specific debug builds or providing
+application-specific profiling/debugging code.
+
+More details in:ref:`instrumentation`.
+
+The current implementation is tested on Linux and macOS.  Additional
+markers may be added in the future.
+
+(Contributed by Łukasz Langa in :issue:`21590`, based on patches by
+Jesús Cea Avión, David Malcolm, and Nikhil Benesch.)
+
+
 .. _whatsnew-deforder:
 
 PEP 520: Preserving Class Attribute Definition Order
@@ -590,6 +623,13 @@ The :mod:`email.mime` classes now all accept an optional *policy* keyword.
 The :class:`~email.generator.DecodedGenerator` now supports the *policy*
 keyword.
 
+There is a new :mod:`~email.policy` attribute,
+:attr:`~email.policy.Policy.message_factory`, that controls what class is used
+by default when the parser creates new message objects.  For the
+:attr:`email.policy.compat32` policy this is :class:`~email.message.Message`,
+for the new policies it is :class:`~email.message.EmailMessage`.
+(Contributed by R. David Murray in :issue:`20476`.)
+
 
 encodings
 ---------
@@ -666,6 +706,15 @@ Objects that need calling ``__new__`` with keyword arguments can now be pickled
 using :ref:`pickle protocols <pickle-protocols>` older than protocol version 4.
 Protocol version 4 already supports this case.  (Contributed by Serhiy
 Storchaka in :issue:`24164`.)
+
+
+re
+--
+
+Added support of modifier spans in regular expressions.  Examples:
+``'(?i:p)ython'`` matches ``'python'`` and ``'Python'``, but not ``'PYTHON'``;
+``'(?i)g(?-i:v)r'`` matches ``'GvR'`` and ``'gvr'``, but not ``'GVR'``.
+(Contributed by Serhiy Storchaka in :issue:`433028`.)
 
 
 readline
@@ -985,6 +1034,16 @@ Build and C API Changes
 
 Deprecated
 ==========
+
+Deprecated Build Options
+------------------------
+
+The ``--with-system-ffi`` configure flag is now on by default on non-OSX UNIX
+platforms.  It may be disabled by using ``--without-system-ffi``, but using the
+flag is deprecated and will not be accepted in Python 3.7.  OSX is unaffected
+by this change.  Note that many OS distributors already use the
+``--with-system-ffi`` flag when building their system Python.
+
 
 New Keywords
 ------------
