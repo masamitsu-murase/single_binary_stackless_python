@@ -3858,6 +3858,8 @@ exit_eval_frame:
     return _Py_CheckFunctionResult(NULL, retval, "PyEval_EvalFrameEx");
 
 #else
+    if (PyDTrace_FUNCTION_RETURN_ENABLED())
+        dtrace_function_return(f);
     Py_LeaveRecursiveCall();
     f->f_executing = 0;
     SLP_STORE_NEXT_FRAME(tstate, f->f_back);
@@ -4082,6 +4084,8 @@ PyEval_EvalFrameEx_slp(PyFrameObject *f, int throwflag, PyObject *retval)
     return slp_eval_frame_value(f, throwflag, retval);
 exit_eval_frame:
     Py_XDECREF(retval);
+    if (PyDTrace_FUNCTION_RETURN_ENABLED())
+        dtrace_function_return(f);
     Py_LeaveRecursiveCall();
     f->f_executing = 0;
     SLP_STORE_NEXT_FRAME(tstate, f->f_back);
