@@ -1,4 +1,5 @@
 import io
+import os
 import unittest
 import urllib.robotparser
 from collections import namedtuple
@@ -78,7 +79,28 @@ Disallow: /
     bad = ['/cyberworld/map/index.html', '/', '/tmp/']
 
 
-class CrawlDelayAndRequestRateTest(BaseRobotTest, unittest.TestCase):
+class BaseRequestRateTest(BaseRobotTest):
+
+    def test_request_rate(self):
+        for url in self.good + self.bad:
+            agent, url = self.get_agent_and_url(url)
+            with self.subTest(url=url, agent=agent):
+                if self.crawl_delay:
+                    self.assertEqual(
+                        self.parser.crawl_delay(agent), self.crawl_delay
+                    )
+                if self.request_rate:
+                    self.assertEqual(
+                        self.parser.request_rate(agent).requests,
+                        self.request_rate.requests
+                    )
+                    self.assertEqual(
+                        self.parser.request_rate(agent).seconds,
+                        self.request_rate.seconds
+                    )
+
+
+class CrawlDelayAndRequestRateTest(BaseRequestRateTest, unittest.TestCase):
     robots_txt = """\
 User-agent: figtree
 Crawl-delay: 3
@@ -94,24 +116,6 @@ Disallow: /%7ejoe/index.html
     good = [('figtree', '/foo.html')]
     bad = ['/tmp', '/tmp.html', '/tmp/a.html', '/a%3cd.html', '/a%3Cd.html',
            '/a%2fb.html', '/~joe/index.html']
-
-    def test_request_rate(self):
-        for url in self.good:
-            agent, url = self.get_agent_and_url(url)
-            with self.subTest(url=url, agent=agent):
-                if self.crawl_delay:
-                    self.assertEqual(
-                        self.parser.crawl_delay(agent), self.crawl_delay
-                    )
-                if self.request_rate and self.parser.request_rate(agent):
-                    self.assertEqual(
-                        self.parser.request_rate(agent).requests,
-                        self.request_rate.requests
-                    )
-                    self.assertEqual(
-                        self.parser.request_rate(agent).seconds,
-                        self.request_rate.seconds
-                    )
 
 
 class DifferentAgentTest(CrawlDelayAndRequestRateTest):
@@ -229,6 +233,19 @@ Disallow: /another/path?
     bad = ['/another/path?']
 
 
+class DefaultEntryTest(BaseRequestRateTest, unittest.TestCase):
+    robots_txt = """\
+User-agent: *
+Crawl-delay: 1
+Request-rate: 3/15
+Disallow: /cyberworld/map/
+    """
+    request_rate = namedtuple('req_rate', 'requests seconds')(3, 15)
+    crawl_delay = 1
+    good = ['/', '/test.html']
+    bad = ['/cyberworld/map/index.html']
+
+
 class RobotHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
@@ -272,14 +289,44 @@ class PasswordProtectedSiteTestCase(unittest.TestCase):
 
 class NetworkTestCase(unittest.TestCase):
 
-    def testPythonOrg(self):
+    base_url = 'http://www.pythontest.net/'
+    robots_txt = '{}elsewhere/robots.txt'.format(base_url)
+
+    @classmethod
+    def setUpClass(cls):
         support.requires('network')
-        with support.transient_internet('www.python.org'):
-            parser = urllib.robotparser.RobotFileParser(
-                "http://www.python.org/robots.txt")
-            parser.read()
-            self.assertTrue(
-                parser.can_fetch("*", "http://www.python.org/robots.txt"))
+        with support.transient_internet(cls.base_url):
+            cls.parser = urllib.robotparser.RobotFileParser(cls.robots_txt)
+            cls.parser.read()
+
+    def url(self, path):
+        return '{}{}{}'.format(
+            self.base_url, path, '/' if not os.path.splitext(path)[1] else ''
+        )
+
+    def test_basic(self):
+        self.assertFalse(self.parser.disallow_all)
+        self.assertFalse(self.parser.allow_all)
+        self.assertGreater(self.parser.mtime(), 0)
+        self.assertFalse(self.parser.crawl_delay('*'))
+        self.assertFalse(self.parser.request_rate('*'))
+
+    def test_can_fetch(self):
+        self.assertTrue(self.parser.can_fetch('*', self.url('elsewhere')))
+        self.assertFalse(self.parser.can_fetch('Nutch', self.base_url))
+        self.assertFalse(self.parser.can_fetch('Nutch', self.url('brian')))
+        self.assertFalse(self.parser.can_fetch('Nutch', self.url('webstats')))
+        self.assertFalse(self.parser.can_fetch('*', self.url('webstats')))
+        self.assertTrue(self.parser.can_fetch('*', self.base_url))
+
+    def test_read_404(self):
+        parser = urllib.robotparser.RobotFileParser(self.url('i-robot.txt'))
+        parser.read()
+        self.assertTrue(parser.allow_all)
+        self.assertFalse(parser.disallow_all)
+        self.assertEqual(parser.mtime(), 0)
+        self.assertIsNone(parser.crawl_delay('*'))
+        self.assertIsNone(parser.request_rate('*'))
 
 if __name__=='__main__':
     unittest.main()

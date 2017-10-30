@@ -1371,6 +1371,17 @@ class BaseEventLoopWithSelectorTests(test_utils.TestCase):
         self.assertRaises(ValueError, self.loop.run_until_complete, f)
 
     @patch_socket
+    def test_create_server_soreuseport_only_defined(self, m_socket):
+        m_socket.getaddrinfo = socket.getaddrinfo
+        m_socket.socket.return_value = mock.Mock()
+        m_socket.SO_REUSEPORT = -1
+
+        f = self.loop.create_server(
+            MyProto, '0.0.0.0', 0, reuse_port=True)
+
+        self.assertRaises(ValueError, self.loop.run_until_complete, f)
+
+    @patch_socket
     def test_create_server_cant_bind(self, m_socket):
 
         class Err(OSError):
@@ -1634,7 +1645,7 @@ class BaseEventLoopWithSelectorTests(test_utils.TestCase):
         self.loop.call_later.assert_called_with(constants.ACCEPT_RETRY_DELAY,
                                                 # self.loop._start_serving
                                                 mock.ANY,
-                                                MyProto, sock, None, None)
+                                                MyProto, sock, None, None, mock.ANY)
 
     def test_call_coroutine(self):
         @asyncio.coroutine

@@ -90,6 +90,10 @@ def ignore_deprecation_warnings(msg_regex, quiet=False):
         yield
 
 
+def requires_os_func(name):
+    return unittest.skipUnless(hasattr(os, name), 'requires os.%s' % name)
+
+
 class _PathLike(os.PathLike):
 
     def __init__(self, path=""):
@@ -455,6 +459,25 @@ class StatAttributeTests(unittest.TestCase):
         self.assertEqual(
             result.st_file_attributes & stat.FILE_ATTRIBUTE_DIRECTORY,
             stat.FILE_ATTRIBUTE_DIRECTORY)
+
+    @unittest.skipUnless(sys.platform == "win32", "Win32 specific tests")
+    def test_access_denied(self):
+        # Default to FindFirstFile WIN32_FIND_DATA when access is
+        # denied. See issue 28075.
+        # os.environ['TEMP'] should be located on a volume that
+        # supports file ACLs.
+        fname = os.path.join(os.environ['TEMP'], self.fname)
+        self.addCleanup(support.unlink, fname)
+        create_file(fname, b'ABC')
+        # Deny the right to [S]YNCHRONIZE on the file to
+        # force CreateFile to fail with ERROR_ACCESS_DENIED.
+        DETACHED_PROCESS = 8
+        subprocess.check_call(
+            ['icacls.exe', fname, '/deny', 'Users:(S)'],
+            creationflags=DETACHED_PROCESS
+        )
+        result = os.stat(fname)
+        self.assertNotEqual(result.st_size, 0)
 
 
 class UtimeTests(unittest.TestCase):
@@ -1413,6 +1436,7 @@ def _execvpe_mockup(defpath=None):
         os.execve = orig_execve
         os.defpath = orig_defpath
 
+
 class ExecTests(unittest.TestCase):
     @unittest.skipIf(USING_LINUXTHREADS,
                      "avoid triggering a linuxthreads bug: see issue #4970")
@@ -2161,6 +2185,104 @@ class PidTests(unittest.TestCase):
         pid = os.spawnv(os.P_NOWAIT, _PathLike(args[0]), args)
         status = os.waitpid(pid, 0)
         self.assertEqual(status, (pid, 0))
+
+
+class SpawnTests(unittest.TestCase):
+    def create_args(self, *, with_env=False, use_bytes=False):
+        self.exitcode = 17
+
+        filename = support.TESTFN
+        self.addCleanup(support.unlink, filename)
+
+        if not with_env:
+            code = 'import sys; sys.exit(%s)' % self.exitcode
+        else:
+            self.env = dict(os.environ)
+            # create an unique key
+            self.key = str(uuid.uuid4())
+            self.env[self.key] = self.key
+            # read the variable from os.environ to check that it exists
+            code = ('import sys, os; magic = os.environ[%r]; sys.exit(%s)'
+                    % (self.key, self.exitcode))
+
+        with open(filename, "w") as fp:
+            fp.write(code)
+
+        args = [sys.executable, filename]
+        if use_bytes:
+            args = [os.fsencode(a) for a in args]
+            self.env = {os.fsencode(k): os.fsencode(v)
+                        for k, v in self.env.items()}
+
+        return args
+
+    @requires_os_func('spawnl')
+    def test_spawnl(self):
+        args = self.create_args()
+        exitcode = os.spawnl(os.P_WAIT, args[0], *args)
+        self.assertEqual(exitcode, self.exitcode)
+
+    @requires_os_func('spawnle')
+    def test_spawnle(self):
+        args = self.create_args(with_env=True)
+        exitcode = os.spawnle(os.P_WAIT, args[0], *args, self.env)
+        self.assertEqual(exitcode, self.exitcode)
+
+    @requires_os_func('spawnlp')
+    def test_spawnlp(self):
+        args = self.create_args()
+        exitcode = os.spawnlp(os.P_WAIT, args[0], *args)
+        self.assertEqual(exitcode, self.exitcode)
+
+    @requires_os_func('spawnlpe')
+    def test_spawnlpe(self):
+        args = self.create_args(with_env=True)
+        exitcode = os.spawnlpe(os.P_WAIT, args[0], *args, self.env)
+        self.assertEqual(exitcode, self.exitcode)
+
+    @requires_os_func('spawnv')
+    def test_spawnv(self):
+        args = self.create_args()
+        exitcode = os.spawnv(os.P_WAIT, args[0], args)
+        self.assertEqual(exitcode, self.exitcode)
+
+    @requires_os_func('spawnve')
+    def test_spawnve(self):
+        args = self.create_args(with_env=True)
+        exitcode = os.spawnve(os.P_WAIT, args[0], args, self.env)
+        self.assertEqual(exitcode, self.exitcode)
+
+    @requires_os_func('spawnvp')
+    def test_spawnvp(self):
+        args = self.create_args()
+        exitcode = os.spawnvp(os.P_WAIT, args[0], args)
+        self.assertEqual(exitcode, self.exitcode)
+
+    @requires_os_func('spawnvpe')
+    def test_spawnvpe(self):
+        args = self.create_args(with_env=True)
+        exitcode = os.spawnvpe(os.P_WAIT, args[0], args, self.env)
+        self.assertEqual(exitcode, self.exitcode)
+
+    @requires_os_func('spawnv')
+    def test_nowait(self):
+        args = self.create_args()
+        pid = os.spawnv(os.P_NOWAIT, args[0], args)
+        result = os.waitpid(pid, 0)
+        self.assertEqual(result[0], pid)
+        status = result[1]
+        if hasattr(os, 'WIFEXITED'):
+            self.assertTrue(os.WIFEXITED(status))
+            self.assertEqual(os.WEXITSTATUS(status), self.exitcode)
+        else:
+            self.assertEqual(status, self.exitcode << 8)
+
+    @requires_os_func('spawnve')
+    def test_spawnve_bytes(self):
+        # Test bytes handling in parse_arglist and parse_envlist (#28114)
+        args = self.create_args(with_env=True, use_bytes=True)
+        exitcode = os.spawnve(os.P_WAIT, args[0], args, self.env)
+        self.assertEqual(exitcode, self.exitcode)
 
 
 # The introduction of this TestCase caused at least two different errors on

@@ -652,7 +652,8 @@ class PyBuildExt(build_ext):
         # profiler (_lsprof is for cProfile.py)
         exts.append( Extension('_lsprof', ['_lsprof.c', 'rotatingtree.c']) )
         # static Unicode character database
-        exts.append( Extension('unicodedata', ['unicodedata.c']) )
+        exts.append( Extension('unicodedata', ['unicodedata.c'],
+                               depends=['unicodedata_db.h', 'unicodename_db.h']) )
         # _opcode module
         exts.append( Extension('_opcode', ['_opcode.c']) )
 
@@ -2024,14 +2025,16 @@ class PyBuildExt(build_ext):
             ffi_inc = find_file('ffi.h', [], inc_dirs)
         if ffi_inc is not None:
             ffi_h = ffi_inc[0] + '/ffi.h'
-            with open(ffi_h) as fp:
-                while 1:
-                    line = fp.readline()
-                    if not line:
-                        ffi_inc = None
+            with open(ffi_h) as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith(('#define LIBFFI_H',
+                                        '#define ffi_wrapper_h')):
                         break
-                    if line.startswith('#define LIBFFI_H'):
-                        break
+                else:
+                    ffi_inc = None
+                    print('Header file {} does not define LIBFFI_H or '
+                          'ffi_wrapper_h'.format(ffi_h))
         ffi_lib = None
         if ffi_inc is not None:
             for lib_name in ('ffi', 'ffi_pic'):

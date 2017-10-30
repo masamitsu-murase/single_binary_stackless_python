@@ -1,5 +1,7 @@
 #include "Python.h"
 
+#include <stdbool.h>
+
 
 /* Defined in tracemalloc.c */
 extern void _PyMem_DumpTraceback(int fd, const void *ptr);
@@ -7,18 +9,8 @@ extern void _PyMem_DumpTraceback(int fd, const void *ptr);
 
 /* Python's malloc wrappers (see pymem.h) */
 
-/*
- * Basic types
- * I don't care if these are defined in <sys/types.h> or elsewhere. Axiom.
- */
-#undef  uchar
-#define uchar   unsigned char   /* assuming == 8 bits  */
-
 #undef  uint
 #define uint    unsigned int    /* assuming >= 16 bits */
-
-#undef uptr
-#define uptr    uintptr_t
 
 /* Forward declaration */
 static void* _PyMem_DebugRawMalloc(void *ctx, size_t size);
@@ -37,16 +29,14 @@ static void _PyMem_DebugCheckAddress(char api_id, const void *p);
 #if defined(__has_feature)  /* Clang */
  #if __has_feature(address_sanitizer)  /* is ASAN enabled? */
   #define ATTRIBUTE_NO_ADDRESS_SAFETY_ANALYSIS \
-        __attribute__((no_address_safety_analysis)) \
-        __attribute__ ((noinline))
+        __attribute__((no_address_safety_analysis))
  #else
   #define ATTRIBUTE_NO_ADDRESS_SAFETY_ANALYSIS
  #endif
 #else
  #if defined(__SANITIZE_ADDRESS__)  /* GCC 4.8.x, is ASAN enabled? */
   #define ATTRIBUTE_NO_ADDRESS_SAFETY_ANALYSIS \
-        __attribute__((no_address_safety_analysis)) \
-        __attribute__ ((noinline))
+        __attribute__((no_address_safety_analysis))
  #else
   #define ATTRIBUTE_NO_ADDRESS_SAFETY_ANALYSIS
  #endif
@@ -746,7 +736,7 @@ static int running_on_valgrind = -1;
 #define SIMPLELOCK_UNLOCK(lock) /* release acquired lock */
 
 /* When you say memory, my mind reasons in terms of (pointers to) blocks */
-typedef uchar block;
+typedef uint8_t block;
 
 /* Pool for small blocks. */
 struct pool_header {
@@ -770,7 +760,7 @@ struct arena_object {
      * here to mark an arena_object that doesn't correspond to an
      * allocated arena.
      */
-    uptr address;
+    uintptr_t address;
 
     /* Pool-aligned pointer to the next pool to be carved off. */
     block* pool_address;
@@ -921,7 +911,7 @@ on that C doesn't insert any padding anywhere in a pool_header at or before
 the prevpool member.
 **************************************************************************** */
 
-#define PTA(x)  ((poolp )((uchar *)&(usedpools[2*(x)]) - 2*sizeof(block *)))
+#define PTA(x)  ((poolp )((uint8_t *)&(usedpools[2*(x)]) - 2*sizeof(block *)))
 #define PT(x)   PTA(x), PTA(x)
 
 static poolp usedpools[2 * ((NB_SMALL_SIZE_CLASSES + 7) / 8) * 8] = {
@@ -1101,7 +1091,7 @@ new_arena(void)
         unused_arena_objects = arenaobj;
         return NULL;
     }
-    arenaobj->address = (uptr)address;
+    arenaobj->address = (uintptr_t)address;
 
     ++narenas_currently_allocated;
     ++ntimes_arena_allocated;
@@ -1124,13 +1114,13 @@ new_arena(void)
 }
 
 /*
-Py_ADDRESS_IN_RANGE(P, POOL)
+address_in_range(P, POOL)
 
 Return true if and only if P is an address that was allocated by pymalloc.
 POOL must be the pool address associated with P, i.e., POOL = POOL_ADDR(P)
 (the caller is asked to compute this because the macro expands POOL more than
 once, and for efficiency it's best for the caller to assign POOL_ADDR(P) to a
-variable and pass the latter to the macro; because Py_ADDRESS_IN_RANGE is
+variable and pass the latter to the macro; because address_in_range is
 called on every alloc/realloc/free, micro-efficiency is important here).
 
 Tricky:  Let B be the arena base address associated with the pool, B =
@@ -1155,7 +1145,7 @@ arenas[(POOL)->arenaindex].  Suppose obmalloc controls P.  Then (barring wild
 stores, etc), POOL is the correct address of P's pool, AO.address is the
 correct base address of the pool's arena, and P must be within ARENA_SIZE of
 AO.address.  In addition, AO.address is not 0 (no arena can start at address 0
-(NULL)).  Therefore Py_ADDRESS_IN_RANGE correctly reports that obmalloc
+(NULL)).  Therefore address_in_range correctly reports that obmalloc
 controls P.
 
 Now suppose obmalloc does not control P (e.g., P was obtained via a direct
@@ -1196,51 +1186,21 @@ that this test determines whether an arbitrary address is controlled by
 obmalloc in a small constant time, independent of the number of arenas
 obmalloc controls.  Since this test is needed at every entry point, it's
 extremely desirable that it be this fast.
-
-Since Py_ADDRESS_IN_RANGE may be reading from memory which was not allocated
-by Python, it is important that (POOL)->arenaindex is read only once, as
-another thread may be concurrently modifying the value without holding the
-GIL.  To accomplish this, the arenaindex_temp variable is used to store
-(POOL)->arenaindex for the duration of the Py_ADDRESS_IN_RANGE macro's
-execution.  The caller of the macro is responsible for declaring this
-variable.
 */
-#define Py_ADDRESS_IN_RANGE(P, POOL)                    \
-    ((arenaindex_temp = (POOL)->arenaindex) < maxarenas &&              \
-     (uptr)(P) - arenas[arenaindex_temp].address < (uptr)ARENA_SIZE && \
-     arenas[arenaindex_temp].address != 0)
 
-
-/* This is only useful when running memory debuggers such as
- * Purify or Valgrind.  Uncomment to use.
- *
-#define Py_USING_MEMORY_DEBUGGER
- */
-
-#ifdef Py_USING_MEMORY_DEBUGGER
-
-/* Py_ADDRESS_IN_RANGE may access uninitialized memory by design
- * This leads to thousands of spurious warnings when using
- * Purify or Valgrind.  By making a function, we can easily
- * suppress the uninitialized memory reads in this one function.
- * So we won't ignore real errors elsewhere.
- *
- * Disable the macro and use a function.
- */
-
-#undef Py_ADDRESS_IN_RANGE
-
-#if defined(__GNUC__) && ((__GNUC__ == 3) && (__GNUC_MINOR__ >= 1) || \
-                          (__GNUC__ >= 4))
-#define Py_NO_INLINE __attribute__((__noinline__))
-#else
-#define Py_NO_INLINE
-#endif
-
-/* Don't make static, to try to ensure this isn't inlined. */
-int Py_ADDRESS_IN_RANGE(void *P, poolp pool) Py_NO_INLINE;
-#undef Py_NO_INLINE
-#endif
+static bool ATTRIBUTE_NO_ADDRESS_SAFETY_ANALYSIS
+address_in_range(void *p, poolp pool)
+{
+    // Since address_in_range may be reading from memory which was not allocated
+    // by Python, it is important that pool->arenaindex is read only once, as
+    // another thread may be concurrently modifying the value without holding
+    // the GIL. The following dance forces the compiler to read pool->arenaindex
+    // only once.
+    uint arenaindex = *((volatile uint *)&pool->arenaindex);
+    return arenaindex < maxarenas &&
+        (uintptr_t)p - arenas[arenaindex].address < ARENA_SIZE &&
+        arenas[arenaindex].address != 0;
+}
 
 /*==========================================================================*/
 
@@ -1485,7 +1445,6 @@ _PyObject_Calloc(void *ctx, size_t nelem, size_t elsize)
 
 /* free */
 
-ATTRIBUTE_NO_ADDRESS_SAFETY_ANALYSIS
 static void
 _PyObject_Free(void *ctx, void *p)
 {
@@ -1493,9 +1452,6 @@ _PyObject_Free(void *ctx, void *p)
     block *lastfree;
     poolp next, prev;
     uint size;
-#ifndef Py_USING_MEMORY_DEBUGGER
-    uint arenaindex_temp;
-#endif
 
     if (p == NULL)      /* free(NULL) has no effect */
         return;
@@ -1508,7 +1464,7 @@ _PyObject_Free(void *ctx, void *p)
 #endif
 
     pool = POOL_ADDR(p);
-    if (Py_ADDRESS_IN_RANGE(p, pool)) {
+    if (address_in_range(p, pool)) {
         /* We allocated this address. */
         LOCK();
         /* Link p to the start of the pool's freeblock list.  Since
@@ -1714,16 +1670,12 @@ redirect:
  * return a non-NULL result.
  */
 
-ATTRIBUTE_NO_ADDRESS_SAFETY_ANALYSIS
 static void *
 _PyObject_Realloc(void *ctx, void *p, size_t nbytes)
 {
     void *bp;
     poolp pool;
     size_t size;
-#ifndef Py_USING_MEMORY_DEBUGGER
-    uint arenaindex_temp;
-#endif
 
     if (p == NULL)
         return _PyObject_Alloc(0, ctx, 1, nbytes);
@@ -1735,7 +1687,7 @@ _PyObject_Realloc(void *ctx, void *p, size_t nbytes)
 #endif
 
     pool = POOL_ADDR(p);
-    if (Py_ADDRESS_IN_RANGE(p, pool)) {
+    if (address_in_range(p, pool)) {
         /* We're in charge of this block */
         size = INDEX2SIZE(pool->szidx);
         if (nbytes <= size) {
@@ -1834,7 +1786,7 @@ bumpserialno(void)
 static size_t
 read_size_t(const void *p)
 {
-    const uchar *q = (const uchar *)p;
+    const uint8_t *q = (const uint8_t *)p;
     size_t result = *q++;
     int i;
 
@@ -1849,11 +1801,11 @@ read_size_t(const void *p)
 static void
 write_size_t(void *p, size_t n)
 {
-    uchar *q = (uchar *)p + SST - 1;
+    uint8_t *q = (uint8_t *)p + SST - 1;
     int i;
 
     for (i = SST; --i >= 0; --q) {
-        *q = (uchar)(n & 0xff);
+        *q = (uint8_t)(n & 0xff);
         n >>= 8;
     }
 }
@@ -1888,8 +1840,8 @@ static void *
 _PyMem_DebugRawAlloc(int use_calloc, void *ctx, size_t nbytes)
 {
     debug_alloc_api_t *api = (debug_alloc_api_t *)ctx;
-    uchar *p;           /* base address of malloc'ed block */
-    uchar *tail;        /* p + 2*SST + nbytes == pointer to tail pad bytes */
+    uint8_t *p;           /* base address of malloc'ed block */
+    uint8_t *tail;        /* p + 2*SST + nbytes == pointer to tail pad bytes */
     size_t total;       /* nbytes + 4*SST */
 
     bumpserialno();
@@ -1899,15 +1851,15 @@ _PyMem_DebugRawAlloc(int use_calloc, void *ctx, size_t nbytes)
         return NULL;
 
     if (use_calloc)
-        p = (uchar *)api->alloc.calloc(api->alloc.ctx, 1, total);
+        p = (uint8_t *)api->alloc.calloc(api->alloc.ctx, 1, total);
     else
-        p = (uchar *)api->alloc.malloc(api->alloc.ctx, total);
+        p = (uint8_t *)api->alloc.malloc(api->alloc.ctx, total);
     if (p == NULL)
         return NULL;
 
     /* at p, write size (SST bytes), id (1 byte), pad (SST-1 bytes) */
     write_size_t(p, nbytes);
-    p[SST] = (uchar)api->api_id;
+    p[SST] = (uint8_t)api->api_id;
     memset(p + SST + 1, FORBIDDENBYTE, SST-1);
 
     if (nbytes > 0 && !use_calloc)
@@ -1945,7 +1897,7 @@ static void
 _PyMem_DebugRawFree(void *ctx, void *p)
 {
     debug_alloc_api_t *api = (debug_alloc_api_t *)ctx;
-    uchar *q = (uchar *)p - 2*SST;  /* address returned from malloc */
+    uint8_t *q = (uint8_t *)p - 2*SST;  /* address returned from malloc */
     size_t nbytes;
 
     if (p == NULL)
@@ -1962,8 +1914,8 @@ static void *
 _PyMem_DebugRawRealloc(void *ctx, void *p, size_t nbytes)
 {
     debug_alloc_api_t *api = (debug_alloc_api_t *)ctx;
-    uchar *q = (uchar *)p, *oldq;
-    uchar *tail;
+    uint8_t *q = (uint8_t *)p, *oldq;
+    uint8_t *tail;
     size_t total;       /* nbytes + 4*SST */
     size_t original_nbytes;
     int i;
@@ -1984,7 +1936,7 @@ _PyMem_DebugRawRealloc(void *ctx, void *p, size_t nbytes)
      * but we live with that.
      */
     oldq = q;
-    q = (uchar *)api->alloc.realloc(api->alloc.ctx, q - 2*SST, total);
+    q = (uint8_t *)api->alloc.realloc(api->alloc.ctx, q - 2*SST, total);
     if (q == NULL)
         return NULL;
 
@@ -1994,7 +1946,7 @@ _PyMem_DebugRawRealloc(void *ctx, void *p, size_t nbytes)
     }
 
     write_size_t(q, nbytes);
-    assert(q[SST] == (uchar)api->api_id);
+    assert(q[SST] == (uint8_t)api->api_id);
     for (i = 1; i < SST; ++i)
         assert(q[SST + i] == FORBIDDENBYTE);
     q += 2*SST;
@@ -2058,11 +2010,11 @@ _PyMem_DebugRealloc(void *ctx, void *ptr, size_t nbytes)
 static void
 _PyMem_DebugCheckAddress(char api, const void *p)
 {
-    const uchar *q = (const uchar *)p;
+    const uint8_t *q = (const uint8_t *)p;
     char msgbuf[64];
     char *msg;
     size_t nbytes;
-    const uchar *tail;
+    const uint8_t *tail;
     int i;
     char id;
 
@@ -2111,8 +2063,8 @@ error:
 static void
 _PyObject_DebugDumpAddress(const void *p)
 {
-    const uchar *q = (const uchar *)p;
-    const uchar *tail;
+    const uint8_t *q = (const uint8_t *)p;
+    const uint8_t *tail;
     size_t nbytes, serial;
     int i;
     int ok;
@@ -2145,7 +2097,7 @@ _PyObject_DebugDumpAddress(const void *p)
         fprintf(stderr, "not all FORBIDDENBYTE (0x%02x):\n",
             FORBIDDENBYTE);
         for (i = SST-1; i >= 1; --i) {
-            const uchar byte = *(q-i);
+            const uint8_t byte = *(q-i);
             fprintf(stderr, "        at p-%d: 0x%02x", i, byte);
             if (byte != FORBIDDENBYTE)
                 fputs(" *** OUCH", stderr);
@@ -2173,7 +2125,7 @@ _PyObject_DebugDumpAddress(const void *p)
         fprintf(stderr, "not all FORBIDDENBYTE (0x%02x):\n",
                 FORBIDDENBYTE);
         for (i = 0; i < SST; ++i) {
-            const uchar byte = tail[i];
+            const uint8_t byte = tail[i];
             fprintf(stderr, "        at tail+%d: 0x%02x",
                     i, byte);
             if (byte != FORBIDDENBYTE)
@@ -2335,27 +2287,26 @@ _PyObject_DebugMallocStats(FILE *out)
      */
     for (i = 0; i < maxarenas; ++i) {
         uint j;
-        uptr base = arenas[i].address;
+        uintptr_t base = arenas[i].address;
 
         /* Skip arenas which are not allocated. */
-        if (arenas[i].address == (uptr)NULL)
+        if (arenas[i].address == (uintptr_t)NULL)
             continue;
         narenas += 1;
 
         numfreepools += arenas[i].nfreepools;
 
         /* round up to pool alignment */
-        if (base & (uptr)POOL_SIZE_MASK) {
+        if (base & (uintptr_t)POOL_SIZE_MASK) {
             arena_alignment += POOL_SIZE;
-            base &= ~(uptr)POOL_SIZE_MASK;
+            base &= ~(uintptr_t)POOL_SIZE_MASK;
             base += POOL_SIZE;
         }
 
         /* visit every pool in the arena */
-        assert(base <= (uptr) arenas[i].pool_address);
-        for (j = 0;
-                    base < (uptr) arenas[i].pool_address;
-                    ++j, base += POOL_SIZE) {
+        assert(base <= (uintptr_t) arenas[i].pool_address);
+        for (j = 0; base < (uintptr_t) arenas[i].pool_address;
+             ++j, base += POOL_SIZE) {
             poolp p = (poolp)base;
             const uint sz = p->szidx;
             uint freeblocks;
@@ -2432,19 +2383,3 @@ _PyObject_DebugMallocStats(FILE *out)
 }
 
 #endif /* #ifdef WITH_PYMALLOC */
-
-
-#ifdef Py_USING_MEMORY_DEBUGGER
-/* Make this function last so gcc won't inline it since the definition is
- * after the reference.
- */
-int
-Py_ADDRESS_IN_RANGE(void *P, poolp pool)
-{
-    uint arenaindex_temp = pool->arenaindex;
-
-    return arenaindex_temp < maxarenas &&
-           (uptr)P - arenas[arenaindex_temp].address < (uptr)ARENA_SIZE &&
-           arenas[arenaindex_temp].address != 0;
-}
-#endif
