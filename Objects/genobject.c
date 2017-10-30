@@ -120,33 +120,6 @@ gen_dealloc(PyGenObject *gen)
     PyObject_GC_Del(gen);
 }
 
-static void
-gen_chain_runtime_error(const char *msg)
-{
-    PyObject *exc, *val, *val2, *tb;
-
-    /* TODO: This about rewriting using _PyErr_ChainExceptions. */
-
-    PyErr_Fetch(&exc, &val, &tb);
-    PyErr_NormalizeException(&exc, &val, &tb);
-    if (tb != NULL) {
-        PyException_SetTraceback(val, tb);
-    }
-
-    Py_DECREF(exc);
-    Py_XDECREF(tb);
-
-    PyErr_SetString(PyExc_RuntimeError, msg);
-    PyErr_Fetch(&exc, &val2, &tb);
-    PyErr_NormalizeException(&exc, &val2, &tb);
-
-    Py_INCREF(val);
-    PyException_SetCause(val2, val);
-    PyException_SetContext(val2, val);
-
-    PyErr_Restore(exc, val2, tb);
-}
-
 #ifdef STACKLESS
 /*
  * Note:
@@ -373,8 +346,7 @@ gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result)
             else if PyAsyncGen_CheckExact(gen) {
                 msg = "async generator raised StopIteration";
             }
-            /* Raise a RuntimeError */
-            gen_chain_runtime_error(msg);
+            _PyErr_FormatFromCause(PyExc_RuntimeError, "%s", msg);
         }
         else {
             /* `gen` is an ordinary generator without
@@ -406,7 +378,7 @@ gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result)
            raise a RuntimeError.
         */
         const char *msg = "async generator raised StopAsyncIteration";
-        gen_chain_runtime_error(msg);
+        _PyErr_FormatFromCause(PyExc_RuntimeError, "%s", msg);
     }
 
 #ifdef STACKLESS
