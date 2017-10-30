@@ -118,7 +118,7 @@ sys_displayhook_unencodable(PyObject *outf, PyObject *o)
     stdout_encoding = _PyObject_GetAttrId(outf, &PyId_encoding);
     if (stdout_encoding == NULL)
         goto error;
-    stdout_encoding_str = _PyUnicode_AsString(stdout_encoding);
+    stdout_encoding_str = PyUnicode_AsUTF8(stdout_encoding);
     if (stdout_encoding_str == NULL)
         goto error;
 
@@ -1765,7 +1765,7 @@ static PyStructSequence_Field version_info_fields[] = {
     {"major", "Major release number"},
     {"minor", "Minor release number"},
     {"micro", "Patch release number"},
-    {"releaselevel", "'alpha', 'beta', 'candidate', or 'release'"},
+    {"releaselevel", "'alpha', 'beta', 'candidate', or 'final'"},
     {"serial", "Serial release number"},
     {0}
 };
@@ -2437,7 +2437,7 @@ sys_format(_Py_Identifier *key, FILE *fp, const char *format, va_list va)
     if (message != NULL) {
         if (sys_pyfile_write_unicode(message, file) != 0) {
             PyErr_Clear();
-            utf8 = _PyUnicode_AsString(message);
+            utf8 = PyUnicode_AsUTF8(message);
             if (utf8 != NULL)
                 fputs(utf8, fp);
         }

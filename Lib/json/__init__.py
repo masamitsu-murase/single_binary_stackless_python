@@ -257,7 +257,8 @@ def detect_encoding(b):
             return 'utf-16-be' if b[1] else 'utf-32-be'
         if not b[1]:
             # XX 00 00 00 - utf-32-le
-            # XX 00 XX XX - utf-16-le
+            # XX 00 00 XX - utf-16-le
+            # XX 00 XX -- - utf-16-le
             return 'utf-16-le' if b[2] or b[3] else 'utf-32-le'
     elif len(b) == 2:
         if not b[0]:
@@ -327,7 +328,7 @@ def loads(s, *, encoding=None, cls=None, object_hook=None, parse_float=None,
     for JSON integers (e.g. float).
 
     ``parse_constant``, if specified, will be called with one of the
-    following strings: -Infinity, Infinity, NaN, null, true, false.
+    following strings: -Infinity, Infinity, NaN.
     This can be used to raise an exception if invalid JSON numbers
     are encountered.
 

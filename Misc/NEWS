@@ -2,13 +2,131 @@
 Python News
 +++++++++++
 
-What's New in Python 3.6.0 beta 3
+What's New in Python 3.6.0 beta 4
 =================================
 
 *Release date: XXXX-XX-XX*
 
 Core and Builtins
 -----------------
+
+- Issue #28532: Show sys.version when -V option is supplied twice.
+
+- Issue #28746: Fix the set_inheritable() file descriptor method on platforms
+  that do not have the ioctl FIOCLEX and FIONCLEX commands.
+
+- Issue #26920: Fix not getting the locale's charset upon initializing the
+  interpreter, on platforms that do not have langinfo.
+
+- Issue #28648: Fixed crash in Py_DecodeLocale() in debug build on Mac OS X
+  when decode astral characters.  Patch by Xiang Zhang.
+
+- Issue #19398: Extra slash no longer added to sys.path components in case of
+  empty compile-time PYTHONPATH components.
+
+- Issue #28665:  Improve speed of the STORE_DEREF opcode by 40%.
+
+- Issue #28583: PyDict_SetDefault didn't combine split table when needed.
+  Patch by Xiang Zhang.
+
+- Issue #27243: Change PendingDeprecationWarning -> DeprecationWarning.
+  As it was agreed in the issue, __aiter__ returning an awaitable
+  should result in PendingDeprecationWarning in 3.5 and in
+  DeprecationWarning in 3.6.
+
+- Issue #26182: Fix a refleak in code that raises DeprecationWarning.
+
+- Issue #28721: Fix asynchronous generators aclose() and athrow() to
+  handle StopAsyncIteration propagation properly.
+
+Library
+-------
+
+- Issue #28752: Restored the __reduce__() methods of datetime objects.
+
+- Issue #28727: Regular expression patterns, _sre.SRE_Pattern objects created
+  by re.compile(), become comparable (only x==y and x!=y operators). This
+  change should fix the issue #18383: don't duplicate warning filters when the
+  warnings module is reloaded (thing usually only done in unit tests).
+
+- Issue #20572: The subprocess.Popen.wait method's undocumented
+  endtime parameter now raises a DeprecationWarning.
+
+- Issue #25659: In ctypes, prevent a crash calling the from_buffer() and
+  from_buffer_copy() methods on abstract classes like Array.
+
+- Issue #19717: Makes Path.resolve() succeed on paths that do not exist.
+  Patch by Vajrasky Kok
+
+- Issue #28563: Fixed possible DoS and arbitrary code execution when handle
+  plural form selections in the gettext module.  The expression parser now
+  supports exact syntax supported by GNU gettext.
+
+- Issue #28387: Fixed possible crash in _io.TextIOWrapper deallocator when
+  the garbage collector is invoked in other thread.  Based on patch by
+  Sebastian Cufre.
+
+- Issue #28600: Optimize loop.call_soon.
+
+- Issue #28613: Fix get_event_loop() return the current loop if
+  called from coroutines/callbacks.
+
+- Issue #28634: Fix asyncio.isfuture() to support unittest.Mock.
+
+- Issue #26081: Fix refleak in _asyncio.Future.__iter__().throw.
+
+- Issue #28639: Fix inspect.isawaitable to always return bool
+  Patch by Justin Mayfield.
+
+- Issue #28652: Make loop methods reject socket kinds they do not support.
+
+- Issue #28653: Fix a refleak in functools.lru_cache.
+
+- Issue #28703: Fix asyncio.iscoroutinefunction to handle Mock objects.
+
+- Issue #28704: Fix create_unix_server to support Path-like objects
+  (PEP 519).
+
+- Issue #28720: Add collections.abc.AsyncGenerator.
+
+Documentation
+-------------
+
+- Issue #28513: Documented command-line interface of zipfile.
+
+Tests
+-----
+
+- Issue #28666: Now test.support.rmtree is able to remove unwritable or
+  unreadable directories.
+
+- Issue #23839: Various caches now are cleared before running every test file.
+
+Build
+-----
+
+- Issue #10656: Fix out-of-tree building on AIX.  Patch by Tristan Carel and
+  Michael Haubenwallner.
+
+- Issue #26359: Rename --with-optimiations to --enable-optimizations.
+
+- Issue #28676: Prevent missing 'getentropy' declaration warning on macOS.
+  Patch by Gareth Rees.
+
+
+What's New in Python 3.6.0 beta 3
+=================================
+
+*Release date: 2016-10-31*
+
+Core and Builtins
+-----------------
+
+- Issue #28128: Deprecation warning for invalid str and byte escape
+  sequences now prints better information about where the error
+  occurs. Patch by Serhiy Storchaka and Eric Smith.
+
+- Issue #28509: dict.update() no longer allocate unnecessary large memory.
 
 - Issue #28426: Fixed potential crash in PyUnicode_AsDecodedObject() in debug
   build.
@@ -25,9 +143,39 @@ Core and Builtins
 - Issue #28471: Fix "Python memory allocator called without holding the GIL"
   crash in socket.setblocking.
 
-
 Library
 -------
+
+- Issue #27517: LZMA compressor and decompressor no longer raise exceptions if
+  given empty data twice.  Patch by Benjamin Fogle.
+
+- Issue #28549: Fixed segfault in curses's addch() with ncurses6.
+
+- Issue #28449: tarfile.open() with mode "r" or "r:" now tries to open a tar
+  file with compression before trying to open it without compression.  Otherwise
+  it had 50% chance failed with ignore_zeros=True.
+
+- Issue #23262: The webbrowser module now supports Firefox 36+ and derived
+  browsers.  Based on patch by Oleg Broytman.
+
+- Issue #27939: Fixed bugs in tkinter.ttk.LabeledScale and tkinter.Scale caused
+  by representing the scale as float value internally in Tk.  tkinter.IntVar
+  now works if float value is set to underlying Tk variable.
+
+- Issue #18844: The various ways of specifying weights for random.choices()
+  now produce the same result sequences.
+
+- Issue #28255: calendar.TextCalendar().prmonth() no longer prints a space
+  at the start of new line after printing a month's calendar.  Patch by
+  Xiang Zhang.
+
+- Issue #20491: The textwrap.TextWrapper class now honors non-breaking spaces.
+  Based on patch by Kaarle Ritvanen.
+
+- Issue #28353: os.fwalk() no longer fails on broken links.
+
+- Issue #28430: Fix iterator of C implemented asyncio.Future doesn't accept
+  non-None value is passed to it.send(val).
 
 - Issue #27025: Generated names for Tkinter widgets now start by the "!" prefix
   for readability (was "`").
@@ -68,12 +216,21 @@ Library
   threadpool executor.
   Initial patch by Hans Lawrenz.
 
+- Issue #28544: Implement asyncio.Task in C.
+
+Windows
+-------
+
+- Issue #28522: Fixes mishandled buffer reallocation in getpathp.c
+
 Build
 -----
 
-- Issue #28208: Update Windows build to use SQLite 3.14.2.0.
+- Issue #28444: Fix missing extensions modules when cross compiling.
 
-- Issue #28248: Update Windows build to use OpenSSL 1.0.2j.
+- Issue #28208: Update Windows build and OS X installers to use SQLite 3.14.2.
+
+- Issue #28248: Update Windows build and OS X installers to use OpenSSL 1.0.2j.
 
 Tests
 -----
@@ -221,7 +378,7 @@ Library
   if pass invalid string-like object as a name.  Patch by Xiang Zhang.
 
 - Issue #18844: random.choices() now has k as a keyword-only argument
-  to improve the readability of common cases and the come into line
+  to improve the readability of common cases and come into line
   with the signature used in other languages.
 
 - Issue #18893: Fix invalid exception handling in Lib/ctypes/macholib/dyld.py.
@@ -331,6 +488,13 @@ Windows
 - Issue #28137: Renames Windows path file to ._pth
 
 - Issue #28138: Windows ._pth file should allow import site
+
+C API
+-----
+
+- Issue #28426: Deprecated undocumented functions PyUnicode_AsEncodedObject(),
+  PyUnicode_AsDecodedObject(), PyUnicode_AsDecodedUnicode() and
+  PyUnicode_AsEncodedUnicode().
 
 Build
 -----
@@ -489,8 +653,16 @@ Core and Builtins
 
 - Issue #28008: Implement PEP 530 -- asynchronous comprehensions.
 
+- Issue #27942: Fix memory leak in codeobject.c
+
 Library
 -------
+
+- Issue #28732: Fix crash in os.spawnv() with no elements in args
+
+- Issue #28485: Always raise ValueError for negative
+  compileall.compile_dir(workers=...) parameter, even when multithreading is
+  unavailable.
 
 - Issue #28037: Use sqlite3_get_autocommit() instead of setting
   Connection->inTransaction manually.
@@ -557,8 +729,12 @@ Library
 - Issue #14977: mailcap now respects the order of the lines in the mailcap
   files ("first match"), as required by RFC 1542.  Patch by Michael Lazar.
 
+- Issue #28082: Convert re flag constants to IntFlag.
+
 - Issue #28025: Convert all ssl module constants to IntEnum and IntFlags.
   SSLContext properties now return flags and enums.
+
+- Issue #23591: Add Flag, IntFlag, and auto() to enum module.
 
 - Issue #433028: Added support of modifier spans in regular expressions.
 
@@ -3185,7 +3361,7 @@ Library
 - Issue #24774: Fix docstring in http.server.test. Patch from Chiu-Hsiang Hsu.
 
 - Issue #21159: Improve message in configparser.InterpolationMissingOptionError.
-  Patch from �?ukasz Langa.
+  Patch from Łukasz Langa.
 
 - Issue #20362: Honour TestCase.longMessage correctly in assertRegex.
   Patch from Ilia Kurenkov.
@@ -5113,7 +5289,7 @@ Library
   Based on patch by Martin Panter.
 
 - Issue #17293: uuid.getnode() now determines MAC address on AIX using netstat.
-  Based on patch by Aivars Kalv�?ns.
+  Based on patch by Aivars Kalvāns.
 
 - Issue #22769: Fixed ttk.Treeview.tag_has() when called without arguments.
 

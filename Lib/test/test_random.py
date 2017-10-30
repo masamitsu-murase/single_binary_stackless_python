@@ -110,6 +110,7 @@ class TestBasicOps:
         self.assertEqual(self.gen.sample([], 0), [])  # test edge case N==k==0
         # Exception raised if size of sample exceeds that of population
         self.assertRaises(ValueError, self.gen.sample, population, N+1)
+        self.assertRaises(ValueError, self.gen.sample, [], -1)
 
     def test_sample_distribution(self):
         # For the entire allowable range of 0 <= k <= N, validate that
@@ -628,6 +629,39 @@ class MersenneTwister_TestBasicOps(TestBasicOps, unittest.TestCase):
         x = self.gen.randrange(start, stop, step)
         self.assertTrue(stop < x <= start)
         self.assertEqual((x+stop)%step, 0)
+
+    def test_choices_algorithms(self):
+        # The various ways of specifying weights should produce the same results
+        choices = self.gen.choices
+        n = 104729
+
+        self.gen.seed(8675309)
+        a = self.gen.choices(range(n), k=10000)
+
+        self.gen.seed(8675309)
+        b = self.gen.choices(range(n), [1]*n, k=10000)
+        self.assertEqual(a, b)
+
+        self.gen.seed(8675309)
+        c = self.gen.choices(range(n), cum_weights=range(1, n+1), k=10000)
+        self.assertEqual(a, c)
+
+        # Amerian Roulette
+        population = ['Red', 'Black', 'Green']
+        weights = [18, 18, 2]
+        cum_weights = [18, 36, 38]
+        expanded_population = ['Red'] * 18 + ['Black'] * 18 + ['Green'] * 2
+
+        self.gen.seed(9035768)
+        a = self.gen.choices(expanded_population, k=10000)
+
+        self.gen.seed(9035768)
+        b = self.gen.choices(population, weights, k=10000)
+        self.assertEqual(a, b)
+
+        self.gen.seed(9035768)
+        c = self.gen.choices(population, cum_weights=cum_weights, k=10000)
+        self.assertEqual(a, c)
 
 def gamma(z, sqrt2pi=(2.0*pi)**0.5):
     # Reflection to right half of complex plane

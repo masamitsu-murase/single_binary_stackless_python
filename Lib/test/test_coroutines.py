@@ -838,6 +838,21 @@ class CoroutineTest(unittest.TestCase):
             coro.close()
             self.assertEqual(CHK, 1)
 
+    def test_coro_wrapper_send_tuple(self):
+        async def foo():
+            return (10,)
+
+        result = run_async__await__(foo())
+        self.assertEqual(result, ([], (10,)))
+
+    def test_coro_wrapper_send_stop_iterator(self):
+        async def foo():
+            return StopIteration(10)
+
+        result = run_async__await__(foo())
+        self.assertIsInstance(result[1], StopIteration)
+        self.assertEqual(result[1].value, 10)
+
     def test_cr_await(self):
         @types.coroutine
         def a():
@@ -1383,7 +1398,7 @@ class CoroutineTest(unittest.TestCase):
 
         buffer = []
         async def test1():
-            with self.assertWarnsRegex(PendingDeprecationWarning, "legacy"):
+            with self.assertWarnsRegex(DeprecationWarning, "legacy"):
                 async for i1, i2 in AsyncIter():
                     buffer.append(i1 + i2)
 
@@ -1397,7 +1412,7 @@ class CoroutineTest(unittest.TestCase):
         buffer = []
         async def test2():
             nonlocal buffer
-            with self.assertWarnsRegex(PendingDeprecationWarning, "legacy"):
+            with self.assertWarnsRegex(DeprecationWarning, "legacy"):
                 async for i in AsyncIter():
                     buffer.append(i[0])
                     if i[0] == 20:
@@ -1416,7 +1431,7 @@ class CoroutineTest(unittest.TestCase):
         buffer = []
         async def test3():
             nonlocal buffer
-            with self.assertWarnsRegex(PendingDeprecationWarning, "legacy"):
+            with self.assertWarnsRegex(DeprecationWarning, "legacy"):
                 async for i in AsyncIter():
                     if i[0] > 20:
                         continue
@@ -1499,7 +1514,7 @@ class CoroutineTest(unittest.TestCase):
                 return 123
 
         async def foo():
-            with self.assertWarnsRegex(PendingDeprecationWarning, "legacy"):
+            with self.assertWarnsRegex(DeprecationWarning, "legacy"):
                 async for i in I():
                     print('never going to happen')
 
@@ -1608,7 +1623,7 @@ class CoroutineTest(unittest.TestCase):
                 1/0
         async def foo():
             nonlocal CNT
-            with self.assertWarnsRegex(PendingDeprecationWarning, "legacy"):
+            with self.assertWarnsRegex(DeprecationWarning, "legacy"):
                 async for i in AI():
                     CNT += 1
             CNT += 10
@@ -1635,7 +1650,7 @@ class CoroutineTest(unittest.TestCase):
         self.assertEqual(CNT, 0)
 
     def test_for_9(self):
-        # Test that PendingDeprecationWarning can safely be converted into
+        # Test that DeprecationWarning can safely be converted into
         # an exception (__aiter__ should not have a chance to raise
         # a ZeroDivisionError.)
         class AI:
@@ -1645,13 +1660,13 @@ class CoroutineTest(unittest.TestCase):
             async for i in AI():
                 pass
 
-        with self.assertRaises(PendingDeprecationWarning):
+        with self.assertRaises(DeprecationWarning):
             with warnings.catch_warnings():
                 warnings.simplefilter("error")
                 run_async(foo())
 
     def test_for_10(self):
-        # Test that PendingDeprecationWarning can safely be converted into
+        # Test that DeprecationWarning can safely be converted into
         # an exception.
         class AI:
             async def __aiter__(self):
@@ -1660,10 +1675,56 @@ class CoroutineTest(unittest.TestCase):
             async for i in AI():
                 pass
 
-        with self.assertRaises(PendingDeprecationWarning):
+        with self.assertRaises(DeprecationWarning):
             with warnings.catch_warnings():
                 warnings.simplefilter("error")
                 run_async(foo())
+
+    def test_for_tuple(self):
+        class Done(Exception): pass
+
+        class AIter(tuple):
+            i = 0
+            def __aiter__(self):
+                return self
+            async def __anext__(self):
+                if self.i >= len(self):
+                    raise StopAsyncIteration
+                self.i += 1
+                return self[self.i - 1]
+
+        result = []
+        async def foo():
+            async for i in AIter([42]):
+                result.append(i)
+            raise Done
+
+        with self.assertRaises(Done):
+            foo().send(None)
+        self.assertEqual(result, [42])
+
+    def test_for_stop_iteration(self):
+        class Done(Exception): pass
+
+        class AIter(StopIteration):
+            i = 0
+            def __aiter__(self):
+                return self
+            async def __anext__(self):
+                if self.i:
+                    raise StopAsyncIteration
+                self.i += 1
+                return self.value
+
+        result = []
+        async def foo():
+            async for i in AIter(42):
+                result.append(i)
+            raise Done
+
+        with self.assertRaises(Done):
+            foo().send(None)
+        self.assertEqual(result, [42])
 
     def test_comp_1(self):
         async def f(i):

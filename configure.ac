@@ -1298,8 +1298,8 @@ fi],
 AC_SUBST(DEF_MAKE_ALL_RULE)
 AC_SUBST(DEF_MAKE_RULE)
 Py_OPT='false'
-AC_MSG_CHECKING(for --with-optimizations)
-AC_ARG_WITH(optimizations, AS_HELP_STRING([--with-optimizations], [Enable expensive optimizations (PGO, maybe LTO, etc).  Disabled by default.]),
+AC_MSG_CHECKING(for --enable-optimizations)
+AC_ARG_ENABLE(optimizations, AS_HELP_STRING([--enable-optimizations], [Enable expensive optimizations (PGO, etc).  Disabled by default.]),
 [
 if test "$withval" != no
 then
@@ -1313,7 +1313,7 @@ fi],
 if test "$Py_OPT" = 'true' ; then
   # Intentionally not forcing Py_LTO='true' here.  Too many toolchains do not
   # compile working code using it and both test_distutils and test_gdb are
-  # broken when you do managed to get a toolchain that works with it.  People
+  # broken when you do manage to get a toolchain that works with it.  People
   # who want LTO need to use --with-lto themselves.
   DEF_MAKE_ALL_RULE="profile-opt"
   REQUIRE_PGO="yes"
@@ -1422,7 +1422,7 @@ case $CC in
       LLVM_PROF_ERR=yes
       if test "${REQUIRE_PGO}" = "yes"
       then
-        AC_MSG_ERROR([llvm-profdata is required for a --with-optimizations build but could not be found.])
+        AC_MSG_ERROR([llvm-profdata is required for a --enable-optimizations build but could not be found.])
       fi
     fi
     ;;
@@ -1438,7 +1438,7 @@ case $CC in
           LLVM_PROF_ERR=yes
           if test "${REQUIRE_PGO}" = "yes"
 	  then
-	    AC_MSG_ERROR([llvm-profdata is required for a --with-optimizations build but could not be found.])
+	    AC_MSG_ERROR([llvm-profdata is required for a --enable-optimizations build but could not be found.])
 	  fi
         fi
         ;;
@@ -2427,7 +2427,7 @@ if test -z "$LDSHARED"
 then
 	case $ac_sys_system/$ac_sys_release in
 	AIX*)
-		BLDSHARED="\$(srcdir)/Modules/ld_so_aix \$(CC) -bI:\$(srcdir)/Modules/python.exp"
+		BLDSHARED="Modules/ld_so_aix \$(CC) -bI:Modules/python.exp"
 		LDSHARED="\$(LIBPL)/ld_so_aix \$(CC) -bI:\$(LIBPL)/python.exp"
 		;;
 	IRIX/5*) LDSHARED="ld -shared";;
@@ -5413,7 +5413,7 @@ if test "$Py_OPT" = 'false' -a "$Py_DEBUG" != 'true'; then
     echo "" >&AS_MESSAGE_FD
     echo "" >&AS_MESSAGE_FD
     echo "If you want a release build with all optimizations active (LTO, PGO, etc)," >&AS_MESSAGE_FD
-    echo "please run ./configure --with-optimizations" >&AS_MESSAGE_FD
+    echo "please run ./configure --enable-optimizations" >&AS_MESSAGE_FD
     echo "" >&AS_MESSAGE_FD
     echo "" >&AS_MESSAGE_FD
 fi

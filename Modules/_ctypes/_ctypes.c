@@ -463,7 +463,10 @@ CDataType_from_buffer(PyObject *type, PyObject *args)
     Py_ssize_t offset = 0;
 
     StgDictObject *dict = PyType_stgdict(type);
-    assert (dict);
+    if (!dict) {
+        PyErr_SetString(PyExc_TypeError, "abstract class");
+        return NULL;
+    }
 
     if (!PyArg_ParseTuple(args, "O|n:from_buffer", &obj, &offset))
         return NULL;
@@ -531,9 +534,12 @@ CDataType_from_buffer_copy(PyObject *type, PyObject *args)
     Py_ssize_t offset = 0;
     PyObject *result;
     StgDictObject *dict = PyType_stgdict(type);
-    assert (dict);
+    if (!dict) {
+        PyErr_SetString(PyExc_TypeError, "abstract class");
+        return NULL;
+    }
 
-    if (!PyArg_ParseTuple(args, "y*|n:from_buffer", &buffer, &offset))
+    if (!PyArg_ParseTuple(args, "y*|n:from_buffer_copy", &buffer, &offset))
         return NULL;
 
     if (offset < 0) {
@@ -728,8 +734,7 @@ PyCStructType_setattro(PyObject *self, PyObject *key, PyObject *value)
         return -1;
 
     if (value && PyUnicode_Check(key) &&
-        /* XXX struni _PyUnicode_AsString can fail (also in other places)! */
-        0 == strcmp(_PyUnicode_AsString(key), "_fields_"))
+        _PyUnicode_EqualToASCIIString(key, "_fields_"))
         return PyCStructUnionType_update_stgdict(self, value, 1);
     return 0;
 }
@@ -743,7 +748,7 @@ UnionType_setattro(PyObject *self, PyObject *key, PyObject *value)
         return -1;
 
     if (PyUnicode_Check(key) &&
-        0 == strcmp(_PyUnicode_AsString(key), "_fields_"))
+        _PyUnicode_EqualToASCIIString(key, "_fields_"))
         return PyCStructUnionType_update_stgdict(self, value, 0);
     return 0;
 }
@@ -1724,7 +1729,7 @@ c_void_p_from_param(PyObject *type, PyObject *value)
     if (stgd && CDataObject_Check(value) && stgd->proto && PyUnicode_Check(stgd->proto)) {
         PyCArgObject *parg;
 
-        switch (_PyUnicode_AsString(stgd->proto)[0]) {
+        switch (PyUnicode_AsUTF8(stgd->proto)[0]) {
         case 'z': /* c_char_p */
         case 'Z': /* c_wchar_p */
             parg = PyCArgObject_new();
@@ -1836,7 +1841,7 @@ PyCSimpleType_paramfunc(CDataObject *self)
 
     dict = PyObject_stgdict((PyObject *)self);
     assert(dict); /* Cannot be NULL for CDataObject instances */
-    fmt = _PyUnicode_AsString(dict->proto);
+    fmt = PyUnicode_AsUTF8(dict->proto);
     assert(fmt);
 
     fd = _ctypes_get_fielddesc(fmt);
@@ -2060,7 +2065,7 @@ PyCSimpleType_from_param(PyObject *type, PyObject *value)
     assert(dict);
 
     /* I think we can rely on this being a one-character string */
-    fmt = _PyUnicode_AsString(dict->proto);
+    fmt = PyUnicode_AsUTF8(dict->proto);
     assert(fmt);
 
     fd = _ctypes_get_fielddesc(fmt);
@@ -3129,7 +3134,7 @@ _check_outarg_type(PyObject *arg, Py_ssize_t index)
         /* simple pointer types, c_void_p, c_wchar_p, BSTR, ... */
         && PyUnicode_Check(dict->proto)
 /* We only allow c_void_p, c_char_p and c_wchar_p as a simple output parameter type */
-        && (strchr("PzZ", _PyUnicode_AsString(dict->proto)[0]))) {
+        && (strchr("PzZ", PyUnicode_AsUTF8(dict->proto)[0]))) {
         return 1;
     }
 
@@ -3219,7 +3224,7 @@ _get_name(PyObject *obj, const char **pname)
         return *pname ? 1 : 0;
     }
     if (PyUnicode_Check(obj)) {
-        *pname = _PyUnicode_AsString(obj);
+        *pname = PyUnicode_AsUTF8(obj);
         return *pname ? 1 : 0;
     }
     PyErr_SetString(PyExc_TypeError,
@@ -5234,7 +5239,7 @@ cast_check_pointertype(PyObject *arg)
     dict = PyType_stgdict(arg);
     if (dict) {
         if (PyUnicode_Check(dict->proto)
-            && (strchr("sPzUZXO", _PyUnicode_AsString(dict->proto)[0]))) {
+            && (strchr("sPzUZXO", PyUnicode_AsUTF8(dict->proto)[0]))) {
             /* simple pointer types, c_void_p, c_wchar_p, BSTR, ... */
             return 1;
         }

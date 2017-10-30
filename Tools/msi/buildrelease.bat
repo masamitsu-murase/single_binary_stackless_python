@@ -35,7 +35,9 @@ set BUILDX86=
 set BUILDX64=
 set TARGET=Rebuild
 set TESTTARGETDIR=
-set PGO=default
+set PGO=-m test -q --pgo
+set BUILDNUGET=1
+set BUILDZIP=1
 
 
 :CheckOpts
@@ -56,6 +58,8 @@ if "%1" EQU "-x86" (set BUILDX86=1) && shift && goto CheckOpts
 if "%1" EQU "-x64" (set BUILDX64=1) && shift && goto CheckOpts
 if "%1" EQU "--pgo" (set PGO=%~2) && shift && shift && goto CheckOpts
 if "%1" EQU "--skip-pgo" (set PGO=) && shift && goto CheckOpts
+if "%1" EQU "--skip-nuget" (set BUILDNUGET=) && shift && goto CheckOpts
+if "%1" EQU "--skip-zip" (set BUILDZIP=) && shift && goto CheckOpts
 
 if "%1" NEQ "" echo Invalid option: "%1" && exit /B 1
 
@@ -105,14 +109,12 @@ exit /B 0
 @echo off
 
 if "%1" EQU "x86" (
-    call "%PCBUILD%env.bat" x86
     set PGO=
     set BUILD=%PCBUILD%win32\
     set BUILD_PLAT=Win32
     set OUTDIR_PLAT=win32
     set OBJDIR_PLAT=x86
 ) else (
-    call "%PCBUILD%env.bat" amd64
     set BUILD=%PCBUILD%amd64\
     set PGO=%~2
     set BUILD_PLAT=x64
@@ -137,39 +139,20 @@ if not "%CERTNAME%" EQU "" (
 ) else (
     set CERTOPTS=
 )
-
+if not "%PGO%" EQU "" (
+    set PGOOPTS=--pgo-job "%PGO%"
+) else (
+    set PGOOPTS=
+)
 if not "%SKIPBUILD%" EQU "1" (
-    @call "%PCBUILD%build.bat" -e -p %BUILD_PLAT% -d -t %TARGET% %CERTOPTS%
+    @echo call "%PCBUILD%build.bat" -e -p %BUILD_PLAT% -t %TARGET% %CERTOPTS% %PGOOPTS%
+    @call "%PCBUILD%build.bat" -e -p %BUILD_PLAT% -t %TARGET% %CERTOPTS% %PGOOPTS%
     @if errorlevel 1 exit /B
     @rem build.bat turns echo back on, so we disable it again
     @echo off
-    
-    if "%PGO%" EQU "" (
-        @call "%PCBUILD%build.bat" -e -p %BUILD_PLAT% -t %TARGET% %CERTOPTS%
-    ) else (
-        @call "%PCBUILD%build.bat" -e -p %BUILD_PLAT% -c PGInstrument -t %TARGET% %CERTOPTS%
-        @if errorlevel 1 exit /B
-        
-        @del "%BUILD%*.pgc"
-        if "%PGO%" EQU "default" (
-            "%BUILD%python.exe" -m test -q --pgo
-        ) else if "%PGO%" EQU "default2" (
-            "%BUILD%python.exe" -m test -r -q --pgo
-            "%BUILD%python.exe" -m test -r -q --pgo
-        ) else if "%PGO%" EQU "default10" (
-            for /L %%i in (0, 1, 9) do "%BUILD%python.exe" -m test -q -r --pgo
-        ) else if "%PGO%" EQU "pybench" (
-            "%BUILD%python.exe" "%PCBUILD%..\Tools\pybench\pybench.py"
-        ) else (
-            "%BUILD%python.exe" %PGO%
-        )
-        
-        @call "%PCBUILD%build.bat" -e -p %BUILD_PLAT% -c PGUpdate -t Build %CERTOPTS%
-    )
-    @if errorlevel 1 exit /B
-    @echo off
 )
 
+call "%PCBUILD%env.bat"
 if "%OUTDIR_PLAT%" EQU "win32" (
     msbuild "%D%launcher\launcher.wixproj" /p:Platform=x86 %CERTOPTS% /p:ReleaseUri=%RELEASE_URI%
     if errorlevel 1 exit /B
@@ -184,21 +167,31 @@ if errorlevel 1 exit /B
 msbuild "%D%bundle\releaseweb.wixproj" /t:Rebuild %BUILDOPTS% %CERTOPTS% /p:RebuildAll=false
 if errorlevel 1 exit /B
 
-msbuild "%D%make_zip.proj" /t:Build %BUILDOPTS% %CERTOPTS%
+if defined BUILDZIP (
+    msbuild "%D%make_zip.proj" /t:Build %BUILDOPTS% %CERTOPTS%
+    if errorlevel 1 exit /B
+)
+
+if defined BUILDNUGET (
+    msbuild "%D%..\nuget\make_pkg.proj" /t:Build /p:Configuration=Release /p:Platform=%1 /p:OutputPath="%BUILD%en-us"
+    if errorlevel 1 exit /B
+)
 
 if not "%OUTDIR%" EQU "" (
     mkdir "%OUTDIR%\%OUTDIR_PLAT%"
-    copy /Y "%BUILD%en-us\*.cab" "%OUTDIR%\%OUTDIR_PLAT%"
-    copy /Y "%BUILD%en-us\*.exe" "%OUTDIR%\%OUTDIR_PLAT%"
-    copy /Y "%BUILD%en-us\*.msi" "%OUTDIR%\%OUTDIR_PLAT%"
-    copy /Y "%BUILD%en-us\*.msu" "%OUTDIR%\%OUTDIR_PLAT%"
+    mkdir "%OUTDIR%\%OUTDIR_PLAT%\binaries"
+    mkdir "%OUTDIR%\%OUTDIR_PLAT%\symbols"
+    robocopy "%BUILD%en-us" "%OUTDIR%\%OUTDIR_PLAT%" /XF "*.wixpdb"
+    robocopy "%BUILD%\" "%OUTDIR%\%OUTDIR_PLAT%\binaries" *.exe *.dll *.pyd /XF "_test*" /XF "*_d.*" /XF "_freeze*" /XF "tcl*" /XF "tk*" /XF "*_test.*"
+    robocopy "%BUILD%\" "%OUTDIR%\%OUTDIR_PLAT%\symbols" *.pdb              /XF "_test*" /XF "*_d.*" /XF "_freeze*" /XF "tcl*" /XF "tk*" /XF "*_test.*"
 )
 
 exit /B 0
 
 :Help
-echo buildrelease.bat [--out DIR] [-x86] [-x64] [--certificate CERTNAME] [--build] [--skip-build]
-echo                  [--pgo COMMAND] [--skip-pgo] [--skip-doc] [--download DOWNLOAD URL] [--test TARGETDIR]
+echo buildrelease.bat [--out DIR] [-x86] [-x64] [--certificate CERTNAME] [--build] [--pgo COMMAND]
+echo                  [--skip-build] [--skip-doc] [--skip-nuget] [--skip-zip] [--skip-pgo]
+echo                  [--download DOWNLOAD URL] [--test TARGETDIR]
 echo                  [-h]
 echo.
 echo    --out (-o)          Specify an additional output directory for installers
@@ -208,7 +201,9 @@ echo    --build (-b)        Incrementally build Python rather than rebuilding
 echo    --skip-build (-B)   Do not build Python (just do the installers)
 echo    --skip-doc (-D)     Do not build documentation
 echo    --pgo               Specify PGO command for x64 installers
-echo    --skip-pgo          Build x64 installers using PGO
+echo    --skip-pgo          Build x64 installers without using PGO
+echo    --skip-nuget        Do not build Nuget packages
+echo    --skip-zip          Do not build embeddable package
 echo    --download          Specify the full download URL for MSIs
 echo    --test              Specify the test directory to run the installer tests
 echo    -h                  Display this help information
@@ -216,13 +211,8 @@ echo.
 echo If no architecture is specified, all architectures will be built.
 echo If --test is not specified, the installer tests are not run.
 echo.
-echo For the --pgo option, any Python command line can be used as well as the
-echo following shortcuts:
-echo     Shortcut        Description
-echo     default         Test suite with --pgo
-echo     default2        2x test suite with --pgo and randomized test order
-echo     default10       10x test suite with --pgo and randomized test order
-echo     pybench         pybench script
+echo For the --pgo option, any Python command line can be used, or 'default' to
+echo use the default task (-m test --pgo).
 echo.
 echo The following substitutions will be applied to the download URL:
 echo     Variable        Description         Example

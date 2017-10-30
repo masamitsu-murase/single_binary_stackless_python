@@ -56,7 +56,7 @@ except ImportError:
 try:
     import pwd
     all_users = [u.pw_uid for u in pwd.getpwall()]
-except ImportError:
+except (ImportError, AttributeError):
     all_users = []
 try:
     from _testcapi import INT_MAX, PY_SSIZE_T_MAX
@@ -853,37 +853,61 @@ class WalkTests(unittest.TestCase):
         #           SUB11/          no kids
         #         SUB2/             a file kid and a dirsymlink kid
         #           tmp3
+        #           SUB21/          not readable
+        #             tmp5
         #           link/           a symlink to TESTFN.2
         #           broken_link
+        #           broken_link2
+        #           broken_link3
         #       TEST2/
         #         tmp4              a lone file
         self.walk_path = join(support.TESTFN, "TEST1")
         self.sub1_path = join(self.walk_path, "SUB1")
         self.sub11_path = join(self.sub1_path, "SUB11")
         sub2_path = join(self.walk_path, "SUB2")
+        sub21_path = join(sub2_path, "SUB21")
         tmp1_path = join(self.walk_path, "tmp1")
         tmp2_path = join(self.sub1_path, "tmp2")
         tmp3_path = join(sub2_path, "tmp3")
+        tmp5_path = join(sub21_path, "tmp3")
         self.link_path = join(sub2_path, "link")
         t2_path = join(support.TESTFN, "TEST2")
         tmp4_path = join(support.TESTFN, "TEST2", "tmp4")
         broken_link_path = join(sub2_path, "broken_link")
+        broken_link2_path = join(sub2_path, "broken_link2")
+        broken_link3_path = join(sub2_path, "broken_link3")
 
         # Create stuff.
         os.makedirs(self.sub11_path)
         os.makedirs(sub2_path)
+        os.makedirs(sub21_path)
         os.makedirs(t2_path)
 
-        for path in tmp1_path, tmp2_path, tmp3_path, tmp4_path:
+        for path in tmp1_path, tmp2_path, tmp3_path, tmp4_path, tmp5_path:
             with open(path, "x") as f:
                 f.write("I'm " + path + " and proud of it.  Blame test_os.\n")
 
         if support.can_symlink():
             os.symlink(os.path.abspath(t2_path), self.link_path)
             os.symlink('broken', broken_link_path, True)
-            self.sub2_tree = (sub2_path, ["link"], ["broken_link", "tmp3"])
+            os.symlink(join('tmp3', 'broken'), broken_link2_path, True)
+            os.symlink(join('SUB21', 'tmp5'), broken_link3_path, True)
+            self.sub2_tree = (sub2_path, ["SUB21", "link"],
+                              ["broken_link", "broken_link2", "broken_link3",
+                               "tmp3"])
         else:
             self.sub2_tree = (sub2_path, [], ["tmp3"])
+
+        os.chmod(sub21_path, 0)
+        try:
+            os.listdir(sub21_path)
+        except PermissionError:
+            self.addCleanup(os.chmod, sub21_path, stat.S_IRWXU)
+        else:
+            os.chmod(sub21_path, stat.S_IRWXU)
+            os.unlink(tmp5_path)
+            os.rmdir(sub21_path)
+            del self.sub2_tree[1][:1]
 
     def test_walk_topdown(self):
         # Walk top-down.
@@ -896,6 +920,7 @@ class WalkTests(unittest.TestCase):
         flipped = all[0][1][0] != "SUB1"
         all[0][1].sort()
         all[3 - 2 * flipped][-1].sort()
+        all[3 - 2 * flipped][1].sort()
         self.assertEqual(all[0], (self.walk_path, ["SUB1", "SUB2"], ["tmp1"]))
         self.assertEqual(all[1 + flipped], (self.sub1_path, ["SUB11"], ["tmp2"]))
         self.assertEqual(all[2 + flipped], (self.sub11_path, [], []))
@@ -918,6 +943,7 @@ class WalkTests(unittest.TestCase):
                          (str(walk_path), ["SUB2"], ["tmp1"]))
 
         all[1][-1].sort()
+        all[1][1].sort()
         self.assertEqual(all[1], self.sub2_tree)
 
     def test_file_like_path(self):
@@ -934,6 +960,7 @@ class WalkTests(unittest.TestCase):
         flipped = all[3][1][0] != "SUB1"
         all[3][1].sort()
         all[2 - 2 * flipped][-1].sort()
+        all[2 - 2 * flipped][1].sort()
         self.assertEqual(all[3],
                          (self.walk_path, ["SUB1", "SUB2"], ["tmp1"]))
         self.assertEqual(all[flipped],
@@ -962,16 +989,21 @@ class WalkTests(unittest.TestCase):
         errors = []
         walk_it = self.walk(self.walk_path, onerror=errors.append)
         root, dirs, files = next(walk_it)
-        self.assertFalse(errors)
-        dir1 = dirs[0]
-        dir1new = dir1 + '.new'
-        os.rename(os.path.join(root, dir1), os.path.join(root, dir1new))
-        roots = [r for r, d, f in walk_it]
-        self.assertTrue(errors)
-        self.assertNotIn(os.path.join(root, dir1), roots)
-        self.assertNotIn(os.path.join(root, dir1new), roots)
-        for dir2 in dirs[1:]:
-            self.assertIn(os.path.join(root, dir2), roots)
+        self.assertEqual(errors, [])
+        dir1 = 'SUB1'
+        path1 = os.path.join(root, dir1)
+        path1new = os.path.join(root, dir1 + '.new')
+        os.rename(path1, path1new)
+        try:
+            roots = [r for r, d, f in walk_it]
+            self.assertTrue(errors)
+            self.assertNotIn(path1, roots)
+            self.assertNotIn(path1new, roots)
+            for dir2 in dirs:
+                if dir2 != dir1:
+                    self.assertIn(os.path.join(root, dir2), roots)
+        finally:
+            os.rename(path1new, path1)
 
 
 @unittest.skipUnless(hasattr(os, 'fwalk'), "Test needs os.fwalk()")
@@ -1391,7 +1423,12 @@ class URandomFDTests(unittest.TestCase):
                         break
                 os.closerange(3, 256)
             with open({TESTFN!r}, 'rb') as f:
-                os.dup2(f.fileno(), fd)
+                new_fd = f.fileno()
+                # Issue #26935: posix allows new_fd and fd to be equal but
+                # some libc implementations have dup2 return an error in this
+                # case.
+                if new_fd != fd:
+                    os.dup2(new_fd, fd)
                 sys.stdout.buffer.write(os.urandom(4))
                 sys.stdout.buffer.write(os.urandom(4))
             """.format(TESTFN=support.TESTFN)
@@ -1444,8 +1481,16 @@ class ExecTests(unittest.TestCase):
         self.assertRaises(OSError, os.execvpe, 'no such app-',
                           ['no such app-'], None)
 
+    def test_execv_with_bad_arglist(self):
+        self.assertRaises(ValueError, os.execv, 'notepad', ())
+        self.assertRaises(ValueError, os.execv, 'notepad', [])
+        self.assertRaises(ValueError, os.execv, 'notepad', ('',))
+        self.assertRaises(ValueError, os.execv, 'notepad', [''])
+
     def test_execvpe_with_bad_arglist(self):
         self.assertRaises(ValueError, os.execvpe, 'notepad', [], None)
+        self.assertRaises(ValueError, os.execvpe, 'notepad', [], {})
+        self.assertRaises(ValueError, os.execvpe, 'notepad', [''], {})
 
     @unittest.skipUnless(hasattr(os, '_execvpe'),
                          "No internal os._execvpe function to test.")
@@ -2284,6 +2329,33 @@ class SpawnTests(unittest.TestCase):
         exitcode = os.spawnve(os.P_WAIT, args[0], args, self.env)
         self.assertEqual(exitcode, self.exitcode)
 
+    @requires_os_func('spawnl')
+    def test_spawnl_noargs(self):
+        args = self.create_args()
+        self.assertRaises(ValueError, os.spawnl, os.P_NOWAIT, args[0])
+        self.assertRaises(ValueError, os.spawnl, os.P_NOWAIT, args[0], '')
+
+    @requires_os_func('spawnle')
+    def test_spawnle_noargs(self):
+        args = self.create_args()
+        self.assertRaises(ValueError, os.spawnle, os.P_NOWAIT, args[0], {})
+        self.assertRaises(ValueError, os.spawnle, os.P_NOWAIT, args[0], '', {})
+
+    @requires_os_func('spawnv')
+    def test_spawnv_noargs(self):
+        args = self.create_args()
+        self.assertRaises(ValueError, os.spawnv, os.P_NOWAIT, args[0], ())
+        self.assertRaises(ValueError, os.spawnv, os.P_NOWAIT, args[0], [])
+        self.assertRaises(ValueError, os.spawnv, os.P_NOWAIT, args[0], ('',))
+        self.assertRaises(ValueError, os.spawnv, os.P_NOWAIT, args[0], [''])
+
+    @requires_os_func('spawnve')
+    def test_spawnve_noargs(self):
+        args = self.create_args()
+        self.assertRaises(ValueError, os.spawnve, os.P_NOWAIT, args[0], (), {})
+        self.assertRaises(ValueError, os.spawnve, os.P_NOWAIT, args[0], [], {})
+        self.assertRaises(ValueError, os.spawnve, os.P_NOWAIT, args[0], ('',), {})
+        self.assertRaises(ValueError, os.spawnve, os.P_NOWAIT, args[0], [''], {})
 
 # The introduction of this TestCase caused at least two different errors on
 # *nix buildbots. Temporarily skip this to let the buildbots move along.
@@ -2828,13 +2900,8 @@ class OSErrorTests(unittest.TestCase):
                             func(name, *func_args)
                 except OSError as err:
                     self.assertIs(err.filename, name, str(func))
-                except RuntimeError as err:
-                    if sys.platform != 'win32':
-                        raise
-
-                    # issue27781: undecodable bytes currently raise RuntimeError
-                    # by 3.6.0b4 this will become UnicodeDecodeError or nothing
-                    self.assertIsInstance(err.__context__, UnicodeDecodeError)
+                except UnicodeDecodeError:
+                    pass
                 else:
                     self.fail("No exception thrown by {}".format(func))
 

@@ -4,6 +4,7 @@ import collections
 import errno
 import io
 import os
+import pathlib
 import signal
 import socket
 import stat
@@ -40,6 +41,7 @@ def close_pipe_transport(transport):
 class SelectorEventLoopSignalTests(test_utils.TestCase):
 
     def setUp(self):
+        super().setUp()
         self.loop = asyncio.SelectorEventLoop()
         self.set_event_loop(self.loop)
 
@@ -234,6 +236,7 @@ class SelectorEventLoopSignalTests(test_utils.TestCase):
 class SelectorEventLoopUnixSocketTests(test_utils.TestCase):
 
     def setUp(self):
+        super().setUp()
         self.loop = asyncio.SelectorEventLoop()
         self.set_event_loop(self.loop)
 
@@ -246,6 +249,15 @@ class SelectorEventLoopUnixSocketTests(test_utils.TestCase):
 
             coro = self.loop.create_unix_server(lambda: None, path)
             srv = self.loop.run_until_complete(coro)
+            srv.close()
+            self.loop.run_until_complete(srv.wait_closed())
+
+    @unittest.skipUnless(hasattr(os, 'fspath'), 'no os.fspath')
+    def test_create_unix_server_pathlib(self):
+        with test_utils.unix_socket_path() as path:
+            path = pathlib.Path(path)
+            srv_coro = self.loop.create_unix_server(lambda: None, path)
+            srv = self.loop.run_until_complete(srv_coro)
             srv.close()
             self.loop.run_until_complete(srv.wait_closed())
 
@@ -277,6 +289,33 @@ class SelectorEventLoopUnixSocketTests(test_utils.TestCase):
             with self.assertRaisesRegex(ValueError,
                                         'A UNIX Domain Stream.*was expected'):
                 self.loop.run_until_complete(coro)
+
+    def test_create_unix_server_path_dgram(self):
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+        with sock:
+            coro = self.loop.create_unix_server(lambda: None, path=None,
+                                                sock=sock)
+            with self.assertRaisesRegex(ValueError,
+                                        'A UNIX Domain Stream.*was expected'):
+                self.loop.run_until_complete(coro)
+
+    @unittest.skipUnless(hasattr(socket, 'SOCK_NONBLOCK'),
+                         'no socket.SOCK_NONBLOCK (linux only)')
+    def test_create_unix_server_path_stream_bittype(self):
+        sock = socket.socket(
+            socket.AF_UNIX, socket.SOCK_STREAM | socket.SOCK_NONBLOCK)
+        with tempfile.NamedTemporaryFile() as file:
+            fn = file.name
+        try:
+            with sock:
+                sock.bind(fn)
+                coro = self.loop.create_unix_server(lambda: None, path=None,
+                                                    sock=sock)
+                srv = self.loop.run_until_complete(coro)
+                srv.close()
+                self.loop.run_until_complete(srv.wait_closed())
+        finally:
+            os.unlink(fn)
 
     def test_create_unix_connection_path_inetsock(self):
         sock = socket.socket()
@@ -338,6 +377,7 @@ class SelectorEventLoopUnixSocketTests(test_utils.TestCase):
 class UnixReadPipeTransportTests(test_utils.TestCase):
 
     def setUp(self):
+        super().setUp()
         self.loop = self.new_test_loop()
         self.protocol = test_utils.make_test_protocol(asyncio.Protocol)
         self.pipe = mock.Mock(spec_set=io.RawIOBase)
@@ -487,6 +527,7 @@ class UnixReadPipeTransportTests(test_utils.TestCase):
 class UnixWritePipeTransportTests(test_utils.TestCase):
 
     def setUp(self):
+        super().setUp()
         self.loop = self.new_test_loop()
         self.protocol = test_utils.make_test_protocol(asyncio.BaseProtocol)
         self.pipe = mock.Mock(spec_set=io.RawIOBase)
@@ -805,6 +846,7 @@ class ChildWatcherTestsMixin:
     ignore_warnings = mock.patch.object(log.logger, "warning")
 
     def setUp(self):
+        super().setUp()
         self.loop = self.new_test_loop()
         self.running = False
         self.zombies = {}

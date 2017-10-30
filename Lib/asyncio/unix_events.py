@@ -39,6 +39,13 @@ def _sighandler_noop(signum, frame):
     pass
 
 
+try:
+    _fspath = os.fspath
+except AttributeError:
+    # Python 3.5 or earlier
+    _fspath = lambda path: path
+
+
 class _UnixSelectorEventLoop(selector_events.BaseSelectorEventLoop):
     """Unix event loop.
 
@@ -235,7 +242,7 @@ class _UnixSelectorEventLoop(selector_events.BaseSelectorEventLoop):
             if sock is None:
                 raise ValueError('no path and sock were specified')
             if (sock.family != socket.AF_UNIX or
-                    sock.type != socket.SOCK_STREAM):
+                    not base_events._is_stream_socket(sock)):
                 raise ValueError(
                     'A UNIX Domain Stream Socket was expected, got {!r}'
                     .format(sock))
@@ -256,6 +263,7 @@ class _UnixSelectorEventLoop(selector_events.BaseSelectorEventLoop):
                 raise ValueError(
                     'path and sock can not be specified at the same time')
 
+            path = _fspath(path)
             sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
             # Check for abstract socket. `str` and `bytes` paths are supported.
@@ -289,7 +297,7 @@ class _UnixSelectorEventLoop(selector_events.BaseSelectorEventLoop):
                     'path was not specified, and no sock specified')
 
             if (sock.family != socket.AF_UNIX or
-                    sock.type != socket.SOCK_STREAM):
+                    not base_events._is_stream_socket(sock)):
                 raise ValueError(
                     'A UNIX Domain Stream Socket was expected, got {!r}'
                     .format(sock))

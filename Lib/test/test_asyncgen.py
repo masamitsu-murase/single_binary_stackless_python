@@ -450,6 +450,83 @@ class AsyncGenAsyncioTest(unittest.TestCase):
 
         self.loop.run_until_complete(run())
 
+    def test_async_gen_asyncio_anext_06(self):
+        DONE = 0
+
+        # test synchronous generators
+        def foo():
+            try:
+                yield
+            except:
+                pass
+        g = foo()
+        g.send(None)
+        with self.assertRaises(StopIteration):
+            g.send(None)
+
+        # now with asynchronous generators
+
+        async def gen():
+            nonlocal DONE
+            try:
+                yield
+            except:
+                pass
+            DONE = 1
+
+        async def run():
+            nonlocal DONE
+            g = gen()
+            await g.asend(None)
+            with self.assertRaises(StopAsyncIteration):
+                await g.asend(None)
+            DONE += 10
+
+        self.loop.run_until_complete(run())
+        self.assertEqual(DONE, 11)
+
+    def test_async_gen_asyncio_anext_tuple(self):
+        async def foo():
+            try:
+                yield (1,)
+            except ZeroDivisionError:
+                yield (2,)
+
+        async def run():
+            it = foo().__aiter__()
+
+            self.assertEqual(await it.__anext__(), (1,))
+            with self.assertRaises(StopIteration) as cm:
+                it.__anext__().throw(ZeroDivisionError)
+            self.assertEqual(cm.exception.args[0], (2,))
+            with self.assertRaises(StopAsyncIteration):
+                await it.__anext__()
+
+        self.loop.run_until_complete(run())
+
+    def test_async_gen_asyncio_anext_stopiteration(self):
+        async def foo():
+            try:
+                yield StopIteration(1)
+            except ZeroDivisionError:
+                yield StopIteration(3)
+
+        async def run():
+            it = foo().__aiter__()
+
+            v = await it.__anext__()
+            self.assertIsInstance(v, StopIteration)
+            self.assertEqual(v.value, 1)
+            with self.assertRaises(StopIteration) as cm:
+                it.__anext__().throw(ZeroDivisionError)
+            v = cm.exception.args[0]
+            self.assertIsInstance(v, StopIteration)
+            self.assertEqual(v.value, 3)
+            with self.assertRaises(StopAsyncIteration):
+                await it.__anext__()
+
+        self.loop.run_until_complete(run())
+
     def test_async_gen_asyncio_aclose_06(self):
         async def foo():
             try:
@@ -551,6 +628,76 @@ class AsyncGenAsyncioTest(unittest.TestCase):
 
         self.loop.run_until_complete(run())
         self.assertEqual(DONE, 1)
+
+    def test_async_gen_asyncio_aclose_10(self):
+        DONE = 0
+
+        # test synchronous generators
+        def foo():
+            try:
+                yield
+            except:
+                pass
+        g = foo()
+        g.send(None)
+        g.close()
+
+        # now with asynchronous generators
+
+        async def gen():
+            nonlocal DONE
+            try:
+                yield
+            except:
+                pass
+            DONE = 1
+
+        async def run():
+            nonlocal DONE
+            g = gen()
+            await g.asend(None)
+            await g.aclose()
+            DONE += 10
+
+        self.loop.run_until_complete(run())
+        self.assertEqual(DONE, 11)
+
+    def test_async_gen_asyncio_aclose_11(self):
+        DONE = 0
+
+        # test synchronous generators
+        def foo():
+            try:
+                yield
+            except:
+                pass
+            yield
+        g = foo()
+        g.send(None)
+        with self.assertRaisesRegex(RuntimeError, 'ignored GeneratorExit'):
+            g.close()
+
+        # now with asynchronous generators
+
+        async def gen():
+            nonlocal DONE
+            try:
+                yield
+            except:
+                pass
+            yield
+            DONE += 1
+
+        async def run():
+            nonlocal DONE
+            g = gen()
+            await g.asend(None)
+            with self.assertRaisesRegex(RuntimeError, 'ignored GeneratorExit'):
+                await g.aclose()
+            DONE += 10
+
+        self.loop.run_until_complete(run())
+        self.assertEqual(DONE, 10)
 
     def test_async_gen_asyncio_asend_01(self):
         DONE = 0
@@ -758,6 +905,78 @@ class AsyncGenAsyncioTest(unittest.TestCase):
         with self.assertRaises(asyncio.CancelledError):
             self.loop.run_until_complete(run())
         self.assertEqual(DONE, 1)
+
+    def test_async_gen_asyncio_athrow_03(self):
+        DONE = 0
+
+        # test synchronous generators
+        def foo():
+            try:
+                yield
+            except:
+                pass
+        g = foo()
+        g.send(None)
+        with self.assertRaises(StopIteration):
+            g.throw(ValueError)
+
+        # now with asynchronous generators
+
+        async def gen():
+            nonlocal DONE
+            try:
+                yield
+            except:
+                pass
+            DONE = 1
+
+        async def run():
+            nonlocal DONE
+            g = gen()
+            await g.asend(None)
+            with self.assertRaises(StopAsyncIteration):
+                await g.athrow(ValueError)
+            DONE += 10
+
+        self.loop.run_until_complete(run())
+        self.assertEqual(DONE, 11)
+
+    def test_async_gen_asyncio_athrow_tuple(self):
+        async def gen():
+            try:
+                yield 1
+            except ZeroDivisionError:
+                yield (2,)
+
+        async def run():
+            g = gen()
+            v = await g.asend(None)
+            self.assertEqual(v, 1)
+            v = await g.athrow(ZeroDivisionError)
+            self.assertEqual(v, (2,))
+            with self.assertRaises(StopAsyncIteration):
+                await g.asend(None)
+
+        self.loop.run_until_complete(run())
+
+    def test_async_gen_asyncio_athrow_stopiteration(self):
+        async def gen():
+            try:
+                yield 1
+            except ZeroDivisionError:
+                yield StopIteration(2)
+
+        async def run():
+            g = gen()
+            v = await g.asend(None)
+            self.assertEqual(v, 1)
+            v = await g.athrow(ZeroDivisionError)
+            self.assertIsInstance(v, StopIteration)
+            self.assertEqual(v.value, 2)
+            with self.assertRaises(StopAsyncIteration):
+                await g.asend(None)
+
+        self.loop.run_until_complete(run())
 
     def test_async_gen_asyncio_shutdown_01(self):
         finalized = 0

@@ -293,7 +293,8 @@ class ProcessTestCase(BaseTestCase):
         # Verify first that the call succeeds without the executable arg.
         pre_args = [sys.executable, "-c"]
         self._assert_python(pre_args)
-        self.assertRaises(FileNotFoundError, self._assert_python, pre_args,
+        self.assertRaises((FileNotFoundError, PermissionError),
+                          self._assert_python, pre_args,
                           executable="doesnotexist")
 
     @unittest.skipIf(mswindows, "executable argument replaces shell")
@@ -1013,6 +1014,19 @@ class ProcessTestCase(BaseTestCase):
         # Some heavily loaded buildbots (sparc Debian 3.x) require this much
         # time to start.
         self.assertEqual(p.wait(timeout=3), 0)
+
+    def test_wait_endtime(self):
+        """Confirm that the deprecated endtime parameter warns."""
+        p = subprocess.Popen([sys.executable, "-c", "pass"])
+        try:
+            with self.assertWarns(DeprecationWarning) as warn_cm:
+                p.wait(endtime=time.time()+0.01)
+        except subprocess.TimeoutExpired:
+            pass  # We're not testing endtime timeout behavior.
+        finally:
+            p.kill()
+        self.assertIn('test_subprocess.py', warn_cm.filename)
+        self.assertIn('endtime', str(warn_cm.warning))
 
     def test_invalid_bufsize(self):
         # an invalid type of the bufsize argument should raise
@@ -2753,7 +2767,7 @@ class ContextManagerTests(BaseTestCase):
             self.assertEqual(proc.returncode, 1)
 
     def test_invalid_args(self):
-        with self.assertRaises(FileNotFoundError) as c:
+        with self.assertRaises((FileNotFoundError, PermissionError)) as c:
             with subprocess.Popen(['nonexisting_i_hope'],
                                   stdout=subprocess.PIPE,
                                   stderr=subprocess.PIPE) as proc:
@@ -2775,20 +2789,6 @@ class ContextManagerTests(BaseTestCase):
         self.assertEqual(proc.returncode, 0)
         self.assertTrue(proc.stdin.closed)
 
-
-def test_main():
-    unit_tests = (ProcessTestCase,
-                  POSIXProcessTestCase,
-                  Win32ProcessTestCase,
-                  MiscTests,
-                  ProcessTestCaseNoPoll,
-                  CommandsWithSpaces,
-                  ContextManagerTests,
-                  RunFuncTestCase,
-                  )
-
-    support.run_unittest(*unit_tests)
-    support.reap_children()
 
 if __name__ == "__main__":
     unittest.main()

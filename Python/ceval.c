@@ -2065,7 +2065,7 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
                 Py_DECREF(iter);
 
                 if (PyErr_WarnFormat(
-                        PyExc_PendingDeprecationWarning, 1,
+                        PyExc_DeprecationWarning, 1,
                         "'%.100s' implements legacy __aiter__ protocol; "
                         "__aiter__ should return an asynchronous "
                         "iterator, not awaitable",
@@ -2294,7 +2294,7 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
             else {
                 PyObject *build_class_str = _PyUnicode_FromId(&PyId___build_class__);
                 if (build_class_str == NULL)
-                    break;
+                    goto error;
                 bc = PyObject_GetItem(f->f_builtins, build_class_str);
                 if (bc == NULL) {
                     if (PyErr_ExceptionMatches(PyExc_KeyError))
@@ -2616,8 +2616,9 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
         TARGET(STORE_DEREF) {
             PyObject *v = POP();
             PyObject *cell = freevars[oparg];
-            PyCell_Set(cell, v);
-            Py_DECREF(v);
+            PyObject *oldobj = PyCell_GET(cell);
+            PyCell_SET(cell, v);
+            Py_XDECREF(oldobj);
             DISPATCH();
         }
 
@@ -2806,7 +2807,7 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
                 /* do the same if locals() is not a dict */
                 PyObject *ann_str = _PyUnicode_FromId(&PyId___annotations__);
                 if (ann_str == NULL) {
-                    break;
+                    goto error;
                 }
                 ann_dict = PyObject_GetItem(f->f_locals, ann_str);
                 if (ann_dict == NULL) {
@@ -5222,7 +5223,7 @@ PyEval_GetFuncName(PyObject *func)
     if (PyMethod_Check(func))
         return PyEval_GetFuncName(PyMethod_GET_FUNCTION(func));
     else if (PyFunction_Check(func))
-        return _PyUnicode_AsString(((PyFunctionObject*)func)->func_name);
+        return PyUnicode_AsUTF8(((PyFunctionObject*)func)->func_name);
     else if (PyCFunction_Check(func))
         return ((PyCFunctionObject*)func)->m_ml->ml_name;
     else
@@ -5836,7 +5837,7 @@ format_exc_check_arg(PyObject *exc, const char *format_str, PyObject *obj)
     if (!obj)
         return;
 
-    obj_str = _PyUnicode_AsString(obj);
+    obj_str = PyUnicode_AsUTF8(obj);
     if (!obj_str)
         return;
 

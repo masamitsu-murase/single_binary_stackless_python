@@ -230,7 +230,7 @@ PyCurses_ConvertToChtype(PyCursesWindowObject *win, PyObject *obj, chtype *ch)
                 encoding = win->encoding;
             else
                 encoding = screen_encoding;
-            bytes = PyUnicode_AsEncodedObject(obj, encoding, NULL);
+            bytes = PyUnicode_AsEncodedString(obj, encoding, NULL);
             if (bytes == NULL)
                 return 0;
             if (PyBytes_GET_SIZE(bytes) == 1)
@@ -280,7 +280,7 @@ static int
 PyCurses_ConvertToCchar_t(PyCursesWindowObject *win, PyObject *obj,
                           chtype *ch
 #ifdef HAVE_NCURSESW
-                          , cchar_t *wch
+                          , wchar_t *wch
 #endif
                           )
 {
@@ -298,8 +298,7 @@ PyCurses_ConvertToCchar_t(PyCursesWindowObject *win, PyObject *obj,
                          PyUnicode_GET_LENGTH(obj));
             return 0;
         }
-        memset(wch->chars, 0, sizeof(wch->chars));
-        wch->chars[0] = buffer[0];
+        *wch = buffer[0];
         return 2;
 #else
         return PyCurses_ConvertToChtype(win, obj, ch);
@@ -352,7 +351,7 @@ PyCurses_ConvertToString(PyCursesWindowObject *win, PyObject *obj,
         return 2;
 #else
         assert (wstr == NULL);
-        *bytes = PyUnicode_AsEncodedObject(obj, win->encoding, NULL);
+        *bytes = PyUnicode_AsEncodedString(obj, win->encoding, NULL);
         if (*bytes == NULL)
             return 0;
         return 1;
@@ -597,7 +596,8 @@ curses_window_addch_impl(PyCursesWindowObject *self, int group_left_1, int y,
     int type;
     chtype cch;
 #ifdef HAVE_NCURSESW
-    cchar_t wch;
+    wchar_t wstr[2];
+    cchar_t wcval;
 #endif
     const char *funcname;
 
@@ -605,14 +605,15 @@ curses_window_addch_impl(PyCursesWindowObject *self, int group_left_1, int y,
       attr = A_NORMAL;
 
 #ifdef HAVE_NCURSESW
-    type = PyCurses_ConvertToCchar_t(cwself, ch, &cch, &wch);
+    type = PyCurses_ConvertToCchar_t(cwself, ch, &cch, wstr);
     if (type == 2) {
         funcname = "add_wch";
-        wch.attr = attr;
+        wstr[1] = L'\0';
+        setcchar(&wcval, wstr, attr, 0, NULL);
         if (coordinates_group)
-            rtn = mvwadd_wch(cwself->win,y,x, &wch);
+            rtn = mvwadd_wch(cwself->win,y,x, &wcval);
         else {
-            rtn = wadd_wch(cwself->win, &wch);
+            rtn = wadd_wch(cwself->win, &wcval);
         }
     }
     else

@@ -92,6 +92,13 @@ f'{a * x()}'"""
         exec(c)
         self.assertEqual(x[0], 'foo3')
 
+    def test_compile_time_concat_errors(self):
+        self.assertAllRaise(SyntaxError,
+                            'cannot mix bytes and nonbytes literals',
+                            [r"""f'' b''""",
+                             r"""b'' f''""",
+                             ])
+
     def test_literal(self):
         self.assertEqual(f'', '')
         self.assertEqual(f'a', 'a')
@@ -378,14 +385,18 @@ f'{a * x()}'"""
                              r"rf'{\t3}'",
                              r"rf'{\}'",
                              r"""rf'{"\N{LEFT CURLY BRACKET}"}'""",
+                             r"f'{\n}'",
                              ])
 
     def test_no_escapes_for_braces(self):
-        # \x7b is '{'.  Make sure it doesn't start an expression.
-        self.assertEqual(f'\x7b2}}', '{2}')
-        self.assertEqual(f'\x7b2', '{2')
-        self.assertEqual(f'\u007b2', '{2')
-        self.assertEqual(f'\N{LEFT CURLY BRACKET}2\N{RIGHT CURLY BRACKET}', '{2}')
+        """
+        Only literal curly braces begin an expression.
+        """
+        # \x7b is '{'.
+        self.assertEqual(f'\x7b1+1}}', '{1+1}')
+        self.assertEqual(f'\x7b1+1', '{1+1')
+        self.assertEqual(f'\u007b1+1', '{1+1')
+        self.assertEqual(f'\N{LEFT CURLY BRACKET}1+1\N{RIGHT CURLY BRACKET}', '{1+1}')
 
     def test_newlines_in_expressions(self):
         self.assertEqual(f'{0}', '0')
@@ -627,6 +638,7 @@ f'{a * x()}'"""
                              "f'}'",
                              "f'x}'",
                              "f'x}x'",
+                             r"f'\u007b}'",
 
                              # Can't have { or } in a format spec.
                              "f'{3:}>10}'",
@@ -720,7 +732,7 @@ f'{a * x()}'"""
 
     def test_errors(self):
         # see issue 26287
-        self.assertAllRaise(TypeError, 'non-empty',
+        self.assertAllRaise(TypeError, 'unsupported',
                             [r"f'{(lambda: 0):x}'",
                              r"f'{(0,):x}'",
                              ])

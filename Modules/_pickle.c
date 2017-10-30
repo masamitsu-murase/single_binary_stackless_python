@@ -1701,7 +1701,7 @@ whichmodule(PyObject *global, PyObject *dotted_path)
     while (PyDict_Next(modules_dict, &i, &module_name, &module)) {
         PyObject *candidate;
         if (PyUnicode_Check(module_name) &&
-            !PyUnicode_CompareWithASCIIString(module_name, "__main__"))
+            _PyUnicode_EqualToASCIIString(module_name, "__main__"))
             continue;
         if (module == Py_None)
             continue;
@@ -1965,7 +1965,7 @@ save_long(PicklerObject *self, PyObject *obj)
         if (repr == NULL)
             goto error;
 
-        string = _PyUnicode_AsStringAndSize(repr, &size);
+        string = PyUnicode_AsUTF8AndSize(repr, &size);
         if (string == NULL)
             goto error;
 
