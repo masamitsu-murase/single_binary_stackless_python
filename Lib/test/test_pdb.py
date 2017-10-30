@@ -912,6 +912,10 @@ def test_pdb_next_command_subiterator():
     """
 
 def test_pdb_issue_20766():
+    # This test depends on undefined behaviour of C-Python: the value
+    # of frame.f_lineno is only valid, if frame.f_trace is not None.
+    # Stackless Python behaves exactly like C-Python, if soft-switching
+    # is disabled.
     """Test for reference leaks when the SIGINT handler is set.
 
     >>> def test_function():
@@ -924,7 +928,16 @@ def test_pdb_issue_20766():
 
     >>> with PdbTestInput(['continue',
     ...                    'continue']):
-    ...     test_function()
+    ...     try:
+    ...         import stackless
+    ...         softswitch_state = stackless.enable_softswitch(False)
+    ...     except ImportError:
+    ...         test_function()
+    ...     else:
+    ...         try:
+    ...             test_function()
+    ...         finally:
+    ...             softswitch_state = stackless.enable_softswitch(softswitch_state)
     > <doctest test.test_pdb.test_pdb_issue_20766[0]>(6)test_function()
     -> print('pdb %d: %s' % (i, sess._previous_sigint_handler))
     (Pdb) continue
