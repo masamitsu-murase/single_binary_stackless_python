@@ -3303,15 +3303,15 @@ stackless_iter_return:
             _Py_IDENTIFIER(__exit__);
             _Py_IDENTIFIER(__enter__);
             PyObject *mgr = TOP();
-            PyObject *exit = special_lookup(mgr, &PyId___exit__), *enter;
+            PyObject *enter = special_lookup(mgr, &PyId___enter__), *exit;
             PyObject *res;
+            if (enter == NULL)
+                goto error;
+            exit = special_lookup(mgr, &PyId___exit__);
             if (exit == NULL)
                 goto error;
             SET_TOP(exit);
-            enter = special_lookup(mgr, &PyId___enter__);
             Py_DECREF(mgr);
-            if (enter == NULL)
-                goto error;
             STACKLESS_PROPOSE_ALL();
             res = PyObject_CallFunctionObjArgs(enter, NULL);
             STACKLESS_ASSERT();
