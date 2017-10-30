@@ -2386,7 +2386,8 @@ class sched_param_converter(CConverter):
 os.stat
 
     path : path_t(allow_fd=True)
-        Path to be examined; can be string, bytes, or open-file-descriptor int.
+        Path to be examined; can be string, bytes, path-like object or
+        open-file-descriptor int.
 
     *
 
@@ -2413,7 +2414,7 @@ It's an error to use dir_fd or follow_symlinks when specifying path as
 
 static PyObject *
 os_stat_impl(PyObject *module, path_t *path, int dir_fd, int follow_symlinks)
-/*[clinic end generated code: output=7d4976e6f18a59c5 input=099d356c306fa24a]*/
+/*[clinic end generated code: output=7d4976e6f18a59c5 input=270bd64e7bb3c8f7]*/
 {
     return posix_do_stat("stat", path, dir_fd, follow_symlinks);
 }
@@ -11864,7 +11865,6 @@ ScandirIterator_finalize(ScandirIterator *iterator)
         }
     }
 
-    Py_CLEAR(iterator->path.object);
     path_cleanup(&iterator->path);
 
     /* Restore the saved exception. */
@@ -11967,12 +11967,6 @@ posix_scandir(PyObject *self, PyObject *args, PyObject *kwargs)
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|O&:scandir", keywords,
                                      path_converter, &iterator->path))
         goto error;
-
-    /* path_converter doesn't keep path.object around, so do it
-       manually for the lifetime of the iterator here (the refcount
-       is decremented in ScandirIterator_dealloc)
-    */
-    Py_XINCREF(iterator->path.object);
 
 #ifdef MS_WINDOWS
     iterator->first_time = 1;
