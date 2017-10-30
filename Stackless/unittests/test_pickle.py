@@ -632,6 +632,60 @@ class TestTraceback(StacklessPickleTestCase):
         self.assertListEqual([i[1:] for i in all_outerframes_orig[:l - 1]], [i[1:] for i in all_outerframes[:l - 1]])
 
 
+class TestCoroutinePickling(StacklessPickleTestCase):
+    @types.coroutine
+    def yield1(self, value):
+        yield value
+
+    async def c(self):
+        await self.yield1(1)
+
+    def test_without_pickling(self):
+        c = self.c()
+        self.assertIsInstance(c, types.CoroutineType)
+        self.assertIsNone(c.cr_await)
+        self.assertIsNotNone(c.cr_frame)
+        self.assertEqual(c.send(None), 1)
+        self.assertIsNotNone(c.cr_await)
+        self.assertIsNotNone(c.cr_frame)
+        self.assertRaises(StopIteration, c.send, None)
+        self.assertIsNone(c.cr_await)
+        self.assertIsNone(c.cr_frame)
+        self.assertRaisesRegex(RuntimeError, "cannot reuse already awaited coroutine", c.send, None)
+
+    def test_pickling1(self):
+        c = self.c()
+        p = self.dumps(c)
+        c.send(None)
+        c = self.loads(p)
+        self.assertIsInstance(c, types.CoroutineType)
+        self.assertIsNone(c.cr_await)
+        self.assertIsNotNone(c.cr_frame)
+        self.assertEqual(c.send(None), 1)
+        self.assertRaises(StopIteration, c.send, None)
+
+    def test_pickling2(self):
+        c = self.c()
+        self.assertEqual(c.send(None), 1)
+        p = self.dumps(c)
+        c = self.loads(p)
+        self.assertIsInstance(c, types.CoroutineType)
+        self.assertIsNotNone(c.cr_await)
+        self.assertIsNotNone(c.cr_frame)
+        self.assertRaises(StopIteration, c.send, None)
+
+    def test_pickling3(self):
+        c = self.c()
+        self.assertEqual(c.send(None), 1)
+        self.assertRaises(StopIteration, c.send, None)
+        p = self.dumps(c)
+        c = self.loads(p)
+        self.assertIsInstance(c, types.CoroutineType)
+        self.assertIsNone(c.cr_await)
+        self.assertIsNone(c.cr_frame)
+        self.assertRaisesRegex(RuntimeError, "cannot reuse already awaited coroutine", c.send, None)
+
+
 class TestCopy(StacklessTestCase):
     ITERATOR_TYPE = type(iter("abc"))
 
@@ -653,6 +707,7 @@ class TestCopy(StacklessTestCase):
             # it is a shallow copy, therefore the attributes should
             # refer to the same objects
             self.assertIs(value_c, value_obj)
+        return c
 
     def test_module_stackless(self):
         # test for issue 128
@@ -706,7 +761,7 @@ class TestCopy(StacklessTestCase):
         def g():
             yield 1
         obj = g()
-        self._test(obj, 'gi_running', 'gi_code')
+        self._test(obj, 'gi_running', 'gi_code', '__name__', '__qualname__')
 
     def test_dict_keys(self):
         d = {1: 10, "a": "ABC"}
@@ -722,6 +777,15 @@ class TestCopy(StacklessTestCase):
         d = {1: 10, "a": "ABC"}
         obj = d.items()
         self._test(obj)
+
+    def test_coroutine(self):
+        async def c():
+            return 1
+        obj = c()
+        c = self._test(obj, 'cr_running', 'cr_code', '__name__', '__qualname__')
+        self.assertRaises(StopIteration, obj.send, None)
+        self.assertRaises(StopIteration, c.send, None)
+
 
 if __name__ == '__main__':
     if not sys.argv[1:]:
