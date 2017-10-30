@@ -627,6 +627,25 @@ Callable types
       as well as :keyword:`async with` and :keyword:`async for` statements. See
       also the :ref:`coroutine-objects` section.
 
+   Asynchronous generator functions
+      .. index::
+         single: asynchronous generator; function
+         single: asynchronous generator; asynchronous iterator
+
+      A function or method which is defined using :keyword:`async def` and
+      which uses the :keyword:`yield` statement is called a
+      :dfn:`asynchronous generator function`.  Such a function, when called,
+      returns an asynchronous iterator object which can be used in an
+      :keyword:`async for` statement to execute the body of the function.
+
+      Calling the asynchronous iterator's :meth:`aiterator.__anext__` method
+      will return an :term:`awaitable` which when awaited
+      will execute until it provides a value using the :keyword:`yield`
+      expression.  When the function executes an empty :keyword:`return`
+      statement or falls off the end, a :exc:`StopAsyncIteration` exception
+      is raised and the asynchronous iterator will have reached the end of
+      the set of values to be yielded.
+
    Built-in functions
       .. index::
          object: built-in function
@@ -769,11 +788,10 @@ Custom classes
    Special attributes: :attr:`~definition.__name__` is the class name; :attr:`__module__` is
    the module name in which the class was defined; :attr:`~object.__dict__` is the
    dictionary containing the class's namespace; :attr:`~class.__bases__` is a
-   tuple (possibly empty or a singleton) containing the base classes, in the
-   order of their occurrence in the base class list; :attr:`__doc__` is the
-   class's documentation string, or ``None`` if undefined;
-   :attr:`__annotations__` (optional) is a dictionary containing
-   :term:`variable annotations <variable annotation>` collected during
+   tuple containing the base classes, in the order of their occurrence in the
+   base class list; :attr:`__doc__` is the class's documentation string,
+   or ``None`` if undefined; :attr:`__annotations__` (optional) is a dictionary
+   containing :term:`variable annotations <variable annotation>` collected during
    class body execution.
 
 Class instances
@@ -1319,11 +1337,14 @@ Basic customization
 
    Called by built-in function :func:`hash` and for operations on members of
    hashed collections including :class:`set`, :class:`frozenset`, and
-   :class:`dict`.  :meth:`__hash__` should return an integer.  The only
-   required property is that objects which compare equal have the same hash
-   value; it is advised to somehow mix together (e.g. using exclusive or) the
-   hash values for the components of the object that also play a part in
-   comparison of objects.
+   :class:`dict`.  :meth:`__hash__` should return an integer. The only required
+   property is that objects which compare equal have the same hash value; it is
+   advised to mix together the hash values of the components of the object that
+   also play a part in comparison of objects by packing them into a tuple and
+   hashing the tuple. Example::
+
+       def __hash__(self):
+           return hash((self.name, self.nick, self.color))
 
    .. note::
 
@@ -1700,6 +1721,10 @@ class defining the method.
 Metaclasses
 ^^^^^^^^^^^
 
+.. index::
+    single: metaclass
+    builtin: type
+
 By default, classes are constructed using :func:`type`. The class body is
 executed in a new namespace and the class name is bound locally to the
 result of ``type(name, bases, namespace)``.
@@ -1730,6 +1755,8 @@ When a class definition is executed, the following steps occur:
 
 Determining the appropriate metaclass
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. index::
+    single: metaclass hint
 
 The appropriate metaclass for a class definition is determined as follows:
 
@@ -1751,6 +1778,9 @@ that criterion, then the class definition will fail with ``TypeError``.
 Preparing the class namespace
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+.. index::
+    single: __prepare__ (metaclass method)
+
 Once the appropriate metaclass has been identified, then the class namespace
 is prepared. If the metaclass has a ``__prepare__`` attribute, it is called
 as ``namespace = metaclass.__prepare__(name, bases, **kwds)`` (where the
@@ -1768,6 +1798,9 @@ is initialised as an empty ordered mapping.
 Executing the class body
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
+.. index::
+    single: class; body
+
 The class body is executed (approximately) as
 ``exec(body, globals(), namespace)``. The key difference from a normal
 call to :func:`exec` is that lexical scoping allows the class body (including
@@ -1777,11 +1810,18 @@ class definition occurs inside a function.
 However, even when the class definition occurs inside the function, methods
 defined inside the class still cannot see names defined at the class scope.
 Class variables must be accessed through the first parameter of instance or
-class methods, and cannot be accessed at all from static methods.
+class methods, or through the implicit lexically scoped ``__class__`` reference
+described in the next section.
 
+.. _class-object-creation:
 
 Creating the class object
 ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. index::
+    single: __class__ (method cell)
+    single: __classcell__ (class namespace entry)
+
 
 Once the class namespace has been populated by executing the class body,
 the class object is created by calling
@@ -1795,6 +1835,26 @@ created by the compiler if any methods in a class body refer to either
 :func:`super` to correctly identify the class being defined based on
 lexical scoping, while the class or instance that was used to make the
 current call is identified based on the first argument passed to the method.
+
+.. impl-detail::
+
+   In CPython 3.6 and later, the ``__class__`` cell is passed to the metaclass
+   as a ``__classcell__`` entry in the class namespace. If present, this must
+   be propagated up to the ``type.__new__`` call in order for the class to be
+   initialised correctly.
+   Failing to do so will result in a :exc:`DeprecationWarning` in Python 3.6,
+   and a :exc:`RuntimeWarning` in the future.
+
+When using the default metaclass :class:`type`, or any metaclass that ultimately
+calls ``type.__new__``, the following additional customisation steps are
+invoked after creating the class object:
+
+* first, ``type.__new__`` collects all of the descriptors in the class
+  namespace that define a :meth:`~object.__set_name__` method;
+* second, all of these ``__set_name__`` methods are called with the class
+  being defined and the assigned name of that particular descriptor; and
+* finally, the :meth:`~object.__init_subclass__` hook is called on the
+  immediate parent of the new class in its method resolution order.
 
 After the class object is created, it is passed to the class decorators
 included in the class definition (if any) and the resulting object is bound

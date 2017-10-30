@@ -563,6 +563,10 @@ The module defines the following classes, functions and decorators:
    As a shorthand for this type, :class:`bytes` can be used to
    annotate arguments of any of the types mentioned above.
 
+.. class:: Deque(deque, MutableSequence[T])
+
+   A generic version of :class:`collections.deque`.
+
 .. class:: List(list, MutableSequence[T])
 
    Generic version of :class:`list`.
@@ -583,6 +587,10 @@ The module defines the following classes, functions and decorators:
 .. class:: Set(set, MutableSet[T])
 
    A generic version of :class:`builtins.set <set>`.
+
+.. class:: FrozenSet(frozenset, AbstractSet[T_co])
+
+   A generic version of :class:`builtins.frozenset <frozenset>`.
 
 .. class:: MappingView(Sized, Iterable[T_co])
 
@@ -750,7 +758,7 @@ The module defines the following classes, functions and decorators:
    runtime we intentionally don't check anything (we want this
    to be as fast as possible).
 
-.. function:: get_type_hints(obj[, globals[, locals])
+.. function:: get_type_hints(obj[, globals[, locals]])
 
    Return a dictionary containing type hints for a function, method, module
    or class object.

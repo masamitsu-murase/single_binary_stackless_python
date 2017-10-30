@@ -1,5 +1,5 @@
-:mod:`importlib` -- The implementation of :keyword:`import`
-===========================================================
+:mod:`importlib` --- The implementation of :keyword:`import`
+============================================================
 
 .. module:: importlib
    :synopsis: The implementation of the import machinery.
@@ -805,6 +805,10 @@ find and load modules.
    instantiation.
 
    .. versionadded:: 3.3
+
+   .. deprecated:: 3.6
+      Use :mod:`site` configuration instead. Future versions of Python may
+      not enable this finder by default.
 
 
 .. class:: PathFinder

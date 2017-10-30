@@ -59,6 +59,7 @@ __all__ = [
     'SupportsRound',
 
     # Concrete collection types.
+    'Deque',
     'Dict',
     'DefaultDict',
     'List',
@@ -870,6 +871,17 @@ def _make_subclasshook(cls):
     return __extrahook__
 
 
+def _no_slots_copy(dct):
+    """Internal helper: copy class __dict__ and clean slots class variables.
+    (They will be re-created if necessary by normal class machinery.)
+    """
+    dict_copy = dict(dct)
+    if '__slots__' in dict_copy:
+        for slot in dict_copy['__slots__']:
+            dict_copy.pop(slot, None)
+    return dict_copy
+
+
 class GenericMeta(TypingMeta, abc.ABCMeta):
     """Metaclass for generic types."""
 
@@ -967,7 +979,7 @@ class GenericMeta(TypingMeta, abc.ABCMeta):
             return self
         return self.__class__(self.__name__,
                               self.__bases__,
-                              dict(self.__dict__),
+                              _no_slots_copy(self.__dict__),
                               tvars=_type_vars(ev_args) if ev_args else None,
                               args=ev_args,
                               origin=ev_origin,
@@ -1043,7 +1055,7 @@ class GenericMeta(TypingMeta, abc.ABCMeta):
             args = params
         return self.__class__(self.__name__,
                               self.__bases__,
-                              dict(self.__dict__),
+                              _no_slots_copy(self.__dict__),
                               tvars=tvars,
                               args=args,
                               origin=self,
@@ -1059,7 +1071,8 @@ class GenericMeta(TypingMeta, abc.ABCMeta):
         return issubclass(instance.__class__, self)
 
     def __copy__(self):
-        return self.__class__(self.__name__, self.__bases__, dict(self.__dict__),
+        return self.__class__(self.__name__, self.__bases__,
+                              _no_slots_copy(self.__dict__),
                               self.__parameters__, self.__args__, self.__origin__,
                               self.__extra__, self.__orig_bases__)
 
@@ -1759,6 +1772,15 @@ class List(list, MutableSequence[T], extra=list):
                             "use list() instead")
         return _generic_new(list, cls, *args, **kwds)
 
+class Deque(collections.deque, MutableSequence[T], extra=collections.deque):
+
+    __slots__ = ()
+
+    def __new__(cls, *args, **kwds):
+        if _geqv(cls, Deque):
+            raise TypeError("Type Deque cannot be instantiated; "
+                            "use deque() instead")
+        return _generic_new(collections.deque, cls, *args, **kwds)
 
 class Set(set, MutableSet[T], extra=set):
 

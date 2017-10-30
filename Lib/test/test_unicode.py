@@ -465,6 +465,13 @@ class UnicodeTest(string_tests.CommonTest,
         self.checkraises(TypeError, ' ', 'join', [1, 2, 3])
         self.checkraises(TypeError, ' ', 'join', ['1', '2', 3])
 
+    @unittest.skipIf(sys.maxsize > 2**32,
+        'needs too much memory on a 64-bit platform')
+    def test_join_overflow(self):
+        size = int(sys.maxsize**0.5) + 1
+        seq = ('A' * size,) * size
+        self.assertRaises(OverflowError, ''.join, seq)
+
     def test_replace(self):
         string_tests.CommonTest.test_replace(self)
 
@@ -2639,7 +2646,7 @@ class CAPITest(unittest.TestCase):
                      b'repr=%V', None, b'abc\xff')
 
         # not supported: copy the raw format string. these tests are just here
-        # to check for crashs and should not be considered as specifications
+        # to check for crashes and should not be considered as specifications
         check_format('%s',
                      b'%1%s', b'abc')
         check_format('%1abc',

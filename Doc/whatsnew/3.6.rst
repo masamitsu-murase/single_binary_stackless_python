@@ -46,13 +46,10 @@
    This saves the maintainer the effort of going through the Mercurial log
    when researching a change.
 
-.. note::
-
-  Prerelease users should be aware that this document is currently in draft
-  form. It will be updated substantially as Python 3.6 moves towards release,
-  so it's worth checking back even after reading earlier versions.
-
 This article explains the new features in Python 3.6, compared to 3.5.
+Python 3.6 was released on December 23, 2016.  See the
+`changelog <https://docs.python.org/3.6/whatsnew/changelog.html>`_ for a full
+list of changes.
 
 .. seealso::
 
@@ -61,9 +58,6 @@ This article explains the new features in Python 3.6, compared to 3.5.
 
 Summary -- Release highlights
 =============================
-
-.. This section singles out the most important changes in Python 3.6.
-   Brevity is key.
 
 New syntax features:
 
@@ -86,8 +80,10 @@ New library modules:
 CPython implementation improvements:
 
 * The :ref:`dict <typesmapping>` type has been reimplemented to use
-  a :ref:`faster, more compact representation <whatsnew36-compactdict>`
-  similar to the `PyPy dict implementation`_.  This resulted in dictionaries
+  a :ref:`more compact representation <whatsnew36-compactdict>`
+  based on `a proposal by Raymond Hettinger
+  <https://mail.python.org/pipermail/python-dev/2012-December/123028.html>`_
+  and similar to the `PyPy dict implementation`_.  This resulted in dictionaries
   using 20% to 25% less memory when compared to Python 3.5.
 
 * Customization of class creation has been simplified with the
@@ -163,7 +159,7 @@ Windows improvements:
   remains unchanged - "python" refers to Python 2 in that case.
 
 * ``python.exe`` and ``pythonw.exe`` have been marked as long-path aware,
-  which means that when the 260 character path limit may no longer apply.
+  which means that the 260 character path limit may no longer apply.
   See :ref:`removing the MAX_PATH limitation <max-path>` for details.
 
 * A ``._pth`` file can be added to force isolated mode and fully specify
@@ -351,6 +347,11 @@ whenever a new subclass is created::
     class Plugin2(PluginBase):
         pass
 
+In order to allow zero-argument :func:`super` calls to work correctly from
+:meth:`~object.__init_subclass__` implementations, custom metaclasses must
+ensure that the new ``__classcell__`` namespace entry is propagated to
+``type.__new__`` (as described in :ref:`class-object-creation`).
+
 .. seealso::
 
  :pep:`487` -- Simpler customization of class creation
@@ -364,7 +365,7 @@ whenever a new subclass is created::
 PEP 487: Descriptor Protocol Enhancements
 -----------------------------------------
 
-:pep:`487` extends the descriptor protocol has to include the new optional
+:pep:`487` extends the descriptor protocol to include the new optional
 :meth:`~object.__set_name__` method.  Whenever a new class is defined, the new
 method will be called on all descriptors included in the definition, providing
 them with a reference to the class being defined and the name given to the
@@ -582,7 +583,10 @@ New :ref:`dict <typesmapping>` implementation
 ---------------------------------------------
 
 The :ref:`dict <typesmapping>` type now uses a "compact" representation
-`pioneered by PyPy <https://morepypy.blogspot.com/2015/01/faster-more-memory-efficient-and-more.html>`_.
+based on `a proposal by Raymond Hettinger
+<https://mail.python.org/pipermail/python-dev/2012-December/123028.html>`_
+which was `first implemented by PyPy
+<https://morepypy.blogspot.com/2015/01/faster-more-memory-efficient-and-more.html>`_.
 The memory usage of the new :func:`dict` is between 20% and 25% smaller
 compared to Python 3.5.
 
@@ -863,7 +867,7 @@ Notable changes in the :mod:`asyncio` module since Python 3.5.0
   function if the address is already resolved.
   (Contributed by A. Jesse Jiryu Davis.)
 
-* The :meth:`BaseEventLoop.stop() <asyncio.BaseEventLoop.stop>`
+* The :meth:`loop.stop() <asyncio.BaseEventLoop.stop>`
   method has been changed to stop the loop immediately after
   the current iteration.  Any new callbacks scheduled as a result
   of the last iteration will be discarded.
@@ -874,10 +878,24 @@ Notable changes in the :mod:`asyncio` module since Python 3.5.0
   the :exc:`StopIteration` exception.
   (Contributed by Chris Angelico in :issue:`26221`.)
 
-* New :meth:`Loop.connect_accepted_socket() <asyncio.BaseEventLoop.connect_accepted_socket>`
+* New :meth:`loop.connect_accepted_socket() <asyncio.BaseEventLoop.connect_accepted_socket>`
   method to be used by servers that accept connections outside of asyncio,
   but that use asyncio to handle them.
   (Contributed by Jim Fulton in :issue:`27392`.)
+
+* ``TCP_NODELAY`` flag is now set for all TCP transports by default.
+  (Contributed by Yury Selivanov in :issue:`27456`.)
+
+* New :meth:`loop.shutdown_asyncgens() <asyncio.AbstractEventLoop.shutdown_asyncgens>`
+  to properly close pending asynchronous generators before closing the
+  loop.
+  (Contributed by Yury Selivanov in :issue:`28003`.)
+
+* :class:`Future <asyncio.Future>` and :class:`Task <asyncio.Task>`
+  classes now have an optimized C implementation which makes asyncio
+  code up to 30% faster.
+  (Contributed by Yury Selivanov and INADA Naoki in :issue:`26081`
+  and :issue:`28544`.)
 
 
 binascii
@@ -1154,6 +1172,13 @@ The :func:`inspect.signature() <inspect.signature>` function now reports the
 implicit ``.0`` parameters generated by the compiler for comprehension and
 generator expression scopes as if they were positional-only parameters called
 ``implicit0``. (Contributed by Jelle Zijlstra in :issue:`19611`.)
+
+To reduce code churn when upgrading from Python 2.7 and the legacy
+:func:`inspect.getargspec` API, the previously documented deprecation of
+:func:`inspect.getfullargspec` has been reversed. While this function is
+convenient for single/source Python 2/3 code bases, the richer
+:func:`inspect.signature` interface remains the recommended approach for new
+code. (Contributed by Nick Coghlan in :issue:`27172`)
 
 
 json
@@ -1708,11 +1733,10 @@ Optimizations
   (Contributed by Demur Rumed with input and reviews from
   Serhiy Storchaka and Victor Stinner in :issue:`26647` and :issue:`28050`.)
 
-* The :class:`Future <asyncio.futures.Future>` class now has an optimized
-  C implementation.
-  (Contributed by Yury Selivanov and INADA Naoki in :issue:`26801`.)
+* The :class:`asyncio.Future` class now has an optimized C implementation.
+  (Contributed by Yury Selivanov and INADA Naoki in :issue:`26081`.)
 
-* The :class:`Task <asyncio.tasks.Task>` class now has an optimized
+* The :class:`asyncio.Task` class now has an optimized
   C implementation. (Contributed by Yury Selivanov in :issue:`28544`.)
 
 * Various implementation improvements in the :mod:`typing` module
@@ -1797,7 +1821,7 @@ Build and C API Changes
 
 * The ``--enable-optimizations`` configure flag has been added. Turning it on
   will activate expensive optimizations like PGO.
-  (Original patch by Alecsandru Patrascu of Intel in :issue:`26539`.)
+  (Original patch by Alecsandru Patrascu of Intel in :issue:`26359`.)
 
 * The :term:`GIL <global interpreter lock>` must now be held when allocator
   functions of :c:data:`PYMEM_DOMAIN_OBJ` (ex: :c:func:`PyObject_Malloc`) and
@@ -1831,6 +1855,18 @@ Build and C API Changes
 * The :c:func:`PyUnicode_FSConverter` and :c:func:`PyUnicode_FSDecoder`
   functions will now accept :term:`path-like objects <path-like object>`.
 
+
+Other Improvements
+==================
+
+* When :option:`--version` (short form: :option:`-V`) is supplied twice,
+  Python prints :data:`sys.version` for detailed information.
+
+  .. code-block:: shell-session
+
+    $ ./python -VV
+    Python 3.6.0b4+ (3.6:223967b49e49+, Nov 21 2016, 20:55:04)
+    [GCC 4.2.1 Compatible Apple LLVM 8.0.0 (clang-800.0.42.1)]
 
 
 Deprecated
@@ -1923,6 +1959,10 @@ are now deprecated. They were the only remaining implementations of
 been deprecated in previous versions of Python in favour of
 :meth:`importlib.abc.Loader.exec_module`.
 
+The :class:`importlib.machinery.WindowsRegistryFinder` class is now
+deprecated. As of 3.6.0, it is still added to :attr:`sys.meta_path` by
+default (on Windows), but this may change in future releases.
+
 os
 ~~
 
@@ -1997,8 +2037,9 @@ API and Feature Removals
 ------------------------
 
 * Unknown escapes consisting of ``'\'`` and an ASCII letter in
-  regular expressions will now cause an error.  The :const:`re.LOCALE`
-  flag can now only be used with binary patterns.
+  regular expressions will now cause an error.  In replacement templates for
+  :func:`re.sub` they are still allowed, but deprecated.
+  The :const:`re.LOCALE` flag can now only be used with binary patterns.
 
 * ``inspect.getmoduleinfo()`` was removed (was deprecated since CPython 3.3).
   :func:`inspect.getmodulename` should be used for obtaining the module
@@ -2216,6 +2257,11 @@ Changes in the Python API
   on a ZipFile created with mode ``'r'`` will raise a :exc:`ValueError`.
   Previously, a :exc:`RuntimeError` was raised in those scenarios.
 
+* when custom metaclasses are combined with zero-argument :func:`super` or
+  direct references from methods to the implicit ``__class__`` closure
+  variable, the implicit ``__classcell__`` namespace entry must now be passed
+  up to ``type.__new__`` for initialisation. Failing to do so will result in
+  a :exc:`DeprecationWarning` in 3.6 and a :exc:`RuntimeWarning` in the future.
 
 Changes in the C API
 --------------------
@@ -2228,3 +2274,37 @@ Changes in the C API
 
 * :c:func:`Py_Exit` (and the main interpreter) now override the exit status
   with 120 if flushing buffered data failed.  See :issue:`5319`.
+
+
+CPython bytecode changes
+------------------------
+
+There have been several major changes to the :term:`bytecode` in Python 3.6.
+
+* The Python interpreter now uses a 16-bit wordcode instead of bytecode.
+  (Contributed by Demur Rumed with input and reviews from
+  Serhiy Storchaka and Victor Stinner in :issue:`26647` and :issue:`28050`.)
+
+* The new :opcode:`FORMAT_VALUE` and :opcode:`BUILD_STRING` opcodes as part
+  of the  :ref:`formatted string literal <whatsnew36-pep498>` implementation.
+  (Contributed by Eric Smith in :issue:`25483` and
+  Serhiy Storchaka in :issue:`27078`.)
+
+* The new :opcode:`BUILD_CONST_KEY_MAP` opcode to optimize the creation
+  of dictionaries with constant keys.
+  (Contributed by Serhiy Storchaka in :issue:`27140`.)
+
+* The function call opcodes have been heavily reworked for better performance
+  and simpler implementation.
+  The :opcode:`MAKE_FUNCTION`, :opcode:`CALL_FUNCTION`,
+  :opcode:`CALL_FUNCTION_KW` and :opcode:`BUILD_MAP_UNPACK_WITH_CALL` opcodes
+  have been modified, the new :opcode:`CALL_FUNCTION_EX` and
+  :opcode:`BUILD_TUPLE_UNPACK_WITH_CALL` have been added, and
+  ``CALL_FUNCTION_VAR``, ``CALL_FUNCTION_VAR_KW`` and ``MAKE_CLOSURE`` opcodes
+  have been removed.
+  (Contributed by Demur Rumed in :issue:`27095`, and Serhiy Storchaka in
+  :issue:`27213`, :issue:`28257`.)
+
+* The new :opcode:`SETUP_ANNOTATIONS` and :opcode:`STORE_ANNOTATION` opcodes
+  have been added to support the new :term:`variable annotation` syntax.
+  (Contributed by Ivan Levkivskyi in :issue:`27985`.)

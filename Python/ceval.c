@@ -2197,6 +2197,7 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
             f->f_stacktop = stack_pointer;
             why = WHY_YIELD;
             /* and repeat... */
+            assert(f->f_lasti >= (int)sizeof(_Py_CODEUNIT));
             f->f_lasti -= sizeof(_Py_CODEUNIT);
             goto fast_yield;
         }
@@ -3308,8 +3309,10 @@ stackless_iter_return:
             if (enter == NULL)
                 goto error;
             exit = special_lookup(mgr, &PyId___exit__);
-            if (exit == NULL)
+            if (exit == NULL) {
+                Py_DECREF(enter);
                 goto error;
+            }
             SET_TOP(exit);
             Py_DECREF(mgr);
             STACKLESS_PROPOSE_ALL();

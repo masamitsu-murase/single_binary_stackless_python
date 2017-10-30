@@ -10,6 +10,7 @@ import tempfile
 import unittest
 
 from test import support
+android_not_root = support.android_not_root
 TESTFN = support.TESTFN
 
 try:
@@ -1864,6 +1865,7 @@ class _BasePathTest(object):
         self.assertFalse((P / 'fileA' / 'bah').is_fifo())
 
     @unittest.skipUnless(hasattr(os, "mkfifo"), "os.mkfifo() required")
+    @unittest.skipIf(android_not_root, "mkfifo not allowed, non root user")
     def test_is_fifo_true(self):
         P = self.cls(BASE, 'myfifo')
         os.mkfifo(str(P))
@@ -1886,7 +1888,8 @@ class _BasePathTest(object):
         try:
             sock.bind(str(P))
         except OSError as e:
-            if "AF_UNIX path too long" in str(e):
+            if (isinstance(e, PermissionError) or
+                    "AF_UNIX path too long" in str(e)):
                 self.skipTest("cannot bind Unix socket: " + str(e))
         self.assertTrue(P.is_socket())
         self.assertFalse(P.is_fifo())
@@ -2080,6 +2083,8 @@ class PosixPathTest(_BasePathTest, unittest.TestCase):
         self.assertEqual(given, expect)
         self.assertEqual(set(p.rglob("FILEd*")), set())
 
+    @unittest.skipUnless(hasattr(pwd, 'getpwall'),
+                         'pwd module does not expose getpwall()')
     def test_expanduser(self):
         P = self.cls
         support.import_module('pwd')

@@ -268,6 +268,12 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*/
      PyAPI_FUNC(PyObject *) PyObject_Call(PyObject *callable_object,
                                           PyObject *args, PyObject *kwargs);
 
+       /*
+     Call a callable Python object, callable_object, with
+     arguments and keywords arguments.  The 'args' argument can not be
+     NULL.
+       */
+
 #ifndef Py_LIMITED_API
     PyAPI_FUNC(PyObject*) _PyStack_AsTuple(
         PyObject **stack,
@@ -351,12 +357,6 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*/
                                                     PyObject *result,
                                                     const char *where);
 #endif   /* Py_LIMITED_API */
-
-       /*
-     Call a callable Python object, callable_object, with
-     arguments and keywords arguments.  The 'args' argument can not be
-     NULL.
-       */
 
      PyAPI_FUNC(PyObject *) PyObject_CallObject(PyObject *callable_object,
                                                 PyObject *args);
@@ -750,11 +750,13 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*/
      o1*o2.
        */
 
+#if !defined(Py_LIMITED_API) || Py_LIMITED_API+0 >= 0x03050000
      PyAPI_FUNC(PyObject *) PyNumber_MatrixMultiply(PyObject *o1, PyObject *o2);
 
        /*
      This is the equivalent of the Python expression: o1 @ o2.
        */
+#endif
 
      PyAPI_FUNC(PyObject *) PyNumber_FloorDivide(PyObject *o1, PyObject *o2);
 
@@ -930,11 +932,13 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*/
      o1 *= o2.
        */
 
+#if !defined(Py_LIMITED_API) || Py_LIMITED_API+0 >= 0x03050000
      PyAPI_FUNC(PyObject *) PyNumber_InPlaceMatrixMultiply(PyObject *o1, PyObject *o2);
 
        /*
      This is the equivalent of the Python expression: o1 @= o2.
        */
+#endif
 
      PyAPI_FUNC(PyObject *) PyNumber_InPlaceFloorDivide(PyObject *o1,
                                                         PyObject *o2);

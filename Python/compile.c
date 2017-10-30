@@ -1967,8 +1967,9 @@ compiler_class(struct compiler *c, stmt_ty s)
             compiler_exit_scope(c);
             return 0;
         }
+        /* Return __classcell__ if it is referenced, otherwise return None */
         if (c->u->u_ste->ste_needs_class_closure) {
-            /* store __classcell__ into class namespace */
+            /* Store __classcell__ into class namespace & return it */
             str = PyUnicode_InternFromString("__class__");
             if (str == NULL) {
                 compiler_exit_scope(c);
@@ -1983,6 +1984,7 @@ compiler_class(struct compiler *c, stmt_ty s)
             assert(i == 0);
 
             ADDOP_I(c, LOAD_CLOSURE, i);
+            ADDOP(c, DUP_TOP);
             str = PyUnicode_InternFromString("__classcell__");
             if (!str || !compiler_nameop(c, str, Store)) {
                 Py_XDECREF(str);
@@ -1992,9 +1994,11 @@ compiler_class(struct compiler *c, stmt_ty s)
             Py_DECREF(str);
         }
         else {
-            /* This happens when nobody references the cell. */
+            /* No methods referenced __class__, so just return None */
             assert(PyDict_Size(c->u->u_cellvars) == 0);
+            ADDOP_O(c, LOAD_CONST, Py_None, consts);
         }
+        ADDOP_IN_SCOPE(c, RETURN_VALUE);
         /* create the code object */
         co = assemble(c, 1);
     }
@@ -3411,7 +3415,8 @@ static int
 compiler_joined_str(struct compiler *c, expr_ty e)
 {
     VISIT_SEQ(c, expr, e->v.JoinedStr.values);
-    ADDOP_I(c, BUILD_STRING, asdl_seq_LEN(e->v.JoinedStr.values));
+    if (asdl_seq_LEN(e->v.JoinedStr.values) != 1)
+        ADDOP_I(c, BUILD_STRING, asdl_seq_LEN(e->v.JoinedStr.values));
     return 1;
 }
 
