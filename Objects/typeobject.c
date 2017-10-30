@@ -1158,11 +1158,6 @@ subtype_dealloc(PyObject *self)
     Py_TRASHCAN_SAFE_BEGIN(self);
     --_PyTrash_delete_nesting;
     -- tstate->trash_delete_nesting;
-    /* DO NOT restore GC tracking at this point.  weakref callbacks
-     * (if any, and whether directly here or indirectly in something we
-     * call) may trigger GC, and if self is tracked at that point, it
-     * will look like trash to GC and GC will try to delete self again.
-     */
 
     /* Find the nearest base with a different tp_dealloc */
     base = type;
@@ -1173,30 +1168,36 @@ subtype_dealloc(PyObject *self)
 
     has_finalizer = type->tp_finalize || type->tp_del;
 
-    /* Maybe call finalizer; exit early if resurrected */
-    if (has_finalizer)
-        _PyObject_GC_TRACK(self);
-
     if (type->tp_finalize) {
+        _PyObject_GC_TRACK(self);
         if (PyObject_CallFinalizerFromDealloc(self) < 0) {
             /* Resurrected */
             goto endlabel;
         }
+        _PyObject_GC_UNTRACK(self);
     }
-    /* If we added a weaklist, we clear it.      Do this *before* calling
-       tp_del, clearing slots, or clearing the instance dict. */
+    /*
+      If we added a weaklist, we clear it. Do this *before* calling tp_del,
+      clearing slots, or clearing the instance dict.
+
+      GC tracking must be off at this point. weakref callbacks (if any, and
+      whether directly here or indirectly in something we call) may trigger GC,
+      and if self is tracked at that point, it will look like trash to GC and GC
+      will try to delete self again.
+    */
     if (type->tp_weaklistoffset && !base->tp_weaklistoffset)
         PyObject_ClearWeakRefs(self);
 
     if (type->tp_del) {
+        _PyObject_GC_TRACK(self);
         type->tp_del(self);
         if (self->ob_refcnt > 0) {
             /* Resurrected */
             goto endlabel;
         }
+        _PyObject_GC_UNTRACK(self);
     }
     if (has_finalizer) {
-        _PyObject_GC_UNTRACK(self);
         /* New weakrefs could be created during the finalizer call.
            If this occurs, clear them out without calling their
            finalizers since they might rely on part of the object
@@ -2887,13 +2888,16 @@ PyType_FromSpecWithBases(PyType_Spec *spec, PyObject *bases)
     /* Set type.__module__ */
     s = strrchr(spec->name, '.');
     if (s != NULL) {
+        int err;
         modname = PyUnicode_FromStringAndSize(
                 spec->name, (Py_ssize_t)(s - spec->name));
         if (modname == NULL) {
             goto fail;
         }
-        _PyDict_SetItemId(type->tp_dict, &PyId___module__, modname);
+        err = _PyDict_SetItemId(type->tp_dict, &PyId___module__, modname);
         Py_DECREF(modname);
+        if (err != 0)
+            goto fail;
     } else {
         if (PyErr_WarnFormat(PyExc_DeprecationWarning, 1,
                 "builtin type %.200s has no __module__ attribute",
@@ -2953,11 +2957,25 @@ _PyType_Lookup(PyTypeObject *type, PyObject *name)
     /* Look in tp_dict of types in MRO */
     mro = type->tp_mro;
 
-    /* If mro is NULL, the type is either not yet initialized
-       by PyType_Ready(), or already cleared by type_clear().
-       Either way the safest thing to do is to return NULL. */
-    if (mro == NULL)
-        return NULL;
+    if (mro == NULL) {
+        if ((type->tp_flags & Py_TPFLAGS_READYING) == 0 &&
+            PyType_Ready(type) < 0) {
+            /* It's not ideal to clear the error condition,
+               but this function is documented as not setting
+               an exception, and I don't want to change that.
+               When PyType_Ready() can't proceed, it won't
+               set the "ready" flag, so future attempts to ready
+               the same type will call it again -- hopefully
+               in a context that propagates the exception out.
+            */
+            PyErr_Clear();
+            return NULL;
+        }
+        mro = type->tp_mro;
+        if (mro == NULL) {
+            return NULL;
+        }
+    }
 
     res = NULL;
     /* keep a strong reference to mro because type->tp_mro can be replaced
@@ -4991,6 +5009,12 @@ PyType_Ready(PyTypeObject *type)
      */
     _Py_AddToAllObjects((PyObject *)type, 0);
 #endif
+
+    if (type->tp_name == NULL) {
+        PyErr_Format(PyExc_SystemError,
+                     "Type does not define the tp_name field.");
+        goto error;
+    }
 
     /* Initialize tp_base (defaults to BaseObject unless that's us) */
     base = type->tp_base;
@@ -7313,19 +7337,21 @@ update_all_slots(PyTypeObject* type)
 static int
 set_names(PyTypeObject *type)
 {
-    PyObject *key, *value, *tmp;
+    PyObject *key, *value, *set_name, *tmp;
     Py_ssize_t i = 0;
 
     while (PyDict_Next(type->tp_dict, &i, &key, &value)) {
-        if (PyObject_HasAttr(value, _PyUnicode_FromId(&PyId___set_name__))) {
-            tmp = PyObject_CallMethodObjArgs(
-                value, _PyUnicode_FromId(&PyId___set_name__),
-                type, key, NULL);
+        set_name = lookup_maybe(value, &PyId___set_name__);
+        if (set_name != NULL) {
+            tmp = PyObject_CallFunctionObjArgs(set_name, type, key, NULL);
+            Py_DECREF(set_name);
             if (tmp == NULL)
                 return -1;
             else
                 Py_DECREF(tmp);
         }
+        else if (PyErr_Occurred())
+            return -1;
     }
 
     return 0;

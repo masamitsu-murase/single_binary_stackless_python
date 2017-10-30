@@ -770,7 +770,7 @@ dir_fd_converter(PyObject *o, void *p)
  *   path.narrow
  *     Points to the path if it was expressed as bytes,
  *     or it was Unicode and was encoded to bytes. (On Windows,
- *     is an non-zero integer if the path was expressed as bytes.
+ *     is a non-zero integer if the path was expressed as bytes.
  *     The type is deliberately incompatible to prevent misuse.)
  *   path.fd
  *     Contains a file descriptor if path.accept_fd was true
@@ -920,7 +920,7 @@ path_converter(PyObject *o, void *p)
 
     if (is_unicode) {
 #ifdef MS_WINDOWS
-        wide = PyUnicode_AsWideCharString(o, &length);
+        wide = PyUnicode_AsUnicodeAndSize(o, &length);
         if (!wide) {
             goto exit;
         }
@@ -1337,27 +1337,37 @@ win32_error_object(const char* function, PyObject* filename)
 #endif /* MS_WINDOWS */
 
 static PyObject *
-path_error(path_t *path)
+path_object_error(PyObject *path)
 {
 #ifdef MS_WINDOWS
-    return PyErr_SetExcFromWindowsErrWithFilenameObject(PyExc_OSError,
-                                                        0, path->object);
+    return PyErr_SetExcFromWindowsErrWithFilenameObject(
+                PyExc_OSError, 0, path);
 #else
-    return PyErr_SetFromErrnoWithFilenameObject(PyExc_OSError, path->object);
+    return PyErr_SetFromErrnoWithFilenameObject(PyExc_OSError, path);
 #endif
 }
 
+static PyObject *
+path_object_error2(PyObject *path, PyObject *path2)
+{
+#ifdef MS_WINDOWS
+    return PyErr_SetExcFromWindowsErrWithFilenameObjects(
+                PyExc_OSError, 0, path, path2);
+#else
+    return PyErr_SetFromErrnoWithFilenameObjects(PyExc_OSError, path, path2);
+#endif
+}
+
+static PyObject *
+path_error(path_t *path)
+{
+    return path_object_error(path->object);
+}
 
 static PyObject *
 path_error2(path_t *path, path_t *path2)
 {
-#ifdef MS_WINDOWS
-    return PyErr_SetExcFromWindowsErrWithFilenameObjects(PyExc_OSError,
-            0, path->object, path2->object);
-#else
-    return PyErr_SetFromErrnoWithFilenameObjects(PyExc_OSError,
-        path->object, path2->object);
-#endif
+    return path_object_error2(path->object, path2->object);
 }
 
 
@@ -6944,7 +6954,7 @@ posix_readlink(PyObject *self, PyObject *args, PyObject *kwargs)
 {
     path_t path;
     int dir_fd = DEFAULT_DIR_FD;
-    char buffer[MAXPATHLEN];
+    char buffer[MAXPATHLEN+1];
     ssize_t length;
     PyObject *return_value = NULL;
     static char *keywords[] = {"path", "dir_fd", NULL};
@@ -6959,16 +6969,17 @@ posix_readlink(PyObject *self, PyObject *args, PyObject *kwargs)
     Py_BEGIN_ALLOW_THREADS
 #ifdef HAVE_READLINKAT
     if (dir_fd != DEFAULT_DIR_FD)
-        length = readlinkat(dir_fd, path.narrow, buffer, sizeof(buffer));
+        length = readlinkat(dir_fd, path.narrow, buffer, MAXPATHLEN);
     else
 #endif
-        length = readlink(path.narrow, buffer, sizeof(buffer));
+        length = readlink(path.narrow, buffer, MAXPATHLEN);
     Py_END_ALLOW_THREADS
 
     if (length < 0) {
         return_value = path_error(&path);
         goto exit;
     }
+    buffer[length] = '\0';
 
     if (PyUnicode_Check(path.object))
         return_value = PyUnicode_DecodeFSDefaultAndSize(buffer, length);
@@ -11151,41 +11162,26 @@ static PyObject *
 DirEntry_fetch_stat(DirEntry *self, int follow_symlinks)
 {
     int result;
-    struct _Py_stat_struct st;
+    STRUCT_STAT st;
+    PyObject *ub;
 
 #ifdef MS_WINDOWS
-    const wchar_t *path;
-
-    path = PyUnicode_AsUnicode(self->path);
-    if (!path)
-        return NULL;
-
-    if (follow_symlinks)
-        result = win32_stat(path, &st);
-    else
-        result = win32_lstat(path, &st);
-
-    if (result != 0) {
-        return PyErr_SetExcFromWindowsErrWithFilenameObject(PyExc_OSError,
-                                                            0, self->path);
-    }
+    if (PyUnicode_FSDecoder(self->path, &ub)) {
+        const wchar_t *path = PyUnicode_AsUnicode(ub);
 #else /* POSIX */
-    PyObject *bytes;
-    const char *path;
-
-    if (!PyUnicode_FSConverter(self->path, &bytes))
+    if (PyUnicode_FSConverter(self->path, &ub)) {
+        const char *path = PyBytes_AS_STRING(ub);
+#endif
+        if (follow_symlinks)
+            result = STAT(path, &st);
+        else
+            result = LSTAT(path, &st);
+        Py_DECREF(ub);
+    } else
         return NULL;
-    path = PyBytes_AS_STRING(bytes);
-
-    if (follow_symlinks)
-        result = STAT(path, &st);
-    else
-        result = LSTAT(path, &st);
-    Py_DECREF(bytes);
 
     if (result != 0)
-        return PyErr_SetFromErrnoWithFilenameObject(PyExc_OSError, self->path);
-#endif
+        return path_object_error(self->path);
 
     return _pystat_fromstructstat(&st);
 }
@@ -11355,17 +11351,19 @@ DirEntry_inode(DirEntry *self)
 {
 #ifdef MS_WINDOWS
     if (!self->got_file_index) {
+        PyObject *unicode;
         const wchar_t *path;
-        struct _Py_stat_struct stat;
+        STRUCT_STAT stat;
+        int result;
 
-        path = PyUnicode_AsUnicode(self->path);
-        if (!path)
+        if (!PyUnicode_FSDecoder(self->path, &unicode))
             return NULL;
+        path = PyUnicode_AsUnicode(unicode);
+        result = LSTAT(path, &stat);
+        Py_DECREF(unicode);
 
-        if (win32_lstat(path, &stat) != 0) {
-            return PyErr_SetExcFromWindowsErrWithFilenameObject(PyExc_OSError,
-                                                                0, self->path);
-        }
+        if (result != 0)
+            return path_object_error(self->path);
 
         self->win32_file_index = stat.st_ino;
         self->got_file_index = 1;
@@ -12047,42 +12045,50 @@ static PyObject *
 os_getrandom_impl(PyObject *module, Py_ssize_t size, int flags)
 /*[clinic end generated code: output=b3a618196a61409c input=59bafac39c594947]*/
 {
-    char *buffer;
-    Py_ssize_t n;
     PyObject *bytes;
+    Py_ssize_t n;
 
     if (size < 0) {
         errno = EINVAL;
         return posix_error();
     }
 
-    buffer = PyMem_Malloc(size);
-    if (buffer == NULL) {
+    bytes = PyBytes_FromStringAndSize(NULL, size);
+    if (bytes == NULL) {
         PyErr_NoMemory();
         return NULL;
     }
 
     while (1) {
-        n = syscall(SYS_getrandom, buffer, size, flags);
+        n = syscall(SYS_getrandom,
+                    PyBytes_AS_STRING(bytes),
+                    PyBytes_GET_SIZE(bytes),
+                    flags);
         if (n < 0 && errno == EINTR) {
             if (PyErr_CheckSignals() < 0) {
-                return NULL;
+                goto error;
             }
+
+            /* getrandom() was interrupted by a signal: retry */
             continue;
         }
         break;
     }
 
     if (n < 0) {
-        PyMem_Free(buffer);
         PyErr_SetFromErrno(PyExc_OSError);
-        return NULL;
+        goto error;
     }
 
-    bytes = PyBytes_FromStringAndSize(buffer, n);
-    PyMem_Free(buffer);
+    if (n != size) {
+        _PyBytes_Resize(&bytes, n);
+    }
 
     return bytes;
+
+error:
+    Py_DECREF(bytes);
+    return NULL;
 }
 #endif   /* HAVE_GETRANDOM_SYSCALL */
 

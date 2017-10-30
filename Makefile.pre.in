@@ -373,7 +373,6 @@ PYTHON_OBJS=	\
 		Python/compile.o \
 		Python/codecs.o \
 		Python/dynamic_annotations.o \
-		Python/dtrace_stubs.o \
 		Python/errors.o \
 		Python/frozenmain.o \
 		Python/future.o \
@@ -539,15 +538,23 @@ coverage-lcov:
 	    --base-directory $(realpath $(abs_builddir)) \
 	    --path $(realpath $(abs_srcdir)) \
 	    --output-file $(COVERAGE_INFO)
-	: # remove 3rd party modules and system headers
+	: # remove 3rd party modules, system headers and internal files with
+	: # debug, test or dummy functions.
 	@lcov --remove $(COVERAGE_INFO) \
+	    '*/Modules/_blake2/impl/*' \
 	    '*/Modules/_ctypes/libffi*/*' \
 	    '*/Modules/_decimal/libmpdec/*' \
+	    '*/Modules/_sha3/kcp/*' \
 	    '*/Modules/expat/*' \
 	    '*/Modules/zlib/*' \
 	    '*/Include/*' \
+	    '*/Modules/xx*.c' \
+	    '*/Parser/listnode.c' \
+	    '*/Python/pyfpe.c' \
+	    '*/Python/pystrcmp.c' \
 	    '/usr/include/*' \
 	    '/usr/local/include/*' \
+	    '/usr/lib/gcc/*' \
 	    --output-file $(COVERAGE_INFO)
 	@genhtml $(COVERAGE_INFO) --output-directory $(COVERAGE_REPORT) \
 	    $(COVERAGE_REPORT_OPTIONS)
@@ -1380,7 +1387,7 @@ python-config: $(srcdir)/Misc/python-config.in Misc/python-config.sh
 	# is not available in configure
 	sed -e "s,@EXENAME@,$(BINDIR)/python$(LDVERSION)$(EXE)," < $(srcdir)/Misc/python-config.in >python-config.py
 	# Replace makefile compat. variable references with shell script compat. ones; $(VAR) -> ${VAR}
-	sed -e 's,\$$(\([A-Za-z0-9_]*\)),\$$\{\1\},g' < Misc/python-config.sh >python-config
+	LC_ALL=C sed -e 's,\$$(\([A-Za-z0-9_]*\)),\$$\{\1\},g' < Misc/python-config.sh >python-config
 	# On Darwin, always use the python version of the script, the shell
 	# version doesn't use the compiler customizations that are provided
 	# in python (_osx_support.py).
@@ -1676,7 +1683,11 @@ distclean: clobber
 		Modules/Setup Modules/Setup.local Modules/Setup.config \
 		Modules/ld_so_aix Modules/python.exp Misc/python.pc
 	-rm -f python*-gdb.py
-	find $(srcdir)/[a-zA-Z]* '(' -name '*.fdc' -o -name '*~' \
+	# Issue #28258: set LC_ALL to avoid issues with Estonian locale.
+	# Expansion is performed here by shell (spawned by make) itself before
+	# arguments are passed to find. So LC_ALL=C must be set as a separate
+	# command.
+	LC_ALL=C; find $(srcdir)/[a-zA-Z]* '(' -name '*.fdc' -o -name '*~' \
 				     -o -name '[@,#]*' -o -name '*.old' \
 				     -o -name '*.orig' -o -name '*.rej' \
 				     -o -name '*.bak' ')' \

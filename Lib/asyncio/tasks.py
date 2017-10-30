@@ -241,7 +241,7 @@ class Task(futures.Future):
                 result = coro.throw(exc)
         except StopIteration as exc:
             self.set_result(exc.value)
-        except futures.CancelledError as exc:
+        except futures.CancelledError:
             super().cancel()  # I.e., Future.cancel(self).
         except Exception as exc:
             self.set_exception(exc)
@@ -259,12 +259,19 @@ class Task(futures.Future):
                             'Task {!r} got Future {!r} attached to a '
                             'different loop'.format(self, result)))
                 elif blocking:
-                    result._asyncio_future_blocking = False
-                    result.add_done_callback(self._wakeup)
-                    self._fut_waiter = result
-                    if self._must_cancel:
-                        if self._fut_waiter.cancel():
-                            self._must_cancel = False
+                    if result is self:
+                        self._loop.call_soon(
+                            self._step,
+                            RuntimeError(
+                                'Task cannot await on itself: {!r}'.format(
+                                    self)))
+                    else:
+                        result._asyncio_future_blocking = False
+                        result.add_done_callback(self._wakeup)
+                        self._fut_waiter = result
+                        if self._must_cancel:
+                            if self._fut_waiter.cancel():
+                                self._must_cancel = False
                 else:
                     self._loop.call_soon(
                         self._step,
@@ -593,6 +600,10 @@ class _GatheringFuture(futures.Future):
 def gather(*coros_or_futures, loop=None, return_exceptions=False):
     """Return a future aggregating results from the given coroutines
     or futures.
+
+    Coroutines will be wrapped in a future and scheduled in the event
+    loop. They will not necessarily be scheduled in the same order as
+    passed in.
 
     All futures must share the same event loop.  If all the tasks are
     done successfully, the returned future's result is the list of

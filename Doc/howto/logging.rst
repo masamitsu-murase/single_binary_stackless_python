@@ -464,7 +464,7 @@ ancestor loggers. Because of this, it is unnecessary to define and configure
 handlers for all the loggers an application uses. It is sufficient to
 configure handlers for a top-level logger and create child loggers as needed.
 (You can, however, turn off propagation by setting the *propagate*
-attribute of a logger to *False*.)
+attribute of a logger to ``False``.)
 
 
 .. _handler-basic:
@@ -747,10 +747,10 @@ circumstances is dependent on the Python version.
 
 For versions of Python prior to 3.2, the behaviour is as follows:
 
-* If *logging.raiseExceptions* is *False* (production mode), the event is
+* If *logging.raiseExceptions* is ``False`` (production mode), the event is
   silently dropped.
 
-* If *logging.raiseExceptions* is *True* (development mode), a message
+* If *logging.raiseExceptions* is ``True`` (development mode), a message
   'No handlers could be found for logger X.Y.Z' is printed once.
 
 In Python 3.2 and later, the behaviour is as follows:
@@ -764,7 +764,7 @@ In Python 3.2 and later, the behaviour is as follows:
   The handler's level is set to ``WARNING``, so all events at this and
   greater severities will be output.
 
-To obtain the pre-3.2 behaviour, ``logging.lastResort`` can be set to *None*.
+To obtain the pre-3.2 behaviour, ``logging.lastResort`` can be set to ``None``.
 
 .. _library-config:
 

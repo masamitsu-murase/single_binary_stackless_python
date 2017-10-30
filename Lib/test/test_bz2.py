@@ -6,6 +6,7 @@ from io import BytesIO, DEFAULT_BUFFER_SIZE
 import os
 import pickle
 import glob
+import pathlib
 import random
 import subprocess
 import sys
@@ -560,6 +561,13 @@ class BZ2FileTest(BaseTest):
         with BZ2File(str_filename, "rb") as f:
             self.assertEqual(f.read(), self.DATA)
 
+    def testOpenPathLikeFilename(self):
+        filename = pathlib.Path(self.filename)
+        with BZ2File(filename, "wb") as f:
+            f.write(self.DATA)
+        with BZ2File(filename, "rb") as f:
+            self.assertEqual(f.read(), self.DATA)
+
     def testDecompressLimited(self):
         """Decompressed data buffering should be limited"""
         bomb = bz2.compress(b'\0' * int(2e6), compresslevel=9)
@@ -820,6 +828,12 @@ class BZ2DecompressorTest(BaseTest):
         # Decompress rest of data
         out.append(bzd.decompress(self.DATA[300:]))
         self.assertEqual(b''.join(out), self.TEXT)
+
+    def test_failure(self):
+        bzd = BZ2Decompressor()
+        self.assertRaises(Exception, bzd.decompress, self.BAD_DATA * 30)
+        # Previously, a second call could crash due to internal inconsistency
+        self.assertRaises(Exception, bzd.decompress, self.BAD_DATA * 30)
 
 class CompressDecompressTest(BaseTest):
     def testCompress(self):

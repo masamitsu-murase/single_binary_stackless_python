@@ -61,16 +61,16 @@ compatibility with older versions, see the :ref:`call-function-trio` section.
 
    The *input* argument is passed to :meth:`Popen.communicate` and thus to the
    subprocess's stdin.  If used it must be a byte sequence, or a string if
-   *encoding* or *errors* is specified or *universal_newlines* is True.  When
+   *encoding* or *errors* is specified or *universal_newlines* is true.  When
    used, the internal :class:`Popen` object is automatically created with
    ``stdin=PIPE``, and the *stdin* argument may not be used as well.
 
-   If *check* is True, and the process exits with a non-zero exit code, a
+   If *check* is true, and the process exits with a non-zero exit code, a
    :exc:`CalledProcessError` exception will be raised. Attributes of that
    exception hold the arguments, the exit code, and stdout and stderr if they
    were captured.
 
-   If *encoding* or *errors* are specified, or *universal_newlines* is True,
+   If *encoding* or *errors* are specified, or *universal_newlines* is true,
    file objects for stdin, stdout and stderr are opened in text mode using the
    specified *encoding* and *errors* or the :class:`io.TextIOWrapper` default.
    Otherwise, file objects are opened in binary mode.
@@ -114,17 +114,17 @@ compatibility with older versions, see the :ref:`call-function-trio` section.
    .. attribute:: stdout
 
       Captured stdout from the child process. A bytes sequence, or a string if
-      :func:`run` was called with an encoding or errors. None if stdout was not
+      :func:`run` was called with an encoding or errors. ``None`` if stdout was not
       captured.
 
       If you ran the process with ``stderr=subprocess.STDOUT``, stdout and
       stderr will be combined in this attribute, and :attr:`stderr` will be
-      None.
+      ``None``.
 
    .. attribute:: stderr
 
       Captured stderr from the child process. A bytes sequence, or a string if
-      :func:`run` was called with an encoding or errors. None if stderr was not
+      :func:`run` was called with an encoding or errors. ``None`` if stderr was not
       captured.
 
    .. method:: check_returncode()
@@ -259,7 +259,7 @@ default values. The arguments that are most commonly needed are:
    .. index::
       single: universal newlines; subprocess module
 
-   If *encoding* or *errors* are specified, or *universal_newlines* is True,
+   If *encoding* or *errors* are specified, or *universal_newlines* is true,
    the file objects *stdin*, *stdout* and *stderr* will be opened in text
    mode using the *encoding* and *errors* specified in the call or the
    defaults for :class:`io.TextIOWrapper`.
@@ -361,8 +361,8 @@ functions.
    manner described in :ref:`converting-argument-sequence`.  This is because
    the underlying ``CreateProcess()`` operates on strings.
 
-   The *shell* argument (which defaults to *False*) specifies whether to use
-   the shell as the program to execute.  If *shell* is *True*, it is
+   The *shell* argument (which defaults to ``False``) specifies whether to use
+   the shell as the program to execute.  If *shell* is ``True``, it is
    recommended to pass *args* as a string rather than as a sequence.
 
    On POSIX with ``shell=True``, the shell defaults to :file:`/bin/sh`.  If

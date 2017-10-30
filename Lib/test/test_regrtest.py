@@ -299,6 +299,15 @@ class ParseArgsTestCase(unittest.TestCase):
         self.assertEqual(ns.verbose, 0)
         self.assertEqual(ns.args, ['foo'])
 
+    def test_arg_option_arg(self):
+        ns = libregrtest._parse_args(['test_unaryop', '-v', 'test_binop'])
+        self.assertEqual(ns.verbose, 1)
+        self.assertEqual(ns.args, ['test_unaryop', 'test_binop'])
+
+    def test_unknown_option(self):
+        self.checkError(['--unknown-option'],
+                        'unrecognized arguments: --unknown-option')
+
 
 class BaseTestCase(unittest.TestCase):
     TEST_UNIQUE_ID = 1
@@ -687,7 +696,12 @@ class ArgsTestCase(BaseTestCase):
         code = TEST_INTERRUPTED
         test = self.create_test("sigint", code=code)
 
-        for multiprocessing in (False, True):
+        try:
+            import threading
+            tests = (False, True)
+        except ImportError:
+            tests = (False,)
+        for multiprocessing in tests:
             if multiprocessing:
                 args = ("--slowest", "-j2", test)
             else:

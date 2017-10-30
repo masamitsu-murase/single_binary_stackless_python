@@ -1,6 +1,7 @@
 import _compression
 from io import BytesIO, UnsupportedOperation, DEFAULT_BUFFER_SIZE
 import os
+import pathlib
 import pickle
 import random
 import unittest
@@ -246,6 +247,13 @@ class CompressorDecompressorTestCase(unittest.TestCase):
         lzd = LZMADecompressor(lzma.FORMAT_RAW, filters=FILTERS_RAW_1)
         self.assertRaises(LZMAError, lzd.decompress, COMPRESSED_XZ)
 
+    def test_decompressor_bug_28275(self):
+        # Test coverage for Issue 28275
+        lzd = LZMADecompressor()
+        self.assertRaises(LZMAError, lzd.decompress, COMPRESSED_RAW_1)
+        # Previously, a second call could crash due to internal inconsistency
+        self.assertRaises(LZMAError, lzd.decompress, COMPRESSED_RAW_1)
+
     # Test that LZMACompressor->LZMADecompressor preserves the input data.
 
     def test_roundtrip_xz(self):
@@ -480,6 +488,16 @@ class FileTestCase(unittest.TestCase):
             pass
         with LZMAFile(BytesIO(), "a") as f:
             pass
+
+    def test_init_with_PathLike_filename(self):
+        filename = pathlib.Path(TESTFN)
+        with TempFile(filename, COMPRESSED_XZ):
+            with LZMAFile(filename) as f:
+                self.assertEqual(f.read(), INPUT)
+            with LZMAFile(filename, "a") as f:
+                f.write(INPUT)
+            with LZMAFile(filename) as f:
+                self.assertEqual(f.read(), INPUT * 2)
 
     def test_init_with_filename(self):
         with TempFile(TESTFN, COMPRESSED_XZ):
@@ -1172,6 +1190,17 @@ class OpenTestCase(unittest.TestCase):
                 f.write(INPUT)
             with lzma.open(TESTFN, "rb") as f:
                 self.assertEqual(f.read(), INPUT * 2)
+
+    def test_with_pathlike_filename(self):
+        filename = pathlib.Path(TESTFN)
+        with TempFile(filename):
+            with lzma.open(filename, "wb") as f:
+                f.write(INPUT)
+            with open(filename, "rb") as f:
+                file_data = lzma.decompress(f.read())
+                self.assertEqual(file_data, INPUT)
+            with lzma.open(filename, "rb") as f:
+                self.assertEqual(f.read(), INPUT)
 
     def test_bad_params(self):
         # Test invalid parameter combinations.

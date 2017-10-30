@@ -102,20 +102,24 @@ class CompileallTests(unittest.TestCase):
         self.assertFalse(compileall.compile_dir(self.directory,
                                                 force=False, quiet=2))
 
+    def test_compile_file_pathlike(self):
+        self.assertFalse(os.path.isfile(self.bc_path))
+        # we should also test the output
+        with support.captured_stdout() as stdout:
+            self.assertTrue(compileall.compile_file(pathlib.Path(self.source_path)))
+        self.assertRegex(stdout.getvalue(), r'Compiling ([^WindowsPath|PosixPath].*)')
+        self.assertTrue(os.path.isfile(self.bc_path))
+
+    def test_compile_file_pathlike_ddir(self):
+        self.assertFalse(os.path.isfile(self.bc_path))
+        self.assertTrue(compileall.compile_file(pathlib.Path(self.source_path),
+                                                ddir=pathlib.Path('ddir_path'),
+                                                quiet=2))
+        self.assertTrue(os.path.isfile(self.bc_path))
+
     def test_compile_path(self):
-        # Exclude Lib/test/ which contains invalid Python files like
-        # Lib/test/badsyntax_pep3120.py
-        testdir = os.path.realpath(os.path.dirname(__file__))
-        if testdir in sys.path:
-            self.addCleanup(setattr, sys, 'path', sys.path)
-
-            sys.path = list(sys.path)
-            try:
-                sys.path.remove(testdir)
-            except ValueError:
-                pass
-
-        self.assertTrue(compileall.compile_path(quiet=2))
+        with test.test_importlib.util.import_state(path=[self.directory]):
+            self.assertTrue(compileall.compile_path(quiet=2))
 
         with test.test_importlib.util.import_state(path=[self.directory]):
             self.add_bad_source_file()
@@ -148,6 +152,14 @@ class CompileallTests(unittest.TestCase):
         cached3 = importlib.util.cache_from_source(self.source_path3,
                                                    optimization=opt)
         self.assertTrue(os.path.isfile(cached3))
+
+    def test_compile_dir_pathlike(self):
+        self.assertFalse(os.path.isfile(self.bc_path))
+        with support.captured_stdout() as stdout:
+            compileall.compile_dir(pathlib.Path(self.directory))
+        line = stdout.getvalue().splitlines()[0]
+        self.assertRegex(line, r'Listing ([^WindowsPath|PosixPath].*)')
+        self.assertTrue(os.path.isfile(self.bc_path))
 
     @mock.patch('compileall.ProcessPoolExecutor')
     def test_compile_pool_called(self, pool_mock):

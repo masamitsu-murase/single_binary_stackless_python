@@ -1552,7 +1552,7 @@ Sub-commands
      positional arguments
 
    * description - description for the sub-parser group in help output, by
-     default None
+     default ``None``
 
    * prog - usage information that will be displayed with sub-command help,
      by default the name of the program and any positional arguments before the
@@ -1565,12 +1565,12 @@ Sub-commands
      encountered at the command line
 
    * dest_ - name of the attribute under which sub-command name will be
-     stored; by default None and no value is stored
+     stored; by default ``None`` and no value is stored
 
-   * help_ - help for sub-parser group in help output, by default None
+   * help_ - help for sub-parser group in help output, by default ``None``
 
    * metavar_ - string presenting available sub-commands in help; by default it
-     is None and presents sub-commands in form {cmd1, cmd2, ..}
+     is ``None`` and presents sub-commands in form {cmd1, cmd2, ..}
 
    Some example usage::
 
@@ -1958,10 +1958,11 @@ Customizing file parsing
    The method is called once per line read from the argument file, in order.
 
    A useful override of this method is one that treats each space-separated word
-   as an argument::
+   as an argument.  The following example demonstrates how to do this::
 
-    def convert_arg_line_to_args(self, arg_line):
-        return arg_line.split()
+    class MyArgumentParser(argparse.ArgumentParser):
+        def convert_arg_line_to_args(self, arg_line):
+            return arg_line.split()
 
 
 Exiting methods

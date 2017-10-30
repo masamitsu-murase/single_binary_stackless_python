@@ -243,6 +243,9 @@ process and user.
    Return the value of the environment variable *key* if it exists, or
    *default* if it doesn't. *key*, *default* and the result are bytes.
 
+   :func:`getenvb` is only available if :data:`supports_bytes_environ`
+   is True.
+
    Availability: most flavors of Unix.
 
    .. versionadded:: 3.2
@@ -254,7 +257,7 @@ process and user.
    executable, similar to a shell, when launching a process.
    *env*, when specified, should be an environment variable dictionary
    to lookup the PATH in.
-   By default, when *env* is None, :data:`environ` is used.
+   By default, when *env* is ``None``, :data:`environ` is used.
 
    .. versionadded:: 3.2
 
@@ -1800,6 +1803,8 @@ features:
 
    This function can also support :ref:`paths relative to directory descriptors
    <dir_fd>`.
+
+   Availability: Unix.
 
    .. versionadded:: 3.3
       The *dir_fd* argument.
@@ -3809,7 +3814,7 @@ Miscellaneous System Information
 
 .. function:: cpu_count()
 
-   Return the number of CPUs in the system. Returns None if undetermined.
+   Return the number of CPUs in the system. Returns ``None`` if undetermined.
 
    This number is not equivalent to the number of CPUs the current process can
    use.  The number of usable CPUs can be obtained with

@@ -572,13 +572,16 @@ APIs:
    .. versionadded:: 3.3
 
 
-.. c:function:: int PyUnicode_CopyCharacters(PyObject *to, Py_ssize_t to_start, \
-                    PyObject *from, Py_ssize_t from_start, Py_ssize_t how_many)
+.. c:function:: Py_ssize_t PyUnicode_CopyCharacters(PyObject *to, \
+                                                    Py_ssize_t to_start, \
+                                                    PyObject *from, \
+                                                    Py_ssize_t from_start, \
+                                                    Py_ssize_t how_many)
 
    Copy characters from one Unicode object into another.  This function performs
    character conversion when necessary and falls back to :c:func:`memcpy` if
    possible.  Returns ``-1`` and sets an exception on error, otherwise returns
-   ``0``.
+   the number of copied characters.
 
    .. versionadded:: 3.3
 
@@ -635,7 +638,7 @@ APIs:
 
    Copy the string *u* into a UCS4 buffer, including a null character, if
    *copy_null* is set.  Returns *NULL* and sets an exception on error (in
-   particular, a :exc:`ValueError` if *buflen* is smaller than the length of
+   particular, a :exc:`SystemError` if *buflen* is smaller than the length of
    *u*).  *buffer* is returned on success.
 
    .. versionadded:: 3.3
@@ -784,7 +787,7 @@ system.
    Encode a Unicode object to the current locale encoding. The
    supported error handlers are ``"strict"`` and ``"surrogateescape"``
    (:pep:`383`). The encoder uses ``"strict"`` error handler if
-   *errors* is ``NULL``. Return a :class:`bytes` object. *str* cannot
+   *errors* is ``NULL``. Return a :class:`bytes` object. *unicode* cannot
    contain embedded null characters.
 
    Use :c:func:`PyUnicode_EncodeFSDefault` to encode a string to
@@ -1412,11 +1415,11 @@ included in the :mod:`encodings` package). The codec uses mapping to encode and
 decode characters.
 
 Decoding mappings must map single string characters to single Unicode
-characters, integers (which are then interpreted as Unicode ordinals) or None
+characters, integers (which are then interpreted as Unicode ordinals) or ``None``
 (meaning "undefined mapping" and causing an error).
 
 Encoding mappings must map single Unicode characters to single string
-characters, integers (which are then interpreted as Latin-1 ordinals) or None
+characters, integers (which are then interpreted as Latin-1 ordinals) or ``None``
 (meaning "undefined mapping" and causing an error).
 
 The mapping objects provided must only support the __getitem__ mapping
@@ -1457,7 +1460,7 @@ The following codec API is special in that maps Unicode to Unicode.
    *NULL* when an exception was raised by the codec.
 
    The *mapping* table must map Unicode ordinal integers to Unicode ordinal
-   integers or None (causing deletion of the character).
+   integers or ``None`` (causing deletion of the character).
 
    Mapping tables need only provide the :meth:`__getitem__` interface; dictionaries
    and sequences work well.  Unmapped character ordinals (ones which cause a
@@ -1574,7 +1577,7 @@ They all return *NULL* or ``-1`` if an exception occurs.
    resulting Unicode object.
 
    The mapping table must map Unicode ordinal integers to Unicode ordinal integers
-   or None (causing deletion of the character).
+   or ``None`` (causing deletion of the character).
 
    Mapping tables need only provide the :meth:`__getitem__` interface; dictionaries
    and sequences work well.  Unmapped character ordinals (ones which cause a

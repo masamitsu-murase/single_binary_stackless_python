@@ -723,15 +723,7 @@ extern pid_t forkpty(int *, char *, struct termios *, struct winsize *);
 #define Py_ULL(x) Py_LL(x##U)
 #endif
 
-#ifdef VA_LIST_IS_ARRAY
-#define Py_VA_COPY(x, y) memcpy((x), (y), sizeof(va_list))
-#else
-#ifdef __va_copy
-#define Py_VA_COPY __va_copy
-#else
-#define Py_VA_COPY(x, y) (x) = (y)
-#endif
-#endif
+#define Py_VA_COPY va_copy
 
 /*
  * Convenient macros to deal with endianness of the platform. WORDS_BIGENDIAN is
@@ -747,7 +739,7 @@ extern pid_t forkpty(int *, char *, struct termios *, struct winsize *);
 #define PY_LITTLE_ENDIAN 1
 #endif
 
-#ifdef Py_BUILD_CORE 
+#ifdef Py_BUILD_CORE
 /*
  * Macros to protect CRT calls against instant termination when passed an
  * invalid parameter (issue23524).

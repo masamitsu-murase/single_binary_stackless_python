@@ -1549,15 +1549,19 @@ PyUnicode_CopyCharacters(PyObject *to, Py_ssize_t to_start,
     if (PyUnicode_READY(to) == -1)
         return -1;
 
-    if (from_start < 0) {
+    if ((size_t)from_start > (size_t)PyUnicode_GET_LENGTH(from)) {
         PyErr_SetString(PyExc_IndexError, "string index out of range");
         return -1;
     }
-    if (to_start < 0) {
+    if ((size_t)to_start > (size_t)PyUnicode_GET_LENGTH(to)) {
         PyErr_SetString(PyExc_IndexError, "string index out of range");
         return -1;
     }
-    how_many = Py_MIN(PyUnicode_GET_LENGTH(from), how_many);
+    if (how_many < 0) {
+        PyErr_SetString(PyExc_SystemError, "how_many cannot be negative");
+        return -1;
+    }
+    how_many = Py_MIN(PyUnicode_GET_LENGTH(from)-from_start, how_many);
     if (to_start + how_many > PyUnicode_GET_LENGTH(to)) {
         PyErr_Format(PyExc_SystemError,
                      "Cannot write %zi characters at %zi "
@@ -2874,9 +2878,8 @@ PyUnicode_FromFormatV(const char *format, va_list vargs)
     writer.min_length = strlen(format) + 100;
     writer.overallocate = 1;
 
-    /* va_list may be an array (of 1 item) on some platforms (ex: AMD64).
-       Copy it to be able to pass a reference to a subfunction. */
-    Py_VA_COPY(vargs2, vargs);
+    // Copy varags to be able to pass a reference to a subfunction.
+    va_copy(vargs2, vargs);
 
     for (f = format; *f; ) {
         if (*f == '%') {
@@ -2896,7 +2899,7 @@ PyUnicode_FromFormatV(const char *format, va_list vargs)
                         "PyUnicode_FromFormatV() expects an ASCII-encoded format "
                         "string, got a non-ASCII byte: 0x%02x",
                         (unsigned char)*p);
-                    return NULL;
+                    goto fail;
                 }
                 p++;
             }
@@ -2912,9 +2915,11 @@ PyUnicode_FromFormatV(const char *format, va_list vargs)
             f = p;
         }
     }
+    va_end(vargs2);
     return _PyUnicodeWriter_Finish(&writer);
 
   fail:
+    va_end(vargs2);
     _PyUnicodeWriter_Dealloc(&writer);
     return NULL;
 }
@@ -3095,9 +3100,9 @@ PyUnicode_FromEncodedObject(PyObject *obj,
     return v;
 }
 
-/* Normalize an encoding name: C implementation of
-   encodings.normalize_encoding(). Return 1 on success, or 0 on error (encoding
-   is longer than lower_len-1). */
+/* Normalize an encoding name: similar to encodings.normalize_encoding(), but
+   also convert to lowercase. Return 1 on success, or 0 on error (encoding is
+   longer than lower_len-1). */
 int
 _Py_normalize_encoding(const char *encoding,
                        char *lower,
@@ -3214,7 +3219,7 @@ PyUnicode_Decode(const char *s,
                      "'%.400s' decoder returned '%.400s' instead of 'str'; "
                      "use codecs.decode() to decode to arbitrary types",
                      encoding,
-                     Py_TYPE(unicode)->tp_name, Py_TYPE(unicode)->tp_name);
+                     Py_TYPE(unicode)->tp_name);
         Py_DECREF(unicode);
         goto onError;
     }
@@ -3275,7 +3280,7 @@ PyUnicode_AsDecodedUnicode(PyObject *unicode,
                      "'%.400s' decoder returned '%.400s' instead of 'str'; "
                      "use codecs.decode() to decode to arbitrary types",
                      encoding,
-                     Py_TYPE(unicode)->tp_name, Py_TYPE(unicode)->tp_name);
+                     Py_TYPE(unicode)->tp_name);
         Py_DECREF(v);
         goto onError;
     }
@@ -3621,7 +3626,7 @@ PyUnicode_AsEncodedString(PyObject *unicode,
                  "'%.400s' encoder returned '%.400s' instead of 'bytes'; "
                  "use codecs.encode() to encode to arbitrary types",
                  encoding,
-                 Py_TYPE(v)->tp_name, Py_TYPE(v)->tp_name);
+                 Py_TYPE(v)->tp_name);
     Py_DECREF(v);
     return NULL;
 }
@@ -3650,7 +3655,7 @@ PyUnicode_AsEncodedUnicode(PyObject *unicode,
                      "'%.400s' encoder returned '%.400s' instead of 'str'; "
                      "use codecs.encode() to encode to arbitrary types",
                      encoding,
-                     Py_TYPE(v)->tp_name, Py_TYPE(v)->tp_name);
+                     Py_TYPE(v)->tp_name);
         Py_DECREF(v);
         goto onError;
     }

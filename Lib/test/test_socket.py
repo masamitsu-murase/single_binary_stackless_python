@@ -4552,6 +4552,19 @@ class TestExceptions(unittest.TestCase):
         self.assertTrue(issubclass(socket.gaierror, OSError))
         self.assertTrue(issubclass(socket.timeout, OSError))
 
+    def test_setblocking_invalidfd(self):
+        # Regression test for issue #28471
+
+        sock0 = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+        sock = socket.socket(
+            socket.AF_INET, socket.SOCK_STREAM, 0, sock0.fileno())
+        sock0.close()
+        self.addCleanup(sock.detach)
+
+        with self.assertRaises(OSError):
+            sock.setblocking(False)
+
+
 @unittest.skipUnless(sys.platform == 'linux', 'Linux specific test')
 class TestLinuxAbstractNamespace(unittest.TestCase):
 
@@ -4668,9 +4681,10 @@ class BufferIOTest(SocketConnectedTest):
         SocketConnectedTest.__init__(self, methodName=methodName)
 
     def testRecvIntoArray(self):
-        buf = bytearray(1024)
+        buf = array.array("B", [0] * len(MSG))
         nbytes = self.cli_conn.recv_into(buf)
         self.assertEqual(nbytes, len(MSG))
+        buf = buf.tobytes()
         msg = buf[:len(MSG)]
         self.assertEqual(msg, MSG)
 
@@ -4697,9 +4711,10 @@ class BufferIOTest(SocketConnectedTest):
     _testRecvIntoMemoryview = _testRecvIntoArray
 
     def testRecvFromIntoArray(self):
-        buf = bytearray(1024)
+        buf = array.array("B", [0] * len(MSG))
         nbytes, addr = self.cli_conn.recvfrom_into(buf)
         self.assertEqual(nbytes, len(MSG))
+        buf = buf.tobytes()
         msg = buf[:len(MSG)]
         self.assertEqual(msg, MSG)
 
