@@ -3232,24 +3232,16 @@ PyUnicode_AsDecodedObject(PyObject *unicode,
                           const char *encoding,
                           const char *errors)
 {
-    PyObject *v;
-
     if (!PyUnicode_Check(unicode)) {
         PyErr_BadArgument();
-        goto onError;
+        return NULL;
     }
 
     if (encoding == NULL)
         encoding = PyUnicode_GetDefaultEncoding();
 
     /* Decode via the codec registry */
-    v = PyCodec_Decode(unicode, encoding, errors);
-    if (v == NULL)
-        goto onError;
-    return unicode_result(v);
-
-  onError:
-    return NULL;
+    return PyCodec_Decode(unicode, encoding, errors);
 }
 
 PyObject *
@@ -3400,11 +3392,9 @@ PyUnicode_EncodeLocale(PyObject *unicode, const char *errors)
 {
     Py_ssize_t wlen, wlen2;
     wchar_t *wstr;
-    PyObject *bytes = NULL;
     char *errmsg;
-    PyObject *reason = NULL;
-    PyObject *exc;
-    size_t error_pos;
+    PyObject *bytes, *reason, *exc;
+    size_t error_pos, errlen;
     int surrogateescape;
 
     if (locale_error_handler(errors, &surrogateescape) < 0)
@@ -3459,6 +3449,7 @@ PyUnicode_EncodeLocale(PyObject *unicode, const char *errors)
 
         len2 = wcstombs(PyBytes_AS_STRING(bytes), wstr, len+1);
         if (len2 == (size_t)-1 || len2 > len) {
+            Py_DECREF(bytes);
             error_pos = (size_t)-1;
             goto encode_error;
         }
@@ -3474,17 +3465,15 @@ encode_error:
         error_pos = wcstombs_errorpos(wstr);
 
     PyMem_Free(wstr);
-    Py_XDECREF(bytes);
 
-    if (errmsg != NULL) {
-        size_t errlen;
-        wstr = Py_DecodeLocale(errmsg, &errlen);
-        if (wstr != NULL) {
-            reason = PyUnicode_FromWideChar(wstr, errlen);
-            PyMem_RawFree(wstr);
-        } else
-            errmsg = NULL;
+    wstr = Py_DecodeLocale(errmsg, &errlen);
+    if (wstr != NULL) {
+        reason = PyUnicode_FromWideChar(wstr, errlen);
+        PyMem_RawFree(wstr);
+    } else {
+        errmsg = NULL;
     }
+
     if (errmsg == NULL)
         reason = PyUnicode_FromString(
             "wcstombs() encountered an unencodable "
@@ -3500,7 +3489,7 @@ encode_error:
     Py_DECREF(reason);
     if (exc != NULL) {
         PyCodec_StrictErrors(exc);
-        Py_XDECREF(exc);
+        Py_DECREF(exc);
     }
     return NULL;
 }
@@ -3702,10 +3691,9 @@ PyUnicode_DecodeLocaleAndSize(const char *str, Py_ssize_t len,
     size_t wlen, wlen2;
     PyObject *unicode;
     int surrogateescape;
-    size_t error_pos;
+    size_t error_pos, errlen;
     char *errmsg;
-    PyObject *reason = NULL;   /* initialize to prevent gcc warning */
-    PyObject *exc;
+    PyObject *exc, *reason = NULL;   /* initialize to prevent gcc warning */
 
     if (locale_error_handler(errors, &surrogateescape) < 0)
         return NULL;
@@ -3763,19 +3751,16 @@ PyUnicode_DecodeLocaleAndSize(const char *str, Py_ssize_t len,
     return unicode;
 
 decode_error:
-    reason = NULL;
     errmsg = strerror(errno);
     assert(errmsg != NULL);
 
     error_pos = mbstowcs_errorpos(str, len);
-    if (errmsg != NULL) {
-        size_t errlen;
-        wstr = Py_DecodeLocale(errmsg, &errlen);
-        if (wstr != NULL) {
-            reason = PyUnicode_FromWideChar(wstr, errlen);
-            PyMem_RawFree(wstr);
-        }
+    wstr = Py_DecodeLocale(errmsg, &errlen);
+    if (wstr != NULL) {
+        reason = PyUnicode_FromWideChar(wstr, errlen);
+        PyMem_RawFree(wstr);
     }
+
     if (reason == NULL)
         reason = PyUnicode_FromString(
             "mbstowcs() encountered an invalid multibyte sequence");
@@ -3790,7 +3775,7 @@ decode_error:
     Py_DECREF(reason);
     if (exc != NULL) {
         PyCodec_StrictErrors(exc);
-        Py_XDECREF(exc);
+        Py_DECREF(exc);
     }
     return NULL;
 }
@@ -4240,7 +4225,7 @@ unicode_decode_call_errorhandler_wchar(
     Py_ssize_t *endinpos, PyObject **exceptionObject, const char **inptr,
     PyObject **output, Py_ssize_t *outpos)
 {
-    static const char *argparse = "O!n;decoding error handler must return (str, int) tuple";
+    static const char *argparse = "Un;decoding error handler must return (str, int) tuple";
 
     PyObject *restuple = NULL;
     PyObject *repunicode = NULL;
@@ -4273,10 +4258,10 @@ unicode_decode_call_errorhandler_wchar(
     if (restuple == NULL)
         goto onError;
     if (!PyTuple_Check(restuple)) {
-        PyErr_SetString(PyExc_TypeError, &argparse[4]);
+        PyErr_SetString(PyExc_TypeError, &argparse[3]);
         goto onError;
     }
-    if (!PyArg_ParseTuple(restuple, argparse, &PyUnicode_Type, &repunicode, &newpos))
+    if (!PyArg_ParseTuple(restuple, argparse, &repunicode, &newpos))
         goto onError;
 
     /* Copy back the bytes variables, which might have been modified by the
@@ -4284,9 +4269,6 @@ unicode_decode_call_errorhandler_wchar(
     inputobj = PyUnicodeDecodeError_GetObject(*exceptionObject);
     if (!inputobj)
         goto onError;
-    if (!PyBytes_Check(inputobj)) {
-        PyErr_Format(PyExc_TypeError, "exception attribute object must be bytes");
-    }
     *input = PyBytes_AS_STRING(inputobj);
     insize = PyBytes_GET_SIZE(inputobj);
     *inend = *input + insize;
@@ -4327,7 +4309,7 @@ unicode_decode_call_errorhandler_wchar(
     *inptr = *input + newpos;
 
     /* we made it! */
-    Py_XDECREF(restuple);
+    Py_DECREF(restuple);
     return 0;
 
   overflow:
@@ -4348,7 +4330,7 @@ unicode_decode_call_errorhandler_writer(
     Py_ssize_t *endinpos, PyObject **exceptionObject, const char **inptr,
     _PyUnicodeWriter *writer /* PyObject **output, Py_ssize_t *outpos */)
 {
-    static const char *argparse = "O!n;decoding error handler must return (str, int) tuple";
+    static const char *argparse = "Un;decoding error handler must return (str, int) tuple";
 
     PyObject *restuple = NULL;
     PyObject *repunicode = NULL;
@@ -4375,10 +4357,10 @@ unicode_decode_call_errorhandler_writer(
     if (restuple == NULL)
         goto onError;
     if (!PyTuple_Check(restuple)) {
-        PyErr_SetString(PyExc_TypeError, &argparse[4]);
+        PyErr_SetString(PyExc_TypeError, &argparse[3]);
         goto onError;
     }
-    if (!PyArg_ParseTuple(restuple, argparse, &PyUnicode_Type, &repunicode, &newpos))
+    if (!PyArg_ParseTuple(restuple, argparse, &repunicode, &newpos))
         goto onError;
 
     /* Copy back the bytes variables, which might have been modified by the
@@ -4386,9 +4368,6 @@ unicode_decode_call_errorhandler_writer(
     inputobj = PyUnicodeDecodeError_GetObject(*exceptionObject);
     if (!inputobj)
         goto onError;
-    if (!PyBytes_Check(inputobj)) {
-        PyErr_Format(PyExc_TypeError, "exception attribute object must be bytes");
-    }
     *input = PyBytes_AS_STRING(inputobj);
     insize = PyBytes_GET_SIZE(inputobj);
     *inend = *input + insize;
@@ -4403,8 +4382,6 @@ unicode_decode_call_errorhandler_writer(
         goto onError;
     }
 
-    if (PyUnicode_READY(repunicode) < 0)
-        goto onError;
     replen = PyUnicode_GET_LENGTH(repunicode);
     if (replen > 1) {
         writer->min_length += replen - 1;
@@ -4420,7 +4397,7 @@ unicode_decode_call_errorhandler_writer(
     *inptr = *input + newpos;
 
     /* we made it! */
-    Py_XDECREF(restuple);
+    Py_DECREF(restuple);
     return 0;
 
   onError:
@@ -8629,7 +8606,7 @@ unicode_translate_call_errorhandler(const char *errors,
                                     Py_ssize_t startpos, Py_ssize_t endpos,
                                     Py_ssize_t *newpos)
 {
-    static const char *argparse = "O!n;translating error handler must return (str, int) tuple";
+    static const char *argparse = "Un;translating error handler must return (str, int) tuple";
 
     Py_ssize_t i_newpos;
     PyObject *restuple;
@@ -8651,11 +8628,11 @@ unicode_translate_call_errorhandler(const char *errors,
     if (restuple == NULL)
         return NULL;
     if (!PyTuple_Check(restuple)) {
-        PyErr_SetString(PyExc_TypeError, &argparse[4]);
+        PyErr_SetString(PyExc_TypeError, &argparse[3]);
         Py_DECREF(restuple);
         return NULL;
     }
-    if (!PyArg_ParseTuple(restuple, argparse, &PyUnicode_Type,
+    if (!PyArg_ParseTuple(restuple, argparse,
                           &resunicode, &i_newpos)) {
         Py_DECREF(restuple);
         return NULL;

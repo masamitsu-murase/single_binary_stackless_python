@@ -41,9 +41,6 @@ from .log import logger
 __all__ = ['BaseEventLoop']
 
 
-# Argument for default thread pool executor creation.
-_MAX_WORKERS = 5
-
 # Minimum number of _scheduled timer handles before cleanup of
 # cancelled handles is performed.
 _MIN_SCHEDULED_TIMER_HANDLES = 100
@@ -351,6 +348,9 @@ class BaseEventLoop(events.AbstractEventLoop):
         self._asyncgens.discard(agen)
         if not self.is_closed():
             self.create_task(agen.aclose())
+            # Wake up the loop if the finalizer was called from
+            # a different thread.
+            self._write_to_self()
 
     def _asyncgen_firstiter_hook(self, agen):
         if self._asyncgens_shutdown_called:
@@ -617,7 +617,7 @@ class BaseEventLoop(events.AbstractEventLoop):
         if executor is None:
             executor = self._default_executor
             if executor is None:
-                executor = concurrent.futures.ThreadPoolExecutor(_MAX_WORKERS)
+                executor = concurrent.futures.ThreadPoolExecutor()
                 self._default_executor = executor
         return futures.wrap_future(executor.submit(func, *args), loop=self)
 
