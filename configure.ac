@@ -2037,7 +2037,7 @@ unistd.h utime.h \
 poll.h sys/devpoll.h sys/epoll.h sys/poll.h \
 sys/audioio.h sys/xattr.h sys/bsdtty.h sys/event.h sys/file.h sys/ioctl.h \
 sys/kern_control.h sys/loadavg.h sys/lock.h sys/mkdev.h sys/modem.h \
-sys/param.h sys/select.h sys/sendfile.h sys/socket.h sys/statvfs.h \
+sys/param.h sys/random.h sys/select.h sys/sendfile.h sys/socket.h sys/statvfs.h \
 sys/stat.h sys/syscall.h sys/sys_domain.h sys/termio.h sys/time.h \
 sys/times.h sys/types.h sys/uio.h sys/un.h sys/utsname.h sys/wait.h pty.h \
 libutil.h sys/resource.h netpacket/packet.h sysexits.h bluetooth.h \
@@ -3404,8 +3404,7 @@ AC_CHECK_FUNCS(alarm accept4 setitimer getitimer bind_textdomain_codeset chown \
  futimens futimes gai_strerror getentropy \
  getgrouplist getgroups getlogin getloadavg getpeername getpgid getpid \
  getpriority getresuid getresgid getpwent getspnam getspent getsid getwd \
- if_nameindex \
- initgroups kill killpg lchmod lchown lockf linkat lstat lutimes mmap \
+ initgroups kill killpg lchmod lchown linkat lstat lutimes mmap \
  memrchr mbrtowc mkdirat mkfifo \
  mkfifoat mknod mknodat mktime mremap nice openat pathconf pause pipe2 plock poll \
  posix_fallocate posix_fadvise pread \
@@ -3755,6 +3754,40 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[
   AC_MSG_RESULT(yes)
 ],[
   AC_MSG_RESULT(no)
+])
+
+# On Android API level 24 with android-ndk-r13, if_nameindex() is available,
+# but the if_nameindex structure is not defined.
+AC_MSG_CHECKING(for if_nameindex)
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+#include <stdio.h>
+#ifdef STDC_HEADERS
+# include <stdlib.h>
+# include <stddef.h>
+#else
+# ifdef HAVE_STDLIB_H
+#  include <stdlib.h>
+# endif
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
+#ifdef HAVE_NET_IF_H
+# include <net/if.h>
+#endif
+]], [[struct if_nameindex *ni = if_nameindex(); int x = ni[0].if_index;]])],
+  [AC_DEFINE(HAVE_IF_NAMEINDEX, 1, Define to 1 if you have the 'if_nameindex' function.)
+   AC_MSG_RESULT(yes)],
+  [AC_MSG_RESULT(no)
+])
+
+# Issue #28762: lockf() is available on Android API level 24, but the F_LOCK
+# macro is not defined in android-ndk-r13.
+AC_MSG_CHECKING(for lockf)
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <unistd.h> ]],[[lockf(0, F_LOCK, 0);]])],
+  [AC_DEFINE(HAVE_LOCKF, 1, Define to 1 if you have the 'lockf' function and the F_LOCK macro.)
+   AC_MSG_RESULT(yes)],
+  [AC_MSG_RESULT(no)
 ])
 
 # On OSF/1 V5.1, getaddrinfo is available, but a define

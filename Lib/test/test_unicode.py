@@ -1793,9 +1793,6 @@ class UnicodeTest(string_tests.CommonTest,
             self.assertEqual(seq.decode('utf-8', 'ignore'),
                              res.replace('\uFFFD', ''))
 
-    def to_bytestring(self, seq):
-        return bytes(int(c, 16) for c in seq.split())
-
     def assertCorrectUTF8Decoding(self, seq, res, err):
         """
         Check that an invalid UTF-8 sequence raises a UnicodeDecodeError when
@@ -1851,7 +1848,7 @@ class UnicodeTest(string_tests.CommonTest,
         ]
         FFFD = '\ufffd'
         for seq in sequences:
-            self.assertCorrectUTF8Decoding(self.to_bytestring(seq), '\ufffd',
+            self.assertCorrectUTF8Decoding(bytes.fromhex(seq), '\ufffd',
                                            'unexpected end of data')
 
     def test_invalid_cb_for_2bytes_seq(self):
@@ -1873,7 +1870,7 @@ class UnicodeTest(string_tests.CommonTest,
             ('DF C0', FFFDx2), ('DF FF', FFFDx2),
         ]
         for seq, res in sequences:
-            self.assertCorrectUTF8Decoding(self.to_bytestring(seq), res,
+            self.assertCorrectUTF8Decoding(bytes.fromhex(seq), res,
                                            'invalid continuation byte')
 
     def test_invalid_cb_for_3bytes_seq(self):
@@ -1931,7 +1928,7 @@ class UnicodeTest(string_tests.CommonTest,
             ('EF BF C0', FFFDx2), ('EF BF FF', FFFDx2),
         ]
         for seq, res in sequences:
-            self.assertCorrectUTF8Decoding(self.to_bytestring(seq), res,
+            self.assertCorrectUTF8Decoding(bytes.fromhex(seq), res,
                                            'invalid continuation byte')
 
     def test_invalid_cb_for_4bytes_seq(self):
@@ -2010,7 +2007,7 @@ class UnicodeTest(string_tests.CommonTest,
             ('F4 8F BF C0', FFFDx2), ('F4 8F BF FF', FFFDx2)
         ]
         for seq, res in sequences:
-            self.assertCorrectUTF8Decoding(self.to_bytestring(seq), res,
+            self.assertCorrectUTF8Decoding(bytes.fromhex(seq), res,
                                            'invalid continuation byte')
 
     def test_codecs_idna(self):
@@ -2639,7 +2636,7 @@ class CAPITest(unittest.TestCase):
                      b'repr=%V', None, b'abc\xff')
 
         # not supported: copy the raw format string. these tests are just here
-        # to check for crashs and should not be considered as specifications
+        # to check for crashes and should not be considered as specifications
         check_format('%s',
                      b'%1%s', b'abc')
         check_format('%1abc',
@@ -2727,6 +2724,29 @@ class CAPITest(unittest.TestCase):
             s = '\0'.join([s, s])
             self.assertEqual(unicode_asucs4(s, len(s), 1), s+'\0')
             self.assertEqual(unicode_asucs4(s, len(s), 0), s+'\uffff')
+
+    # Test PyUnicode_FindChar()
+    @support.cpython_only
+    def test_findchar(self):
+        from _testcapi import unicode_findchar
+
+        for str in "\xa1", "\u8000\u8080", "\ud800\udc02", "\U0001f100\U0001f1f1":
+            for i, ch in enumerate(str):
+                self.assertEqual(unicode_findchar(str, ord(ch), 0, len(str), 1), i)
+                self.assertEqual(unicode_findchar(str, ord(ch), 0, len(str), -1), i)
+
+        str = "!>_<!"
+        self.assertEqual(unicode_findchar(str, 0x110000, 0, len(str), 1), -1)
+        self.assertEqual(unicode_findchar(str, 0x110000, 0, len(str), -1), -1)
+        # start < end
+        self.assertEqual(unicode_findchar(str, ord('!'), 1, len(str)+1, 1), 4)
+        self.assertEqual(unicode_findchar(str, ord('!'), 1, len(str)+1, -1), 4)
+        # start >= end
+        self.assertEqual(unicode_findchar(str, ord('!'), 0, 0, 1), -1)
+        self.assertEqual(unicode_findchar(str, ord('!'), len(str), 0, 1), -1)
+        # negative
+        self.assertEqual(unicode_findchar(str, ord('!'), -len(str), -1, 1), 0)
+        self.assertEqual(unicode_findchar(str, ord('!'), -len(str), -1, -1), 0)
 
     # Test PyUnicode_CopyCharacters()
     @support.cpython_only

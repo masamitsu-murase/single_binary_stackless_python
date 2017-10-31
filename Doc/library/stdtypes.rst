@@ -942,8 +942,10 @@ Notes:
    The slice of *s* from *i* to *j* with step *k* is defined as the sequence of
    items with index  ``x = i + n*k`` such that ``0 <= n < (j-i)/k``.  In other words,
    the indices are ``i``, ``i+k``, ``i+2*k``, ``i+3*k`` and so on, stopping when
-   *j* is reached (but never including *j*).  If *i* or *j* is greater than
-   ``len(s)``, use ``len(s)``.  If *i* or *j* are omitted or ``None``, they become
+   *j* is reached (but never including *j*).  When *k* is positive,
+   *i* and *j* are reduced to ``len(s)`` if they are greater.
+   When *k* is negative, *i* and *j* are reduced to ``len(s) - 1`` if
+   they are greater.  If *i* or *j* are omitted or ``None``, they become
    "end" values (which end depends on the sign of *k*).  Note, *k* cannot be zero.
    If *k* is ``None``, it is treated like ``1``.
 
@@ -2314,10 +2316,14 @@ the bytes type has an additional class method to read data in that format:
 
    This :class:`bytes` class method returns a bytes object, decoding the
    given string object.  The string must contain two hexadecimal digits per
-   byte, with ASCII spaces being ignored.
+   byte, with ASCII whitespace being ignored.
 
    >>> bytes.fromhex('2Ef0 F1f2  ')
    b'.\xf0\xf1\xf2'
+
+   .. versionchanged:: 3.7
+      :meth:`bytes.fromhex` now skips all ASCII whitespace in the string,
+      not just spaces.
 
 A reverse conversion function exists to transform a bytes object into its
 hexadecimal representation.
@@ -2382,10 +2388,14 @@ the bytearray type has an additional class method to read data in that format:
 
    This :class:`bytearray` class method returns bytearray object, decoding
    the given string object.  The string must contain two hexadecimal digits
-   per byte, with ASCII spaces being ignored.
+   per byte, with ASCII whitespace being ignored.
 
    >>> bytearray.fromhex('2Ef0 F1f2  ')
    bytearray(b'.\xf0\xf1\xf2')
+
+   .. versionchanged:: 3.7
+      :meth:`bytearray.fromhex` now skips all ASCII whitespace in the string,
+      not just spaces.
 
 A reverse conversion function exists to transform a bytearray object into its
 hexadecimal representation.

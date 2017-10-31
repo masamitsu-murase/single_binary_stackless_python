@@ -1625,6 +1625,9 @@ They all return *NULL* or ``-1`` if an exception occurs.
 
    .. versionadded:: 3.3
 
+   .. versionchanged:: 3.7
+      *start* and *end* are now adjusted to behave like ``str[start:end]``.
+
 
 .. c:function:: Py_ssize_t PyUnicode_Count(PyObject *str, PyObject *substr, \
                                Py_ssize_t start, Py_ssize_t end)
@@ -1667,10 +1670,6 @@ They all return *NULL* or ``-1`` if an exception occurs.
    * ``NULL`` in case an exception was raised
    * :const:`Py_True` or :const:`Py_False` for successful comparisons
    * :const:`Py_NotImplemented` in case the type combination is unknown
-
-   Note that :const:`Py_EQ` and :const:`Py_NE` comparisons can cause a
-   :exc:`UnicodeWarning` in case the conversion of the arguments to Unicode fails
-   with a :exc:`UnicodeDecodeError`.
 
    Possible values for *op* are :const:`Py_GT`, :const:`Py_GE`, :const:`Py_EQ`,
    :const:`Py_NE`, :const:`Py_LT`, and :const:`Py_LE`.
