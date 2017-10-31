@@ -1,8 +1,8 @@
 .. _whatsnew-index:
 
-######################
- What's New in Python
-######################
+####################
+What's New in Python
+####################
 
 The "What's New in Python" series of essays takes tours through the most
 important changes between major Python versions.  They are a "must read" for
@@ -12,6 +12,7 @@ anyone wishing to stay up-to-date after a new release.
    :maxdepth: 2
 
    stackless.rst
+   3.7.rst
    3.6.rst
    3.5.rst
    3.4.rst
