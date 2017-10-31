@@ -4615,12 +4615,6 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
          * when the generator is resumed. */
         Py_CLEAR(f->f_back);
 
-#ifdef STACKLESS
-        /* Stackless calls need GC. */
-        assert(!_PyObject_GC_IS_TRACKED(f));
-        _PyObject_GC_TRACK(f);
-#endif
-
         /* Create a new generator that owns the ready to run frame
          * and return that as the value. */
         if (is_coro) {
@@ -4630,8 +4624,11 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
         } else {
             gen = PyGen_NewWithQualName(f, name, qualname);
         }
-        if (gen == NULL)
+        if (gen == NULL) {
+            Py_DECREF(f);
             return NULL;
+        }
+        _PyObject_GC_TRACK(f);
 
         if (is_coro && coro_wrapper != NULL) {
             PyObject *wrapped;
