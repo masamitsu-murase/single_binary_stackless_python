@@ -3925,6 +3925,8 @@ AC_CHECK_MEMBERS([struct passwd.pw_gecos, struct passwd.pw_passwd], [], [], [[
   #include <sys/types.h>
   #include <pwd.h>
 ]])
+# Issue #21085: In Cygwin, siginfo_t does not have si_band field.
+AC_CHECK_MEMBERS([siginfo_t.si_band], [], [], [[#include <signal.h>]])
 
 AC_MSG_CHECKING(for time.h that defines altzone)
 AC_CACHE_VAL(ac_cv_header_time_altzone,[
@@ -4057,20 +4059,6 @@ x.sa_len = 0;]])],
    AC_DEFINE(HAVE_SOCKADDR_SA_LEN, 1, [Define if sockaddr has sa_len member])],
   [AC_MSG_RESULT(no)]
 )
-
-va_list_is_array=no
-AC_MSG_CHECKING(whether va_list is an array)
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-#ifdef HAVE_STDARG_PROTOTYPES
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-]], [[va_list list1, list2; list1 = list2;]])],[],[
- AC_DEFINE(VA_LIST_IS_ARRAY, 1, [Define if a va_list is an array of some kind])
- va_list_is_array=yes
-])
-AC_MSG_RESULT($va_list_is_array)
 
 # sigh -- gethostbyname_r is a mess; it can have 3, 5 or 6 arguments :-(
 AH_TEMPLATE(HAVE_GETHOSTBYNAME_R,
@@ -5428,7 +5416,7 @@ mv config.c Modules
 if test "$Py_OPT" = 'false' -a "$Py_DEBUG" != 'true'; then
     echo "" >&AS_MESSAGE_FD
     echo "" >&AS_MESSAGE_FD
-    echo "If you want a release build with all optimizations active (LTO, PGO, etc),"
+    echo "If you want a release build with all optimizations active (LTO, PGO, etc)," >&AS_MESSAGE_FD
     echo "please run ./configure --with-optimizations" >&AS_MESSAGE_FD
     echo "" >&AS_MESSAGE_FD
     echo "" >&AS_MESSAGE_FD

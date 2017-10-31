@@ -2756,11 +2756,11 @@ objargs_mkstack(PyObject **small_stack, Py_ssize_t small_stack_size,
     PyObject **stack;
 
     /* Count the number of arguments */
-    Py_VA_COPY(countva, va);
+    va_copy(countva, va);
 
     n = 0;
     while (1) {
-        PyObject *arg = (PyObject *)va_arg(countva, PyObject *);
+        PyObject *arg = va_arg(countva, PyObject *);
         if (arg == NULL) {
             break;
         }
@@ -2775,6 +2775,7 @@ objargs_mkstack(PyObject **small_stack, Py_ssize_t small_stack_size,
     else {
         stack = PyMem_Malloc(n * sizeof(stack[0]));
         if (stack == NULL) {
+            va_end(countva);
             PyErr_NoMemory();
             return NULL;
         }
@@ -2783,6 +2784,7 @@ objargs_mkstack(PyObject **small_stack, Py_ssize_t small_stack_size,
     for (i = 0; i < n; ++i) {
         stack[i] = va_arg(va, PyObject *);
     }
+    va_end(countva);
     return stack;
 }
 

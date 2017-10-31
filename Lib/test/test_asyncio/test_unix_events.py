@@ -11,6 +11,7 @@ import sys
 import tempfile
 import threading
 import unittest
+import warnings
 from unittest import mock
 
 if sys.platform == 'win32':
@@ -272,7 +273,16 @@ class SelectorEventLoopUnixSocketTests(test_utils.TestCase):
             coro = self.loop.create_unix_server(lambda: None, path=None,
                                                 sock=sock)
             with self.assertRaisesRegex(ValueError,
-                                        'A UNIX Domain Socket was expected'):
+                                        'A UNIX Domain Stream.*was expected'):
+                self.loop.run_until_complete(coro)
+
+    def test_create_unix_connection_path_inetsock(self):
+        sock = socket.socket()
+        with sock:
+            coro = self.loop.create_unix_connection(lambda: None, path=None,
+                                                    sock=sock)
+            with self.assertRaisesRegex(ValueError,
+                                        'A UNIX Domain Stream.*was expected'):
                 self.loop.run_until_complete(coro)
 
     @mock.patch('asyncio.unix_events.socket')
@@ -1391,7 +1401,9 @@ class ChildWatcherTestsMixin:
         with mock.patch.object(
                 old_loop, "remove_signal_handler") as m_remove_signal_handler:
 
-            self.watcher.attach_loop(None)
+            with self.assertWarnsRegex(
+                    RuntimeWarning, 'A loop is being detached'):
+                self.watcher.attach_loop(None)
 
             m_remove_signal_handler.assert_called_once_with(
                 signal.SIGCHLD)
@@ -1462,6 +1474,15 @@ class ChildWatcherTestsMixin:
                 self.assertFalse(self.watcher._callbacks)
                 if isinstance(self.watcher, asyncio.FastChildWatcher):
                     self.assertFalse(self.watcher._zombies)
+
+    @waitpid_mocks
+    def test_add_child_handler_with_no_loop_attached(self, m):
+        callback = mock.Mock()
+        with self.create_watcher() as watcher:
+            with self.assertRaisesRegex(
+                    RuntimeError,
+                    'the child watcher does not have a loop attached'):
+                watcher.add_child_handler(100, callback)
 
 
 class SafeChildWatcherTests (ChildWatcherTestsMixin, test_utils.TestCase):

@@ -39,12 +39,17 @@
 /* BUFMAX determines how many bytes can be read in one go. */
 #define BUFMAX (32*1024*1024)
 
+/* SMALLBUF determines how many utf-8 characters will be
+   buffered within the stream, in order to support reads
+   of less than one character */
+#define SMALLBUF 4
+
 char _get_console_type(HANDLE handle) {
     DWORD mode, peek_count;
 
     if (handle == INVALID_HANDLE_VALUE)
         return '\0';
-    
+
     if (!GetConsoleMode(handle, &mode))
         return '\0';
 
@@ -125,7 +130,8 @@ typedef struct {
     unsigned int blksize;
     PyObject *weakreflist;
     PyObject *dict;
-    char buf[4];
+    char buf[SMALLBUF];
+    wchar_t wbuf;
 } winconsoleio;
 
 PyTypeObject PyWindowsConsoleIO_Type;
@@ -500,11 +506,11 @@ _io__WindowsConsoleIO_writable_impl(winconsoleio *self)
 static DWORD
 _buflen(winconsoleio *self)
 {
-    for (DWORD i = 0; i < 4; ++i) {
+    for (DWORD i = 0; i < SMALLBUF; ++i) {
         if (!self->buf[i])
             return i;
     }
-    return 4;
+    return SMALLBUF;
 }
 
 static DWORD
@@ -513,12 +519,10 @@ _copyfrombuf(winconsoleio *self, char *buf, DWORD len)
     DWORD n = 0;
 
     while (self->buf[0] && len--) {
-        n += 1;
-        buf[0] = self->buf[0];
-        self->buf[0] = self->buf[1];
-        self->buf[1] = self->buf[2];
-        self->buf[2] = self->buf[3];
-        self->buf[3] = 0;
+        buf[n++] = self->buf[0];
+        for (int i = 1; i < SMALLBUF; ++i)
+            self->buf[i - 1] = self->buf[i];
+        self->buf[SMALLBUF - 1] = 0;
     }
 
     return n;
@@ -531,10 +535,13 @@ read_console_w(HANDLE handle, DWORD maxlen, DWORD *readlen) {
     wchar_t *buf = (wchar_t*)PyMem_Malloc(maxlen * sizeof(wchar_t));
     if (!buf)
         goto error;
+
     *readlen = 0;
 
+    //DebugBreak();
     Py_BEGIN_ALLOW_THREADS
-    for (DWORD off = 0; off < maxlen; off += BUFSIZ) {
+    DWORD off = 0;
+    while (off < maxlen) {
         DWORD n, len = min(maxlen - off, BUFSIZ);
         SetLastError(0);
         BOOL res = ReadConsoleW(handle, &buf[off], len, &n, NULL);
@@ -550,7 +557,7 @@ read_console_w(HANDLE handle, DWORD maxlen, DWORD *readlen) {
             err = 0;
             HANDLE hInterruptEvent = _PyOS_SigintEvent();
             if (WaitForSingleObjectEx(hInterruptEvent, 100, FALSE)
-                == WAIT_OBJECT_0) {
+                    == WAIT_OBJECT_0) {
                 ResetEvent(hInterruptEvent);
                 Py_BLOCK_THREADS
                 sig = PyErr_CheckSignals();
@@ -568,7 +575,30 @@ read_console_w(HANDLE handle, DWORD maxlen, DWORD *readlen) {
         /* If the buffer ended with a newline, break out */
         if (buf[*readlen - 1] == '\n')
             break;
+        /* If the buffer ends with a high surrogate, expand the
+           buffer and read an extra character. */
+        WORD char_type;
+        if (off + BUFSIZ >= maxlen &&
+            GetStringTypeW(CT_CTYPE3, &buf[*readlen - 1], 1, &char_type) &&
+            char_type == C3_HIGHSURROGATE) {
+            wchar_t *newbuf;
+            maxlen += 1;
+            Py_BLOCK_THREADS
+            newbuf = (wchar_t*)PyMem_Realloc(buf, maxlen * sizeof(wchar_t));
+            Py_UNBLOCK_THREADS
+            if (!newbuf) {
+                sig = -1;
+                break;
+            }
+            buf = newbuf;
+            /* Only advance by n and not BUFSIZ in this case */
+            off += n;
+            continue;
+        }
+
+        off += BUFSIZ;
     }
+
     Py_END_ALLOW_THREADS
 
     if (sig)
@@ -803,7 +833,7 @@ _io__WindowsConsoleIO_readall_impl(winconsoleio *self)
     bytes_size = WideCharToMultiByte(CP_UTF8, 0, buf, len,
         NULL, 0, NULL, NULL);
     Py_END_ALLOW_THREADS
-    
+
     if (!bytes_size) {
         DWORD err = GetLastError();
         PyMem_Free(buf);
@@ -854,7 +884,7 @@ _io__WindowsConsoleIO_read_impl(winconsoleio *self, Py_ssize_t size)
 {
     PyObject *bytes;
     Py_ssize_t bytes_size;
-    
+
     if (self->handle == INVALID_HANDLE_VALUE)
         return err_closed();
     if (!self->readable)
@@ -929,7 +959,7 @@ _io__WindowsConsoleIO_write_impl(winconsoleio *self, Py_buffer *b)
         wlen = MultiByteToWideChar(CP_UTF8, 0, b->buf, len, NULL, 0);
     }
     Py_END_ALLOW_THREADS
-    
+
     if (!wlen)
         return PyErr_SetFromWindowsErr(0);
 
@@ -956,7 +986,7 @@ _io__WindowsConsoleIO_write_impl(winconsoleio *self, Py_buffer *b)
     } else
         res = 0;
     Py_END_ALLOW_THREADS
-    
+
     if (!res) {
         DWORD err = GetLastError();
         PyMem_Free(wbuf);
@@ -996,7 +1026,7 @@ _io__WindowsConsoleIO_isatty_impl(winconsoleio *self)
 {
     if (self->handle == INVALID_HANDLE_VALUE)
         return err_closed();
-    
+
     Py_RETURN_TRUE;
 }
 
@@ -1109,5 +1139,7 @@ PyTypeObject PyWindowsConsoleIO_Type = {
     0,                                          /* tp_version_tag */
     0,                                          /* tp_finalize */
 };
+
+PyAPI_DATA(PyObject *) _PyWindowsConsoleIO_Type = (PyObject*)&PyWindowsConsoleIO_Type;
 
 #endif /* MS_WINDOWS */

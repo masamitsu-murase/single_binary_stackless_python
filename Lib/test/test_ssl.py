@@ -1474,6 +1474,7 @@ class SimpleBackgroundTests(unittest.TestCase):
                             cert_reqs=ssl.CERT_NONE) as s:
             s.connect(self.server_addr)
             self.assertEqual({}, s.getpeercert())
+            self.assertFalse(s.server_side)
 
         # this should succeed because we specify the root cert
         with test_wrap_socket(socket.socket(socket.AF_INET),
@@ -1481,6 +1482,7 @@ class SimpleBackgroundTests(unittest.TestCase):
                             ca_certs=SIGNING_CA) as s:
             s.connect(self.server_addr)
             self.assertTrue(s.getpeercert())
+            self.assertFalse(s.server_side)
 
     def test_connect_fail(self):
         # This should fail because we have no verification certs. Connection
@@ -2734,7 +2736,7 @@ if _have_threads:
                     s.close()
 
         def test_socketserver(self):
-            """Using a SocketServer to create and manage SSL connections."""
+            """Using socketserver to create and manage SSL connections."""
             server = make_https_server(self, certfile=CERTFILE)
             # try to connect
             if support.verbose:
@@ -2761,8 +2763,6 @@ if _have_threads:
 
         def test_asyncore_server(self):
             """Check the example asyncore integration."""
-            indata = "TEST MESSAGE of mixed case\n"
-
             if support.verbose:
                 sys.stdout.write("\n")
 
@@ -3030,6 +3030,7 @@ if _have_threads:
             host = "127.0.0.1"
             port = support.bind_port(server)
             server = context.wrap_socket(server, server_side=True)
+            self.assertTrue(server.server_side)
 
             evt = threading.Event()
             remote = None

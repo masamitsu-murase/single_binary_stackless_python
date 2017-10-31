@@ -31,7 +31,9 @@ Modules/Setup.local
 Modules/config.c
 Modules/ld_so_aix
 Programs/_freeze_importlib
+Programs/_freeze_importlib.exe
 Programs/_testembed
+Programs/_testembed.exe
 PC/python_nt*.h
 PC/pythonnt_rc*.h
 PC/*/*.exe
@@ -57,6 +59,7 @@ PCbuild/obj/
 PCBuild/win32/
 .purify
 Parser/pgen
+Parser/pgen.exe
 __pycache__
 autom4te.cache
 build/
@@ -72,6 +75,7 @@ ipch/
 libpython*.a
 libpython*.so*
 libpython*.dylib
+libpython*.dll
 platform
 pybuilddir.txt
 pyconfig.h

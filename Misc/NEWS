@@ -10,6 +10,47 @@ What's New in Python 3.7.0 alpha 1
 Core and Builtins
 -----------------
 
+- Issue #28376: Creating instances of range_iterator by calling range_iterator
+  type now is deprecated.  Patch by Oren Milman.
+
+- Issue #28376: The constructor of range_iterator now checks that step is not 0.
+  Patch by Oren Milman.
+
+- Issue #26906: Resolving special methods of uninitialized type now causes
+  implicit initialization of the type instead of a fail.
+
+- Issue #18287: PyType_Ready() now checks that tp_name is not NULL.
+  Original patch by Niklas Koep.
+
+- Issue #24098: Fixed possible crash when AST is changed in process of
+  compiling it.
+
+- Issue #28201: Dict reduces possibility of 2nd conflict in hash table when
+  hashes have same lower bits.
+
+- Issue #28350: String constants with null character no longer interned.
+
+- Issue #26617: Fix crash when GC runs during weakref callbacks.
+
+- Issue #27942: String constants now interned recursively in tuples and frozensets.
+
+- Issue #28289: ImportError.__init__ now resets not specified attributes.
+
+- Issue #21578: Fixed misleading error message when ImportError called with
+  invalid keyword args.
+
+- Issue #28203: Fix incorrect type in complex(1.0, {2:3}) error message.
+  Patch by Soumya Sharma.
+
+- Issue #28086: Single var-positional argument of tuple subtype was passed
+  unscathed to the C-defined function.  Now it is converted to exact tuple.
+
+- Issue #28214: Now __set_name__ is looked up on the class instead of the
+  instance.
+
+- Issue #27955: Fallback on reading /dev/urandom device when the getrandom()
+  syscall fails with EPERM, for example when blocked by SECCOMP.
+
 - Issue #28192: Don't import readline in isolated mode.
 
 - Issue #27441: Remove some redundant assignments to ob_size in longobject.c.
@@ -34,6 +75,88 @@ Core and Builtins
 
 Library
 -------
+
+- Issue #27998: Fixed bytes path support in os.scandir() on Windows.
+  Patch by Eryk Sun.
+
+- Issue #28317: The disassembler now decodes FORMAT_VALUE argument.
+
+- Issue #26293: Fixed writing ZIP files that starts not from the start of the
+  file.  Offsets in ZIP file now are relative to the start of the archive in
+  conforming to the specification.
+
+- Issue #28380: unittest.mock Mock autospec functions now properly support
+  assert_called, assert_not_called, and assert_called_once.
+
+- Issue #28229: lzma module now supports pathlib.
+
+- Issue #28321: Fixed writing non-BMP characters with binary format in plistlib.
+
+- Issue #28225: bz2 module now supports pathlib.  Initial patch by Ethan Furman.
+
+- Issue #28227: gzip now supports pathlib.  Patch by Ethan Furman.
+
+- Issue #28332: Deprecated silent truncations in socket.htons and socket.ntohs.
+  Original patch by Oren Milman.
+
+- Issue #27358: Optimized merging var-keyword arguments and improved error
+  message when pass a non-mapping as a var-keyword argument.
+
+- Issue #28257: Improved error message when pass a non-iterable as
+  a var-positional argument.  Added opcode BUILD_TUPLE_UNPACK_WITH_CALL.
+
+- Issue #28322: Fixed possible crashes when unpickle itertools objects from
+  incorrect pickle data.  Based on patch by John Leitch.
+
+- Issue #28228: imghdr now supports pathlib.
+
+- Issue #28226: compileall now supports pathlib.
+
+- Issue #28314: Fix function declaration (C flags) for the getiterator() method
+  of xml.etree.ElementTree.Element.
+
+- Issue #28148: Stop using localtime() and gmtime() in the time
+  module.
+
+  Introduced platform independent _PyTime_localtime API that is
+  similar to POSIX localtime_r, but available on all platforms.  Patch
+  by Ed Schouten.
+
+- Issue #28253: Fixed calendar functions for extreme months: 0001-01
+  and 9999-12.
+
+  Methods itermonthdays() and itermonthdays2() are reimplemented so
+  that they don't call itermonthdates() which can cause datetime.date
+  under/overflow.
+
+- Issue #28275: Fixed possible use after free in the decompress()
+  methods of the LZMADecompressor and BZ2Decompressor classes.
+  Original patch by John Leitch.
+
+- Issue #27897: Fixed possible crash in sqlite3.Connection.create_collation()
+  if pass invalid string-like object as a name.  Patch by Xiang Zhang.
+
+- Issue #18844: random.choices() now has k as a keyword-only argument
+  to improve the readability of common cases and the come into line
+  with the signature used in other languages.
+
+- Issue #18893: Fix invalid exception handling in Lib/ctypes/macholib/dyld.py.
+  Patch by Madison May.
+
+- Issue #27611: Fixed support of default root window in the tkinter.tix module.
+  Added the master parameter in the DisplayStyle constructor.
+
+- Issue #27348: In the traceback module, restore the formatting of exception
+  messages like "Exception: None".  This fixes a regression introduced in
+  3.5a2.
+
+- Issue #25651: Allow falsy values to be used for msg parameter of subTest().
+
+- Issue #27778: Fix a memory leak in os.getrandom() when the getrandom() is
+  interrupted by a signal and a signal handler raises a Python exception.
+
+- Issue #28200: Fix memory leak on Windows in the os module (fix
+  path_converter() function).
 
 - Issue #25400: RobotFileParser now correctly returns default values for
   crawl_delay and request_rate.  Initial patch by Peter Wirtz.
@@ -79,8 +202,26 @@ Library
 - Issue #27759: Fix selectors incorrectly retain invalid file descriptors.
   Patch by Mark Williams.
 
+- Issue #28325: Remove vestigial MacOS 9 macurl2path module and its tests.
+
+- Issue #28368: Refuse monitoring processes if the child watcher has
+  no loop attached.
+  Patch by Vincent Michel.
+
+- Issue #28369: Raise RuntimeError when transport's FD is used with
+  add_reader, add_writer, etc.
+
+- Issue #28370: Speedup asyncio.StreamReader.readexactly.
+  Patch by Коренберг Марк.
+
+- Issue #28371: Deprecate passing asyncio.Handles to run_in_executor.
+
+- Issue #28372: Fix asyncio to support formatting of non-python coroutines.
+
 Windows
 -------
+
+- Issue #28251: Improvements to help manuals on Windows.
 
 - Issue #28110: launcher.msi has different product codes between 32-bit and
   64-bit
@@ -102,6 +243,19 @@ Windows
 Build
 -----
 
+- Issue #21124: Fix building the _struct module on Cygwin by passing ``NULL``
+  instead of ``&PyType_Type`` to PyVarObject_HEAD_INIT.  Patch by Masayuki
+  Yamamoto.
+
+- Issue #13756: Fix building extensions modules on Cygwin.  Patch by Roumen
+  Petrov, based on original patch by Jason Tishler.
+
+- Issue #21085: Add configure check for siginfo_t.si_band, which Cygwin does
+  not provide.  Patch by Masayuki Yamamoto with review and rebase by Erik Bray.
+
+- Issue #28258: Fixed build with Estonian locale (python-config and distclean
+  targets in Makefile).  Patch by Arfrever Frehtes Taifersar Arahesis.
+
 - Issue #26661: setup.py now detects system libffi with multiarch wrapper.
 
 - Issue #27979: A full copy of libffi is no longer bundled for use when
@@ -121,6 +275,11 @@ Tools/Demos
 
 - Issue #28102: The zipfile module CLI now prints usage to stderr.
   Patch by Stephen J. Turnbull.
+
+Tests
+-----
+
+- Issue #28217: Adds _testconsole module to test console input.
 
 
 What's New in Python 3.6.0 beta 1
@@ -311,6 +470,12 @@ Library
   now matches the behaviour of its accelerated C counterpart for subclassing,
   pickling and text representation purposes. Patch by Emanuel Barry and
   Serhiy Storchaka.
+
+- Fix possible integer overflows and crashes in the mmap module with unusual
+  usage patterns.
+
+- Issue #1703178: Fix the ability to pass the --link-objects option to the
+  distutils build_ext command.
 
 - Issue #28019: itertools.count() no longer rounds non-integer step in range
   between 1.0 and 2.0 to 1.
@@ -4955,7 +5120,7 @@ Library
 
 - Issue #18643: Add socket.socketpair() on Windows.
 
-- Issue #22435: Fix a file descriptor leak when SocketServer bind fails.
+- Issue #22435: Fix a file descriptor leak when socketserver bind fails.
 
 - Issue #13096: Fixed segfault in CTypes POINTER handling of large
   values.

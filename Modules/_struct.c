@@ -486,7 +486,7 @@ nu_halffloat(const char *p, const formatdef *f)
     return unpack_halffloat(p, 1);
 #else
     return unpack_halffloat(p, 0);
-#endif    
+#endif
 }
 
 static PyObject *
@@ -1650,7 +1650,7 @@ unpackiter_iternext(unpackiterobject *self)
 }
 
 static PyTypeObject unpackiter_type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(NULL, 0)
     "unpack_iterator",                          /* tp_name */
     sizeof(unpackiterobject),                   /* tp_basicsize */
     0,                                          /* tp_itemsize */
@@ -2299,6 +2299,9 @@ PyInit__struct(void)
 
     Py_TYPE(&PyStructType) = &PyType_Type;
     if (PyType_Ready(&PyStructType) < 0)
+        return NULL;
+
+    if (PyType_Ready(&unpackiter_type) < 0)
         return NULL;
 
     /* Check endian and swap in faster functions */
