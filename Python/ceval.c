@@ -4399,7 +4399,7 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
     /* Create the frame */
     tstate = PyThreadState_GET();
     assert(tstate != NULL);
-    f = PyFrame_New(tstate, co, globals, locals);
+    f = _PyFrame_New_NoTrack(tstate, co, globals, locals);
     if (f == NULL) {
         return NULL;
     }
@@ -4674,9 +4674,15 @@ fail: /* Jump here from prelude on failure */
        so recursion_depth must be boosted for the duration.
     */
     assert(tstate != NULL);
-    ++tstate->recursion_depth;
-    Py_DECREF(f);
-    --tstate->recursion_depth;
+    if (Py_REFCNT(f) > 1) {
+        Py_DECREF(f);
+        _PyObject_GC_TRACK(f);
+    }
+    else {
+        ++tstate->recursion_depth;
+        Py_DECREF(f);
+        --tstate->recursion_depth;
+    }
     return retval;
 }
 
@@ -5428,11 +5434,11 @@ _PyFunction_FastCall(PyCodeObject *co, PyObject **args, Py_ssize_t nargs,
 
     assert(globals != NULL);
     /* XXX Perhaps we should create a specialized
-       PyFrame_New() that doesn't take locals, but does
+       _PyFrame_New_NoTrack() that doesn't take locals, but does
        take builtins without sanity checking them.
        */
     assert(tstate != NULL);
-    f = PyFrame_New(tstate, co, globals, NULL);
+    f = _PyFrame_New_NoTrack(tstate, co, globals, NULL);
     if (f == NULL) {
         return NULL;
     }
@@ -5468,10 +5474,15 @@ _PyFunction_FastCall(PyCodeObject *co, PyObject **args, Py_ssize_t nargs,
     result = PyEval_EvalFrameEx(f,0);
 #endif /* #ifdef STACKLESS */
 
-    ++tstate->recursion_depth;
-    Py_DECREF(f);
-    --tstate->recursion_depth;
-
+    if (Py_REFCNT(f) > 1) {
+        Py_DECREF(f);
+        _PyObject_GC_TRACK(f);
+    }
+    else {
+        ++tstate->recursion_depth;
+        Py_DECREF(f);
+        --tstate->recursion_depth;
+    }
     return result;
 }
 

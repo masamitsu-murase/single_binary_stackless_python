@@ -440,7 +440,9 @@ frame_dealloc(PyFrameObject *f)
     PyObject **p, **valuestack;
     PyCodeObject *co;
 
-    PyObject_GC_UnTrack(f);
+    if (_PyObject_GC_IS_TRACKED(f))
+        _PyObject_GC_UNTRACK(f);
+
     Py_TRASHCAN_SAFE_BEGIN(f)
     /* Kill all local variables */
     valuestack = f->f_valuestack;
@@ -631,8 +633,8 @@ int _PyFrame_Init()
 }
 
 PyFrameObject* _Py_HOT_FUNCTION
-PyFrame_New(PyThreadState *tstate, PyCodeObject *code, PyObject *globals,
-            PyObject *locals)
+_PyFrame_New_NoTrack(PyThreadState *tstate, PyCodeObject *code,
+                     PyObject *globals, PyObject *locals)
 {
     PyFrameObject *back = tstate->frame;
     PyFrameObject *f;
@@ -755,9 +757,19 @@ PyFrame_New(PyThreadState *tstate, PyCodeObject *code, PyObject *globals,
 #ifdef STACKLESS
     f->f_execute = NULL;
 #endif
-    _PyObject_GC_TRACK(f);
     return f;
 }
+
+PyFrameObject*
+PyFrame_New(PyThreadState *tstate, PyCodeObject *code,
+            PyObject *globals, PyObject *locals)
+{
+    PyFrameObject *f = _PyFrame_New_NoTrack(tstate, code, globals, locals);
+    if (f)
+        _PyObject_GC_TRACK(f);
+    return f;
+}
+
 
 /* Block management */
 
