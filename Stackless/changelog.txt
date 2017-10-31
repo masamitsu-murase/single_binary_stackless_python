@@ -108,6 +108,7 @@ What's New in Stackless 3.X.X?
   Adapt Stackless to Python 3.5.
   - PyGenObject got two additional fields
   - Skip the CPython test case test.test_pickle.*.test_local_lookup_error
+  - Enable the pickling of coroutine objects
 
 - https://bitbucket.org/stackless-dev/stackless/issues/111
   Restore the Python ABI function PyGen_New(). Previously Stackless named this

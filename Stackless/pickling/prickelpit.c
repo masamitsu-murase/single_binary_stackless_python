@@ -1694,16 +1694,20 @@ static int init_methodwrappertype(void)
 
 /******************************************************
 
-  pickling of generators
+  pickling of generators and coroutines
 
  ******************************************************/
 
 static PyTypeObject wrap_PyGen_Type;
-/* Used to initialize a generator created by gen_new. */
-static PyFrameObject *gen_exhausted_frame;
+static PyTypeObject wrap_PyCoro_Type;
+
+/* Used to initialize a generator created by gen_new. 
+   Also assert, that the size of generator and coroutines is equal. */
+static PyFrameObject *gen_exhausted_frame = \
+Py_BUILD_ASSERT_EXPR(sizeof(PyGenObject) == sizeof(PyCoroObject)); /* value is 0 */
 
 static PyObject *
-gen_reduce(PyGenObject *gen)
+_gen_reduce(PyTypeObject *type, PyGenObject *gen)
 {
     PyObject *tup;
     PyObject *frame_reducer = (PyObject *)gen->gi_frame;
@@ -1718,7 +1722,7 @@ gen_reduce(PyGenObject *gen)
     if (frame_reducer == NULL)
         return NULL;
     tup = Py_BuildValue("(O()(OiOO))",
-                        &wrap_PyGen_Type,
+                        type,
                         frame_reducer,
                         gen->gi_running,
                         gen->gi_name,
@@ -1726,6 +1730,12 @@ gen_reduce(PyGenObject *gen)
                         );
     Py_DECREF(frame_reducer);
     return tup;
+}
+
+static PyObject *
+gen_reduce(PyGenObject *gen)
+{
+    return _gen_reduce(&wrap_PyGen_Type, gen);
 }
 
 static PyObject *
@@ -1737,7 +1747,13 @@ gen_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     /* A reference to frame is stolen by PyGen_New. */
     assert(gen_exhausted_frame != NULL);
     assert(PyFrame_Check(gen_exhausted_frame));
-    gen = (PyGenObject *) PyGen_NewWithQualName(slp_ensure_new_frame(gen_exhausted_frame), NULL, NULL);
+    if (type == &wrap_PyGen_Type) {
+        gen = (PyGenObject *)PyGen_NewWithQualName(slp_ensure_new_frame(gen_exhausted_frame), NULL, NULL);
+    }
+    else {
+        assert(type == &wrap_PyCoro_Type);
+        gen = (PyGenObject *)PyCoro_New(slp_ensure_new_frame(gen_exhausted_frame), NULL, NULL);
+    }
     if (gen == NULL)
         return NULL;
     Py_TYPE(gen) = type;
@@ -1902,6 +1918,22 @@ static int init_generatortype(void)
 }
 #undef initchain
 #define initchain init_generatortype
+
+static PyObject *
+coro_reduce(PyGenObject *gen)
+{
+    return _gen_reduce(&wrap_PyCoro_Type, gen);
+}
+
+MAKE_WRAPPERTYPE(PyCoro_Type, coro, "coroutine", coro_reduce,
+    gen_new, gen_setstate)
+
+static int init_coroutinetype(void)
+{
+    return init_type(&wrap_PyCoro_Type, initchain);
+}
+#undef initchain
+#define initchain init_coroutinetype
 
 
 /******************************************************
