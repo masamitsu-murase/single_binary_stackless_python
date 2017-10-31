@@ -2058,13 +2058,13 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
 
             awaitable = _PyCoro_GetAwaitableIter(iter);
             if (awaitable == NULL) {
-                SET_TOP(NULL);
-                PyErr_Format(
+                _PyErr_FormatFromCause(
                     PyExc_TypeError,
                     "'async for' received an invalid object "
                     "from __aiter__: %.100s",
                     Py_TYPE(iter)->tp_name);
 
+                SET_TOP(NULL);
                 Py_DECREF(iter);
                 goto error;
             } else {
@@ -2123,7 +2123,7 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
 
                 awaitable = _PyCoro_GetAwaitableIter(next_iter);
                 if (awaitable == NULL) {
-                    PyErr_Format(
+                    _PyErr_FormatFromCause(
                         PyExc_TypeError,
                         "'async for' received an invalid object "
                         "from __anext__: %.100s",
