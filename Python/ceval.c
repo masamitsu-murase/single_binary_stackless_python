@@ -5138,7 +5138,8 @@ PyEval_MergeCompilerFlags(PyCompilerFlags *cf)
    The arg must be a tuple or NULL.  The kw must be a dict or NULL. */
 
 PyObject *
-PyEval_CallObjectWithKeywords(PyObject *func, PyObject *args, PyObject *kwargs)
+PyEval_CallObjectWithKeywords(PyObject *callable,
+                              PyObject *args, PyObject *kwargs)
 {
     STACKLESS_GETARG();
     PyObject *result;
@@ -5152,7 +5153,7 @@ PyEval_CallObjectWithKeywords(PyObject *func, PyObject *args, PyObject *kwargs)
 
     if (args == NULL) {
         STACKLESS_PROMOTE_ALL();
-        result = _PyObject_FastCallDict(func, NULL, 0, kwargs);
+        result = _PyObject_FastCallDict(callable, NULL, 0, kwargs);
         STACKLESS_ASSERT();
         return result;
     }
@@ -5170,7 +5171,7 @@ PyEval_CallObjectWithKeywords(PyObject *func, PyObject *args, PyObject *kwargs)
     }
 
     STACKLESS_PROMOTE_ALL();
-    result = PyObject_Call(func, args, kwargs);
+    result = PyObject_Call(callable, args, kwargs);
     STACKLESS_ASSERT();
 
     return result;
