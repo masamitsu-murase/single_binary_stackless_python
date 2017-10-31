@@ -2592,6 +2592,8 @@ _PyObject_FastCallKeywords(PyObject *callable, PyObject **stack, Py_ssize_t narg
         Py_DECREF(argtuple);
         Py_XDECREF(kwdict);
 
+        result = _Py_CheckFunctionResult(callable, result, NULL);
+
     exit:
 #ifdef STACKLESS
         /* only do recursion adjustment if there is no danger
