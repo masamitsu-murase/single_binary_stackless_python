@@ -3232,7 +3232,7 @@ stackless_iter_return:
             Py_DECREF(mgr);
             if (enter == NULL)
                 goto error;
-            res = PyObject_CallFunctionObjArgs(enter, NULL);
+            res = _PyObject_CallNoArg(enter);
             Py_DECREF(enter);
             if (res == NULL)
                 goto error;
@@ -3267,7 +3267,7 @@ stackless_iter_return:
             SET_TOP(exit);
             Py_DECREF(mgr);
             STACKLESS_PROPOSE_ALL();
-            res = PyObject_CallFunctionObjArgs(enter, NULL);
+            res = _PyObject_CallNoArg(enter);
             STACKLESS_ASSERT();
             Py_DECREF(enter);
 #ifdef STACKLESS
