@@ -471,7 +471,7 @@ filter_next(filterobject *lz)
             ok = PyObject_IsTrue(item);
         } else {
             PyObject *good;
-            good = PyObject_CallFunctionObjArgs(lz->func, item, NULL);
+            good = _PyObject_CallArg1(lz->func, item);
             if (good == NULL) {
                 Py_DECREF(item);
                 return NULL;
@@ -1536,7 +1536,7 @@ min_max(PyObject *args, PyObject *kwds, int op)
     while (( item = PyIter_Next(it) )) {
         /* get the value from the key function */
         if (keyfunc != NULL) {
-            val = PyObject_CallFunctionObjArgs(keyfunc, item, NULL);
+            val = _PyObject_CallArg1(keyfunc, item);
             if (val == NULL)
                 goto Fail_it_item;
         }
@@ -2061,9 +2061,9 @@ builtin_round(PyObject *self, PyObject *args, PyObject *kwds)
     }
 
     if (ndigits == NULL || ndigits == Py_None)
-        result = PyObject_CallFunctionObjArgs(round, NULL);
+        result = _PyObject_CallNoArg(round);
     else
-        result = PyObject_CallFunctionObjArgs(round, ndigits, NULL);
+        result = _PyObject_CallArg1(round, ndigits);
     Py_DECREF(round);
     return result;
 }
