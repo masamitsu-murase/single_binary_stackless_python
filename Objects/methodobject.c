@@ -81,6 +81,7 @@ PyCFunction_GetFlags(PyObject *op)
 static PyObject *
 cfunction_call_varargs(PyObject *func, PyObject *args, PyObject *kwargs)
 {
+    STACKLESS_GETARG();
     assert(!PyErr_Occurred());
 
     PyCFunction meth = PyCFunction_GET_FUNCTION(func);
@@ -88,12 +89,25 @@ cfunction_call_varargs(PyObject *func, PyObject *args, PyObject *kwargs)
     PyObject *result;
 
     if (PyCFunction_GET_FLAGS(func) & METH_KEYWORDS) {
+#ifdef STACKLESS
+        /* only do recursion adjustment if there is no danger
+         * of soft-switching, i.e. if we are not being called by
+         * run_cframe.  Were a soft-switch to occur, the re-adjustment
+         * of the recursion depth would happen for the wrong frame.
+         */
+        if (!stackless)
+#endif
         if (Py_EnterRecursiveCall(" while calling a Python object")) {
             return NULL;
         }
 
+        STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS);
         result = (*(PyCFunctionWithKeywords)meth)(self, args, kwargs);
+        STACKLESS_ASSERT();
 
+#ifdef STACKLESS
+        if (!stackless)
+#endif
         Py_LeaveRecursiveCall();
     }
     else {
@@ -103,12 +117,25 @@ cfunction_call_varargs(PyObject *func, PyObject *args, PyObject *kwargs)
             return NULL;
         }
 
+#ifdef STACKLESS
+        /* only do recursion adjustment if there is no danger
+         * of soft-switching, i.e. if we are not being called by
+         * run_cframe.  Were a soft-switch to occur, the re-adjustment
+         * of the recursion depth would happen for the wrong frame.
+         */
+        if (!stackless)
+#endif
         if (Py_EnterRecursiveCall(" while calling a Python object")) {
             return NULL;
         }
 
+        STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS);
         result = (*meth)(self, args);
+        STACKLESS_ASSERT();
 
+#ifdef STACKLESS
+        if (!stackless)
+#endif
         Py_LeaveRecursiveCall();
     }
 
