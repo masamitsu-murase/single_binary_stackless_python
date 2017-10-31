@@ -30,6 +30,9 @@ What's New in Stackless 3.X.X?
 - https://github.com/stackless-dev/stackless/issues/135
   Fix small memory leaks for types with Stackless extensions.
 
+- https://bitbucket.org/stackless-dev/stackless/issues/130
+  Pickling exhausted generators no longer crashes.
+
 - https://bitbucket.org/stackless-dev/stackless/issues/129
   C-API: Calling PyTasklet_New( NULL, ...) no longer crashes.
 
