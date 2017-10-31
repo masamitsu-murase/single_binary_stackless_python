@@ -95,9 +95,10 @@ _PyMethodDef_RawFastCallDict(PyMethodDef *method, PyObject *self, PyObject **arg
     PyCFunction meth;
     PyObject *result;
     int flags;
+    PyObject *argstuple;
 
     /* _PyMethodDef_RawFastCallDict() must not be called with an exception set,
-       because it may clear it (directly or indirectly) and so the
+       because it can clear it (directly or indirectly) and so the
        caller loses its exception */
     assert(!PyErr_Occurred());
 
@@ -144,31 +145,28 @@ _PyMethodDef_RawFastCallDict(PyMethodDef *method, PyObject *self, PyObject **arg
         break;
 
     case METH_VARARGS:
-    case METH_VARARGS | METH_KEYWORDS:
-    {
-        /* Slow-path: create a temporary tuple for positional arguments */
-        PyObject *tuple;
-
         if (!(flags & METH_KEYWORDS)
                 && kwargs != NULL && PyDict_GET_SIZE(kwargs) != 0) {
             goto no_keyword_error;
         }
+        /* fall through next case */
 
-        tuple = _PyStack_AsTuple(args, nargs);
-        if (tuple == NULL) {
+    case METH_VARARGS | METH_KEYWORDS:
+        /* Slow-path: create a temporary tuple for positional arguments */
+        argstuple = _PyStack_AsTuple(args, nargs);
+        if (argstuple == NULL) {
             return NULL;
         }
 
         STACKLESS_PROMOTE_FLAG(method->ml_flags & METH_STACKLESS);
         if (flags & METH_KEYWORDS) {
-            result = (*(PyCFunctionWithKeywords)meth) (self, tuple, kwargs);
+            result = (*(PyCFunctionWithKeywords)meth) (self, argstuple, kwargs);
         }
         else {
-            result = (*meth) (self, tuple);
+            result = (*meth) (self, argstuple);
         }
-        Py_DECREF(tuple);
+        Py_DECREF(argstuple);
         break;
-    }
 
     case METH_FASTCALL:
     {

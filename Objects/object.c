@@ -480,7 +480,7 @@ PyObject_Repr(PyObject *v)
 
 #ifdef Py_DEBUG
     /* PyObject_Repr() must not be called with an exception set,
-       because it may clear it (directly or indirectly) and so the
+       because it can clear it (directly or indirectly) and so the
        caller loses its exception */
     assert(!PyErr_Occurred());
 #endif
@@ -529,7 +529,7 @@ PyObject_Str(PyObject *v)
 
 #ifdef Py_DEBUG
     /* PyObject_Str() must not be called with an exception set,
-       because it may clear it (directly or indirectly) and so the
+       because it can clear it (directly or indirectly) and so the
        caller loses its exception */
     assert(!PyErr_Occurred());
 #endif
@@ -893,10 +893,10 @@ PyObject_GetAttr(PyObject *v, PyObject *name)
     if (tp->tp_getattro != NULL)
         return (*tp->tp_getattro)(v, name);
     if (tp->tp_getattr != NULL) {
-        char *name_str = PyUnicode_AsUTF8(name);
+        const char *name_str = PyUnicode_AsUTF8(name);
         if (name_str == NULL)
             return NULL;
-        return (*tp->tp_getattr)(v, name_str);
+        return (*tp->tp_getattr)(v, (char *)name_str);
     }
     PyErr_Format(PyExc_AttributeError,
                  "'%.50s' object has no attribute '%U'",
@@ -937,10 +937,10 @@ PyObject_SetAttr(PyObject *v, PyObject *name, PyObject *value)
         return err;
     }
     if (tp->tp_setattr != NULL) {
-        char *name_str = PyUnicode_AsUTF8(name);
+        const char *name_str = PyUnicode_AsUTF8(name);
         if (name_str == NULL)
             return -1;
-        err = (*tp->tp_setattr)(v, name_str, value);
+        err = (*tp->tp_setattr)(v, (char *)name_str, value);
         Py_DECREF(name);
         return err;
     }

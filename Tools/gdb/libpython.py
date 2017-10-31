@@ -366,6 +366,7 @@ class PyObjectPtr(object):
                     'set' : PySetObjectPtr,
                     'frozenset' : PySetObjectPtr,
                     'builtin_function_or_method' : PyCFunctionObjectPtr,
+                    'method-wrapper': wrapperobject,
                     }
         if tp_name in name_map:
             return name_map[tp_name]
@@ -1334,6 +1335,39 @@ class PyUnicodeObjectPtr(PyObjectPtr):
         out.write(quote)
 
 
+class wrapperobject(PyObjectPtr):
+    _typename = 'wrapperobject'
+
+    def safe_name(self):
+        try:
+            name = self.field('descr')['d_base']['name'].string()
+            return repr(name)
+        except (NullPyObjectPtr, RuntimeError):
+            return '<unknown name>'
+
+    def safe_tp_name(self):
+        try:
+            return self.field('self')['ob_type']['tp_name'].string()
+        except (NullPyObjectPtr, RuntimeError):
+            return '<unknown tp_name>'
+
+    def safe_self_addresss(self):
+        try:
+            address = long(self.field('self'))
+            return '%#x' % address
+        except (NullPyObjectPtr, RuntimeError):
+            return '<failed to get self address>'
+
+    def proxyval(self, visited):
+        name = self.safe_name()
+        tp_name = self.safe_tp_name()
+        self_address = self.safe_self_addresss()
+        return ("<method-wrapper %s of %s object at %s>"
+                % (name, tp_name, self_address))
+
+    def write_repr(self, out, visited):
+        proxy = self.proxyval(visited)
+        out.write(proxy)
 
 
 def int_from_int(gdbval):
@@ -1368,11 +1402,13 @@ class PyObjectPtrPrinter:
 
 def pretty_printer_lookup(gdbval):
     type = gdbval.type.unqualified()
-    if type.code == gdb.TYPE_CODE_PTR:
-        type = type.target().unqualified()
-        t = str(type)
-        if t in ("PyObject", "PyFrameObject", "PyUnicodeObject"):
-            return PyObjectPtrPrinter(gdbval)
+    if type.code != gdb.TYPE_CODE_PTR:
+        return None
+
+    type = type.target().unqualified()
+    t = str(type)
+    if t in ("PyObject", "PyFrameObject", "PyUnicodeObject", "wrapperobject"):
+        return PyObjectPtrPrinter(gdbval)
 
 """
 During development, I've been manually invoking the code in this way:
@@ -1511,15 +1547,17 @@ class Frame(object):
             return 'Garbage-collecting'
 
         # Detect invocations of PyCFunction instances:
-        older = self.older()
-        if not older:
-            return False
-
-        caller = older._gdbframe.name()
+        frame = self._gdbframe
+        caller = frame.name()
         if not caller:
             return False
 
-        if caller == 'PyCFunction_Call':
+        if caller in ('_PyCFunction_FastCallDict',
+                      '_PyCFunction_FastCallKeywords'):
+            if caller == '_PyCFunction_FastCallKeywords':
+                arg_name = 'func_obj'
+            else:
+                arg_name = 'func'
             # Within that frame:
             #   "func" is the local containing the PyObject* of the
             # PyCFunctionObject instance
@@ -1527,18 +1565,17 @@ class Frame(object):
             #   "self" is the (PyObject*) of the 'self'
             try:
                 # Use the prettyprinter for the func:
-                func = older._gdbframe.read_var('func')
+                func = frame.read_var(arg_name)
                 return str(func)
             except RuntimeError:
-                return 'PyCFunction invocation (unable to read "func")'
+                return 'PyCFunction invocation (unable to read %s)' % arg_name
 
-        elif caller in ('_PyCFunction_FastCallDict',
-                        '_PyCFunction_FastCallKeywords'):
+        if caller == 'wrapper_call':
             try:
-                func = older._gdbframe.read_var('func_obj')
+                func = frame.read_var('wp')
                 return str(func)
             except RuntimeError:
-                return 'PyCFunction invocation (unable to read "func_obj")'
+                return '<wrapper_call invocation>'
 
         # This frame isn't worth reporting:
         return False

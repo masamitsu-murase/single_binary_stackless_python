@@ -1871,8 +1871,7 @@ stat_float_times(PyObject* self, PyObject *args)
         /* Return old value */
         return PyBool_FromLong(_stat_float_times);
     _stat_float_times = newval;
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 static PyObject *billion = NULL;
@@ -2386,7 +2385,8 @@ class sched_param_converter(CConverter):
 os.stat
 
     path : path_t(allow_fd=True)
-        Path to be examined; can be string, bytes, or open-file-descriptor int.
+        Path to be examined; can be string, bytes, path-like object or
+        open-file-descriptor int.
 
     *
 
@@ -2413,7 +2413,7 @@ It's an error to use dir_fd or follow_symlinks when specifying path as
 
 static PyObject *
 os_stat_impl(PyObject *module, path_t *path, int dir_fd, int follow_symlinks)
-/*[clinic end generated code: output=7d4976e6f18a59c5 input=099d356c306fa24a]*/
+/*[clinic end generated code: output=7d4976e6f18a59c5 input=270bd64e7bb3c8f7]*/
 {
     return posix_do_stat("stat", path, dir_fd, follow_symlinks);
 }
@@ -6193,8 +6193,7 @@ posix_initgroups(PyObject *self, PyObject *args)
     if (res == -1)
         return PyErr_SetFromErrno(PyExc_OSError);
 
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 #endif /* HAVE_INITGROUPS */
 
@@ -6257,8 +6256,7 @@ os_setpgrp_impl(PyObject *module)
     if (setpgrp() < 0)
 #endif /* SETPGRP_HAVE_ARG */
         return posix_error();
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 #endif /* HAVE_SETPGRP */
 
@@ -6584,8 +6582,7 @@ os_setreuid_impl(PyObject *module, uid_t ruid, uid_t euid)
     if (setreuid(ruid, euid) < 0) {
         return posix_error();
     } else {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
 }
 #endif /* HAVE_SETREUID */
@@ -6680,8 +6677,7 @@ os_setgroups(PyObject *module, PyObject *groups)
 
     if (setgroups(len, grouplist) < 0)
         return posix_error();
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 #endif /* HAVE_SETGROUPS */
 

@@ -926,14 +926,12 @@ OrderedDict.fromkeys
     iterable as seq: object
     value: object = None
 
-New ordered dictionary with keys from S.
-
-If not specified, the value defaults to None.
+Create a new ordered dictionary with keys from iterable and values set to value.
 [clinic start generated code]*/
 
 static PyObject *
 OrderedDict_fromkeys_impl(PyTypeObject *type, PyObject *seq, PyObject *value)
-/*[clinic end generated code: output=c10390d452d78d6d input=33eefc496d5eee7b]*/
+/*[clinic end generated code: output=c10390d452d78d6d input=1a0476c229c597b3]*/
 {
     return _PyDict_FromKeys((PyObject *)type, seq, value);
 }
@@ -1012,15 +1010,17 @@ Done:
 OrderedDict.setdefault
 
     key: object
-    default as failobj: object = None
+    default: object = None
 
-od.get(k,d), also set od[k]=d if k not in od.
+Insert key with a value of default if key is not in the dictionary.
+
+Return the value for key if key is in the dictionary, else default.
 [clinic start generated code]*/
 
 static PyObject *
 OrderedDict_setdefault_impl(PyODictObject *self, PyObject *key,
-                            PyObject *failobj)
-/*[clinic end generated code: output=605d0f6f61ccb0a6 input=4ee5006f32f5691b]*/
+                            PyObject *default_value)
+/*[clinic end generated code: output=97537cb7c28464b6 input=38e098381c1efbc6]*/
 {
     PyObject *result = NULL;
 
@@ -1030,9 +1030,9 @@ OrderedDict_setdefault_impl(PyODictObject *self, PyObject *key,
             if (PyErr_Occurred())
                 return NULL;
             assert(_odict_find_node(self, key) == NULL);
-            if (PyODict_SetItem((PyObject *)self, key, failobj) >= 0) {
-                result = failobj;
-                Py_INCREF(failobj);
+            if (PyODict_SetItem((PyObject *)self, key, default_value) >= 0) {
+                result = default_value;
+                Py_INCREF(result);
             }
         }
         else {
@@ -1047,9 +1047,9 @@ OrderedDict_setdefault_impl(PyODictObject *self, PyObject *key,
         else if (exists) {
             result = PyObject_GetItem((PyObject *)self, key);
         }
-        else if (PyObject_SetItem((PyObject *)self, key, failobj) >= 0) {
-            result = failobj;
-            Py_INCREF(failobj);
+        else if (PyObject_SetItem((PyObject *)self, key, default_value) >= 0) {
+            result = default_value;
+            Py_INCREF(result);
         }
     }
 
@@ -1165,14 +1165,14 @@ OrderedDict.popitem
 
     last: bool = True
 
-Return (k, v) and remove a (key, value) pair.
+Remove and return a (key, value) pair from the dictionary.
 
 Pairs are returned in LIFO order if last is true or FIFO order if false.
 [clinic start generated code]*/
 
 static PyObject *
 OrderedDict_popitem_impl(PyODictObject *self, int last)
-/*[clinic end generated code: output=98e7d986690d49eb input=4937da2015939126]*/
+/*[clinic end generated code: output=98e7d986690d49eb input=d992ac5ee8305e1a]*/
 {
     PyObject *key, *value, *item = NULL;
     _ODictNode *node;
@@ -1324,15 +1324,14 @@ OrderedDict.move_to_end
     key: object
     last: bool = True
 
-"Move an existing element to the end (or beginning if last==False).
+Move an existing element to the end (or beginning if last is false).
 
-    Raises KeyError if the element does not exist.
-    When last=True, acts like a fast version of self[key]=self.pop(key).
+Raise KeyError if the element does not exist.
 [clinic start generated code]*/
 
 static PyObject *
 OrderedDict_move_to_end_impl(PyODictObject *self, PyObject *key, int last)
-/*[clinic end generated code: output=fafa4c5cc9b92f20 input=3b8283f7d0e15e43]*/
+/*[clinic end generated code: output=fafa4c5cc9b92f20 input=d6ceff7132a2fcd7]*/
 {
     _ODictNode *node;
 

@@ -504,6 +504,9 @@ static char *withitem_fields[]={
 };
 
 
+_Py_IDENTIFIER(_fields);
+_Py_IDENTIFIER(_attributes);
+
 typedef struct {
     PyObject_HEAD
     PyObject *dict;
@@ -532,7 +535,6 @@ ast_clear(AST_object *self)
 static int
 ast_type_init(PyObject *self, PyObject *args, PyObject *kw)
 {
-    _Py_IDENTIFIER(_fields);
     Py_ssize_t i, numfields = 0;
     int res = -1;
     PyObject *key, *value, *fields;
@@ -657,6 +659,8 @@ static PyTypeObject AST_type = {
 
 static PyTypeObject* make_type(char *type, PyTypeObject* base, char**fields, int num_fields)
 {
+    _Py_IDENTIFIER(__module__);
+    _Py_IDENTIFIER(_ast);
     PyObject *fnames, *result;
     int i;
     fnames = PyTuple_New(num_fields);
@@ -669,8 +673,11 @@ static PyTypeObject* make_type(char *type, PyTypeObject* base, char**fields, int
         }
         PyTuple_SET_ITEM(fnames, i, field);
     }
-    result = PyObject_CallFunction((PyObject*)&PyType_Type, "s(O){sOss}",
-                    type, base, "_fields", fnames, "__module__", "_ast");
+    result = PyObject_CallFunction((PyObject*)&PyType_Type, "s(O){OOOO}",
+                    type, base,
+                    _PyUnicode_FromId(&PyId__fields), fnames,
+                    _PyUnicode_FromId(&PyId___module__),
+                    _PyUnicode_FromId(&PyId__ast));
     Py_DECREF(fnames);
     return (PyTypeObject*)result;
 }
@@ -678,7 +685,6 @@ static PyTypeObject* make_type(char *type, PyTypeObject* base, char**fields, int
 static int add_attributes(PyTypeObject* type, char**attrs, int num_fields)
 {
     int i, result;
-    _Py_IDENTIFIER(_attributes);
     PyObject *s, *l = PyTuple_New(num_fields);
     if (!l)
         return 0;
@@ -824,8 +830,8 @@ static int add_ast_fields(void)
     d = AST_type.tp_dict;
     empty_tuple = PyTuple_New(0);
     if (!empty_tuple ||
-        PyDict_SetItemString(d, "_fields", empty_tuple) < 0 ||
-        PyDict_SetItemString(d, "_attributes", empty_tuple) < 0) {
+        _PyDict_SetItemId(d, &PyId__fields, empty_tuple) < 0 ||
+        _PyDict_SetItemId(d, &PyId__attributes, empty_tuple) < 0) {
         Py_XDECREF(empty_tuple);
         return -1;
     }
@@ -2583,8 +2589,7 @@ ast2obj_mod(void* _o)
     mod_ty o = (mod_ty)_o;
     PyObject *result = NULL, *value = NULL;
     if (!o) {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
 
     switch (o->kind) {
@@ -2638,8 +2643,7 @@ ast2obj_stmt(void* _o)
     stmt_ty o = (stmt_ty)_o;
     PyObject *result = NULL, *value = NULL;
     if (!o) {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
 
     switch (o->kind) {
@@ -3063,8 +3067,7 @@ ast2obj_expr(void* _o)
     expr_ty o = (expr_ty)_o;
     PyObject *result = NULL, *value = NULL;
     if (!o) {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
 
     switch (o->kind) {
@@ -3526,8 +3529,7 @@ ast2obj_slice(void* _o)
     slice_ty o = (slice_ty)_o;
     PyObject *result = NULL, *value = NULL;
     if (!o) {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
 
     switch (o->kind) {
@@ -3705,8 +3707,7 @@ ast2obj_comprehension(void* _o)
     comprehension_ty o = (comprehension_ty)_o;
     PyObject *result = NULL, *value = NULL;
     if (!o) {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
 
     result = PyType_GenericNew(comprehension_type, NULL, NULL);
@@ -3744,8 +3745,7 @@ ast2obj_excepthandler(void* _o)
     excepthandler_ty o = (excepthandler_ty)_o;
     PyObject *result = NULL, *value = NULL;
     if (!o) {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
 
     switch (o->kind) {
@@ -3792,8 +3792,7 @@ ast2obj_arguments(void* _o)
     arguments_ty o = (arguments_ty)_o;
     PyObject *result = NULL, *value = NULL;
     if (!o) {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
 
     result = PyType_GenericNew(arguments_type, NULL, NULL);
@@ -3841,8 +3840,7 @@ ast2obj_arg(void* _o)
     arg_ty o = (arg_ty)_o;
     PyObject *result = NULL, *value = NULL;
     if (!o) {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
 
     result = PyType_GenericNew(arg_type, NULL, NULL);
@@ -3880,8 +3878,7 @@ ast2obj_keyword(void* _o)
     keyword_ty o = (keyword_ty)_o;
     PyObject *result = NULL, *value = NULL;
     if (!o) {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
 
     result = PyType_GenericNew(keyword_type, NULL, NULL);
@@ -3909,8 +3906,7 @@ ast2obj_alias(void* _o)
     alias_ty o = (alias_ty)_o;
     PyObject *result = NULL, *value = NULL;
     if (!o) {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
 
     result = PyType_GenericNew(alias_type, NULL, NULL);
@@ -3938,8 +3934,7 @@ ast2obj_withitem(void* _o)
     withitem_ty o = (withitem_ty)_o;
     PyObject *result = NULL, *value = NULL;
     if (!o) {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
 
     result = PyType_GenericNew(withitem_type, NULL, NULL);

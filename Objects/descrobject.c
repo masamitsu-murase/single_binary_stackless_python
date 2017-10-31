@@ -429,8 +429,7 @@ static PyObject *
 member_get_doc(PyMemberDescrObject *descr, void *closure)
 {
     if (descr->d_member->doc == NULL) {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
     return PyUnicode_FromString(descr->d_member->doc);
 }
@@ -445,8 +444,7 @@ static PyObject *
 getset_get_doc(PyGetSetDescrObject *descr, void *closure)
 {
     if (descr->d_getset->doc == NULL) {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
     return PyUnicode_FromString(descr->d_getset->doc);
 }

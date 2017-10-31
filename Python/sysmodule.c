@@ -183,8 +183,7 @@ sys_displayhook(PyObject *self, PyObject *o)
     /* After printing, also assign to '_' */
     /* Before, set '_' to None to avoid recursion */
     if (o == Py_None) {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
     if (_PyObject_SetAttrId(builtins, &PyId__, Py_None) != 0)
         return NULL;
@@ -215,8 +214,7 @@ sys_displayhook(PyObject *self, PyObject *o)
         return NULL;
     if (_PyObject_SetAttrId(builtins, &PyId__, o) != 0)
         return NULL;
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 PyDoc_STRVAR(displayhook_doc,
@@ -232,8 +230,7 @@ sys_excepthook(PyObject* self, PyObject* args)
     if (!PyArg_UnpackTuple(args, "excepthook", 3, 3, &exc, &value, &tb))
         return NULL;
     PyErr_Display(exc, value, tb);
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 PyDoc_STRVAR(excepthook_doc,
@@ -483,8 +480,7 @@ sys_settrace(PyObject *self, PyObject *args)
         PyEval_SetTrace(NULL, NULL);
     else
         PyEval_SetTrace(trace_trampoline, args);
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 PyDoc_STRVAR(settrace_doc,
@@ -522,8 +518,7 @@ sys_setprofile(PyObject *self, PyObject *args)
         PyEval_SetProfile(NULL, NULL);
     else
         PyEval_SetProfile(profile_trampoline, args);
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 PyDoc_STRVAR(setprofile_doc,
@@ -564,8 +559,7 @@ sys_setcheckinterval(PyObject *self, PyObject *args)
         return NULL;
     if (!PyArg_ParseTuple(args, "i:setcheckinterval", &_check_interval))
         return NULL;
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 PyDoc_STRVAR(setcheckinterval_doc,
@@ -603,8 +597,7 @@ sys_setswitchinterval(PyObject *self, PyObject *args)
         return NULL;
     }
     _PyEval_SetSwitchInterval((unsigned long) (1e6 * d));
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 PyDoc_STRVAR(setswitchinterval_doc,
@@ -666,8 +659,7 @@ sys_setrecursionlimit(PyObject *self, PyObject *args)
     }
 
     Py_SetRecursionLimit(new_limit);
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 static PyObject *
@@ -1054,8 +1046,7 @@ sys_setdlopenflags(PyObject *self, PyObject *args)
     if (!tstate)
         return NULL;
     tstate->interp->dlopenflags = new_val;
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 PyDoc_STRVAR(setdlopenflags_doc,
@@ -1096,8 +1087,7 @@ sys_mdebug(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "i:mdebug", &flag))
         return NULL;
     mallopt(M_DEBUG, flag);
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 #endif /* USE_MALLOPT */
 

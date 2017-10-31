@@ -122,6 +122,22 @@ skip_signature(const char *doc)
     return NULL;
 }
 
+#ifdef Py_DEBUG
+static int
+_PyType_CheckConsistency(PyTypeObject *type)
+{
+    if (!(type->tp_flags & Py_TPFLAGS_READY)) {
+        /* don't check types before PyType_Ready() */
+        return 1;
+    }
+
+    assert(!(type->tp_flags & Py_TPFLAGS_READYING));
+    assert(type->tp_mro != NULL && PyTuple_Check(type->tp_mro));
+    assert(type->tp_dict != NULL);
+    return 1;
+}
+#endif
+
 static const char *
 _PyType_DocWithoutSignature(const char *name, const char *internal_doc)
 {
@@ -141,8 +157,7 @@ _PyType_GetDocFromInternalDoc(const char *name, const char *internal_doc)
     const char *doc = _PyType_DocWithoutSignature(name, internal_doc);
 
     if (!doc || *doc == '\0') {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
 
     return PyUnicode_FromString(doc);
@@ -159,8 +174,7 @@ _PyType_GetTextSignatureFromInternalDoc(const char *name, const char *internal_d
     else
         end = NULL;
     if (!end) {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
 
     /* back "end" up until it points just past the final ')' */
@@ -722,6 +736,7 @@ type_set_bases(PyTypeObject *type, PyObject *new_bases, void *context)
     Py_DECREF(old_bases);
     Py_DECREF(old_base);
 
+    assert(_PyType_CheckConsistency(type));
     return res;
 
   undo:
@@ -755,6 +770,7 @@ type_set_bases(PyTypeObject *type, PyObject *new_bases, void *context)
         Py_DECREF(old_base);
     }
 
+    assert(_PyType_CheckConsistency(type));
     return -1;
 }
 
@@ -762,8 +778,7 @@ static PyObject *
 type_dict(PyTypeObject *type, void *context)
 {
     if (type->tp_dict == NULL) {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
     return PyDictProxy_New(type->tp_dict);
 }
@@ -892,7 +907,7 @@ type_call(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
 #ifdef Py_DEBUG
     /* type_call() must not be called with an exception set,
-       because it may clear it (directly or indirectly) and so the
+       because it can clear it (directly or indirectly) and so the
        caller loses its exception */
     assert(!PyErr_Occurred());
 #endif
@@ -3075,6 +3090,7 @@ type_getattro(PyTypeObject *type, PyObject *name)
 static int
 type_setattro(PyTypeObject *type, PyObject *name, PyObject *value)
 {
+    int res;
     if (!(type->tp_flags & Py_TPFLAGS_HEAPTYPE)) {
         PyErr_Format(
             PyExc_TypeError,
@@ -3084,7 +3100,9 @@ type_setattro(PyTypeObject *type, PyObject *name, PyObject *value)
     }
     if (_PyObject_GenericSetAttrWithDict((PyObject *)type, name, value, NULL) < 0)
         return -1;
-    return update_slot(type, name);
+    res = update_slot(type, name);
+    assert(_PyType_CheckConsistency(type));
+    return res;
 }
 
 extern void
@@ -4587,6 +4605,7 @@ add_methods(PyTypeObject *type, PyMethodDef *meth)
     for (; meth->ml_name != NULL; meth++) {
         PyObject *descr;
         int err;
+        int isdescr = 1;
         if (PyDict_GetItemString(dict, meth->ml_name) &&
             !(meth->ml_flags & METH_COEXIST))
                 continue;
@@ -4603,6 +4622,7 @@ add_methods(PyTypeObject *type, PyMethodDef *meth)
             if (cfunc == NULL)
                 return -1;
             descr = PyStaticMethod_New(cfunc);
+            isdescr = 0;  // PyStaticMethod is not PyDescrObject
             Py_DECREF(cfunc);
         }
         else {
@@ -4610,7 +4630,12 @@ add_methods(PyTypeObject *type, PyMethodDef *meth)
         }
         if (descr == NULL)
             return -1;
-        err = PyDict_SetItemString(dict, meth->ml_name, descr);
+        if (isdescr) {
+            err = PyDict_SetItem(dict, PyDescr_NAME(descr), descr);
+        }
+        else {
+            err = PyDict_SetItemString(dict, meth->ml_name, descr);
+        }
         Py_DECREF(descr);
         if (err < 0)
             return -1;
@@ -4630,7 +4655,7 @@ add_members(PyTypeObject *type, PyMemberDef *memb)
         descr = PyDescr_NewMember(type, memb);
         if (descr == NULL)
             return -1;
-        if (PyDict_SetItemString(dict, memb->name, descr) < 0) {
+        if (PyDict_SetItem(dict, PyDescr_NAME(descr), descr) < 0) {
             Py_DECREF(descr);
             return -1;
         }
@@ -4652,7 +4677,7 @@ add_getset(PyTypeObject *type, PyGetSetDef *gsp)
 
         if (descr == NULL)
             return -1;
-        if (PyDict_SetItemString(dict, gsp->name, descr) < 0) {
+        if (PyDict_SetItem(dict, PyDescr_NAME(descr), descr) < 0) {
             Py_DECREF(descr);
             return -1;
         }
@@ -4952,7 +4977,7 @@ PyType_Ready(PyTypeObject *type)
     Py_ssize_t i, n;
 
     if (type->tp_flags & Py_TPFLAGS_READY) {
-        assert(type->tp_dict != NULL);
+        assert(_PyType_CheckConsistency(type));
         return 0;
     }
     assert((type->tp_flags & Py_TPFLAGS_READYING) == 0);
@@ -5146,9 +5171,9 @@ PyType_Ready(PyTypeObject *type)
     }
 
     /* All done -- set the ready flag */
-    assert(type->tp_dict != NULL);
     type->tp_flags =
         (type->tp_flags & ~Py_TPFLAGS_READYING) | Py_TPFLAGS_READY;
+    assert(_PyType_CheckConsistency(type));
     return 0;
 
   error:
@@ -5428,8 +5453,7 @@ wrap_sq_setitem(PyObject *self, PyObject *args, void *wrapped)
     res = (*func)(self, i, value);
     if (res == -1 && PyErr_Occurred())
         return NULL;
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 static PyObject *
@@ -5449,8 +5473,7 @@ wrap_sq_delitem(PyObject *self, PyObject *args, void *wrapped)
     res = (*func)(self, i, NULL);
     if (res == -1 && PyErr_Occurred())
         return NULL;
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 /* XXX objobjproc is a misnomer; should be objargpred */
@@ -5483,8 +5506,7 @@ wrap_objobjargproc(PyObject *self, PyObject *args, void *wrapped)
     res = (*func)(self, key, value);
     if (res == -1 && PyErr_Occurred())
         return NULL;
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 static PyObject *
@@ -5500,8 +5522,7 @@ wrap_delitem(PyObject *self, PyObject *args, void *wrapped)
     res = (*func)(self, key, NULL);
     if (res == -1 && PyErr_Occurred())
         return NULL;
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 /* Helper to check for object.__setattr__ or __delattr__ applied to a type.
@@ -5538,8 +5559,7 @@ wrap_setattr(PyObject *self, PyObject *args, void *wrapped)
     res = (*func)(self, name, value);
     if (res < 0)
         return NULL;
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 static PyObject *
@@ -5557,8 +5577,7 @@ wrap_delattr(PyObject *self, PyObject *args, void *wrapped)
     res = (*func)(self, name, NULL);
     if (res < 0)
         return NULL;
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 static PyObject *
@@ -5673,8 +5692,7 @@ wrap_descr_set(PyObject *self, PyObject *args, void *wrapped)
     ret = (*func)(self, obj, value);
     if (ret < 0)
         return NULL;
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 static PyObject *
@@ -5690,8 +5708,7 @@ wrap_descr_delete(PyObject *self, PyObject *args, void *wrapped)
     ret = (*func)(self, obj, NULL);
     if (ret < 0)
         return NULL;
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 static PyObject *
@@ -5701,8 +5718,7 @@ wrap_init(PyObject *self, PyObject *args, void *wrapped, PyObject *kwds)
 
     if (func(self, args, kwds) < 0)
         return NULL;
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 static PyObject *

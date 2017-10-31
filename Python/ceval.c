@@ -1190,7 +1190,7 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
 
 #ifdef Py_DEBUG
     /* PyEval_EvalFrameEx() must not be called with an exception set,
-       because it may clear it (directly or indirectly) and so the
+       because it can clear it (directly or indirectly) and so the
        caller loses its exception */
     assert(!PyErr_Occurred());
 #endif
@@ -3438,7 +3438,7 @@ stackless_with_cleanup_return:
             if (meth_found) {
                 /* We can bypass temporary bound method object.
                    meth is unbound method and obj is self.
-                  
+
                    meth | self | arg1 | ... | argN
                  */
                 SET_TOP(meth);
@@ -5595,6 +5595,8 @@ _PyFunction_FastCallDict(PyObject *func, PyObject **args, Py_ssize_t nargs,
     if (nk != 0) {
         Py_ssize_t pos, i;
 
+        /* Issue #29318: Caller and callee functions must not share the
+           dictionary: kwargs must be copied. */
         kwtuple = PyTuple_New(2 * nk);
         if (kwtuple == NULL) {
             return NULL;

@@ -2311,12 +2311,12 @@ dict.fromkeys
     value: object=None
     /
 
-Returns a new dict with keys from iterable and values equal to value.
+Create a new dictionary with keys from iterable and values set to value.
 [clinic start generated code]*/
 
 static PyObject *
 dict_fromkeys_impl(PyTypeObject *type, PyObject *iterable, PyObject *value)
-/*[clinic end generated code: output=8fb98e4b10384999 input=b85a667f9bf4669d]*/
+/*[clinic end generated code: output=8fb98e4b10384999 input=382ba4855d0f74c3]*/
 {
     return _PyDict_FromKeys((PyObject *)type, iterable, value);
 }
@@ -2347,6 +2347,9 @@ dict_update_common(PyObject *self, PyObject *args, PyObject *kwds,
     return result;
 }
 
+/* Note: dict.update() uses the METH_VARARGS|METH_KEYWORDS calling convention.
+   Using METH_FASTCALL would make dict.update(**dict2) calls slower, see the
+   issue #29312. */
 static PyObject *
 dict_update(PyObject *self, PyObject *args, PyObject *kwds)
 {
@@ -2761,12 +2764,12 @@ dict.__contains__
   key: object
   /
 
-True if D has a key k, else False.
+True if the dictionary has the specified key, else False.
 [clinic start generated code]*/
 
 static PyObject *
 dict___contains__(PyDictObject *self, PyObject *key)
-/*[clinic end generated code: output=a3d03db709ed6e6b input=b852b2a19b51ab24]*/
+/*[clinic end generated code: output=a3d03db709ed6e6b input=f39613886bf975b7]*/
 {
     register PyDictObject *mp = self;
     Py_hash_t hash;
@@ -2787,17 +2790,23 @@ dict___contains__(PyDictObject *self, PyObject *key)
     Py_RETURN_TRUE;
 }
 
+/*[clinic input]
+dict.get
+
+    key: object
+    default: object = None
+    /
+
+Return the value for key if key is in the dictionary, else default.
+[clinic start generated code]*/
+
 static PyObject *
-dict_get(PyDictObject *mp, PyObject *args)
+dict_get_impl(PyDictObject *self, PyObject *key, PyObject *default_value)
+/*[clinic end generated code: output=bba707729dee05bf input=279ddb5790b6b107]*/
 {
-    PyObject *key;
-    PyObject *failobj = Py_None;
     PyObject *val = NULL;
     Py_hash_t hash;
     Py_ssize_t ix;
-
-    if (!PyArg_UnpackTuple(args, "get", 1, 2, &key, &failobj))
-        return NULL;
 
     if (!PyUnicode_CheckExact(key) ||
         (hash = ((PyASCIIObject *) key)->hash) == -1) {
@@ -2805,11 +2814,11 @@ dict_get(PyDictObject *mp, PyObject *args)
         if (hash == -1)
             return NULL;
     }
-    ix = (mp->ma_keys->dk_lookup)(mp, key, hash, &val, NULL);
+    ix = (self->ma_keys->dk_lookup) (self, key, hash, &val, NULL);
     if (ix == DKIX_ERROR)
         return NULL;
     if (ix == DKIX_EMPTY || val == NULL) {
-        val = failobj;
+        val = default_value;
     }
     Py_INCREF(val);
     return val;
@@ -2899,16 +2908,26 @@ PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *defaultobj)
     return value;
 }
 
+/*[clinic input]
+dict.setdefault
+
+    key: object
+    default: object = None
+    /
+
+Insert key with a value of default if key is not in the dictionary.
+
+Return the value for key if key is in the dictionary, else default.
+[clinic start generated code]*/
+
 static PyObject *
-dict_setdefault(PyDictObject *mp, PyObject *args)
+dict_setdefault_impl(PyDictObject *self, PyObject *key,
+                     PyObject *default_value)
+/*[clinic end generated code: output=f8c1101ebf69e220 input=0f063756e815fd9d]*/
 {
-    PyObject *key, *val;
-    PyObject *defaultobj = Py_None;
+    PyObject *val;
 
-    if (!PyArg_UnpackTuple(args, "setdefault", 1, 2, &key, &defaultobj))
-        return NULL;
-
-    val = PyDict_SetDefault((PyObject *)mp, key, defaultobj);
+    val = PyDict_SetDefault((PyObject *)self, key, default_value);
     Py_XINCREF(val);
     return val;
 }
@@ -3072,12 +3091,6 @@ PyDoc_STRVAR(getitem__doc__, "x.__getitem__(y) <==> x[y]");
 PyDoc_STRVAR(sizeof__doc__,
 "D.__sizeof__() -> size of D in memory, in bytes");
 
-PyDoc_STRVAR(get__doc__,
-"D.get(k[,d]) -> D[k] if k in D, else d.  d defaults to None.");
-
-PyDoc_STRVAR(setdefault_doc__,
-"D.setdefault(k[,d]) -> D.get(k,d), also set D[k]=d if k not in D");
-
 PyDoc_STRVAR(pop__doc__,
 "D.pop(k[,d]) -> v, remove specified key and return the corresponding value.\n\
 If key is not found, d is returned if given, otherwise KeyError is raised");
@@ -3116,10 +3129,8 @@ static PyMethodDef mapp_methods[] = {
      getitem__doc__},
     {"__sizeof__",      (PyCFunction)dict_sizeof,       METH_NOARGS,
      sizeof__doc__},
-    {"get",         (PyCFunction)dict_get,          METH_VARARGS,
-     get__doc__},
-    {"setdefault",  (PyCFunction)dict_setdefault,   METH_VARARGS,
-     setdefault_doc__},
+    DICT_GET_METHODDEF
+    DICT_SETDEFAULT_METHODDEF
     {"pop",         (PyCFunction)dict_pop,          METH_VARARGS,
      pop__doc__},
     {"popitem",         (PyCFunction)dict_popitem,      METH_NOARGS,
