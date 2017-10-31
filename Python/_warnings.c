@@ -477,7 +477,7 @@ warn_explicit(PyObject *category, PyObject *message,
     }
     else {
         text = message;
-        message = _PyObject_CallArg1(category, message);
+        message = PyObject_CallFunctionObjArgs(category, message, NULL);
         if (message == NULL)
             goto cleanup;
     }

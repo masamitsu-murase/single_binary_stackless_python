@@ -5977,7 +5977,7 @@ slot_sq_item(PyObject *self, Py_ssize_t i)
         goto error;
     }
 
-    retval = _PyObject_CallArg1(func, ival);
+    retval = PyObject_CallFunctionObjArgs(func, ival, NULL);
     Py_DECREF(func);
     Py_DECREF(ival);
     return retval;
@@ -6018,7 +6018,7 @@ slot_sq_contains(PyObject *self, PyObject *value)
         return -1;
     }
     if (func != NULL) {
-        res = _PyObject_CallArg1(func, value);
+        res = PyObject_CallFunctionObjArgs(func, value, NULL);
         Py_DECREF(func);
         if (res != NULL) {
             result = PyObject_IsTrue(res);
@@ -6437,7 +6437,7 @@ slot_tp_richcompare(PyObject *self, PyObject *other, int op)
         Py_RETURN_NOTIMPLEMENTED;
     }
     STACKLESS_PROMOTE_ALL();
-    res = _PyObject_CallArg1(func, other);
+    res = PyObject_CallFunctionObjArgs(func, other, NULL);
     STACKLESS_ASSERT();
     Py_DECREF(func);
     return res;
