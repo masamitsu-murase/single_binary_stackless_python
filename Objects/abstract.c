@@ -104,7 +104,7 @@ PyObject_LengthHint(PyObject *o, Py_ssize_t defaultvalue)
         }
         return defaultvalue;
     }
-    result = _PyObject_CallNoArg(hint);
+    result = PyObject_CallFunctionObjArgs(hint, NULL);
     Py_DECREF(hint);
     if (result == NULL) {
         if (PyErr_ExceptionMatches(PyExc_TypeError)) {
@@ -717,7 +717,7 @@ PyObject_Format(PyObject *obj, PyObject *format_spec)
     }
 
     /* And call it. */
-    result = _PyObject_CallArg1(meth, format_spec);
+    result = PyObject_CallFunctionObjArgs(meth, format_spec, NULL);
     Py_DECREF(meth);
 
     if (result && !PyUnicode_Check(result)) {
@@ -3093,7 +3093,7 @@ PyObject_IsInstance(PyObject *inst, PyObject *cls)
             Py_DECREF(checker);
             return ok;
         }
-        res = _PyObject_CallArg1(checker, inst);
+        res = PyObject_CallFunctionObjArgs(checker, inst, NULL);
         Py_LeaveRecursiveCall();
         Py_DECREF(checker);
         if (res != NULL) {
@@ -3167,7 +3167,7 @@ PyObject_IsSubclass(PyObject *derived, PyObject *cls)
             Py_DECREF(checker);
             return ok;
         }
-        res = _PyObject_CallArg1(checker, derived);
+        res = PyObject_CallFunctionObjArgs(checker, derived, NULL);
         Py_LeaveRecursiveCall();
         Py_DECREF(checker);
         if (res != NULL) {
