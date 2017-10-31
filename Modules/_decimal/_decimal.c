@@ -428,7 +428,7 @@ dict_as_flags(PyObject *val)
         return DEC_INVALID_SIGNALS;
     }
 
-    if (PyDict_GET_SIZE(val) != SIGNAL_MAP_LEN) {
+    if (PyDict_Size(val) != SIGNAL_MAP_LEN) {
         PyErr_SetString(PyExc_KeyError,
             "invalid signal dict");
         return DEC_INVALID_SIGNALS;
@@ -1118,12 +1118,12 @@ context_getattr(PyObject *self, PyObject *name)
     PyObject *retval;
 
     if (PyUnicode_Check(name)) {
-        if (_PyUnicode_EqualToASCIIString(name, "traps")) {
+        if (PyUnicode_CompareWithASCIIString(name, "traps") == 0) {
             retval = ((PyDecContextObject *)self)->traps;
             Py_INCREF(retval);
             return retval;
         }
-        if (_PyUnicode_EqualToASCIIString(name, "flags")) {
+        if (PyUnicode_CompareWithASCIIString(name, "flags") == 0) {
             retval = ((PyDecContextObject *)self)->flags;
             Py_INCREF(retval);
             return retval;
@@ -1143,10 +1143,10 @@ context_setattr(PyObject *self, PyObject *name, PyObject *value)
     }
 
     if (PyUnicode_Check(name)) {
-        if (_PyUnicode_EqualToASCIIString(name, "traps")) {
+        if (PyUnicode_CompareWithASCIIString(name, "traps") == 0) {
             return context_settraps_dict(self, value);
         }
-        if (_PyUnicode_EqualToASCIIString(name, "flags")) {
+        if (PyUnicode_CompareWithASCIIString(name, "flags") == 0) {
             return context_setstatus_dict(self, value);
         }
     }
@@ -1194,13 +1194,13 @@ context_new(PyTypeObject *type, PyObject *args UNUSED, PyObject *kwds UNUSED)
         return NULL;
     }
 
-    self->traps = _PyObject_CallNoArg((PyObject *)PyDecSignalDict_Type);
+    self->traps = PyObject_CallObject((PyObject *)PyDecSignalDict_Type, NULL);
     if (self->traps == NULL) {
         self->flags = NULL;
         Py_DECREF(self);
         return NULL;
     }
-    self->flags = _PyObject_CallNoArg((PyObject *)PyDecSignalDict_Type);
+    self->flags = PyObject_CallObject((PyObject *)PyDecSignalDict_Type, NULL);
     if (self->flags == NULL) {
         Py_DECREF(self);
         return NULL;
@@ -1395,7 +1395,7 @@ ieee_context(PyObject *dummy UNUSED, PyObject *v)
         goto error;
     }
 
-    context = _PyObject_CallNoArg((PyObject *)&PyDecContext_Type);
+    context = PyObject_CallObject((PyObject *)&PyDecContext_Type, NULL);
     if (context == NULL) {
         return NULL;
     }
@@ -1417,7 +1417,7 @@ context_copy(PyObject *self, PyObject *args UNUSED)
 {
     PyObject *copy;
 
-    copy = _PyObject_CallNoArg((PyObject *)&PyDecContext_Type);
+    copy = PyObject_CallObject((PyObject *)&PyDecContext_Type, NULL);
     if (copy == NULL) {
         return NULL;
     }
@@ -2449,14 +2449,14 @@ dectuple_as_str(PyObject *dectuple)
     tmp = PyTuple_GET_ITEM(dectuple, 2);
     if (PyUnicode_Check(tmp)) {
         /* special */
-        if (_PyUnicode_EqualToASCIIString(tmp, "F")) {
+        if (PyUnicode_CompareWithASCIIString(tmp, "F") == 0) {
             strcat(sign_special, "Inf");
             is_infinite = 1;
         }
-        else if (_PyUnicode_EqualToASCIIString(tmp, "n")) {
+        else if (PyUnicode_CompareWithASCIIString(tmp, "n") == 0) {
             strcat(sign_special, "NaN");
         }
-        else if (_PyUnicode_EqualToASCIIString(tmp, "N")) {
+        else if (PyUnicode_CompareWithASCIIString(tmp, "N") == 0) {
             strcat(sign_special, "sNaN");
         }
         else {
@@ -5716,7 +5716,7 @@ PyInit__decimal(void)
     /* DecimalTuple */
     ASSIGN_PTR(collections, PyImport_ImportModule("collections"));
     ASSIGN_PTR(DecimalTuple, (PyTypeObject *)PyObject_CallMethod(collections,
-                                 "namedtuple", "ss", "DecimalTuple",
+                                 "namedtuple", "(ss)", "DecimalTuple",
                                  "sign digits exponent"));
 
     ASSIGN_PTR(obj, PyUnicode_FromString("decimal"));
@@ -5835,7 +5835,7 @@ PyInit__decimal(void)
 
     /* Init default context template first */
     ASSIGN_PTR(default_context_template,
-               _PyObject_CallNoArg((PyObject *)&PyDecContext_Type));
+               PyObject_CallObject((PyObject *)&PyDecContext_Type, NULL));
     Py_INCREF(default_context_template);
     CHECK_INT(PyModule_AddObject(m, "DefaultContext",
                                  default_context_template));
@@ -5843,7 +5843,7 @@ PyInit__decimal(void)
 #ifdef WITHOUT_THREADS
     /* Init module context */
     ASSIGN_PTR(module_context,
-               _PyObject_CallNoArg((PyObject *)&PyDecContext_Type));
+               PyObject_CallObject((PyObject *)&PyDecContext_Type, NULL));
     Py_INCREF(Py_False);
     CHECK_INT(PyModule_AddObject(m, "HAVE_THREADS", Py_False));
 #else
@@ -5854,7 +5854,7 @@ PyInit__decimal(void)
 
     /* Init basic context template */
     ASSIGN_PTR(basic_context_template,
-               _PyObject_CallNoArg((PyObject *)&PyDecContext_Type));
+               PyObject_CallObject((PyObject *)&PyDecContext_Type, NULL));
     init_basic_context(basic_context_template);
     Py_INCREF(basic_context_template);
     CHECK_INT(PyModule_AddObject(m, "BasicContext",
@@ -5862,7 +5862,7 @@ PyInit__decimal(void)
 
     /* Init extended context template */
     ASSIGN_PTR(extended_context_template,
-               _PyObject_CallNoArg((PyObject *)&PyDecContext_Type));
+               PyObject_CallObject((PyObject *)&PyDecContext_Type, NULL));
     init_extended_context(extended_context_template);
     Py_INCREF(extended_context_template);
     CHECK_INT(PyModule_AddObject(m, "ExtendedContext",

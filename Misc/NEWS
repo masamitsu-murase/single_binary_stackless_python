@@ -10,6 +10,10 @@ What's New in Python 3.7.0 alpha 1?
 Core and Builtins
 -----------------
 
+- Issue #29034: Fix memory leak and use-after-free in os module (path_converter).
+
+- Issue #29159: Fix regression in bytes(x) when x.__index__() raises Exception.
+
 - Issue #29049: Call _PyObject_GC_TRACK() lazily when calling Python function.
   Calling function is up to 5% faster.
 
@@ -207,6 +211,13 @@ Core and Builtins
 
 Library
 -------
+
+- Issue #29142: In urllib.request, suffixes in no_proxy environment variable with
+  leading dots could match related hostnames again (e.g. .b.c matches a.b.c).
+  Patch by Milan Oberkirch.
+
+- Issue #28961: Fix unittest.mock._Call helper: don't ignore the name parameter
+  anymore. Patch written by Jiajun Huang.
 
 - Issue #15812: inspect.getframeinfo() now correctly shows the first line of
   a context.  Patch by Sam Breese.
@@ -607,6 +618,8 @@ Documentation
 
 Build
 -----
+
+- Issue #26851: Set Android compilation and link flags.
 
 - Issue #28768: Fix implicit declaration of function _setmode. Patch by
   Masayuki Yamamoto

@@ -8,6 +8,7 @@ from random import choice
 import sys
 from test import support
 import unittest
+import unittest.mock
 from weakref import proxy
 import contextlib
 try:
@@ -1190,6 +1191,41 @@ class TestLRU:
         self.assertEqual(misses, 4)
         self.assertEqual(currsize, 2)
 
+    def test_lru_hash_only_once(self):
+        # To protect against weird reentrancy bugs and to improve
+        # efficiency when faced with slow __hash__ methods, the
+        # LRU cache guarantees that it will only call __hash__
+        # only once per use as an argument to the cached function.
+
+        @self.module.lru_cache(maxsize=1)
+        def f(x, y):
+            return x * 3 + y
+
+        # Simulate the integer 5
+        mock_int = unittest.mock.Mock()
+        mock_int.__mul__ = unittest.mock.Mock(return_value=15)
+        mock_int.__hash__ = unittest.mock.Mock(return_value=999)
+
+        # Add to cache:  One use as an argument gives one call
+        self.assertEqual(f(mock_int, 1), 16)
+        self.assertEqual(mock_int.__hash__.call_count, 1)
+        self.assertEqual(f.cache_info(), (0, 1, 1, 1))
+
+        # Cache hit: One use as an argument gives one additional call
+        self.assertEqual(f(mock_int, 1), 16)
+        self.assertEqual(mock_int.__hash__.call_count, 2)
+        self.assertEqual(f.cache_info(), (1, 1, 1, 1))
+
+        # Cache eviction: No use as an argument gives no additonal call
+        self.assertEqual(f(6, 2), 20)
+        self.assertEqual(mock_int.__hash__.call_count, 2)
+        self.assertEqual(f.cache_info(), (1, 2, 1, 1))
+
+        # Cache miss: One use as an argument gives one additional call
+        self.assertEqual(f(mock_int, 1), 16)
+        self.assertEqual(mock_int.__hash__.call_count, 3)
+        self.assertEqual(f.cache_info(), (1, 3, 1, 1))
+
     def test_lru_reentrancy_with_len(self):
         # Test to make sure the LRU cache code isn't thrown-off by
         # caching the built-in len() function.  Since len() can be
@@ -1201,6 +1237,15 @@ class TestLRU:
                 self.assertEqual(len('abcdefghijklmn'[:i]), i)
         finally:
             builtins.len = old_len
+
+    def test_lru_star_arg_handling(self):
+        # Test regression that arose in ea064ff3c10f
+        @functools.lru_cache()
+        def f(*args):
+            return args
+
+        self.assertEqual(f(1, 2), (1, 2))
+        self.assertEqual(f((1, 2)), ((1, 2),))
 
     def test_lru_type_error(self):
         # Regression test for issue #28653.
@@ -1305,6 +1350,16 @@ class TestLRU:
         fib.cache_clear()
         self.assertEqual(fib.cache_info(),
             self.module._CacheInfo(hits=0, misses=0, maxsize=None, currsize=0))
+
+    def test_kwargs_order(self):
+        # PEP 468: Preserving Keyword Argument Order
+        @self.module.lru_cache(maxsize=10)
+        def f(**kwargs):
+            return list(kwargs.items())
+        self.assertEqual(f(a=1, b=2), [('a', 1), ('b', 2)])
+        self.assertEqual(f(b=2, a=1), [('b', 2), ('a', 1)])
+        self.assertEqual(f.cache_info(),
+            self.module._CacheInfo(hits=0, misses=2, maxsize=10, currsize=2))
 
     def test_lru_cache_decoration(self):
         def f(zomg: 'zomg_annotation'):
