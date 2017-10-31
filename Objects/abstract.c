@@ -2580,93 +2580,71 @@ _PyObject_FastCallKeywords(PyObject *callable, PyObject **stack, Py_ssize_t narg
     }
 }
 
-static PyObject*
-call_function_tail(PyObject *callable, PyObject *args)
+static PyObject *
+_PyObject_CallFunctionVa(PyObject *callable, const char *format,
+                         va_list va, int is_size_t)
 {
-    PyObject *result;
+    PyObject *args, *result;
 
-    assert(args != NULL);
+    if (callable == NULL) {
+        return null_error();
+    }
+
+    if (!format || !*format) {
+        return _PyObject_CallNoArg(callable);
+    }
+
+    if (is_size_t) {
+        args = Py_VaBuildValue(format, va);
+    }
+    else {
+        args = _Py_VaBuildValue_SizeT(format, va);
+    }
+    if (args == NULL) {
+        return NULL;
+    }
 
     if (!PyTuple_Check(args)) {
-        result = PyObject_CallFunctionObjArgs(callable, args, NULL);
+        PyObject *stack[1] = {args};
+        result = _PyObject_FastCall(callable, stack, 1);
     }
     else {
         result = PyObject_Call(callable, args, NULL);
     }
 
+    Py_DECREF(args);
     return result;
 }
 
 PyObject *
 PyObject_CallFunction(PyObject *callable, const char *format, ...)
 {
-    STACKLESS_GETARG();
     va_list va;
-    PyObject *args, *result;
-
-    if (callable == NULL) {
-        return null_error();
-    }
-
-    if (!format || !*format) {
-        STACKLESS_PROMOTE_ALL();
-        result = _PyObject_CallNoArg(callable);
-        STACKLESS_ASSERT();
-        return result;
-    }
+    PyObject *result;
 
     va_start(va, format);
-    args = Py_VaBuildValue(format, va);
+    result = _PyObject_CallFunctionVa(callable, format, va, 0);
     va_end(va);
-    if (args == NULL) {
-        return NULL;
-    }
 
-    STACKLESS_PROMOTE_ALL();
-    result = call_function_tail(callable, args);
-    STACKLESS_ASSERT();
-    Py_DECREF(args);
     return result;
 }
 
 PyObject *
 _PyObject_CallFunction_SizeT(PyObject *callable, const char *format, ...)
 {
-    STACKLESS_GETARG();
     va_list va;
-    PyObject *args, *result;
-
-    if (callable == NULL) {
-        return null_error();
-    }
-
-    if (!format || !*format) {
-        STACKLESS_PROMOTE_ALL();
-        result = _PyObject_CallNoArg(callable);
-        STACKLESS_ASSERT();
-        return result;
-    }
+    PyObject *result;
 
     va_start(va, format);
-    args = _Py_VaBuildValue_SizeT(format, va);
+    result = _PyObject_CallFunctionVa(callable, format, va, 1);
     va_end(va);
-    if (args == NULL) {
-        return NULL;
-    }
 
-    STACKLESS_PROMOTE_ALL();
-    result = call_function_tail(callable, args);
-    STACKLESS_ASSERT();
-    Py_DECREF(args);
     return result;
 }
 
 static PyObject*
 callmethod(PyObject* callable, const char *format, va_list va, int is_size_t)
 {
-    STACKLESS_GETARG();
-    PyObject *args, *result;
-
     assert(callable != NULL);
 
     if (!PyCallable_Check(callable)) {
@@ -2674,28 +2652,7 @@ callmethod(PyObject* callable, const char *format, va_list va, int is_size_t)
         return NULL;
     }
 
-    if (!format || !*format) {
-        STACKLESS_PROMOTE_ALL();
-        result = _PyObject_CallNoArg(callable);
-        STACKLESS_ASSERT();
-        return result;
-    }
-
-    if (is_size_t) {
-        args = _Py_VaBuildValue_SizeT(format, va);
-    }
-    else {
-        args = Py_VaBuildValue(format, va);
-    }
-    if (args == NULL) {
-        return NULL;
-    }
-
-    STACKLESS_PROMOTE_ALL();
-    result = call_function_tail(callable, args);
-    STACKLESS_ASSERT();
-    Py_DECREF(args);
-    return result;
+    return _PyObject_CallFunctionVa(callable, format, va, is_size_t);
 }
 
 PyObject *
@@ -2806,83 +2763,77 @@ _PyObject_CallMethodId_SizeT(PyObject *obj, _Py_Identifier *name,
     return retval;
 }
 
-static PyObject **
-objargs_mkstack(PyObject **small_stack, Py_ssize_t small_stack_size,
-                va_list va, Py_ssize_t *p_nargs)
+static PyObject *
+_PyObject_FastCallVa(PyObject *callable, va_list vargs)
 {
-    Py_ssize_t i, n;
-    va_list countva;
+    PyObject *small_stack[5];
     PyObject **stack;
+    Py_ssize_t nargs;
+    PyObject *result;
+    Py_ssize_t i;
+    va_list countva;
+
+    if (callable == NULL) {
+        return null_error();
+    }
 
     /* Count the number of arguments */
-    va_copy(countva, va);
-
-    n = 0;
+    va_copy(countva, vargs);
+    nargs = 0;
     while (1) {
         PyObject *arg = va_arg(countva, PyObject *);
         if (arg == NULL) {
             break;
         }
-        n++;
+        nargs++;
     }
-    *p_nargs = n;
+    va_end(countva);
 
     /* Copy arguments */
-    if (n <= small_stack_size) {
+    if (nargs <= (Py_ssize_t)Py_ARRAY_LENGTH(small_stack)) {
         stack = small_stack;
     }
     else {
-        stack = PyMem_Malloc(n * sizeof(stack[0]));
+        stack = PyMem_Malloc(nargs * sizeof(stack[0]));
         if (stack == NULL) {
-            va_end(countva);
             PyErr_NoMemory();
             return NULL;
         }
     }
 
-    for (i = 0; i < n; ++i) {
-        stack[i] = va_arg(va, PyObject *);
+    for (i = 0; i < nargs; ++i) {
+        stack[i] = va_arg(vargs, PyObject *);
     }
-    va_end(countva);
-    return stack;
+
+    /* Call the function */
+    result = _PyObject_FastCall(callable, stack, nargs);
+
+    if (stack != small_stack) {
+        PyMem_Free(stack);
+    }
+    return result;
 }
 
 PyObject *
 PyObject_CallMethodObjArgs(PyObject *callable, PyObject *name, ...)
 {
-    STACKLESS_GETARG();
-    PyObject *small_stack[5];
-    PyObject **stack;
-    Py_ssize_t nargs;
-    PyObject *result;
     va_list vargs;
+    PyObject *result;
 
     if (callable == NULL || name == NULL) {
         return null_error();
     }
 
     callable = PyObject_GetAttr(callable, name);
-    if (callable == NULL)
+    if (callable == NULL) {
         return NULL;
+    }
 
-    /* count the args */
     va_start(vargs, name);
-    stack = objargs_mkstack(small_stack, Py_ARRAY_LENGTH(small_stack),
-                            vargs, &nargs);
+    result = _PyObject_FastCallVa(callable, vargs);
     va_end(vargs);
-    if (stack == NULL) {
-        Py_DECREF(callable);
-        return NULL;
-    }
 
-    STACKLESS_PROMOTE_ALL();
-    result = _PyObject_FastCall(callable, stack, nargs);
-    STACKLESS_ASSERT();
     Py_DECREF(callable);
-    if (stack != small_stack) {
-        PyMem_Free(stack);
-    }
-
     return result;
 }
 
@@ -2890,72 +2841,35 @@ PyObject *
 _PyObject_CallMethodIdObjArgs(PyObject *obj,
                               struct _Py_Identifier *name, ...)
 {
-    STACKLESS_GETARG();
-    PyObject *small_stack[5];
-    PyObject **stack;
-    PyObject *callable;
-    Py_ssize_t nargs;
-    PyObject *result;
     va_list vargs;
+    PyObject *callable, *result;
 
     if (obj == NULL || name == NULL) {
         return null_error();
     }
 
     callable = _PyObject_GetAttrId(obj, name);
-    if (callable == NULL)
+    if (callable == NULL) {
         return NULL;
+    }
 
-    /* count the args */
     va_start(vargs, name);
-    stack = objargs_mkstack(small_stack, Py_ARRAY_LENGTH(small_stack),
-                            vargs, &nargs);
+    result = _PyObject_FastCallVa(callable, vargs);
     va_end(vargs);
-    if (stack == NULL) {
-        Py_DECREF(callable);
-        return NULL;
-    }
 
-    STACKLESS_PROMOTE_ALL();
-    result = _PyObject_FastCall(callable, stack, nargs);
-    STACKLESS_ASSERT();
     Py_DECREF(callable);
-    if (stack != small_stack) {
-        PyMem_Free(stack);
-    }
-
     return result;
 }
 
 PyObject *
 PyObject_CallFunctionObjArgs(PyObject *callable, ...)
 {
-    STACKLESS_GETARG();
-    PyObject *small_stack[5];
-    PyObject **stack;
-    Py_ssize_t nargs;
-    PyObject *result;
     va_list vargs;
+    PyObject *result;
 
-    if (callable == NULL) {
-        return null_error();
-    }
-
-    /* count the args */
     va_start(vargs, callable);
-    stack = objargs_mkstack(small_stack, Py_ARRAY_LENGTH(small_stack),
-                            vargs, &nargs);
+    result = _PyObject_FastCallVa(callable, vargs);
     va_end(vargs);
-    if (stack == NULL) {
-        return NULL;
-    }
-
-    STACKLESS_PROMOTE_ALL();
-    result = _PyObject_FastCall(callable, stack, nargs);
-    STACKLESS_ASSERT();
-    if (stack != small_stack) {
-        PyMem_Free(stack);
-    }
 
     return result;
 }
