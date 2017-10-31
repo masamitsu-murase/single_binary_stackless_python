@@ -2241,34 +2241,32 @@ PyObject_Call(PyObject *callable, PyObject *args, PyObject *kwargs)
     assert(PyTuple_Check(args));
     assert(kwargs == NULL || PyDict_Check(kwargs));
 
-    call = callable->ob_type->tp_call;
-    if (call == NULL) {
-        PyErr_Format(PyExc_TypeError, "'%.200s' object is not callable",
-                     callable->ob_type->tp_name);
-        return NULL;
+    if (PyFunction_Check(callable)) {
+        return _PyFunction_FastCallDict(callable,
+                                        &PyTuple_GET_ITEM(args, 0),
+                                        PyTuple_GET_SIZE(args),
+                                        kwargs);
     }
+    else if (PyCFunction_Check(callable)) {
+        return PyCFunction_Call(callable, args, kwargs);
+    }
+    else {
+        call = callable->ob_type->tp_call;
+        if (call == NULL) {
+            PyErr_Format(PyExc_TypeError, "'%.200s' object is not callable",
+                         callable->ob_type->tp_name);
+            return NULL;
+        }
 
-#ifdef STACKLESS
-    /* only do recursion adjustment if there is no danger
-     * of soft-switching, i.e. if we are not being called by
-     * run_cframe.  Were a soft-switch to occur, the re-adjustment
-     * of the recursion depth would happen for the wrong frame.
-     */
-    if (!stackless)
-#endif
-    if (Py_EnterRecursiveCall(" while calling a Python object"))
-        return NULL;
+        if (Py_EnterRecursiveCall(" while calling a Python object"))
+            return NULL;
 
-    STACKLESS_PROMOTE(callable);
-    result = (*call)(callable, args, kwargs);
-    STACKLESS_ASSERT();
+        result = (*call)(callable, args, kwargs);
 
-#ifdef STACKLESS
-    if (!stackless)
-#endif
-    Py_LeaveRecursiveCall();
+        Py_LeaveRecursiveCall();
 
-    return _Py_CheckFunctionResult(callable, result, NULL);
+        return _Py_CheckFunctionResult(callable, result, NULL);
+    }
 }
 
 /* Issue #29234: Inlining _PyStack_AsTuple() into callers increases their
@@ -2321,9 +2319,7 @@ _PyObject_FastCallDict(PyObject *callable, PyObject **args, Py_ssize_t nargs,
                        PyObject *kwargs)
 {
     STACKLESS_GETARG();
-    ternaryfunc call;
-    PyObject *result = NULL;
-
+    PyObject *result;
     /* _PyObject_FastCallDict() must not be called with an exception set,
        because it can clear it (directly or indirectly) and so the
        caller loses its exception */
@@ -2334,18 +2330,6 @@ _PyObject_FastCallDict(PyObject *callable, PyObject **args, Py_ssize_t nargs,
     assert(nargs == 0 || args != NULL);
     assert(kwargs == NULL || PyDict_Check(kwargs));
 
-#ifdef STACKLESS
-    /* only do recursion adjustment if there is no danger
-     * of soft-switching, i.e. if we are not being called by
-     * run_cframe.  Were a soft-switch to occur, the re-adjustment
-     * of the recursion depth would happen for the wrong frame.
-     */
-    if (!stackless)
-#endif
-    if (Py_EnterRecursiveCall(" while calling a Python object")) {
-        return NULL;
-    }
-
     if (PyFunction_Check(callable)) {
         STACKLESS_PROMOTE_ALL();
         result = _PyFunction_FastCallDict(callable, args, nargs, kwargs);
@@ -2355,35 +2339,35 @@ _PyObject_FastCallDict(PyObject *callable, PyObject **args, Py_ssize_t nargs,
         result = _PyCFunction_FastCallDict(callable, args, nargs, kwargs);
     }
     else {
-        PyObject *tuple;
+        PyObject *argstuple;
+        ternaryfunc call;
 
         /* Slow-path: build a temporary tuple */
         call = callable->ob_type->tp_call;
         if (call == NULL) {
             PyErr_Format(PyExc_TypeError, "'%.200s' object is not callable",
                          callable->ob_type->tp_name);
-            goto exit;
+            return NULL;
         }
 
-        tuple = _PyStack_AsTuple(args, nargs);
-        if (tuple == NULL) {
-            goto exit;
+        argstuple = _PyStack_AsTuple(args, nargs);
+        if (argstuple == NULL) {
+            return NULL;
+        }
+
+        if (Py_EnterRecursiveCall(" while calling a Python object")) {
+            return NULL;
         }
 
         STACKLESS_PROMOTE(callable);
-        result = (*call)(callable, tuple, kwargs);
-        Py_DECREF(tuple);
+        result = (*call)(callable, argstuple, kwargs);
 
+        Py_LeaveRecursiveCall();
+
+        Py_DECREF(argstuple);
         result = _Py_CheckFunctionResult(callable, result, NULL);
     }
     STACKLESS_ASSERT();
-
-exit:
-#ifdef STACKLESS
-    if (!stackless)
-#endif
-    Py_LeaveRecursiveCall();
-
     return result;
 }
 
@@ -2548,67 +2532,50 @@ _PyObject_FastCallKeywords(PyObject *callable, PyObject **stack, Py_ssize_t narg
            temporary dictionary for keyword arguments (if any) */
 
         ternaryfunc call;
-        PyObject *argtuple;
+        PyObject *argstuple;
         PyObject *kwdict, *result;
         Py_ssize_t nkwargs;
 
-        result = NULL;
         nkwargs = (kwnames == NULL) ? 0 : PyTuple_GET_SIZE(kwnames);
         assert((nargs == 0 && nkwargs == 0) || stack != NULL);
-
-#ifdef STACKLESS
-        /* only do recursion adjustment if there is no danger
-         * of soft-switching, i.e. if we are not being called by
-         * run_cframe.  Were a soft-switch to occur, the re-adjustment
-         * of the recursion depth would happen for the wrong frame.
-         */
-        if (!stackless)
-#endif
-        if (Py_EnterRecursiveCall(" while calling a Python object")) {
-            return NULL;
-        }
 
         call = callable->ob_type->tp_call;
         if (call == NULL) {
             PyErr_Format(PyExc_TypeError, "'%.200s' object is not callable",
                          callable->ob_type->tp_name);
-            goto exit;
+            return NULL;
         }
 
-        argtuple = _PyStack_AsTuple(stack, nargs);
-        if (argtuple == NULL) {
-            goto exit;
+        argstuple = _PyStack_AsTuple(stack, nargs);
+        if (argstuple == NULL) {
+            return NULL;
         }
 
         if (nkwargs > 0) {
             kwdict = _PyStack_AsDict(stack + nargs, kwnames);
             if (kwdict == NULL) {
-                Py_DECREF(argtuple);
-                goto exit;
+                Py_DECREF(argstuple);
+                return NULL;
             }
         }
         else {
             kwdict = NULL;
         }
 
+        if (Py_EnterRecursiveCall(" while calling a Python object")) {
+            return NULL;
+        }
+
         STACKLESS_PROMOTE(callable);
-        result = (*call)(callable, argtuple, kwdict);
+        result = (*call)(callable, argstuple, kwdict);
         STACKLESS_ASSERT();
-        Py_DECREF(argtuple);
+
+        Py_LeaveRecursiveCall();
+
+        Py_DECREF(argstuple);
         Py_XDECREF(kwdict);
 
         result = _Py_CheckFunctionResult(callable, result, NULL);
-
-    exit:
-#ifdef STACKLESS
-        /* only do recursion adjustment if there is no danger
-         * of soft-switching, i.e. if we are not being called by
-         * run_cframe.  Were a soft-switch to occur, the re-adjustment
-         * of the recursion depth would happen for the wrong frame.
-         */
-        if (!stackless)
-#endif
-        Py_LeaveRecursiveCall();
         return result;
     }
 }
