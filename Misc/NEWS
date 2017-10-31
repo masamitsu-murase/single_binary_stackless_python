@@ -19,9 +19,6 @@ Core and Builtins
 - Issue #28918: Fix the cross compilation of xxlimited when Python has been
   built with Py_DEBUG defined.
 
-- Issue #5322: Fixed setting __new__ to a PyCFunction inside Python code.
-  Original patch by Andreas Stührk.
-
 - Issue #23722: Rather than silently producing a class that doesn't support
   zero-argument ``super()`` in methods, failing to pass the new
   ``__classcell__`` namespace entry up to ``type.__new__`` now results in a
@@ -540,6 +537,10 @@ Documentation
 Build
 -----
 
+- Issue #20211: Do not add the directory for installing C header files and the
+  directory for installing object code libraries to the cross compilation
+  search paths. Original patch by Thomas Petazzoni.
+
 - Issue #28849: Do not define sys.implementation._multiarch on Android.
 
 - Issue #10656: Fix out-of-tree building on AIX.  Patch by Tristan Carel and
@@ -593,6 +594,9 @@ Tools/Demos
 
 Tests
 -----
+
+- Issue #28683: Fix the tests that bind() a unix socket and raise
+  PermissionError on Android for a non-root user.
 
  - Issue #26936: Fix the test_socket failures on Android - getservbyname(),
    getservbyport() and getaddrinfo() are broken on some Android API levels.
