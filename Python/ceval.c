@@ -5351,17 +5351,21 @@ call_function(PyObject ***pp_stack, Py_ssize_t oparg, PyObject *kwnames)
     PyObject *x, *w;
     Py_ssize_t nkwargs = (kwnames == NULL) ? 0 : PyTuple_GET_SIZE(kwnames);
     Py_ssize_t nargs = oparg - nkwargs;
-    PyObject **stack;
+    PyObject **stack = (*pp_stack) - nargs - nkwargs;
 
     /* Always dispatch PyCFunction first, because these are
        presumed to be the most frequent callable object.
     */
     if (PyCFunction_Check(func)) {
         PyThreadState *tstate = PyThreadState_GET();
-
-        stack = (*pp_stack) - nargs - nkwargs;
         STACKLESS_PROPOSE_ALL();
         C_TRACE(x, _PyCFunction_FastCallKeywords(func, stack, nargs, kwnames));
+        STACKLESS_ASSERT();
+    }
+    else if (Py_TYPE(func) == &PyMethodDescr_Type) {
+        PyThreadState *tstate = PyThreadState_GET();
+        STACKLESS_PROPOSE_ALL();
+        C_TRACE(x, _PyMethodDescr_FastCallKeywords(func, stack, nargs, kwnames));
         STACKLESS_ASSERT();
     }
     else {
@@ -5377,12 +5381,11 @@ call_function(PyObject ***pp_stack, Py_ssize_t oparg, PyObject *kwnames)
             Py_INCREF(func);
             Py_SETREF(*pfunc, self);
             nargs++;
+            stack--;
         }
         else {
             Py_INCREF(func);
         }
-
-        stack = (*pp_stack) - nargs - nkwargs;
 
         STACKLESS_PROPOSE_ALL();
         if (PyFunction_Check(func)) {
@@ -5392,7 +5395,6 @@ call_function(PyObject ***pp_stack, Py_ssize_t oparg, PyObject *kwnames)
             x = _PyObject_FastCallKeywords(func, stack, nargs, kwnames);
         }
         STACKLESS_ASSERT();
-
         Py_DECREF(func);
     }
 

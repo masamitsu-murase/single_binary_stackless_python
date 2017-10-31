@@ -222,33 +222,25 @@ _PyCFunction_FastCallDict(PyObject *func, PyObject **args, Py_ssize_t nargs,
 }
 
 PyObject *
-_PyCFunction_FastCallKeywords(PyObject *func_obj, PyObject **args,
-                              Py_ssize_t nargs, PyObject *kwnames)
+_PyMethodDef_RawFastCallKeywords(PyMethodDef *method, PyObject *self, PyObject **args,
+                                 Py_ssize_t nargs, PyObject *kwnames)
 {
     STACKLESS_GETARG();
-    PyCFunctionObject *func;
-    PyCFunction meth;
-    PyObject *self, *result;
-    Py_ssize_t nkwargs = (kwnames == NULL) ? 0 : PyTuple_GET_SIZE(kwnames);
-    int flags;
+    /* _PyMethodDef_RawFastCallKeywords() must not be called with an exception set,
+       because it can clear it (directly or indirectly) and so the
+       caller loses its exception */
+    assert(!PyErr_Occurred());
 
-    assert(func_obj != NULL);
-    assert(PyCFunction_Check(func_obj));
+    assert(method != NULL);
     assert(nargs >= 0);
     assert(kwnames == NULL || PyTuple_CheckExact(kwnames));
-    assert((nargs == 0 && nkwargs == 0) || args != NULL);
     /* kwnames must only contains str strings, no subclass, and all keys must
        be unique */
 
-    /* _PyCFunction_FastCallKeywords() must not be called with an exception
-       set, because it can clear it (directly or indirectly) and so the caller
-       loses its exception */
-    assert(!PyErr_Occurred());
-
-    func = (PyCFunctionObject*)func_obj;
-    meth = PyCFunction_GET_FUNCTION(func);
-    self = PyCFunction_GET_SELF(func);
-    flags = PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_STACKLESS);
+    PyCFunction meth = method->ml_meth;
+    int flags = method->ml_flags & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_STACKLESS);
+    Py_ssize_t nkwargs = kwnames == NULL ? 0 : PyTuple_Size(kwnames);
+    PyObject *result;
 
     switch (flags)
     {
@@ -256,7 +248,7 @@ _PyCFunction_FastCallKeywords(PyObject *func_obj, PyObject **args,
         if (nargs != 0) {
             PyErr_Format(PyExc_TypeError,
                 "%.200s() takes no arguments (%zd given)",
-                func->m_ml->ml_name, nargs);
+                method->ml_name, nargs);
             return NULL;
         }
 
@@ -264,7 +256,7 @@ _PyCFunction_FastCallKeywords(PyObject *func_obj, PyObject **args,
             goto no_keyword_error;
         }
 
-        STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS);
+        STACKLESS_PROMOTE_FLAG(method->ml_flags & METH_STACKLESS);
         result = (*meth) (self, NULL);
         break;
 
@@ -272,7 +264,7 @@ _PyCFunction_FastCallKeywords(PyObject *func_obj, PyObject **args,
         if (nargs != 1) {
             PyErr_Format(PyExc_TypeError,
                 "%.200s() takes exactly one argument (%zd given)",
-                func->m_ml->ml_name, nargs);
+                method->ml_name, nargs);
             return NULL;
         }
 
@@ -280,13 +272,13 @@ _PyCFunction_FastCallKeywords(PyObject *func_obj, PyObject **args,
             goto no_keyword_error;
         }
 
-        STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS);
+        STACKLESS_PROMOTE_FLAG(method->ml_flags & METH_STACKLESS);
         result = (*meth) (self, args[0]);
         break;
 
     case METH_FASTCALL:
         /* Fast-path: avoid temporary dict to pass keyword arguments */
-        STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS);
+        STACKLESS_PROMOTE_FLAG(method->ml_flags & METH_STACKLESS);
         result = ((_PyCFunctionFast)meth) (self, args, nargs, kwnames);
         break;
 
@@ -320,12 +312,12 @@ _PyCFunction_FastCallKeywords(PyObject *func_obj, PyObject **args,
                 kwdict = NULL;
             }
 
-            STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS);
+            STACKLESS_PROMOTE_FLAG(method->ml_flags & METH_STACKLESS);
             result = (*(PyCFunctionWithKeywords)meth) (self, argtuple, kwdict);
             Py_XDECREF(kwdict);
         }
         else {
-            STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS);
+            STACKLESS_PROMOTE_FLAG(method->ml_flags & METH_STACKLESS);
             result = (*meth) (self, argtuple);
         }
         Py_DECREF(argtuple);
@@ -340,14 +332,29 @@ _PyCFunction_FastCallKeywords(PyObject *func_obj, PyObject **args,
     }
     STACKLESS_ASSERT();
 
-    result = _Py_CheckFunctionResult(func_obj, result, NULL);
     return result;
 
 no_keyword_error:
     PyErr_Format(PyExc_TypeError,
                  "%.200s() takes no keyword arguments",
-                 func->m_ml->ml_name);
+                 method->ml_name);
     return NULL;
+}
+
+PyObject *
+_PyCFunction_FastCallKeywords(PyObject *func, PyObject **args,
+                              Py_ssize_t nargs, PyObject *kwnames)
+{
+    PyObject *result;
+
+    assert(func != NULL);
+    assert(PyCFunction_Check(func));
+
+    result = _PyMethodDef_RawFastCallKeywords(((PyCFunctionObject*)func)->m_ml,
+                                              PyCFunction_GET_SELF(func),
+                                              args, nargs, kwnames);
+    result = _Py_CheckFunctionResult(func, result, NULL);
+    return result;
 }
 
 /* Methods (the standard built-in methods, that is) */
