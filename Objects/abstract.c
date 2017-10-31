@@ -2443,8 +2443,7 @@ _PyStack_UnpackDict(PyObject **args, Py_ssize_t nargs, PyObject *kwargs,
     assert(nargs >= 0);
     assert(kwargs == NULL || PyDict_CheckExact(kwargs));
 
-    nkwargs = (kwargs != NULL) ? PyDict_Size(kwargs) : 0;
-    if (!nkwargs) {
+    if (kwargs == NULL || (nkwargs = PyDict_GET_SIZE(kwargs)) == 0) {
         *p_kwnames = NULL;
         return args;
     }

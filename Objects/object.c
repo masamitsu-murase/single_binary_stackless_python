@@ -1457,7 +1457,7 @@ none_dealloc(PyObject* ignore)
 static PyObject *
 none_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
 {
-    if (PyTuple_GET_SIZE(args) || (kwargs && PyDict_Size(kwargs))) {
+    if (PyTuple_GET_SIZE(args) || (kwargs && PyDict_GET_SIZE(kwargs))) {
         PyErr_SetString(PyExc_TypeError, "NoneType takes no arguments");
         return NULL;
     }
@@ -1576,7 +1576,7 @@ static PyMethodDef notimplemented_methods[] = {
 static PyObject *
 notimplemented_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
 {
-    if (PyTuple_GET_SIZE(args) || (kwargs && PyDict_Size(kwargs))) {
+    if (PyTuple_GET_SIZE(args) || (kwargs && PyDict_GET_SIZE(kwargs))) {
         PyErr_SetString(PyExc_TypeError, "NotImplementedType takes no arguments");
         return NULL;
     }
