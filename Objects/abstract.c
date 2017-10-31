@@ -2518,6 +2518,10 @@ _PyObject_FastCallKeywords(PyObject *callable, PyObject **stack, Py_ssize_t narg
 {
     STACKLESS_GETARG();
     PyObject *result;
+    /* _PyObject_FastCallKeywords() must not be called with an exception set,
+       because it can clear it (directly or indirectly) and so the
+       caller loses its exception */
+    assert(!PyErr_Occurred());
 
     assert(nargs >= 0);
     assert(kwnames == NULL || PyTuple_CheckExact(kwnames));
