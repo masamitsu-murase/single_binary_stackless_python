@@ -944,17 +944,19 @@ forbidden_name(struct compiling *c, identifier name, const node *n,
         PyObject *message = PyUnicode_FromString(
             "'async' and 'await' will become reserved keywords"
             " in Python 3.7");
+        int ret;
         if (message == NULL) {
             return 1;
         }
-        if (PyErr_WarnExplicitObject(
+        ret = PyErr_WarnExplicitObject(
                 PyExc_DeprecationWarning,
                 message,
                 c->c_filename,
                 LINENO(n),
                 NULL,
-                NULL) < 0)
-        {
+                NULL);
+        Py_DECREF(message);
+        if (ret < 0) {
             return 1;
         }
     }
@@ -4113,8 +4115,34 @@ decode_utf8(struct compiling *c, const char **sPtr, const char *end)
     return PyUnicode_DecodeUTF8(t, s - t, NULL);
 }
 
+static int
+warn_invalid_escape_sequence(struct compiling *c, const node *n,
+                             char first_invalid_escape_char)
+{
+    PyObject *msg = PyUnicode_FromFormat("invalid escape sequence \\%c",
+                                         first_invalid_escape_char);
+    if (msg == NULL) {
+        return -1;
+    }
+    if (PyErr_WarnExplicitObject(PyExc_DeprecationWarning, msg,
+                                   c->c_filename, LINENO(n),
+                                   NULL, NULL) < 0 &&
+        PyErr_ExceptionMatches(PyExc_DeprecationWarning))
+    {
+        const char *s = PyUnicode_AsUTF8(msg);
+        if (s != NULL) {
+            ast_error(c, n, s);
+        }
+        Py_DECREF(msg);
+        return -1;
+    }
+    Py_DECREF(msg);
+    return 0;
+}
+
 static PyObject *
-decode_unicode_with_escapes(struct compiling *c, const char *s, size_t len)
+decode_unicode_with_escapes(struct compiling *c, const node *n, const char *s,
+                            size_t len)
 {
     PyObject *v, *u;
     char *buf;
@@ -4167,9 +4195,39 @@ decode_unicode_with_escapes(struct compiling *c, const char *s, size_t len)
     len = p - buf;
     s = buf;
 
-    v = PyUnicode_DecodeUnicodeEscape(s, len, NULL);
+    const char *first_invalid_escape;
+    v = _PyUnicode_DecodeUnicodeEscape(s, len, NULL, &first_invalid_escape);
+
+    if (v != NULL && first_invalid_escape != NULL) {
+        if (warn_invalid_escape_sequence(c, n, *first_invalid_escape) < 0) {
+            /* We have not decref u before because first_invalid_escape points
+               inside u. */
+            Py_XDECREF(u);
+            Py_DECREF(v);
+            return NULL;
+        }
+    }
     Py_XDECREF(u);
     return v;
+}
+
+static PyObject *
+decode_bytes_with_escapes(struct compiling *c, const node *n, const char *s,
+                          size_t len)
+{
+    const char *first_invalid_escape;
+    PyObject *result = _PyBytes_DecodeEscape(s, len, NULL, 0, NULL,
+                                             &first_invalid_escape);
+    if (result == NULL)
+        return NULL;
+
+    if (first_invalid_escape != NULL) {
+        if (warn_invalid_escape_sequence(c, n, *first_invalid_escape) < 0) {
+            Py_DECREF(result);
+            return NULL;
+        }
+    }
+    return result;
 }
 
 /* Compile this expression in to an expr_ty.  Add parens around the
@@ -4310,7 +4368,7 @@ done:
                                                     literal_end-literal_start,
                                                     NULL, NULL);
         else
-            *literal = decode_unicode_with_escapes(c, literal_start,
+            *literal = decode_unicode_with_escapes(c, n, literal_start,
                                                    literal_end-literal_start);
         if (!*literal)
             return -1;
@@ -5048,12 +5106,12 @@ parsestr(struct compiling *c, const node *n, int *bytesmode, int *rawmode,
         if (*rawmode)
             *result = PyBytes_FromStringAndSize(s, len);
         else
-            *result = PyBytes_DecodeEscape(s, len, NULL, /* ignored */ 0, NULL);
+            *result = decode_bytes_with_escapes(c, n, s, len);
     } else {
         if (*rawmode)
             *result = PyUnicode_DecodeUTF8Stateful(s, len, NULL, NULL);
         else
-            *result = decode_unicode_with_escapes(c, s, len);
+            *result = decode_unicode_with_escapes(c, n, s, len);
     }
     return *result == NULL ? -1 : 0;
 }
@@ -5091,7 +5149,8 @@ parsestrplus(struct compiling *c, const node *n)
         /* Check that we're not mixing bytes with unicode. */
         if (i != 0 && bytesmode != this_bytesmode) {
             ast_error(c, n, "cannot mix bytes and nonbytes literals");
-            Py_DECREF(s);
+            /* s is NULL if the current string part is an f-string. */
+            Py_XDECREF(s);
             goto error;
         }
         bytesmode = this_bytesmode;
@@ -5105,11 +5164,12 @@ parsestrplus(struct compiling *c, const node *n)
             if (result < 0)
                 goto error;
         } else {
+            /* A string or byte string. */
+            assert(s != NULL && fstr == NULL);
+
             assert(bytesmode ? PyBytes_CheckExact(s) :
                    PyUnicode_CheckExact(s));
 
-            /* A string or byte string. */
-            assert(s != NULL && fstr == NULL);
             if (bytesmode) {
                 /* For bytes, concat as we go. */
                 if (i == 0) {
@@ -5121,7 +5181,6 @@ parsestrplus(struct compiling *c, const node *n)
                         goto error;
                 }
             } else {
-                assert(s != NULL && fstr == NULL);
                 /* This is a regular string. Concatenate it. */
                 if (FstringParser_ConcatAndDel(&state, s) < 0)
                     goto error;

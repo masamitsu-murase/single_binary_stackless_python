@@ -10,6 +10,21 @@ What's New in Python 3.7.0 alpha 1
 Core and Builtins
 -----------------
 
+- Issue #28621: Sped up converting int to float by reusing faster bits counting
+  implementation.  Patch by Adrian Wielgosik.
+
+- Issue #28580: Optimize iterating split table values.
+  Patch by Xiang Zhang.
+
+- Issue #28583: PyDict_SetDefault didn't combine split table when needed.
+  Patch by Xiang Zhang.
+
+- Issue #28128: Deprecation warning for invalid str and byte escape
+  sequences now prints better information about where the error
+  occurs. Patch by Serhiy Storchaka and Eric Smith.
+
+- Issue #28509: dict.update() no longer allocate unnecessary large memory.
+
 - Issue #28426: Fixed potential crash in PyUnicode_AsDecodedObject() in debug
   build.
 
@@ -94,8 +109,53 @@ Core and Builtins
 - Issue #26182: Raise DeprecationWarning when async and await keywords are
   used as variable/attribute/class/function name.
 
+- Issue #26182: Fix a refleak in code that raises DeprecationWarning.
+
 Library
 -------
+
+- Issue #19717: Makes Path.resolve() succeed on paths that do not exist.
+  Patch by Vajrasky Kok
+
+- Issue #28563: Fixed possible DoS and arbitrary code execution when handle
+  plural form selections in the gettext module.  The expression parser now
+  supports exact syntax supported by GNU gettext.
+
+- Issue #28387: Fixed possible crash in _io.TextIOWrapper deallocator when
+  the garbage collector is invoked in other thread.  Based on patch by
+  Sebastian Cufre.
+
+- Issue #27517: LZMA compressor and decompressor no longer raise exceptions if
+  given empty data twice.  Patch by Benjamin Fogle.
+
+- Issue #28549: Fixed segfault in curses's addch() with ncurses6.
+
+- Issue #28449: tarfile.open() with mode "r" or "r:" now tries to open a tar
+  file with compression before trying to open it without compression.  Otherwise
+  it had 50% chance failed with ignore_zeros=True.
+
+- Issue #23262: The webbrowser module now supports Firefox 36+ and derived
+  browsers.  Based on patch by Oleg Broytman.
+
+- Issue #27939: Fixed bugs in tkinter.ttk.LabeledScale and tkinter.Scale caused
+  by representing the scale as float value internally in Tk.  tkinter.IntVar
+  now works if float value is set to underlying Tk variable.
+
+- Issue #28255: calendar.TextCalendar.prweek() no longer prints a space after
+  a weeks's calendar.  calendar.TextCalendar.pryear() no longer prints redundant
+  newline after a year's calendar.  Based on patch by Xiang Zhang.
+
+- Issue #28255: calendar.TextCalendar.prmonth() no longer prints a space
+  at the start of new line after printing a month's calendar.  Patch by
+  Xiang Zhang.
+
+- Issue #20491: The textwrap.TextWrapper class now honors non-breaking spaces.
+  Based on patch by Kaarle Ritvanen.
+
+- Issue #28353: os.fwalk() no longer fails on broken links.
+
+- Issue #28430: Fix iterator of C implemented asyncio.Future doesn't accept
+  non-None value is passed to it.send(val).
 
 - Issue #27025: Generated names for Tkinter widgets now start by the "!" prefix
   for readability (was "`").
@@ -300,6 +360,8 @@ Library
 Windows
 -------
 
+- Issue #28522: Fixes mishandled buffer reallocation in getpathp.c
+
 - Issue #28402: Adds signed catalog files for stdlib on Windows.
 
 - Issue #28333: Enables Unicode for ps1/ps2 and input() prompts. (Patch by
@@ -324,12 +386,26 @@ Windows
 
 - Issue #28138: Windows ._pth file should allow import site
 
+C API
+-----
+
+- Issue #28426: Deprecated undocumented functions PyUnicode_AsEncodedObject(),
+  PyUnicode_AsDecodedObject(), PyUnicode_AsDecodedUnicode() and
+  PyUnicode_AsEncodedUnicode().
+
+Documentation
+-------------
+
+- Issue #28513: Documented command-line interface of zipfile.
+
 Build
 -----
 
-- Issue #28208: Update Windows build to use SQLite 3.14.2.0.
+- Issue #28444: Fix missing extensions modules when cross compiling.
 
-- Issue #28248: Update Windows build to use OpenSSL 1.0.2j.
+- Issue #28208: Update Windows build and OS X installers to use SQLite 3.14.2.
+
+- Issue #28248: Update Windows build and OS X installers to use OpenSSL 1.0.2j.
 
 - Issue #21124: Fix building the _struct module on Cygwin by passing ``NULL``
   instead of ``&PyType_Type`` to PyVarObject_HEAD_INIT.  Patch by Masayuki
@@ -515,8 +591,14 @@ Core and Builtins
 
 - Issue #28008: Implement PEP 530 -- asynchronous comprehensions.
 
+- Issue #27942: Fix memory leak in codeobject.c
+
 Library
 -------
+
+- Issue #28485: Always raise ValueError for negative
+  compileall.compile_dir(workers=...) parameter, even when multithreading is
+  unavailable.
 
 - Issue #28037: Use sqlite3_get_autocommit() instead of setting
   Connection->inTransaction manually.
@@ -3210,7 +3292,7 @@ Library
 - Issue #24774: Fix docstring in http.server.test. Patch from Chiu-Hsiang Hsu.
 
 - Issue #21159: Improve message in configparser.InterpolationMissingOptionError.
-  Patch from �?ukasz Langa.
+  Patch from Łukasz Langa.
 
 - Issue #20362: Honour TestCase.longMessage correctly in assertRegex.
   Patch from Ilia Kurenkov.
@@ -5138,7 +5220,7 @@ Library
   Based on patch by Martin Panter.
 
 - Issue #17293: uuid.getnode() now determines MAC address on AIX using netstat.
-  Based on patch by Aivars Kalv�?ns.
+  Based on patch by Aivars Kalvāns.
 
 - Issue #22769: Fixed ttk.Treeview.tag_has() when called without arguments.
 

@@ -344,18 +344,18 @@ class Random(_random.Random):
         the selections are made with equal probability.
 
         """
+        random = self.random
         if cum_weights is None:
             if weights is None:
-                choice = self.choice
-                return [choice(population) for i in range(k)]
-            else:
-                cum_weights = list(_itertools.accumulate(weights))
+                _int = int
+                total = len(population)
+                return [population[_int(random() * total)] for i in range(k)]
+            cum_weights = list(_itertools.accumulate(weights))
         elif weights is not None:
             raise TypeError('Cannot specify both weights and cumulative_weights')
         if len(cum_weights) != len(population):
             raise ValueError('The number of weights does not match the population')
         bisect = _bisect.bisect
-        random = self.random
         total = cum_weights[-1]
         return [population[bisect(cum_weights, random() * total)] for i in range(k)]
 

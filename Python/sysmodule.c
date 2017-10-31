@@ -1573,8 +1573,9 @@ error:
     Py_XDECREF(name);
     Py_XDECREF(value);
     /* No return value, therefore clear error state if possible */
-    if (_PyThreadState_UncheckedGet())
+    if (_PyThreadState_UncheckedGet()) {
         PyErr_Clear();
+    }
 }
 
 PyObject *
@@ -1765,7 +1766,7 @@ static PyStructSequence_Field version_info_fields[] = {
     {"major", "Major release number"},
     {"minor", "Minor release number"},
     {"micro", "Patch release number"},
-    {"releaselevel", "'alpha', 'beta', 'candidate', or 'release'"},
+    {"releaselevel", "'alpha', 'beta', 'candidate', or 'final'"},
     {"serial", "Serial release number"},
     {0}
 };

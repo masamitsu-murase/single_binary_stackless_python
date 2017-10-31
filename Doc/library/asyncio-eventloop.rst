@@ -381,6 +381,10 @@ Creating connections
    establish the connection in the background.  When successful, the
    coroutine returns a ``(transport, protocol)`` pair.
 
+   *path* is the name of a UNIX domain socket, and is required unless a *sock*
+   parameter is specified.  Abstract UNIX sockets, :class:`str`, and
+   :class:`bytes` paths are supported.
+
    See the :meth:`AbstractEventLoop.create_connection` method for parameters.
 
    Availability: UNIX.
@@ -458,6 +462,23 @@ Creating listening connections
 
    Availability: UNIX.
 
+.. coroutinemethod:: BaseEventLoop.connect_accepted_socket(protocol_factory, sock, \*, ssl=None)
+
+   Handle an accepted connection.
+
+   This is used by servers that accept connections outside of
+   asyncio but that use asyncio to handle them.
+
+   Parameters:
+
+   * *sock* is a preexisting socket object returned from an ``accept``
+     call.
+
+   * *ssl* can be set to an :class:`~ssl.SSLContext` to enable SSL over the
+     accepted connections.
+
+   This method is a :ref:`coroutine <coroutine>`.  When completed, the
+   coroutine returns a ``(transport, protocol)`` pair.
 
 Watch file descriptors
 ----------------------

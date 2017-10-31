@@ -305,16 +305,9 @@ gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result)
             }
         }
         else {
-            PyObject *e = PyObject_CallFunctionObjArgs(
-                               PyExc_StopIteration, result, NULL);
-
             /* Async generators cannot return anything but None */
             assert(!PyAsyncGen_CheckExact(gen));
-
-            if (e != NULL) {
-                PyErr_SetObject(PyExc_StopIteration, e);
-                Py_DECREF(e);
-            }
+            _PyGen_SetStopIterationValue(result);
         }
         Py_CLEAR(result);
     }
@@ -673,6 +666,43 @@ gen_iternext(PyGenObject *gen)
 }
 
 /*
+ * Set StopIteration with specified value.  Value can be arbitrary object
+ * or NULL.
+ *
+ * Returns 0 if StopIteration is set and -1 if any other exception is set.
+ */
+int
+_PyGen_SetStopIterationValue(PyObject *value)
+{
+    PyObject *e;
+
+    if (value == NULL ||
+        (!PyTuple_Check(value) &&
+         !PyObject_TypeCheck(value, (PyTypeObject *) PyExc_StopIteration)))
+    {
+        /* Delay exception instantiation if we can */
+        PyErr_SetObject(PyExc_StopIteration, value);
+        return 0;
+    }
+    /* Construct an exception instance manually with
+     * PyObject_CallFunctionObjArgs and pass it to PyErr_SetObject.
+     *
+     * We do this to handle a situation when "value" is a tuple, in which
+     * case PyErr_SetObject would set the value of StopIteration to
+     * the first element of the tuple.
+     *
+     * (See PyErr_SetObject/_PyErr_CreateException code for details.)
+     */
+    e = PyObject_CallFunctionObjArgs(PyExc_StopIteration, value, NULL);
+    if (e == NULL) {
+        return -1;
+    }
+    PyErr_SetObject(PyExc_StopIteration, e);
+    Py_DECREF(e);
+    return 0;
+}
+
+/*
  *   If StopIteration exception is set, fetches its 'value'
  *   attribute if any, otherwise sets pvalue to None.
  *
@@ -682,7 +712,8 @@ gen_iternext(PyGenObject *gen)
  */
 
 int
-_PyGen_FetchStopIterationValue(PyObject **pvalue) {
+_PyGen_FetchStopIterationValue(PyObject **pvalue)
+{
     PyObject *et, *ev, *tb;
     PyObject *value = NULL;
 
@@ -694,8 +725,15 @@ _PyGen_FetchStopIterationValue(PyObject **pvalue) {
                 value = ((PyStopIterationObject *)ev)->value;
                 Py_INCREF(value);
                 Py_DECREF(ev);
-            } else if (et == PyExc_StopIteration) {
-                /* avoid normalisation and take ev as value */
+            } else if (et == PyExc_StopIteration && !PyTuple_Check(ev)) {
+                /* Avoid normalisation and take ev as value.
+                 *
+                 * Normalization is required if the value is a tuple, in
+                 * that case the value of StopIteration would be set to
+                 * the first element of the tuple.
+                 *
+                 * (See _PyErr_CreateException code for details.)
+                 */
                 value = ev;
             } else {
                 /* normalisation required */
@@ -1198,7 +1236,7 @@ PyTypeObject _PyCoroWrapper_Type = {
     0,                                          /* tp_init */
     0,                                          /* tp_alloc */
     0,                                          /* tp_new */
-    PyObject_Del,                               /* tp_free */
+    0,                                          /* tp_free */
 };
 
 PyObject *
@@ -1219,7 +1257,7 @@ typedef struct {
 static PyObject *
 aiter_wrapper_iternext(PyAIterWrapper *aw)
 {
-    PyErr_SetObject(PyExc_StopIteration, aw->ags_aiter);
+    _PyGen_SetStopIterationValue(aw->ags_aiter);
     return NULL;
 }
 
@@ -1283,7 +1321,7 @@ PyTypeObject _PyAIterWrapper_Type = {
     0,                                          /* tp_init */
     0,                                          /* tp_alloc */
     0,                                          /* tp_new */
-    PyObject_Del,                               /* tp_free */
+    0,                                          /* tp_free */
 };
 
 
@@ -1578,14 +1616,14 @@ PyAsyncGen_ClearFreeLists(void)
         _PyAsyncGenWrappedValue *o;
         o = ag_value_freelist[--ag_value_freelist_free];
         assert(_PyAsyncGenWrappedValue_CheckExact(o));
-        PyObject_Del(o);
+        PyObject_GC_Del(o);
     }
 
     while (ag_asend_freelist_free) {
         PyAsyncGenASend *o;
         o = ag_asend_freelist[--ag_asend_freelist_free];
         assert(Py_TYPE(o) == &_PyAsyncGenASend_Type);
-        PyObject_Del(o);
+        PyObject_GC_Del(o);
     }
 
     return ret;
@@ -1617,16 +1655,8 @@ async_gen_unwrap_value(PyAsyncGenObject *gen, PyObject *result)
 
     if (_PyAsyncGenWrappedValue_CheckExact(result)) {
         /* async yield */
-        PyObject *e = PyObject_CallFunctionObjArgs(
-            PyExc_StopIteration,
-            ((_PyAsyncGenWrappedValue*)result)->agw_val,
-            NULL);
+        _PyGen_SetStopIterationValue(((_PyAsyncGenWrappedValue*)result)->agw_val);
         Py_DECREF(result);
-        if (e == NULL) {
-            return NULL;
-        }
-        PyErr_SetObject(PyExc_StopIteration, e);
-        Py_DECREF(e);
         return NULL;
     }
 
@@ -1640,14 +1670,23 @@ async_gen_unwrap_value(PyAsyncGenObject *gen, PyObject *result)
 static void
 async_gen_asend_dealloc(PyAsyncGenASend *o)
 {
+    _PyObject_GC_UNTRACK((PyObject *)o);
     Py_CLEAR(o->ags_gen);
     Py_CLEAR(o->ags_sendval);
     if (ag_asend_freelist_free < _PyAsyncGen_MAXFREELIST) {
         assert(PyAsyncGenASend_CheckExact(o));
         ag_asend_freelist[ag_asend_freelist_free++] = o;
     } else {
-        PyObject_Del(o);
+        PyObject_GC_Del(o);
     }
+}
+
+static int
+async_gen_asend_traverse(PyAsyncGenASend *o, visitproc visit, void *arg)
+{
+    Py_VISIT(o->ags_gen);
+    Py_VISIT(o->ags_sendval);
+    return 0;
 }
 
 
@@ -1751,9 +1790,9 @@ PyTypeObject _PyAsyncGenASend_Type = {
     PyObject_GenericGetAttr,                    /* tp_getattro */
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,                         /* tp_flags */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,    /* tp_flags */
     0,                                          /* tp_doc */
-    0,                                          /* tp_traverse */
+    (traverseproc)async_gen_asend_traverse,     /* tp_traverse */
     0,                                          /* tp_clear */
     0,                                          /* tp_richcompare */
     0,                                          /* tp_weaklistoffset */
@@ -1782,7 +1821,7 @@ async_gen_asend_new(PyAsyncGenObject *gen, PyObject *sendval)
         o = ag_asend_freelist[ag_asend_freelist_free];
         _Py_NewReference((PyObject *)o);
     } else {
-        o = PyObject_New(PyAsyncGenASend, &_PyAsyncGenASend_Type);
+        o = PyObject_GC_New(PyAsyncGenASend, &_PyAsyncGenASend_Type);
         if (o == NULL) {
             return NULL;
         }
@@ -1795,6 +1834,8 @@ async_gen_asend_new(PyAsyncGenObject *gen, PyObject *sendval)
     o->ags_sendval = sendval;
 
     o->ags_state = AWAITABLE_STATE_INIT;
+
+    _PyObject_GC_TRACK((PyObject*)o);
     return (PyObject*)o;
 }
 
@@ -1805,13 +1846,23 @@ async_gen_asend_new(PyAsyncGenObject *gen, PyObject *sendval)
 static void
 async_gen_wrapped_val_dealloc(_PyAsyncGenWrappedValue *o)
 {
+    _PyObject_GC_UNTRACK((PyObject *)o);
     Py_CLEAR(o->agw_val);
     if (ag_value_freelist_free < _PyAsyncGen_MAXFREELIST) {
         assert(_PyAsyncGenWrappedValue_CheckExact(o));
         ag_value_freelist[ag_value_freelist_free++] = o;
     } else {
-        PyObject_Del(o);
+        PyObject_GC_Del(o);
     }
+}
+
+
+static int
+async_gen_wrapped_val_traverse(_PyAsyncGenWrappedValue *o,
+                               visitproc visit, void *arg)
+{
+    Py_VISIT(o->agw_val);
+    return 0;
 }
 
 
@@ -1836,9 +1887,9 @@ PyTypeObject _PyAsyncGenWrappedValue_Type = {
     PyObject_GenericGetAttr,                    /* tp_getattro */
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,                         /* tp_flags */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,    /* tp_flags */
     0,                                          /* tp_doc */
-    0,                                          /* tp_traverse */
+    (traverseproc)async_gen_wrapped_val_traverse, /* tp_traverse */
     0,                                          /* tp_clear */
     0,                                          /* tp_richcompare */
     0,                                          /* tp_weaklistoffset */
@@ -1870,13 +1921,15 @@ _PyAsyncGenValueWrapperNew(PyObject *val)
         assert(_PyAsyncGenWrappedValue_CheckExact(o));
         _Py_NewReference((PyObject*)o);
     } else {
-        o = PyObject_New(_PyAsyncGenWrappedValue, &_PyAsyncGenWrappedValue_Type);
+        o = PyObject_GC_New(_PyAsyncGenWrappedValue,
+                            &_PyAsyncGenWrappedValue_Type);
         if (o == NULL) {
             return NULL;
         }
     }
     o->agw_val = val;
     Py_INCREF(val);
+    _PyObject_GC_TRACK((PyObject*)o);
     return (PyObject*)o;
 }
 
@@ -1887,9 +1940,19 @@ _PyAsyncGenValueWrapperNew(PyObject *val)
 static void
 async_gen_athrow_dealloc(PyAsyncGenAThrow *o)
 {
+    _PyObject_GC_UNTRACK((PyObject *)o);
     Py_CLEAR(o->agt_gen);
     Py_CLEAR(o->agt_args);
-    PyObject_Del(o);
+    PyObject_GC_Del(o);
+}
+
+
+static int
+async_gen_athrow_traverse(PyAsyncGenAThrow *o, visitproc visit, void *arg)
+{
+    Py_VISIT(o->agt_gen);
+    Py_VISIT(o->agt_args);
+    return 0;
 }
 
 
@@ -2073,9 +2136,9 @@ PyTypeObject _PyAsyncGenAThrow_Type = {
     PyObject_GenericGetAttr,                    /* tp_getattro */
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,                         /* tp_flags */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,    /* tp_flags */
     0,                                          /* tp_doc */
-    0,                                          /* tp_traverse */
+    (traverseproc)async_gen_athrow_traverse,    /* tp_traverse */
     0,                                          /* tp_clear */
     0,                                          /* tp_richcompare */
     0,                                          /* tp_weaklistoffset */
@@ -2099,7 +2162,7 @@ static PyObject *
 async_gen_athrow_new(PyAsyncGenObject *gen, PyObject *args)
 {
     PyAsyncGenAThrow *o;
-    o = PyObject_New(PyAsyncGenAThrow, &_PyAsyncGenAThrow_Type);
+    o = PyObject_GC_New(PyAsyncGenAThrow, &_PyAsyncGenAThrow_Type);
     if (o == NULL) {
         return NULL;
     }
@@ -2108,5 +2171,6 @@ async_gen_athrow_new(PyAsyncGenObject *gen, PyObject *args)
     o->agt_state = AWAITABLE_STATE_INIT;
     Py_INCREF(gen);
     Py_XINCREF(args);
+    _PyObject_GC_TRACK((PyObject*)o);
     return (PyObject*)o;
 }

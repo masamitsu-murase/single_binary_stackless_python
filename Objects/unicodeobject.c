@@ -3237,6 +3237,11 @@ PyUnicode_AsDecodedObject(PyObject *unicode,
         return NULL;
     }
 
+    if (PyErr_WarnEx(PyExc_DeprecationWarning,
+                     "PyUnicode_AsDecodedObject() is deprecated; "
+                     "use PyCodec_Decode() to decode from str", 1) < 0)
+        return NULL;
+
     if (encoding == NULL)
         encoding = PyUnicode_GetDefaultEncoding();
 
@@ -3255,6 +3260,11 @@ PyUnicode_AsDecodedUnicode(PyObject *unicode,
         PyErr_BadArgument();
         goto onError;
     }
+
+    if (PyErr_WarnEx(PyExc_DeprecationWarning,
+                     "PyUnicode_AsDecodedUnicode() is deprecated; "
+                     "use PyCodec_Decode() to decode from str to str", 1) < 0)
+        return NULL;
 
     if (encoding == NULL)
         encoding = PyUnicode_GetDefaultEncoding();
@@ -3305,6 +3315,12 @@ PyUnicode_AsEncodedObject(PyObject *unicode,
         PyErr_BadArgument();
         goto onError;
     }
+
+    if (PyErr_WarnEx(PyExc_DeprecationWarning,
+                     "PyUnicode_AsEncodedObject() is deprecated; "
+                     "use PyUnicode_AsEncodedString() to encode from str to bytes "
+                     "or PyCodec_Encode() for generic encoding", 1) < 0)
+        return NULL;
 
     if (encoding == NULL)
         encoding = PyUnicode_GetDefaultEncoding();
@@ -3628,6 +3644,11 @@ PyUnicode_AsEncodedUnicode(PyObject *unicode,
         goto onError;
     }
 
+    if (PyErr_WarnEx(PyExc_DeprecationWarning,
+                     "PyUnicode_AsEncodedUnicode() is deprecated; "
+                     "use PyCodec_Encode() to encode from str to str", 1) < 0)
+        return NULL;
+
     if (encoding == NULL)
         encoding = PyUnicode_GetDefaultEncoding();
 
@@ -3811,18 +3832,9 @@ PyUnicode_DecodeFSDefaultAndSize(const char *s, Py_ssize_t size)
        cannot only rely on it: check also interp->fscodec_initialized for
        subinterpreters. */
     if (Py_FileSystemDefaultEncoding && interp->fscodec_initialized) {
-        PyObject *res = PyUnicode_Decode(s, size,
+        return PyUnicode_Decode(s, size,
                                 Py_FileSystemDefaultEncoding,
                                 Py_FileSystemDefaultEncodeErrors);
-#ifdef MS_WINDOWS
-        if (!res && PyErr_ExceptionMatches(PyExc_UnicodeDecodeError)) {
-            _PyErr_FormatFromCause(PyExc_RuntimeError,
-                "filesystem path bytes were not correctly encoded with '%s'. "
-                "Please report this at http://bugs.python.org/issue27781",
-                Py_FileSystemDefaultEncoding);
-        }
-#endif
-        return res;
     }
     else {
         return PyUnicode_DecodeLocaleAndSize(s, size, Py_FileSystemDefaultEncodeErrors);
@@ -5856,15 +5868,19 @@ PyUnicode_AsUTF16String(PyObject *unicode)
 static _PyUnicode_Name_CAPI *ucnhash_CAPI = NULL;
 
 PyObject *
-PyUnicode_DecodeUnicodeEscape(const char *s,
-                              Py_ssize_t size,
-                              const char *errors)
+_PyUnicode_DecodeUnicodeEscape(const char *s,
+                               Py_ssize_t size,
+                               const char *errors,
+                               const char **first_invalid_escape)
 {
     const char *starts = s;
     _PyUnicodeWriter writer;
     const char *end;
     PyObject *errorHandler = NULL;
     PyObject *exc = NULL;
+
+    // so we can remember if we've seen an invalid escape char or not
+    *first_invalid_escape = NULL;
 
     if (size == 0) {
         _Py_RETURN_UNICODE_EMPTY();
@@ -6040,9 +6056,10 @@ PyUnicode_DecodeUnicodeEscape(const char *s,
             goto error;
 
         default:
-            if (PyErr_WarnFormat(PyExc_DeprecationWarning, 1,
-                                 "invalid escape sequence '\\%c'", c) < 0)
-                goto onError;
+            if (*first_invalid_escape == NULL) {
+                *first_invalid_escape = s-1; /* Back up one char, since we've
+                                                already incremented s. */
+            }
             WRITE_ASCII_CHAR('\\');
             WRITE_CHAR(c);
             continue;
@@ -6075,6 +6092,27 @@ PyUnicode_DecodeUnicodeEscape(const char *s,
     Py_XDECREF(errorHandler);
     Py_XDECREF(exc);
     return NULL;
+}
+
+PyObject *
+PyUnicode_DecodeUnicodeEscape(const char *s,
+                              Py_ssize_t size,
+                              const char *errors)
+{
+    const char *first_invalid_escape;
+    PyObject *result = _PyUnicode_DecodeUnicodeEscape(s, size, errors,
+                                                      &first_invalid_escape);
+    if (result == NULL)
+        return NULL;
+    if (first_invalid_escape != NULL) {
+        if (PyErr_WarnFormat(PyExc_DeprecationWarning, 1,
+                             "invalid escape sequence '\\%c'",
+                             *first_invalid_escape) < 0) {
+            Py_DECREF(result);
+            return NULL;
+        }
+    }
+    return result;
 }
 
 /* Return a Unicode-Escape string version of the Unicode object.
@@ -13551,34 +13589,28 @@ PyObject *
 _PyUnicodeWriter_Finish(_PyUnicodeWriter *writer)
 {
     PyObject *str;
+
     if (writer->pos == 0) {
         Py_CLEAR(writer->buffer);
         _Py_RETURN_UNICODE_EMPTY();
     }
+
+    str = writer->buffer;
+    writer->buffer = NULL;
+
     if (writer->readonly) {
-        str = writer->buffer;
-        writer->buffer = NULL;
         assert(PyUnicode_GET_LENGTH(str) == writer->pos);
         return str;
     }
-    if (writer->pos == 0) {
-        Py_CLEAR(writer->buffer);
 
-        /* Get the empty Unicode string singleton ('') */
-        _Py_INCREF_UNICODE_EMPTY();
-        str  = unicode_empty;
-    }
-    else {
-        str = writer->buffer;
-        writer->buffer = NULL;
-
-        if (PyUnicode_GET_LENGTH(str) != writer->pos) {
-            PyObject *str2;
-            str2 = resize_compact(str, writer->pos);
-            if (str2 == NULL)
-                return NULL;
-            str = str2;
+    if (PyUnicode_GET_LENGTH(str) != writer->pos) {
+        PyObject *str2;
+        str2 = resize_compact(str, writer->pos);
+        if (str2 == NULL) {
+            Py_DECREF(str);
+            return NULL;
         }
+        str = str2;
     }
 
     assert(_PyUnicode_CheckConsistency(str, 1));
