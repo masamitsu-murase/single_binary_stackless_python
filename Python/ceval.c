@@ -2559,8 +2559,10 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
 
         TARGET(DELETE_DEREF) {
             PyObject *cell = freevars[oparg];
-            if (PyCell_GET(cell) != NULL) {
-                PyCell_Set(cell, NULL);
+            PyObject *oldobj = PyCell_GET(cell);
+            if (oldobj != NULL) {
+                PyCell_SET(cell, NULL);
+                Py_DECREF(oldobj);
                 DISPATCH();
             }
             format_exc_unbound(co, oparg);
@@ -2622,8 +2624,9 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
         TARGET(STORE_DEREF) {
             PyObject *v = POP();
             PyObject *cell = freevars[oparg];
-            PyCell_Set(cell, v);
-            Py_DECREF(v);
+            PyObject *oldobj = PyCell_GET(cell);
+            PyCell_SET(cell, v);
+            Py_XDECREF(oldobj);
             DISPATCH();
         }
 
@@ -5231,7 +5234,7 @@ PyEval_GetFuncName(PyObject *func)
     if (PyMethod_Check(func))
         return PyEval_GetFuncName(PyMethod_GET_FUNCTION(func));
     else if (PyFunction_Check(func))
-        return _PyUnicode_AsString(((PyFunctionObject*)func)->func_name);
+        return PyUnicode_AsUTF8(((PyFunctionObject*)func)->func_name);
     else if (PyCFunction_Check(func))
         return ((PyCFunctionObject*)func)->m_ml->ml_name;
     else
@@ -5845,7 +5848,7 @@ format_exc_check_arg(PyObject *exc, const char *format_str, PyObject *obj)
     if (!obj)
         return;
 
-    obj_str = _PyUnicode_AsString(obj);
+    obj_str = PyUnicode_AsUTF8(obj);
     if (!obj_str)
         return;
 
@@ -5901,8 +5904,10 @@ unicode_concatenate(PyObject *v, PyObject *w,
             PyObject **freevars = (f->f_localsplus +
                                    f->f_code->co_nlocals);
             PyObject *c = freevars[oparg];
-            if (PyCell_GET(c) == v)
-                PyCell_Set(c, NULL);
+            if (PyCell_GET(c) ==  v) {
+                PyCell_SET(c, NULL);
+                Py_DECREF(v);
+            }
             break;
         }
         case STORE_NAME:
@@ -5986,8 +5991,8 @@ _PyEval_RequestCodeExtraIndex(freefunc free)
 static void
 dtrace_function_entry(PyFrameObject *f)
 {
-    char* filename;
-    char* funcname;
+    const char *filename;
+    const char *funcname;
     int lineno;
 
     filename = PyUnicode_AsUTF8(f->f_code->co_filename);
@@ -6000,8 +6005,8 @@ dtrace_function_entry(PyFrameObject *f)
 static void
 dtrace_function_return(PyFrameObject *f)
 {
-    char* filename;
-    char* funcname;
+    const char *filename;
+    const char *funcname;
     int lineno;
 
     filename = PyUnicode_AsUTF8(f->f_code->co_filename);
@@ -6017,7 +6022,7 @@ maybe_dtrace_line(PyFrameObject *frame,
                   int *instr_lb, int *instr_ub, int *instr_prev)
 {
     int line = frame->f_lineno;
-    char *co_filename, *co_name;
+    const char *co_filename, *co_name;
 
     /* If the last instruction executed isn't in the current
        instruction window, reset the window.

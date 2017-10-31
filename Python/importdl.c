@@ -94,7 +94,7 @@ _PyImport_LoadDynamicModuleWithSpec(PyObject *spec, FILE *fp)
 #endif
     PyObject *name_unicode = NULL, *name = NULL, *path = NULL, *m = NULL;
     const char *name_buf, *hook_prefix;
-    char *oldcontext;
+    const char *oldcontext;
     dl_funcptr exportfunc;
     PyModuleDef *def;
     PyObject *(*p0)(void);
@@ -147,6 +147,10 @@ _PyImport_LoadDynamicModuleWithSpec(PyObject *spec, FILE *fp)
     /* Package context is needed for single-phase init */
     oldcontext = _Py_PackageContext;
     _Py_PackageContext = PyUnicode_AsUTF8(name_unicode);
+    if (_Py_PackageContext == NULL) {
+        _Py_PackageContext = oldcontext;
+        goto error;
+    }
     m = p0();
     _Py_PackageContext = oldcontext;
 

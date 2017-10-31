@@ -1398,11 +1398,9 @@ static PyObject *
 getargs_u(PyObject *self, PyObject *args)
 {
     Py_UNICODE *str;
-    Py_ssize_t size;
     if (!PyArg_ParseTuple(args, "u", &str))
         return NULL;
-    size = Py_UNICODE_strlen(str);
-    return PyUnicode_FromUnicode(str, size);
+    return PyUnicode_FromWideChar(str, -1);
 }
 
 static PyObject *
@@ -1412,19 +1410,17 @@ getargs_u_hash(PyObject *self, PyObject *args)
     Py_ssize_t size;
     if (!PyArg_ParseTuple(args, "u#", &str, &size))
         return NULL;
-    return PyUnicode_FromUnicode(str, size);
+    return PyUnicode_FromWideChar(str, size);
 }
 
 static PyObject *
 getargs_Z(PyObject *self, PyObject *args)
 {
     Py_UNICODE *str;
-    Py_ssize_t size;
     if (!PyArg_ParseTuple(args, "Z", &str))
         return NULL;
     if (str != NULL) {
-        size = Py_UNICODE_strlen(str);
-        return PyUnicode_FromUnicode(str, size);
+        return PyUnicode_FromWideChar(str, -1);
     } else
         Py_RETURN_NONE;
 }
@@ -1437,7 +1433,7 @@ getargs_Z_hash(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "Z#", &str, &size))
         return NULL;
     if (str != NULL)
-        return PyUnicode_FromUnicode(str, size);
+        return PyUnicode_FromWideChar(str, size);
     else
         Py_RETURN_NONE;
 }
@@ -2325,7 +2321,7 @@ test_string_from_format(PyObject *self, PyObject *args)
     result = PyUnicode_FromFormat(FORMAT, (TYPE)1);                 \
     if (result == NULL)                                             \
         return NULL;                                                \
-    if (PyUnicode_CompareWithASCIIString(result, "1")) {     \
+    if (!_PyUnicode_EqualToASCIIString(result, "1")) {              \
         msg = FORMAT " failed at 1";                                \
         goto Fail;                                                  \
     }                                                               \

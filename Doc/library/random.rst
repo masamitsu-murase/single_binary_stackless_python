@@ -49,8 +49,21 @@ from sources provided by the operating system.
    security purposes.  For security or cryptographic uses, see the
    :mod:`secrets` module.
 
+.. seealso::
 
-Bookkeeping functions:
+   M. Matsumoto and T. Nishimura, "Mersenne Twister: A 623-dimensionally
+   equidistributed uniform pseudorandom number generator", ACM Transactions on
+   Modeling and Computer Simulation Vol. 8, No. 1, January pp.3-30 1998.
+
+
+   `Complementary-Multiply-with-Carry recipe
+   <https://code.activestate.com/recipes/576707/>`_ for a compatible alternative
+   random number generator with a long period and comparatively simple update
+   operations.
+
+
+Bookkeeping functions
+---------------------
 
 .. function:: seed(a=None, version=2)
 
@@ -94,7 +107,8 @@ Bookkeeping functions:
    :meth:`randrange` to handle arbitrarily large ranges.
 
 
-Functions for integers:
+Functions for integers
+----------------------
 
 .. function:: randrange(stop)
               randrange(start, stop[, step])
@@ -117,7 +131,8 @@ Functions for integers:
    ``randrange(a, b+1)``.
 
 
-Functions for sequences:
+Functions for sequences
+-----------------------
 
 .. function:: choice(seq)
 
@@ -152,13 +167,19 @@ Functions for sequences:
 
 .. function:: shuffle(x[, random])
 
-   Shuffle the sequence *x* in place. The optional argument *random* is a
-   0-argument function returning a random float in [0.0, 1.0); by default, this is
-   the function :func:`.random`.
+   Shuffle the sequence *x* in place.
 
-   Note that for even rather small ``len(x)``, the total number of permutations of
-   *x* is larger than the period of most random number generators; this implies
-   that most permutations of a long sequence can never be generated.
+   The optional argument *random* is a 0-argument function returning a random
+   float in [0.0, 1.0); by default, this is the function :func:`.random`.
+
+   To shuffle an immutable sequence and return a new shuffled list, use
+   ``sample(x, k=len(x))`` instead.
+
+   Note that even for small ``len(x)``, the total number of permutations of *x*
+   can quickly grow larger than the period of most random number generators.
+   This implies that most permutations of a long sequence can never be
+   generated.  For example, a sequence of length 2080 is the largest that
+   can fit within the period of the Mersenne Twister random number generator.
 
 
 .. function:: sample(population, k)
@@ -175,12 +196,15 @@ Functions for sequences:
    Members of the population need not be :term:`hashable` or unique.  If the population
    contains repeats, then each occurrence is a possible selection in the sample.
 
-   To choose a sample from a range of integers, use an :func:`range` object as an
+   To choose a sample from a range of integers, use a :func:`range` object as an
    argument.  This is especially fast and space efficient for sampling from a large
-   population:  ``sample(range(10000000), 60)``.
+   population:  ``sample(range(10000000), k=60)``.
 
    If the sample size is larger than the population size, a :exc:`ValueError`
    is raised.
+
+Real-valued distributions
+-------------------------
 
 The following functions generate specific real-valued distributions. Function
 parameters are named after the corresponding variables in the distribution's
@@ -276,7 +300,8 @@ be found in any statistics text.
    parameter.
 
 
-Alternative Generator:
+Alternative Generator
+---------------------
 
 .. class:: SystemRandom([seed])
 
@@ -286,19 +311,6 @@ Alternative Generator:
    the :meth:`seed` method has no effect and is ignored.
    The :meth:`getstate` and :meth:`setstate` methods raise
    :exc:`NotImplementedError` if called.
-
-
-.. seealso::
-
-   M. Matsumoto and T. Nishimura, "Mersenne Twister: A 623-dimensionally
-   equidistributed uniform pseudorandom number generator", ACM Transactions on
-   Modeling and Computer Simulation Vol. 8, No. 1, January pp.3-30 1998.
-
-
-   `Complementary-Multiply-with-Carry recipe
-   <https://code.activestate.com/recipes/576707/>`_ for a compatible alternative
-   random number generator with a long period and comparatively simple update
-   operations.
 
 
 Notes on Reproducibility
@@ -322,37 +334,50 @@ change across Python versions, but two aspects are guaranteed not to change:
 Examples and Recipes
 --------------------
 
-Basic usage::
+Basic examples::
 
-   >>> random.random()                      # Random float x, 0.0 <= x < 1.0
+   >>> random()                             # Random float:  0.0 <= x < 1.0
    0.37444887175646646
 
-   >>> random.uniform(1, 10)                # Random float x, 1.0 <= x < 10.0
-   1.1800146073117523
+   >>> uniform(2.5, 10.0)                   # Random float:  2.5 <= x < 10.0
+   3.1800146073117523
 
-   >>> random.randrange(10)                 # Integer from 0 to 9
+   >>> expovariate(1 / 5)                   # Interval between arrivals averaging 5 seconds
+   5.148957571865031
+
+   >>> randrange(10)                        # Integer from 0 to 9 inclusive
    7
 
-   >>> random.randrange(0, 101, 2)          # Even integer from 0 to 100
+   >>> randrange(0, 101, 2)                 # Even integer from 0 to 100 inclusive
    26
 
-   >>> random.choice('abcdefghij')          # Single random element
-   'c'
+   >>> choice(['win', 'lose', 'draw'])      # Single random element from a sequence
+   'draw'
 
-   >>> deck = ['jack', 'queen', 'king', 'ace']
-   >>> shuffle(deck)
+   >>> deck = 'ace two three four'.split()
+   >>> shuffle(deck)                        # Shuffle a list
    >>> deck
-   ['king', 'queen', 'ace', 'jack']
+   ['four', 'two', 'ace', 'three']
 
-   >>> random.sample([1, 2, 3, 4, 5],  3)   # Three samples without replacement
-   [4, 1, 5]
+   >>> sample([10, 20, 30, 40, 50], k=4)    # Four samples without replacement
+   [40, 10, 50, 30]
 
-   >>>                                      # Six weighted samples with replacement
+Simulations::
+
+   # Six roulette wheel spins (weighted sampling with replacement)
    >>> choices(['red', 'black', 'green'], [18, 18, 2], k=6)
    ['red', 'green', 'black', 'black', 'red', 'black']
 
-   # Probability of getting 5 or more heads from 7 spins of a biased coin
-   # that settles on heads 60% of the time.
+   # Deal 20 cards without replacement from a deck of 52 playing cards
+   # and determine the proportion of cards with a ten-value (i.e. a ten,
+   # jack, queen, or king).
+   >>> deck = collections.Counter(tens=16, low_cards=36)
+   >>> seen = sample(list(deck.elements()), k=20)
+   >>> print(seen.count('tens') / 20)
+   0.15
+
+   # Estimate the probability of getting 5 or more heads from 7 spins
+   # of a biased coin that settles on heads 60% of the time.
    >>> n = 10000
    >>> cw = [0.60, 1.00]
    >>> sum(choices('HT', cum_weights=cw, k=7).count('H') >= 5 for i in range(n)) / n
@@ -360,8 +385,8 @@ Basic usage::
 
 Example of `statistical bootstrapping
 <https://en.wikipedia.org/wiki/Bootstrapping_(statistics)>`_ using resampling
-with replacement to estimate a confidence interval for the mean of a small
-sample of size five::
+with replacement to estimate a confidence interval for the mean of a sample of
+size five::
 
    # http://statistics.about.com/od/Applications/a/Example-Of-Bootstrapping.htm
    from statistics import mean
@@ -369,5 +394,82 @@ sample of size five::
 
    data = 1, 2, 4, 4, 10
    means = sorted(mean(choices(data, k=5)) for i in range(20))
-   print('The sample mean of {:.1f} has a 90% confidence interval '
-         'from {:.1f} to {:.1f}'.format(mean(data), means[1], means[-2]))
+   print(f'The sample mean of {mean(data):.1f} has a 90% confidence '
+         f'interval from {means[1]:.1f} to {means[-2]:.1f}')
+
+Example of a `resampling permutation test
+<https://en.wikipedia.org/wiki/Resampling_(statistics)#Permutation_tests>`_
+to determine the statistical significance or `p-value
+<https://en.wikipedia.org/wiki/P-value>`_ of an observed difference
+between the effects of a drug versus a placebo::
+
+    # Example from "Statistics is Easy" by Dennis Shasha and Manda Wilson
+    from statistics import mean
+    from random import shuffle
+
+    drug = [54, 73, 53, 70, 73, 68, 52, 65, 65]
+    placebo = [54, 51, 58, 44, 55, 52, 42, 47, 58, 46]
+    observed_diff = mean(drug) - mean(placebo)
+
+    n = 10000
+    count = 0
+    combined = drug + placebo
+    for i in range(n):
+        shuffle(combined)
+        new_diff = mean(combined[:len(drug)]) - mean(combined[len(drug):])
+        count += (new_diff >= observed_diff)
+
+    print(f'{n} label reshufflings produced only {count} instances with a difference')
+    print(f'at least as extreme as the observed difference of {observed_diff:.1f}.')
+    print(f'The one-sided p-value of {count / n:.4f} leads us to reject the null')
+    print(f'hypothesis that there is no difference between the drug and the placebo.')
+
+Simulation of arrival times and service deliveries in a single server queue::
+
+    from random import expovariate, gauss
+    from statistics import mean, median, stdev
+
+    average_arrival_interval = 5.6
+    average_service_time = 5.0
+    stdev_service_time = 0.5
+
+    num_waiting = 0
+    arrivals = []
+    starts = []
+    arrival = service_end = 0.0
+    for i in range(20000):
+        if arrival <= service_end:
+            num_waiting += 1
+            arrival += expovariate(1.0 / average_arrival_interval)
+            arrivals.append(arrival)
+        else:
+            num_waiting -= 1
+            service_start = service_end if num_waiting else arrival
+            service_time = gauss(average_service_time, stdev_service_time)
+            service_end = service_start + service_time
+            starts.append(service_start)
+
+    waits = [start - arrival for arrival, start in zip(arrivals, starts)]
+    print(f'Mean wait: {mean(waits):.1f}.  Stdev wait: {stdev(waits):.1f}.')
+    print(f'Median wait: {median(waits):.1f}.  Max wait: {max(waits):.1f}.')
+
+.. seealso::
+
+   `Statistics for Hackers <https://www.youtube.com/watch?v=Iq9DzN6mvYA>`_
+   a video tutorial by
+   `Jake Vanderplas <https://us.pycon.org/2016/speaker/profile/295/>`_
+   on statistical analysis using just a few fundamental concepts
+   including simulation, sampling, shuffling, and cross-validation.
+
+   `Economics Simulation
+   <http://nbviewer.jupyter.org/url/norvig.com/ipython/Economics.ipynb>`_
+   a simulation of a marketplace by
+   `Peter Norvig <http://norvig.com/bio.html>`_ that shows effective
+   use of many of the tools and distributions provided by this module
+   (gauss, uniform, sample, betavariate, choice, triangular, and randrange).
+
+   `A Concrete Introduction to Probability (using Python)
+   <http://nbviewer.jupyter.org/url/norvig.com/ipython/Probability.ipynb>`_
+   a tutorial by `Peter Norvig <http://norvig.com/bio.html>`_ covering
+   the basics of probability theory, how to write simulations, and
+   how to perform data analysis using Python.

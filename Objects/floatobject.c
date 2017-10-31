@@ -1225,7 +1225,7 @@ float_fromhex(PyObject *cls, PyObject *arg)
     PyObject *result;
     double x;
     long exp, top_exp, lsb, key_digit;
-    char *s, *coeff_start, *s_store, *coeff_end, *exp_start, *s_end;
+    const char *s, *coeff_start, *s_store, *coeff_end, *exp_start, *s_end;
     int half_eps, digit, round_up, negate=0;
     Py_ssize_t length, ndigits, fdigits, i;
 
@@ -1274,7 +1274,7 @@ float_fromhex(PyObject *cls, PyObject *arg)
      * exp+4*ndigits and exp-4*ndigits are within the range of a long.
      */
 
-    s = _PyUnicode_AsStringAndSize(arg, &length);
+    s = PyUnicode_AsUTF8AndSize(arg, &length);
     if (s == NULL)
         return NULL;
     s_end = s + length;
@@ -1288,7 +1288,7 @@ float_fromhex(PyObject *cls, PyObject *arg)
         s++;
 
     /* infinities and nans */
-    x = _Py_parse_inf_or_nan(s, &coeff_end);
+    x = _Py_parse_inf_or_nan(s, (char **)&coeff_end);
     if (coeff_end != s) {
         s = coeff_end;
         goto finished;
@@ -1619,7 +1619,7 @@ static float_format_type detected_double_format, detected_float_format;
 static PyObject *
 float_getformat(PyTypeObject *v, PyObject* arg)
 {
-    char* s;
+    const char *s;
     float_format_type r;
 
     if (!PyUnicode_Check(arg)) {
@@ -1628,7 +1628,7 @@ float_getformat(PyTypeObject *v, PyObject* arg)
                          Py_TYPE(arg)->tp_name);
         return NULL;
     }
-    s = _PyUnicode_AsString(arg);
+    s = PyUnicode_AsUTF8(arg);
     if (s == NULL)
         return NULL;
     if (strcmp(s, "double") == 0) {

@@ -505,7 +505,7 @@ _pysqlite_set_result(sqlite3_context* context, PyObject* py_val)
     } else if (PyFloat_Check(py_val)) {
         sqlite3_result_double(context, PyFloat_AsDouble(py_val));
     } else if (PyUnicode_Check(py_val)) {
-        const char *str = _PyUnicode_AsString(py_val);
+        const char *str = PyUnicode_AsUTF8(py_val);
         if (str == NULL)
             return -1;
         sqlite3_result_text(context, str, -1, SQLITE_TRANSIENT);
@@ -1191,7 +1191,7 @@ static int pysqlite_connection_set_isolation_level(pysqlite_Connection* self, Py
             return -1;
         }
         for (candidate = begin_statements; *candidate; candidate++) {
-            if (!PyUnicode_CompareWithASCIIString(uppercase_level, *candidate + 6))
+            if (_PyUnicode_EqualToASCIIString(uppercase_level, *candidate + 6))
                 break;
         }
         Py_DECREF(uppercase_level);
@@ -1489,7 +1489,7 @@ pysqlite_connection_create_collation(pysqlite_Connection* self, PyObject* args)
     PyObject* retval;
     Py_ssize_t i, len;
     _Py_IDENTIFIER(upper);
-    char *uppercase_name_str;
+    const char *uppercase_name_str;
     int rc;
     unsigned int kind;
     void *data;
@@ -1527,7 +1527,7 @@ pysqlite_connection_create_collation(pysqlite_Connection* self, PyObject* args)
         }
     }
 
-    uppercase_name_str = _PyUnicode_AsString(uppercase_name);
+    uppercase_name_str = PyUnicode_AsUTF8(uppercase_name);
     if (!uppercase_name_str)
         goto finally;
 

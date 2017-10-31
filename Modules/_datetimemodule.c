@@ -1219,7 +1219,7 @@ wrap_strftime(PyObject *object, PyObject *format, PyObject *timetuple,
     assert(object && format && timetuple);
     assert(PyUnicode_Check(format));
     /* Convert the input format to a C string and size */
-    pin = _PyUnicode_AsStringAndSize(format, &flen);
+    pin = PyUnicode_AsUTF8AndSize(format, &flen);
     if (!pin)
         return NULL;
 
@@ -1287,7 +1287,7 @@ wrap_strftime(PyObject *object, PyObject *format, PyObject *timetuple,
             }
             assert(Zreplacement != NULL);
             assert(PyUnicode_Check(Zreplacement));
-            ptoappend = _PyUnicode_AsStringAndSize(Zreplacement,
+            ptoappend = PyUnicode_AsUTF8AndSize(Zreplacement,
                                                   &ntoappend);
             if (ptoappend == NULL)
                 goto Done;
@@ -3954,13 +3954,19 @@ time_getstate(PyDateTime_Time *self, int proto)
 }
 
 static PyObject *
-time_reduce(PyDateTime_Time *self, PyObject *args)
+time_reduce_ex(PyDateTime_Time *self, PyObject *args)
 {
-    int proto = 0;
-    if (!PyArg_ParseTuple(args, "|i:__reduce_ex__", &proto))
+    int proto;
+    if (!PyArg_ParseTuple(args, "i:__reduce_ex__", &proto))
         return NULL;
 
     return Py_BuildValue("(ON)", Py_TYPE(self), time_getstate(self, proto));
+}
+
+static PyObject *
+time_reduce(PyDateTime_Time *self, PyObject *arg)
+{
+    return Py_BuildValue("(ON)", Py_TYPE(self), time_getstate(self, 2));
 }
 
 static PyMethodDef time_methods[] = {
@@ -3988,8 +3994,11 @@ static PyMethodDef time_methods[] = {
     {"replace",     (PyCFunction)time_replace,          METH_VARARGS | METH_KEYWORDS,
      PyDoc_STR("Return time with new specified fields.")},
 
-    {"__reduce_ex__", (PyCFunction)time_reduce,        METH_VARARGS,
+    {"__reduce_ex__", (PyCFunction)time_reduce_ex,        METH_VARARGS,
      PyDoc_STR("__reduce_ex__(proto) -> (cls, state)")},
+
+    {"__reduce__", (PyCFunction)time_reduce,        METH_NOARGS,
+     PyDoc_STR("__reduce__() -> (cls, state)")},
 
     {NULL,      NULL}
 };
@@ -5419,13 +5428,19 @@ datetime_getstate(PyDateTime_DateTime *self, int proto)
 }
 
 static PyObject *
-datetime_reduce(PyDateTime_DateTime *self, PyObject *args)
+datetime_reduce_ex(PyDateTime_DateTime *self, PyObject *args)
 {
-    int proto = 0;
-    if (!PyArg_ParseTuple(args, "|i:__reduce_ex__", &proto))
+    int proto;
+    if (!PyArg_ParseTuple(args, "i:__reduce_ex__", &proto))
         return NULL;
 
     return Py_BuildValue("(ON)", Py_TYPE(self), datetime_getstate(self, proto));
+}
+
+static PyObject *
+datetime_reduce(PyDateTime_DateTime *self, PyObject *arg)
+{
+    return Py_BuildValue("(ON)", Py_TYPE(self), datetime_getstate(self, 2));
 }
 
 static PyMethodDef datetime_methods[] = {
@@ -5502,8 +5517,11 @@ static PyMethodDef datetime_methods[] = {
     {"astimezone",  (PyCFunction)datetime_astimezone, METH_VARARGS | METH_KEYWORDS,
      PyDoc_STR("tz -> convert to local time in new timezone tz\n")},
 
-    {"__reduce_ex__", (PyCFunction)datetime_reduce,     METH_VARARGS,
+    {"__reduce_ex__", (PyCFunction)datetime_reduce_ex,     METH_VARARGS,
      PyDoc_STR("__reduce_ex__(proto) -> (cls, state)")},
+
+    {"__reduce__", (PyCFunction)datetime_reduce,     METH_NOARGS,
+     PyDoc_STR("__reduce__() -> (cls, state)")},
 
     {NULL,      NULL}
 };

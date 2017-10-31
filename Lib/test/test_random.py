@@ -110,6 +110,7 @@ class TestBasicOps:
         self.assertEqual(self.gen.sample([], 0), [])  # test edge case N==k==0
         # Exception raised if size of sample exceeds that of population
         self.assertRaises(ValueError, self.gen.sample, population, N+1)
+        self.assertRaises(ValueError, self.gen.sample, [], -1)
 
     def test_sample_distribution(self):
         # For the entire allowable range of 0 <= k <= N, validate that
@@ -626,9 +627,9 @@ class MersenneTwister_TestBasicOps(TestBasicOps, unittest.TestCase):
         self.assertEqual((x+stop)%step, 0)
 
     def test_choices_algorithms(self):
-        # The various ways of specifing weights should produce the same results
+        # The various ways of specifying weights should produce the same results
         choices = self.gen.choices
-        n = 13132817
+        n = 104729
 
         self.gen.seed(8675309)
         a = self.gen.choices(range(n), k=10000)

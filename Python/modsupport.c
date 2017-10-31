@@ -9,7 +9,7 @@ typedef double va_double;
 static PyObject *va_build_value(const char *, va_list, int);
 
 /* Package context -- the full module name for package imports */
-char *_Py_PackageContext = NULL;
+const char *_Py_PackageContext = NULL;
 
 /* Helper for mkvalue() to scan the length of a format */
 
@@ -286,8 +286,8 @@ do_mkvalue(const char **p_format, va_list *p_va, int flags)
             }
             else {
                 if (n < 0)
-                    n = Py_UNICODE_strlen(u);
-                v = PyUnicode_FromUnicode(u, n);
+                    n = wcslen(u);
+                v = PyUnicode_FromWideChar(u, n);
             }
             return v;
         }

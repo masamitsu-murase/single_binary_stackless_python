@@ -1701,7 +1701,7 @@ whichmodule(PyObject *global, PyObject *dotted_path)
     while (PyDict_Next(modules_dict, &i, &module_name, &module)) {
         PyObject *candidate;
         if (PyUnicode_Check(module_name) &&
-            !PyUnicode_CompareWithASCIIString(module_name, "__main__"))
+            _PyUnicode_EqualToASCIIString(module_name, "__main__"))
             continue;
         if (module == Py_None)
             continue;
@@ -1955,7 +1955,7 @@ save_long(PicklerObject *self, PyObject *obj)
             goto error;
     }
     else {
-        char *string;
+        const char *string;
 
         /* proto < 2: write the repr and newline.  This is quadratic-time (in
            the number of digits), in both directions.  We add a trailing 'L'
@@ -1965,7 +1965,7 @@ save_long(PicklerObject *self, PyObject *obj)
         if (repr == NULL)
             goto error;
 
-        string = _PyUnicode_AsStringAndSize(repr, &size);
+        string = PyUnicode_AsUTF8AndSize(repr, &size);
         if (string == NULL)
             goto error;
 
@@ -2232,7 +2232,7 @@ write_unicode_binary(PicklerObject *self, PyObject *obj)
 {
     PyObject *encoded = NULL;
     Py_ssize_t size;
-    char *data;
+    const char *data;
     int r;
 
     if (PyUnicode_READY(obj))

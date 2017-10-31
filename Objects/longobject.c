@@ -2479,7 +2479,7 @@ _PyLong_FromBytes(const char *s, Py_ssize_t len, int base)
 PyObject *
 PyLong_FromUnicode(Py_UNICODE *u, Py_ssize_t length, int base)
 {
-    PyObject *v, *unicode = PyUnicode_FromUnicode(u, length);
+    PyObject *v, *unicode = PyUnicode_FromWideChar(u, length);
     if (unicode == NULL)
         return NULL;
     v = PyLong_FromUnicodeObject(unicode, base);
@@ -2491,7 +2491,8 @@ PyObject *
 PyLong_FromUnicodeObject(PyObject *u, int base)
 {
     PyObject *result, *asciidig;
-    char *buffer, *end = NULL;
+    const char *buffer;
+    char *end = NULL;
     Py_ssize_t buflen;
 
     asciidig = _PyUnicode_TransformDecimalAndSpaceToASCII(u);
@@ -5166,9 +5167,9 @@ long_to_bytes(PyLongObject *v, PyObject *args, PyObject *kwds)
         return NULL;
     }
 
-    if (!PyUnicode_CompareWithASCIIString(byteorder_str, "little"))
+    if (_PyUnicode_EqualToASCIIString(byteorder_str, "little"))
         little_endian = 1;
-    else if (!PyUnicode_CompareWithASCIIString(byteorder_str, "big"))
+    else if (_PyUnicode_EqualToASCIIString(byteorder_str, "big"))
         little_endian = 0;
     else {
         PyErr_SetString(PyExc_ValueError,
@@ -5249,9 +5250,9 @@ long_from_bytes(PyTypeObject *type, PyObject *args, PyObject *kwds)
         return NULL;
     }
 
-    if (!PyUnicode_CompareWithASCIIString(byteorder_str, "little"))
+    if (_PyUnicode_EqualToASCIIString(byteorder_str, "little"))
         little_endian = 1;
-    else if (!PyUnicode_CompareWithASCIIString(byteorder_str, "big"))
+    else if (_PyUnicode_EqualToASCIIString(byteorder_str, "big"))
         little_endian = 0;
     else {
         PyErr_SetString(PyExc_ValueError,

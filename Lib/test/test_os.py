@@ -56,7 +56,7 @@ except ImportError:
 try:
     import pwd
     all_users = [u.pw_uid for u in pwd.getpwall()]
-except ImportError:
+except (ImportError, AttributeError):
     all_users = []
 try:
     from _testcapi import INT_MAX, PY_SSIZE_T_MAX
@@ -1423,7 +1423,12 @@ class URandomFDTests(unittest.TestCase):
                         break
                 os.closerange(3, 256)
             with open({TESTFN!r}, 'rb') as f:
-                os.dup2(f.fileno(), fd)
+                new_fd = f.fileno()
+                # Issue #26935: posix allows new_fd and fd to be equal but
+                # some libc implementations have dup2 return an error in this
+                # case.
+                if new_fd != fd:
+                    os.dup2(new_fd, fd)
                 sys.stdout.buffer.write(os.urandom(4))
                 sys.stdout.buffer.write(os.urandom(4))
             """.format(TESTFN=support.TESTFN)
@@ -1476,8 +1481,16 @@ class ExecTests(unittest.TestCase):
         self.assertRaises(OSError, os.execvpe, 'no such app-',
                           ['no such app-'], None)
 
+    def test_execv_with_bad_arglist(self):
+        self.assertRaises(ValueError, os.execv, 'notepad', ())
+        self.assertRaises(ValueError, os.execv, 'notepad', [])
+        self.assertRaises(ValueError, os.execv, 'notepad', ('',))
+        self.assertRaises(ValueError, os.execv, 'notepad', [''])
+
     def test_execvpe_with_bad_arglist(self):
         self.assertRaises(ValueError, os.execvpe, 'notepad', [], None)
+        self.assertRaises(ValueError, os.execvpe, 'notepad', [], {})
+        self.assertRaises(ValueError, os.execvpe, 'notepad', [''], {})
 
     @unittest.skipUnless(hasattr(os, '_execvpe'),
                          "No internal os._execvpe function to test.")
@@ -2316,6 +2329,33 @@ class SpawnTests(unittest.TestCase):
         exitcode = os.spawnve(os.P_WAIT, args[0], args, self.env)
         self.assertEqual(exitcode, self.exitcode)
 
+    @requires_os_func('spawnl')
+    def test_spawnl_noargs(self):
+        args = self.create_args()
+        self.assertRaises(ValueError, os.spawnl, os.P_NOWAIT, args[0])
+        self.assertRaises(ValueError, os.spawnl, os.P_NOWAIT, args[0], '')
+
+    @requires_os_func('spawnle')
+    def test_spawnle_noargs(self):
+        args = self.create_args()
+        self.assertRaises(ValueError, os.spawnle, os.P_NOWAIT, args[0], {})
+        self.assertRaises(ValueError, os.spawnle, os.P_NOWAIT, args[0], '', {})
+
+    @requires_os_func('spawnv')
+    def test_spawnv_noargs(self):
+        args = self.create_args()
+        self.assertRaises(ValueError, os.spawnv, os.P_NOWAIT, args[0], ())
+        self.assertRaises(ValueError, os.spawnv, os.P_NOWAIT, args[0], [])
+        self.assertRaises(ValueError, os.spawnv, os.P_NOWAIT, args[0], ('',))
+        self.assertRaises(ValueError, os.spawnv, os.P_NOWAIT, args[0], [''])
+
+    @requires_os_func('spawnve')
+    def test_spawnve_noargs(self):
+        args = self.create_args()
+        self.assertRaises(ValueError, os.spawnve, os.P_NOWAIT, args[0], (), {})
+        self.assertRaises(ValueError, os.spawnve, os.P_NOWAIT, args[0], [], {})
+        self.assertRaises(ValueError, os.spawnve, os.P_NOWAIT, args[0], ('',), {})
+        self.assertRaises(ValueError, os.spawnve, os.P_NOWAIT, args[0], [''], {})
 
 # The introduction of this TestCase caused at least two different errors on
 # *nix buildbots. Temporarily skip this to let the buildbots move along.

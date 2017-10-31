@@ -45,6 +45,10 @@ class BaseTestCase(TestCase):
                 message += ' : %s' % msg
             raise self.failureException(message)
 
+    def clear_caches(self):
+        for f in typing._cleanups:
+            f()
+
 
 class Employee:
     pass
@@ -509,6 +513,13 @@ class ProtocolTests(BaseTestCase):
     def test_protocol_instance_type_error(self):
         with self.assertRaises(TypeError):
             isinstance(0, typing.SupportsAbs)
+        class C1(typing.SupportsInt):
+            def __int__(self) -> int:
+                return 42
+        class C2(C1):
+            pass
+        c = C2()
+        self.assertIsInstance(c, C1)
 
 
 class GenericTests(BaseTestCase):
@@ -748,8 +759,12 @@ class GenericTests(BaseTestCase):
         class CC: ...
         self.assertEqual(get_type_hints(foobar, globals(), locals()), {'x': List[List[CC]]})
         T = TypeVar('T')
-        def barfoo(x: Tuple[T, ...]): ...
-        self.assertIs(get_type_hints(barfoo, globals(), locals())['x'], Tuple[T, ...])
+        AT = Tuple[T, ...]
+        def barfoo(x: AT): ...
+        self.assertIs(get_type_hints(barfoo, globals(), locals())['x'], AT)
+        CT = Callable[..., List[T]]
+        def barfoo2(x: CT): ...
+        self.assertIs(get_type_hints(barfoo2, globals(), locals())['x'], CT)
 
     def test_extended_generic_rules_subclassing(self):
         class T1(Tuple[T, KT]): ...
@@ -800,6 +815,8 @@ class GenericTests(BaseTestCase):
 
     def test_type_erasure_special(self):
         T = TypeVar('T')
+        # this is the only test that checks type caching
+        self.clear_caches()
         class MyTup(Tuple[T, T]): ...
         self.assertIs(MyTup[int]().__class__, MyTup)
         self.assertIs(MyTup[int]().__orig_class__, MyTup[int])
@@ -1864,6 +1881,20 @@ class NamedTupleTests(BaseTestCase):
         self.assertEqual(CoolEmployee.__name__, 'CoolEmployee')
         self.assertEqual(CoolEmployee._fields, ('name', 'cool'))
         self.assertEqual(CoolEmployee._field_types, dict(name=str, cool=int))
+
+    @skipUnless(PY36, 'Python 3.6 required')
+    def test_namedtuple_keyword_usage(self):
+        LocalEmployee = NamedTuple("LocalEmployee", name=str, age=int)
+        nick = LocalEmployee('Nick', 25)
+        self.assertIsInstance(nick, tuple)
+        self.assertEqual(nick.name, 'Nick')
+        self.assertEqual(LocalEmployee.__name__, 'LocalEmployee')
+        self.assertEqual(LocalEmployee._fields, ('name', 'age'))
+        self.assertEqual(LocalEmployee._field_types, dict(name=str, age=int))
+        with self.assertRaises(TypeError):
+            NamedTuple('Name', [('x', int)], y=str)
+        with self.assertRaises(TypeError):
+            NamedTuple('Name', x=1, y='a')
 
     def test_pickle(self):
         global Emp  # pickle wants to reference the class by name

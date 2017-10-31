@@ -112,13 +112,13 @@ sys_displayhook_unencodable(PyObject *outf, PyObject *o)
 {
     PyObject *stdout_encoding = NULL;
     PyObject *encoded, *escaped_str, *repr_str, *buffer, *result;
-    char *stdout_encoding_str;
+    const char *stdout_encoding_str;
     int ret;
 
     stdout_encoding = _PyObject_GetAttrId(outf, &PyId_encoding);
     if (stdout_encoding == NULL)
         goto error;
-    stdout_encoding_str = _PyUnicode_AsString(stdout_encoding);
+    stdout_encoding_str = PyUnicode_AsUTF8(stdout_encoding);
     if (stdout_encoding_str == NULL)
         goto error;
 
@@ -2430,7 +2430,7 @@ sys_format(_Py_Identifier *key, FILE *fp, const char *format, va_list va)
 {
     PyObject *file, *message;
     PyObject *error_type, *error_value, *error_traceback;
-    char *utf8;
+    const char *utf8;
 
     PyErr_Fetch(&error_type, &error_value, &error_traceback);
     file = _PySys_GetObjectId(key);
@@ -2438,7 +2438,7 @@ sys_format(_Py_Identifier *key, FILE *fp, const char *format, va_list va)
     if (message != NULL) {
         if (sys_pyfile_write_unicode(message, file) != 0) {
             PyErr_Clear();
-            utf8 = _PyUnicode_AsString(message);
+            utf8 = PyUnicode_AsUTF8(message);
             if (utf8 != NULL)
                 fputs(utf8, fp);
         }

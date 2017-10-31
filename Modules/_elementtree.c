@@ -3613,7 +3613,7 @@ _elementtree_XMLParser__setevents_impl(XMLParserObject *self,
 
     for (i = 0; i < PySequence_Size(events_seq); ++i) {
         PyObject *event_name_obj = PySequence_Fast_GET_ITEM(events_seq, i);
-        char *event_name = NULL;
+        const char *event_name = NULL;
         if (PyUnicode_Check(event_name_obj)) {
             event_name = PyUnicode_AsUTF8(event_name_obj);
         } else if (PyBytes_Check(event_name_obj)) {
@@ -3661,11 +3661,11 @@ xmlparser_getattro(XMLParserObject* self, PyObject* nameobj)
 {
     if (PyUnicode_Check(nameobj)) {
         PyObject* res;
-        if (PyUnicode_CompareWithASCIIString(nameobj, "entity") == 0)
+        if (_PyUnicode_EqualToASCIIString(nameobj, "entity"))
             res = self->entity;
-        else if (PyUnicode_CompareWithASCIIString(nameobj, "target") == 0)
+        else if (_PyUnicode_EqualToASCIIString(nameobj, "target"))
             res = self->target;
-        else if (PyUnicode_CompareWithASCIIString(nameobj, "version") == 0) {
+        else if (_PyUnicode_EqualToASCIIString(nameobj, "version")) {
             return PyUnicode_FromFormat(
                 "Expat %d.%d.%d", XML_MAJOR_VERSION,
                 XML_MINOR_VERSION, XML_MICRO_VERSION);

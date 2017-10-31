@@ -182,7 +182,7 @@ structseq_repr(PyStructSequence *obj)
 
     for (i=0; i < VISIBLE_SIZE(obj); i++) {
         PyObject *val, *repr;
-        char *cname, *crepr;
+        const char *cname, *crepr;
 
         cname = typ->tp_members[i].name;
         if (cname == NULL) {
@@ -194,7 +194,7 @@ structseq_repr(PyStructSequence *obj)
         repr = PyObject_Repr(val);
         if (repr == NULL)
             return NULL;
-        crepr = _PyUnicode_AsString(repr);
+        crepr = PyUnicode_AsUTF8(repr);
         if (crepr == NULL) {
             Py_DECREF(repr);
             return NULL;

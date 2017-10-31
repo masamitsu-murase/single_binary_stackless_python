@@ -10,6 +10,25 @@ What's New in Python 3.7.0 alpha 1
 Core and Builtins
 -----------------
 
+- Issue #28731: Optimize _PyDict_NewPresized() to create correct size dict.
+  Improve speed of dict literal with constant keys up to 30%.
+
+- Issue #28532: Show sys.version when -V option is supplied twice.
+
+- Issue #28746: Fix the set_inheritable() file descriptor method on platforms
+  that do not have the ioctl FIOCLEX and FIONCLEX commands.
+
+- Issue #26920: Fix not getting the locale's charset upon initializing the
+  interpreter, on platforms that do not have langinfo.
+
+- Issue #28648: Fixed crash in Py_DecodeLocale() in debug build on Mac OS X
+  when decode astral characters.  Patch by Xiang Zhang.
+
+- Issue #28665: Improve speed of the STORE_DEREF opcode by 40%.
+
+- Issue #19398: Extra slash no longer added to sys.path components in case of
+  empty compile-time PYTHONPATH components.
+
 - Issue #28621: Sped up converting int to float by reusing faster bits counting
   implementation.  Patch by Adrian Wielgosik.
 
@@ -111,8 +130,27 @@ Core and Builtins
 
 - Issue #26182: Fix a refleak in code that raises DeprecationWarning.
 
+- Issue #28721: Fix asynchronous generators aclose() and athrow() to
+  handle StopAsyncIteration propagation properly.
+
 Library
 -------
+
+- Issue #28752: Restored the __reduce__() methods of datetime objects.
+
+- Issue #28727: Regular expression patterns, _sre.SRE_Pattern objects created
+  by re.compile(), become comparable (only x==y and x!=y operators). This
+  change should fix the issue #18383: don't duplicate warning filters when the
+  warnings module is reloaded (thing usually only done in unit tests).
+
+- Issue #20572: Remove the subprocess.Popen.wait endtime parameter.  It was
+  deprecated in 3.4 and undocumented prior to that.
+
+- Issue #25659: In ctypes, prevent a crash calling the from_buffer() and
+  from_buffer_copy() methods on abstract classes like Array.
+
+- Issue #28548: In the "http.server" module, parse the protocol version if
+  possible, to avoid using HTTP 0.9 in some error responses.
 
 - Issue #19717: Makes Path.resolve() succeed on paths that do not exist.
   Patch by Vajrasky Kok
@@ -205,7 +243,8 @@ Library
   later. See `setuptools 100
   <https://github.com/pypa/setuptools/issues/100>`_ for rationale.
 
-- Issue #24452: Make webbrowser support Chrome on Mac OS X.
+- Issue #24452: Make webbrowser support Chrome on Mac OS X. Patch by
+  Ned Batchelder.
 
 - Issue #20766: Fix references leaked by pdb in the handling of SIGINT
   handlers.
@@ -271,7 +310,7 @@ Library
   if pass invalid string-like object as a name.  Patch by Xiang Zhang.
 
 - Issue #18844: random.choices() now has k as a keyword-only argument
-  to improve the readability of common cases and the come into line
+  to improve the readability of common cases and come into line
   with the signature used in other languages.
 
 - Issue #18893: Fix invalid exception handling in Lib/ctypes/macholib/dyld.py.
@@ -389,6 +428,12 @@ Windows
 C API
 -----
 
+- Issue #28748: Private variable _Py_PackageContext is now of type "const char *"
+  rather of "char *".
+
+- Issue #19569: Compiler warnings are now emitted if use most of deprecated
+  functions.
+
 - Issue #28426: Deprecated undocumented functions PyUnicode_AsEncodedObject(),
   PyUnicode_AsDecodedObject(), PyUnicode_AsDecodedUnicode() and
   PyUnicode_AsEncodedUnicode().
@@ -400,6 +445,11 @@ Documentation
 
 Build
 -----
+
+- Issue #10656: Fix out-of-tree building on AIX.  Patch by Tristan Carel and
+  Michael Haubenwallner.
+
+- Issue #26359: Rename --with-optimiations to --enable-optimizations.
 
 - Issue #28444: Fix missing extensions modules when cross compiling.
 
@@ -429,6 +479,9 @@ Build
 - Issue #15819: Remove redundant include search directory option for building
   outside the source tree.
 
+- Issue #28676: Prevent missing 'getentropy' declaration warning on macOS.
+  Patch by Gareth Rees.
+
 Tools/Demos
 -----------
 
@@ -442,6 +495,11 @@ Tools/Demos
 
 Tests
 -----
+
+- Issue #28666: Now test.support.rmtree is able to remove unwritable or
+  unreadable directories.
+
+- Issue #23839: Various caches now are cleared before running every test file.
 
 - Issue #26944: Fix test_posix for Android where 'id -G' is entirely wrong or
   missing the effective gid.
@@ -596,6 +654,8 @@ Core and Builtins
 Library
 -------
 
+- Issue #28732: Fix crash in os.spawnv() with no elements in args
+
 - Issue #28485: Always raise ValueError for negative
   compileall.compile_dir(workers=...) parameter, even when multithreading is
   unavailable.
@@ -665,8 +725,12 @@ Library
 - Issue #14977: mailcap now respects the order of the lines in the mailcap
   files ("first match"), as required by RFC 1542.  Patch by Michael Lazar.
 
+- Issue #28082: Convert re flag constants to IntFlag.
+
 - Issue #28025: Convert all ssl module constants to IntEnum and IntFlags.
   SSLContext properties now return flags and enums.
+
+- Issue #23591: Add Flag, IntFlag, and auto() to enum module.
 
 - Issue #433028: Added support of modifier spans in regular expressions.
 
