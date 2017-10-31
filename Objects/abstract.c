@@ -2408,6 +2408,7 @@ PyObject *
 _PyObject_FastCall_Prepend(PyObject *callable,
                            PyObject *obj, PyObject **args, Py_ssize_t nargs)
 {
+    STACKLESS_GETARG();
     PyObject *small_stack[_PY_FASTCALL_SMALL_STACK];
     PyObject **args2;
     PyObject *result;
@@ -2430,7 +2431,9 @@ _PyObject_FastCall_Prepend(PyObject *callable,
            args,
            (nargs - 1)* sizeof(PyObject *));
 
+    STACKLESS_PROMOTE_ALL();
     result = _PyObject_FastCall(callable, args2, nargs);
+    STACKLESS_ASSERT();
     if (args2 != small_stack) {
         PyMem_Free(args2);
     }
