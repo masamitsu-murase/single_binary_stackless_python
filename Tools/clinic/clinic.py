@@ -705,14 +705,14 @@ class CLanguage(Language):
             {c_basename}({self_type}{self_name}, PyObject *args, PyObject *kwargs)
             """)
 
-        parser_prototype_fastcall = normalize_snippet("""
-            static PyObject *
-            {c_basename}({self_type}{self_name}, PyObject **args, Py_ssize_t nargs, PyObject *kwnames)
-            """)
-
         parser_prototype_varargs = normalize_snippet("""
             static PyObject *
             {c_basename}({self_type}{self_name}, PyObject *args)
+            """)
+
+        parser_prototype_fastcall = normalize_snippet("""
+            static PyObject *
+            {c_basename}({self_type}{self_name}, PyObject **args, Py_ssize_t nargs, PyObject *kwnames)
             """)
 
         # parser_body_fields remembers the fields passed in to the
@@ -840,18 +840,36 @@ class CLanguage(Language):
                 """, indent=4))
 
         elif positional:
-            # positional-only, but no option groups
-            # we only need one call to PyArg_ParseTuple
+            if not new_or_init:
+                # positional-only, but no option groups
+                # we only need one call to _PyArg_ParseStack
 
-            flags = "METH_VARARGS"
-            parser_prototype = parser_prototype_varargs
+                flags = "METH_FASTCALL"
+                parser_prototype = parser_prototype_fastcall
 
-            parser_definition = parser_body(parser_prototype, normalize_snippet("""
-                if (!PyArg_ParseTuple(args, "{format_units}:{name}",
-                    {parse_arguments})) {{
-                    goto exit;
-                }}
-                """, indent=4))
+                parser_definition = parser_body(parser_prototype, normalize_snippet("""
+                    if (!_PyArg_ParseStack(args, nargs, "{format_units}:{name}",
+                        {parse_arguments})) {{
+                        goto exit;
+                    }}
+
+                    if ({self_type_check}!_PyArg_NoStackKeywords("{name}", kwnames)) {{
+                        goto exit;
+                    }}
+                    """, indent=4))
+            else:
+                # positional-only, but no option groups
+                # we only need one call to PyArg_ParseTuple
+
+                flags = "METH_VARARGS"
+                parser_prototype = parser_prototype_varargs
+
+                parser_definition = parser_body(parser_prototype, normalize_snippet("""
+                    if (!PyArg_ParseTuple(args, "{format_units}:{name}",
+                        {parse_arguments})) {{
+                        goto exit;
+                    }}
+                    """, indent=4))
 
         elif not new_or_init:
             flags = "METH_FASTCALL"
@@ -859,7 +877,7 @@ class CLanguage(Language):
             parser_prototype = parser_prototype_fastcall
 
             body = normalize_snippet("""
-                if (!_PyArg_ParseStack(args, nargs, kwnames, &_parser,
+                if (!_PyArg_ParseStackAndKeywords(args, nargs, kwnames, &_parser,
                     {parse_arguments})) {{
                     goto exit;
                 }}

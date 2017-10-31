@@ -48,7 +48,8 @@ PyAPI_FUNC(PyObject *) Py_BuildValue(const char *, ...);
 PyAPI_FUNC(PyObject *) _Py_BuildValue_SizeT(const char *, ...);
 #endif
 #ifndef Py_LIMITED_API
-PyAPI_FUNC(int) _PyArg_NoKeywords(const char *funcname, PyObject *kw);
+PyAPI_FUNC(int) _PyArg_NoKeywords(const char *funcname, PyObject *kwargs);
+PyAPI_FUNC(int) _PyArg_NoStackKeywords(const char *funcname, PyObject *kwnames);
 PyAPI_FUNC(int) _PyArg_NoPositional(const char *funcname, PyObject *args);
 
 PyAPI_FUNC(int) PyArg_VaParse(PyObject *, const char *, va_list);
@@ -80,16 +81,26 @@ typedef struct _PyArg_Parser {
 #ifdef PY_SSIZE_T_CLEAN
 #define _PyArg_ParseTupleAndKeywordsFast  _PyArg_ParseTupleAndKeywordsFast_SizeT
 #define _PyArg_ParseStack  _PyArg_ParseStack_SizeT
+#define _PyArg_ParseStackAndKeywords  _PyArg_ParseStackAndKeywords_SizeT
 #define _PyArg_VaParseTupleAndKeywordsFast  _PyArg_VaParseTupleAndKeywordsFast_SizeT
 #endif
 PyAPI_FUNC(int) _PyArg_ParseTupleAndKeywordsFast(PyObject *, PyObject *,
                                                  struct _PyArg_Parser *, ...);
-PyAPI_FUNC(int) _PyArg_ParseStack(PyObject **args, Py_ssize_t nargs, PyObject *kwnames,
-                                  struct _PyArg_Parser *, ...);
+PyAPI_FUNC(int) _PyArg_ParseStack(
+    PyObject **args,
+    Py_ssize_t nargs,
+    const char *format,
+    ...);
+PyAPI_FUNC(int) _PyArg_ParseStackAndKeywords(
+    PyObject **args,
+    Py_ssize_t nargs,
+    PyObject *kwnames,
+    struct _PyArg_Parser *,
+    ...);
 PyAPI_FUNC(int) _PyArg_VaParseTupleAndKeywordsFast(PyObject *, PyObject *,
                                                    struct _PyArg_Parser *, va_list);
 void _PyArg_Fini(void);
-#endif
+#endif   /* Py_LIMITED_API */
 
 PyAPI_FUNC(int) PyModule_AddObject(PyObject *, const char *, PyObject *);
 PyAPI_FUNC(int) PyModule_AddIntConstant(PyObject *, const char *, long);

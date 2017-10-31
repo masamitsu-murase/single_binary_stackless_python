@@ -2289,7 +2289,30 @@ _PyStack_AsTuple(PyObject **stack, Py_ssize_t nargs)
         Py_INCREF(item);
         PyTuple_SET_ITEM(args, i, item);
     }
+    return args;
+}
 
+PyObject*
+_PyStack_AsTupleSlice(PyObject **stack, Py_ssize_t nargs,
+                      Py_ssize_t start, Py_ssize_t end)
+{
+    PyObject *args;
+    Py_ssize_t i;
+
+    assert(0 <= start);
+    assert(end <= nargs);
+    assert(start <= end);
+
+    args = PyTuple_New(end - start);
+    if (args == NULL) {
+        return NULL;
+    }
+
+    for (i=start; i < end; i++) {
+        PyObject *item = stack[i];
+        Py_INCREF(item);
+        PyTuple_SET_ITEM(args, i - start, item);
+    }
     return args;
 }
 
@@ -2432,9 +2455,9 @@ _PyStack_AsDict(PyObject **values, PyObject *kwnames)
     return kwdict;
 }
 
-PyObject **
+int
 _PyStack_UnpackDict(PyObject **args, Py_ssize_t nargs, PyObject *kwargs,
-                    PyObject **p_kwnames, PyObject *func)
+                    PyObject ***p_stack, PyObject **p_kwnames, PyObject *func)
 {
     PyObject **stack, **kwstack;
     Py_ssize_t nkwargs;
@@ -2446,25 +2469,26 @@ _PyStack_UnpackDict(PyObject **args, Py_ssize_t nargs, PyObject *kwargs,
     assert(kwargs == NULL || PyDict_CheckExact(kwargs));
 
     if (kwargs == NULL || (nkwargs = PyDict_GET_SIZE(kwargs)) == 0) {
+        *p_stack = args;
         *p_kwnames = NULL;
-        return args;
+        return 0;
     }
 
     if ((size_t)nargs > PY_SSIZE_T_MAX / sizeof(stack[0]) - (size_t)nkwargs) {
         PyErr_NoMemory();
-        return NULL;
+        return -1;
     }
 
     stack = PyMem_Malloc((nargs + nkwargs) * sizeof(stack[0]));
     if (stack == NULL) {
         PyErr_NoMemory();
-        return NULL;
+        return -1;
     }
 
     kwnames = PyTuple_New(nkwargs);
     if (kwnames == NULL) {
         PyMem_Free(stack);
-        return NULL;
+        return -1;
     }
 
     /* Copy position arguments (borrowed references) */
@@ -2483,8 +2507,9 @@ _PyStack_UnpackDict(PyObject **args, Py_ssize_t nargs, PyObject *kwargs,
         i++;
     }
 
+    *p_stack = stack;
     *p_kwnames = kwnames;
-    return stack;
+    return 0;
 }
 
 PyObject *
@@ -2499,7 +2524,7 @@ _PyObject_FastCallKeywords(PyObject *callable, PyObject **stack, Py_ssize_t narg
 
     /* kwnames must only contains str strings, no subclass, and all keys must
        be unique: these checks are implemented in Python/ceval.c and
-       _PyArg_ParseStack(). */
+       _PyArg_ParseStackAndKeywords(). */
 
     if (PyFunction_Check(callable)) {
         STACKLESS_PROMOTE_ALL();

@@ -160,31 +160,40 @@ PyAPI_FUNC(PyObject*) _PyStack_AsTuple(
     PyObject **stack,
     Py_ssize_t nargs);
 
+PyAPI_FUNC(PyObject*) _PyStack_AsTupleSlice(
+    PyObject **stack,
+    Py_ssize_t nargs,
+    Py_ssize_t start,
+    Py_ssize_t end);
+
 /* Convert keyword arguments from the (stack, kwnames) format to a Python
    dictionary.
 
    kwnames must only contains str strings, no subclass, and all keys must be
    unique. kwnames is not checked, usually these checks are done before or
-   later calling _PyStack_AsDict(). For example, _PyArg_ParseStack() raises an
+   later calling _PyStack_AsDict(). For example, _PyArg_ParseStackAndKeywords() raises an
    error if a key is not a string. */
 PyAPI_FUNC(PyObject *) _PyStack_AsDict(
     PyObject **values,
     PyObject *kwnames);
 
-/* Convert (args, nargs, kwargs) into a (stack, nargs, kwnames).
+/* Convert (args, nargs, kwargs: dict) into a (stack, nargs, kwnames: tuple).
 
-   Return a new stack which should be released by PyMem_Free(), or return
-   args unchanged if kwargs is NULL or an empty dictionary.
+   Return 0 on success, raise an exception and return -1 on error.
+
+   Write the new stack into *p_stack. If *p_stack is differen than args, it
+   must be released by PyMem_Free().
 
    The stack uses borrowed references.
 
    The type of keyword keys is not checked, these checks should be done
-   later (ex: _PyArg_ParseStack). */
-PyAPI_FUNC(PyObject **) _PyStack_UnpackDict(
+   later (ex: _PyArg_ParseStackAndKeywords). */
+PyAPI_FUNC(int) _PyStack_UnpackDict(
     PyObject **args,
     Py_ssize_t nargs,
     PyObject *kwargs,
-    PyObject **kwnames,
+    PyObject ***p_stack,
+    PyObject **p_kwnames,
     PyObject *func);
 
 /* Suggested size (number of positional arguments) for arrays of PyObject*
