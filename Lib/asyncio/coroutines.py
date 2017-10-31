@@ -271,15 +271,12 @@ def _format_coroutine(coro):
         func = coro
 
     if coro_name is None:
-        coro_name = events._format_callback(func, ())
+        coro_name = events._format_callback(func, (), {})
 
     try:
         coro_code = coro.gi_code
     except AttributeError:
-        try:
-            coro_code = coro.cr_code
-        except AttributeError:
-            return repr(coro)
+        coro_code = coro.cr_code
 
     try:
         coro_frame = coro.gi_frame

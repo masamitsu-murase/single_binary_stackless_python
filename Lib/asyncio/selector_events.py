@@ -162,43 +162,50 @@ class BaseSelectorEventLoop(base_events.BaseEventLoop):
                                  exc_info=True)
 
     def _start_serving(self, protocol_factory, sock,
-                       sslcontext=None, server=None):
+                       sslcontext=None, server=None, backlog=100):
         self.add_reader(sock.fileno(), self._accept_connection,
-                        protocol_factory, sock, sslcontext, server)
+                        protocol_factory, sock, sslcontext, server, backlog)
 
     def _accept_connection(self, protocol_factory, sock,
-                           sslcontext=None, server=None):
-        try:
-            conn, addr = sock.accept()
-            if self._debug:
-                logger.debug("%r got a new connection from %r: %r",
-                             server, addr, conn)
-            conn.setblocking(False)
-        except (BlockingIOError, InterruptedError, ConnectionAbortedError):
-            pass  # False alarm.
-        except OSError as exc:
-            # There's nowhere to send the error, so just log it.
-            if exc.errno in (errno.EMFILE, errno.ENFILE,
-                             errno.ENOBUFS, errno.ENOMEM):
-                # Some platforms (e.g. Linux keep reporting the FD as
-                # ready, so we remove the read handler temporarily.
-                # We'll try again in a while.
-                self.call_exception_handler({
-                    'message': 'socket.accept() out of system resource',
-                    'exception': exc,
-                    'socket': sock,
-                })
-                self.remove_reader(sock.fileno())
-                self.call_later(constants.ACCEPT_RETRY_DELAY,
-                                self._start_serving,
-                                protocol_factory, sock, sslcontext, server)
+                           sslcontext=None, server=None, backlog=100):
+        # This method is only called once for each event loop tick where the
+        # listening socket has triggered an EVENT_READ. There may be multiple
+        # connections waiting for an .accept() so it is called in a loop.
+        # See https://bugs.python.org/issue27906 for more details.
+        for _ in range(backlog):
+            try:
+                conn, addr = sock.accept()
+                if self._debug:
+                    logger.debug("%r got a new connection from %r: %r",
+                                 server, addr, conn)
+                conn.setblocking(False)
+            except (BlockingIOError, InterruptedError, ConnectionAbortedError):
+                # Early exit because the socket accept buffer is empty.
+                return None
+            except OSError as exc:
+                # There's nowhere to send the error, so just log it.
+                if exc.errno in (errno.EMFILE, errno.ENFILE,
+                                 errno.ENOBUFS, errno.ENOMEM):
+                    # Some platforms (e.g. Linux keep reporting the FD as
+                    # ready, so we remove the read handler temporarily.
+                    # We'll try again in a while.
+                    self.call_exception_handler({
+                        'message': 'socket.accept() out of system resource',
+                        'exception': exc,
+                        'socket': sock,
+                    })
+                    self.remove_reader(sock.fileno())
+                    self.call_later(constants.ACCEPT_RETRY_DELAY,
+                                    self._start_serving,
+                                    protocol_factory, sock, sslcontext, server,
+                                    backlog)
+                else:
+                    raise  # The event loop will catch, log and ignore it.
             else:
-                raise  # The event loop will catch, log and ignore it.
-        else:
-            extra = {'peername': addr}
-            accept = self._accept_connection2(protocol_factory, conn, extra,
-                                              sslcontext, server)
-            self.create_task(accept)
+                extra = {'peername': addr}
+                accept = self._accept_connection2(protocol_factory, conn, extra,
+                                                  sslcontext, server)
+                self.create_task(accept)
 
     @coroutine
     def _accept_connection2(self, protocol_factory, conn, extra,
@@ -393,6 +400,7 @@ class BaseSelectorEventLoop(base_events.BaseEventLoop):
                 data = data[n:]
             self.add_writer(fd, self._sock_sendall, fut, True, sock, data)
 
+    @coroutine
     def sock_connect(self, sock, address):
         """Connect to a remote socket at address.
 
@@ -401,24 +409,16 @@ class BaseSelectorEventLoop(base_events.BaseEventLoop):
         if self._debug and sock.gettimeout() != 0:
             raise ValueError("the socket must be non-blocking")
 
-        fut = self.create_future()
-        if hasattr(socket, 'AF_UNIX') and sock.family == socket.AF_UNIX:
-            self._sock_connect(fut, sock, address)
-        else:
+        if not hasattr(socket, 'AF_UNIX') or sock.family != socket.AF_UNIX:
             resolved = base_events._ensure_resolved(
                 address, family=sock.family, proto=sock.proto, loop=self)
-            resolved.add_done_callback(
-                lambda resolved: self._on_resolved(fut, sock, resolved))
-
-        return fut
-
-    def _on_resolved(self, fut, sock, resolved):
-        try:
+            if not resolved.done():
+                yield from resolved
             _, _, _, _, address = resolved.result()[0]
-        except Exception as exc:
-            fut.set_exception(exc)
-        else:
-            self._sock_connect(fut, sock, address)
+
+        fut = self.create_future()
+        self._sock_connect(fut, sock, address)
+        return (yield from fut)
 
     def _sock_connect(self, fut, sock, address):
         fd = sock.fileno()
@@ -429,8 +429,8 @@ class BaseSelectorEventLoop(base_events.BaseEventLoop):
             # connection runs in background. We have to wait until the socket
             # becomes writable to be notified when the connection succeed or
             # fails.
-            fut.add_done_callback(functools.partial(self._sock_connect_done,
-                                                    fd))
+            fut.add_done_callback(
+                functools.partial(self._sock_connect_done, fd))
             self.add_writer(fd, self._sock_connect_cb, fut, sock, address)
         except Exception as exc:
             fut.set_exception(exc)

@@ -76,6 +76,17 @@ def _format_pipe(fd):
         return repr(fd)
 
 
+def _set_reuseport(sock):
+    if not hasattr(socket, 'SO_REUSEPORT'):
+        raise ValueError('reuse_port not supported by socket module')
+    else:
+        try:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        except OSError:
+            raise ValueError('reuse_port not supported by socket module, '
+                             'SO_REUSEPORT defined but not implemented.')
+
+
 # Linux's sock.type is a bitmask that can include extra info about socket.
 _SOCKET_TYPE_MASK = 0
 if hasattr(socket, 'SOCK_NONBLOCK'):
@@ -242,9 +253,13 @@ class BaseEventLoop(events.AbstractEventLoop):
         self._task_factory = None
         self._coroutine_wrapper_set = False
 
-        # A weak set of all asynchronous generators that are being iterated
-        # by the loop.
-        self._asyncgens = weakref.WeakSet()
+        if hasattr(sys, 'get_asyncgen_hooks'):
+            # Python >= 3.6
+            # A weak set of all asynchronous generators that are
+            # being iterated by the loop.
+            self._asyncgens = weakref.WeakSet()
+        else:
+            self._asyncgens = None
 
         # Set to True when `loop.shutdown_asyncgens` is called.
         self._asyncgens_shutdown_called = False
@@ -359,7 +374,9 @@ class BaseEventLoop(events.AbstractEventLoop):
         """Shutdown all active asynchronous generators."""
         self._asyncgens_shutdown_called = True
 
-        if not len(self._asyncgens):
+        if self._asyncgens is None or not len(self._asyncgens):
+            # If Python version is <3.6 or we don't have any asynchronous
+            # generators alive.
             return
 
         closing_agens = list(self._asyncgens)
@@ -387,9 +404,10 @@ class BaseEventLoop(events.AbstractEventLoop):
             raise RuntimeError('Event loop is running.')
         self._set_coroutine_wrapper(self._debug)
         self._thread_id = threading.get_ident()
-        old_agen_hooks = sys.get_asyncgen_hooks()
-        sys.set_asyncgen_hooks(firstiter=self._asyncgen_firstiter_hook,
-                               finalizer=self._asyncgen_finalizer_hook)
+        if self._asyncgens is not None:
+            old_agen_hooks = sys.get_asyncgen_hooks()
+            sys.set_asyncgen_hooks(firstiter=self._asyncgen_firstiter_hook,
+                                   finalizer=self._asyncgen_finalizer_hook)
         try:
             while True:
                 self._run_once()
@@ -399,7 +417,8 @@ class BaseEventLoop(events.AbstractEventLoop):
             self._stopping = False
             self._thread_id = None
             self._set_coroutine_wrapper(False)
-            sys.set_asyncgen_hooks(*old_agen_hooks)
+            if self._asyncgens is not None:
+                sys.set_asyncgen_hooks(*old_agen_hooks)
 
     def run_until_complete(self, future):
         """Run until the Future is done.
@@ -866,12 +885,7 @@ class BaseEventLoop(events.AbstractEventLoop):
                         sock.setsockopt(
                             socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                     if reuse_port:
-                        if not hasattr(socket, 'SO_REUSEPORT'):
-                            raise ValueError(
-                                'reuse_port not supported by socket module')
-                        else:
-                            sock.setsockopt(
-                                socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+                        _set_reuseport(sock)
                     if allow_broadcast:
                         sock.setsockopt(
                             socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
@@ -994,12 +1008,7 @@ class BaseEventLoop(events.AbstractEventLoop):
                         sock.setsockopt(
                             socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
                     if reuse_port:
-                        if not hasattr(socket, 'SO_REUSEPORT'):
-                            raise ValueError(
-                                'reuse_port not supported by socket module')
-                        else:
-                            sock.setsockopt(
-                                socket.SOL_SOCKET, socket.SO_REUSEPORT, True)
+                        _set_reuseport(sock)
                     # Disable IPv4/IPv6 dual stack support (enabled by
                     # default on Linux) which makes a single socket
                     # listen on both address families.
@@ -1027,7 +1036,7 @@ class BaseEventLoop(events.AbstractEventLoop):
         for sock in sockets:
             sock.listen(backlog)
             sock.setblocking(False)
-            self._start_serving(protocol_factory, sock, ssl, server)
+            self._start_serving(protocol_factory, sock, ssl, server, backlog)
         if self._debug:
             logger.info("%r is serving", server)
         return server

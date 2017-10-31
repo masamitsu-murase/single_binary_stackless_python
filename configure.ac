@@ -2813,23 +2813,27 @@ AC_MSG_CHECKING(for --with-system-ffi)
 AC_ARG_WITH(system_ffi,
             AS_HELP_STRING([--with-system-ffi], [build _ctypes module using an installed ffi library]),,,)
 
-case "$with_system_ffi" in
-    "")
-        case $ac_sys_system in
-            Darwin)
-                with_system_ffi="no"
-                ;;
-            *)
-                with_system_ffi="yes"
-                ;;
-        esac
-        ;;
-    yes|no)
-        ;;
-    *)
-        AC_MSG_ERROR([--with-system-ffi accepts no arguments])
-        ;;
-esac
+if test "$ac_sys_system" = "Darwin"
+then
+    case "$with_system_ffi" in
+        "")
+            with_system_ffi="no"
+            ;;
+        yes|no)
+            ;;
+        *)
+            AC_MSG_ERROR([--with-system-ffi accepts no arguments])
+            ;;
+    esac
+    AC_MSG_RESULT($with_system_ffi)
+else
+    AC_MSG_RESULT(yes)
+    if test "$with_system_ffi" != ""
+    then
+        AC_MSG_WARN([--with(out)-system-ffi is ignored on this platform])
+    fi
+    with_system_ffi="yes"
+fi
 
 if test "$with_system_ffi" = "yes" && test -n "$PKG_CONFIG"; then
     LIBFFI_INCLUDEDIR="`"$PKG_CONFIG" libffi --cflags-only-I 2>/dev/null | sed -e 's/^-I//;s/ *$//'`"
@@ -2837,8 +2841,6 @@ else
     LIBFFI_INCLUDEDIR=""
 fi
 AC_SUBST(LIBFFI_INCLUDEDIR)
-
-AC_MSG_RESULT($with_system_ffi)
 
 # Check for use of the system libmpdec library
 AC_MSG_CHECKING(for --with-system-libmpdec)
@@ -3749,6 +3751,12 @@ AC_CHECK_FUNCS(clock_gettime, [], [
 AC_CHECK_FUNCS(clock_getres, [], [
     AC_CHECK_LIB(rt, clock_getres, [
         AC_DEFINE(HAVE_CLOCK_GETRES, 1)
+    ])
+])
+
+AC_CHECK_FUNCS(clock_settime, [], [
+    AC_CHECK_LIB(rt, clock_settime, [
+        AC_DEFINE(HAVE_CLOCK_SETTIME, 1)
     ])
 ])
 

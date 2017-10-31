@@ -10,11 +10,103 @@ What's New in Python 3.7.0 alpha 1
 Core and Builtins
 -----------------
 
+- Issue #28192: Don't import readline in isolated mode.
+
+- Issue #27441: Remove some redundant assignments to ob_size in longobject.c.
+  Thanks Oren Milman.
+
+- Issue #27222: Clean up redundant code in long_rshift function. Thanks
+  Oren Milman.
+
+- Upgrade internal unicode databases to Unicode version 9.0.0.
+
+- Issue #28131: Fix a regression in zipimport's compile_source().  zipimport
+  should use the same optimization level as the interpreter.
+
+- Issue #28126: Replace Py_MEMCPY with memcpy(). Visual Studio can properly
+  optimize memcpy().
+
+- Issue #28120: Fix dict.pop() for splitted dictionary when trying to remove a
+  "pending key" (Not yet inserted in split-table). Patch by Xiang Zhang.
+
+- Issue #26182: Raise DeprecationWarning when async and await keywords are
+  used as variable/attribute/class/function name.
+
 Library
 -------
 
+- Issue #25400: RobotFileParser now correctly returns default values for
+  crawl_delay and request_rate.  Initial patch by Peter Wirtz.
+
+- Issue #27932: Prevent memory leak in win32_ver().
+
+- Fix UnboundLocalError in socket._sendfile_use_sendfile.
+
+- Issue #28075: Check for ERROR_ACCESS_DENIED in Windows implementation of
+  os.stat().  Patch by Eryk Sun.
+
+- Issue #22493: Warning message emitted by using inline flags in the middle of
+  regular expression now contains a (truncated) regex pattern.
+  Patch by Tim Graham.
+
+- Issue #25270: Prevent codecs.escape_encode() from raising SystemError when
+  an empty bytestring is passed.
+
+- Issue #28181: Get antigravity over HTTPS. Patch by Kaartic Sivaraam.
+
+- Issue #25895: Enable WebSocket URL schemes in urllib.parse.urljoin.
+  Patch by Gergely Imreh and Markus Holtermann.
+
+- Issue #28114: Fix a crash in parse_envlist() when env contains byte strings.
+  Patch by Eryk Sun.
+
+- Issue #27599: Fixed buffer overrun in binascii.b2a_qp() and binascii.a2b_qp().
+
+- Issue #27906: Fix socket accept exhaustion during high TCP traffic.
+  Patch by Kevin Conway.
+
+- Issue #28174: Handle when SO_REUSEPORT isn't properly supported.
+  Patch by Seth Michael Larson.
+
+- Issue #26654: Inspect functools.partial in asyncio.Handle.__repr__.
+  Patch by iceboy.
+
+- Issue #26909: Fix slow pipes IO in asyncio.
+  Patch by INADA Naoki.
+
+- Issue #28176: Fix callbacks race in asyncio.SelectorLoop.sock_connect.
+
+- Issue #27759: Fix selectors incorrectly retain invalid file descriptors.
+  Patch by Mark Williams.
+
+Windows
+-------
+
+- Issue #28110: launcher.msi has different product codes between 32-bit and
+  64-bit
+
+- Issue #28161: Opening CON for write access fails
+
+- Issue #28162: WindowsConsoleIO readall() fails if first line starts with
+  Ctrl+Z
+
+- Issue #28163: WindowsConsoleIO fileno() passes wrong flags to
+  _open_osfhandle
+
+- Issue #28164: _PyIO_get_console_type fails for various paths
+
+- Issue #28137: Renames Windows path file to ._pth
+
+- Issue #28138: Windows ._pth file should allow import site
+
 Build
 -----
+
+- Issue #26661: setup.py now detects system libffi with multiarch wrapper.
+
+- Issue #27979: A full copy of libffi is no longer bundled for use when
+  building _ctypes on non-OSX UNIX platforms.  An installed copy of libffi is
+  now required when building _ctypes on such platforms.
 
 - Issue #15819: Remove redundant include search directory option for building
   outside the source tree.
