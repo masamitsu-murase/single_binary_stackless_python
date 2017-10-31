@@ -2614,7 +2614,7 @@ _PyObject_CallFunctionVa(PyObject *callable, const char *format,
     }
 
     if (nargs == 1 && PyTuple_Check(stack[0])) {
-        /* Special cases:
+        /* Special cases for backward compatibility:
            - PyObject_CallFunction(func, "O", tuple) calls func(*tuple)
            - PyObject_CallFunction(func, "(OOO)", arg1, arg2, arg3) calls
              func(*(arg1, arg2, arg3)): func(arg1, arg2, arg3) */
@@ -2688,8 +2688,7 @@ PyObject_CallMethod(PyObject *obj, const char *name, const char *format, ...)
 {
     STACKLESS_GETARG();
     va_list va;
-    PyObject *callable = NULL;
-    PyObject *retval = NULL;
+    PyObject *callable, *retval;
 
     if (obj == NULL || name == NULL) {
         return null_error();
@@ -2715,8 +2714,7 @@ _PyObject_CallMethodId(PyObject *obj, _Py_Identifier *name,
 {
     STACKLESS_GETARG();
     va_list va;
-    PyObject *callable = NULL;
-    PyObject *retval = NULL;
+    PyObject *callable, *retval;
 
     if (obj == NULL || name == NULL) {
         return null_error();
@@ -2742,8 +2740,7 @@ _PyObject_CallMethod_SizeT(PyObject *obj, const char *name,
 {
     STACKLESS_GETARG();
     va_list va;
-    PyObject *callable = NULL;
-    PyObject *retval;
+    PyObject *callable, *retval;
 
     if (obj == NULL || name == NULL) {
         return null_error();
@@ -2769,8 +2766,7 @@ _PyObject_CallMethodId_SizeT(PyObject *obj, _Py_Identifier *name,
 {
     STACKLESS_GETARG();
     va_list va;
-    PyObject *callable = NULL;
-    PyObject *retval;
+    PyObject *callable, *retval;
 
     if (obj == NULL || name == NULL) {
         return null_error();
@@ -3206,7 +3202,8 @@ PyObject *
 PyObject_GetIter(PyObject *o)
 {
     PyTypeObject *t = o->ob_type;
-    getiterfunc f = NULL;
+    getiterfunc f;
+
     f = t->tp_iter;
     if (f == NULL) {
         if (PySequence_Check(o))

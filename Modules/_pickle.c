@@ -4663,8 +4663,8 @@ find_class(UnpicklerObject *self, PyObject *module_name, PyObject *global_name)
 {
     _Py_IDENTIFIER(find_class);
 
-    return _PyObject_CallMethodId((PyObject *)self, &PyId_find_class, "OO",
-                                  module_name, global_name);
+    return _PyObject_CallMethodIdObjArgs((PyObject *)self, &PyId_find_class,
+                                         module_name, global_name, NULL);
 }
 
 static Py_ssize_t
@@ -4854,7 +4854,7 @@ static int
 load_long(UnpicklerObject *self)
 {
     PyObject *value;
-    char *s;
+    char *s = NULL;
     Py_ssize_t len;
 
     if ((len = _Unpickler_Readline(self, &s)) < 0)
@@ -5085,7 +5085,7 @@ load_unicode(UnpicklerObject *self)
 {
     PyObject *str;
     Py_ssize_t len;
-    char *s;
+    char *s = NULL;
 
     if ((len = _Unpickler_Readline(self, &s)) < 0)
         return -1;
@@ -5276,7 +5276,7 @@ instantiate(PyObject *cls, PyObject *args)
     else {
         _Py_IDENTIFIER(__new__);
 
-        result = _PyObject_CallMethodId(cls, &PyId___new__, "O", cls);
+        result = _PyObject_CallMethodIdObjArgs(cls, &PyId___new__, cls, NULL);
     }
     return result;
 }
@@ -5824,7 +5824,7 @@ load_put(UnpicklerObject *self)
     PyObject *key, *value;
     Py_ssize_t idx;
     Py_ssize_t len;
-    char *s;
+    char *s = NULL;
 
     if ((len = _Unpickler_Readline(self, &s)) < 0)
         return -1;

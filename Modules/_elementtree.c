@@ -1171,8 +1171,8 @@ _elementtree_Element_find_impl(ElementObject *self, PyObject *path,
 
     if (checkpath(path) || namespaces != Py_None) {
         _Py_IDENTIFIER(find);
-        return _PyObject_CallMethodId(
-            st->elementpath_obj, &PyId_find, "OOO", self, path, namespaces
+        return _PyObject_CallMethodIdObjArgs(
+            st->elementpath_obj, &PyId_find, self, path, namespaces, NULL
             );
     }
 
@@ -1216,8 +1216,9 @@ _elementtree_Element_findtext_impl(ElementObject *self, PyObject *path,
     elementtreestate *st = ET_STATE_GLOBAL;
 
     if (checkpath(path) || namespaces != Py_None)
-        return _PyObject_CallMethodId(
-            st->elementpath_obj, &PyId_findtext, "OOOO", self, path, default_value, namespaces
+        return _PyObject_CallMethodIdObjArgs(
+            st->elementpath_obj, &PyId_findtext,
+            self, path, default_value, namespaces, NULL
             );
 
     if (!self->extra) {
@@ -1271,8 +1272,8 @@ _elementtree_Element_findall_impl(ElementObject *self, PyObject *path,
 
     if (checkpath(tag) || namespaces != Py_None) {
         _Py_IDENTIFIER(findall);
-        return _PyObject_CallMethodId(
-            st->elementpath_obj, &PyId_findall, "OOO", self, tag, namespaces
+        return _PyObject_CallMethodIdObjArgs(
+            st->elementpath_obj, &PyId_findall, self, tag, namespaces, NULL
             );
     }
 
@@ -1318,8 +1319,8 @@ _elementtree_Element_iterfind_impl(ElementObject *self, PyObject *path,
     _Py_IDENTIFIER(iterfind);
     elementtreestate *st = ET_STATE_GLOBAL;
 
-    return _PyObject_CallMethodId(
-        st->elementpath_obj, &PyId_iterfind, "OOO", self, tag, namespaces);
+    return _PyObject_CallMethodIdObjArgs(
+        st->elementpath_obj, &PyId_iterfind, self, tag, namespaces, NULL);
 }
 
 /*[clinic input]
@@ -2440,7 +2441,7 @@ treebuilder_add_subelement(PyObject *element, PyObject *child)
     }
     else {
         PyObject *res;
-        res = _PyObject_CallMethodId(element, &PyId_append, "O", child);
+        res = _PyObject_CallMethodIdObjArgs(element, &PyId_append, child, NULL);
         if (res == NULL)
             return -1;
         Py_DECREF(res);
@@ -2495,11 +2496,13 @@ treebuilder_handle_start(TreeBuilderObject* self, PyObject* tag,
         attrib = PyDict_New();
         if (!attrib)
             return NULL;
-        node = PyObject_CallFunction(self->element_factory, "OO", tag, attrib);
+        node = PyObject_CallFunctionObjArgs(self->element_factory,
+                                            tag, attrib, NULL);
         Py_DECREF(attrib);
     }
     else {
-        node = PyObject_CallFunction(self->element_factory, "OO", tag, attrib);
+        node = PyObject_CallFunctionObjArgs(self->element_factory,
+                                            tag, attrib, NULL);
     }
     if (!node) {
         return NULL;
@@ -2976,7 +2979,8 @@ expat_start_handler(XMLParserObject* self, const XML_Char* tag_in,
                 return;
             }
         }
-        res = PyObject_CallFunction(self->handle_start, "OO", tag, attrib);
+        res = PyObject_CallFunctionObjArgs(self->handle_start,
+                                           tag, attrib, NULL);
     } else
         res = NULL;
 
@@ -3142,8 +3146,9 @@ expat_start_doctype_handler(XMLParserObject *self,
 
     /* If the target has a handler for doctype, call it. */
     if (self->handle_doctype) {
-        res = PyObject_CallFunction(self->handle_doctype, "OOO",
-                                    doctype_name_obj, pubid_obj, sysid_obj);
+        res = PyObject_CallFunctionObjArgs(self->handle_doctype,
+                                           doctype_name_obj, pubid_obj,
+                                           sysid_obj, NULL);
         Py_CLEAR(res);
     }
     else {
@@ -3162,8 +3167,9 @@ expat_start_doctype_handler(XMLParserObject *self,
             if (!res)
                 goto clear;
             Py_DECREF(res);
-            res = PyObject_CallFunction(parser_doctype, "OOO",
-                                        doctype_name_obj, pubid_obj, sysid_obj);
+            res = PyObject_CallFunctionObjArgs(parser_doctype,
+                                               doctype_name_obj, pubid_obj,
+                                               sysid_obj, NULL);
             Py_CLEAR(res);
         }
     }
@@ -3190,7 +3196,8 @@ expat_pi_handler(XMLParserObject* self, const XML_Char* target_in,
         target = PyUnicode_DecodeUTF8(target_in, strlen(target_in), "strict");
         data = PyUnicode_DecodeUTF8(data_in, strlen(data_in), "strict");
         if (target && data) {
-            res = PyObject_CallFunction(self->handle_pi, "OO", target, data);
+            res = PyObject_CallFunctionObjArgs(self->handle_pi,
+                                               target, data, NULL);
             Py_XDECREF(res);
             Py_DECREF(data);
             Py_DECREF(target);
