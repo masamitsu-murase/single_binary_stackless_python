@@ -212,6 +212,29 @@ Core and Builtins
 Library
 -------
 
+- Issue #29197: Removed deprecated function ntpath.splitunc().
+
+- Issue #29210: Removed support of deprecated argument "exclude" in
+  tarfile.TarFile.add().
+
+- Issue #29219: Fixed infinite recursion in the repr of uninitialized
+  ctypes.CDLL instances.
+
+- Issue #29192: Removed deprecated features in the http.cookies module.
+
+- Issue #29193: A format string argument for string.Formatter.format()
+  is now positional-only.
+
+- Issue #29195: Removed support of deprecated undocumented keyword arguments
+  in methods of regular expression objects.
+
+- Issue #28969: Fixed race condition in C implementation of functools.lru_cache.
+  KeyError could be raised when cached function with full cache was
+  simultaneously called from differen threads with the same uncached arguments.
+
+- Issue #20804: The unittest.mock.sentinel attributes now preserve their
+  identity when they are copied or pickled.
+
 - Issue #29142: In urllib.request, suffixes in no_proxy environment variable with
   leading dots could match related hostnames again (e.g. .b.c matches a.b.c).
   Patch by Milan Oberkirch.
@@ -247,7 +270,7 @@ Library
   WeakValueDictionary.pop() when a GC collection happens in another
   thread.
 
-- Issue #20191: Fixed a crash in resource.prlimit() when pass a sequence that
+- Issue #20191: Fixed a crash in resource.prlimit() when passing a sequence that
   doesn't own its elements as limits.
 
 - Issue #16255: subprocess.Popen uses /system/bin/sh on Android as the shell,
@@ -421,9 +444,9 @@ Library
   Original patch by Oren Milman.
 
 - Issue #27358: Optimized merging var-keyword arguments and improved error
-  message when pass a non-mapping as a var-keyword argument.
+  message when passing a non-mapping as a var-keyword argument.
 
-- Issue #28257: Improved error message when pass a non-iterable as
+- Issue #28257: Improved error message when passing a non-iterable as
   a var-positional argument.  Added opcode BUILD_TUPLE_UNPACK_WITH_CALL.
 
 - Issue #28322: Fixed possible crashes when unpickle itertools objects from
@@ -772,7 +795,7 @@ Library
   WeakValueDictionary.pop() when a GC collection happens in another
   thread.
 
-- Issue #20191: Fixed a crash in resource.prlimit() when pass a sequence that
+- Issue #20191: Fixed a crash in resource.prlimit() when passing a sequence that
   doesn't own its elements as limits.
 
 - Issue #28779: multiprocessing.set_forkserver_preload() would crash the
@@ -1266,9 +1289,9 @@ Library
 - Issue #28227: gzip now supports pathlib.  Patch by Ethan Furman.
 
 - Issue #27358: Optimized merging var-keyword arguments and improved error
-  message when pass a non-mapping as a var-keyword argument.
+  message when passing a non-mapping as a var-keyword argument.
 
-- Issue #28257: Improved error message when pass a non-iterable as
+- Issue #28257: Improved error message when passing a non-iterable as
   a var-positional argument.  Added opcode BUILD_TUPLE_UNPACK_WITH_CALL.
 
 - Issue #28322: Fixed possible crashes when unpickle itertools objects from
@@ -1896,7 +1919,7 @@ Build
 
 - Issue #26307: The profile-opt build now applies PGO to the built-in modules.
 
-- Issue #26539: Add the --with-optimizations flag to turn on LTO and PGO build
+- Issue #26359: Add the --with-optimizations flag to turn on LTO and PGO build
   support when available.
 
 - Issue #27917: Set platform triplets for Android builds.
