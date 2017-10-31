@@ -4689,7 +4689,7 @@ do_raise(PyObject *exc, PyObject *cause)
 
     if (PyExceptionClass_Check(exc)) {
         type = exc;
-        value = PyObject_CallObject(exc, NULL);
+        value = _PyObject_CallNoArg(exc);
         if (value == NULL)
             goto raise_error;
         if (!PyExceptionInstance_Check(value)) {
@@ -4720,7 +4720,7 @@ do_raise(PyObject *exc, PyObject *cause)
     if (cause) {
         PyObject *fixed_cause;
         if (PyExceptionClass_Check(cause)) {
-            fixed_cause = PyObject_CallObject(cause, NULL);
+            fixed_cause = _PyObject_CallNoArg(cause);
             if (fixed_cause == NULL)
                 goto raise_error;
             Py_DECREF(cause);
