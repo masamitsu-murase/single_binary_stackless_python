@@ -2369,7 +2369,7 @@ _PyObject_Call_Prepend(PyObject *callable,
                        PyObject *obj, PyObject *args, PyObject *kwargs)
 {
     STACKLESS_GETARG();
-    PyObject *small_stack[8];
+    PyObject *small_stack[_PY_FASTCALL_SMALL_STACK];
     PyObject **stack;
     Py_ssize_t argcount;
     PyObject *result;
@@ -2585,7 +2585,7 @@ _PyObject_CallFunctionVa(PyObject *callable, const char *format,
                          va_list va, int is_size_t)
 {
     STACKLESS_GETARG();
-    PyObject* small_stack[5];
+    PyObject* small_stack[_PY_FASTCALL_SMALL_STACK];
     const Py_ssize_t small_stack_len = Py_ARRAY_LENGTH(small_stack);
     PyObject **stack;
     Py_ssize_t nargs, i;
@@ -2790,7 +2790,7 @@ PyObject *
 _PyObject_VaCallFunctionObjArgs(PyObject *callable, va_list vargs)
 {
     STACKLESS_GETARG();
-    PyObject *small_stack[5];
+    PyObject *small_stack[_PY_FASTCALL_SMALL_STACK];
     PyObject **stack;
     Py_ssize_t nargs;
     PyObject *result;
