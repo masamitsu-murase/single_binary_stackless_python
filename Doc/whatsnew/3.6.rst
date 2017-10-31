@@ -163,7 +163,7 @@ Windows improvements:
   remains unchanged - "python" refers to Python 2 in that case.
 
 * ``python.exe`` and ``pythonw.exe`` have been marked as long-path aware,
-  which means that when the 260 character path limit may no longer apply.
+  which means that the 260 character path limit may no longer apply.
   See :ref:`removing the MAX_PATH limitation <max-path>` for details.
 
 * A ``._pth`` file can be added to force isolated mode and fully specify
@@ -1831,6 +1831,18 @@ Build and C API Changes
 * The :c:func:`PyUnicode_FSConverter` and :c:func:`PyUnicode_FSDecoder`
   functions will now accept :term:`path-like objects <path-like object>`.
 
+
+Other Improvements
+==================
+
+* When :option:`--version` (short form: :option:`-V`) is supplied twice,
+  Python prints :data:`sys.version` for detailed information.
+
+  .. code-block:: shell-session
+
+    $ ./python -VV
+    Python 3.6.0b4+ (3.6:223967b49e49+, Nov 21 2016, 20:55:04)
+    [GCC 4.2.1 Compatible Apple LLVM 8.0.0 (clang-800.0.42.1)]
 
 
 Deprecated

@@ -584,6 +584,10 @@ The module defines the following classes, functions and decorators:
 
    A generic version of :class:`builtins.set <set>`.
 
+.. class:: FrozenSet(frozenset, AbstractSet[T_co])
+
+   A generic version of :class:`builtins.frozenset <frozenset>`.
+
 .. class:: MappingView(Sized, Iterable[T_co])
 
    A generic version of :class:`collections.abc.MappingView`.
@@ -750,7 +754,7 @@ The module defines the following classes, functions and decorators:
    runtime we intentionally don't check anything (we want this
    to be as fast as possible).
 
-.. function:: get_type_hints(obj[, globals[, locals])
+.. function:: get_type_hints(obj[, globals[, locals]])
 
    Return a dictionary containing type hints for a function, method, module
    or class object.

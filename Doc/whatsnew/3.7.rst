@@ -75,6 +75,8 @@ New Features
 Other Language Changes
 ======================
 
+* More than 255 arguments can now be passed to a function.
+  (Contributed by Serhiy Storchaka in :issue:`12844`.)
 
 
 New Modules
@@ -98,6 +100,12 @@ Build and C API Changes
   :mod:`_ctypes <ctypes>` module on non-OSX UNIX platforms.  An installed copy
   of libffi is now required when building ``_ctypes`` on such platforms.
   Contributed by Zachary Ware in :issue:`27979`.
+
+* The fields :c:member:`name` and :c:member:`doc` of structures
+  :c:type:`PyMemberDef`, :c:type:`PyGetSetDef`,
+  :c:type:`PyStructSequence_Field`, :c:type:`PyStructSequence_Desc`,
+  and :c:type:`wrapperbase` are now of type ``const char *`` rather of
+  ``char *``.  (Contributed by Serhiy Storchaka in :issue:`28761`.)
 
 
 Deprecated

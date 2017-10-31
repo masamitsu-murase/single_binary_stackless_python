@@ -10,6 +10,17 @@ What's New in Python 3.7.0 alpha 1
 Core and Builtins
 -----------------
 
+- Issue #12844: More than 255 arguments can now be passed to a function.
+
+- Issue #28782: Fix a bug in the implementation ``yield from`` when checking
+  if the next instruction is YIELD_FROM. Regression introduced by WORDCODE
+  (issue #26647).
+
+- Issue #28774: Fix error position of the unicode error in ASCII and Latin1
+  encoders when a string returned by the error handler contains multiple
+  non-encodable characters (non-ASCII for the ASCII codec, characters out
+  of the U+0000-U+00FF range for Latin1).
+
 - Issue #28731: Optimize _PyDict_NewPresized() to create correct size dict.
   Improve speed of dict literal with constant keys up to 30%.
 
@@ -400,6 +411,9 @@ Library
 
 - Issue #27972: Prohibit Tasks to await on themselves.
 
+- Issue #24142: Reading a corrupt config file left configparser in an
+  invalid state.  Original patch by Florian Höch.
+
 Windows
 -------
 
@@ -432,8 +446,12 @@ Windows
 C API
 -----
 
-- Issue #28748: Private variable _Py_PackageContext is now of type "const char *"
-  rather of "char *".
+- Issue #28761: The fields name and doc of structures PyMemberDef, PyGetSetDef,
+  PyStructSequence_Field, PyStructSequence_Desc, and wrapperbase are now of
+  type ``const char *`` rather of ``char *``.
+
+- Issue #28748: Private variable _Py_PackageContext is now of type ``const char *``
+  rather of ``char *``.
 
 - Issue #19569: Compiler warnings are now emitted if use most of deprecated
   functions.
@@ -488,6 +506,8 @@ Build
 
 Tools/Demos
 -----------
+
+- Issue #28023: Fix python-gdb.py didn't support new dict implementation.
 
 - Issue #15369: The pybench and pystone microbenchmark have been removed from
   Tools. Please use the new Python benchmark suite
