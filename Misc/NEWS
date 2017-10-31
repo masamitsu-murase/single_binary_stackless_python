@@ -208,6 +208,26 @@ Core and Builtins
 Library
 -------
 
+- Issue #15812: inspect.getframeinfo() now correctly shows the first line of
+  a context.  Patch by Sam Breese.
+
+- Issue #28985: Update authorizer constants in sqlite3 module.
+  Patch by Dingyuan Wang.
+
+- Issue #29094: Offsets in a ZIP file created with extern file object and modes
+  "w" and "x" now are relative to the start of the file.
+
+- Issue #29079: Prevent infinite loop in pathlib.resolve() on Windows
+
+- Issue #13051: Fixed recursion errors in large or resized
+  curses.textpad.Textbox.  Based on patch by Tycho Andersen.
+
+- Issue #9770: curses.ascii predicates now work correctly with negative
+  integers.
+
+- Issue #28427: old keys should not remove new values from
+  WeakValueDictionary when collecting from another thread.
+
 - Issue 28923: Remove editor artifacts from Tix.py.
 
 - Issue #28871: Fixed a crash when deallocate deep ElementTree.
@@ -552,6 +572,10 @@ Windows
 C API
 -----
 
+- Issue #29058: All stable API extensions added after Python 3.2 are now
+  available only when Py_LIMITED_API is set to the PY_VERSION_HEX value of
+  the minimum Python version supporting this API.
+
 - Issue #28822: The indices parameters *start* and *end* of PyUnicode_FindChar()
   are now adjusted to behave like ``str[start:end]``.
 
@@ -583,6 +607,13 @@ Documentation
 
 Build
 -----
+
+- Issue #28768: Fix implicit declaration of function _setmode. Patch by
+  Masayuki Yamamoto
+
+- Issue #29080: Removes hard dependency on hg.exe from PCBuild/build.bat
+
+- Issue #23903: Added missed names to PC/python3.def.
 
 - Issue #28762: lockf() is available on Android API level 24, but the F_LOCK
   macro is not defined in android-ndk-r13.
@@ -649,6 +680,8 @@ Tools/Demos
 Tests
 -----
 
+- Issue #24932: Use proper command line parsing in _testembed
+
 - Issue #28950: Disallow -j0 to be combined with -T/-l in regrtest
   command line arguments.
 
@@ -712,7 +745,13 @@ Core and Builtins
 Library
 -------
 
+- Issue #29085: Allow random.Random.seed() to use high quality OS randomness
+  rather than the pid and time.
+
 - Issue 28923: Remove editor artifacts from Tix.py.
+
+- Issue #29055:  Neaten-up empty population error on random.choice()
+  by suppressing the upstream exception.
 
 - Issue #28871: Fixed a crash when deallocate deep ElementTree.
 

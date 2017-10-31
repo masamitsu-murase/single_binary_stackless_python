@@ -4625,9 +4625,9 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
             gen = PyGen_NewWithQualName(f, name, qualname);
         }
         if (gen == NULL) {
-            Py_DECREF(f);
             return NULL;
         }
+
         _PyObject_GC_TRACK(f);
 
         if (is_coro && coro_wrapper != NULL) {

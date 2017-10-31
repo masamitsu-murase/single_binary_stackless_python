@@ -3,8 +3,7 @@
 :mod:`hashlib` --- BLAKE2 hash functions
 ========================================
 
-.. module:: hashlib
-   :synopsis: BLAKE2 hash function for Python
+.. currentmodule:: hashlib
 .. sectionauthor:: Dmitry Chestnykh
 
 .. index::
@@ -25,9 +24,6 @@ BLAKE2 supports **keyed mode** (a faster and simpler replacement for HMAC_),
 Hash objects from this module follow the API of standard library's
 :mod:`hashlib` objects.
 
-
-Module
-======
 
 Creating hash objects
 ---------------------
@@ -138,10 +134,10 @@ Maximum digest size that the hash function can output.
 
 
 Examples
-========
+--------
 
 Simple hashing
---------------
+^^^^^^^^^^^^^^
 
 To calculate hash of some data, you should first construct a hash object by
 calling the appropriate constructor function (:func:`blake2b` or
@@ -176,7 +172,7 @@ update the hash:
 
 
 Using different digest sizes
-----------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 BLAKE2 has configurable size of digests up to 64 bytes for BLAKE2b and up to 32
 bytes for BLAKE2s. For example, to replace SHA-1 with BLAKE2b without changing
@@ -208,7 +204,7 @@ produce different outputs even if the output length is the same:
 
 
 Keyed hashing
--------------
+^^^^^^^^^^^^^
 
 Keyed hashing can be used for authentication as a faster and simpler
 replacement for `Hash-based message authentication code
@@ -261,7 +257,7 @@ in HMAC construction with :mod:`hmac` module::
 
 
 Randomized hashing
-------------------
+^^^^^^^^^^^^^^^^^^
 
 By setting *salt* parameter users can introduce randomization to the hash
 function. Randomized hashing is useful for protecting against collision attacks
@@ -317,7 +313,7 @@ initialization, rather than as an input to each compression function.
 
 
 Personalization
----------------
+^^^^^^^^^^^^^^^
 
 Sometimes it is useful to force hash function to produce different digests for
 the same input for different purposes. Quoting the authors of the Skein hash
@@ -362,7 +358,7 @@ keys from a single one.
     G9GtHFE1YluXY1zWPlYk1e/nWfu0WSEb0KRcjhDeP/o=
 
 Tree mode
----------
+^^^^^^^^^
 
 Here's an example of hashing a minimal tree with two leaf nodes::
 
@@ -400,7 +396,7 @@ digest::
     '3ad2a9b37c6070e374c7a8c508fe20ca86b6ed54e286e93a0318e95e881db5aa'
 
 Credits
-=======
+-------
 
 BLAKE2_ was designed by *Jean-Philippe Aumasson*, *Samuel Neves*, *Zooko
 Wilcox-O'Hearn*, and *Christian Winnerlein* based on SHA-3_ finalist BLAKE_
