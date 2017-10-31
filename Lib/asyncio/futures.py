@@ -120,6 +120,46 @@ def isfuture(obj):
     return getattr(obj, '_asyncio_future_blocking', None) is not None
 
 
+def _format_callbacks(cb):
+    """helper function for Future.__repr__"""
+    size = len(cb)
+    if not size:
+        cb = ''
+
+    def format_cb(callback):
+        return events._format_callback_source(callback, ())
+
+    if size == 1:
+        cb = format_cb(cb[0])
+    elif size == 2:
+        cb = '{}, {}'.format(format_cb(cb[0]), format_cb(cb[1]))
+    elif size > 2:
+        cb = '{}, <{} more>, {}'.format(format_cb(cb[0]),
+                                        size-2,
+                                        format_cb(cb[-1]))
+    return 'cb=[%s]' % cb
+
+
+def _future_repr_info(future):
+    # (Future) -> str
+    """helper function for Future.__repr__"""
+    info = [future._state.lower()]
+    if future._state == _FINISHED:
+        if future._exception is not None:
+            info.append('exception={!r}'.format(future._exception))
+        else:
+            # use reprlib to limit the length of the output, especially
+            # for very long strings
+            result = reprlib.repr(future._result)
+            info.append('result={}'.format(result))
+    if future._callbacks:
+        info.append(_format_callbacks(future._callbacks))
+    if future._source_traceback:
+        frame = future._source_traceback[-1]
+        info.append('created at %s:%s' % (frame[0], frame[1]))
+    return info
+
+
 class Future:
     """This class is *almost* compatible with concurrent.futures.Future.
 
@@ -172,45 +212,10 @@ class Future:
         if self._loop.get_debug():
             self._source_traceback = traceback.extract_stack(sys._getframe(1))
 
-    def __format_callbacks(self):
-        cb = self._callbacks
-        size = len(cb)
-        if not size:
-            cb = ''
-
-        def format_cb(callback):
-            return events._format_callback_source(callback, ())
-
-        if size == 1:
-            cb = format_cb(cb[0])
-        elif size == 2:
-            cb = '{}, {}'.format(format_cb(cb[0]), format_cb(cb[1]))
-        elif size > 2:
-            cb = '{}, <{} more>, {}'.format(format_cb(cb[0]),
-                                            size-2,
-                                            format_cb(cb[-1]))
-        return 'cb=[%s]' % cb
-
-    def _repr_info(self):
-        info = [self._state.lower()]
-        if self._state == _FINISHED:
-            if self._exception is not None:
-                info.append('exception={!r}'.format(self._exception))
-            else:
-                # use reprlib to limit the length of the output, especially
-                # for very long strings
-                result = reprlib.repr(self._result)
-                info.append('result={}'.format(result))
-        if self._callbacks:
-            info.append(self.__format_callbacks())
-        if self._source_traceback:
-            frame = self._source_traceback[-1]
-            info.append('created at %s:%s' % (frame[0], frame[1]))
-        return info
+    _repr_info = _future_repr_info
 
     def __repr__(self):
-        info = self._repr_info()
-        return '<%s %s>' % (self.__class__.__name__, ' '.join(info))
+        return '<%s %s>' % (self.__class__.__name__, ' '.join(self._repr_info()))
 
     # On Python 3.3 and older, objects with a destructor part of a reference
     # cycle are never destroyed. It's not more the case on Python 3.4 thanks
@@ -242,10 +247,10 @@ class Future:
         if self._state != _PENDING:
             return False
         self._state = _CANCELLED
-        self._schedule_callbacks()
+        self.__schedule_callbacks()
         return True
 
-    def _schedule_callbacks(self):
+    def __schedule_callbacks(self):
         """Internal: Ask the event loop to call all callbacks.
 
         The callbacks are scheduled to be called as soon as possible. Also
@@ -347,7 +352,7 @@ class Future:
             raise InvalidStateError('{}: {!r}'.format(self._state, self))
         self._result = result
         self._state = _FINISHED
-        self._schedule_callbacks()
+        self.__schedule_callbacks()
 
     def set_exception(self, exception):
         """Mark the future done and set an exception.
@@ -364,7 +369,7 @@ class Future:
                             "and cannot be raised into a Future")
         self._exception = exception
         self._state = _FINISHED
-        self._schedule_callbacks()
+        self.__schedule_callbacks()
         if compat.PY34:
             self._log_traceback = True
         else:
@@ -476,3 +481,11 @@ def wrap_future(future, *, loop=None):
     new_future = loop.create_future()
     _chain_future(future, new_future)
     return new_future
+
+
+try:
+    import _asyncio
+except ImportError:
+    pass
+else:
+    Future = _asyncio.Future

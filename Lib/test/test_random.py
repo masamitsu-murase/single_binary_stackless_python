@@ -5,7 +5,7 @@ import time
 import pickle
 import warnings
 from functools import partial
-from math import log, exp, pi, fsum, sin
+from math import log, exp, pi, fsum, sin, factorial
 from test import support
 from fractions import Fraction
 
@@ -117,10 +117,6 @@ class TestBasicOps:
         n = 5
         pop = range(n)
         trials = 10000  # large num prevents false negatives without slowing normal case
-        def factorial(n):
-            if n == 0:
-                return 1
-            return n * factorial(n - 1)
         for k in range(n):
             expected = factorial(n) // factorial(n-k)
             perms = {}
@@ -178,8 +174,6 @@ class TestBasicOps:
         self.assertTrue(set(choices(data, weights=None, k=5)) <= set(data))
         with self.assertRaises(ValueError):
             choices(data, [1,2], k=5)                                    # len(weights) != len(population)
-        with self.assertRaises(IndexError):
-            choices(data, [0]*4, k=5)                                    # weights sum to zero
         with self.assertRaises(TypeError):
             choices(data, 10, k=5)                                       # non-iterable weights
         with self.assertRaises(TypeError):
@@ -194,8 +188,6 @@ class TestBasicOps:
 
         with self.assertRaises(ValueError):
             choices(data, cum_weights=[1,2], k=5)                        # len(weights) != len(population)
-        with self.assertRaises(IndexError):
-            choices(data, cum_weights=[0]*4, k=5)                        # cum_weights sum to zero
         with self.assertRaises(TypeError):
             choices(data, cum_weights=10, k=5)                           # non-iterable cum_weights
         with self.assertRaises(TypeError):
@@ -208,6 +200,20 @@ class TestBasicOps:
                 [Fraction(1, 3), Fraction(2, 6), Fraction(3, 6), Fraction(4, 6)], # fractional cum_weights
         ]:
             self.assertTrue(set(choices(data, cum_weights=weights, k=5)) <= set(data))
+
+        # Test weight focused on a single element of the population
+        self.assertEqual(choices('abcd', [1, 0, 0, 0]), ['a'])
+        self.assertEqual(choices('abcd', [0, 1, 0, 0]), ['b'])
+        self.assertEqual(choices('abcd', [0, 0, 1, 0]), ['c'])
+        self.assertEqual(choices('abcd', [0, 0, 0, 1]), ['d'])
+
+        # Test consistency with random.choice() for empty population
+        with self.assertRaises(IndexError):
+            choices([], k=1)
+        with self.assertRaises(IndexError):
+            choices([], weights=[], k=1)
+        with self.assertRaises(IndexError):
+            choices([], cum_weights=[], k=5)
 
     def test_gauss(self):
         # Ensure that the seed() method initializes all the hidden state.  In

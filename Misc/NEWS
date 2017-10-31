@@ -10,6 +10,20 @@ What's New in Python 3.7.0 alpha 1
 Core and Builtins
 -----------------
 
+- Issue #23782: Fixed possible memory leak in _PyTraceback_Add() and exception
+  loss in PyTraceBack_Here().
+
+- Issue #28183: Optimize and cleanup dict iteration.
+
+- Issue #26081: Added C implementation of asyncio.Future.
+  Original patch by Yury Selivanov.
+
+- Issue #28379: Added sanity checks and tests for PyUnicode_CopyCharacters().
+  Patch by Xiang Zhang.
+
+- Issue #28376: The type of long range iterator is now registered as Iterator.
+  Patch by Oren Milman.
+
 - Issue #28376: Creating instances of range_iterator by calling range_iterator
   type now is disallowed.  Calling iter() on range instance is the only way.
   Patch by Oren Milman.
@@ -73,6 +87,39 @@ Core and Builtins
 
 Library
 -------
+
+- Issue #18219: Optimize csv.DictWriter for large number of columns.
+  Patch by Mariatta Wijaya.
+
+- Issue #28448: Fix C implemented asyncio.Future didn't work on Windows.
+
+- Issue #23214: In the "io" module, the argument to BufferedReader and
+  BytesIO's read1() methods is now optional and can be -1, matching the
+  BufferedIOBase specification.
+
+- Issue #28480: Fix error building socket module when multithreading is
+  disabled.
+
+- Issue #28240: timeit: remove ``-c/--clock`` and ``-t/--time`` command line
+  options which were deprecated since Python 3.3.
+
+- Issue #28240: timeit now repeats the benchmarks 5 times instead of only 3
+  to make benchmarks more reliable.
+
+- Issue #28240: timeit autorange now uses a single loop iteration if the
+  benchmark takes less than 10 seconds, instead of 10 iterations.
+  "python3 -m timeit -s 'import time' 'time.sleep(1)'" now takes 4 seconds
+  instead of 40 seconds.
+
+- Distutils.sdist now looks for README and setup.py files with case
+  sensitivity. This behavior matches that found in Setuptools 6.0 and
+  later. See `setuptools 100
+  <https://github.com/pypa/setuptools/issues/100>`_ for rationale.
+
+- Issue #24452: Make webbrowser support Chrome on Mac OS X.
+
+- Issue #20766: Fix references leaked by pdb in the handling of SIGINT
+  handlers.
 
 - Issue #27998: Fixed bytes path support in os.scandir() on Windows.
   Patch by Eryk Sun.
@@ -216,8 +263,18 @@ Library
 
 - Issue #28372: Fix asyncio to support formatting of non-python coroutines.
 
+- Issue #28399: Remove UNIX socket from FS before binding.
+  Patch by Коренберг Марк.
+
+- Issue #27972: Prohibit Tasks to await on themselves.
+
 Windows
 -------
+
+- Issue #28402: Adds signed catalog files for stdlib on Windows.
+
+- Issue #28333: Enables Unicode for ps1/ps2 and input() prompts. (Patch by
+  Eryk Sun)
 
 - Issue #28251: Improvements to help manuals on Windows.
 
@@ -240,6 +297,10 @@ Windows
 
 Build
 -----
+
+- Issue #28208: Update Windows build to use SQLite 3.14.2.0.
+
+- Issue #28248: Update Windows build to use OpenSSL 1.0.2j.
 
 - Issue #21124: Fix building the _struct module on Cygwin by passing ``NULL``
   instead of ``&PyType_Type`` to PyVarObject_HEAD_INIT.  Patch by Masayuki
@@ -276,6 +337,11 @@ Tools/Demos
 
 Tests
 -----
+
+- Issue #26944: Fix test_posix for Android where 'id -G' is entirely wrong or
+  missing the effective gid.
+
+- Issue #28409: regrtest: fix the parser of command line arguments.
 
 - Issue #28217: Adds _testconsole module to test console input.
 
@@ -724,7 +790,7 @@ Build
 
 - Issue #21590: Support for DTrace and SystemTap probes.
 
-- Issue #26307: The profile-opt build now applys PGO to the built-in modules.
+- Issue #26307: The profile-opt build now applies PGO to the built-in modules.
 
 - Issue #26539: Add the --with-optimizations flag to turn on LTO and PGO build
   support when available.
