@@ -98,7 +98,7 @@ __all__ = [
     "check__all__", "requires_android_level", "requires_multiprocessing_queue",
     # sys
     "is_jython", "is_android", "check_impl_detail", "unix_shell",
-    "setswitchinterval",
+    "setswitchinterval", "android_not_root",
     # network
     "HOST", "IPV6_ENABLED", "find_unused_port", "bind_port", "open_urlresource",
     # processes
@@ -779,6 +779,7 @@ try:
 except AttributeError:
     # sys.getandroidapilevel() is only available on Android
     is_android = False
+android_not_root = (is_android and os.geteuid() != 0)
 
 if sys.platform != 'win32':
     unix_shell = '/system/bin/sh' if is_android else '/bin/sh'
@@ -1067,9 +1068,16 @@ def make_bad_fd():
         file.close()
         unlink(TESTFN)
 
-def check_syntax_error(testcase, statement):
-    testcase.assertRaises(SyntaxError, compile, statement,
-                          '<test string>', 'exec')
+def check_syntax_error(testcase, statement, *, lineno=None, offset=None):
+    with testcase.assertRaises(SyntaxError) as cm:
+        compile(statement, '<test string>', 'exec')
+    err = cm.exception
+    testcase.assertIsNotNone(err.lineno)
+    if lineno is not None:
+        testcase.assertEqual(err.lineno, lineno)
+    testcase.assertIsNotNone(err.offset)
+    if offset is not None:
+        testcase.assertEqual(err.offset, offset)
 
 def open_urlresource(url, *args, **kw):
     import urllib.request, urllib.parse

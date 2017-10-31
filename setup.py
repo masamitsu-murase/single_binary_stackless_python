@@ -1350,7 +1350,8 @@ class PyBuildExt(build_ext):
         panel_library = 'panel'
         if curses_library == 'ncursesw':
             curses_defines.append(('HAVE_NCURSESW', '1'))
-            curses_includes.append('/usr/include/ncursesw')
+            if not cross_compiling:
+                curses_includes.append('/usr/include/ncursesw')
             # Bug 1464056: If _curses.so links with ncursesw,
             # _curses_panel.so must link with panelw.
             panel_library = 'panelw'
@@ -1631,7 +1632,7 @@ class PyBuildExt(build_ext):
 ##         ext = Extension('xx', ['xxmodule.c'])
 ##         self.extensions.append(ext)
 
-        if 'd' not in sys.abiflags:
+        if 'd' not in sysconfig.get_config_var('ABIFLAGS'):
             ext = Extension('xxlimited', ['xxlimited.c'],
                             define_macros=[('Py_LIMITED_API', '0x03050000')])
             self.extensions.append(ext)

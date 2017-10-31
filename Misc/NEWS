@@ -10,6 +10,15 @@ What's New in Python 3.7.0 alpha 1
 Core and Builtins
 -----------------
 
+- Issue #28739: f-string expressions no longer accepted as docstrings and
+  by ast.literal_eval() even if they do not include expressions.
+
+- Issue #28512: Fixed setting the offset attribute of SyntaxError by
+  PyErr_SyntaxLocationEx() and PyErr_SyntaxLocationObject().
+
+- Issue #28918: Fix the cross compilation of xxlimited when Python has been
+  built with Py_DEBUG defined.
+
 - Issue #5322: Fixed setting __new__ to a PyCFunction inside Python code.
   Original patch by Andreas Stührk.
 
@@ -167,6 +176,13 @@ Core and Builtins
 
 Library
 -------
+
+- Issue #16255: subrocess.Popen uses /system/bin/sh on Android as the shell,
+  instead of /bin/sh.
+
+- Issue #28779: multiprocessing.set_forkserver_preload() would crash the
+  forkserver process if a preloaded module instantiated some
+  multiprocessing objects such as locks.
 
 - Issue #26937: The chown() method of the tarfile.TarFile class does not fail
   now when the grp module cannot be imported, as for example on Android
@@ -461,7 +477,7 @@ Library
 Windows
 -------
 
-- Issue #28896: Deprecate WindowsRegistryFinder
+- Issue #28896: Deprecate WindowsRegistryFinder and disable it by default
 
 - Issue #28522: Fixes mishandled buffer reallocation in getpathp.c
 
@@ -521,6 +537,8 @@ Documentation
 Build
 -----
 
+- Issue #28849: Do not define sys.implementation._multiarch on Android.
+
 - Issue #10656: Fix out-of-tree building on AIX.  Patch by Tristan Carel and
   Michael Haubenwallner.
 
@@ -572,6 +590,9 @@ Tools/Demos
 
 Tests
 -----
+
+ - Issue #26936: Fix the test_socket failures on Android - getservbyname(),
+   getservbyport() and getaddrinfo() are broken on some Android API levels.
 
 - Issue #28666: Now test.support.rmtree is able to remove unwritable or
   unreadable directories.
