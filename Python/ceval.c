@@ -4536,9 +4536,9 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
     }
 
 #ifdef STACKLESS
-    Py_INCREF(Py_None);
-    retval = Py_None;
     if (stackless) {
+        Py_INCREF(Py_None);
+        retval = Py_None;
         SLP_STORE_NEXT_FRAME(tstate, f);
         Py_DECREF(f);
         return STACKLESS_PACK(tstate, retval);
@@ -4547,12 +4547,13 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
         if (f->f_back != NULL) {
             /* use the faster path */
             PyFrameObject *back = f->f_back;
+            Py_INCREF(Py_None);
+            retval = Py_None;
             Py_INCREF(back);
             retval = slp_frame_dispatch(f, back, 0, retval);
             Py_DECREF(back);
         }
         else {
-            Py_DECREF(retval);
             retval = slp_eval_frame(f);
         }
         Py_DECREF(f);

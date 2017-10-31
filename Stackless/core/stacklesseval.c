@@ -332,7 +332,7 @@ slp_run_tasklet(void)
     return retval;
 }
 
-PyObject *
+PyObject * _Py_HOT_FUNCTION
 slp_eval_frame(PyFrameObject *f)
 {
     PyThreadState *ts = PyThreadState_GET();
