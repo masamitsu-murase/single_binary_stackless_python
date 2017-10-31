@@ -4560,7 +4560,7 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
         return retval;
     }
 #else
-    retval = tstate->interp->eval_frame(f, 0);
+    retval = PyEval_EvalFrameEx(f,0);
 #endif
 
 fail: /* Jump here from prelude on failure */
@@ -5362,7 +5362,7 @@ _PyFunction_FastCall(PyCodeObject *co, PyObject **args, Py_ssize_t nargs,
         result = slp_eval_frame(f);
     }
 #else /* #ifdef STACKLESS */
-    result = tstate->interp->eval_frame(f,0);
+    result = PyEval_EvalFrameEx(f,0);
 #endif /* #ifdef STACKLESS */
 
     ++tstate->recursion_depth;
