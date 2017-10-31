@@ -1416,14 +1416,18 @@ PyType_IsSubtype(PyTypeObject *a, PyTypeObject *b)
    the method name as a C string, and the address of a
    static variable used to cache the interned Python string.
 
-   Two variants:
+   Variants:
 
    - lookup_maybe() returns NULL without raising an exception
      when the _PyType_Lookup() call fails;
 
-   - lookup_method() always raises an exception upon errors.
+   - lookup_maybe_method() and lookup_method() are similar to
+     lookup_maybe(), but can return unbound PyFunction
+     to avoid temporary method object. Pass self as first argument when
+     unbound == 1.
 
-   - _PyObject_LookupSpecial() exported for the benefit of other places.
+   - _PyObject_LookupSpecial() expose lookup_maybe for the benefit of
+     other places.
 */
 
 static PyObject *
@@ -1443,11 +1447,38 @@ lookup_maybe(PyObject *self, _Py_Identifier *attrid)
 }
 
 static PyObject *
-lookup_method(PyObject *self, _Py_Identifier *attrid)
+lookup_maybe_method(PyObject *self, _Py_Identifier *attrid, int *unbound)
 {
-    PyObject *res = lookup_maybe(self, attrid);
-    if (res == NULL && !PyErr_Occurred())
+    PyObject *res = _PyType_LookupId(Py_TYPE(self), attrid);
+    if (res == NULL) {
+        return NULL;
+    }
+
+    if (PyFunction_Check(res)) {
+        /* Avoid temporary PyMethodObject */
+        *unbound = 1;
+        Py_INCREF(res);
+    }
+    else {
+        *unbound = 0;
+        descrgetfunc f = Py_TYPE(res)->tp_descr_get;
+        if (f == NULL) {
+            Py_INCREF(res);
+        }
+        else {
+            res = f(res, self, (PyObject *)(Py_TYPE(self)));
+        }
+    }
+    return res;
+}
+
+static PyObject *
+lookup_method(PyObject *self, _Py_Identifier *attrid, int *unbound)
+{
+    PyObject *res = lookup_maybe_method(self, attrid, unbound);
+    if (res == NULL && !PyErr_Occurred()) {
         PyErr_SetObject(PyExc_AttributeError, attrid->object);
+    }
     return res;
 }
 
@@ -1457,18 +1488,42 @@ _PyObject_LookupSpecial(PyObject *self, _Py_Identifier *attrid)
     return lookup_maybe(self, attrid);
 }
 
-/* A variation of PyObject_CallMethodObjArgs that uses lookup_method()
-   instead of PyObject_GetAttrString().  This uses the same convention
-   as lookup_method to cache the interned name string object. */
+static PyObject*
+call_unbound(int unbound, PyObject *func, PyObject *self,
+             PyObject **args, Py_ssize_t nargs)
+{
+    if (unbound) {
+        return _PyObject_FastCall_Prepend(func, self, args, nargs);
+    }
+    else {
+        return _PyObject_FastCall(func, args, nargs);
+    }
+}
 
+static PyObject*
+call_unbound_noarg(int unbound, PyObject *func, PyObject *self)
+{
+    if (unbound) {
+        PyObject *args[1] = {self};
+        return _PyObject_FastCall(func, args, 1);
+    }
+    else {
+        return _PyObject_CallNoArg(func);
+    }
+}
+
+/* A variation of PyObject_CallMethodObjArgs that uses lookup_maybe_method()
+   instead of PyObject_GetAttrString().  This uses the same convention
+   as lookup_maybe_method to cache the interned name string object. */
 static PyObject *
 call_method(PyObject *obj, _Py_Identifier *name,
             PyObject **args, Py_ssize_t nargs)
 {
     STACKLESS_GETARG();
+    int unbound;
     PyObject *func, *retval;
 
-    func = lookup_maybe(obj, name);
+    func = lookup_maybe_method(obj, name, &unbound);
     if (func == NULL) {
         if (!PyErr_Occurred())
             PyErr_SetObject(PyExc_AttributeError, name->object);
@@ -1476,11 +1531,9 @@ call_method(PyObject *obj, _Py_Identifier *name,
     }
 
     STACKLESS_PROMOTE_ALL();
-    retval = _PyObject_FastCall(func, args, nargs);
+    retval = call_unbound(unbound, func, obj, args, nargs);
     STACKLESS_ASSERT();
-
     Py_DECREF(func);
-
     return retval;
 }
 
@@ -1491,9 +1544,10 @@ call_maybe(PyObject *obj, _Py_Identifier *name,
            PyObject **args, Py_ssize_t nargs)
 {
     STACKLESS_GETARG();
+    int unbound;
     PyObject *func, *retval;
 
-    func = lookup_maybe(obj, name);
+    func = lookup_maybe_method(obj, name, &unbound);
     if (func == NULL) {
         if (!PyErr_Occurred())
             Py_RETURN_NOTIMPLEMENTED;
@@ -1501,11 +1555,9 @@ call_maybe(PyObject *obj, _Py_Identifier *name,
     }
 
     STACKLESS_PROMOTE_ALL();
-    retval = _PyObject_FastCall(func, args, nargs);
+    retval = call_unbound(unbound, func, obj, args, nargs);
     STACKLESS_ASSERT();
-
     Py_DECREF(func);
-
     return retval;
 }
 
@@ -1860,10 +1912,12 @@ mro_invoke(PyTypeObject *type)
 
     if (custom) {
         _Py_IDENTIFIER(mro);
-        PyObject *mro_meth = lookup_method((PyObject *)type, &PyId_mro);
+        int unbound;
+        PyObject *mro_meth = lookup_method((PyObject *)type, &PyId_mro,
+                                           &unbound);
         if (mro_meth == NULL)
             return NULL;
-        mro_result = _PyObject_CallNoArg(mro_meth);
+        mro_result = call_unbound_noarg(unbound, mro_meth, (PyObject *)type);
         Py_DECREF(mro_meth);
     }
     else {
@@ -5994,10 +6048,10 @@ static int
 slot_sq_contains(PyObject *self, PyObject *value)
 {
     PyObject *func, *res;
-    int result = -1;
+    int result = -1, unbound;
     _Py_IDENTIFIER(__contains__);
 
-    func = lookup_maybe(self, &PyId___contains__);
+    func = lookup_maybe_method(self, &PyId___contains__, &unbound);
     if (func == Py_None) {
         Py_DECREF(func);
         PyErr_Format(PyExc_TypeError,
@@ -6006,7 +6060,8 @@ slot_sq_contains(PyObject *self, PyObject *value)
         return -1;
     }
     if (func != NULL) {
-        res = PyObject_CallFunctionObjArgs(func, value, NULL);
+        PyObject *args[1] = {value};
+        res = call_unbound(unbound, func, self, args, 1);
         Py_DECREF(func);
         if (res != NULL) {
             result = PyObject_IsTrue(res);
@@ -6084,17 +6139,17 @@ static int
 slot_nb_bool(PyObject *self)
 {
     PyObject *func, *value;
-    int result;
+    int result, unbound;
     int using_len = 0;
     _Py_IDENTIFIER(__bool__);
 
-    func = lookup_maybe(self, &PyId___bool__);
+    func = lookup_maybe_method(self, &PyId___bool__, &unbound);
     if (func == NULL) {
         if (PyErr_Occurred()) {
             return -1;
         }
 
-        func = lookup_maybe(self, &PyId___len__);
+        func = lookup_maybe_method(self, &PyId___len__, &unbound);
         if (func == NULL) {
             if (PyErr_Occurred()) {
                 return -1;
@@ -6104,7 +6159,7 @@ slot_nb_bool(PyObject *self)
         using_len = 1;
     }
 
-    value = _PyObject_CallNoArg(func);
+    value = call_unbound_noarg(unbound, func, self);
     if (value == NULL) {
         goto error;
     }
@@ -6181,11 +6236,12 @@ slot_tp_repr(PyObject *self)
     STACKLESS_GETARG();
     PyObject *func, *res;
     _Py_IDENTIFIER(__repr__);
+    int unbound;
 
-    func = lookup_method(self, &PyId___repr__);
+    func = lookup_method(self, &PyId___repr__, &unbound);
     if (func != NULL) {
         STACKLESS_PROMOTE_ALL();
-        res = PyEval_CallObject(func, NULL);
+        res = call_unbound_noarg(unbound, func, self);
         STACKLESS_ASSERT();
         Py_DECREF(func);
         return res;
@@ -6195,22 +6251,7 @@ slot_tp_repr(PyObject *self)
                                Py_TYPE(self)->tp_name, self);
 }
 
-static PyObject *
-slot_tp_str(PyObject *self)
-{
-    STACKLESS_GETARG();
-    PyObject *func, *res;
-    _Py_IDENTIFIER(__str__);
-
-    func = lookup_method(self, &PyId___str__);
-    if (func == NULL)
-        return NULL;
-    STACKLESS_PROMOTE_ALL();
-    res = PyEval_CallObject(func, NULL);
-    STACKLESS_ASSERT();
-    Py_DECREF(func);
-    return res;
-}
+SLOT0(slot_tp_str, "__str__")
 
 static Py_hash_t
 slot_tp_hash(PyObject *self)
@@ -6218,8 +6259,9 @@ slot_tp_hash(PyObject *self)
     STACKLESS_GETARG(); /* not supported */
     PyObject *func, *res;
     Py_ssize_t h;
+    int unbound;
 
-    func = lookup_method(self, &PyId___hash__);
+    func = lookup_method(self, &PyId___hash__, &unbound);
 
     if (func == Py_None) {
         Py_DECREF(func);
@@ -6230,7 +6272,7 @@ slot_tp_hash(PyObject *self)
         return PyObject_HashNotImplemented(self);
     }
 
-    res = PyEval_CallObject(func, NULL);
+    res = call_unbound_noarg(unbound, func, self);
     Py_DECREF(func);
     if (res == NULL)
         return -1;
@@ -6265,7 +6307,8 @@ slot_tp_call(PyObject *self, PyObject *args, PyObject *kwds)
 {
     STACKLESS_GETARG();
     _Py_IDENTIFIER(__call__);
-    PyObject *meth = lookup_method(self, &PyId___call__);
+    int unbound;
+    PyObject *meth = lookup_method(self, &PyId___call__, &unbound);
     PyObject *res;
 
     if (meth == NULL)
@@ -6292,13 +6335,19 @@ slot_tp_call(PyObject *self, PyObject *args, PyObject *kwds)
         }
 #endif
     STACKLESS_PROMOTE_ALL();
-    res = PyObject_Call(meth, args, kwds);
+    if (unbound) {
+        res = _PyObject_Call_Prepend(meth, self, args, kwds);
+    }
+    else {
+        res = PyObject_Call(meth, args, kwds);
+    }
     STACKLESS_ASSERT();
 #ifdef STACKLESS
     /* see the assert above. */
     if (stackless)
         Py_LeaveRecursiveCall();
 #endif
+
     Py_DECREF(meth);
     return res;
 }
@@ -6424,15 +6473,18 @@ static PyObject *
 slot_tp_richcompare(PyObject *self, PyObject *other, int op)
 {
     STACKLESS_GETARG();
+    int unbound;
     PyObject *func, *res;
 
-    func = lookup_method(self, &name_op[op]);
+    func = lookup_method(self, &name_op[op], &unbound);
     if (func == NULL) {
         PyErr_Clear();
         Py_RETURN_NOTIMPLEMENTED;
     }
+
+    PyObject *args[1] = {other};
     STACKLESS_PROMOTE_ALL();
-    res = PyObject_CallFunctionObjArgs(func, other, NULL);
+    res = call_unbound(unbound, func, self, args, 1);
     STACKLESS_ASSERT();
     Py_DECREF(func);
     return res;
@@ -6442,10 +6494,11 @@ static PyObject *
 slot_tp_iter(PyObject *self)
 {
     STACKLESS_GETARG();
+    int unbound;
     PyObject *func, *res;
     _Py_IDENTIFIER(__iter__);
 
-    func = lookup_method(self, &PyId___iter__);
+    func = lookup_method(self, &PyId___iter__, &unbound);
     if (func == Py_None) {
         Py_DECREF(func);
         PyErr_Format(PyExc_TypeError,
@@ -6456,14 +6509,14 @@ slot_tp_iter(PyObject *self)
 
     if (func != NULL) {
         STACKLESS_PROMOTE_ALL();
-        res = _PyObject_CallNoArg(func);
+        res = call_unbound_noarg(unbound, func, self);
         STACKLESS_ASSERT();
         Py_DECREF(func);
         return res;
     }
 
     PyErr_Clear();
-    func = lookup_method(self, &PyId___getitem__);
+    func = lookup_method(self, &PyId___getitem__, &unbound);
     if (func == NULL) {
         PyErr_Format(PyExc_TypeError,
                      "'%.200s' object is not iterable",
@@ -6562,7 +6615,8 @@ slot_tp_init(PyObject *self, PyObject *args, PyObject *kwds)
 {
     STACKLESS_GETARG();
     _Py_IDENTIFIER(__init__);
-    PyObject *meth = lookup_method(self, &PyId___init__);
+    int unbound;
+    PyObject *meth = lookup_method(self, &PyId___init__, &unbound);
     PyObject *res;
 #ifdef STACKLESS
     PyCFrameObject *f = NULL;
@@ -6584,7 +6638,12 @@ slot_tp_init(PyObject *self, PyObject *args, PyObject *kwds)
     }
 #endif
     STACKLESS_PROMOTE_ALL();
-    res = PyObject_Call(meth, args, kwds);
+    if (unbound) {
+        res = _PyObject_Call_Prepend(meth, self, args, kwds);
+    }
+    else {
+        res = PyObject_Call(meth, args, kwds);
+    }
     STACKLESS_ASSERT();
     Py_DECREF(meth);
 #ifdef STACKLESS
@@ -6639,6 +6698,7 @@ slot_tp_finalize(PyObject *self)
 {
     STACKLESS_GETARG(); /* not supported */
     _Py_IDENTIFIER(__del__);
+    int unbound;
     PyObject *del, *res;
     PyObject *error_type, *error_value, *error_traceback;
 
@@ -6646,9 +6706,9 @@ slot_tp_finalize(PyObject *self)
     PyErr_Fetch(&error_type, &error_value, &error_traceback);
 
     /* Execute __del__ method, if any. */
-    del = lookup_maybe(self, &PyId___del__);
+    del = lookup_maybe_method(self, &PyId___del__, &unbound);
     if (del != NULL) {
-        res = PyEval_CallObject(del, NULL);
+        res = call_unbound_noarg(unbound, del, self);
         if (res == NULL)
             PyErr_WriteUnraisable(del);
         else
@@ -6664,12 +6724,13 @@ static PyObject *
 slot_am_await(PyObject *self)
 {
     STACKLESS_GETARG(); /* not supported */
+    int unbound;
     PyObject *func, *res;
     _Py_IDENTIFIER(__await__);
 
-    func = lookup_method(self, &PyId___await__);
+    func = lookup_method(self, &PyId___await__, &unbound);
     if (func != NULL) {
-        res = PyEval_CallObject(func, NULL);
+        res = call_unbound_noarg(unbound, func, self);
         Py_DECREF(func);
         return res;
     }
@@ -6683,12 +6744,13 @@ static PyObject *
 slot_am_aiter(PyObject *self)
 {
     STACKLESS_GETARG(); /* not supported */
+    int unbound;
     PyObject *func, *res;
     _Py_IDENTIFIER(__aiter__);
 
-    func = lookup_method(self, &PyId___aiter__);
+    func = lookup_method(self, &PyId___aiter__, &unbound);
     if (func != NULL) {
-        res = PyEval_CallObject(func, NULL);
+        res = call_unbound_noarg(unbound, func, self);
         Py_DECREF(func);
         return res;
     }
@@ -6702,12 +6764,13 @@ static PyObject *
 slot_am_anext(PyObject *self)
 {
     STACKLESS_GETARG(); /* not supported */
+    int unbound;
     PyObject *func, *res;
     _Py_IDENTIFIER(__anext__);
 
-    func = lookup_method(self, &PyId___anext__);
+    func = lookup_method(self, &PyId___anext__, &unbound);
     if (func != NULL) {
-        res = PyEval_CallObject(func, NULL);
+        res = call_unbound_noarg(unbound, func, self);
         Py_DECREF(func);
         return res;
     }
