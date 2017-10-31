@@ -306,7 +306,7 @@ comparable for equality.
 
 
 The :data:`Any` type
----------------------
+--------------------
 
 A special kind of type is :data:`Any`. A static type checker will treat
 every type as being compatible with :data:`Any` and :data:`Any` as being
@@ -638,7 +638,7 @@ The module defines the following classes, functions and decorators:
 
 .. class:: AsyncIterator(AsyncIterable[T_co])
 
-  A generic version of :class:`collections.abc.AsyncIterator`.
+   A generic version of :class:`collections.abc.AsyncIterator`.
 
 .. class:: ContextManager(Generic[T_co])
 
@@ -688,6 +688,39 @@ The module defines the following classes, functions and decorators:
           while True:
               yield start
               start += 1
+
+.. class:: AsyncGenerator(AsyncIterator[T_co], Generic[T_co, T_contra])
+
+   An async generator can be annotated by the generic type
+   ``AsyncGenerator[YieldType, SendType]``. For example::
+
+      async def echo_round() -> AsyncGenerator[int, float]:
+          sent = yield 0
+          while sent >= 0.0:
+              rounded = await round(sent)
+              sent = yield rounded
+
+   Unlike normal generators, async generators cannot return a value, so there
+   is no ``ReturnType`` type parameter. As with :class:`Generator`, the
+   ``SendType`` behaves contravariantly.
+
+   If your generator will only yield values, set the ``SendType`` to
+   ``None``::
+
+      async def infinite_stream(start: int) -> AsyncGenerator[int, None]:
+          while True:
+              yield start
+              start = await increment(start)
+
+   Alternatively, annotate your generator as having a return type of
+   either ``AsyncIterable[YieldType]`` or ``AsyncIterator[YieldType]``::
+
+      async def infinite_stream(start: int) -> AsyncIterator[int]:
+          while True:
+              yield start
+              start = await increment(start)
+
+   .. versionadded:: 3.5.4
 
 .. class:: Text
 

@@ -10,6 +10,8 @@ What's New in Python 3.7.0 alpha 1?
 Core and Builtins
 -----------------
 
+- Issue #29319: Prevent RunMainFromImporter overwriting sys.path[0].
+
 - Issue #29337: Fixed possible BytesWarning when compare the code objects.
   Warnings could be emitted at compile time.
 
@@ -222,6 +224,11 @@ Extension Modules
 
 Library
 -------
+
+- Issue #29416: Prevent infinite loop in pathlib.Path.mkdir
+
+- Issue #29444: Fixed out-of-bounds buffer access in the group() method of
+  the match object.  Based on patch by WGH.
 
 - Issue #29377: Add SlotWrapperType, MethodWrapperType, and
   MethodDescriptorType built-in types to types module.
@@ -691,6 +698,10 @@ Documentation
 Build
 -----
 
+- Issue #27659: Prohibit implicit C function declarations: use
+  -Werror=implicit-function-declaration when possible (GCC and Clang, but it
+  depends on the compiler version). Patch written by Chi Hsuan Yen.
+
 - Issue #29384: Remove old Be OS helper scripts.
 
 - Issue #26851: Set Android compilation and link flags.
@@ -865,6 +876,14 @@ Library
 
 Windows
 -------
+
+- Issue #29326: Ignores blank lines in ._pth files (Patch by Alexey Izbyshev)
+
+- Issue #28164: Correctly handle special console filenames (patch by Eryk Sun)
+
+- Issue #29409: Implement PEP 529 for io.FileIO (Patch by Eryk Sun)
+
+- Issue #29392: Prevent crash when passing invalid arguments into msvcrt module.
 
 - Issue #25778: winreg does not truncate string correctly (Patch by Eryk Sun)
 

@@ -234,7 +234,7 @@ set_add_entry(PySetObject *so, PyObject *key, Py_hash_t hash)
     so->used++;
     entry->key = key;
     entry->hash = hash;
-    if ((size_t)so->fill*3 < mask*2)
+    if ((size_t)so->fill*5 < mask*3)
         return 0;
     return set_table_resize(so, so->used);
 
@@ -642,7 +642,7 @@ set_merge(PySetObject *so, PyObject *otherset)
      * incrementally resizing as we insert new keys.  Expect
      * that there will be no (or few) overlapping keys.
      */
-    if ((so->fill + other->used)*3 >= so->mask*2) {
+    if ((so->fill + other->used)*5 >= so->mask*3) {
        if (set_table_resize(so, so->used + other->used) != 0)
            return -1;
     }
@@ -986,7 +986,7 @@ set_update_internal(PySetObject *so, PyObject *other)
         */
         if (dictsize < 0)
             return -1;
-        if ((so->fill + dictsize)*3 >= so->mask*2) {
+        if ((so->fill + dictsize)*5 >= so->mask*3) {
             if (set_table_resize(so, so->used + dictsize) != 0)
                 return -1;
         }
@@ -1084,8 +1084,7 @@ frozenset_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
     PyObject *iterable = NULL, *result;
 
-    if (kwds != NULL && type == &PyFrozenSet_Type
-        && !_PyArg_NoKeywords("frozenset()", kwds))
+    if (type == &PyFrozenSet_Type && !_PyArg_NoKeywords("frozenset()", kwds))
         return NULL;
 
     if (!PyArg_UnpackTuple(args, type->tp_name, 0, 1, &iterable))
@@ -2002,7 +2001,7 @@ set_init(PySetObject *self, PyObject *args, PyObject *kwds)
 {
     PyObject *iterable = NULL;
 
-    if (kwds != NULL && !_PyArg_NoKeywords("set()", kwds))
+    if (!_PyArg_NoKeywords("set()", kwds))
         return -1;
     if (!PyArg_UnpackTuple(args, Py_TYPE(self)->tp_name, 0, 1, &iterable))
         return -1;
