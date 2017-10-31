@@ -312,7 +312,7 @@ _PyCFunction_FastCallKeywords(PyObject *func_obj, PyObject **args,
     func = (PyCFunctionObject*)func_obj;
     meth = PyCFunction_GET_FUNCTION(func);
     self = PyCFunction_GET_SELF(func);
-    flags = PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST);
+    flags = PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_STACKLESS);
 
     switch (flags)
     {
@@ -328,6 +328,7 @@ _PyCFunction_FastCallKeywords(PyObject *func_obj, PyObject **args,
             goto no_keyword_error;
         }
 
+        STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS);
         result = (*meth) (self, NULL);
         break;
 
@@ -343,11 +344,13 @@ _PyCFunction_FastCallKeywords(PyObject *func_obj, PyObject **args,
             goto no_keyword_error;
         }
 
+        STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS);
         result = (*meth) (self, args[0]);
         break;
 
     case METH_FASTCALL:
         /* Fast-path: avoid temporary dict to pass keyword arguments */
+        STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS);
         result = ((_PyCFunctionFast)meth) (self, args, nargs, kwnames);
         break;
 
@@ -381,10 +384,12 @@ _PyCFunction_FastCallKeywords(PyObject *func_obj, PyObject **args,
                 kwdict = NULL;
             }
 
+            STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS);
             result = (*(PyCFunctionWithKeywords)meth) (self, argtuple, kwdict);
             Py_XDECREF(kwdict);
         }
         else {
+            STACKLESS_PROMOTE_FLAG(PyCFunction_GET_FLAGS(func) & METH_STACKLESS);
             result = (*meth) (self, argtuple);
         }
         Py_DECREF(argtuple);
@@ -397,6 +402,7 @@ _PyCFunction_FastCallKeywords(PyObject *func_obj, PyObject **args,
                         "METH_OLDARGS is no longer supported!");
         return NULL;
     }
+    STACKLESS_ASSERT();
 
     result = _Py_CheckFunctionResult(func_obj, result, NULL);
     return result;
