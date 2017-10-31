@@ -2785,8 +2785,8 @@ _PyObject_CallMethodId_SizeT(PyObject *obj, _Py_Identifier *name,
     return retval;
 }
 
-PyObject *
-_PyObject_VaCallFunctionObjArgs(PyObject *callable, va_list vargs)
+static PyObject *
+object_vacall(PyObject *callable, va_list vargs)
 {
     STACKLESS_GETARG();
     PyObject *small_stack[_PY_FASTCALL_SMALL_STACK];
@@ -2857,7 +2857,7 @@ PyObject_CallMethodObjArgs(PyObject *callable, PyObject *name, ...)
 
     STACKLESS_PROMOTE_ALL();
     va_start(vargs, name);
-    result = _PyObject_VaCallFunctionObjArgs(callable, vargs);
+    result = object_vacall(callable, vargs);
     va_end(vargs);
     STACKLESS_ASSERT();
 
@@ -2884,7 +2884,7 @@ _PyObject_CallMethodIdObjArgs(PyObject *obj,
 
     STACKLESS_PROMOTE_ALL();
     va_start(vargs, name);
-    result = _PyObject_VaCallFunctionObjArgs(callable, vargs);
+    result = object_vacall(callable, vargs);
     va_end(vargs);
     STACKLESS_ASSERT();
 
@@ -2899,7 +2899,7 @@ PyObject_CallFunctionObjArgs(PyObject *callable, ...)
     PyObject *result;
 
     va_start(vargs, callable);
-    result = _PyObject_VaCallFunctionObjArgs(callable, vargs);
+    result = object_vacall(callable, vargs);
     va_end(vargs);
 
     return result;
