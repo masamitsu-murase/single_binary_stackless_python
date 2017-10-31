@@ -5203,14 +5203,7 @@ PyEval_CallObjectWithKeywords(PyObject *func, PyObject *args, PyObject *kwargs)
     assert(!PyErr_Occurred());
 #endif
 
-    if (args == NULL) {
-        STACKLESS_PROMOTE_ALL();
-        result = _PyObject_FastCallDict(func, NULL, 0, kwargs);
-        STACKLESS_ASSERT();
-        return result;
-    }
-
-    if (!PyTuple_Check(args)) {
+    if (args != NULL && !PyTuple_Check(args)) {
         PyErr_SetString(PyExc_TypeError,
                         "argument list must be a tuple");
         return NULL;
@@ -5223,7 +5216,12 @@ PyEval_CallObjectWithKeywords(PyObject *func, PyObject *args, PyObject *kwargs)
     }
 
     STACKLESS_PROMOTE_ALL();
-    result = PyObject_Call(func, args, kwargs);
+    if (args == NULL) {
+        result = _PyObject_FastCallDict(func, NULL, 0, kwargs);
+    }
+    else {
+        result = PyObject_Call(func, args, kwargs);
+    }
     STACKLESS_ASSERT();
 
     return result;
