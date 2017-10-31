@@ -256,6 +256,7 @@ _PyMethodDescr_FastCallKeywords(PyObject *descrobj,
                                 PyObject **args, Py_ssize_t nargs,
                                 PyObject *kwnames)
 {
+    STACKLESS_GETARG();
     assert(Py_TYPE(descrobj) == &PyMethodDescr_Type);
     PyMethodDescrObject *descr = (PyMethodDescrObject *)descrobj;
     PyObject *self, *result;
@@ -282,8 +283,10 @@ _PyMethodDescr_FastCallKeywords(PyObject *descrobj,
         return NULL;
     }
 
+    STACKLESS_PROMOTE_ALL();
     result = _PyMethodDef_RawFastCallKeywords(descr->d_method, self,
                                               args+1, nargs-1, kwnames);
+    STACKLESS_ASSERT();
     result = _Py_CheckFunctionResult((PyObject *)descr, result, NULL);
     return result;
 }
