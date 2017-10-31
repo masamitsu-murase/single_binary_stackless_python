@@ -3509,6 +3509,12 @@ stackless_with_cleanup_return:
                 res = call_function(&sp, oparg + 1, NULL);
                 stack_pointer = sp;
             }
+#ifdef STACKLESS
+            if (STACKLESS_UNWINDING(res)) {
+                retval = res;
+                goto stackless_call;
+            }
+#endif
 
             PUSH(res);
             if (res == NULL)
