@@ -959,10 +959,11 @@ def temp_dir(path=None, quiet=False):
         try:
             os.mkdir(path)
             dir_created = True
-        except OSError:
+        except OSError as exc:
             if not quiet:
                 raise
-            warnings.warn('tests may fail, unable to create temp dir: ' + path,
+            warnings.warn(f'tests may fail, unable to create '
+                          f'temporary directory {path!r}: {exc}',
                           RuntimeWarning, stacklevel=3)
     if dir_created:
         pid = os.getpid()
@@ -988,10 +989,11 @@ def change_cwd(path, quiet=False):
     saved_dir = os.getcwd()
     try:
         os.chdir(path)
-    except OSError:
+    except OSError as exc:
         if not quiet:
             raise
-        warnings.warn('tests may fail, unable to change CWD to: ' + path,
+        warnings.warn(f'tests may fail, unable to change the current working '
+                      f'directory to {path!r}: {exc}',
                       RuntimeWarning, stacklevel=3)
     try:
         yield os.getcwd()
