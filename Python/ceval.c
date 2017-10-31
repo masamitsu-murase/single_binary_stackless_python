@@ -4013,7 +4013,7 @@ stackless_interrupt_call:
 /* a global write only dummy variable */
 char _dont_optimise_away_slp_eval_frame_functions;
 
-PyObject *
+PyObject * _Py_HOT_FUNCTION
 slp_eval_frame_noval(PyFrameObject *f, int throwflag, PyObject *retval)
 {
     PyObject *r;
@@ -4072,13 +4072,13 @@ slp_eval_frame_with_cleanup(PyFrameObject *f, int throwflag, PyObject *retval)
     return r;
 }
 
-PyObject *
+PyObject * _Py_HOT_FUNCTION
 _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
 {
     return PyEval_EvalFrameEx_slp(f, throwflag, NULL);
 }
 
-PyObject *
+PyObject * _Py_HOT_FUNCTION
 PyEval_EvalFrameEx_slp(PyFrameObject *f, int throwflag, PyObject *retval)
 {
     PyThreadState *tstate = PyThreadState_GET();

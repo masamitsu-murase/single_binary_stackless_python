@@ -1004,7 +1004,7 @@ PyUnwindObject *Py_UnwindToken = &unwind_token;
     The "Mario" code if you know that game :-)
  */
 
-PyObject *
+PyObject * _Py_HOT_FUNCTION
 slp_frame_dispatch(PyFrameObject *f, PyFrameObject *stopframe, int exc, PyObject *retval)
 {
     PyThreadState *ts = PyThreadState_GET();
