@@ -10,6 +10,9 @@ What's New in Python 3.7.0 alpha 1
 Core and Builtins
 -----------------
 
+- Issue #5322: Fixed setting __new__ to a PyCFunction inside Python code.
+  Original patch by Andreas Stührk.
+
 - Issue #23722: Rather than silently producing a class that doesn't support
   zero-argument ``super()`` in methods, failing to pass the new
   ``__classcell__`` namespace entry up to ``type.__new__`` now results in a
@@ -164,6 +167,11 @@ Core and Builtins
 
 Library
 -------
+
+- Issue #28847: dbm.dumb now supports reading read-only files and no longer
+  writes the index file when it is not changed.  A deprecation warning is now
+  emitted if the index file is missed and recreated in the 'r' and 'w' modes
+  (will be an error in future Python releases).
 
 - Issue #27030: Unknown escapes consisting of ``'\'`` and an ASCII letter in
   re.sub() replacement templates regular expressions now are errors.
@@ -449,6 +457,8 @@ Library
 Windows
 -------
 
+- Issue #28896: Deprecate WindowsRegistryFinder
+
 - Issue #28522: Fixes mishandled buffer reallocation in getpathp.c
 
 - Issue #28402: Adds signed catalog files for stdlib on Windows.
@@ -570,6 +580,9 @@ Tests
 - Issue #28409: regrtest: fix the parser of command line arguments.
 
 - Issue #28217: Adds _testconsole module to test console input.
+
+- Issue #26939: Add the support.setswitchinterval() function to fix
+  test_functools hanging on the Android armv7 qemu emulator.
 
 
 What's New in Python 3.6.0 beta 1
