@@ -4615,6 +4615,12 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
          * when the generator is resumed. */
         Py_CLEAR(f->f_back);
 
+#ifdef STACKLESS
+        /* Stackless calls need GC. */
+        assert(!_PyObject_GC_IS_TRACKED(f));
+        _PyObject_GC_TRACK(f);
+#endif
+
         /* Create a new generator that owns the ready to run frame
          * and return that as the value. */
         if (is_coro) {
@@ -4642,6 +4648,8 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
     if (stackless) {
         Py_INCREF(Py_None);
         retval = Py_None;
+        assert(!_PyObject_GC_IS_TRACKED(f));
+        _PyObject_GC_TRACK(f);
         SLP_STORE_NEXT_FRAME(tstate, f);
         Py_DECREF(f);
         return STACKLESS_PACK(tstate, retval);
@@ -4659,8 +4667,6 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
         else {
             retval = slp_eval_frame(f);
         }
-        Py_DECREF(f);
-        return retval;
     }
 #else
     retval = PyEval_EvalFrameEx(f,0);
@@ -5455,6 +5461,8 @@ _PyFunction_FastCall(PyCodeObject *co, PyObject **args, Py_ssize_t nargs,
     if (stackless) {
         Py_INCREF(Py_None);
         result = Py_None;
+        assert(!_PyObject_GC_IS_TRACKED(f));
+        _PyObject_GC_TRACK(f);
         SLP_STORE_NEXT_FRAME(tstate, f);
         Py_DECREF(f);
         return STACKLESS_PACK(tstate, result);
