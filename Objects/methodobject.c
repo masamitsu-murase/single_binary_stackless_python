@@ -106,6 +106,14 @@ _PyMethodDef_RawFastCallDict(PyMethodDef *method, PyObject *self, PyObject **arg
     int flags = method->ml_flags & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_STACKLESS);
     PyObject *result = NULL;
 
+#ifdef STACKLESS
+    /* only do recursion adjustment if there is no danger
+     * of soft-switching, i.e. if we are not being called by
+     * run_cframe.  Were a soft-switch to occur, the re-adjustment
+     * of the recursion depth would happen for the wrong frame.
+     */
+    if (!stackless)
+#endif
     if (Py_EnterRecursiveCall(" while calling a Python object")) {
         return NULL;
     }
@@ -205,6 +213,14 @@ no_keyword_error:
                  method->ml_name, nargs);
 
 exit:
+#ifdef STACKLESS
+    /* only do recursion adjustment if there is no danger
+     * of soft-switching, i.e. if we are not being called by
+     * run_cframe.  Were a soft-switch to occur, the re-adjustment
+     * of the recursion depth would happen for the wrong frame.
+     */
+    if (!stackless)
+#endif
     Py_LeaveRecursiveCall();
     return result;
 }
@@ -246,6 +262,14 @@ _PyMethodDef_RawFastCallKeywords(PyMethodDef *method, PyObject *self, PyObject *
     Py_ssize_t nkwargs = kwnames == NULL ? 0 : PyTuple_Size(kwnames);
     PyObject *result = NULL;
 
+#ifdef STACKLESS
+    /* only do recursion adjustment if there is no danger
+     * of soft-switching, i.e. if we are not being called by
+     * run_cframe.  Were a soft-switch to occur, the re-adjustment
+     * of the recursion depth would happen for the wrong frame.
+     */
+    if (!stackless)
+#endif
     if (Py_EnterRecursiveCall(" while calling a Python object")) {
         return NULL;
     }
@@ -348,6 +372,14 @@ no_keyword_error:
                  method->ml_name);
 
 exit:
+#ifdef STACKLESS
+    /* only do recursion adjustment if there is no danger
+     * of soft-switching, i.e. if we are not being called by
+     * run_cframe.  Were a soft-switch to occur, the re-adjustment
+     * of the recursion depth would happen for the wrong frame.
+     */
+    if (!stackless)
+#endif
     Py_LeaveRecursiveCall();
     return result;
 }

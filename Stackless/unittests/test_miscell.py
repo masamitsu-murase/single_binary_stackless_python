@@ -65,7 +65,7 @@ class TestWatchdog(StacklessTestCase):
         self.assertTrue(t.alive)
         self.assertTrue(t.paused)
         self.assertFalse(t.scheduled)
-        self.assertEqual(t.recursion_depth, softSwitching and 1 or 2)
+        self.assertEqual(t.recursion_depth, 1)
 
         # Push back onto queue
         t.insert()
@@ -114,7 +114,7 @@ class TestWatchdog(StacklessTestCase):
         self.assertTrue(t.alive)
         self.assertTrue(t.paused)
         self.assertFalse(t.scheduled)
-        self.assertEqual(t.recursion_depth, softSwitching and 1 or 2)
+        self.assertEqual(t.recursion_depth, 1)
 
         # Now save & load
         dumped = self.dumps(t)
