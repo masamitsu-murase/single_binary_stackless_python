@@ -3510,7 +3510,6 @@ excess_args(PyObject *args, PyObject *kwds)
 }
 
 #ifdef STACKLESS
-PyObject * generic_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 int generic_init(PyObject *ob, PyObject *args, PyObject *kwds);
 #endif
 
