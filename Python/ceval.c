@@ -3621,7 +3621,7 @@ stackless_call_return:
 #ifdef STACKLESS
             if (STACKLESS_UNWINDING(result)) {
                 retval = result;
-                POP();  /* compensate for the PUSH(res) after label stackless_call_return: */
+                (void) POP();  /* compensate for the PUSH(res) after label stackless_call_return: */
                 goto stackless_call;
             }
 #endif

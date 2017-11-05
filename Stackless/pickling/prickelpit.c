@@ -1702,16 +1702,20 @@ static int init_methodwrappertype(void)
 static PyTypeObject wrap_PyGen_Type;
 static PyTypeObject wrap_PyCoro_Type;
 
-/* Used to initialize a generator created by gen_new. 
-   Also assert, that the size of generator and coroutines is equal. */
-static PyFrameObject *gen_exhausted_frame = \
-Py_BUILD_ASSERT_EXPR(sizeof(PyGenObject) == sizeof(PyCoroObject)); /* value is 0 */
+/* Used to initialize a generator created by gen_new. */
+static PyFrameObject *gen_exhausted_frame = NULL;
 
+/* The usual reduce method.
+ * Also assert at compile time, that the size of generator and coroutines is
+ * equal.
+ */
 static PyObject *
 _gen_reduce(PyTypeObject *type, PyGenObject *gen)
 {
     PyObject *tup;
     PyObject *frame_reducer = (PyObject *)gen->gi_frame;
+    Py_BUILD_ASSERT(sizeof(PyGenObject) == sizeof(PyCoroObject));
+
     if (frame_reducer == NULL) {
         /* Pickle NULL as None. See gen_setstate() for the corresponding
          * unpickling code. */
