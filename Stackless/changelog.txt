@@ -9,6 +9,9 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://github.com/stackless-dev/stackless/issues/141
+  Call Py_DECREF(frame) with the right recursion_depth.
+
 - https://github.com/stackless-dev/stackless/issues/137
   C-API: All functions of the form Py{Object, Function, CFunction}_*Call* now
   use STACKLESS_PROMOTE_xxx internally and may be called with
