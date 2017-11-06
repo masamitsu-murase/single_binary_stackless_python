@@ -49,9 +49,15 @@ Core and Builtins
 Library
 -------
 
-- bpo-29406: asyncio SSL contexts leak sockets after calling close with
-  certain servers.
-  Patch by Nikolay Kim
+- bpo-28994: The traceback no longer displayed for SystemExit raised in
+  a callback registered by atexit.
+
+- bpo-30508: Don't log exceptions if Task/Future "cancel()" method was
+  called.
+
+- bpo-28556: Updates to typing module: Add generic AsyncContextManager, add
+  support for ContextManager on all versions. Original PRs by Jelle Zijlstra
+  and Ivan Levkivskyi
 
 - bpo-29870: Fix ssl sockets leaks when connection is aborted in asyncio/ssl
   implementation. Patch by Michaël Sghaïer.
@@ -194,6 +200,20 @@ Library
 - bpo-29615: SimpleXMLRPCDispatcher no longer chains KeyError (or any other
   exception) to exception(s) raised in the dispatched methods.
   Patch by Petr Motejlek.
+
+- bpo-30177: path.resolve(strict=False) no longer cuts the path after the first
+  element not present in the filesystem.  Patch by Antoine Pietri.
+
+IDLE
+----
+
+- bpo-30290: Help-about: use pep8 names and add tests.
+  Increase coverage to 100%.
+  Patches by Louie Lu, Cheryl Sabella, and Terry Jan Reedy.
+
+- bpo-30303: Add _utest option to textview; add new tests.
+  Increase coverage to 100%.
+  Patches by Louie Lu and Terry Jan Reedy.
 
 C API
 -----
@@ -487,6 +507,14 @@ Library
 - Issue #26937: The chown() method of the tarfile.TarFile class does not fail
   now when the grp module cannot be imported, as for example on Android
   platforms.
+
+IDLE
+----
+
+- Issue #29071: IDLE colors f-string prefixes (but not invalid ur prefixes).
+
+- Issue #28572: Add 10% to coverage of IDLE's test_configdialog.
+  Update and augment description of the configuration system.
 
 Windows
 -------
