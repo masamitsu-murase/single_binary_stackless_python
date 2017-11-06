@@ -21,11 +21,18 @@ try:
     import ctypes
 except ImportError:
     ctypes = None
+else:
+    import ctypes.util
 
 try:
     import threading
 except ImportError:
     threading = None
+
+try:
+    import _testcapi
+except ImportError:
+    _testcapi = None
 
 if support.PGO:
     raise unittest.SkipTest("test is not helpful for PGO")
@@ -42,6 +49,8 @@ if mswindows:
 else:
     SETBINARY = ''
 
+NONEXISTING_CMD = ('nonexisting_i_hope',)
+
 
 class BaseTestCase(unittest.TestCase):
     def setUp(self):
@@ -54,6 +63,8 @@ class BaseTestCase(unittest.TestCase):
             inst.wait()
         subprocess._cleanup()
         self.assertFalse(subprocess._active, "subprocess._active not empty")
+        self.doCleanups()
+        support.reap_children()
 
     def assertStderrEqual(self, stderr, expected, msg=None):
         # In a debug build, stuff like "[6580 refs]" is printed to stderr at
@@ -1111,10 +1122,11 @@ class ProcessTestCase(BaseTestCase):
             p.stdin.write(line) # expect that it flushes the line in text mode
             os.close(p.stdin.fileno()) # close it without flushing the buffer
             read_line = p.stdout.readline()
-            try:
-                p.stdin.close()
-            except OSError:
-                pass
+            with support.SuppressCrashReport():
+                try:
+                    p.stdin.close()
+                except OSError:
+                    pass
             p.stdin = None
         self.assertEqual(p.returncode, 0)
         self.assertEqual(read_line, expected)
@@ -1139,12 +1151,53 @@ class ProcessTestCase(BaseTestCase):
         # 1024 times (each call leaked two fds).
         for i in range(1024):
             with self.assertRaises(OSError) as c:
-                subprocess.Popen(['nonexisting_i_hope'],
+                subprocess.Popen(NONEXISTING_CMD,
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE)
             # ignore errors that indicate the command was not found
             if c.exception.errno not in (errno.ENOENT, errno.EACCES):
                 raise c.exception
+
+    def test_nonexisting_with_pipes(self):
+        # bpo-30121: Popen with pipes must close properly pipes on error.
+        # Previously, os.close() was called with a Windows handle which is not
+        # a valid file descriptor.
+        #
+        # Run the test in a subprocess to control how the CRT reports errors
+        # and to get stderr content.
+        try:
+            import msvcrt
+            msvcrt.CrtSetReportMode
+        except (AttributeError, ImportError):
+            self.skipTest("need msvcrt.CrtSetReportMode")
+
+        code = textwrap.dedent(f"""
+            import msvcrt
+            import subprocess
+
+            cmd = {NONEXISTING_CMD!r}
+
+            for report_type in [msvcrt.CRT_WARN,
+                                msvcrt.CRT_ERROR,
+                                msvcrt.CRT_ASSERT]:
+                msvcrt.CrtSetReportMode(report_type, msvcrt.CRTDBG_MODE_FILE)
+                msvcrt.CrtSetReportFile(report_type, msvcrt.CRTDBG_FILE_STDERR)
+
+            try:
+                subprocess.Popen([cmd],
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE)
+            except OSError:
+                pass
+        """)
+        cmd = [sys.executable, "-c", code]
+        proc = subprocess.Popen(cmd,
+                                stderr=subprocess.PIPE,
+                                universal_newlines=True)
+        with proc:
+            stderr = proc.communicate()[1]
+        self.assertEqual(stderr, "")
+        self.assertEqual(proc.returncode, 0)
 
     @unittest.skipIf(threading is None, "threading required")
     def test_double_close_on_error(self):
@@ -1158,7 +1211,7 @@ class ProcessTestCase(BaseTestCase):
         t.start()
         try:
             with self.assertRaises(EnvironmentError):
-                subprocess.Popen(['nonexisting_i_hope'],
+                subprocess.Popen(NONEXISTING_CMD,
                                  stdin=subprocess.PIPE,
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE)
@@ -2424,7 +2477,7 @@ class POSIXProcessTestCase(BaseTestCase):
         # should trigger the wait() of p
         time.sleep(0.2)
         with self.assertRaises(OSError) as c:
-            with subprocess.Popen(['nonexisting_i_hope'],
+            with subprocess.Popen(NONEXISTING_CMD,
                                   stdout=subprocess.PIPE,
                                   stderr=subprocess.PIPE) as proc:
                 pass
@@ -2565,45 +2618,24 @@ class POSIXProcessTestCase(BaseTestCase):
             proc.communicate(timeout=999)
             mock_proc_stdin.close.assert_called_once_with()
 
-    _libc_file_extensions = {
-      'Linux': 'so.6',
-      'Darwin': 'dylib',
-    }
-    @unittest.skipIf(not ctypes, 'ctypes module required.')
-    @unittest.skipIf(platform.uname()[0] not in _libc_file_extensions,
-                     'Test requires a libc this code can load with ctypes.')
-    @unittest.skipIf(not sys.executable, 'Test requires sys.executable.')
-    def test_child_terminated_in_stopped_state(self):
+    @unittest.skipUnless(_testcapi is not None
+                         and hasattr(_testcapi, 'W_STOPCODE'),
+                         'need _testcapi.W_STOPCODE')
+    def test_stopped(self):
         """Test wait() behavior when waitpid returns WIFSTOPPED; issue29335."""
-        PTRACE_TRACEME = 0  # From glibc and MacOS (PT_TRACE_ME).
-        libc_name = 'libc.' + self._libc_file_extensions[platform.uname()[0]]
-        libc = ctypes.CDLL(libc_name)
-        if not hasattr(libc, 'ptrace'):
-            raise unittest.SkipTest('ptrace() required.')
-        test_ptrace = subprocess.Popen(
-            [sys.executable, '-c', """if True:
-             import ctypes
-             libc = ctypes.CDLL({libc_name!r})
-             libc.ptrace({PTRACE_TRACEME}, 0, 0)
-             """.format(libc_name=libc_name, PTRACE_TRACEME=PTRACE_TRACEME)
-            ])
-        if test_ptrace.wait() != 0:
-            raise unittest.SkipTest('ptrace() failed - unable to test.')
-        child = subprocess.Popen(
-            [sys.executable, '-c', """if True:
-             import ctypes
-             libc = ctypes.CDLL({libc_name!r})
-             libc.ptrace({PTRACE_TRACEME}, 0, 0)
-             libc.printf(ctypes.c_char_p(0xdeadbeef))  # Crash the process.
-             """.format(libc_name=libc_name, PTRACE_TRACEME=PTRACE_TRACEME)
-            ])
-        try:
-            returncode = child.wait()
-        except Exception as e:
-            child.kill()  # Clean up the hung stopped process.
-            raise e
-        self.assertNotEqual(0, returncode)
-        self.assertLess(returncode, 0)  # signal death, likely SIGSEGV.
+        args = [sys.executable, '-c', 'pass']
+        proc = subprocess.Popen(args)
+
+        # Wait until the real process completes to avoid zombie process
+        pid = proc.pid
+        pid, status = os.waitpid(pid, 0)
+        self.assertEqual(status, 0)
+
+        status = _testcapi.W_STOPCODE(3)
+        with mock.patch('subprocess.os.waitpid', return_value=(pid, status)):
+            returncode = proc.wait()
+
+        self.assertEqual(returncode, -3)
 
 
 @unittest.skipUnless(mswindows, "Windows specific tests")
@@ -2875,7 +2907,7 @@ class ContextManagerTests(BaseTestCase):
 
     def test_invalid_args(self):
         with self.assertRaises((FileNotFoundError, PermissionError)) as c:
-            with subprocess.Popen(['nonexisting_i_hope'],
+            with subprocess.Popen(NONEXISTING_CMD,
                                   stdout=subprocess.PIPE,
                                   stderr=subprocess.PIPE) as proc:
                 pass
