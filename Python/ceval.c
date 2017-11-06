@@ -3998,7 +3998,7 @@ stackless_call:
     /* Set f->f_lasti to the instruction before the current one or to the
      * first instruction (-1). See "f->f_lasti refers to ..." above.
      */
-    f->f_lasti = INSTR_OFFSET() ?
+    f->f_lasti = INSTR_OFFSET() != 0 ?
             assert(INSTR_OFFSET() >= sizeof(_Py_CODEUNIT)),
             (int)(INSTR_OFFSET() - sizeof(_Py_CODEUNIT)) : -1;
     if (SLP_PEEK_NEXT_FRAME(tstate)->f_back != f)
@@ -4049,7 +4049,7 @@ stackless_interrupt_call:
     /* Set f->f_lasti to the instruction before the current one or to the
      * first instruction (-1). See "f->f_lasti refers to ..." above.
      */
-    f->f_lasti = INSTR_OFFSET() ?
+    f->f_lasti = INSTR_OFFSET() != 0 ?
             assert(INSTR_OFFSET() >= sizeof(_Py_CODEUNIT)),
             (int)(INSTR_OFFSET() - sizeof(_Py_CODEUNIT)) : -1;
     return (PyObject *) Py_UnwindToken;
