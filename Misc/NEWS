@@ -1,14 +1,54 @@
-﻿+++++++++++
++++++++++++
 Python News
 +++++++++++
+
+What's New in Python 3.6.2?
+===========================
+
+*Release date: 2017-07-17*
+
+- No changes since release candidate 2
+
+
+What's New in Python 3.6.2 release candidate 2?
+===============================================
+
+*Release date: 2017-07-07*
+
+Core and Builtins
+-----------------
+
+Library
+-------
+
+- [Security] bpo-30730: Prevent environment variables injection in subprocess on
+  Windows.  Prevent passing other environment variables and command arguments.
+
+- [Security] bpo-30694: Upgrade expat copy from 2.2.0 to 2.2.1 to get fixes
+  of multiple security vulnerabilities including: CVE-2017-9233 (External
+  entity infinite loop DoS), CVE-2016-9063 (Integer overflow, re-fix),
+  CVE-2016-0718 (Fix regression bugs from 2.2.0's fix to CVE-2016-0718)
+  and CVE-2012-0876 (Counter hash flooding with SipHash).
+  Note: the CVE-2016-5300 (Use os-specific entropy sources like getrandom)
+  doesn't impact Python, since Python already gets entropy from the OS to set
+  the expat secret using ``XML_SetHashSalt()``.
+
+- [Security] bpo-30500: Fix urllib.parse.splithost() to correctly parse
+  fragments. For example, ``splithost('//127.0.0.1#@evil.com/')`` now
+  correctly returns the ``127.0.0.1`` host, instead of treating ``@evil.com``
+  as the host in an authentification (``login@host``).
+
 
 What's New in Python 3.6.2 release candidate 1?
 ===============================================
 
-*Release date: XXXX-XX-XX*
+*Release date: 2017-06-17*
 
 Core and Builtins
 -----------------
+
+- bpo-30682: Removed a too-strict assertion that failed for certain f-strings,
+  such as eval("f'\\\n'") and eval("f'\\\r'").
 
 - bpo-30604: Move co_extra_freefuncs to not be per-thread to avoid crashes
 
@@ -48,8 +88,35 @@ Core and Builtins
 - bpo-29714: Fix a regression that bytes format may fail when containing zero
   bytes inside.
 
+- bpo-29478: If max_line_length=None is specified while using the Compat32 policy,
+  it is no longer ignored.  Patch by Mircea Cosbuc.
+
 Library
 -------
+
+- bpo-30038: Fix race condition between signal delivery and wakeup file
+  descriptor.  Patch by Nathaniel Smith.
+
+- bpo-23894: lib2to3 now recognizes ``rb'...'`` and ``f'...'`` strings.
+
+- bpo-23890: unittest.TestCase.assertRaises() now manually breaks a reference
+  cycle to not keep objects alive longer than expected.
+
+- bpo-30149: inspect.signature() now supports callables with
+  variable-argument parameters wrapped with partialmethod.
+  Patch by Dong-hee Na.
+
+- bpo-29931: Fixed comparison check for ipaddress.ip_interface objects.
+  Patch by Sanjay Sundaresan.
+
+- bpo-30605: re.compile() no longer raises a BytesWarning when compiling a
+  bytes instance with misplaced inline modifier.  Patch by Roy Williams.
+
+- [Security] bpo-29591: Update expat copy from 2.1.1 to 2.2.0 to get fixes
+  of CVE-2016-0718 and CVE-2016-4472. See
+  https://sourceforge.net/p/expat/bugs/537/ for more information.
+
+- bpo-24484: Avoid race condition in multiprocessing cleanup (#2159)
 
 - bpo-28994: The traceback no longer displayed for SystemExit raised in
   a callback registered by atexit.
@@ -209,6 +276,20 @@ Library
 IDLE
 ----
 
+- bpo-15786: Fix several problems with IDLE's autocompletion box.
+  The following should now work: clicking on selection box items;
+  using the scrollbar; selecting an item by hitting Return.
+  Hangs on MacOSX should no longer happen. Patch by Louie Lu.
+
+- bpo-25514: Add doc subsubsection about IDLE failure to start.
+  Popup no-connection message directs users to this section.
+
+- bpo-30642: Fix reference leaks in IDLE tests.
+  Patches by Louie Lu and Terry Jan Reedy.
+
+- bpo-30495: Add docstrings for textview.py and use PEP8 names.
+  Patches by Cheryl Sabella and Terry Jan Reedy.
+
 - bpo-30290: Help-about: use pep8 names and add tests.
   Increase coverage to 100%.
   Patches by Louie Lu, Cheryl Sabella, and Terry Jan Reedy.
@@ -247,6 +328,8 @@ Build
 Documentation
 -------------
 
+- bpo-30176: Add missing attribute related constants in curses documentation.
+
 - Issue #30052: the link targets for :func:`bytes` and
   :func:`bytearray` are now their respective type definitions, rather
   than the corresponding builtin function entries. Use :ref:`bytes <func-bytes>`
@@ -267,7 +350,7 @@ Tools/Demos
 Tests
 -----
 
-* bpo-30357: test_thread: setUp() now uses support.threading_setup() and
+- bpo-30357: test_thread: setUp() now uses support.threading_setup() and
   support.threading_cleanup() to wait until threads complete to avoid
   random side effects on following tests. Initial patch written by Grzegorz
   Grzywacz.
@@ -277,6 +360,17 @@ Tests
   inside the with statement.  The old value of the attribute or item (or None
   if it doesn't exist) now will be assigned to the target of the "as" clause,
   if there is one.
+
+Windows
+-------
+
+- bpo-30687: Locate msbuild.exe on Windows when building rather than
+  vcvarsall.bat
+
+- bpo-30450: The build process on Windows no longer depends on Subversion,
+  instead pulling external code from GitHub via a Python script.  If Python 3.6
+  is not found on the system (via ``py -3.6``), NuGet is used to download a
+  copy of 32-bit Python.
 
 
 What's New in Python 3.6.1?
