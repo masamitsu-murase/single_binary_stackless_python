@@ -610,7 +610,8 @@ form.
    This flag allows you to write regular expressions that look nicer and are
    more readable by allowing you to visually separate logical sections of the
    pattern and add comments. Whitespace within the pattern is ignored, except
-   when in a character class or when preceded by an unescaped backslash.
+   when in a character class, or when preceded by an unescaped backslash,
+   or within tokens like ``*?``, ``(?:`` or ``(?P<...>``.
    When a line contains a ``#`` that is not in a character class and is not
    preceded by an unescaped backslash, all characters from the leftmost such
    ``#`` through the end of the line are ignored.
@@ -667,11 +668,11 @@ form.
    splits occur, and the remainder of the string is returned as the final element
    of the list. ::
 
-      >>> re.split('\W+', 'Words, words, words.')
+      >>> re.split(r'\W+', 'Words, words, words.')
       ['Words', 'words', 'words', '']
-      >>> re.split('(\W+)', 'Words, words, words.')
+      >>> re.split(r'(\W+)', 'Words, words, words.')
       ['Words', ', ', 'words', ', ', 'words', '.', '']
-      >>> re.split('\W+', 'Words, words, words.', 1)
+      >>> re.split(r'\W+', 'Words, words, words.', 1)
       ['Words', 'words, words.']
       >>> re.split('[a-f]+', '0a3B9', flags=re.IGNORECASE)
       ['0', '3', '9']
@@ -680,7 +681,7 @@ form.
    the string, the result will start with an empty string.  The same holds for
    the end of the string::
 
-      >>> re.split('(\W+)', '...words, words...')
+      >>> re.split(r'(\W+)', '...words, words...')
       ['', '...', 'words', ', ', 'words', '...', '']
 
    That way, separator components are always found at the same relative
