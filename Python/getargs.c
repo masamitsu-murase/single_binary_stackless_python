@@ -811,10 +811,6 @@ convertsimple(PyObject *arg, const char **p_format, va_list *p_va, int flags,
         double dval = PyFloat_AsDouble(arg);
         if (PyErr_Occurred())
             RETURN_ERR_OCCURRED;
-        else if (dval > FLT_MAX)
-            *p = (float)INFINITY;
-        else if (dval < -FLT_MAX)
-            *p = (float)-INFINITY;
         else
             *p = (float) dval;
         break;
@@ -2264,8 +2260,8 @@ skipitem(const char **p_format, va_list *p_va, int flags)
                 /* after 'e', only 's' and 't' is allowed */
                 goto err;
             format++;
-            /* explicit fallthrough to string cases */
         }
+        /* fall through */
 
     case 's': /* string */
     case 'z': /* string or None */

@@ -11,6 +11,7 @@ test.support.import_module('threading')
 
 from test.support.script_helper import assert_python_ok
 
+import itertools
 import os
 import sys
 import threading
@@ -226,11 +227,14 @@ class ProcessPoolShutdownTest(ProcessPoolMixin, ExecutorShutdownTest, BaseTestCa
         list(executor.map(abs, range(-5, 5)))
         queue_management_thread = executor._queue_management_thread
         processes = executor._processes
+        call_queue = executor._call_queue
         del executor
 
         queue_management_thread.join()
         for p in processes.values():
             p.join()
+        call_queue.close()
+        call_queue.join_thread()
 
 
 class WaitTests:
@@ -396,8 +400,11 @@ class AsCompletedTests:
     def test_duplicate_futures(self):
         # Issue 20367. Duplicate futures should not raise exceptions or give
         # duplicate responses.
+        # Issue #31641: accept arbitrary iterables.
         future1 = self.executor.submit(time.sleep, 2)
-        completed = [f for f in futures.as_completed([future1,future1])]
+        completed = [
+            f for f in futures.as_completed(itertools.repeat(future1, 3))
+        ]
         self.assertEqual(len(completed), 1)
 
     def test_free_reference_yielded_future(self):
@@ -773,6 +780,7 @@ class FutureTests(BaseTestCase):
         t.start()
 
         self.assertEqual(f1.result(timeout=5), 42)
+        t.join()
 
     def test_result_with_cancel(self):
         # TODO(brian@sweetapp.com): This test is timing dependent.
@@ -786,6 +794,7 @@ class FutureTests(BaseTestCase):
         t.start()
 
         self.assertRaises(futures.CancelledError, f1.result, timeout=5)
+        t.join()
 
     def test_exception_with_timeout(self):
         self.assertRaises(futures.TimeoutError,
@@ -814,6 +823,7 @@ class FutureTests(BaseTestCase):
         t.start()
 
         self.assertTrue(isinstance(f1.exception(timeout=5), OSError))
+        t.join()
 
 @test.support.reap_threads
 def test_main():
