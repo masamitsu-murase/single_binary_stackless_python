@@ -5320,7 +5320,7 @@ do
 done
 
 AC_SUBST(SRCDIRS)
-SRCDIRS="Parser Grammar Objects Python Modules Mac Programs Stackless Stackless/core Stackless/module Stackless/pickling"
+SRCDIRS="Parser Objects Python Modules Programs Stackless Stackless/core Stackless/module Stackless/pickling"
 AC_MSG_CHECKING(for build directories)
 for dir in $SRCDIRS; do
     if test ! -d $dir; then
