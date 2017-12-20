@@ -5800,6 +5800,10 @@ import_from(PyObject *v, PyObject *name)
     if (pkgname == NULL) {
         goto error;
     }
+    if (!PyUnicode_Check(pkgname)) {
+        Py_CLEAR(pkgname);
+        goto error;
+    }
     fullmodname = PyUnicode_FromFormat("%U.%U", pkgname, name);
     Py_DECREF(pkgname);
     if (fullmodname == NULL) {
