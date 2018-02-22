@@ -1,0 +1,9 @@
+clone_depth: 5
+image:
+  - Visual Studio 2015
+build_script:
+  - cmd /c PCbuild\my_build.bat x86
+test_script:
+  - PCbuild\python.exe -v
+artifacts:
+  - path: PCbuild\python.exe
