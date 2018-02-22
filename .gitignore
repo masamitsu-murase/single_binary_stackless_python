@@ -4,6 +4,7 @@
 !/Python/
 *.cover
 *.o
+*.obj
 *.orig
 *.pyc
 *.pyd
