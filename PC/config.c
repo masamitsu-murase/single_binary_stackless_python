@@ -193,7 +193,9 @@ struct _inittab _PyImport_Inittab[] = {
     {"_io", init_io},
 
     {"_bsddb", init_bsddb},
+#ifndef Py_BUILD_FOR_WINDOWS_PE
     {"_ctypes", init_ctypes},
+#endif
 //    {"_ctypes_test", init_ctypes_test},
     {"_elementtree", init_elementtree},
     {"_hashlib", init_hashlib},
