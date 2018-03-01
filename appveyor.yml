@@ -13,6 +13,10 @@ environment:
       vc_version: 2013
     - target_type: x64
       vc_version: 2015
+    - target_type: x64_pe
+      vc_version: 2013
+    - target_type: x64_pe
+      vc_version: 2015
 build_script:
   - cmd /c PCbuild\my_build.bat %target_type% %vc_version%
 test_script:
