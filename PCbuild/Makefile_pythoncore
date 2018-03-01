@@ -11,7 +11,7 @@ LFLAGS = /NOLOGO /LTCG
 TARGET = pythoncore.lib
 
 
-OBJS = $(ProjectDir)\Modules\_bisectmodule.obj \
+COMMON_OBJS = $(ProjectDir)\Modules\_bisectmodule.obj \
           $(ProjectDir)\Modules\_codecsmodule.obj \
           $(ProjectDir)\Modules\_collectionsmodule.obj \
           $(ProjectDir)\Modules\_csv.obj \
@@ -201,5 +201,11 @@ OBJS = $(ProjectDir)\Modules\_bisectmodule.obj \
           $(ProjectDir)\Stackless\pickling\prickelpit.obj \
           $(ProjectDir)\Stackless\pickling\safe_pickle.obj \
           $(ProjectDir)\Modules\getbuildinfo.obj
+
+!IF "$(BUILD_TARGET_CPU)" == "x86"
+OBJS = $(COMMON_OBJS)
+!ELSE
+OBJS = $(COMMON_OBJS) $(ProjectDir)\Stackless\platf\switch_x64_masm.obj
+!ENDIF
 
 !include common.mak

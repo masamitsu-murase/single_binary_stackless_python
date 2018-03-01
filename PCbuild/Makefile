@@ -10,18 +10,29 @@ LINK = link.exe
 INCLUDES = /I "$(ProjectDir)\Python" /I "$(ProjectDir)\Modules\zlib" /I "$(ProjectDir)\Include" /I "$(ProjectDir)\PC" /I "$(ProjectDir)\Stackless" 
 DEFINES = /D "Py_BUILD_CORE" /D "Py_ENABLE_SHARED" /D "WIN32" /D "_CONSOLE" /D "NDEBUG" 
 CFLAGS = /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi
-#LFLAGS = /NOLOGO /LTCG /NODEFAULTLIB:"libc" /IMPLIB:"python27.lib" /DEBUG /SUBSYSTEM:CONSOLE /STACK:2000000 /MACHINE:X64
-LFLAGS = /NOLOGO /LTCG /NODEFAULTLIB:"libc" /IMPLIB:"python27.lib" /DEBUG /SUBSYSTEM:CONSOLE /STACK:2000000 /MACHINE:X86
 
-# LIBS = _bsddb.lib _ctypes.lib _elementtree.lib _hashlib.lib _msi.lib _multiprocessing.lib _socket.lib _sqlite3.lib \
-#       _ssl.lib bz2.lib pyexpat.lib pythoncore.lib select.lib sqlite3.lib unicodedata.lib winsound.lib pythoncore.lib
+!IF "$(BUILD_TARGET_CPU)" == "x64"
+LFLAGS = /NOLOGO /LTCG /NODEFAULTLIB:"libc" /IMPLIB:"python27.lib" /SUBSYSTEM:CONSOLE /STACK:2000000 /MACHINE:X64
+!ELSE
+LFLAGS = /NOLOGO /LTCG /NODEFAULTLIB:"libc" /IMPLIB:"python27.lib" /SUBSYSTEM:CONSOLE /STACK:2000000 /MACHINE:X86
+!ENDIF
+
 LIBS = _bsddb.lib _ctypes.lib _elementtree.lib _hashlib.lib _msi.lib _multiprocessing.lib _socket.lib _sqlite3.lib \
        _ssl.lib bz2.lib pyexpat.lib pythoncore.lib select.lib sqlite3.lib unicodedata.lib winsound.lib pythoncore.lib
+
+!IF "$(WINDOWS_PE)" == "0"
 EXTERNAL_LIBS = shell32.lib user32.lib advapi32.lib ws2_32.lib ole32.lib oleaut32.lib gdi32.lib crypt32.lib msi.lib cabinet.lib rpcrt4.lib winmm.lib \
           $(ProjectDir)\PCbuild\libeay.lib $(ProjectDir)\PCbuild\ssleay.lib
-#EXTERNAL_LIBS = shell32.lib user32.lib advapi32.lib ws2_32.lib ole32.lib oleaut32.lib gdi32.lib crypt32.lib msi.lib cabinet.lib rpcrt4.lib winmm.lib \
-#          $(externalsDir)\openssl-1.0.1l\out32\libeay32.lib $(externalsDir)\openssl-1.0.1l\out32\ssleay32.lib
+!ELSE
+!ENDIF
+
+!IF "$(BUILD_TARGET_CPU)" == "x86"
 TARGET = python.exe
+!ELSEIF "$(WINDOWS_PE)" == "0"
+TARGET = python64.exe
+!ELSE
+TARGET = python64_pe.exe
+!ENDIF
 
 
 all: $(TARGET)
