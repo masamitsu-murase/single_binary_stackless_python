@@ -1,13 +1,20 @@
 
+BASE_LIB = ssleay_$(BUILD_TARGET_CPU)_vc$(VC_VERSION).lib
 ProjectDir = ..
 externalsDir = $(ProjectDir)\externals
 opensslDir = $(externalsDir)\openssl-1.0.2k
 
 all:
-    MSBuild $(ProjectDir)\PCbuild\ssleay.vcxproj /t:build /p:Configuration=Release;Platform=Win32
+	copy /Y $(BASE_LIB) ssleay.lib
 
 clean:
-    MSBuild $(ProjectDir)\PCbuild\ssleay.vcxproj /t:clean
+	-del ssleay.lib
+
+# all:
+# 	MSBuild $(ProjectDir)\PCbuild\ssleay.vcxproj /t:build /p:Configuration=Release;Platform=Win32
+# 
+# clean:
+# 	MSBuild $(ProjectDir)\PCbuild\ssleay.vcxproj /t:clean
 # 
 # !include common_arch.mak
 # 

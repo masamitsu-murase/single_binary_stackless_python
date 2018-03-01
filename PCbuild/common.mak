@@ -1,7 +1,11 @@
 
 CC = cl.exe
 LIB = lib.exe
+!IF "$(BUILD_TARGET_DIR)" == "x86"
 ASM = ml.exe
+!ELSE
+ASM = ml64.exe
+!ENDIF
 
 !include common_arch.mak
 

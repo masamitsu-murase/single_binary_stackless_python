@@ -56,8 +56,9 @@ static BOOL WINAPI PyCtrlHandler(DWORD dwCtrlType)
 static long main_thread;
 
 
-#if defined(__BORLANDC__)
+#if defined(__BORLANDC__) || (defined(_MSC_VER) && _MSC_VER >= 1900)
 /* These overrides not needed for Win32 */
+// These overrides are necessary for VC2015 and later.
 #define timezone _timezone
 #define tzname _tzname
 #define daylight _daylight

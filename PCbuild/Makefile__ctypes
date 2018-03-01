@@ -11,6 +11,7 @@ LFLAGS = /NOLOGO /LTCG
 TARGET = _ctypes.lib
 
 
+!IF "$(BUILD_TARGET_CPU)" == "x86"
 OBJS = $(ProjectDir)\Modules\_ctypes\_ctypes.obj \
           $(ProjectDir)\Modules\_ctypes\callbacks.obj \
           $(ProjectDir)\Modules\_ctypes\callproc.obj \
@@ -20,5 +21,16 @@ OBJS = $(ProjectDir)\Modules\_ctypes\_ctypes.obj \
           $(ProjectDir)\Modules\_ctypes\libffi_msvc\prep_cif.obj \
           $(ProjectDir)\Modules\_ctypes\stgdict.obj \
           $(ProjectDir)\Modules\_ctypes\libffi_msvc\win32.obj
+!ELSE
+OBJS = $(ProjectDir)\Modules\_ctypes\_ctypes.obj \
+          $(ProjectDir)\Modules\_ctypes\callbacks.obj \
+          $(ProjectDir)\Modules\_ctypes\callproc.obj \
+          $(ProjectDir)\Modules\_ctypes\cfield.obj \
+          $(ProjectDir)\Modules\_ctypes\libffi_msvc\ffi.obj \
+          $(ProjectDir)\Modules\_ctypes\malloc_closure.obj \
+          $(ProjectDir)\Modules\_ctypes\libffi_msvc\prep_cif.obj \
+          $(ProjectDir)\Modules\_ctypes\stgdict.obj \
+          $(ProjectDir)\Modules\_ctypes\libffi_msvc\win64.obj
+!ENDIF
 
 !include common.mak
