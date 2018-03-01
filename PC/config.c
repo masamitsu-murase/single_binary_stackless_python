@@ -210,7 +210,9 @@ struct _inittab _PyImport_Inittab[] = {
     {"pyexpat", initpyexpat},
     {"select", initselect},
     {"unicodedata", initunicodedata},
+#ifndef Py_BUILD_FOR_WINDOWS_PE
     {"winsound", initwinsound},
+#endif
 
     /* Sentinel */
     {0, 0}
