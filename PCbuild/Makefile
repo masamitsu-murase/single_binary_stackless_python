@@ -8,11 +8,7 @@ LINK = link.exe
 !include common_arch.mak
 
 INCLUDES = /I "$(ProjectDir)\Python" /I "$(ProjectDir)\Modules\zlib" /I "$(ProjectDir)\Include" /I "$(ProjectDir)\PC" /I "$(ProjectDir)\Stackless" 
-!IF "$(WINDOWS_PE)" == "0"
 DEFINES = /D "Py_BUILD_CORE" /D "Py_ENABLE_SHARED" /D "WIN32" /D "_CONSOLE" /D "NDEBUG" 
-!ELSE
-DEFINES = /D "Py_BUILD_CORE" /D "Py_ENABLE_SHARED" /D "WIN32" /D "_CONSOLE" /D "NDEBUG" /D "Py_BUILD_FOR_WINDOWS_PE"
-!ENDIF
 CFLAGS = /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi
 
 !IF "$(BUILD_TARGET_CPU)" == "x64"
