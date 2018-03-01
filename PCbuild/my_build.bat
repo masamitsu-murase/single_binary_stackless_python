@@ -29,6 +29,7 @@ goto SET_BUILD_TOOL
 set VC_VERSION=%2
 
 
+REM --------------------------------
 :SET_BUILD_TOOL
 echo VC_CPU %VC_CPU%
 echo VC_VERSION %VC_VERSION%
@@ -45,6 +46,7 @@ if "%VC_VERSION%" == "2012" (
 call "%VSTOOLS%..\..\VC\vcvarsall.bat" %VC_CPU%
 
 
+REM --------------------------------
 REM externals
 set IncludeTkinter=false
 if EXIST externals.exe (
@@ -56,6 +58,23 @@ if EXIST externals.exe (
     if ERRORLEVEL 1 exit /b 1
 )
 
+
+REM --------------------------------
+REM embeddedimport
+if EXIST C:\Ruby23\bin\ruby.exe (
+    set RUBY_EXE=C:\Ruby23\bin\ruby.exe
+) else (
+    set RUBY_EXE=ruby.exe
+)
+echo Creating embeddedimport_data.c...
+%RUBY_EXE% convert.rb
+if ERRORLEVEL 1 (
+    echo Failed to create embeddedimport_data.c
+    exit /b 1
+)
+
+
+REM --------------------------------
 REM build
 cd /d "%~dp0"
 prebuilt_lib.exe -o. -y
