@@ -61,13 +61,17 @@ if EXIST externals.exe (
 
 REM --------------------------------
 REM embeddedimport
-where /Q ruby.exe
-if ERRORLEVEL 1 (
+if EXIST C:\Ruby23\bin\ruby.exe (
     set RUBY_EXE=C:\Ruby23\bin\ruby.exe
 ) else (
     set RUBY_EXE=ruby.exe
 )
+echo Creating embeddedimport_data.c...
 %RUBY_EXE% convert.rb
+if ERRORLEVEL 1 (
+    echo Failed to create embeddedimport_data.c
+    exit /b 1
+)
 
 
 REM --------------------------------
