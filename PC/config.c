@@ -207,7 +207,9 @@ struct _inittab _PyImport_Inittab[] = {
     {"_ssl", init_ssl},
 //    {"_tkinter", init_tkinter},
     {"bz2", initbz2},
+#ifndef Py_BUILD_FOR_WINDOWS_PE
     {"pyexpat", initpyexpat},
+#endif
     {"select", initselect},
     {"unicodedata", initunicodedata},
 #ifndef Py_BUILD_FOR_WINDOWS_PE
