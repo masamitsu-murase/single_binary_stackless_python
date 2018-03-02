@@ -17,14 +17,17 @@ LFLAGS = /NOLOGO /LTCG /NODEFAULTLIB:"libc" /IMPLIB:"python27.lib" /SUBSYSTEM:CO
 LFLAGS = /NOLOGO /LTCG /NODEFAULTLIB:"libc" /IMPLIB:"python27.lib" /SUBSYSTEM:CONSOLE /STACK:2000000 /MACHINE:X86
 !ENDIF
 
-LIBS = _bsddb.lib _ctypes.lib _elementtree.lib _hashlib.lib _msi.lib _multiprocessing.lib _socket.lib _sqlite3.lib \
-       _ssl.lib bz2.lib pyexpat.lib pythoncore.lib select.lib sqlite3.lib unicodedata.lib winsound.lib pythoncore.lib
-
 !IF "$(WINDOWS_PE)" == "0"
+ADDITIONAL_LIBS = _msi.lib
+!ELSE
+ADDITIONAL_LIBS =
+!ENDIF
+LIBS = _bsddb.lib _ctypes.lib _elementtree.lib _hashlib.lib _multiprocessing.lib _socket.lib _sqlite3.lib \
+       _ssl.lib bz2.lib pyexpat.lib pythoncore.lib select.lib sqlite3.lib unicodedata.lib winsound.lib pythoncore.lib \
+	   $(ADDITIONAL_LIBS)
+
 EXTERNAL_LIBS = shell32.lib user32.lib advapi32.lib ws2_32.lib ole32.lib oleaut32.lib gdi32.lib crypt32.lib msi.lib cabinet.lib rpcrt4.lib winmm.lib \
           $(ProjectDir)\PCbuild\libeay.lib $(ProjectDir)\PCbuild\ssleay.lib
-!ELSE
-!ENDIF
 
 !IF "$(BUILD_TARGET_CPU)" == "x86"
 TARGET = python.exe

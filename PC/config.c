@@ -197,7 +197,10 @@ struct _inittab _PyImport_Inittab[] = {
 //    {"_ctypes_test", init_ctypes_test},
     {"_elementtree", init_elementtree},
     {"_hashlib", init_hashlib},
+#ifndef Py_BUILD_FOR_WINDOWS_PE
+// _msi needs msi.dll.
     {"_msi", init_msi},
+#endif
     {"_multiprocessing", init_multiprocessing},
     {"_socket", init_socket},
     {"_sqlite3", init_sqlite3},
