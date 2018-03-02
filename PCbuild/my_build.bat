@@ -22,7 +22,7 @@ if "%1" == "x86" (
     if "%VC_VERSION%" == "2012" (
         set VC_CPU=x86_amd64
     ) else (
-        set VC_CPU=amd64
+        set VC_CPU=x86_amd64
     )
     set WINDOWS_PE=0
 ) else if "%1" == "x64_pe" (
@@ -30,7 +30,7 @@ if "%1" == "x86" (
     if "%VC_VERSION%" == "2012" (
         set VC_CPU=x86_amd64
     ) else (
-        set VC_CPU=amd64
+        set VC_CPU=x86_amd64
     )
     set WINDOWS_PE=1
 ) else (
