@@ -24,7 +24,7 @@ environment:
 build_script:
   - cmd /c PCbuild\my_build.bat %target_type% %vc_version%
 test_script:
-  - cmd /c PCbuild\test.bat
+  - cmd /c PCbuild\my_test.bat
 artifacts:
   - path: PCbuild\python*.exe
     name: python_exe
