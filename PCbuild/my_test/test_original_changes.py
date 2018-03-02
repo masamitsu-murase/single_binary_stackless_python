@@ -11,6 +11,7 @@ class TestOriginalChanges(unittest.TestCase):
 
     def test_version(self):
         version = sys.version
+        self.assertIn("Stackless", version)
         if os.environ["BUILD_TARGET_CPU"] == "x86":
             self.assertIn("32 bit (Intel)", version)
         else:
