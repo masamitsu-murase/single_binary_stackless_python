@@ -1,24 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
 
-if "%1" == "x86" (
-    set BUILD_TARGET_CPU=x86
-    set VC_CPU=x86
-    set WINDOWS_PE=0
-) else if "%1" == "x64" (
-    set BUILD_TARGET_CPU=x64
-    set VC_CPU=amd64
-    set WINDOWS_PE=0
-) else if "%1" == "x64_pe" (
-    set BUILD_TARGET_CPU=x64
-    set VC_CPU=amd64
-    set WINDOWS_PE=1
-) else (
-    set BUILD_TARGET_CPU=x86
-    set VC_CPU=x86
-    set WINDOWS_PE=0
-)
-
 if "%2" == "2012" goto SET_VC_VERSION
 if "%2" == "2013" goto SET_VC_VERSION
 if "%2" == "2015" goto SET_VC_VERSION
@@ -31,6 +13,32 @@ set VC_VERSION=%2
 
 REM --------------------------------
 :SET_BUILD_TOOL
+if "%1" == "x86" (
+    set BUILD_TARGET_CPU=x86
+    set VC_CPU=x86
+    set WINDOWS_PE=0
+) else if "%1" == "x64" (
+    set BUILD_TARGET_CPU=x64
+    if "%VC_VERSION%" == "2012" (
+        set VC_CPU=x86_amd64
+    ) else (
+        set VC_CPU=amd64
+    )
+    set WINDOWS_PE=0
+) else if "%1" == "x64_pe" (
+    set BUILD_TARGET_CPU=x64
+    if "%VC_VERSION%" == "2012" (
+        set VC_CPU=x86_amd64
+    ) else (
+        set VC_CPU=amd64
+    )
+    set WINDOWS_PE=1
+) else (
+    set BUILD_TARGET_CPU=x86
+    set VC_CPU=x86
+    set WINDOWS_PE=0
+)
+
 echo VC_CPU %VC_CPU%
 echo VC_VERSION %VC_VERSION%
 echo WINDOWS_PE %WINDOWS_PE%
