@@ -20,5 +20,9 @@ class TestOriginalChanges(unittest.TestCase):
         if os.environ["WINDOWS_PE"] == "1":
             self.assertNotIn("_msi", sys.builtin_module_names)
 
+    def test_embeddedimport(self):
+        import comtypes
+        import yaml
+
 if __name__ == "__main__":
     unittest.main()
