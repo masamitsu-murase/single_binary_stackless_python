@@ -1399,7 +1399,9 @@ class ReTests(unittest.TestCase):
 
     def test_locale_flag(self):
         import locale
-        _, enc = locale.getlocale(locale.LC_CTYPE)
+        enc = locale.getpreferredencoding(False)
+        bletter = None
+        bpat = b'A'
         # Search non-ASCII letter
         for i in range(128, 256):
             try:
@@ -1413,9 +1415,6 @@ class ReTests(unittest.TestCase):
                 break
             except (UnicodeError, TypeError):
                 pass
-        else:
-            bletter = None
-            bpat = b'A'
         # Bytes patterns
         pat = re.compile(bpat, re.LOCALE | re.IGNORECASE)
         if bletter:
