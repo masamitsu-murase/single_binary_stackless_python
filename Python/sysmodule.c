@@ -33,10 +33,6 @@ extern void *PyWin_DLLhModule;
 extern const char *PyWin_DLLVersionString;
 #endif
 
-#ifdef HAVE_LANGINFO_H
-#include <langinfo.h>
-#endif
-
 #ifdef STACKLESS
 #include "core/stackless_impl.h"
 #endif
