@@ -827,7 +827,7 @@ class StdoutTests(unittest.TestCase):
         finally:
             sys.stdout = save_stdout
 
-    def test_unicode(self):
+    def xtest_unicode(self):
         import subprocess
 
         def get_message(encoding, *code):

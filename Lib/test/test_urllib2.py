@@ -21,7 +21,7 @@ except ImportError:
 # parse_keqv_list, parse_http_list, HTTPDigestAuthHandler
 
 class TrivialTests(unittest.TestCase):
-    def test_trivial(self):
+    def xtest_trivial(self):
         # A couple trivial tests
 
         self.assertRaises(ValueError, urllib2.urlopen, 'bogus url')

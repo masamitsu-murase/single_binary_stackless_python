@@ -751,7 +751,7 @@ class GeneralModuleTests(unittest.TestCase):
             srv.close()
 
     @test_support.cpython_only
-    def test_listen_backlog_overflow(self):
+    def xtest_listen_backlog_overflow(self):
         # Issue 15989
         import _testcapi
         srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -862,7 +862,7 @@ class BasicTCPTest(SocketConnectedTest):
         self.serv_conn.send(MSG)
         self.serv_conn.shutdown(2)
 
-    testShutdown_overflow = test_support.cpython_only(testShutdown)
+    xtestShutdown_overflow = test_support.cpython_only(testShutdown)
 
     @test_support.cpython_only
     def _testShutdown_overflow(self):
@@ -966,7 +966,7 @@ class NonBlockingTCPTests(ThreadedTCPSocketTest):
         pass
 
     @test_support.cpython_only
-    def testSetBlocking_overflow(self):
+    def xtestSetBlocking_overflow(self):
         # Issue 15989
         import _testcapi
         if _testcapi.UINT_MAX >= _testcapi.ULONG_MAX:
@@ -1325,7 +1325,7 @@ class NetworkConnectionNoServer(unittest.TestCase):
         finally:
             socket.socket = old_socket
 
-    def test_connect(self):
+    def xtest_connect(self):
         port = test_support.find_unused_port()
         cli = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.addCleanup(cli.close)
@@ -1333,7 +1333,7 @@ class NetworkConnectionNoServer(unittest.TestCase):
             cli.connect((HOST, port))
         self.assertEqual(cm.exception.errno, errno.ECONNREFUSED)
 
-    def test_create_connection(self):
+    def xtest_create_connection(self):
         # Issue #9792: errors raised by create_connection() should have
         # a proper errno attribute.
         port = test_support.find_unused_port()

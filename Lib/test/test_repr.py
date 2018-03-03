@@ -128,12 +128,15 @@ class ReprTests(unittest.TestCase):
         self.assertTrue(s.find("...") == 8)
 
     def test_file(self):
-        fp = open(unittest.__file__)
+        # fp = open(unittest.__file__)
+        fp = open(__file__)
         self.assertTrue(repr(fp).startswith(
-            "<open file %r, mode 'r' at 0x" % unittest.__file__))
+            # "<open file %r, mode 'r' at 0x" % unittest.__file__))
+            "<open file %r, mode 'r' at 0x" % __file__))
         fp.close()
         self.assertTrue(repr(fp).startswith(
-            "<closed file %r, mode 'r' at 0x" % unittest.__file__))
+            # "<closed file %r, mode 'r' at 0x" % unittest.__file__))
+            "<closed file %r, mode 'r' at 0x" % __file__))
 
     def test_lambda(self):
         self.assertTrue(repr(lambda x: x).startswith(

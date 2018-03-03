@@ -1174,7 +1174,7 @@ class MixinStrUnicodeUserStringTest(NonStringModuleTest):
         self.checkequal('melon apple', '%(melon)s %(apple)s', '__mod__', X())
 
     @test_support.cpython_only
-    def test_formatting_c_limits(self):
+    def xtest_formatting_c_limits(self):
         from _testcapi import PY_SSIZE_T_MAX, INT_MAX, UINT_MAX
         SIZE_MAX = (1 << (PY_SSIZE_T_MAX.bit_length() + 1)) - 1
         width = int(PY_SSIZE_T_MAX + 1)

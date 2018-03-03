@@ -171,6 +171,8 @@ Pattern examples:
 - test identifier: test_os.FileTests.test_stat_attributes
 """
 
+import my_test_mock
+
 import StringIO
 import datetime
 import getopt

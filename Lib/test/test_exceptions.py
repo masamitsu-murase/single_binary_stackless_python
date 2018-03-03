@@ -153,7 +153,7 @@ class ExceptionTests(unittest.TestCase):
         ckmsg("continue\n", "'continue' not properly in loop")
 
     @cpython_only
-    def testSettingException(self):
+    def xtestSettingException(self):
         # test that setting an exception at the C level works even if the
         # exception object can't be constructed.
 
@@ -610,7 +610,7 @@ class TestSameStrAndUnicodeMsg(unittest.TestCase):
         self.assertEqual(unicode(e), u'f\xf6\xf6')
 
     @cpython_only
-    def test_exception_with_doc(self):
+    def xtest_exception_with_doc(self):
         import _testcapi
         doc2 = "This is a test docstring."
         doc4 = "This is another test docstring."

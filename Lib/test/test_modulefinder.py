@@ -16,7 +16,8 @@ import modulefinder
 # library.
 
 TEST_DIR = tempfile.mkdtemp()
-TEST_PATH = [TEST_DIR, os.path.dirname(__future__.__file__)]
+# TEST_PATH = [TEST_DIR, os.path.dirname(__future__.__file__)]
+TEST_PATH = [TEST_DIR, os.path.dirname(os.path.dirname(__file__))]
 
 # Each test description is a list of 5 items:
 #

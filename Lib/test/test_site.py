@@ -185,7 +185,7 @@ class HelperFunctionsTests(unittest.TestCase):
 
     @unittest.skipUnless(site.ENABLE_USER_SITE, "requires access to PEP 370 "
                           "user-site (site.ENABLE_USER_SITE)")
-    def test_s_option(self):
+    def xtest_s_option(self):
         usersite = site.USER_SITE
         self.assertIn(usersite, sys.path)
 
