@@ -15,4 +15,4 @@ def mod_open(filename, *args, **kwargs):
         print(filename)
     return orig_open(filename, *args, **kwargs)
 
-__builtin__.open = mod_open
+# __builtin__.open = mod_open
