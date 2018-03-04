@@ -7,7 +7,6 @@ ASM = ml.exe
 ASM = ml64.exe
 !ENDIF
 
-!include common_arch.mak
 
 all: $(TARGET)
 

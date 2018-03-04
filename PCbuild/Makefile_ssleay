@@ -1,69 +1,89 @@
 
-BASE_LIB = ssleay_$(BUILD_TARGET_CPU)_vc$(VC_VERSION).lib
 ProjectDir = ..
 externalsDir = $(ProjectDir)\externals
 opensslDir = $(externalsDir)\openssl-1.0.2k
 
-all:
-	copy /Y $(BASE_LIB) ssleay.lib
+!include common_arch.mak
+
+INCLUDES = /I $(opensslDir) /I $(opensslDir)\include32 /I $(opensslDir)\crypto /I $(opensslDir)\crypto\asn1 /I $(opensslDir)\crypto\evp /I $(opensslDir)\crypto\modes
+
+DEFINES_COMMON = /D "WIN32" /D "_WIN32" /D "NDEBUG" \
+        /D "DSO_WIN32" /D "WIN32_LEAN_AND_MEAN" /D "L_ENDIAN" /D "_CRT_SECURE_NO_WARNINGS" /D "_CRT_SECURE_NO_DEPRECATE" /D "OPENSSL_THREADS" /D "OPENSSL_IA32_SSE2" /D "SHA1_ASM" /D "SHA256_ASM" /D "SHA512_ASM" /D "MD5_ASM" /D "AES_ASM" /D "VPAES_ASM" /D "WHIRLPOOL_ASM" /D "GHASH_ASM" /D "OPENSSL_NO_IDEA" /D "OPENSSL_NO_RC5" /D "OPENSSL_NO_MD2" /D "OPENSSL_NO_MDC2" /D "OPENSSL_NO_KRB5" /D "OPENSSL_NO_JPAKE" /D "OPENSSL_NO_RDRAND" /D "OPENSSL_NO_RSAX" /D "OPENSSL_NO_DYNAMIC_ENGINE"
+!IF "$(BUILD_TARGET_CPU)" == "x86"
+ADDITIONAL_DEFINES = /D "OPENSSL_BN_ASM_GF2m" /D "OPENSSL_BN_ASM_PART_WORDS" /D "OPENSSL_BN_ASM_MONT" /D "RMD160_ASM"
+!ELSE
+ADDITIONAL_DEFINES =
+!ENDIF
+DEFINES = $(DEFINES_COMMON) $(ADDITIONAL_DEFINES)
+
+CFLAGS = /GS /GL /analyze- /W3 /wd"4244" /wd"4267" $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /Gy /Zc:wchar_t /Zi /Gm- /O2 /fp:precise /errorReport:prompt /GF /WX- /Zc:forScope /Gd /Oy- /Oi /MT /EHsc /nologo
+LFLAGS = /NOLOGO /LTCG
+TARGET = $(ProjectDir)\PCBuild\ssleay.lib
+
+
+OBJS = $(opensslDir)\ssl\d1_both.obj \
+    $(opensslDir)\ssl\d1_lib.obj \
+    $(opensslDir)\ssl\d1_pkt.obj \
+    $(opensslDir)\ssl\d1_srtp.obj \
+    $(opensslDir)\ssl\s2_clnt.obj \
+    $(opensslDir)\ssl\s2_enc.obj \
+    $(opensslDir)\ssl\s2_lib.obj \
+    $(opensslDir)\ssl\s2_meth.obj \
+    $(opensslDir)\ssl\s2_pkt.obj \
+    $(opensslDir)\ssl\s2_srvr.obj \
+    $(opensslDir)\ssl\s23_clnt.obj \
+    $(opensslDir)\ssl\s23_lib.obj \
+    $(opensslDir)\ssl\s23_meth.obj \
+    $(opensslDir)\ssl\s23_pkt.obj \
+    $(opensslDir)\ssl\s23_srvr.obj \
+    $(opensslDir)\ssl\s3_both.obj \
+    $(opensslDir)\ssl\s3_cbc.obj \
+    $(opensslDir)\ssl\s3_clnt.obj \
+    $(opensslDir)\ssl\s3_enc.obj \
+    $(opensslDir)\ssl\s3_lib.obj \
+    $(opensslDir)\ssl\s3_meth.obj \
+    $(opensslDir)\ssl\s3_pkt.obj \
+    $(opensslDir)\ssl\s3_srvr.obj \
+    $(opensslDir)\ssl\ssl_algs.obj \
+    $(opensslDir)\ssl\ssl_asn1.obj \
+    $(opensslDir)\ssl\ssl_cert.obj \
+    $(opensslDir)\ssl\ssl_ciph.obj \
+    $(opensslDir)\ssl\ssl_err.obj \
+    $(opensslDir)\ssl\ssl_err2.obj \
+    $(opensslDir)\ssl\ssl_lib.obj \
+    $(opensslDir)\ssl\ssl_rsa.obj \
+    $(opensslDir)\ssl\ssl_sess.obj \
+    $(opensslDir)\ssl\t1_clnt.obj \
+    $(opensslDir)\ssl\t1_enc.obj \
+    $(opensslDir)\ssl\t1_lib.obj \
+    $(opensslDir)\ssl\t1_meth.obj \
+    $(opensslDir)\ssl\t1_reneg.obj \
+    $(opensslDir)\ssl\t1_srvr.obj \
+    $(opensslDir)\ssl\tls_srp.obj
+
+CC = cl.exe
+LIB = lib.exe
+!IF "$(BUILD_TARGET_DIR)" == "x86"
+ASM = $(nasmDir)\nasm.exe -f win32
+!ELSE
+ASM = $(nasmDir)\nasm.exe -f win64 -DNEAR -Ox -g
+!ENDIF
+
+
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+	$(LIB) /OUT:$(TARGET) $(LFLAGS) $(OBJS)
+
+.c.obj:
+	$(CC) /c $< $(CFLAGS) $(ARCH_DEFINES) /Fo$@
+
+.asm.obj:
+	$(ASM) -o$@ $<
 
 clean:
-	-del ssleay.lib
-
-# all:
-# 	MSBuild $(ProjectDir)\PCbuild\ssleay.vcxproj /t:build /p:Configuration=Release;Platform=Win32
-# 
-# clean:
-# 	MSBuild $(ProjectDir)\PCbuild\ssleay.vcxproj /t:clean
-# 
-# !include common_arch.mak
-# 
-# INCLUDES = /I $(opensslDir) /I $(opensslDir)\include32 /I $(opensslDir)\crypto /I $(opensslDir)\crypto\asn1 /I $(opensslDir)\crypto\evp /I $(opensslDir)\crypto\modes
-# DEFINES = /D "@(PreprocessorDefinitions)" /D "WIN32" /D "_WIN32" /D "NDEBUG"
-# CFLAGS = /GS /GL /analyze- /W3 /wd"4244" /wd"4267" $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /Gy /Zc:wchar_t /Zi /Gm- /O2 /fp:precise /errorReport:prompt /GF /WX- /Zc:forScope /Gd /Oy- /Oi /MT /EHsc /nologo /Fa"$(opensslDir)\tmp\win32_Release\ssleay\" /Fp"$(opensslDir)\tmp\win32_Release\ssleay\ssleay.pch"
-# LFLAGS = /NOLOGO /LTCG
-# TARGET = /OUT:"$(ProjectDir)\PCBuild\ssleay.lib"
-# 
-# 
-# OBJS = $(opensslDir)\ssl\d1_both.obj \
-#     $(opensslDir)\ssl\d1_lib.obj \
-#     $(opensslDir)\ssl\d1_pkt.obj \
-#     $(opensslDir)\ssl\d1_srtp.obj \
-#     $(opensslDir)\ssl\s2_clnt.obj \
-#     $(opensslDir)\ssl\s2_enc.obj \
-#     $(opensslDir)\ssl\s2_lib.obj \
-#     $(opensslDir)\ssl\s2_meth.obj \
-#     $(opensslDir)\ssl\s2_pkt.obj \
-#     $(opensslDir)\ssl\s2_srvr.obj \
-#     $(opensslDir)\ssl\s23_clnt.obj \
-#     $(opensslDir)\ssl\s23_lib.obj \
-#     $(opensslDir)\ssl\s23_meth.obj \
-#     $(opensslDir)\ssl\s23_pkt.obj \
-#     $(opensslDir)\ssl\s23_srvr.obj \
-#     $(opensslDir)\ssl\s3_both.obj \
-#     $(opensslDir)\ssl\s3_cbc.obj \
-#     $(opensslDir)\ssl\s3_clnt.obj \
-#     $(opensslDir)\ssl\s3_enc.obj \
-#     $(opensslDir)\ssl\s3_lib.obj \
-#     $(opensslDir)\ssl\s3_meth.obj \
-#     $(opensslDir)\ssl\s3_pkt.obj \
-#     $(opensslDir)\ssl\s3_srvr.obj \
-#     $(opensslDir)\ssl\ssl_algs.obj \
-#     $(opensslDir)\ssl\ssl_asn1.obj \
-#     $(opensslDir)\ssl\ssl_cert.obj \
-#     $(opensslDir)\ssl\ssl_ciph.obj \
-#     $(opensslDir)\ssl\ssl_err.obj \
-#     $(opensslDir)\ssl\ssl_err2.obj \
-#     $(opensslDir)\ssl\ssl_lib.obj \
-#     $(opensslDir)\ssl\ssl_rsa.obj \
-#     $(opensslDir)\ssl\ssl_sess.obj \
-#     $(opensslDir)\ssl\t1_clnt.obj \
-#     $(opensslDir)\ssl\t1_enc.obj \
-#     $(opensslDir)\ssl\t1_lib.obj \
-#     $(opensslDir)\ssl\t1_meth.obj \
-#     $(opensslDir)\ssl\t1_reneg.obj \
-#     $(opensslDir)\ssl\t1_srvr.obj \
-#     $(opensslDir)\ssl\tls_srp.obj
-# 
-# !include common.mak
-# 
+	-<<delete.bat
+del $(TARGET)
+del $(OBJS:.obj =.obj^
+del )
+<<

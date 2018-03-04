@@ -1,17 +1,591 @@
 
-BASE_LIB = libeay_$(BUILD_TARGET_CPU)_vc$(VC_VERSION).lib
 ProjectDir = ..
 externalsDir = $(ProjectDir)\externals
 opensslDir = $(externalsDir)\openssl-1.0.2k
+nasmDir = $(externalsDir)\nasm-2.11.06
 
-all:
-	copy /Y $(BASE_LIB) libeay.lib
+!include common_arch.mak
+
+INCLUDES = /I $(opensslDir) /I $(opensslDir)\include32 /I $(opensslDir)\crypto /I $(opensslDir)\crypto\asn1 /I $(opensslDir)\crypto\evp /I $(opensslDir)\crypto\modes
+
+DEFINES_COMMON = /D "WIN32" /D "_WIN32" /D "NDEBUG" \
+        /D "DSO_WIN32" /D "WIN32_LEAN_AND_MEAN" /D "L_ENDIAN" /D "_CRT_SECURE_NO_WARNINGS" /D "_CRT_SECURE_NO_DEPRECATE" /D "OPENSSL_THREADS" /D "OPENSSL_IA32_SSE2" /D "SHA1_ASM" /D "SHA256_ASM" /D "SHA512_ASM" /D "MD5_ASM" /D "AES_ASM" /D "VPAES_ASM" /D "WHIRLPOOL_ASM" /D "GHASH_ASM" /D "OPENSSL_NO_IDEA" /D "OPENSSL_NO_RC5" /D "OPENSSL_NO_MD2" /D "OPENSSL_NO_MDC2" /D "OPENSSL_NO_KRB5" /D "OPENSSL_NO_JPAKE" /D "OPENSSL_NO_RDRAND" /D "OPENSSL_NO_RSAX" /D "OPENSSL_NO_DYNAMIC_ENGINE"
+!IF "$(BUILD_TARGET_CPU)" == "x86"
+ADDITIONAL_DEFINES = /D "OPENSSL_BN_ASM_GF2m" /D "OPENSSL_BN_ASM_PART_WORDS" /D "OPENSSL_BN_ASM_MONT" /D "RMD160_ASM"
+!ELSE
+ADDITIONAL_DEFINES =
+!ENDIF
+DEFINES = $(DEFINES_COMMON) $(ADDITIONAL_DEFINES)
+
+CFLAGS = /GS /GL /analyze- /W3 /wd"4244" /wd"4267" $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /Gy /Zc:wchar_t /Zi /Gm- /O2 /fp:precise /errorReport:prompt /GF /WX- /Zc:forScope /Gd /Oy- /Oi /MT /EHsc /nologo
+LFLAGS = /LTCG
+TARGET = $(ProjectDir)\PCBuild\libeay.lib
+
+
+OBJS_COMMON = $(opensslDir)\crypto\cversion.obj \
+        $(opensslDir)\crypto\aes\aes_ige.obj \
+        $(opensslDir)\crypto\aes\aes_misc.obj \
+        $(opensslDir)\crypto\aes\aes_wrap.obj \
+        $(opensslDir)\crypto\asn1\a_bitstr.obj \
+        $(opensslDir)\crypto\asn1\a_bool.obj \
+        $(opensslDir)\crypto\asn1\a_bytes.obj \
+        $(opensslDir)\crypto\asn1\a_d2i_fp.obj \
+        $(opensslDir)\crypto\asn1\a_digest.obj \
+        $(opensslDir)\crypto\asn1\a_dup.obj \
+        $(opensslDir)\crypto\asn1\a_enum.obj \
+        $(opensslDir)\crypto\asn1\a_gentm.obj \
+        $(opensslDir)\crypto\asn1\a_i2d_fp.obj \
+        $(opensslDir)\crypto\asn1\a_int.obj \
+        $(opensslDir)\crypto\asn1\a_mbstr.obj \
+        $(opensslDir)\crypto\asn1\a_object.obj \
+        $(opensslDir)\crypto\asn1\a_octet.obj \
+        $(opensslDir)\crypto\asn1\a_print.obj \
+        $(opensslDir)\crypto\asn1\a_set.obj \
+        $(opensslDir)\crypto\asn1\a_sign.obj \
+        $(opensslDir)\crypto\asn1\a_strex.obj \
+        $(opensslDir)\crypto\asn1\a_strnid.obj \
+        $(opensslDir)\crypto\asn1\a_time.obj \
+        $(opensslDir)\crypto\asn1\a_type.obj \
+        $(opensslDir)\crypto\asn1\a_utctm.obj \
+        $(opensslDir)\crypto\asn1\a_utf8.obj \
+        $(opensslDir)\crypto\asn1\a_verify.obj \
+        $(opensslDir)\crypto\asn1\ameth_lib.obj \
+        $(opensslDir)\crypto\asn1\asn_mime.obj \
+        $(opensslDir)\crypto\asn1\asn_moid.obj \
+        $(opensslDir)\crypto\asn1\asn_pack.obj \
+        $(opensslDir)\crypto\asn1\asn1_err.obj \
+        $(opensslDir)\crypto\asn1\asn1_gen.obj \
+        $(opensslDir)\crypto\asn1\asn1_lib.obj \
+        $(opensslDir)\crypto\asn1\asn1_par.obj \
+        $(opensslDir)\crypto\asn1\bio_asn1.obj \
+        $(opensslDir)\crypto\asn1\bio_ndef.obj \
+        $(opensslDir)\crypto\asn1\d2i_pr.obj \
+        $(opensslDir)\crypto\asn1\evp_asn1.obj \
+        $(opensslDir)\crypto\asn1\f_int.obj \
+        $(opensslDir)\crypto\asn1\f_string.obj \
+        $(opensslDir)\crypto\asn1\i2d_pr.obj \
+        $(opensslDir)\crypto\asn1\n_pkey.obj \
+        $(opensslDir)\crypto\asn1\nsseq.obj \
+        $(opensslDir)\crypto\asn1\p5_pbe.obj \
+        $(opensslDir)\crypto\asn1\p5_pbev2.obj \
+        $(opensslDir)\crypto\asn1\p8_pkey.obj \
+        $(opensslDir)\crypto\asn1\t_pkey.obj \
+        $(opensslDir)\crypto\asn1\t_x509.obj \
+        $(opensslDir)\crypto\asn1\t_x509a.obj \
+        $(opensslDir)\crypto\asn1\tasn_dec.obj \
+        $(opensslDir)\crypto\asn1\tasn_enc.obj \
+        $(opensslDir)\crypto\asn1\tasn_fre.obj \
+        $(opensslDir)\crypto\asn1\tasn_new.obj \
+        $(opensslDir)\crypto\asn1\tasn_prn.obj \
+        $(opensslDir)\crypto\asn1\tasn_typ.obj \
+        $(opensslDir)\crypto\asn1\tasn_utl.obj \
+        $(opensslDir)\crypto\asn1\x_algor.obj \
+        $(opensslDir)\crypto\asn1\x_attrib.obj \
+        $(opensslDir)\crypto\asn1\x_bignum.obj \
+        $(opensslDir)\crypto\asn1\x_crl.obj \
+        $(opensslDir)\crypto\asn1\x_exten.obj \
+        $(opensslDir)\crypto\asn1\x_info.obj \
+        $(opensslDir)\crypto\asn1\x_long.obj \
+        $(opensslDir)\crypto\asn1\x_name.obj \
+        $(opensslDir)\crypto\asn1\x_nx509.obj \
+        $(opensslDir)\crypto\asn1\x_pkey.obj \
+        $(opensslDir)\crypto\asn1\x_pubkey.obj \
+        $(opensslDir)\crypto\asn1\x_req.obj \
+        $(opensslDir)\crypto\asn1\x_sig.obj \
+        $(opensslDir)\crypto\asn1\x_spki.obj \
+        $(opensslDir)\crypto\asn1\x_val.obj \
+        $(opensslDir)\crypto\asn1\x_x509.obj \
+        $(opensslDir)\crypto\asn1\x_x509a.obj \
+        $(opensslDir)\crypto\bf\bf_cfb64.obj \
+        $(opensslDir)\crypto\bf\bf_ecb.obj \
+        $(opensslDir)\crypto\bf\bf_ofb64.obj \
+        $(opensslDir)\crypto\bf\bf_skey.obj \
+        $(opensslDir)\crypto\bio\b_dump.obj \
+        $(opensslDir)\crypto\bio\b_print.obj \
+        $(opensslDir)\crypto\bio\b_sock.obj \
+        $(opensslDir)\crypto\bio\bf_buff.obj \
+        $(opensslDir)\crypto\bio\bio_err.obj \
+        $(opensslDir)\crypto\bio\bio_lib.obj \
+        $(opensslDir)\crypto\bio\bss_conn.obj \
+        $(opensslDir)\crypto\bio\bss_file.obj \
+        $(opensslDir)\crypto\bio\bss_mem.obj \
+        $(opensslDir)\crypto\bio\bss_null.obj \
+        $(opensslDir)\crypto\bio\bss_sock.obj \
+        $(opensslDir)\crypto\bn\bn_add.obj \
+        $(opensslDir)\crypto\bn\bn_blind.obj \
+        $(opensslDir)\crypto\bn\bn_ctx.obj \
+        $(opensslDir)\crypto\bn\bn_div.obj \
+        $(opensslDir)\crypto\bn\bn_err.obj \
+        $(opensslDir)\crypto\bn\bn_exp.obj \
+        $(opensslDir)\crypto\bn\bn_exp2.obj \
+        $(opensslDir)\crypto\bn\bn_gcd.obj \
+        $(opensslDir)\crypto\bn\bn_gf2m.obj \
+        $(opensslDir)\crypto\bn\bn_kron.obj \
+        $(opensslDir)\crypto\bn\bn_lib.obj \
+        $(opensslDir)\crypto\bn\bn_mod.obj \
+        $(opensslDir)\crypto\bn\bn_mont.obj \
+        $(opensslDir)\crypto\bn\bn_mul.obj \
+        $(opensslDir)\crypto\bn\bn_nist.obj \
+        $(opensslDir)\crypto\bn\bn_prime.obj \
+        $(opensslDir)\crypto\bn\bn_print.obj \
+        $(opensslDir)\crypto\bn\bn_rand.obj \
+        $(opensslDir)\crypto\bn\bn_recp.obj \
+        $(opensslDir)\crypto\bn\bn_shift.obj \
+        $(opensslDir)\crypto\bn\bn_sqr.obj \
+        $(opensslDir)\crypto\bn\bn_sqrt.obj \
+        $(opensslDir)\crypto\bn\bn_word.obj \
+        $(opensslDir)\crypto\buffer\buf_err.obj \
+        $(opensslDir)\crypto\buffer\buf_str.obj \
+        $(opensslDir)\crypto\buffer\buffer.obj \
+        $(opensslDir)\crypto\camellia\cmll_cfb.obj \
+        $(opensslDir)\crypto\camellia\cmll_ecb.obj \
+        $(opensslDir)\crypto\camellia\cmll_ofb.obj \
+        $(opensslDir)\crypto\camellia\cmll_utl.obj \
+        $(opensslDir)\crypto\cast\c_cfb64.obj \
+        $(opensslDir)\crypto\cast\c_ecb.obj \
+        $(opensslDir)\crypto\cast\c_ofb64.obj \
+        $(opensslDir)\crypto\cast\c_skey.obj \
+        $(opensslDir)\crypto\cmac\cm_ameth.obj \
+        $(opensslDir)\crypto\cmac\cm_pmeth.obj \
+        $(opensslDir)\crypto\cmac\cmac.obj \
+        $(opensslDir)\crypto\cms\cms_asn1.obj \
+        $(opensslDir)\crypto\cms\cms_att.obj \
+        $(opensslDir)\crypto\cms\cms_dd.obj \
+        $(opensslDir)\crypto\cms\cms_enc.obj \
+        $(opensslDir)\crypto\cms\cms_env.obj \
+        $(opensslDir)\crypto\cms\cms_err.obj \
+        $(opensslDir)\crypto\cms\cms_io.obj \
+        $(opensslDir)\crypto\cms\cms_kari.obj \
+        $(opensslDir)\crypto\cms\cms_lib.obj \
+        $(opensslDir)\crypto\cms\cms_pwri.obj \
+        $(opensslDir)\crypto\cms\cms_sd.obj \
+        $(opensslDir)\crypto\comp\c_zlib.obj \
+        $(opensslDir)\crypto\comp\comp_err.obj \
+        $(opensslDir)\crypto\comp\comp_lib.obj \
+        $(opensslDir)\crypto\conf\conf_api.obj \
+        $(opensslDir)\crypto\conf\conf_def.obj \
+        $(opensslDir)\crypto\conf\conf_err.obj \
+        $(opensslDir)\crypto\conf\conf_lib.obj \
+        $(opensslDir)\crypto\conf\conf_mall.obj \
+        $(opensslDir)\crypto\conf\conf_mod.obj \
+        $(opensslDir)\crypto\cpt_err.obj \
+        $(opensslDir)\crypto\cryptlib.obj \
+        $(opensslDir)\crypto\des\cbc_cksm.obj \
+        $(opensslDir)\crypto\des\cfb_enc.obj \
+        $(opensslDir)\crypto\des\cfb64ede.obj \
+        $(opensslDir)\crypto\des\cfb64enc.obj \
+        $(opensslDir)\crypto\des\ecb_enc.obj \
+        $(opensslDir)\crypto\des\ecb3_enc.obj \
+        $(opensslDir)\crypto\des\ofb64ede.obj \
+        $(opensslDir)\crypto\des\ofb64enc.obj \
+        $(opensslDir)\crypto\des\set_key.obj \
+        $(opensslDir)\crypto\des\xcbc_enc.obj \
+        $(opensslDir)\crypto\dh\dh_ameth.obj \
+        $(opensslDir)\crypto\dh\dh_asn1.obj \
+        $(opensslDir)\crypto\dh\dh_check.obj \
+        $(opensslDir)\crypto\dh\dh_err.obj \
+        $(opensslDir)\crypto\dh\dh_gen.obj \
+        $(opensslDir)\crypto\dh\dh_kdf.obj \
+        $(opensslDir)\crypto\dh\dh_key.obj \
+        $(opensslDir)\crypto\dh\dh_lib.obj \
+        $(opensslDir)\crypto\dh\dh_pmeth.obj \
+        $(opensslDir)\crypto\dh\dh_rfc5114.obj \
+        $(opensslDir)\crypto\dsa\dsa_ameth.obj \
+        $(opensslDir)\crypto\dsa\dsa_asn1.obj \
+        $(opensslDir)\crypto\dsa\dsa_err.obj \
+        $(opensslDir)\crypto\dsa\dsa_gen.obj \
+        $(opensslDir)\crypto\dsa\dsa_key.obj \
+        $(opensslDir)\crypto\dsa\dsa_lib.obj \
+        $(opensslDir)\crypto\dsa\dsa_ossl.obj \
+        $(opensslDir)\crypto\dsa\dsa_pmeth.obj \
+        $(opensslDir)\crypto\dsa\dsa_sign.obj \
+        $(opensslDir)\crypto\dsa\dsa_vrf.obj \
+        $(opensslDir)\crypto\dso\dso_err.obj \
+        $(opensslDir)\crypto\dso\dso_lib.obj \
+        $(opensslDir)\crypto\dso\dso_openssl.obj \
+        $(opensslDir)\crypto\dso\dso_win32.obj \
+        $(opensslDir)\crypto\ec\ec_ameth.obj \
+        $(opensslDir)\crypto\ec\ec_asn1.obj \
+        $(opensslDir)\crypto\ec\ec_curve.obj \
+        $(opensslDir)\crypto\ec\ec_cvt.obj \
+        $(opensslDir)\crypto\ec\ec_err.obj \
+        $(opensslDir)\crypto\ec\ec_key.obj \
+        $(opensslDir)\crypto\ec\ec_lib.obj \
+        $(opensslDir)\crypto\ec\ec_mult.obj \
+        $(opensslDir)\crypto\ec\ec_oct.obj \
+        $(opensslDir)\crypto\ec\ec_pmeth.obj \
+        $(opensslDir)\crypto\ec\ec_print.obj \
+        $(opensslDir)\crypto\ec\ec2_mult.obj \
+        $(opensslDir)\crypto\ec\ec2_oct.obj \
+        $(opensslDir)\crypto\ec\ec2_smpl.obj \
+        $(opensslDir)\crypto\ec\eck_prn.obj \
+        $(opensslDir)\crypto\ec\ecp_mont.obj \
+        $(opensslDir)\crypto\ec\ecp_nist.obj \
+        $(opensslDir)\crypto\ec\ecp_oct.obj \
+        $(opensslDir)\crypto\ec\ecp_smpl.obj \
+        $(opensslDir)\crypto\ecdh\ech_err.obj \
+        $(opensslDir)\crypto\ecdh\ech_kdf.obj \
+        $(opensslDir)\crypto\ecdh\ech_key.obj \
+        $(opensslDir)\crypto\ecdh\ech_lib.obj \
+        $(opensslDir)\crypto\ecdh\ech_ossl.obj \
+        $(opensslDir)\crypto\ecdsa\ecs_asn1.obj \
+        $(opensslDir)\crypto\ecdsa\ecs_err.obj \
+        $(opensslDir)\crypto\ecdsa\ecs_lib.obj \
+        $(opensslDir)\crypto\ecdsa\ecs_ossl.obj \
+        $(opensslDir)\crypto\ecdsa\ecs_sign.obj \
+        $(opensslDir)\crypto\ecdsa\ecs_vrf.obj \
+        $(opensslDir)\crypto\engine\eng_all.obj \
+        $(opensslDir)\crypto\engine\eng_cnf.obj \
+        $(opensslDir)\crypto\engine\eng_ctrl.obj \
+        $(opensslDir)\crypto\engine\eng_dyn.obj \
+        $(opensslDir)\crypto\engine\eng_err.obj \
+        $(opensslDir)\crypto\engine\eng_fat.obj \
+        $(opensslDir)\crypto\engine\eng_init.obj \
+        $(opensslDir)\crypto\engine\eng_lib.obj \
+        $(opensslDir)\crypto\engine\eng_list.obj \
+        $(opensslDir)\crypto\engine\eng_pkey.obj \
+        $(opensslDir)\crypto\engine\eng_table.obj \
+        $(opensslDir)\crypto\engine\tb_asnmth.obj \
+        $(opensslDir)\crypto\engine\tb_cipher.obj \
+        $(opensslDir)\crypto\engine\tb_dh.obj \
+        $(opensslDir)\crypto\engine\tb_digest.obj \
+        $(opensslDir)\crypto\engine\tb_dsa.obj \
+        $(opensslDir)\crypto\engine\tb_ecdh.obj \
+        $(opensslDir)\crypto\engine\tb_ecdsa.obj \
+        $(opensslDir)\crypto\engine\tb_pkmeth.obj \
+        $(opensslDir)\crypto\engine\tb_rand.obj \
+        $(opensslDir)\crypto\engine\tb_rsa.obj \
+        $(opensslDir)\crypto\err\err.obj \
+        $(opensslDir)\crypto\err\err_all.obj \
+        $(opensslDir)\crypto\err\err_prn.obj \
+        $(opensslDir)\crypto\evp\bio_b64.obj \
+        $(opensslDir)\crypto\evp\bio_enc.obj \
+        $(opensslDir)\crypto\evp\bio_md.obj \
+        $(opensslDir)\crypto\evp\c_all.obj \
+        $(opensslDir)\crypto\evp\c_allc.obj \
+        $(opensslDir)\crypto\evp\c_alld.obj \
+        $(opensslDir)\crypto\evp\digest.obj \
+        $(opensslDir)\crypto\evp\e_aes.obj \
+        $(opensslDir)\crypto\evp\e_aes_cbc_hmac_sha1.obj \
+        $(opensslDir)\crypto\evp\e_aes_cbc_hmac_sha256.obj \
+        $(opensslDir)\crypto\evp\e_bf.obj \
+        $(opensslDir)\crypto\evp\e_camellia.obj \
+        $(opensslDir)\crypto\evp\e_cast.obj \
+        $(opensslDir)\crypto\evp\e_des.obj \
+        $(opensslDir)\crypto\evp\e_des3.obj \
+        $(opensslDir)\crypto\evp\e_null.obj \
+        $(opensslDir)\crypto\evp\e_rc2.obj \
+        $(opensslDir)\crypto\evp\e_rc4.obj \
+        $(opensslDir)\crypto\evp\e_rc4_hmac_md5.obj \
+        $(opensslDir)\crypto\evp\e_seed.obj \
+        $(opensslDir)\crypto\evp\e_xcbc_d.obj \
+        $(opensslDir)\crypto\evp\encode.obj \
+        $(opensslDir)\crypto\evp\evp_cnf.obj \
+        $(opensslDir)\crypto\evp\evp_enc.obj \
+        $(opensslDir)\crypto\evp\evp_err.obj \
+        $(opensslDir)\crypto\evp\evp_key.obj \
+        $(opensslDir)\crypto\evp\evp_lib.obj \
+        $(opensslDir)\crypto\evp\evp_pbe.obj \
+        $(opensslDir)\crypto\evp\evp_pkey.obj \
+        $(opensslDir)\crypto\evp\m_dss.obj \
+        $(opensslDir)\crypto\evp\m_dss1.obj \
+        $(opensslDir)\crypto\evp\m_ecdsa.obj \
+        $(opensslDir)\crypto\evp\m_md4.obj \
+        $(opensslDir)\crypto\evp\m_md5.obj \
+        $(opensslDir)\crypto\evp\m_ripemd.obj \
+        $(opensslDir)\crypto\evp\m_sha.obj \
+        $(opensslDir)\crypto\evp\m_sha1.obj \
+        $(opensslDir)\crypto\evp\m_sigver.obj \
+        $(opensslDir)\crypto\evp\m_wp.obj \
+        $(opensslDir)\crypto\evp\names.obj \
+        $(opensslDir)\crypto\evp\p_lib.obj \
+        $(opensslDir)\crypto\evp\p_sign.obj \
+        $(opensslDir)\crypto\evp\p_verify.obj \
+        $(opensslDir)\crypto\evp\p5_crpt.obj \
+        $(opensslDir)\crypto\evp\p5_crpt2.obj \
+        $(opensslDir)\crypto\evp\pmeth_fn.obj \
+        $(opensslDir)\crypto\evp\pmeth_gn.obj \
+        $(opensslDir)\crypto\evp\pmeth_lib.obj \
+        $(opensslDir)\crypto\ex_data.obj \
+        $(opensslDir)\crypto\hmac\hm_ameth.obj \
+        $(opensslDir)\crypto\hmac\hm_pmeth.obj \
+        $(opensslDir)\crypto\hmac\hmac.obj \
+        $(opensslDir)\crypto\lhash\lhash.obj \
+        $(opensslDir)\crypto\md4\md4_dgst.obj \
+        $(opensslDir)\crypto\md5\md5_dgst.obj \
+        $(opensslDir)\crypto\mem.obj \
+        $(opensslDir)\crypto\mem_dbg.obj \
+        $(opensslDir)\crypto\modes\cbc128.obj \
+        $(opensslDir)\crypto\modes\ccm128.obj \
+        $(opensslDir)\crypto\modes\cfb128.obj \
+        $(opensslDir)\crypto\modes\ctr128.obj \
+        $(opensslDir)\crypto\modes\cts128.obj \
+        $(opensslDir)\crypto\modes\gcm128.obj \
+        $(opensslDir)\crypto\modes\ofb128.obj \
+        $(opensslDir)\crypto\modes\wrap128.obj \
+        $(opensslDir)\crypto\modes\xts128.obj \
+        $(opensslDir)\crypto\o_dir.obj \
+        $(opensslDir)\crypto\o_init.obj \
+        $(opensslDir)\crypto\o_time.obj \
+        $(opensslDir)\crypto\objects\o_names.obj \
+        $(opensslDir)\crypto\objects\obj_dat.obj \
+        $(opensslDir)\crypto\objects\obj_err.obj \
+        $(opensslDir)\crypto\objects\obj_lib.obj \
+        $(opensslDir)\crypto\objects\obj_xref.obj \
+        $(opensslDir)\crypto\ocsp\ocsp_asn.obj \
+        $(opensslDir)\crypto\ocsp\ocsp_err.obj \
+        $(opensslDir)\crypto\ocsp\ocsp_ht.obj \
+        $(opensslDir)\crypto\ocsp\ocsp_lib.obj \
+        $(opensslDir)\crypto\pem\pem_all.obj \
+        $(opensslDir)\crypto\pem\pem_err.obj \
+        $(opensslDir)\crypto\pem\pem_info.obj \
+        $(opensslDir)\crypto\pem\pem_lib.obj \
+        $(opensslDir)\crypto\pem\pem_oth.obj \
+        $(opensslDir)\crypto\pem\pem_pk8.obj \
+        $(opensslDir)\crypto\pem\pem_pkey.obj \
+        $(opensslDir)\crypto\pem\pem_x509.obj \
+        $(opensslDir)\crypto\pem\pem_xaux.obj \
+        $(opensslDir)\crypto\pem\pvkfmt.obj \
+        $(opensslDir)\crypto\pkcs12\p12_add.obj \
+        $(opensslDir)\crypto\pkcs12\p12_asn.obj \
+        $(opensslDir)\crypto\pkcs12\p12_attr.obj \
+        $(opensslDir)\crypto\pkcs12\p12_crpt.obj \
+        $(opensslDir)\crypto\pkcs12\p12_decr.obj \
+        $(opensslDir)\crypto\pkcs12\p12_key.obj \
+        $(opensslDir)\crypto\pkcs12\p12_kiss.obj \
+        $(opensslDir)\crypto\pkcs12\p12_mutl.obj \
+        $(opensslDir)\crypto\pkcs12\p12_p8d.obj \
+        $(opensslDir)\crypto\pkcs12\p12_p8e.obj \
+        $(opensslDir)\crypto\pkcs12\p12_utl.obj \
+        $(opensslDir)\crypto\pkcs12\pk12err.obj \
+        $(opensslDir)\crypto\pkcs7\pk7_asn1.obj \
+        $(opensslDir)\crypto\pkcs7\pk7_attr.obj \
+        $(opensslDir)\crypto\pkcs7\pk7_doit.obj \
+        $(opensslDir)\crypto\pkcs7\pk7_lib.obj \
+        $(opensslDir)\crypto\pkcs7\pkcs7err.obj \
+        $(opensslDir)\crypto\pqueue\pqueue.obj \
+        $(opensslDir)\crypto\rand\md_rand.obj \
+        $(opensslDir)\crypto\rand\rand_egd.obj \
+        $(opensslDir)\crypto\rand\rand_err.obj \
+        $(opensslDir)\crypto\rand\rand_lib.obj \
+        $(opensslDir)\crypto\rand\rand_win.obj \
+        $(opensslDir)\crypto\rc2\rc2_cbc.obj \
+        $(opensslDir)\crypto\rc2\rc2_ecb.obj \
+        $(opensslDir)\crypto\rc2\rc2_skey.obj \
+        $(opensslDir)\crypto\rc2\rc2cfb64.obj \
+        $(opensslDir)\crypto\rc2\rc2ofb64.obj \
+        $(opensslDir)\crypto\rc4\rc4_utl.obj \
+        $(opensslDir)\crypto\ripemd\rmd_dgst.obj \
+        $(opensslDir)\crypto\rsa\rsa_ameth.obj \
+        $(opensslDir)\crypto\rsa\rsa_asn1.obj \
+        $(opensslDir)\crypto\rsa\rsa_crpt.obj \
+        $(opensslDir)\crypto\rsa\rsa_eay.obj \
+        $(opensslDir)\crypto\rsa\rsa_err.obj \
+        $(opensslDir)\crypto\rsa\rsa_gen.obj \
+        $(opensslDir)\crypto\rsa\rsa_lib.obj \
+        $(opensslDir)\crypto\rsa\rsa_none.obj \
+        $(opensslDir)\crypto\rsa\rsa_oaep.obj \
+        $(opensslDir)\crypto\rsa\rsa_pk1.obj \
+        $(opensslDir)\crypto\rsa\rsa_pmeth.obj \
+        $(opensslDir)\crypto\rsa\rsa_pss.obj \
+        $(opensslDir)\crypto\rsa\rsa_saos.obj \
+        $(opensslDir)\crypto\rsa\rsa_sign.obj \
+        $(opensslDir)\crypto\rsa\rsa_ssl.obj \
+        $(opensslDir)\crypto\rsa\rsa_x931.obj \
+        $(opensslDir)\crypto\seed\seed.obj \
+        $(opensslDir)\crypto\seed\seed_cbc.obj \
+        $(opensslDir)\crypto\seed\seed_cfb.obj \
+        $(opensslDir)\crypto\seed\seed_ecb.obj \
+        $(opensslDir)\crypto\seed\seed_ofb.obj \
+        $(opensslDir)\crypto\sha\sha_dgst.obj \
+        $(opensslDir)\crypto\sha\sha_one.obj \
+        $(opensslDir)\crypto\sha\sha1_one.obj \
+        $(opensslDir)\crypto\sha\sha1dgst.obj \
+        $(opensslDir)\crypto\sha\sha256.obj \
+        $(opensslDir)\crypto\sha\sha512.obj \
+        $(opensslDir)\crypto\srp\srp_lib.obj \
+        $(opensslDir)\crypto\srp\srp_vfy.obj \
+        $(opensslDir)\crypto\stack\stack.obj \
+        $(opensslDir)\crypto\ts\ts_err.obj \
+        $(opensslDir)\crypto\txt_db\txt_db.obj \
+        $(opensslDir)\crypto\ui\ui_err.obj \
+        $(opensslDir)\crypto\ui\ui_lib.obj \
+        $(opensslDir)\crypto\ui\ui_openssl.obj \
+        $(opensslDir)\crypto\ui\ui_util.obj \
+        $(opensslDir)\crypto\whrlpool\wp_dgst.obj \
+        $(opensslDir)\crypto\x509\by_dir.obj \
+        $(opensslDir)\crypto\x509\by_file.obj \
+        $(opensslDir)\crypto\x509\x_all.obj \
+        $(opensslDir)\crypto\x509\x509_att.obj \
+        $(opensslDir)\crypto\x509\x509_cmp.obj \
+        $(opensslDir)\crypto\x509\x509_d2.obj \
+        $(opensslDir)\crypto\x509\x509_def.obj \
+        $(opensslDir)\crypto\x509\x509_err.obj \
+        $(opensslDir)\crypto\x509\x509_ext.obj \
+        $(opensslDir)\crypto\x509\x509_lu.obj \
+        $(opensslDir)\crypto\x509\x509_obj.obj \
+        $(opensslDir)\crypto\x509\x509_req.obj \
+        $(opensslDir)\crypto\x509\x509_trs.obj \
+        $(opensslDir)\crypto\x509\x509_txt.obj \
+        $(opensslDir)\crypto\x509\x509_v3.obj \
+        $(opensslDir)\crypto\x509\x509_vfy.obj \
+        $(opensslDir)\crypto\x509\x509_vpm.obj \
+        $(opensslDir)\crypto\x509\x509cset.obj \
+        $(opensslDir)\crypto\x509\x509name.obj \
+        $(opensslDir)\crypto\x509\x509rset.obj \
+        $(opensslDir)\crypto\x509\x509type.obj \
+        $(opensslDir)\crypto\x509v3\pcy_cache.obj \
+        $(opensslDir)\crypto\x509v3\pcy_data.obj \
+        $(opensslDir)\crypto\x509v3\pcy_lib.obj \
+        $(opensslDir)\crypto\x509v3\pcy_map.obj \
+        $(opensslDir)\crypto\x509v3\pcy_node.obj \
+        $(opensslDir)\crypto\x509v3\pcy_tree.obj \
+        $(opensslDir)\crypto\x509v3\v3_akey.obj \
+        $(opensslDir)\crypto\x509v3\v3_akeya.obj \
+        $(opensslDir)\crypto\x509v3\v3_alt.obj \
+        $(opensslDir)\crypto\x509v3\v3_bcons.obj \
+        $(opensslDir)\crypto\x509v3\v3_bitst.obj \
+        $(opensslDir)\crypto\x509v3\v3_conf.obj \
+        $(opensslDir)\crypto\x509v3\v3_cpols.obj \
+        $(opensslDir)\crypto\x509v3\v3_crld.obj \
+        $(opensslDir)\crypto\x509v3\v3_enum.obj \
+        $(opensslDir)\crypto\x509v3\v3_extku.obj \
+        $(opensslDir)\crypto\x509v3\v3_genn.obj \
+        $(opensslDir)\crypto\x509v3\v3_ia5.obj \
+        $(opensslDir)\crypto\x509v3\v3_info.obj \
+        $(opensslDir)\crypto\x509v3\v3_int.obj \
+        $(opensslDir)\crypto\x509v3\v3_lib.obj \
+        $(opensslDir)\crypto\x509v3\v3_ncons.obj \
+        $(opensslDir)\crypto\x509v3\v3_ocsp.obj \
+        $(opensslDir)\crypto\x509v3\v3_pci.obj \
+        $(opensslDir)\crypto\x509v3\v3_pcia.obj \
+        $(opensslDir)\crypto\x509v3\v3_pcons.obj \
+        $(opensslDir)\crypto\x509v3\v3_pku.obj \
+        $(opensslDir)\crypto\x509v3\v3_pmaps.obj \
+        $(opensslDir)\crypto\x509v3\v3_prn.obj \
+        $(opensslDir)\crypto\x509v3\v3_purp.obj \
+        $(opensslDir)\crypto\x509v3\v3_scts.obj \
+        $(opensslDir)\crypto\x509v3\v3_skey.obj \
+        $(opensslDir)\crypto\x509v3\v3_sxnet.obj \
+        $(opensslDir)\crypto\x509v3\v3_utl.obj \
+        $(opensslDir)\crypto\x509v3\v3err.obj \
+        $(opensslDir)\engines\ccgost\e_gost_err.obj \
+        $(opensslDir)\engines\ccgost\gost_ameth.obj \
+        $(opensslDir)\engines\ccgost\gost_asn1.obj \
+        $(opensslDir)\engines\ccgost\gost_crypt.obj \
+        $(opensslDir)\engines\ccgost\gost_ctl.obj \
+        $(opensslDir)\engines\ccgost\gost_eng.obj \
+        $(opensslDir)\engines\ccgost\gost_keywrap.obj \
+        $(opensslDir)\engines\ccgost\gost_md.obj \
+        $(opensslDir)\engines\ccgost\gost_params.obj \
+        $(opensslDir)\engines\ccgost\gost_pmeth.obj \
+        $(opensslDir)\engines\ccgost\gost_sign.obj \
+        $(opensslDir)\engines\ccgost\gost2001.obj \
+        $(opensslDir)\engines\ccgost\gost2001_keyx.obj \
+        $(opensslDir)\engines\ccgost\gost89.obj \
+        $(opensslDir)\engines\ccgost\gost94_keyx.obj \
+        $(opensslDir)\engines\ccgost\gosthash.obj \
+        $(opensslDir)\engines\e_4758cca.obj \
+        $(opensslDir)\engines\e_aep.obj \
+        $(opensslDir)\engines\e_atalla.obj \
+        $(opensslDir)\engines\e_capi.obj \
+        $(opensslDir)\engines\e_chil.obj \
+        $(opensslDir)\engines\e_cswift.obj \
+        $(opensslDir)\engines\e_gmp.obj \
+        $(opensslDir)\engines\e_nuron.obj \
+        $(opensslDir)\engines\e_padlock.obj \
+        $(opensslDir)\engines\e_sureware.obj \
+        $(opensslDir)\engines\e_ubsec.obj \
+        $(opensslDir)\ssl\d1_clnt.obj \
+        $(opensslDir)\ssl\d1_meth.obj \
+        $(opensslDir)\ssl\d1_lib.obj \
+        $(opensslDir)\ssl\d1_srvr.obj \
+        $(opensslDir)\ssl\s2_srvr.obj \
+        $(opensslDir)\ssl\t1_clnt.obj \
+        $(opensslDir)\ssl\t1_ext.obj \
+        $(opensslDir)\ssl\t1_srvr.obj
+
+!IF "$(BUILD_TARGET_CPU)" == "x86"
+OBJS_ADDITIONAL = $(opensslDir)\crypto\whrlpool\wp_block.obj \
+        $(opensslDir)\tmp32\aes-586.obj \
+        $(opensslDir)\tmp32\aesni-x86.obj \
+        $(opensslDir)\tmp32\bf-586.obj \
+        $(opensslDir)\tmp32\bn-586.obj \
+        $(opensslDir)\tmp32\cast-586.obj \
+        $(opensslDir)\tmp32\cmll-x86.obj \
+        $(opensslDir)\tmp32\co-586.obj \
+        $(opensslDir)\tmp32\crypt586.obj \
+        $(opensslDir)\tmp32\des-586.obj \
+        $(opensslDir)\tmp32\ghash-x86.obj \
+        $(opensslDir)\tmp32\md5-586.obj \
+        $(opensslDir)\tmp32\rc4-586.obj \
+        $(opensslDir)\tmp32\rmd-586.obj \
+        $(opensslDir)\tmp32\sha1-586.obj \
+        $(opensslDir)\tmp32\sha256-586.obj \
+        $(opensslDir)\tmp32\sha512-586.obj \
+        $(opensslDir)\tmp32\vpaes-x86.obj \
+        $(opensslDir)\tmp32\wp-mmx.obj \
+        $(opensslDir)\tmp32\x86cpuid.obj \
+        $(opensslDir)\tmp32\x86-gf2m.obj \
+        $(opensslDir)\tmp32\x86-mont.obj
+!ELSE
+OBJS_ADDITIONAL = $(opensslDir)\crypto\bf\bf_enc.obj \
+        $(opensslDir)\crypto\bn\bn_asm.obj \
+        $(opensslDir)\crypto\camellia\cmll_misc.obj \
+        $(opensslDir)\crypto\cast\c_enc.obj \
+        $(opensslDir)\crypto\des\des_enc.obj \
+        $(opensslDir)\crypto\des\fcrypt_b.obj \
+        $(opensslDir)\tmp64\aesni-sha1-x86_64.obj \
+        $(opensslDir)\tmp64\aesni-gcm-x86_64.obj \
+        $(opensslDir)\tmp64\aesni-mb-x86_64.obj \
+        $(opensslDir)\tmp64\aesni-sha256-x86_64.obj \
+        $(opensslDir)\tmp64\aesni-x86_64.obj \
+        $(opensslDir)\tmp64\aes-x86_64.obj \
+        $(opensslDir)\tmp64\bsaes-x86_64.obj \
+        $(opensslDir)\tmp64\cmll-x86_64.obj \
+        $(opensslDir)\tmp64\ghash-x86_64.obj \
+        $(opensslDir)\tmp64\md5-x86_64.obj \
+        $(opensslDir)\tmp64\rc4-md5-x86_64.obj \
+        $(opensslDir)\tmp64\rc4-x86_64.obj \
+        $(opensslDir)\tmp64\sha1-x86_64.obj \
+        $(opensslDir)\tmp64\sha1-mb-x86_64.obj \
+        $(opensslDir)\tmp64\sha256-mb-x86_64.obj \
+        $(opensslDir)\tmp64\sha256-x86_64.obj \
+        $(opensslDir)\tmp64\sha512-x86_64.obj \
+        $(opensslDir)\tmp64\vpaes-x86_64.obj \
+        $(opensslDir)\tmp64\wp-x86_64.obj \
+        $(opensslDir)\tmp64\x86_64cpuid.obj \
+        $(opensslDir)\tmp64\x86_64-gf2m.obj \
+        $(opensslDir)\tmp64\x86_64-mont.obj \
+        $(opensslDir)\tmp64\x86_64-mont5.obj
+!ENDIF
+OBJS = $(OBJS_COMMON) $(OBJS_ADDITIONAL)
+
+CC = cl.exe
+LIB = lib.exe
+!IF "$(BUILD_TARGET_DIR)" == "x86"
+ASM = $(nasmDir)\nasm.exe -f win32
+!ELSE
+ASM = $(nasmDir)\nasm.exe -f win64 -DNEAR -Ox -g
+!ENDIF
+
+
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+	$(LIB) /OUT:$(TARGET) $(LFLAGS) @<<
+$(OBJS)
+<<
+
+.c.obj:
+	$(CC) /c $< $(CFLAGS) $(ARCH_DEFINES) /Fo$@
+
+.asm.obj:
+	$(ASM) -o$@ $<
 
 clean:
-	-del libeay.lib
-
-# all:
-# 	MSBuild $(ProjectDir)\PCbuild\libeay.vcxproj /t:build /p:Configuration=Release;Platform=Win32
-
-# clean:
-# 	MSBuild $(ProjectDir)\PCbuild\libeay.vcxproj /t:clean
+	-<<delete.bat
+del $(TARGET)
+del $(OBJS:.obj =.obj^
+del )
+<<
