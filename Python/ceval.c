@@ -5329,9 +5329,24 @@ call_function(PyObject ***pp_stack, Py_ssize_t oparg, PyObject *kwnames)
     }
     else if (Py_TYPE(func) == &PyMethodDescr_Type) {
         PyThreadState *tstate = PyThreadState_GET();
-        STACKLESS_PROPOSE_ALL();
-        C_TRACE(x, _PyMethodDescr_FastCallKeywords(func, stack, nargs, kwnames));
-        STACKLESS_ASSERT();
+        if (tstate->use_tracing && tstate->c_profilefunc) {
+            // We need to create PyCFunctionObject for tracing.
+            PyMethodDescrObject *descr = (PyMethodDescrObject*)func;
+            func = PyCFunction_NewEx(descr->d_method, stack[0], NULL);
+            if (func == NULL) {
+                return NULL;
+            }
+            STACKLESS_PROPOSE_ALL();
+            C_TRACE(x, _PyCFunction_FastCallKeywords(func, stack+1, nargs-1,
+                                                     kwnames));
+            STACKLESS_ASSERT();
+            Py_DECREF(func);
+        }
+        else {
+            STACKLESS_PROPOSE_ALL();
+            x = _PyMethodDescr_FastCallKeywords(func, stack, nargs, kwnames);
+            STACKLESS_ASSERT();
+        }
     }
     else {
         if (PyMethod_Check(func) && PyMethod_GET_SELF(func) != NULL) {
