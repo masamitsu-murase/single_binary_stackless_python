@@ -3,6 +3,7 @@ setlocal enabledelayedexpansion
 
 cd /d "%~dp0.."
 
+if "%2" == "2008" goto SET_VC_VERSION
 if "%2" == "2012" goto SET_VC_VERSION
 if "%2" == "2013" goto SET_VC_VERSION
 if "%2" == "2015" goto SET_VC_VERSION
@@ -21,7 +22,11 @@ if "%1" == "x86" (
     set WINDOWS_PE=0
 ) else if "%1" == "x64" (
     set BUILD_TARGET_CPU=x64
-    set VC_CPU=x86_amd64
+    if "%VC_VERSION%" == "2012" (
+        set VC_CPU=x86_amd64
+    ) else (
+        set VC_CPU=amd64
+    )
     set WINDOWS_PE=0
 ) else if "%1" == "x64_pe" (
     set BUILD_TARGET_CPU=x64
