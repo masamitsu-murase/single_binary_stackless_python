@@ -2640,14 +2640,13 @@ class TestFlags(unittest.TestCase):
         print(json.dumps(flags))
 
     @test_support.requires_unicode  # XXX json needs unicode support
-    def test_flags(self):
+    def xtest_flags(self):
         import json, subprocess
         # start child process using unusual flags
         prog = ('from test.test_multiprocessing import TestFlags; ' +
                 'TestFlags.run_in_child()')
         data = subprocess.check_output(
-            # [sys.executable, '-E', '-B', '-O', '-c', prog])
-            [sys.executable, '-O', '-c', prog])
+            [sys.executable, '-E', '-B', '-O', '-c', prog])
         child_flags, grandchild_flags = json.loads(data.decode('ascii'))
         self.assertEqual(child_flags, grandchild_flags)
 
