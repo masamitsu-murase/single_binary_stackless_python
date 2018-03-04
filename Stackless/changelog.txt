@@ -10,6 +10,12 @@ What's New in Stackless 3.X.X?
 *Release date: 20XX-XX-XX*
 
 - https://github.com/stackless-dev/stackless/issues/150
+  Thread ids are now unsigned. See bpo-6532. This change of the Python C-API
+  causes analog changes in the Stackless C-API. In
+  PyTasklet_BindThread(PyTaskletObject *task, unsigned long thread_id)
+  the type of "thread_id" changed from "long" to "unsigned long". And
+  the return value of PyStackless_GetCurrentId(void) changed from "long" to
+  "unsigned long".
   The prototype of PyStackless_GetCurrentId(void) was missing from
   stackless_api.h. It is now defined.
 

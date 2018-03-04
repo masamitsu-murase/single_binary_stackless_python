@@ -28,7 +28,7 @@ Tasklets
   method :py:meth:`tasklet.bind`. The arguments *func*, *args* and *kwargs* are optional and
   may be ``NULL`` or `Py_None`. Returns ``0`` if successful or ``-1`` in the case of failure.
 
-.. c:function:: int PyTasklet_BindThread(PyTaskletObject *task, long thread_id)
+.. c:function:: int PyTasklet_BindThread(PyTaskletObject *task, unsigned long thread_id)
 
   Binds a tasklet function to a thread. This is the C equivalent to
   method :py:meth:`tasklet.bind_thread`. Returns ``0`` if successful or ``-1`` in the case of failure.
@@ -285,7 +285,7 @@ stackless module
 
   Get the currently running tasklet, that is, "yourself".
 
-.. c:function:: long PyStackless_GetCurrentId()
+.. c:function:: unsigned long PyStackless_GetCurrentId()
 
   Get a unique integer ID for the current tasklet
 

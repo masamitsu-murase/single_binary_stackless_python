@@ -59,7 +59,7 @@ PyAPI_FUNC(int) PyTasklet_BindEx(PyTaskletObject *task, PyObject *func, PyObject
 /*
  * bind a tasklet function to a thread.
  */
-PyAPI_FUNC(int) PyTasklet_BindThread(PyTaskletObject *task, long thread_id);
+PyAPI_FUNC(int) PyTasklet_BindThread(PyTaskletObject *task, unsigned long thread_id);
 
 /*
  * forces the tasklet to run immediately.
@@ -319,7 +319,7 @@ PyAPI_FUNC(PyObject *) PyStackless_GetCurrent(void);
  * the same id even if a proper tasklet has not been initialized
  * 2) IDs may get recycled for new tasklets.
  */
-PyAPI_FUNC(long) PyStackless_GetCurrentId(void);
+PyAPI_FUNC(unsigned long) PyStackless_GetCurrentId(void);
 
 /*
  * run the runnable tasklet queue until all are done,

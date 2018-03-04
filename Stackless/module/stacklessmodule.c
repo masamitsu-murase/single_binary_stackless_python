@@ -306,7 +306,7 @@ getcurrent(PyObject *self)
 PyDoc_STRVAR(getcurrentid__doc__,
 "getcurrentid() -- return the id of the currently executing tasklet.");
 
-long
+unsigned long
 PyStackless_GetCurrentId(void)
 {
     #ifdef WITH_THREAD
@@ -324,9 +324,9 @@ PyStackless_GetCurrentId(void)
         t = ts->st.current;
         if (t && t != ts->st.main && ts->st.main != NULL) {
 #if SIZEOF_VOID_P > SIZEOF_LONG
-            return (long)((Py_intptr_t)t) ^ (long)((Py_intptr_t)t >> 32);
+            return (unsigned long)((Py_intptr_t)t) ^ (unsigned long)((Py_intptr_t)t >> 32);
 #else
-            return (long)t;
+            return (unsigned long)t;
 #endif
         }
     }
@@ -346,7 +346,7 @@ PyStackless_GetCurrentId(void)
 static PyObject *
 getcurrentid(PyObject *self)
 {
-    return PyLong_FromLong(PyStackless_GetCurrentId());
+    return PyLong_FromUnsignedLong(PyStackless_GetCurrentId());
 }
 
 PyDoc_STRVAR(getmain__doc__,
@@ -719,7 +719,9 @@ get_thread_info(PyObject *self, PyObject *args)
 {
     PyThreadState *ts = PyThreadState_GET();
     PyInterpreterState *interp = ts->interp;
-    long id = 0;
+    PyObject *thread_id = NULL;
+    unsigned long id = 0;
+    long id_is_valid;
     /* The additional optional argument flags is currently intentionally
      * undocumented. The lower order flag bits are reserved for future public
      * applications. If the flag bit 31 is set, the returned tuple contains
@@ -729,9 +731,12 @@ get_thread_info(PyObject *self, PyObject *args)
      */
     unsigned long flags=0;
 
-    if (!PyArg_ParseTuple(args, "|lk:get_thread_info", &id, &flags))
+    if (!PyArg_ParseTuple(args, "|O!k:get_thread_info", &PyLong_Type, &thread_id, &flags))
         return NULL;
-    if (id != -1) {
+    id_is_valid = slp_parse_thread_id(thread_id, &id);
+    if (!id_is_valid)
+        return NULL;
+    if (id_is_valid == 1) {
         SLP_HEAD_LOCK();
         for (ts = interp->tstate_head; id && ts != NULL; ts = ts->next) {
             if (ts->thread_id == id)
@@ -1542,7 +1547,7 @@ slp_getthreads(PyObject *self)
 
     SLP_HEAD_LOCK();
     for (ts = interp->tstate_head; ts != NULL; ts = ts->next) {
-        PyObject *id = PyLong_FromLong(ts->thread_id);
+        PyObject *id = PyLong_FromUnsignedLong(ts->thread_id);
         if (id == NULL) {
             SLP_HEAD_UNLOCK();
             Py_DECREF(lis);

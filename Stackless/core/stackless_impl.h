@@ -827,6 +827,8 @@ void slp_head_unlock(void);
 #define SLP_HEAD_UNLOCK() assert(1)
 #endif
 
+long slp_parse_thread_id(PyObject *thread_id, unsigned long *id);
+
 #include "stackless_api.h"
 
 #else /* STACKLESS */

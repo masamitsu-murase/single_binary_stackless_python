@@ -611,9 +611,12 @@ raised.\n\
 static PyObject *
 tasklet_bind_thread(PyObject *self, PyObject *args)
 {
-    long target_tid = -1;
+    PyObject *thread_id = NULL;
+    unsigned long target_tid = (unsigned long)-1;
     assert(PyTasklet_Check(self));
-    if (!PyArg_ParseTuple(args, "|l:bind_thread", &target_tid))
+    if (!PyArg_ParseTuple(args, "|O!:bind_thread", &PyLong_Type, &thread_id))
+        return NULL;
+    if (!slp_parse_thread_id(thread_id, &target_tid))
         return NULL;
     if (PyTasklet_BindThread((PyTaskletObject *) self, target_tid))
         return NULL;
@@ -621,14 +624,14 @@ tasklet_bind_thread(PyObject *self, PyObject *args)
 }
 
 int
-PyTasklet_BindThread(PyTaskletObject *task, long thread_id)
+PyTasklet_BindThread(PyTaskletObject *task, unsigned long thread_id)
 {
     PyThreadState *ts = task->cstate->tstate;
     PyThreadState *cts = PyThreadState_GET();
     PyObject *old;
     assert(PyTasklet_Check(task));
 
-    if (thread_id == -1 && ts == cts)
+    if (thread_id == (unsigned long)-1 && ts == cts)
         return 0; /* already bound to current thread*/
 
     if (PyTasklet_Scheduled(task) && !task->flags.blocked) {
@@ -637,7 +640,7 @@ PyTasklet_BindThread(PyTaskletObject *task, long thread_id)
     if (PyTasklet_GetNestingLevel(task)) {
         RUNTIME_ERROR("tasklet has C state on its stack", -1);
     }
-    if (thread_id != -1) {
+    if (thread_id != (unsigned long)-1) {
         /* find the correct thread state */
         for(cts = PyInterpreterState_ThreadHead(cts->interp);
             cts != NULL;
@@ -1763,8 +1766,10 @@ tasklet_get_prev(PyTaskletObject *task)
 static PyObject *
 tasklet_thread_id(PyTaskletObject *task)
 {
-    long id = task->cstate->tstate ? task->cstate->tstate->thread_id : -1;
-    return PyLong_FromLong(id);
+    if (task->cstate->tstate) {
+        return PyLong_FromUnsignedLong(task->cstate->tstate->thread_id);
+    }
+    return PyLong_FromLong(-1);
 }
 
 static PyObject *

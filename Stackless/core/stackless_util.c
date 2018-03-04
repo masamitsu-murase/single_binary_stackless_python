@@ -177,4 +177,31 @@ slp_resurrect_and_kill(PyObject *self, void(*killer)(PyObject *))
     return -1;
 }
 
+/*
+ * A thread id is either an unsigned long or the special value -1.
+ */
+long
+slp_parse_thread_id(PyObject *thread_id, unsigned long *id)
+{
+    int overflow;
+    long result1;
+    unsigned long result2;
+
+    assert(id != NULL);
+    if (thread_id == NULL)
+        return 1;
+    /* thread_id is either an unsigned log or -1. We distinguish these values */
+    result1 = PyLong_AsLongAndOverflow(thread_id, &overflow);
+    if (overflow == 0 && result1 == -1) {
+        /* a special negative id */
+        *id = (unsigned long)result1;
+        return result1;
+    }
+    result2 = PyLong_AsUnsignedLong(thread_id);
+    if (PyErr_Occurred())
+        return 0;
+    *id = result2;
+    return 1;
+}
+
 #endif
