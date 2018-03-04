@@ -8,9 +8,9 @@ from test.test_support import check_warnings, run_unittest, import_module
 # Skip tests if _ctypes module does not exist
 import_module('_ctypes')
 
-from ctypes import pythonapi, create_string_buffer, sizeof, byref, c_double
+from ctypes import pythonapi, create_string_buffer, sizeof, byref, c_double, c_void_p, c_size_t, c_char_p
 PyOS_ascii_formatd = pythonapi.PyOS_ascii_formatd
-
+PyOS_ascii_formatd.argtypes = (c_void_p, c_size_t, c_char_p, c_double)
 
 class FormatDeprecationTests(unittest.TestCase):
 
