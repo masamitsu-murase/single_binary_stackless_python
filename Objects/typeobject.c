@@ -129,7 +129,7 @@ skip_signature(const char *doc)
     return NULL;
 }
 
-#ifdef Py_DEBUG
+#ifndef NDEBUG
 static int
 _PyType_CheckConsistency(PyTypeObject *type)
 {
@@ -4456,23 +4456,20 @@ _common_reduce(PyObject *self, int proto)
 /*[clinic input]
 object.__reduce__
 
-  protocol: int = 0
-  /
-
 Helper for pickle.
 [clinic start generated code]*/
 
 static PyObject *
-object___reduce___impl(PyObject *self, int protocol)
-/*[clinic end generated code: output=5572e699c467dd5b input=227f37ed68bd938a]*/
+object___reduce___impl(PyObject *self)
+/*[clinic end generated code: output=d4ca691f891c6e2f input=11562e663947e18b]*/
 {
-    return _common_reduce(self, protocol);
+    return _common_reduce(self, 0);
 }
 
 /*[clinic input]
 object.__reduce_ex__
 
-  protocol: int = 0
+  protocol: int
   /
 
 Helper for pickle.
@@ -4480,7 +4477,7 @@ Helper for pickle.
 
 static PyObject *
 object___reduce_ex___impl(PyObject *self, int protocol)
-/*[clinic end generated code: output=2e157766f6b50094 input=8dd6a9602a12749e]*/
+/*[clinic end generated code: output=2e157766f6b50094 input=f326b43fb8a4c5ff]*/
 {
     static PyObject *objreduce;
     PyObject *reduce, *res;
@@ -4559,9 +4556,6 @@ static PyObject *
 object___format___impl(PyObject *self, PyObject *format_spec)
 /*[clinic end generated code: output=34897efb543a974b input=7c3b3bc53a6fb7fa]*/
 {
-    PyObject *self_as_str = NULL;
-    PyObject *result = NULL;
-
     /* Issue 7994: If we're converting to a string, we
        should reject format specifications */
     if (PyUnicode_GET_LENGTH(format_spec) > 0) {
@@ -4570,12 +4564,7 @@ object___format___impl(PyObject *self, PyObject *format_spec)
                      self->ob_type->tp_name);
         return NULL;
     }
-    self_as_str = PyObject_Str(self);
-    if (self_as_str != NULL) {
-        result = PyObject_Format(self_as_str, format_spec);
-        Py_DECREF(self_as_str);
-    }
-    return result;
+    return PyObject_Str(self);
 }
 
 /*[clinic input]
@@ -5525,8 +5514,10 @@ getindex(PyObject *self, PyObject *arg)
         PySequenceMethods *sq = Py_TYPE(self)->tp_as_sequence;
         if (sq && sq->sq_length) {
             Py_ssize_t n = (*sq->sq_length)(self);
-            if (n < 0)
+            if (n < 0) {
+                assert(PyErr_Occurred());
                 return -1;
+            }
             i += n;
         }
     }
@@ -6024,14 +6015,22 @@ slot_sq_length(PyObject *self)
 
     if (res == NULL)
         return -1;
-    len = PyNumber_AsSsize_t(res, PyExc_OverflowError);
-    Py_DECREF(res);
-    if (len < 0) {
-        if (!PyErr_Occurred())
-            PyErr_SetString(PyExc_ValueError,
-                            "__len__() should return >= 0");
+
+    Py_SETREF(res, PyNumber_Index(res));
+    if (res == NULL)
+        return -1;
+
+    assert(PyLong_Check(res));
+    if (Py_SIZE(res) < 0) {
+        Py_DECREF(res);
+        PyErr_SetString(PyExc_ValueError,
+                        "__len__() should return >= 0");
         return -1;
     }
+
+    len = PyNumber_AsSsize_t(res, PyExc_OverflowError);
+    assert(len >= 0 || PyErr_ExceptionMatches(PyExc_OverflowError));
+    Py_DECREF(res);
     return len;
 }
 

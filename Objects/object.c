@@ -409,7 +409,7 @@ PyObject_Print(PyObject *op, FILE *fp, int flags)
     }
     if (ret == 0) {
         if (ferror(fp)) {
-            PyErr_SetFromErrno(PyExc_IOError);
+            PyErr_SetFromErrno(PyExc_OSError);
             clearerr(fp);
             ret = -1;
         }
@@ -2100,6 +2100,19 @@ void
 _PyTrash_thread_destroy_chain(void)
 {
     PyThreadState *tstate = PyThreadState_GET();
+    /* We need to increase trash_delete_nesting here, otherwise,
+       _PyTrash_thread_destroy_chain will be called recursively
+       and then possibly crash.  An example that may crash without
+       increase:
+           N = 500000  # need to be large enough
+           ob = object()
+           tups = [(ob,) for i in range(N)]
+           for i in range(49):
+               tups = [(tup,) for tup in tups]
+           del tups
+    */
+    assert(tstate->trash_delete_nesting == 0);
+    ++tstate->trash_delete_nesting;
     while (tstate->trash_delete_later) {
         PyObject *op = tstate->trash_delete_later;
         destructor dealloc = Py_TYPE(op)->tp_dealloc;
@@ -2114,10 +2127,10 @@ _PyTrash_thread_destroy_chain(void)
          * up distorting allocation statistics.
          */
         assert(op->ob_refcnt == 0);
-        ++tstate->trash_delete_nesting;
         (*dealloc)(op);
-        --tstate->trash_delete_nesting;
+        assert(tstate->trash_delete_nesting == 1);
     }
+    --tstate->trash_delete_nesting;
 }
 
 #ifndef Py_TRACE_REFS

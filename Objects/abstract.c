@@ -53,8 +53,11 @@ PyObject_Size(PyObject *o)
     }
 
     m = o->ob_type->tp_as_sequence;
-    if (m && m->sq_length)
-        return m->sq_length(o);
+    if (m && m->sq_length) {
+        Py_ssize_t len = m->sq_length(o);
+        assert(len >= 0 || PyErr_Occurred());
+        return len;
+    }
 
     return PyMapping_Size(o);
 }
@@ -87,7 +90,8 @@ PyObject_LengthHint(PyObject *o, Py_ssize_t defaultvalue)
     _Py_IDENTIFIER(__length_hint__);
     if (_PyObject_HasLen(o)) {
         res = PyObject_Length(o);
-        if (res < 0 && PyErr_Occurred()) {
+        if (res < 0) {
+            assert(PyErr_Occurred());
             if (!PyErr_ExceptionMatches(PyExc_TypeError)) {
                 return -1;
             }
@@ -1484,8 +1488,11 @@ PySequence_Size(PyObject *s)
     }
 
     m = s->ob_type->tp_as_sequence;
-    if (m && m->sq_length)
-        return m->sq_length(s);
+    if (m && m->sq_length) {
+        Py_ssize_t len = m->sq_length(s);
+        assert(len >= 0 || PyErr_Occurred());
+        return len;
+    }
 
     type_error("object of type '%.200s' has no len()", s);
     return -1;
@@ -1674,8 +1681,10 @@ PySequence_SetItem(PyObject *s, Py_ssize_t i, PyObject *o)
         if (i < 0) {
             if (m->sq_length) {
                 Py_ssize_t l = (*m->sq_length)(s);
-                if (l < 0)
+                if (l < 0) {
+                    assert(PyErr_Occurred());
                     return -1;
+                }
                 i += l;
             }
         }
@@ -1701,8 +1710,10 @@ PySequence_DelItem(PyObject *s, Py_ssize_t i)
         if (i < 0) {
             if (m->sq_length) {
                 Py_ssize_t l = (*m->sq_length)(s);
-                if (l < 0)
+                if (l < 0) {
+                    assert(PyErr_Occurred());
                     return -1;
+                }
                 i += l;
             }
         }
@@ -2039,8 +2050,11 @@ PyMapping_Size(PyObject *o)
     }
 
     m = o->ob_type->tp_as_mapping;
-    if (m && m->mp_length)
-        return m->mp_length(o);
+    if (m && m->mp_length) {
+        Py_ssize_t len = m->mp_length(o);
+        assert(len >= 0 || PyErr_Occurred());
+        return len;
+    }
 
     type_error("object of type '%.200s' has no len()", o);
     return -1;
