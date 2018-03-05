@@ -73,7 +73,9 @@ ASM = $(nasmDir)\nasm.exe -f win64 -DNEAR -Ox -g
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(LIB) /OUT:$(TARGET) $(LFLAGS) $(OBJS)
+	$(LIB) /OUT:$(TARGET) $(LFLAGS) @<<
+$(OBJS)
+<<
 
 .c.obj:
 	$(CC) /c $< $(CFLAGS) $(ARCH_DEFINES) /Fo$@

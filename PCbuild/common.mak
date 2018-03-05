@@ -11,7 +11,9 @@ ASM = ml64.exe
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(LIB) /OUT:$(TARGET) $(LFLAGS) $(OBJS)
+	$(LIB) /OUT:$(TARGET) $(LFLAGS) @<<
+$(OBJS)
+<<
 
 .c.obj:
 	$(CC) /c $< $(CFLAGS) $(ARCH_DEFINES) /Fo$@
