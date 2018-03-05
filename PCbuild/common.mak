@@ -1,18 +1,19 @@
 
 CC = cl.exe
 LIB = lib.exe
-!IF "$(BUILD_TARGET_DIR)" == "x86"
+!IF "$(BUILD_TARGET_CPU)" == "x86"
 ASM = ml.exe
 !ELSE
 ASM = ml64.exe
 !ENDIF
 
-!include common_arch.mak
 
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(LIB) /OUT:$(TARGET) $(LFLAGS) $(OBJS)
+	$(LIB) /OUT:$(TARGET) $(LFLAGS) @<<
+$(OBJS)
+<<
 
 .c.obj:
 	$(CC) /c $< $(CFLAGS) $(ARCH_DEFINES) /Fo$@
