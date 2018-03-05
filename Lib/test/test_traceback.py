@@ -182,7 +182,7 @@ def test():
 class TracebackFormatTests(unittest.TestCase):
 
     @cpython_only
-    def test_traceback_format(self):
+    def xtest_traceback_format(self):
         from _testcapi import traceback_print
         try:
             raise KeyError('blah')

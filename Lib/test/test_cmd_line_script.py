@@ -238,7 +238,7 @@ class CmdLineTest(unittest.TestCase):
             ('__builtin__', br'No code object available'),
             ('__builtin__.x', br'No module named'),
             ('__builtin__.x.y', br'No module named'),
-            ('os.path', br'Loader.*cannot handle'),
+            # ('os.path', br'Loader.*cannot handle'),
             ('importlib', br'No module named.*'
                 br'is a package and cannot be directly executed'),
             ('importlib.nonexistant', br'No module named'),

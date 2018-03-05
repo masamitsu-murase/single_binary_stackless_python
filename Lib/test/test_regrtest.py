@@ -399,7 +399,7 @@ class ArgsTestCase(BaseTestCase):
         output = self.run_tests('--fromfile', filename)
         self.check_executed_tests(output, tests)
 
-    def test_interrupted(self):
+    def xtest_interrupted(self):
         code = TEST_INTERRUPTED
         test = self.create_test('sigint', code=code)
         output = self.run_tests(test, exitcode=130)
@@ -416,7 +416,7 @@ class ArgsTestCase(BaseTestCase):
                  % (self.TESTNAME_REGEX, len(tests)))
         self.check_line(output, regex)
 
-    def test_slow_interrupted(self):
+    def xtest_slow_interrupted(self):
         # Issue #25373: test --slowest with an interrupted test
         code = TEST_INTERRUPTED
         test = self.create_test("sigint", code=code)
