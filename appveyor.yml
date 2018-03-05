@@ -3,22 +3,25 @@ image:
   - Visual Studio 2015
 environment:
   matrix:
-    - target_type: x64
-      vc_version: python2008
     - target_type: x86
       vc_version: python2008
     - target_type: x64
-      vc_version: 2008
-    - target_type: x86
-      vc_version: 2008
+      vc_version: python2008
     - target_type: x64_pe
-      vc_version: 2008
-    - target_type: x86
-      vc_version: 2012
-    - target_type: x64
-      vc_version: 2012
-    - target_type: x64_pe
-      vc_version: 2012
+      vc_version: python2008
+#     - target_type: x86
+#       vc_version: 2008
+# # x64 is not supported vy VC2008 in AppVeyor.
+# #     - target_type: x64
+# #       vc_version: 2008
+# #     - target_type: x64_pe
+# #       vc_version: 2008
+#     - target_type: x86
+#       vc_version: 2012
+#     - target_type: x64
+#       vc_version: 2012
+#     - target_type: x64_pe
+#       vc_version: 2012
 #     - target_type: x86
 #       vc_version: 2013
 #     - target_type: x64
