@@ -53,23 +53,29 @@ echo VC_VERSION %VC_VERSION%
 echo VC_PYTHON %VC_PYTHON%
 echo WINDOWS_PE %WINDOWS_PE%
 
-if "%VC_PYTHON%" == "0" (
-    if "%VC_VERSION%" == "2008" (
-        set VSTOOLS=!VS90COMNTOOLS!
-    ) else if "%VC_VERSION%" == "2012" (
-        set VSTOOLS=!VS110COMNTOOLS!
-    ) else if "%VC_VERSION%" == "2013" (
-        set VSTOOLS=!VS120COMNTOOLS!
-    ) else (
-        set VSTOOLS=!VS140COMNTOOLS!
-    )
-    call "%VSTOOLS%..\..\VC\vcvarsall.bat" %VC_CPU%
-    if ERRORLEVEL 1 exit /b 1
-) else (
-    call "%LOCALAPPDATA%\Programs\Common\Microsoft\Visual C++ for Python\9.0\vcvarsall.bat" %VC_CPU%
-    if ERRORLEVEL 1 exit /b 1
-)
 
+REM --------------------------------
+REM VC environment
+if NOT "%VC_PYTHON%" == "0" goto USE_PYTHON_VC
+if "%VC_VERSION%" == "2008" (
+    set VSTOOLS=!VS90COMNTOOLS!
+) else if "%VC_VERSION%" == "2012" (
+    set VSTOOLS=!VS110COMNTOOLS!
+) else if "%VC_VERSION%" == "2013" (
+    set VSTOOLS=!VS120COMNTOOLS!
+) else (
+    set VSTOOLS=!VS140COMNTOOLS!
+)
+call "%VSTOOLS%..\..\VC\vcvarsall.bat" %VC_CPU%
+if ERRORLEVEL 1 exit /b 1
+goto EXTRACT_EXTERNALS
+
+:USE_PYTHON_VC
+call "%LOCALAPPDATA%\Programs\Common\Microsoft\Visual C++ for Python\9.0\vcvarsall.bat" %VC_CPU%
+if ERRORLEVEL 1 exit /b 1
+
+
+:EXTRACT_EXTERNALS
 REM --------------------------------
 REM externals
 set IncludeTkinter=false
