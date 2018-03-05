@@ -63,7 +63,7 @@ OBJS = $(opensslDir)\ssl\d1_both.obj \
 
 CC = cl.exe
 LIB = lib.exe
-!IF "$(BUILD_TARGET_DIR)" == "x86"
+!IF "$(BUILD_TARGET_CPU)" == "x86"
 ASM = $(nasmDir)\nasm.exe -f win32
 !ELSE
 ASM = $(nasmDir)\nasm.exe -f win64 -DNEAR -Ox -g

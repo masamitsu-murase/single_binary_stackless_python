@@ -1,7 +1,7 @@
 
 CC = cl.exe
 LIB = lib.exe
-!IF "$(BUILD_TARGET_DIR)" == "x86"
+!IF "$(BUILD_TARGET_CPU)" == "x86"
 ASM = ml.exe
 !ELSE
 ASM = ml64.exe
