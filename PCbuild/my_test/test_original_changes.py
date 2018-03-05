@@ -24,6 +24,7 @@ class TestOriginalChanges(unittest.TestCase):
     def test_embeddedimport(self):
         import comtypes
         import yaml
+        import pyreadline
 
 if __name__ == "__main__":
     unittest.main()
