@@ -103,7 +103,8 @@ if ERRORLEVEL 1 (
 REM --------------------------------
 REM build
 cd /d "%~dp0"
-prebuilt_lib.exe -o. -y
-if ERRORLEVEL 1 exit /b 1
 
 nmake
+if ERRORLEVEL 1 exit /b 1
+
+exit /b 0
