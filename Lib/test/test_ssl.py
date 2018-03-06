@@ -1244,14 +1244,17 @@ class ContextTests(unittest.TestCase):
             sys.exit(status)"""
         extra_env = {}
         # Omitting it leaves verification on
-        assert_python_ok("-c", https_is_verified, **extra_env)
+        # assert_python_ok("-c", https_is_verified, **extra_env)
+        assert_python_ok("-E", "-c", https_is_verified, **extra_env)
         # Setting it to zero turns verification off
         extra_env[ssl._https_verify_envvar] = "0"
-        assert_python_ok("-c", https_is_not_verified, **extra_env)
+        # assert_python_ok("-c", https_is_not_verified, **extra_env)
+        assert_python_ok("-E", "-c", https_is_not_verified, **extra_env)
         # Any other value should also leave it on
         for setting in ("", "1", "enabled", "foo"):
             extra_env[ssl._https_verify_envvar] = setting
-            assert_python_ok("-c", https_is_verified, **extra_env)
+            # assert_python_ok("-c", https_is_verified, **extra_env)
+            assert_python_ok("-E", "-c", https_is_verified, **extra_env)
 
     def test_check_hostname(self):
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
