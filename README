@@ -1,3 +1,14 @@
+Single Binary StacklessPython
+-----------------------------
+This is a StacklessPython for Windows, which is packed into a single binary.
+
+yaml, comtypes and pyreadline are included in the binary.
+
+* python.exe:      32bit executable image.
+* python64.exe:    64bit executable image.
+* python64_pe.exe: 64bit executable image without _msi built-in module.
+=============================
+
 This is Python version 2.7.14
 =============================
 
