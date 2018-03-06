@@ -137,10 +137,10 @@ def _args_from_interpreter_flags():
         # 'inspect': 'i',
         # 'interactive': 'i',
         'optimize': 'O',
-        'dont_write_bytecode': 'B',
+        # 'dont_write_bytecode': 'B',
         'no_user_site': 's',
         'no_site': 'S',
-        'ignore_environment': 'E',
+        # 'ignore_environment': 'E',
         'verbose': 'v',
         'bytes_warning': 'b',
         'py3k_warning': '3',
@@ -150,6 +150,10 @@ def _args_from_interpreter_flags():
         v = getattr(sys.flags, flag)
         if v > 0:
             args.append('-' + opt * v)
+    if getattr(sys.flags, "dont_write_bytecode") == 0:
+        args.append("-B")
+    if getattr(sys.flags, "ignore_environment") == 0:
+        args.append("-E")
     if getattr(sys.flags, 'hash_randomization') != 0:
         args.append('-R')
     for opt in sys.warnoptions:
