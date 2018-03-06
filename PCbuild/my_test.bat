@@ -40,4 +40,11 @@ if ERRORLEVEL 1 (
     echo "regrtest failed."
     exit /b 1
 )
+
+%PYTHON% ..\Stackless\unittests\runAll.py
+if ERRORLEVEL 1 (
+    echo "stackless test failed."
+    exit /b 1
+)
+
 exit /b 0
