@@ -14,7 +14,8 @@ from pyreadline.modes.emacs import *
 from pyreadline import keysyms
 from pyreadline.lineeditor import lineobj
 
-from pyreadline.test.common import *
+# from pyreadline.test.common import *
+from test_pyreadline.common import *
 from pyreadline.logger import log
 import pyreadline.logger as logger
 logger.sock_silent=True

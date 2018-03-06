@@ -14,7 +14,8 @@ from pyreadline import keysyms
 from pyreadline.lineeditor import lineobj
 from pyreadline.logger import log
 import pyreadline.logger as logger
-from pyreadline.test.common import *
+# from pyreadline.test.common import *
+from test_pyreadline.common import *
 
 from pyreadline.py3k_compat import StringIO
 #----------------------------------------------------------------------

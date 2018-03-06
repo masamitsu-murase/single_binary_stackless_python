@@ -29,7 +29,7 @@ echo PYTHON %PYTHON%
 cd /d "%~dp0"
 %PYTHON% -c "import sys; print(sys.version)"
 
-%PYTHON% my_test\test_original_changes.py
+%PYTHON% my_test\run_all.py
 if ERRORLEVEL 1 (
     echo "Test failed."
     exit /b 1
