@@ -431,7 +431,7 @@ filter_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     PyObject *it;
     filterobject *lz;
 
-    if (type == &PyFilter_Type && !_PyArg_NoKeywords("filter()", kwds))
+    if (type == &PyFilter_Type && !_PyArg_NoKeywords("filter", kwds))
         return NULL;
 
     if (!PyArg_UnpackTuple(args, "filter", 2, 2, &func, &seq))
@@ -1142,7 +1142,7 @@ map_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     mapobject *lz;
     Py_ssize_t numargs, i;
 
-    if (type == &PyMap_Type && !_PyArg_NoKeywords("map()", kwds))
+    if (type == &PyMap_Type && !_PyArg_NoKeywords("map", kwds))
         return NULL;
 
     numargs = PyTuple_Size(args);
@@ -2463,7 +2463,7 @@ zip_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     PyObject *result;
     Py_ssize_t tuplesize;
 
-    if (type == &PyZip_Type && !_PyArg_NoKeywords("zip()", kwds))
+    if (type == &PyZip_Type && !_PyArg_NoKeywords("zip", kwds))
         return NULL;
 
     /* args must be a tuple */
