@@ -1037,6 +1037,8 @@ path_converter(PyObject *o, void *p)
         Py_INCREF(bytes);
     }
     else if (is_buffer) {
+        /* XXX Replace PyObject_CheckBuffer with PyBytes_Check in other code
+           after removing support of non-bytes buffer objects. */
         if (PyErr_WarnFormat(PyExc_DeprecationWarning, 1,
             "%s%s%s should be %s, not %.200s",
             path->function_name ? path->function_name : "",
@@ -3588,8 +3590,8 @@ _posix_listdir(path_t *path, PyObject *list)
         const char *name;
         if (path->narrow) {
             name = path->narrow;
-            /* only return bytes if they specified a bytes object */
-            return_str = !(PyBytes_Check(path->object));
+            /* only return bytes if they specified a bytes-like object */
+            return_str = !PyObject_CheckBuffer(path->object);
         }
         else {
             name = ".";
@@ -8915,11 +8917,16 @@ os_posix_fallocate_impl(PyObject *module, int fd, Py_off_t offset,
         Py_BEGIN_ALLOW_THREADS
         result = posix_fallocate(fd, offset, length);
         Py_END_ALLOW_THREADS
-    } while (result != 0 && errno == EINTR &&
-             !(async_err = PyErr_CheckSignals()));
-    if (result != 0)
-        return (!async_err) ? posix_error() : NULL;
-    Py_RETURN_NONE;
+    } while (result == EINTR && !(async_err = PyErr_CheckSignals()));
+
+    if (result == 0)
+        Py_RETURN_NONE;
+
+    if (async_err)
+        return NULL;
+
+    errno = result;
+    return posix_error();
 }
 #endif /* HAVE_POSIX_FALLOCATE) && !POSIX_FADVISE_AIX_BUG */
 
@@ -8957,11 +8964,16 @@ os_posix_fadvise_impl(PyObject *module, int fd, Py_off_t offset,
         Py_BEGIN_ALLOW_THREADS
         result = posix_fadvise(fd, offset, length, advice);
         Py_END_ALLOW_THREADS
-    } while (result != 0 && errno == EINTR &&
-             !(async_err = PyErr_CheckSignals()));
-    if (result != 0)
-        return (!async_err) ? posix_error() : NULL;
-    Py_RETURN_NONE;
+    } while (result == EINTR && !(async_err = PyErr_CheckSignals()));
+
+    if (result == 0)
+        Py_RETURN_NONE;
+
+    if (async_err)
+        return NULL;
+
+    errno = result;
+    return posix_error();
 }
 #endif /* HAVE_POSIX_FADVISE && !POSIX_FADVISE_AIX_BUG */
 
@@ -11842,7 +11854,7 @@ DirEntry_from_posix_info(path_t *path, const char *name, Py_ssize_t name_len,
             goto error;
     }
 
-    if (!path->narrow || !PyBytes_Check(path->object)) {
+    if (!path->narrow || !PyObject_CheckBuffer(path->object)) {
         entry->name = PyUnicode_DecodeFSDefaultAndSize(name, name_len);
         if (joined_path)
             entry->path = PyUnicode_DecodeFSDefault(joined_path);

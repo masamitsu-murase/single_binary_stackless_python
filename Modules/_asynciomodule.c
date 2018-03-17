@@ -532,9 +532,16 @@ _asyncio_Future_remove_done_callback(FutureObj *self, PyObject *fn)
             goto fail;
         }
         if (ret == 0) {
-            Py_INCREF(item);
-            PyList_SET_ITEM(newlist, j, item);
-            j++;
+            if (j < len) {
+                Py_INCREF(item);
+                PyList_SET_ITEM(newlist, j, item);
+                j++;
+            }
+            else {
+                if (PyList_Append(newlist, item)) {
+                    goto fail;
+                }
+            }
         }
     }
 
@@ -964,6 +971,8 @@ FutureObj_dealloc(PyObject *self)
             return;
         }
     }
+
+    PyObject_GC_UnTrack(self);
 
     if (fut->fut_weakreflist != NULL) {
         PyObject_ClearWeakRefs(self);
@@ -1838,6 +1847,8 @@ TaskObj_dealloc(PyObject *self)
             return;
         }
     }
+
+    PyObject_GC_UnTrack(self);
 
     if (task->task_weakreflist != NULL) {
         PyObject_ClearWeakRefs(self);

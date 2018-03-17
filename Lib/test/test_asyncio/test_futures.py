@@ -1,6 +1,7 @@
 """Tests for futures.py."""
 
 import concurrent.futures
+import gc
 import re
 import sys
 import threading
@@ -19,8 +20,10 @@ except ImportError:
 def _fakefunc(f):
     return f
 
+
 def first_cb():
     pass
+
 
 def last_cb():
     pass
@@ -483,6 +486,15 @@ class BaseFutureTests:
                           Exception("elephant"), Exception("elephant"))
         self.assertRaises(TypeError, fi.throw, list)
 
+    def test_future_del_collect(self):
+        class Evil:
+            def __del__(self):
+                gc.collect()
+
+        for i in range(100):
+            fut = self._new_future(loop=self.loop)
+            fut.set_result(Evil())
+
 
 @unittest.skipUnless(hasattr(futures, '_CFuture'),
                      'requires the C _asyncio module')
@@ -593,7 +605,7 @@ class BaseFutureDoneCallbackTests():
 
         fut.remove_done_callback(evil())
 
-    def test_schedule_callbacks_list_mutation(self):
+    def test_schedule_callbacks_list_mutation_1(self):
         # see http://bugs.python.org/issue28963 for details
 
         def mut(f):
@@ -605,6 +617,28 @@ class BaseFutureDoneCallbackTests():
         fut.add_done_callback(str)
         fut.set_result(1)
         test_utils.run_briefly(self.loop)
+
+    def test_schedule_callbacks_list_mutation_2(self):
+        # see http://bugs.python.org/issue30828 for details
+
+        fut = self._new_future()
+        fut.add_done_callback(str)
+
+        for _ in range(63):
+            fut.add_done_callback(id)
+
+        max_extra_cbs = 100
+        extra_cbs = 0
+
+        class evil:
+            def __eq__(self, other):
+                nonlocal extra_cbs
+                extra_cbs += 1
+                if extra_cbs < max_extra_cbs:
+                    fut.add_done_callback(id)
+                return False
+
+        fut.remove_done_callback(evil())
 
 
 @unittest.skipUnless(hasattr(futures, '_CFuture'),
