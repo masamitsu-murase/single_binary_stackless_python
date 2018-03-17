@@ -579,6 +579,10 @@ _PyMethodDef_RawFastCallDict(PyMethodDef *method, PyObject *self, PyObject **arg
     switch (flags)
     {
     case METH_NOARGS:
+        if (kwargs != NULL && PyDict_GET_SIZE(kwargs) != 0) {
+            goto no_keyword_error;
+        }
+
         if (nargs != 0) {
             PyErr_Format(PyExc_TypeError,
                 "%.200s() takes no arguments (%zd given)",
@@ -586,15 +590,15 @@ _PyMethodDef_RawFastCallDict(PyMethodDef *method, PyObject *self, PyObject **arg
             goto exit;
         }
 
-        if (kwargs != NULL && PyDict_GET_SIZE(kwargs) != 0) {
-            goto no_keyword_error;
-        }
-
         STACKLESS_PROMOTE_FLAG(method->ml_flags & METH_STACKLESS);
         result = (*meth) (self, NULL);
         break;
 
     case METH_O:
+        if (kwargs != NULL && PyDict_GET_SIZE(kwargs) != 0) {
+            goto no_keyword_error;
+        }
+
         if (nargs != 1) {
             PyErr_Format(PyExc_TypeError,
                 "%.200s() takes exactly one argument (%zd given)",
@@ -602,17 +606,12 @@ _PyMethodDef_RawFastCallDict(PyMethodDef *method, PyObject *self, PyObject **arg
             goto exit;
         }
 
-        if (kwargs != NULL && PyDict_GET_SIZE(kwargs) != 0) {
-            goto no_keyword_error;
-        }
-
         STACKLESS_PROMOTE_FLAG(method->ml_flags & METH_STACKLESS);
         result = (*meth) (self, args[0]);
         break;
 
     case METH_VARARGS:
-        if (!(flags & METH_KEYWORDS)
-                && kwargs != NULL && PyDict_GET_SIZE(kwargs) != 0) {
+        if (kwargs != NULL && PyDict_GET_SIZE(kwargs) != 0) {
             goto no_keyword_error;
         }
         /* fall through next case */
@@ -719,7 +718,7 @@ _PyMethodDef_RawFastCallKeywords(PyMethodDef *method, PyObject *self, PyObject *
 
     PyCFunction meth = method->ml_meth;
     int flags = method->ml_flags & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_STACKLESS);
-    Py_ssize_t nkwargs = kwnames == NULL ? 0 : PyTuple_Size(kwnames);
+    Py_ssize_t nkwargs = kwnames == NULL ? 0 : PyTuple_GET_SIZE(kwnames);
     PyObject *result = NULL;
 
 #ifdef STACKLESS
@@ -737,6 +736,10 @@ _PyMethodDef_RawFastCallKeywords(PyMethodDef *method, PyObject *self, PyObject *
     switch (flags)
     {
     case METH_NOARGS:
+        if (nkwargs) {
+            goto no_keyword_error;
+        }
+
         if (nargs != 0) {
             PyErr_Format(PyExc_TypeError,
                 "%.200s() takes no arguments (%zd given)",
@@ -744,24 +747,20 @@ _PyMethodDef_RawFastCallKeywords(PyMethodDef *method, PyObject *self, PyObject *
             goto exit;
         }
 
-        if (nkwargs) {
-            goto no_keyword_error;
-        }
-
         STACKLESS_PROMOTE_FLAG(method->ml_flags & METH_STACKLESS);
         result = (*meth) (self, NULL);
         break;
 
     case METH_O:
+        if (nkwargs) {
+            goto no_keyword_error;
+        }
+
         if (nargs != 1) {
             PyErr_Format(PyExc_TypeError,
                 "%.200s() takes exactly one argument (%zd given)",
                 method->ml_name, nargs);
             goto exit;
-        }
-
-        if (nkwargs) {
-            goto no_keyword_error;
         }
 
         STACKLESS_PROMOTE_FLAG(method->ml_flags & METH_STACKLESS);
@@ -775,15 +774,16 @@ _PyMethodDef_RawFastCallKeywords(PyMethodDef *method, PyObject *self, PyObject *
         break;
 
     case METH_VARARGS:
+        if (nkwargs) {
+            goto no_keyword_error;
+        }
+        /* fall through next case */
+
     case METH_VARARGS | METH_KEYWORDS:
     {
         /* Slow-path: create a temporary tuple for positional arguments
            and a temporary dict for keyword arguments */
         PyObject *argtuple;
-
-        if (!(flags & METH_KEYWORDS) && nkwargs) {
-            goto no_keyword_error;
-        }
 
         argtuple = _PyStack_AsTuple(args, nargs);
         if (argtuple == NULL) {
@@ -867,6 +867,7 @@ cfunction_call_varargs(PyObject *func, PyObject *args, PyObject *kwargs)
 {
     STACKLESS_GETARG();
     assert(!PyErr_Occurred());
+    assert(kwargs == NULL || PyDict_Check(kwargs));
 
     PyCFunction meth = PyCFunction_GET_FUNCTION(func);
     PyObject *self = PyCFunction_GET_SELF(func);
@@ -895,7 +896,7 @@ cfunction_call_varargs(PyObject *func, PyObject *args, PyObject *kwargs)
         Py_LeaveRecursiveCall();
     }
     else {
-        if (kwargs != NULL && PyDict_Size(kwargs) != 0) {
+        if (kwargs != NULL && PyDict_GET_SIZE(kwargs) != 0) {
             PyErr_Format(PyExc_TypeError, "%.200s() takes no keyword arguments",
                          ((PyCFunctionObject*)func)->m_ml->ml_name);
             return NULL;
