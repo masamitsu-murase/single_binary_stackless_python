@@ -142,6 +142,15 @@ static long dxp[256];
     do { pending_async_exc = 0; COMPUTE_EVAL_BREAKER(); } while (0)
 
 
+/* This single variable consolidates all requests to break out of the fast path
+   in the eval loop. */
+static _Py_atomic_int eval_breaker = {0};
+/* Request for running pending calls. */
+static _Py_atomic_int pendingcalls_to_do = {0};
+/* Request for looking at the `async_exc` field of the current thread state.
+   Guarded by the GIL. */
+static int pending_async_exc = 0;
+
 #ifdef WITH_THREAD
 
 #ifdef HAVE_ERRNO_H
@@ -151,16 +160,8 @@ static long dxp[256];
 
 static PyThread_type_lock pending_lock = 0; /* for pending calls */
 static unsigned long main_thread = 0;
-/* This single variable consolidates all requests to break out of the fast path
-   in the eval loop. */
-static _Py_atomic_int eval_breaker = {0};
 /* Request for dropping the GIL */
 static _Py_atomic_int gil_drop_request = {0};
-/* Request for running pending calls. */
-static _Py_atomic_int pendingcalls_to_do = {0};
-/* Request for looking at the `async_exc` field of the current thread state.
-   Guarded by the GIL. */
-static int pending_async_exc = 0;
 
 #include "ceval_gil.h"
 
@@ -255,9 +256,6 @@ PyEval_ReInitThreads(void)
     _PyThreadState_DeleteExcept(current_tstate);
 }
 
-#else
-static _Py_atomic_int eval_breaker = {0};
-static int pending_async_exc = 0;
 #endif /* WITH_THREAD */
 
 /* This function is used to signal that async exceptions are waiting to be
@@ -332,6 +330,15 @@ PyEval_RestoreThread(PyThreadState *tstate)
 #endif
 */
 
+void
+_PyEval_SignalReceived(void)
+{
+    /* bpo-30703: Function called when the C signal handler of Python gets a
+       signal. We cannot queue a callback using Py_AddPendingCall() since
+       that function is not async-signal-safe. */
+    SIGNAL_PENDING_CALLS();
+}
+
 #ifdef WITH_THREAD
 
 /* The WITH_THREAD implementation is thread-safe.  It allows
@@ -396,6 +403,8 @@ Py_MakePendingCalls(void)
     int i;
     int r = 0;
 
+    assert(PyGILState_Check());
+
     if (!pending_lock) {
         /* initial allocation of the lock */
         pending_lock = PyThread_allocate_lock();
@@ -410,6 +419,16 @@ Py_MakePendingCalls(void)
     if (busy)
         return 0;
     busy = 1;
+    /* unsignal before starting to call callbacks, so that any callback
+       added in-between re-signals */
+    UNSIGNAL_PENDING_CALLS();
+
+    /* Python signal handler doesn't really queue a callback: it only signals
+       that a signal was received, see _PyEval_SignalReceived(). */
+    if (PyErr_CheckSignals() < 0) {
+        goto error;
+    }
+
     /* perform a bounded number of calls, in case of recursion */
     for (i=0; i<NPENDINGCALLS; i++) {
         int j;
@@ -426,20 +445,23 @@ Py_MakePendingCalls(void)
             arg = pendingcalls[j].arg;
             pendingfirst = (j + 1) % NPENDINGCALLS;
         }
-        if (pendingfirst != pendinglast)
-            SIGNAL_PENDING_CALLS();
-        else
-            UNSIGNAL_PENDING_CALLS();
         PyThread_release_lock(pending_lock);
         /* having released the lock, perform the callback */
         if (func == NULL)
             break;
         r = func(arg);
-        if (r)
-            break;
+        if (r) {
+            goto error;
+        }
     }
+
     busy = 0;
     return r;
+
+error:
+    busy = 0;
+    SIGNAL_PENDING_CALLS(); /* We're not done yet */
+    return -1;
 }
 
 #else /* if ! defined WITH_THREAD */
@@ -474,7 +496,6 @@ static struct {
 } pendingcalls[NPENDINGCALLS];
 static volatile int pendingfirst = 0;
 static volatile int pendinglast = 0;
-static _Py_atomic_int pendingcalls_to_do = {0};
 
 int
 Py_AddPendingCall(int (*func)(void *), void *arg)
@@ -508,7 +529,16 @@ Py_MakePendingCalls(void)
     if (busy)
         return 0;
     busy = 1;
+
+    /* unsignal before starting to call callbacks, so that any callback
+       added in-between re-signals */
     UNSIGNAL_PENDING_CALLS();
+    /* Python signal handler doesn't really queue a callback: it only signals
+       that a signal was received, see _PyEval_SignalReceived(). */
+    if (PyErr_CheckSignals() < 0) {
+        goto error;
+    }
+
     for (;;) {
         int i;
         int (*func)(void *);
@@ -520,13 +550,16 @@ Py_MakePendingCalls(void)
         arg = pendingcalls[i].arg;
         pendingfirst = (i + 1) % NPENDINGCALLS;
         if (func(arg) < 0) {
-            busy = 0;
-            SIGNAL_PENDING_CALLS(); /* We're not done yet */
-            return -1;
+            goto error:
         }
     }
     busy = 0;
     return 0;
+
+error:
+    busy = 0;
+    SIGNAL_PENDING_CALLS(); /* We're not done yet */
+    return -1;
 }
 
 #endif /* WITH_THREAD */
@@ -1421,7 +1454,6 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
             else if (err > 0) {
                 Py_INCREF(Py_False);
                 SET_TOP(Py_False);
-                err = 0;
                 DISPATCH();
             }
             STACKADJ(-1);
@@ -3009,7 +3041,7 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
             err = PyObject_IsTrue(cond);
             Py_DECREF(cond);
             if (err > 0)
-                err = 0;
+                ;
             else if (err == 0)
                 JUMPTO(oparg);
             else
@@ -3033,7 +3065,6 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
             err = PyObject_IsTrue(cond);
             Py_DECREF(cond);
             if (err > 0) {
-                err = 0;
                 JUMPTO(oparg);
             }
             else if (err == 0)
@@ -3059,7 +3090,6 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
             if (err > 0) {
                 STACKADJ(-1);
                 Py_DECREF(cond);
-                err = 0;
             }
             else if (err == 0)
                 JUMPTO(oparg);
@@ -3082,7 +3112,6 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
             }
             err = PyObject_IsTrue(cond);
             if (err > 0) {
-                err = 0;
                 JUMPTO(oparg);
             }
             else if (err == 0) {
@@ -3415,7 +3444,6 @@ stackless_with_cleanup_return:
             if (err < 0)
                 goto error;
             else if (err > 0) {
-                err = 0;
                 /* There was an exception and a True return */
                 PUSH(PyLong_FromLong((long) WHY_SILENCED));
             }
