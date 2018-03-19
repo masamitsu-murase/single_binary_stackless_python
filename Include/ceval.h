@@ -187,8 +187,6 @@ PyAPI_FUNC(PyObject *) PyEval_EvalFrameEx_slp(struct _frame *f, int exc, PyObjec
 PyAPI_FUNC(PyThreadState *) PyEval_SaveThread(void);
 PyAPI_FUNC(void) PyEval_RestoreThread(PyThreadState *);
 
-#ifdef WITH_THREAD
-
 PyAPI_FUNC(int)  PyEval_ThreadsInitialized(void);
 PyAPI_FUNC(void) PyEval_InitThreads(void);
 #ifndef Py_LIMITED_API
@@ -216,15 +214,6 @@ PyAPI_FUNC(Py_ssize_t) _PyEval_RequestCodeExtraIndex(freefunc);
 #define Py_UNBLOCK_THREADS      _save = PyEval_SaveThread();
 #define Py_END_ALLOW_THREADS    PyEval_RestoreThread(_save); \
                  }
-
-#else /* !WITH_THREAD */
-
-#define Py_BEGIN_ALLOW_THREADS {
-#define Py_BLOCK_THREADS
-#define Py_UNBLOCK_THREADS
-#define Py_END_ALLOW_THREADS }
-
-#endif /* !WITH_THREAD */
 
 #ifndef Py_LIMITED_API
 PyAPI_FUNC(int) _PyEval_SliceIndex(PyObject *, Py_ssize_t *);

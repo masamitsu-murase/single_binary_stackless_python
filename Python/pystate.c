@@ -40,7 +40,6 @@ extern "C" {
 
 int _PyGILState_check_enabled = 1;
 
-#ifdef WITH_THREAD
 #include "pythread.h"
 static PyThread_type_lock head_mutex = NULL; /* Protects interp->tstate_head */
 #define HEAD_INIT() (void)(head_mutex || (head_mutex = PyThread_allocate_lock()))
@@ -53,11 +52,6 @@ static PyThread_type_lock head_mutex = NULL; /* Protects interp->tstate_head */
 /* TODO: Given interp_main, it may be possible to kill this ref */
 static PyInterpreterState *autoInterpreterState = NULL;
 static int autoTLSkey = -1;
-#else
-#define HEAD_INIT() /* Nothing */
-#define HEAD_LOCK() /* Nothing */
-#define HEAD_UNLOCK() /* Nothing */
-#endif
 
 #ifdef STACKLESS
 #ifdef WITH_THREAD
@@ -81,9 +75,7 @@ static PyInterpreterState *interp_main = NULL;
 _Py_atomic_address _PyThreadState_Current = {0};
 PyThreadFrameGetter _PyThreadState_GetFrame = NULL;
 
-#ifdef WITH_THREAD
 static void _PyGILState_NoteThreadState(PyThreadState* tstate);
-#endif
 
 /* _next_interp_id is an auto-numbered sequence of small integers.
    It gets initialized in _PyInterpreterState_Init(), which is called
@@ -111,10 +103,8 @@ PyInterpreterState_New(void)
 
     if (interp != NULL) {
         HEAD_INIT();
-#ifdef WITH_THREAD
         if (head_mutex == NULL)
             Py_FatalError("Can't initialize threads for interpreter");
-#endif
         interp->modules_by_index = NULL;
         interp->sysdict = NULL;
         interp->builtins = NULL;
@@ -224,12 +214,10 @@ PyInterpreterState_Delete(PyInterpreterState *interp)
     }
     HEAD_UNLOCK();
     PyMem_RawFree(interp);
-#ifdef WITH_THREAD
     if (interp_head == NULL && head_mutex != NULL) {
         PyThread_free_lock(head_mutex);
         head_mutex = NULL;
     }
-#endif
 }
 
 
@@ -278,11 +266,7 @@ new_threadstate(PyInterpreterState *interp, int init)
         tstate->use_tracing = 0;
         tstate->gilstate_counter = 0;
         tstate->async_exc = NULL;
-#ifdef WITH_THREAD
         tstate->thread_id = PyThread_get_thread_ident();
-#else
-        tstate->thread_id = 0;
-#endif
 
         tstate->dict = NULL;
 
@@ -343,9 +327,7 @@ _PyThreadState_Prealloc(PyInterpreterState *interp)
 void
 _PyThreadState_Init(PyThreadState *tstate)
 {
-#ifdef WITH_THREAD
     _PyGILState_NoteThreadState(tstate);
-#endif
 }
 
 PyObject*
@@ -533,15 +515,12 @@ PyThreadState_Delete(PyThreadState *tstate)
 {
     if (tstate == GET_TSTATE())
         Py_FatalError("PyThreadState_Delete: tstate is still current");
-#ifdef WITH_THREAD
     if (autoInterpreterState && PyThread_get_key_value(autoTLSkey) == tstate)
         PyThread_delete_key_value(autoTLSkey);
-#endif /* WITH_THREAD */
     tstate_delete_common(tstate);
 }
 
 
-#ifdef WITH_THREAD
 void
 PyThreadState_DeleteCurrent()
 {
@@ -555,7 +534,6 @@ PyThreadState_DeleteCurrent()
     SET_TSTATE(NULL);
     PyEval_ReleaseLock();
 }
-#endif /* WITH_THREAD */
 
 
 /*
@@ -623,7 +601,7 @@ PyThreadState_Swap(PyThreadState *newts)
        to be used for a thread.  Check this the best we can in debug
        builds.
     */
-#if defined(Py_DEBUG) && defined(WITH_THREAD)
+#if defined(Py_DEBUG)
     if (newts) {
         /* This can be called from PyEval_RestoreThread(). Similar
            to it, we need to ensure errno doesn't change.
@@ -784,7 +762,6 @@ _PyThread_CurrentFrames(void)
 }
 
 /* Python "auto thread state" API. */
-#ifdef WITH_THREAD
 
 /* Keep this as a static, as it is not reliable!  It can only
    ever be compared to the state for the *current* thread.
@@ -840,10 +817,8 @@ _PyGILState_Fini(void)
 void
 _PyGILState_Reinit(void)
 {
-#ifdef WITH_THREAD
     head_mutex = NULL;
     HEAD_INIT();
-#endif
     PyThreadState *tstate = PyGILState_GetThisThreadState();
     PyThread_delete_key(autoTLSkey);
     if ((autoTLSkey = PyThread_create_key()) == -1)
@@ -995,10 +970,7 @@ PyGILState_Release(PyGILState_STATE oldstate)
         PyEval_SaveThread();
 }
 
-#endif /* WITH_THREAD */
 
 #ifdef __cplusplus
 }
 #endif
-
-
