@@ -908,7 +908,7 @@ regen-typeslots:
 		$(srcdir)/Objects/typeslots.inc
 
 Stackless/core/slp_transfer.o: $(srcdir)/Stackless/core/slp_transfer.c
-		$(CC) -c $(PY_CFLAGS) $(PY_CFLAGS_NODIST) $(PY_CPPFLAGS) $(SLPFLAGS) -I$(DLINCLDIR) -o $@ $(srcdir)/Stackless/core/slp_transfer.c
+		$(CC) -c $(PY_CORE_CFLAGS) $(SLPFLAGS) -o $@ $(srcdir)/Stackless/core/slp_transfer.c
 
 ############################################################################
 # Header files

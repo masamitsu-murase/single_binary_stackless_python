@@ -3,10 +3,14 @@
 
 #include "Python.h"
 
-#ifdef STACKLESS
-
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+#ifdef STACKLESS
+
+#ifdef Py_BUILD_CORE
+#include "internal/pystate.h"
 #endif
 
 #include "structmember.h"
