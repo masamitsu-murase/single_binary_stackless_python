@@ -1,7 +1,7 @@
 /* Module configuration */
 
 /* This file contains the table of built-in modules.
-   See create_builtin() in import.c. */
+    See create_builtin() in import.c. */
 
 #include "Python.h"
 
@@ -69,6 +69,7 @@ extern PyObject* _PyWarnings_Init(void);
 extern PyObject* PyInit__string(void);
 extern PyObject* PyInit__stat(void);
 extern PyObject* PyInit__opcode(void);
+extern PyObject* PyInit__findvs(void);
 
 /* tools/freeze/makeconfig.py marker for additional "extern" */
 /* -- ADDMODULE MARKER 1 -- */
@@ -165,6 +166,7 @@ struct _inittab _PyImport_Inittab[] = {
     {"_stat", PyInit__stat},
     {"_opcode", PyInit__opcode},
 
+    {"_findvs", PyInit__findvs},
 #ifdef STACKLESS
     {"_stackless", PyInit__stackless},
 #endif
