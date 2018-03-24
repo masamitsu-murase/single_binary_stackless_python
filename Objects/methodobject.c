@@ -2,6 +2,8 @@
 /* Method object implementation */
 
 #include "Python.h"
+#include "internal/mem.h"
+#include "internal/pystate.h"
 #include "structmember.h"
 #include "core/stackless_impl.h"
 

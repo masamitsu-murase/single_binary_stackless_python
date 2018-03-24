@@ -15,6 +15,7 @@ Data members:
 */
 
 #include "Python.h"
+#include "internal/pystate.h"
 #include "code.h"
 #include "frameobject.h"
 #include "pythread.h"
@@ -542,8 +543,6 @@ Return the profiling function set with sys.setprofile.\n\
 See the profiler chapter in the library manual."
 );
 
-static int _check_interval = 100;
-
 static PyObject *
 sys_setcheckinterval(PyObject *self, PyObject *args)
 {
@@ -552,7 +551,8 @@ sys_setcheckinterval(PyObject *self, PyObject *args)
                      "are deprecated.  Use sys.setswitchinterval() "
                      "instead.", 1) < 0)
         return NULL;
-    if (!PyArg_ParseTuple(args, "i:setcheckinterval", &_check_interval))
+    PyInterpreterState *interp = PyThreadState_GET()->interp;
+    if (!PyArg_ParseTuple(args, "i:setcheckinterval", &interp->check_interval))
         return NULL;
     Py_RETURN_NONE;
 }
@@ -572,7 +572,8 @@ sys_getcheckinterval(PyObject *self, PyObject *args)
                      "are deprecated.  Use sys.getswitchinterval() "
                      "instead.", 1) < 0)
         return NULL;
-    return PyLong_FromLong(_check_interval);
+    PyInterpreterState *interp = PyThreadState_GET()->interp;
+    return PyLong_FromLong(interp->check_interval);
 }
 
 PyDoc_STRVAR(getcheckinterval_doc,
@@ -1363,7 +1364,7 @@ Clear the internal type lookup cache.");
 static PyObject *
 sys_is_finalizing(PyObject* self, PyObject* args)
 {
-    return PyBool_FromLong(_Py_Finalizing != NULL);
+    return PyBool_FromLong(_Py_IsFinalizing());
 }
 
 PyDoc_STRVAR(is_finalizing_doc,
@@ -1501,11 +1502,24 @@ list_builtin_module_names(void)
     return list;
 }
 
-static PyObject *warnoptions = NULL;
+static PyObject *
+get_warnoptions(void)
+{
+    PyObject *warnoptions = PyThreadState_GET()->interp->warnoptions;
+    if (warnoptions == NULL || !PyList_Check(warnoptions)) {
+        Py_XDECREF(warnoptions);
+        warnoptions = PyList_New(0);
+        if (warnoptions == NULL)
+            return NULL;
+        PyThreadState_GET()->interp->warnoptions = warnoptions;
+    }
+    return warnoptions;
+}
 
 void
 PySys_ResetWarnOptions(void)
 {
+    PyObject *warnoptions = PyThreadState_GET()->interp->warnoptions;
     if (warnoptions == NULL || !PyList_Check(warnoptions))
         return;
     PyList_SetSlice(warnoptions, 0, PyList_GET_SIZE(warnoptions), NULL);
@@ -1514,12 +1528,9 @@ PySys_ResetWarnOptions(void)
 void
 PySys_AddWarnOptionUnicode(PyObject *unicode)
 {
-    if (warnoptions == NULL || !PyList_Check(warnoptions)) {
-        Py_XDECREF(warnoptions);
-        warnoptions = PyList_New(0);
-        if (warnoptions == NULL)
-            return;
-    }
+    PyObject *warnoptions = get_warnoptions();
+    if (warnoptions == NULL)
+        return;
     PyList_Append(warnoptions, unicode);
 }
 
@@ -1537,17 +1548,20 @@ PySys_AddWarnOption(const wchar_t *s)
 int
 PySys_HasWarnOptions(void)
 {
+    PyObject *warnoptions = PyThreadState_GET()->interp->warnoptions;
     return (warnoptions != NULL && (PyList_Size(warnoptions) > 0)) ? 1 : 0;
 }
-
-static PyObject *xoptions = NULL;
 
 static PyObject *
 get_xoptions(void)
 {
+    PyObject *xoptions = PyThreadState_GET()->interp->xoptions;
     if (xoptions == NULL || !PyDict_Check(xoptions)) {
         Py_XDECREF(xoptions);
         xoptions = PyDict_New();
+        if (xoptions == NULL)
+            return NULL;
+        PyThreadState_GET()->interp->xoptions = xoptions;
     }
     return xoptions;
 }
@@ -2150,17 +2164,15 @@ _PySys_EndInit(PyObject *sysdict)
     SET_SYS_FROM_STRING_INT_RESULT("base_exec_prefix",
                         PyUnicode_FromWideChar(Py_GetExecPrefix(), -1));
 
-    if (warnoptions == NULL) {
-        warnoptions = PyList_New(0);
-        if (warnoptions == NULL)
-            return -1;
-    }
+    PyObject *warnoptions = get_warnoptions();
+    if (warnoptions == NULL)
+        return -1;
+    SET_SYS_FROM_STRING_BORROW_INT_RESULT("warnoptions", warnoptions);
 
-    SET_SYS_FROM_STRING_INT_RESULT("warnoptions",
-                                   PyList_GetSlice(warnoptions,
-                                                   0, Py_SIZE(warnoptions)));
-
-    SET_SYS_FROM_STRING_BORROW_INT_RESULT("_xoptions", get_xoptions());
+    PyObject *xoptions = get_xoptions();
+    if (xoptions == NULL)
+        return -1;
+    SET_SYS_FROM_STRING_BORROW_INT_RESULT("_xoptions", xoptions);
 
     if (PyErr_Occurred())
         return -1;
