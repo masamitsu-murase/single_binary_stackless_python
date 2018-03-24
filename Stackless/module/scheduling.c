@@ -3,9 +3,7 @@
 #ifdef STACKLESS
 #include "core/stackless_impl.h"
 
-#ifdef WITH_THREAD
 #include "pythread.h"
-#endif
 
 /******************************************************
 
@@ -673,12 +671,9 @@ slp_ensure_linkage(PyTaskletObject *t)
 static int
 is_thread_runnable(PyThreadState *ts)
 {
-#ifdef WITH_THREAD
     if (ts == PyThreadState_GET())
         return 0;
     return !ts->st.thread.is_blocked;
-#endif
-    return 0;
 }
 
 static int
@@ -706,8 +701,6 @@ make_deadlock_bomb(void)
         "Deadlock: the last runnable tasklet cannot be blocked.");
     return slp_curexc_to_bomb();
 }
-
-#ifdef WITH_THREAD
 
 /* make sure that locks live longer than their threads */
 
@@ -774,13 +767,6 @@ void slp_thread_unblock(PyThreadState *nts)
     schedule_thread_unblock(nts);
 }
 
-#else
-
-void slp_thread_unblock(PyThreadState *nts)
-{}
-
-#endif
-
 static int
 schedule_task_block(PyObject **result, PyTaskletObject *prev, int stackless, int *did_switch)
 {
@@ -793,19 +779,16 @@ schedule_task_block(PyObject **result, PyTaskletObject *prev, int stackless, int
     /* which "main" do we awaken if we are blocking? */
     wakeup = slp_get_watchdog(ts, 0);
 
-#ifdef WITH_THREAD
     if ( !(ts->st.runflags & Py_WATCHDOG_THREADBLOCK) && wakeup->next == NULL)
         /* we also must never block if watchdog is running not in threadblocking mode */
         revive_main = 1;
 
     if (revive_main)
         assert(wakeup->next == NULL); /* target must be floating */
-#endif
 
     if (revive_main || check_for_deadlock()) {
         goto cantblock;
     }
-#ifdef WITH_THREAD
     for(;;) {
         /* store the frame back in the tasklet while we thread block, so that
          * e.g. insert doesn't think that it is dead
@@ -832,10 +815,6 @@ schedule_task_block(PyObject **result, PyTaskletObject *prev, int stackless, int
         if (check_for_deadlock())
             goto cantblock;
     }
-#else
-    next = prev;
-    Py_INCREF(next);
-#endif
     /* this must be after releasing the locks because of hard switching */
     fail = slp_schedule_task(result, prev, next, stackless, did_switch);
     Py_DECREF(next);
@@ -881,7 +860,6 @@ cantblock:
     return fail;
 }
 
-#ifdef WITH_THREAD
 static int
 schedule_task_interthread(PyObject **result,
                             PyTaskletObject *prev,
@@ -920,8 +898,6 @@ schedule_task_interthread(PyObject **result,
 
     return 0;
 }
-
-#endif
 
 /* deal with soft interrupts by modifying next to specify the main tasklet */
 static void slp_schedule_soft_irq(PyThreadState *ts, PyTaskletObject *prev,
@@ -993,7 +969,6 @@ slp_schedule_task(PyObject **result, PyTaskletObject *prev, PyTaskletObject *nex
     if (next == NULL)
         return schedule_task_block(result, prev, stackless, did_switch);
 
-#ifdef WITH_THREAD
     /* note that next->cstate is undefined if it is ourself.
        Also note, that prev->cstate->tstate == NULL during Py_Finalize() */
     assert(prev->cstate == NULL || prev->cstate->tstate == NULL || prev->cstate->tstate == ts);
@@ -1001,7 +976,6 @@ slp_schedule_task(PyObject **result, PyTaskletObject *prev, PyTaskletObject *nex
     if (next->cstate != NULL && next->cstate->tstate != ts && next != prev) {
         return schedule_task_interthread(result, prev, next, stackless, did_switch);
     }
-#endif
 
     /* switch trap. We don't trap on interthread switches because they
      * don't cause a switch on the local thread.

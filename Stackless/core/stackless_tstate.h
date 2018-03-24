@@ -43,13 +43,11 @@ typedef struct _sts {
     long tick_watermark;
     long interval;
     PyObject * (*interrupt) (void);    /* the fast scheduler */
-#ifdef WITH_THREAD
     struct {
         PyObject *block_lock;                   /* to block the thread */
         int is_blocked;                         /* waiting to be unblocked */
         int is_idle;                            /* unblocked, but waiting for GIL */
     } thread;
-#endif
     PyObject *del_post_switch;                  /* To decref after a switch */
     PyObject *interrupted;                      /* The interrupted tasklet in stackles.run() */
     PyObject *watchdogs;                        /* the stack of currently running watchdogs */
@@ -121,8 +119,6 @@ void slp_kill_tasks_with_stacks(struct _ts *tstate);
     Py_CLEAR(tstate->st.unwinding_retval); \
     __STACKLESS_PYSTATE_CLEAR_NEXT_FRAME
 
-#ifdef WITH_THREAD
-
 #define STACKLESS_PYSTATE_NEW \
     __STACKLESS_PYSTATE_NEW \
     tstate->st.thread.block_lock = NULL; \
@@ -134,10 +130,3 @@ void slp_kill_tasks_with_stacks(struct _ts *tstate);
     Py_CLEAR(tstate->st.thread.block_lock); \
     tstate->st.thread.is_blocked = 0; \
     tstate->st.thread.is_idle = 0;
-
-#else
-
-#define STACKLESS_PYSTATE_NEW __STACKLESS_PYSTATE_NEW
-#define STACKLESS_PYSTATE_CLEAR __STACKLESS_PYSTATE_CLEAR
-
-#endif

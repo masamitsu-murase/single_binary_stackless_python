@@ -855,7 +855,6 @@ impl_tasklet_run_remove(PyTaskletObject *task, int remove)
             removed = 1;
         }
     } else {
-#ifdef WITH_THREAD
         /* interthread. */
         PyThreadState *rts = task->cstate->tstate;
         PyTaskletObject *current;
@@ -882,9 +881,6 @@ impl_tasklet_run_remove(PyTaskletObject *task, int remove)
             /* remote thread is in a weird state.  Just insert it */
             fail = impl_tasklet_insert(task);
         }
-#else
-        RUNTIME_ERROR("tasklet has an invalid thread.", NULL);
-#endif
     }
     if (fail)
         return NULL;

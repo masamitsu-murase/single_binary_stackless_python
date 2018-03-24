@@ -54,7 +54,6 @@ static PyInterpreterState *autoInterpreterState = NULL;
 static int autoTLSkey = -1;
 
 #ifdef STACKLESS
-#ifdef WITH_THREAD
 void
 slp_head_lock(void) {
     HEAD_LOCK();
@@ -64,7 +63,6 @@ void
 slp_head_unlock(void) {
     HEAD_UNLOCK();
 }
-#endif
 #endif
 
 static PyInterpreterState *interp_head = NULL;

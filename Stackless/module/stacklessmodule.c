@@ -309,11 +309,7 @@ PyDoc_STRVAR(getcurrentid__doc__,
 unsigned long
 PyStackless_GetCurrentId(void)
 {
-    #ifdef WITH_THREAD
     PyThreadState *ts = PyGILState_GetThisThreadState();
-#else
-    PyThreadState *ts = PyThreadState_GET();
-#endif
     PyTaskletObject *t = NULL;
     /* if there is threadstate, and there is a main tasklet, then the
      * "current" is the actively running tasklet.
@@ -336,11 +332,7 @@ PyStackless_GetCurrentId(void)
      */
     if (ts)
         return ts->thread_id;
-#ifdef WITH_THREAD
     return PyThread_get_thread_ident();
-#else
-    return 0;
-#endif
 }
 
 static PyObject *
