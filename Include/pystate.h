@@ -56,6 +56,7 @@ typedef struct _is {
 
     int64_t id;
 
+    PyObject *modules;
     PyObject *modules_by_index;
     PyObject *sysdict;
     PyObject *builtins;
@@ -63,8 +64,6 @@ typedef struct _is {
 
     /* Used in Python/sysmodule.c. */
     int check_interval;
-    PyObject *warnoptions;
-    PyObject *xoptions;
 
     /* Used in Modules/_threadmodule.c. */
     long num_threads;

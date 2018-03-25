@@ -276,7 +276,7 @@ PyEval_RestoreThread(PyThreadState *tstate)
         if (_Py_IsFinalizing() && !_Py_CURRENTLY_FINALIZING(tstate)) {
             drop_gil(tstate);
             PyThread_exit_thread();
-            assert(0);  /* unreachable */
+            Py_UNREACHABLE();
         }
         errno = err;
     }
@@ -3653,7 +3653,7 @@ stackless_call_return:
 
         /* This should never be reached. Every opcode should end with DISPATCH()
            or goto error. */
-        assert(0);
+        Py_UNREACHABLE();
 
 error:
 
@@ -5450,18 +5450,21 @@ import_from(PyObject *v, PyObject *name)
     if (pkgname == NULL) {
         goto error;
     }
+    if (!PyUnicode_Check(pkgname)) {
+        Py_CLEAR(pkgname);
+        goto error;
+    }
     fullmodname = PyUnicode_FromFormat("%U.%U", pkgname, name);
     if (fullmodname == NULL) {
         Py_DECREF(pkgname);
         return NULL;
     }
-    x = _PyImport_GetModule(fullmodname);
+    x = PyImport_GetModule(fullmodname);
     Py_DECREF(fullmodname);
     if (x == NULL) {
         goto error;
     }
     Py_DECREF(pkgname);
-    Py_INCREF(x);
     return x;
  error:
     pkgpath = PyModule_GetFilenameObject(v);
@@ -5537,13 +5540,16 @@ import_all_from(PyObject *locals, PyObject *v)
                 PyErr_Clear();
             break;
         }
-        if (skip_leading_underscores &&
-            PyUnicode_Check(name) &&
-            PyUnicode_READY(name) != -1 &&
-            PyUnicode_READ_CHAR(name, 0) == '_')
-        {
-            Py_DECREF(name);
-            continue;
+        if (skip_leading_underscores && PyUnicode_Check(name)) {
+            if (PyUnicode_READY(name) == -1) {
+                Py_DECREF(name);
+                err = -1;
+                break;
+            }
+            if (PyUnicode_READ_CHAR(name, 0) == '_') {
+                Py_DECREF(name);
+                continue;
+            }
         }
         value = PyObject_GetAttr(v, name);
         if (value == NULL)

@@ -266,11 +266,7 @@ error:
 static char*
 get_locale_encoding(void)
 {
-#ifdef MS_WINDOWS
-    char codepage[100];
-    PyOS_snprintf(codepage, sizeof(codepage), "cp%d", GetACP());
-    return get_codec_name(codepage);
-#elif defined(HAVE_LANGINFO_H) && defined(CODESET)
+#if defined(HAVE_LANGINFO_H) && defined(CODESET)
     char* codeset = nl_langinfo(CODESET);
     if (!codeset || codeset[0] == '\0') {
         PyErr_SetString(PyExc_ValueError, "CODESET is not set or empty");
@@ -687,6 +683,7 @@ void _Py_InitializeCore(const _PyCoreConfig *config)
     PyObject *modules = PyDict_New();
     if (modules == NULL)
         Py_FatalError("Py_InitializeCore: can't make modules dictionary");
+    interp->modules = modules;
 
     sysmod = _PySys_BeginInit();
     if (sysmod == NULL)
@@ -1022,6 +1019,11 @@ Py_FinalizeEx(void)
     while (_PyGC_CollectIfEnabled() > 0)
         /* nothing */;
 #endif
+
+#ifdef Py_REF_DEBUG
+    PyObject *showrefcount = _PyDebug_XOptionShowRefCount();
+#endif
+
     /* Destroy all modules */
     PyImport_Cleanup();
 
@@ -1069,7 +1071,10 @@ Py_FinalizeEx(void)
     /* dump hash stats */
     _PyHash_Fini();
 
-    _PY_DEBUG_PRINT_TOTAL_REFS();
+#ifdef Py_REF_DEBUG
+        if (showrefcount == Py_True)
+            _PyDebug_PrintTotalRefs();
+#endif
 
 #ifdef Py_TRACE_REFS
     /* Display all objects still alive -- this can invoke arbitrary
@@ -1220,6 +1225,7 @@ Py_NewInterpreter(void)
     PyObject *modules = PyDict_New();
     if (modules == NULL)
         Py_FatalError("Py_NewInterpreter: can't make modules dictionary");
+    interp->modules = modules;
 
     sysmod = _PyImport_FindBuiltin("sys", modules);
     if (sysmod != NULL) {
@@ -1927,7 +1933,6 @@ wait_for_thread_shutdown(void)
         PyErr_Clear();
         return;
     }
-    Py_INCREF(threading);
     result = _PyObject_CallMethodId(threading, &PyId__shutdown, NULL);
     if (result == NULL) {
         PyErr_WriteUnraisable(threading);
