@@ -481,8 +481,8 @@ PyTaskletObject * slp_get_watchdog(PyThreadState *ts, int interrupt);
         slp_try_stackless = stackless & Py_TYPE(obj)->tp_as_mapping->slpflags.meth; \
 } while (0)
 
-#define STACKLESS_PROMOTE_WRAPPER(wp) \
-    (slp_try_stackless = stackless & wp->descr->d_slpmask)
+#define STACKLESS_PROMOTE_WRAPPER(descr) \
+    (slp_try_stackless = stackless & (descr)->d_slpmask)
 
 #define STACKLESS_PROMOTE_ALL() ((void)(slp_try_stackless = stackless, NULL))
 
@@ -841,7 +841,7 @@ long slp_parse_thread_id(PyObject *thread_id, unsigned long *id);
 #define STACKLESS_PROMOTE(func) stackless = 0
 #define STACKLESS_PROMOTE_FLAG(flag) stackless = 0
 #define STACKLESS_PROMOTE_METHOD(obj, meth) stackless = 0
-#define STACKLESS_PROMOTE_WRAPPER(wp) stackless = 0
+#define STACKLESS_PROMOTE_WRAPPER(descr) stackless = 0
 #define STACKLESS_PROMOTE_ALL() stackless = 0
 #define STACKLESS_PROPOSE(func) assert(1)
 #define STACKLESS_PROPOSE_FLAG(flag) assert(1)
