@@ -240,6 +240,28 @@ embeddedimporter_find_module(PyObject *obj, PyObject *args)
     return (PyObject *)self;
 }
 
+static PyObject *
+get_modpath(EmbeddedImporter *self, const char *subname, int is_package)
+{
+    PyObject *modpath;
+    if (is_package) {
+        modpath = PyString_FromFormat("%s%c%s%s%c%s",
+                                      Py_GetProgramFullPath(),
+                                      SEP,
+                                      (self->prefix ? PyString_AsString(self->prefix) : ""),
+                                      subname,
+                                      SEP,
+                                      "__init__.py");
+    } else {
+        modpath = PyString_FromFormat("%s%c%s%s.py",
+                                      Py_GetProgramFullPath(),
+                                      SEP,
+                                      (self->prefix ? PyString_AsString(self->prefix) : ""),
+                                      subname);
+    }
+    return modpath;
+}
+
 /* Load and return the module named by 'fullname'. */
 static PyObject *
 embeddedimporter_load_module(PyObject *obj, PyObject *args)
@@ -307,28 +329,13 @@ embeddedimporter_load_module(PyObject *obj, PyObject *args)
         }
     }
 
-    if (is_package) {
-        modpath = PyString_FromFormat("%s%c%s%s%c%s",
-                                      Py_GetProgramFullPath(),
-                                      SEP,
-                                      (self->prefix ? PyString_AsString(self->prefix) : ""),
-                                      subname,
-                                      SEP,
-                                      "__init__.py");
-    } else {
-        modpath = PyString_FromFormat("%s%c%s%s.py",
-                                      Py_GetProgramFullPath(),
-                                      SEP,
-                                      (self->prefix ? PyString_AsString(self->prefix) : ""),
-                                      subname);
-    }
-
+    modpath = get_modpath(self, subname, is_package);
     module = PyImport_ExecCodeModuleEx(fullname, code, PyString_AsString(modpath));
-    Py_DECREF(modpath);
-    Py_DECREF(code);
     if (Py_VerboseFlag)
         PySys_WriteStderr("import %s # loaded from Embedded %s\n",
                           fullname, PyString_AsString(modpath));
+    Py_DECREF(modpath);
+    Py_DECREF(code);
     return module;
 
 error:
@@ -359,6 +366,28 @@ embeddedimporter_is_package(PyObject *obj, PyObject *args)
     }
 
     return PyBool_FromLong(is_package);
+}
+
+/* Return a string matching __file__ for the named module */
+static PyObject *
+embeddedimporter_get_filename(PyObject *obj, PyObject *args)
+{
+    EmbeddedImporter *self = (EmbeddedImporter *)obj;
+    PyObject *tuple, *modpath;
+    char *fullname, *subname;
+    int is_package = 0;
+
+    if (!PyArg_ParseTuple(args, "s:embeddedimporter.get_filename",
+                         &fullname))
+        return NULL;
+
+    subname = get_subname(fullname);
+    tuple = find_tuple(self, subname, &is_package);
+    if (tuple == NULL) {
+        return NULL;
+    }
+    modpath = get_modpath(self, subname, is_package);
+    return modpath;
 }
 
 static PyObject *
@@ -406,6 +435,11 @@ PyDoc_STRVAR(doc_is_package,
 Return True if the module specified by fullname is a package.\n\
 Raise EmbeddedImportError if the module couldn't be found.");
 
+PyDoc_STRVAR(doc_get_filename,
+"get_filename(fullname) -> filename string.\n\
+\n\
+Return the filename for the specified module.");
+
 PyDoc_STRVAR(doc_get_code,
 "get_code(fullname) -> code object.\n\
 \n\
@@ -417,6 +451,8 @@ static PyMethodDef embeddedimporter_methods[] = {
      doc_find_module},
     {"load_module", embeddedimporter_load_module, METH_VARARGS,
      doc_load_module},
+    {"get_filename", embeddedimporter_get_filename, METH_VARARGS,
+     doc_get_filename},
     {"is_package", embeddedimporter_is_package, METH_VARARGS,
      doc_is_package},
     {"get_code", embeddedimporter_get_code, METH_VARARGS,
