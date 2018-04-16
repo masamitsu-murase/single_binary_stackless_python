@@ -399,6 +399,7 @@ class TestShutdown(StacklessTestCase):
         rc = subprocess.call([sys.executable, "-s", "-S", "-E", "-c", dedent("""
             from __future__ import print_function, absolute_import, division
 
+            import gc
             import threading
             import stackless
             import time
@@ -461,6 +462,7 @@ class TestShutdown(StacklessTestCase):
             t.start()
             event.wait(5.0)
             print("end")
+            gc.disable()  # prevent "uncollectable objects at shutdown" warning
             sys.exit(42)
         """)] + args)
         self.assertEqual(rc, 42)
