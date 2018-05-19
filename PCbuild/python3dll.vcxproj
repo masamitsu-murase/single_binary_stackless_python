@@ -63,6 +63,8 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <BufferSecurityCheck>false</BufferSecurityCheck>
+      <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Release|x64'">MultiThreaded</RuntimeLibrary>
+      <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <AdditionalDependencies>$(OutDir)$(TargetName)stub.lib</AdditionalDependencies>
@@ -88,7 +90,6 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
-  
   <Target Name="BuildPython3_dDef" BeforeTargets="BuildStubDef" Inputs="..\PC\python3.def" Outputs="$(IntDir)python3_d.def" Condition="$(Configuration) == 'Debug'">
     <ItemGroup>
       <_DefLines Remove="@(_DefLines)" />
@@ -111,7 +112,6 @@
     <MakeDir Directories="$(IntDir)" />
     <WriteLinesToFile File="$(IntDir)python3_d.def" Lines="@(_Lines->'%(New)')" Overwrite="true" />
   </Target>
-  
   <Target Name="BuildStubDef" BeforeTargets="PreLinkEvent" Inputs="..\PC\python3.def" Outputs="$(IntDir)python3stub.def">
     <ItemGroup>
       <_DefLines Remove="@(_DefLines)" />

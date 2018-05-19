@@ -38,17 +38,23 @@
     <ProjectGuid>{10615B24-73BF-4EFA-93AA-236916321317}</ProjectGuid>
     <RootNamespace>ssleay</RootNamespace>
   </PropertyGroup>
-
   <Import Project="python.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-
   <PropertyGroup Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
   </PropertyGroup>
-
   <Import Project="openssl.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <!--
     <ClCompile Include="$(opensslDir)ssl\bio_ssl.c" />
@@ -109,7 +115,6 @@
     <ClCompile Include="$(opensslDir)ssl\t1_srvr.c" />
     <ClCompile Include="$(opensslDir)ssl\tls_srp.c" />
   </ItemGroup>
-  
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="Clean" />
   <Target Name="CleanAll">
