@@ -71,6 +71,25 @@ extern PyObject* PyInit__stat(void);
 extern PyObject* PyInit__opcode(void);
 extern PyObject* PyInit__findvs(void);
 
+extern PyObject* PyInit__asyncio(void);
+extern PyObject* PyInit__bz2(void);
+extern PyObject* PyInit__ctypes(void);
+extern PyObject* PyInit__decimal(void);
+extern PyObject* PyInit__elementtree(void);
+extern PyObject* PyInit__hashlib(void);
+extern PyObject* PyInit__lzma(void);
+extern PyObject* PyInit__msi(void);
+extern PyObject* PyInit__multiprocessing(void);
+extern PyObject* PyInit__overlapped(void);
+extern PyObject* PyInit__socket(void);
+extern PyObject* PyInit__sqlite3(void);
+extern PyObject* PyInit__ssl(void);
+extern PyObject* PyInit_pyexpat(void);
+extern PyObject* PyInit_select(void);
+extern PyObject* PyInit_unicodedata(void);
+extern PyObject* PyInit_winsound(void);
+extern PyObject* PyInit_xxlimited(void);
+
 /* tools/freeze/makeconfig.py marker for additional "extern" */
 /* -- ADDMODULE MARKER 1 -- */
 
@@ -171,6 +190,25 @@ struct _inittab _PyImport_Inittab[] = {
     {"_opcode", PyInit__opcode},
 
     {"_findvs", PyInit__findvs},
+
+    {"_asyncio", PyInit__asyncio},
+    {"_bz2", PyInit__bz2},
+    {"_ctypes", PyInit__ctypes},
+    {"_decimal", PyInit__decimal},
+    {"_elementtree", PyInit__elementtree},
+    {"_hashlib", PyInit__hashlib},
+    {"_lzma", PyInit__lzma},
+    {"_msi", PyInit__msi},
+    {"_multiprocessing", PyInit__multiprocessing},
+    {"_overlapped", PyInit__overlapped},
+    {"_socket", PyInit__socket},
+    {"_sqlite3", PyInit__sqlite3},
+    {"_ssl", PyInit__ssl},
+    {"pyexpat", PyInit_pyexpat},
+    {"select", PyInit_select},
+    {"unicodedata", PyInit_unicodedata},
+    {"winsound", PyInit_winsound},
+    {"xxlimited", PyInit_xxlimited},
 #ifdef STACKLESS
     {"_stackless", PyInit__stackless},
 #endif
