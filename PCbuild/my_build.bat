@@ -86,10 +86,9 @@ if EXIST externals (
     externals.exe -o. -y > NUL
     if ERRORLEVEL 1 exit /b 1
 ) else (
-    call get_externals.bat
+    call PCbuild\get_externals.bat --no-tkinter
     if ERRORLEVEL 1 exit /b 1
 )
-
 
 REM --------------------------------
 REM embeddedimport
