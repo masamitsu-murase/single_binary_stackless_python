@@ -5,7 +5,9 @@
 
 *.cover
 *.iml
+*.lib
 *.o
+*.obj
 *.orig
 *.pyc
 *.pyd

@@ -1,0 +1,261 @@
+
+ProjectDir = ..
+externalsDir = $(ProjectDir)\externals
+
+!include common_arch.mak
+
+INCLUDES = /I "$(ProjectDir)\Python" /I "$(ProjectDir)\Modules\zlib" /I "$(ProjectDir)\Include" /I "$(ProjectDir)\PC" /I "$(ProjectDir)\Stackless" 
+!IF "$(WINDOWS_PE)" == "0"
+DEFINES = /D "Py_BUILD_CORE" /D "Py_ENABLE_SHARED" /D "WIN32" /D "_CONSOLE" /D "NDEBUG" 
+!ELSE
+DEFINES = /D "Py_BUILD_CORE" /D "Py_ENABLE_SHARED" /D "WIN32" /D "_CONSOLE" /D "NDEBUG" /D "Py_BUILD_FOR_WINDOWS_PE"
+!ENDIF
+CFLAGS = /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi
+LFLAGS = /NOLOGO /LTCG
+# CFLAGS = /GS /Gm- /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi
+# LFLAGS = /NOLOGO /LTCG /IMPLIB:pythoncore.lib /MACHINE:X86 /NODEFAULTLIB:"LIBC" /SAFESEH /OPT:NOREF,NOICF 
+TARGET = pythoncore.lib
+
+COMMON_OBJS = \
+        $(ProjectDir)\Modules\_asynciomodule.obj \
+        $(ProjectDir)\Modules\_bisectmodule.obj \
+        $(ProjectDir)\Modules\_blake2\blake2module.obj \
+        $(ProjectDir)\Modules\_blake2\blake2b_impl.obj \
+        $(ProjectDir)\Modules\_blake2\blake2s_impl.obj \
+        $(ProjectDir)\Modules\_codecsmodule.obj \
+        $(ProjectDir)\Modules\_collectionsmodule.obj \
+        $(ProjectDir)\Modules\_csv.obj \
+        $(ProjectDir)\Modules\_functoolsmodule.obj \
+        $(ProjectDir)\Modules\_heapqmodule.obj \
+        $(ProjectDir)\Modules\_json.obj \
+        $(ProjectDir)\Modules\_localemodule.obj \
+        $(ProjectDir)\Modules\_lsprof.obj \
+        $(ProjectDir)\Modules\_math.obj \
+        $(ProjectDir)\Modules\_pickle.obj \
+        $(ProjectDir)\Modules\_randommodule.obj \
+        $(ProjectDir)\Modules\_sha3\sha3module.obj \
+        $(ProjectDir)\Modules\_sre.obj \
+        $(ProjectDir)\Modules\_stat.obj \
+        $(ProjectDir)\Modules\_struct.obj \
+        $(ProjectDir)\Modules\_weakref.obj \
+        $(ProjectDir)\Modules\arraymodule.obj \
+        $(ProjectDir)\Modules\atexitmodule.obj \
+        $(ProjectDir)\Modules\audioop.obj \
+        $(ProjectDir)\Modules\binascii.obj \
+        $(ProjectDir)\Modules\cmathmodule.obj \
+        $(ProjectDir)\Modules\_datetimemodule.obj \
+        $(ProjectDir)\Modules\errnomodule.obj \
+        $(ProjectDir)\Modules\faulthandler.obj \
+        $(ProjectDir)\Modules\gcmodule.obj \
+        $(ProjectDir)\Modules\hashtable.obj \
+        $(ProjectDir)\Modules\itertoolsmodule.obj \
+        $(ProjectDir)\Modules\main.obj \
+        $(ProjectDir)\Modules\mathmodule.obj \
+        $(ProjectDir)\Modules\md5module.obj \
+        $(ProjectDir)\Modules\mmapmodule.obj \
+        $(ProjectDir)\Modules\_opcode.obj \
+        $(ProjectDir)\Modules\_operator.obj \
+        $(ProjectDir)\Modules\parsermodule.obj \
+        $(ProjectDir)\Modules\posixmodule.obj \
+        $(ProjectDir)\Modules\rotatingtree.obj \
+        $(ProjectDir)\Modules\sha1module.obj \
+        $(ProjectDir)\Modules\sha256module.obj \
+        $(ProjectDir)\Modules\sha512module.obj \
+        $(ProjectDir)\Modules\signalmodule.obj \
+        $(ProjectDir)\Modules\symtablemodule.obj \
+        $(ProjectDir)\Modules\_threadmodule.obj \
+        $(ProjectDir)\Modules\_tracemalloc.obj \
+        $(ProjectDir)\Modules\timemodule.obj \
+        $(ProjectDir)\Modules\xxsubtype.obj \
+        $(ProjectDir)\Modules\zipimport.obj \
+        $(ProjectDir)\Modules\zlibmodule.obj \
+        $(ProjectDir)\Modules\_io\fileio.obj \
+        $(ProjectDir)\Modules\_io\bytesio.obj \
+        $(ProjectDir)\Modules\_io\stringio.obj \
+        $(ProjectDir)\Modules\_io\bufferedio.obj \
+        $(ProjectDir)\Modules\_io\iobase.obj \
+        $(ProjectDir)\Modules\_io\textio.obj \
+        $(ProjectDir)\Modules\_io\winconsoleio.obj \
+        $(ProjectDir)\Modules\_io\_iomodule.obj \
+        $(ProjectDir)\Modules\zlib\adler32.obj \
+        $(ProjectDir)\Modules\zlib\compress.obj \
+        $(ProjectDir)\Modules\zlib\crc32.obj \
+        $(ProjectDir)\Modules\zlib\deflate.obj \
+        $(ProjectDir)\Modules\zlib\infback.obj \
+        $(ProjectDir)\Modules\zlib\inffast.obj \
+        $(ProjectDir)\Modules\zlib\inflate.obj \
+        $(ProjectDir)\Modules\zlib\inftrees.obj \
+        $(ProjectDir)\Modules\zlib\trees.obj \
+        $(ProjectDir)\Modules\zlib\uncompr.obj \
+        $(ProjectDir)\Modules\zlib\zutil.obj \
+        $(ProjectDir)\Modules\cjkcodecs\_codecs_cn.obj \
+        $(ProjectDir)\Modules\cjkcodecs\_codecs_hk.obj \
+        $(ProjectDir)\Modules\cjkcodecs\_codecs_iso2022.obj \
+        $(ProjectDir)\Modules\cjkcodecs\_codecs_jp.obj \
+        $(ProjectDir)\Modules\cjkcodecs\_codecs_kr.obj \
+        $(ProjectDir)\Modules\cjkcodecs\_codecs_tw.obj \
+        $(ProjectDir)\Modules\cjkcodecs\multibytecodec.obj \
+        $(ProjectDir)\Modules\_winapi.obj \
+        $(ProjectDir)\Objects\abstract.obj \
+        $(ProjectDir)\Objects\accu.obj \
+        $(ProjectDir)\Objects\boolobject.obj \
+        $(ProjectDir)\Objects\bytes_methods.obj \
+        $(ProjectDir)\Objects\bytearrayobject.obj \
+        $(ProjectDir)\Objects\bytesobject.obj \
+        $(ProjectDir)\Objects\capsule.obj \
+        $(ProjectDir)\Objects\cellobject.obj \
+        $(ProjectDir)\Objects\classobject.obj \
+        $(ProjectDir)\Objects\codeobject.obj \
+        $(ProjectDir)\Objects\complexobject.obj \
+        $(ProjectDir)\Objects\descrobject.obj \
+        $(ProjectDir)\Objects\dictobject.obj \
+        $(ProjectDir)\Objects\enumobject.obj \
+        $(ProjectDir)\Objects\exceptions.obj \
+        $(ProjectDir)\Objects\fileobject.obj \
+        $(ProjectDir)\Objects\floatobject.obj \
+        $(ProjectDir)\Objects\frameobject.obj \
+        $(ProjectDir)\Objects\funcobject.obj \
+        $(ProjectDir)\Objects\genobject.obj \
+        $(ProjectDir)\Objects\iterobject.obj \
+        $(ProjectDir)\Objects\listobject.obj \
+        $(ProjectDir)\Objects\longobject.obj \
+        $(ProjectDir)\Objects\memoryobject.obj \
+        $(ProjectDir)\Objects\methodobject.obj \
+        $(ProjectDir)\Objects\moduleobject.obj \
+        $(ProjectDir)\Objects\namespaceobject.obj \
+        $(ProjectDir)\Objects\object.obj \
+        $(ProjectDir)\Objects\obmalloc.obj \
+        $(ProjectDir)\Objects\odictobject.obj \
+        $(ProjectDir)\Objects\rangeobject.obj \
+        $(ProjectDir)\Objects\setobject.obj \
+        $(ProjectDir)\Objects\sliceobject.obj \
+        $(ProjectDir)\Objects\structseq.obj \
+        $(ProjectDir)\Objects\tupleobject.obj \
+        $(ProjectDir)\Objects\typeobject.obj \
+        $(ProjectDir)\Objects\unicodectype.obj \
+        $(ProjectDir)\Objects\unicodeobject.obj \
+        $(ProjectDir)\Objects\weakrefobject.obj \
+        $(ProjectDir)\Parser\acceler.obj \
+        $(ProjectDir)\Parser\bitset.obj \
+        $(ProjectDir)\Parser\firstsets.obj \
+        $(ProjectDir)\Parser\grammar.obj \
+        $(ProjectDir)\Parser\grammar1.obj \
+        $(ProjectDir)\Parser\listnode.obj \
+        $(ProjectDir)\Parser\metagrammar.obj \
+        $(ProjectDir)\Parser\myreadline.obj \
+        $(ProjectDir)\Parser\node.obj \
+        $(ProjectDir)\Parser\parser.obj \
+        $(ProjectDir)\Parser\parsetok.obj \
+        $(ProjectDir)\Parser\tokenizer.obj \
+        $(ProjectDir)\PC\invalid_parameter_handler.obj \
+        $(ProjectDir)\PC\winreg.obj \
+        $(ProjectDir)\PC\config.obj \
+        $(ProjectDir)\PC\getpathp.obj \
+        $(ProjectDir)\PC\msvcrtmodule.obj \
+        $(ProjectDir)\Python\pyhash.obj \
+        $(ProjectDir)\Python\random.obj \
+        $(ProjectDir)\Python\_warnings.obj \
+        $(ProjectDir)\Python\asdl.obj \
+        $(ProjectDir)\Python\ast.obj \
+        $(ProjectDir)\Python\bltinmodule.obj \
+        $(ProjectDir)\Python\ceval.obj \
+        $(ProjectDir)\Python\codecs.obj \
+        $(ProjectDir)\Python\compile.obj \
+        $(ProjectDir)\Python\dynamic_annotations.obj \
+        $(ProjectDir)\Python\dynload_win.obj \
+        $(ProjectDir)\Python\errors.obj \
+        $(ProjectDir)\Python\fileutils.obj \
+        $(ProjectDir)\Python\formatter_unicode.obj \
+        $(ProjectDir)\Python\frozen.obj \
+        $(ProjectDir)\Python\future.obj \
+        $(ProjectDir)\Python\getargs.obj \
+        $(ProjectDir)\Python\getcompiler.obj \
+        $(ProjectDir)\Python\getcopyright.obj \
+        $(ProjectDir)\Python\getopt.obj \
+        $(ProjectDir)\Python\getplatform.obj \
+        $(ProjectDir)\Python\getversion.obj \
+        $(ProjectDir)\Python\graminit.obj \
+        $(ProjectDir)\Python\import.obj \
+        $(ProjectDir)\Python\importdl.obj \
+        $(ProjectDir)\Python\marshal.obj \
+        $(ProjectDir)\Python\modsupport.obj \
+        $(ProjectDir)\Python\mysnprintf.obj \
+        $(ProjectDir)\Python\mystrtoul.obj \
+        $(ProjectDir)\Python\peephole.obj \
+        $(ProjectDir)\Python\pyarena.obj \
+        $(ProjectDir)\Python\pyctype.obj \
+        $(ProjectDir)\Python\pyfpe.obj \
+        $(ProjectDir)\Python\pylifecycle.obj \
+        $(ProjectDir)\Python\pymath.obj \
+        $(ProjectDir)\Python\pytime.obj \
+        $(ProjectDir)\Python\pystate.obj \
+        $(ProjectDir)\Python\pystrcmp.obj \
+        $(ProjectDir)\Python\pystrhex.obj \
+        $(ProjectDir)\Python\pystrtod.obj \
+        $(ProjectDir)\Python\dtoa.obj \
+        $(ProjectDir)\Python\Python-ast.obj \
+        $(ProjectDir)\Python\pythonrun.obj \
+        $(ProjectDir)\Python\structmember.obj \
+        $(ProjectDir)\Python\symtable.obj \
+        $(ProjectDir)\Python\sysmodule.obj \
+        $(ProjectDir)\Python\thread.obj \
+        $(ProjectDir)\Python\traceback.obj \
+        $(ProjectDir)\Stackless\core\cframeobject.obj \
+        $(ProjectDir)\Stackless\core\slp_transfer.obj \
+        $(ProjectDir)\Stackless\core\stacklesseval.obj \
+        $(ProjectDir)\Stackless\core\stackless_util.obj \
+        $(ProjectDir)\Stackless\module\channelobject.obj \
+        $(ProjectDir)\Stackless\module\scheduling.obj \
+        $(ProjectDir)\Stackless\module\stacklessmodule.obj \
+        $(ProjectDir)\Stackless\module\taskletobject.obj \
+        $(ProjectDir)\Stackless\pickling\prickelpit.obj \
+        $(ProjectDir)\Stackless\pickling\safe_pickle.obj \
+        $(ProjectDir)\PC\dl_nt.obj \
+        $(ProjectDir)\PC\_findvs.obj \
+        $(ProjectDir)\Modules\getbuildinfo.obj
+
+!IF "$(BUILD_TARGET_CPU)" == "x86"
+OBJS = $(COMMON_OBJS)
+!ELSE
+OBJS = $(COMMON_OBJS) $(ProjectDir)\Stackless\platf\switch_x64_masm.obj
+!ENDIF
+
+# !include common.mak
+
+CC = cl.exe
+LIB = lib.exe
+!IF "$(BUILD_TARGET_CPU)" == "x86"
+ASM = ml.exe
+!ELSE
+ASM = ml64.exe
+!ENDIF
+
+
+all: $(TARGET)
+
+# 	link $(OBJS) /OUT:"D:\work\git_repos\stackless\PCBuild\python36.dll" /LTCG $(EXTERNAL_LIBS) /IMPLIB:"D:\work\git_repos\stackless\PCBuild\python36.lib" /DEBUG /DLL /BASE:"0x1e000000" /MACHINE:X86 /NODEFAULTLIB:"LIBC" /SAFESEH /SUBSYSTEM:WINDOWS /ERRORREPORT:PROMPT /NOLOGO /LIBPATH:"D:\work\git_repos\stackless\PC\external\v140\win32" 
+
+$(TARGET): $(OBJS)
+	$(LIB) /OUT:$(TARGET) $(LFLAGS) @<<
+$(OBJS)
+<<
+# $(TARGET): $(OBJS)
+# 	$(LIB) $(OBJS) /OUT:python36.dll /NOLOGO /LTCG $(EXTERNAL_LIBS) /IMPLIB:python36.lib /OPT:NOREF,NOICF /BASE:"0x1e000000" /MACHINE:X86 /NODEFAULTLIB:"LIBC" /SAFESEH /SUBSYSTEM:WINDOWS /LIBPATH:$(ProjectDir)\PC\external\v140\win32
+
+.c.obj:
+	$(CC) /c $< $(CFLAGS) $(ARCH_DEFINES) /Fo$@
+
+.cpp.obj:
+	$(CC) /c $< $(CFLAGS) $(ARCH_DEFINES) /Fo$@
+
+.asm.obj:
+	$(ASM) /Fo$@ /c $< $(AFLAGS)
+
+clean:
+	-<<delete.bat
+del $(TARGET)
+del $(OBJS:.obj =.obj^
+del )
+<<
+
+

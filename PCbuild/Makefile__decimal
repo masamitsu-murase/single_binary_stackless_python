@@ -1,0 +1,35 @@
+
+ProjectDir = ..
+externalsDir = $(ProjectDir)\externals
+
+!include common_arch.mak
+
+INCLUDES = /I"$(ProjectDir)\Modules\_decimal" /I"$(ProjectDir)\Modules\_decimal\libmpdec" /I "$(ProjectDir)\Include" /I "$(ProjectDir)\PC" /I "$(ProjectDir)\Stackless"
+DEFINES =  /D "CONFIG_32" /D "PPRO" /D "_CRT_SECURE_NO_WARNINGS" /D "MASM" /D "Py_BUILD_CORE" /D "Py_ENABLE_SHARED" /D "WIN32" /D "NDEBUG"
+CFLAGS = /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi
+LFLAGS = /NOLOGO /LTCG
+TARGET = _decimal.lib
+
+
+OBJS = $(ProjectDir)\Modules\_decimal\_decimal.obj \
+       $(ProjectDir)\Modules\_decimal\libmpdec\basearith.obj \
+       $(ProjectDir)\Modules\_decimal\libmpdec\constants.obj \
+       $(ProjectDir)\Modules\_decimal\libmpdec\context.obj \
+       $(ProjectDir)\Modules\_decimal\libmpdec\convolute.obj \
+       $(ProjectDir)\Modules\_decimal\libmpdec\crt.obj \
+       $(ProjectDir)\Modules\_decimal\libmpdec\difradix2.obj \
+       $(ProjectDir)\Modules\_decimal\libmpdec\fnt.obj \
+       $(ProjectDir)\Modules\_decimal\libmpdec\fourstep.obj \
+       $(ProjectDir)\Modules\_decimal\libmpdec\io.obj \
+       $(ProjectDir)\Modules\_decimal\libmpdec\memory.obj \
+       $(ProjectDir)\Modules\_decimal\libmpdec\mpdecimal.obj \
+       $(ProjectDir)\Modules\_decimal\libmpdec\numbertheory.obj \
+       $(ProjectDir)\Modules\_decimal\libmpdec\sixstep.obj \
+       $(ProjectDir)\Modules\_decimal\libmpdec\transpose.obj
+
+!IF "$(BUILD_TARGET_CPU)" != "x86"
+OBJS = $(OBJS) \
+       $(ProjectDir)\Modules\_decimal\libmpdec\vcdiv64.obj
+!ENDIF
+
+!include common.mak
