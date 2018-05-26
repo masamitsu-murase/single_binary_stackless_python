@@ -1,0 +1,25 @@
+
+ProjectDir = ..
+externalsDir = $(ProjectDir)\externals
+sqlite3Dir = $(externalsDir)\sqlite-3.21.0.0
+
+!include common_arch.mak
+
+INCLUDES = /I "$(sqlite3Dir)" /I "$(ProjectDir)\Include" /I "$(ProjectDir)\PC" /I "$(ProjectDir)\Stackless"
+DEFINES = /D "MODULE_NAME=\"sqlite3\"" /D "Py_BUILD_CORE" /D "Py_ENABLE_SHARED" /D "WIN32" /D "NDEBUG"
+CFLAGS = /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi
+LFLAGS = /NOLOGO /LTCG
+TARGET = _sqlite3.lib
+
+
+OBJS = $(ProjectDir)\Modules\_sqlite\cache.obj \
+          $(ProjectDir)\Modules\_sqlite\connection.obj \
+          $(ProjectDir)\Modules\_sqlite\cursor.obj \
+          $(ProjectDir)\Modules\_sqlite\microprotocols.obj \
+          $(ProjectDir)\Modules\_sqlite\module.obj \
+          $(ProjectDir)\Modules\_sqlite\prepare_protocol.obj \
+          $(ProjectDir)\Modules\_sqlite\row.obj \
+          $(ProjectDir)\Modules\_sqlite\statement.obj \
+          $(ProjectDir)\Modules\_sqlite\util.obj
+
+!include common.mak
