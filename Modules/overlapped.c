@@ -1223,7 +1223,7 @@ static PyGetSetDef Overlapped_getsets[] = {
     {NULL},
 };
 
-PyTypeObject OverlappedType = {
+static PyTypeObject OverlappedType = {
     PyVarObject_HEAD_INIT(NULL, 0)
     /* tp_name           */ "_overlapped.Overlapped",
     /* tp_basicsize      */ sizeof(OverlappedObject),
