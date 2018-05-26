@@ -3,7 +3,9 @@
 /python
 !/Python/
 *.cover
+*.lib
 *.o
+*.obj
 *.orig
 *.pyc
 *.pyd
@@ -25,7 +27,7 @@ Include/pydtrace_probes.h
 Lib/distutils/command/*.pdb
 Lib/lib2to3/*.pickle
 Lib/test/data/*
-Makefile
+#Makefile
 Makefile.pre
 Misc/python.pc
 Misc/python-config.sh

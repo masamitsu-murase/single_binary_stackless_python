@@ -91,7 +91,7 @@
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
   <Target Name="_RebuildImportLib">
-    <Exec Command="&quot;$(TargetPath)&quot; &quot;%(None.FullPath)&quot; &quot;%(None.IntFile)&quot;" />
+    <Exec Command="D:\work\git_repos\stackless\PCbuild\win32_bak\_freeze_importlib.exe D:/work/git_repos/stackless/Lib/importlib/_bootstrap.py D:/work/git_repos/stackless/PCbuild/obj/36win32_Release/_freeze_importlib/importlib.g.h" />
     <PropertyGroup>
       <_OldContent Condition="Exists($(OutTargetPath))">
       </_OldContent>
