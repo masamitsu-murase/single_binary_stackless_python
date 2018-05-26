@@ -1,0 +1,17 @@
+
+ProjectDir = ..
+externalsDir = $(ProjectDir)\externals
+xzDir = $(externalsDir)\xz-5.2.2
+
+!include common_arch.mak
+
+INCLUDES = /I "$(xzDir)\src/liblzma/api" /I "$(ProjectDir)\Include" /I "$(ProjectDir)\PC" /I "$(ProjectDir)\Stackless"
+DEFINES = /D "_FILE_OFFSET_BITS=64" /D "_CRT_SECURE_NO_DEPRECATE" /D "_CRT_NONSTDC_NO_DEPRECATE" /D "LZMA_API_STATIC" /D "Py_BUILD_CORE" /D "Py_ENABLE_SHARED" /D "WIN32" /D "NDEBUG"
+CFLAGS = /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi
+LFLAGS = /NOLOGO /LTCG
+TARGET = _lzma.lib
+
+
+OBJS = $(ProjectDir)\Modules\_lzmamodule.obj
+
+!include common.mak

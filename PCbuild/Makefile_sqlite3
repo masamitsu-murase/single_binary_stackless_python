@@ -1,0 +1,17 @@
+
+ProjectDir = ..
+externalsDir = $(ProjectDir)\externals
+sqlite3Dir = $(externalsDir)\sqlite-3.21.0.0
+
+!include common_arch.mak
+
+INCLUDES = /I "$(sqlite3Dir)" /I "$(ProjectDir)\Include" /I "$(ProjectDir)\PC" /I "$(ProjectDir)\Stackless"
+DEFINES =  /D "SQLITE_ENABLE_FTS4" /D "SQLITE_ENABLE_FTS5" /D "SQLITE_API=" /D "NDEBUG" /D "WIN32"
+CFLAGS = /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi
+LFLAGS = /NOLOGO /LTCG
+TARGET = sqlite3.lib
+
+
+OBJS = $(sqlite3Dir)\sqlite3.obj
+
+!include common.mak
