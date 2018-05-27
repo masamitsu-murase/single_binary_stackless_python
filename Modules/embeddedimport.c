@@ -89,9 +89,9 @@ construct_filedata(EmbeddedImporter *self)
         }
 
         name_obj = PyUnicode_FromString(name);
-        if (PyDict_SetItem(self->dict, name_obj, tuple) < 0) {
+        if (name_obj == NULL || PyDict_SetItem(self->dict, name_obj, tuple) < 0) {
             Py_DECREF(tuple);
-            Py_DECREF(name_obj);
+            Py_XDECREF(name_obj);
             return -1;
         }
         Py_DECREF(tuple);
@@ -117,7 +117,7 @@ embeddedimporter_init(EmbeddedImporter *self, PyObject *args, PyObject *kwds)
         return -1;
     }
 
-    if (!PyArg_ParseTuple(kwds, "O&:embeddedimporter",
+    if (!PyArg_ParseTuple(args, "O&:embeddedimporter",
                           PyUnicode_FSDecoder, &path_obj)) {
         return -1;
     }
@@ -127,7 +127,6 @@ embeddedimporter_init(EmbeddedImporter *self, PyObject *args, PyObject *kwds)
     }
 
     path_len = PyUnicode_AsWideChar(path_obj, path, sizeof(path)/sizeof(path[0]) - 1);
-    Py_XDECREF(path_obj);
     if (path_len == -1) {
         return -1;
     }
@@ -150,8 +149,11 @@ embeddedimporter_init(EmbeddedImporter *self, PyObject *args, PyObject *kwds)
             p++;
         }
         prefix_obj = PyUnicode_FromWideChar(prefix, -1);
+        if (prefix_obj == NULL) {
+            return -1;
+        }
         self->prefix = PyUnicode_FromFormat("%U%c", prefix_obj, (int)SEP);
-        Py_XDECREF(prefix_obj);
+        Py_DECREF(prefix_obj);
     } else {
         self->prefix = NULL;
     }
@@ -208,16 +210,27 @@ find_tuple(EmbeddedImporter *self, const wchar_t *subname, int *is_package)
     len = wcslen(subname);
     //                  /__init__.py
     if (prefix_len + len + 13 >= MAXPATHLEN) {
-        PyMem_Free(prefix);
+        if (prefix != NULL) {
+            PyMem_Free(prefix);
+        }
         return NULL;
     }
 
-    wcscpy(buf, prefix);
+    if (prefix != NULL) {
+        wcscpy(buf, prefix);
+        PyMem_Free(prefix);
+    }
     wcscpy(buf + prefix_len, subname);
     for (eso = embedded_searchorder; *eso->suffix; eso++) {
         PyObject *buf_obj;
         wcscpy(buf + prefix_len + len, eso->suffix);
         buf_obj = PyUnicode_FromWideChar(buf, -1);
+        if (buf_obj == NULL) {
+            return NULL;
+        }
+        if (Py_VerboseFlag > 1) {
+            PySys_FormatStderr("# trying %c%U\n", (int)SEP, buf_obj);
+        }
         tuple = PyDict_GetItem(self->dict, buf_obj);
         Py_XDECREF(buf_obj);
         if (tuple != NULL) {
@@ -259,7 +272,6 @@ embeddedimporter_find_module(PyObject *obj, PyObject *args)
     }
 
     fullname = PyUnicode_AsWideCharString(fullname_obj, NULL);
-    Py_XDECREF(fullname_obj);
     if (fullname == NULL) {
         Py_INCREF(Py_None);
         return Py_None;
@@ -272,8 +284,8 @@ embeddedimporter_find_module(PyObject *obj, PyObject *args)
         return Py_None;
     }
 
-    Py_INCREF(self);
     PyMem_Free(fullname);
+    Py_INCREF(self);
     return (PyObject *)self;
 }
 
@@ -321,7 +333,6 @@ embeddedimporter_load_module(PyObject *obj, PyObject *args)
     }
     fullname = PyUnicode_AsWideCharString(fullname_obj, NULL);
     if (fullname == NULL) {
-        Py_XDECREF(fullname_obj);
         return NULL;
     }
 
@@ -329,7 +340,6 @@ embeddedimporter_load_module(PyObject *obj, PyObject *args)
     tuple = find_tuple(self, subname, &is_package);
     if (tuple == NULL) {
         PyErr_SetString(EmbeddedImportError, "not found");
-        Py_XDECREF(fullname_obj);
         PyMem_Free(fullname);
         return NULL;
     }
@@ -338,16 +348,14 @@ embeddedimporter_load_module(PyObject *obj, PyObject *args)
     code = Py_CompileStringObject(&embeddedimporter_raw_data[data_offset], fullname_obj,
                                   Py_file_input, NULL, -1);
     if (code == NULL) {
-        Py_XDECREF(fullname_obj);
         PyMem_Free(fullname);
         return NULL;
     }
 
     module = PyImport_AddModuleObject(fullname_obj);
     if (module == NULL) {
-        Py_XDECREF(fullname_obj);
         PyMem_Free(fullname);
-        Py_DECREF(code);
+        Py_XDECREF(code);
         return NULL;
     }
 
@@ -366,7 +374,7 @@ embeddedimporter_load_module(PyObject *obj, PyObject *args)
 
         program_full_path_obj = PyUnicode_FromWideChar(Py_GetProgramFullPath(), -1);
         subname_obj = PyUnicode_FromWideChar(subname, -1);
-        fullpath = PyUnicode_FromFormat("%U%c%s%s",
+        fullpath = PyUnicode_FromFormat("%U%c%V%U",
                                         program_full_path_obj,
                                         (int)SEP,
                                         self->prefix, "",
@@ -382,7 +390,7 @@ embeddedimporter_load_module(PyObject *obj, PyObject *args)
             goto error;
         }
         err = PyDict_SetItemString(dict, "__path__", pkgpath);
-        Py_DECREF(pkgpath);
+        Py_XDECREF(pkgpath);
         if (err != 0) {
             goto error;
         }
@@ -390,20 +398,19 @@ embeddedimporter_load_module(PyObject *obj, PyObject *args)
 
     modpath = get_modpath(self, subname, is_package);
     module = PyImport_ExecCodeModuleObject(fullname_obj, code, modpath, NULL);
-    if (Py_VerboseFlag)
-        PySys_WriteStderr("import %U # loaded from Embedded %U\n",
-                          fullname_obj, modpath);
-    Py_XDECREF(fullname_obj);
-    PyMem_Free(fullname);
-    Py_DECREF(modpath);
-    Py_DECREF(code);
+    if (Py_VerboseFlag) {
+        PySys_FormatStderr("import %U # loaded from Embedded %U\n",
+                           fullname_obj, modpath);
+    }
+    PyMem_Free(fullname);  // Kept for subname.
+    Py_XDECREF(modpath);
+    Py_XDECREF(code);
     return module;
 
 error:
-    Py_XDECREF(fullname_obj);
     PyMem_Free(fullname);
-    Py_DECREF(code);
-    Py_DECREF(module);
+    Py_XDECREF(code);
+    Py_XDECREF(module);
     return NULL;
 }
 
@@ -423,7 +430,6 @@ embeddedimporter_is_package(PyObject *obj, PyObject *args)
     }
 
     fullname = PyUnicode_AsWideCharString(fullname_obj, NULL);
-    Py_XDECREF(fullname_obj);
     subname = get_subname(fullname);
     tuple = find_tuple(self, subname, &is_package);
     PyMem_Free(fullname);
@@ -451,7 +457,6 @@ embeddedimporter_get_filename(PyObject *obj, PyObject *args)
     }
 
     fullname = PyUnicode_AsWideCharString(fullname_obj, NULL);
-    Py_XDECREF(fullname_obj);
     subname = get_subname(fullname);
     tuple = find_tuple(self, subname, &is_package);
     if (tuple == NULL) {
@@ -481,7 +486,6 @@ embeddedimporter_get_code(PyObject *obj, PyObject *args)
     tuple = find_tuple(self, subname, NULL);
     if (tuple == NULL) {
         PyErr_SetString(EmbeddedImportError, "not found");
-        Py_XDECREF(fullname_obj);
         PyMem_Free(fullname);
         return NULL;
     }
@@ -489,7 +493,6 @@ embeddedimporter_get_code(PyObject *obj, PyObject *args)
     data_offset = PyLong_AsLong(PyTuple_GetItem(tuple, 0));
     code = Py_CompileStringObject(&embeddedimporter_raw_data[data_offset], fullname_obj,
                                   Py_file_input, NULL, -1);
-    Py_XDECREF(fullname_obj);
     PyMem_Free(fullname);
     return code;
 }
