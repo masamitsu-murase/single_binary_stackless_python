@@ -12,8 +12,6 @@ DEFINES = /D "Py_BUILD_CORE" /D "Py_ENABLE_SHARED" /D "WIN32" /D "_CONSOLE" /D "
 !ENDIF
 CFLAGS = /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi
 LFLAGS = /NOLOGO /LTCG
-# CFLAGS = /GS /Gm- /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi
-# LFLAGS = /NOLOGO /LTCG /IMPLIB:pythoncore.lib /MACHINE:X86 /NODEFAULTLIB:"LIBC" /SAFESEH /OPT:NOREF,NOICF 
 TARGET = pythoncore.lib
 
 COMMON_OBJS = \
@@ -222,42 +220,4 @@ OBJS = $(COMMON_OBJS)
 OBJS = $(COMMON_OBJS) $(ProjectDir)\Stackless\platf\switch_x64_masm.obj
 !ENDIF
 
-# !include common.mak
-
-CC = cl.exe
-LIB = lib.exe
-!IF "$(BUILD_TARGET_CPU)" == "x86"
-ASM = ml.exe
-!ELSE
-ASM = ml64.exe
-!ENDIF
-
-
-all: $(TARGET)
-
-# 	link $(OBJS) /OUT:"D:\work\git_repos\stackless\PCBuild\python36.dll" /LTCG $(EXTERNAL_LIBS) /IMPLIB:"D:\work\git_repos\stackless\PCBuild\python36.lib" /DEBUG /DLL /BASE:"0x1e000000" /MACHINE:X86 /NODEFAULTLIB:"LIBC" /SAFESEH /SUBSYSTEM:WINDOWS /ERRORREPORT:PROMPT /NOLOGO /LIBPATH:"D:\work\git_repos\stackless\PC\external\v140\win32" 
-
-$(TARGET): $(OBJS)
-	$(LIB) /OUT:$(TARGET) $(LFLAGS) @<<
-$(OBJS)
-<<
-# $(TARGET): $(OBJS)
-# 	$(LIB) $(OBJS) /OUT:python36.dll /NOLOGO /LTCG $(EXTERNAL_LIBS) /IMPLIB:python36.lib /OPT:NOREF,NOICF /BASE:"0x1e000000" /MACHINE:X86 /NODEFAULTLIB:"LIBC" /SAFESEH /SUBSYSTEM:WINDOWS /LIBPATH:$(ProjectDir)\PC\external\v140\win32
-
-.c.obj:
-	$(CC) /c $< $(CFLAGS) $(ARCH_DEFINES) /Fo$@
-
-.cpp.obj:
-	$(CC) /c $< $(CFLAGS) $(ARCH_DEFINES) /Fo$@
-
-.asm.obj:
-	$(ASM) /Fo$@ /c $< $(AFLAGS)
-
-clean:
-	-<<delete.bat
-del $(TARGET)
-del $(OBJS:.obj =.obj^
-del )
-<<
-
-
+!include common.mak
