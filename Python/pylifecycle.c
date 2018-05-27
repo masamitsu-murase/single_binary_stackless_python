@@ -339,6 +339,8 @@ initimport(PyInterpreterState *interp, PyObject *sysmod)
         return err;
     }
 
+    _PyImportEmbedded_Init();
+
     return _Py_INIT_OK();
 }
 

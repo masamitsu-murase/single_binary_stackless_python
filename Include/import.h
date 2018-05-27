@@ -9,6 +9,7 @@ extern "C" {
 
 #ifndef Py_LIMITED_API
 PyAPI_FUNC(_PyInitError) _PyImportZip_Init(void);
+PyAPI_FUNC(void) _PyImportEmbedded_Init(void);
 
 PyMODINIT_FUNC PyInit__imp(void);
 #endif /* !Py_LIMITED_API */
