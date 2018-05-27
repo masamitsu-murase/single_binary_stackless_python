@@ -138,6 +138,58 @@ _PyImportZip_Init(void)
     Py_FatalError("initializing zipimport failed");
 }
 
+void
+_PyImportEmbedded_Init(void)
+{
+    PyObject *path_hooks, *embeddedimport;
+    int err = 0;
+
+    path_hooks = PySys_GetObject("path_hooks");
+    if (path_hooks == NULL) {
+        PyErr_SetString(PyExc_RuntimeError, "unable to get sys.path_hooks");
+        goto error;
+    }
+
+    if (Py_VerboseFlag)
+        PySys_WriteStderr("# installing embeddedimport hook\n");
+
+    embeddedimport = PyImport_ImportModule("embeddedimport");
+    if (embeddedimport == NULL) {
+        PyErr_Clear(); /* No embedded import module -- okay */
+        if (Py_VerboseFlag)
+            PySys_WriteStderr("# can't import embeddedimport\n");
+    }
+    else {
+        _Py_IDENTIFIER(embeddedimporter);
+        PyObject *embeddedimporter = _PyObject_GetAttrId(embeddedimport,
+                                                         &PyId_embeddedimporter);
+        Py_DECREF(embeddedimport);
+        if (embeddedimporter == NULL) {
+            PyErr_Clear(); /* No embeddedimporter object -- okay */
+            if (Py_VerboseFlag)
+                PySys_WriteStderr(
+                    "# can't import embeddedimport.embeddedimporter\n");
+        }
+        else {
+            /* sys.path_hooks.insert(0, embeddedimporter) */
+            err = PyList_Insert(path_hooks, 0, embeddedimporter);
+            Py_DECREF(embeddedimporter);
+            if (err < 0) {
+                goto error;
+            }
+            if (Py_VerboseFlag)
+                PySys_WriteStderr(
+                    "# installed embeddedimport hook\n");
+        }
+    }
+
+    return;
+
+  error:
+    PyErr_Print();
+    Py_FatalError("initializing embeddedimport failed");
+}
+
 /* Locking primitives to prevent parallel imports of the same module
    in different threads to return with a partially loaded module.
    These calls are serialized by the global interpreter lock. */

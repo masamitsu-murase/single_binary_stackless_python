@@ -212,7 +212,9 @@ COMMON_OBJS = \
         $(ProjectDir)\Stackless\pickling\safe_pickle.obj \
         $(ProjectDir)\PC\dl_nt.obj \
         $(ProjectDir)\PC\_findvs.obj \
-        $(ProjectDir)\Modules\getbuildinfo.obj
+        $(ProjectDir)\Modules\getbuildinfo.obj \
+        $(ProjectDir)\Modules\embeddedimport.obj \
+        $(ProjectDir)\Modules\embeddedimport_data.obj
 
 !IF "$(BUILD_TARGET_CPU)" == "x86"
 OBJS = $(COMMON_OBJS)

@@ -300,6 +300,7 @@ import_init(PyInterpreterState *interp, PyObject *sysmod)
     Py_DECREF(impmod);
 
     _PyImportZip_Init();
+    _PyImportEmbedded_Init();
 }
 
 
