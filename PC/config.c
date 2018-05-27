@@ -90,6 +90,8 @@ extern PyObject* PyInit_unicodedata(void);
 extern PyObject* PyInit_winsound(void);
 extern PyObject* PyInit_xxlimited(void);
 
+extern PyObject* PyInit_embeddedimport(void);
+
 /* tools/freeze/makeconfig.py marker for additional "extern" */
 /* -- ADDMODULE MARKER 1 -- */
 
@@ -209,6 +211,8 @@ struct _inittab _PyImport_Inittab[] = {
     {"unicodedata", PyInit_unicodedata},
     {"winsound", PyInit_winsound},
     {"xxlimited", PyInit_xxlimited},
+
+    {"embeddedimport", PyInit_embeddedimport},
 #ifdef STACKLESS
     {"_stackless", PyInit__stackless},
 #endif
