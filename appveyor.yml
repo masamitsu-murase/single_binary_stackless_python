@@ -37,7 +37,8 @@ environment:
 build_script:
   - cmd /c PCbuild\my_build.bat %target_type% %vc_version%
 test_script:
-  - cmd /c PCbuild\my_test.bat %target_type% %vc_version%
+  - cmd /c echo test is not supported yet.
+#  - cmd /c PCbuild\my_test.bat %target_type% %vc_version%
 artifacts:
   - path: PCbuild\python*.exe
     name: python_exe
