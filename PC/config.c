@@ -88,6 +88,7 @@ extern PyObject* PyInit__overlapped(void);
 extern PyObject* PyInit__socket(void);
 extern PyObject* PyInit__sqlite3(void);
 extern PyObject* PyInit__ssl(void);
+extern PyObject* PyInit__testcapi(void);
 extern PyObject* PyInit_pyexpat(void);
 extern PyObject* PyInit_select(void);
 extern PyObject* PyInit_unicodedata(void);
@@ -208,6 +209,7 @@ struct _inittab _PyImport_Inittab[] = {
     {"_socket", PyInit__socket},
     {"_sqlite3", PyInit__sqlite3},
     {"_ssl", PyInit__ssl},
+    {"_testcapi", PyInit__testcapi},
     {"pyexpat", PyInit_pyexpat},
     {"select", PyInit_select},
     {"unicodedata", PyInit_unicodedata},
