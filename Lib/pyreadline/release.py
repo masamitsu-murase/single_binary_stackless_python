@@ -23,7 +23,7 @@ name = 'pyreadline'
 
 branch = ''
 
-version = '2.1'
+version = '2.0'
 
 description = "A python implmementation of GNU readline."
 
@@ -33,18 +33,7 @@ The pyreadline package is a python implementation of GNU readline functionality
 it is based on the ctypes based UNC readline package by Gary Bishop.
 It is not complete. It has been tested for use with windows 2000 and windows xp.
 
-* pyreadline 2.1 <2015-09-16>
-
-  This is a bugfix release to make pyreadline work with python 3.5.
-
-  Contributors to this release:
-
-    - Jörgen Stenarson, maintainer
-    - kivhift, improved error message for running on non windows platforms
-    - zooba, made helpful suggestions to make it work for python 3.5
-
-  Version 2.1 of pyreadline has been verfied for Python 2.7, and 3.4, 3.5.
-
+Version 2.0 runs on Python 2.6, 2.7, and 3.2 using the same code.
 
 Features:
  *  keyboard text selection and copy/paste
@@ -82,9 +71,8 @@ classifiers = ['Development Status :: 5 - Production/Stable',
                'Environment :: Console',
                'Operating System :: Microsoft :: Windows',
                'License :: OSI Approved :: BSD License',
+               'Programming Language :: Python :: 2.6',
                'Programming Language :: Python :: 2.7',
                'Programming Language :: Python :: 3.2',
                'Programming Language :: Python :: 3.3',
-               'Programming Language :: Python :: 3.4',
-               'Programming Language :: Python :: 3.5',
                ]
