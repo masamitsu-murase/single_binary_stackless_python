@@ -2,8 +2,8 @@ import types
 import sys
 import os
 
-# comtypes version numbers follow semver (http://semver.org/)
-__version__ = "1.1.2"
+# comtypes version numbers follow semver (http://semver.org/) and PEP 440
+__version__ = "1.1.4"
 
 import logging
 class NullHandler(logging.Handler):
@@ -655,8 +655,10 @@ class _cominterface_meta(type):
             rescode = func(self_, *args, **kw)
             # If there is only a single output value, then do not expect it to
             # be iterable.
-            if len(outargs) == 1:  # rescode is not iterable
-                return rescode.__ctypes_from_outparam__()
+            if outnum == 1:  # rescode is not iterable
+                if len(outargs) == 1:
+                    rescode = rescode.__ctypes_from_outparam__()
+                return rescode
 
             rescode = list(rescode)
             for outnum, o in outargs.items():
