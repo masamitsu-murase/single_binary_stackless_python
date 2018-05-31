@@ -2268,21 +2268,25 @@ class GatherTestsBase:
 
         # Test with -E to not fail if the unit test was run with
         # PYTHONASYNCIODEBUG set to a non-empty string
-        sts, stdout, stderr = assert_python_ok('-E', '-c', code,
+        # sts, stdout, stderr = assert_python_ok('-E', '-c', code,
+        sts, stdout, stderr = assert_python_ok('-c', code,
                                                PYTHONPATH=aio_path)
         self.assertEqual(stdout.rstrip(), b'False')
 
-        sts, stdout, stderr = assert_python_ok('-c', code,
+        # sts, stdout, stderr = assert_python_ok('-c', code,
+        sts, stdout, stderr = assert_python_ok('-E', '-c', code,
                                                PYTHONASYNCIODEBUG='',
                                                PYTHONPATH=aio_path)
         self.assertEqual(stdout.rstrip(), b'False')
 
-        sts, stdout, stderr = assert_python_ok('-c', code,
+        # sts, stdout, stderr = assert_python_ok('-c', code,
+        sts, stdout, stderr = assert_python_ok('-E', '-c', code,
                                                PYTHONASYNCIODEBUG='1',
                                                PYTHONPATH=aio_path)
         self.assertEqual(stdout.rstrip(), b'True')
 
-        sts, stdout, stderr = assert_python_ok('-E', '-c', code,
+        # sts, stdout, stderr = assert_python_ok('-E', '-c', code,
+        sts, stdout, stderr = assert_python_ok('-c', code,
                                                PYTHONASYNCIODEBUG='1',
                                                PYTHONPATH=aio_path)
         self.assertEqual(stdout.rstrip(), b'False')
