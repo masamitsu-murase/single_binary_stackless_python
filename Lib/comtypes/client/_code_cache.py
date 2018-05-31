@@ -107,7 +107,7 @@ def _create_comtypes_gen_package():
                 ofi = open(comtypes_init, "w")
                 ofi.write("# comtypes.gen package, directory for generated files.\n")
                 ofi.close()
-        except (OSError, IOError), details:
+        except (OSError, IOError) as details:
             logger.info("Creating comtypes.gen package failed: %s", details)
             module = sys.modules["comtypes.gen"] = types.ModuleType("comtypes.gen")
             comtypes.gen = module
@@ -121,7 +121,7 @@ def _is_writeable(path):
         return False
     try:
         tempfile.TemporaryFile(dir=path[0])
-    except (OSError, IOError), details:
+    except (OSError, IOError) as details:
         logger.debug("Path is unwriteable: %s", details)
         return False
     return True
