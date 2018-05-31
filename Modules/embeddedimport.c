@@ -132,6 +132,11 @@ embeddedimporter_init(EmbeddedImporter *self, PyObject *args, PyObject *kwds)
     }
     path[path_len] = L'\0';
 
+    if (wcslen(path) != path_len) {
+        // NULL is in the string.
+        return -1;
+    }
+
     if (wcsncmp(path, program_full_path, len) != 0 || (path[len] != L'\0' && path[len] != SEP)) {
         PyErr_SetString(EmbeddedImportError, "not a executable file");
         return -1;
@@ -265,14 +270,15 @@ embeddedimporter_find_module(PyObject *obj, PyObject *args)
     PyObject *path = NULL;
     wchar_t *fullname, *subname;
     PyObject *fullname_obj;
+    Py_ssize_t fullname_size;
 
     if (!PyArg_ParseTuple(args, "U|O:embeddedimporter.find_module",
                           &fullname_obj, &path)) {
         return NULL;
     }
 
-    fullname = PyUnicode_AsWideCharString(fullname_obj, NULL);
-    if (fullname == NULL) {
+    fullname = PyUnicode_AsWideCharString(fullname_obj, &fullname_size);
+    if (fullname == NULL || wcslen(fullname) != fullname_size) {
         Py_INCREF(Py_None);
         return Py_None;
     }
@@ -324,6 +330,7 @@ embeddedimporter_load_module(PyObject *obj, PyObject *args)
     PyObject *tuple, *code, *module, *dict, *modpath;
     wchar_t *fullname, *subname;
     PyObject *fullname_obj;
+    Py_ssize_t fullname_size;
     int is_package = 0;
     long data_offset;
 
@@ -331,8 +338,8 @@ embeddedimporter_load_module(PyObject *obj, PyObject *args)
                           &fullname_obj)) {
         return NULL;
     }
-    fullname = PyUnicode_AsWideCharString(fullname_obj, NULL);
-    if (fullname == NULL) {
+    fullname = PyUnicode_AsWideCharString(fullname_obj, &fullname_size);
+    if (fullname == NULL || wcslen(fullname) != fullname_size) {
         return NULL;
     }
 
