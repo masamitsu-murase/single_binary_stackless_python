@@ -1265,6 +1265,7 @@ class ASTValidatorTests(unittest.TestCase):
     def test_nameconstant(self):
         self.expr(ast.NameConstant(4))
 
+    @unittest.skip("ast.__file__ is not a valid file.")
     def test_stdlib_validates(self):
         stdlib = os.path.dirname(ast.__file__)
         tests = [fn for fn in os.listdir(stdlib) if fn.endswith(".py")]
