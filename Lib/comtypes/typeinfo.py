@@ -518,13 +518,13 @@ if os.name == "ce":
     # windows CE does not have QueryPathOfRegTypeLib. Emulate by reading the registry:
     def QueryPathOfRegTypeLib(libid, wVerMajor, wVerMinor, lcid=0):
         "Return the path of a registered type library"
-        import _winreg
+        import winreg
         try:
-            hkey = _winreg.OpenKey(_winreg.HKEY_CLASSES_ROOT, r"Typelib\%s\%s.%s\%x\win32" % (libid, wVerMajor, wVerMinor, lcid))
+            hkey = winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, r"Typelib\%s\%s.%s\%x\win32" % (libid, wVerMajor, wVerMinor, lcid))
         except WindowsError:
             # On CE, some typelib names are not in the ..\win32 subkey:
-            hkey = _winreg.OpenKey(_winreg.HKEY_CLASSES_ROOT, r"Typelib\%s\%s.%s\%x" % (libid, wVerMajor, wVerMinor, lcid))
-        return _winreg.QueryValueEx(hkey, "")[0]
+            hkey = winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, r"Typelib\%s\%s.%s\%x" % (libid, wVerMajor, wVerMinor, lcid))
+        return winreg.QueryValueEx(hkey, "")[0]
 else:
     def QueryPathOfRegTypeLib(libid, wVerMajor, wVerMinor, lcid=0):
         "Return the path of a registered type library"

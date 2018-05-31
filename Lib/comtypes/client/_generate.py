@@ -75,7 +75,7 @@ def GetModule(tlib):
     latter is a short stub loading the former.
     """
     pathname = None
-    if isinstance(tlib, basestring):
+    if isinstance(tlib, str):
         # pathname of type library
         if not os.path.isabs(tlib):
             # If a relative pathname is used, we try to interpret
@@ -120,7 +120,7 @@ def GetModule(tlib):
     # create and import the friendly-named module
     try:
         mod = _my_import("comtypes.gen." + modulename)
-    except Exception, details:
+    except Exception as details:
         logger.info("Could not import comtypes.gen.%s: %s", modulename, details)
     else:
         return mod
@@ -135,7 +135,7 @@ def GetModule(tlib):
         mod = types.ModuleType("comtypes.gen." + modulename)
         mod.__file__ = os.path.join(os.path.abspath(comtypes.gen.__path__[0]),
                                     "<memory>")
-        exec code in mod.__dict__
+        exec(code, mod.__dict__)
         sys.modules["comtypes.gen." + modulename] = mod
         setattr(comtypes.gen, modulename, mod)
         return mod
@@ -157,14 +157,14 @@ def _CreateWrapper(tlib, pathname=None):
 
     try:
         return _my_import(fullname)
-    except Exception, details:
+    except Exception as details:
         logger.info("Could not import %s: %s", fullname, details)
 
     # generate the module since it doesn't exist or is out of date
     from comtypes.tools.tlbparser import generate_module
     if comtypes.client.gen_dir is None:
-        import cStringIO
-        ofi = cStringIO.StringIO()
+        import io
+        ofi = io.StringIO()
     else:
         ofi = open(os.path.join(comtypes.client.gen_dir, modname + ".py"), "w")
     # XXX use logging!
@@ -176,7 +176,7 @@ def _CreateWrapper(tlib, pathname=None):
         mod = types.ModuleType(fullname)
         mod.__file__ = os.path.join(os.path.abspath(comtypes.gen.__path__[0]),
                                     "<memory>")
-        exec code in mod.__dict__
+        exec(code, mod.__dict__)
         sys.modules[fullname] = mod
         setattr(comtypes.gen, modname, mod)
     else:
