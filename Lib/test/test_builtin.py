@@ -1692,7 +1692,7 @@ class ShutdownTest(unittest.TestCase):
         # "before" to sys.stdout.encoding. For example, on Windows,
         # sys.stdout.encoding is the OEM code page and these code pages are
         # implemented in Python
-        rc, out, err = assert_python_ok("-c", code,
+        rc, out, err = assert_python_ok("-E", "-c", code,
                                         PYTHONIOENCODING="ascii")
         self.assertEqual(["before", "after"], out.decode().splitlines())
 
