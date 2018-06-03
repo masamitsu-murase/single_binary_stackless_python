@@ -277,7 +277,7 @@ def _args_from_interpreter_flags():
         'debug': 'd',
         # 'inspect': 'i',
         # 'interactive': 'i',
-        'dont_write_bytecode': 'B',
+        # 'dont_write_bytecode': 'B',
         'no_site': 'S',
         'verbose': 'v',
         'bytes_warning': 'b',
@@ -293,10 +293,12 @@ def _args_from_interpreter_flags():
     if sys.flags.isolated:
         args.append('-I')
     else:
-        if sys.flags.ignore_environment:
+        if sys.flags.ignore_environment == 0:
             args.append('-E')
         if sys.flags.no_user_site:
             args.append('-s')
+    if sys.flags.dont_write_bytecode == 0:
+        args.append("-B")
 
     # -W options
     warnopts = sys.warnoptions[:]
