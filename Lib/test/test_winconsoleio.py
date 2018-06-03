@@ -11,6 +11,8 @@ from test import support
 if sys.platform != 'win32':
     raise unittest.SkipTest("test only relevant on win32")
 
+raise unittest.SkipTest("Skip temporarily.")
+
 from _testconsole import write_input
 
 ConIO = io._WindowsConsoleIO
