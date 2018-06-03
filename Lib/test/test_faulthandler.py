@@ -371,7 +371,7 @@ class FaultHandlerTests(unittest.TestCase):
     def test_env_var(self):
         # empty env var
         code = "import faulthandler; print(faulthandler.is_enabled())"
-        args = (sys.executable, "-c", code)
+        args = (sys.executable, "-E", "-c", code)
         env = dict(os.environ)
         env['PYTHONFAULTHANDLER'] = ''
         env['PYTHONDEVMODE'] = ''
@@ -513,12 +513,23 @@ class FaultHandlerTests(unittest.TestCase):
             lineno = 8
         else:
             lineno = 10
+        # regex = r"""
+        #     ^Thread 0x[0-9a-f]+ \(most recent call first\):
+        #     (?:  File ".*threading.py", line [0-9]+ in [_a-z]+
+        #     ){{1,3}}  File "<string>", line 23 in run
+        #       File ".*threading.py", line [0-9]+ in _bootstrap_inner
+        #       File ".*threading.py", line [0-9]+ in _bootstrap
+
+        #     Current thread 0x[0-9a-f]+ \(most recent call first\):
+        #       File "<string>", line {lineno} in dump
+        #       File "<string>", line 28 in <module>$
+        #     """
         regex = r"""
             ^Thread 0x[0-9a-f]+ \(most recent call first\):
-            (?:  File ".*threading.py", line [0-9]+ in [_a-z]+
+            (?:  File ".*threading", line [0-9]+ in [_a-z]+
             ){{1,3}}  File "<string>", line 23 in run
-              File ".*threading.py", line [0-9]+ in _bootstrap_inner
-              File ".*threading.py", line [0-9]+ in _bootstrap
+              File ".*threading", line [0-9]+ in _bootstrap_inner
+              File ".*threading", line [0-9]+ in _bootstrap
 
             Current thread 0x[0-9a-f]+ \(most recent call first\):
               File "<string>", line {lineno} in dump
