@@ -132,7 +132,7 @@ class SysModuleTest(unittest.TestCase):
         self.assertEqual(err, b'')
 
         def check_exit_message(code, expected, **env_vars):
-            rc, out, err = assert_python_failure('-c', code, **env_vars)
+            rc, out, err = assert_python_failure('-E', '-c', code, **env_vars)
             self.assertEqual(rc, 1)
             self.assertEqual(out, b'')
             self.assertTrue(err.startswith(expected),
@@ -590,20 +590,20 @@ class SysModuleTest(unittest.TestCase):
         # not representable in ASCII.
 
         env["PYTHONIOENCODING"] = "cp424"
-        p = subprocess.Popen([sys.executable, "-c", 'print(chr(0xa2))'],
+        p = subprocess.Popen([sys.executable, "-E", "-c", 'print(chr(0xa2))'],
                              stdout = subprocess.PIPE, env=env)
         out = p.communicate()[0].strip()
         expected = ("\xa2" + os.linesep).encode("cp424")
         self.assertEqual(out, expected)
 
         env["PYTHONIOENCODING"] = "ascii:replace"
-        p = subprocess.Popen([sys.executable, "-c", 'print(chr(0xa2))'],
+        p = subprocess.Popen([sys.executable, "-E", "-c", 'print(chr(0xa2))'],
                              stdout = subprocess.PIPE, env=env)
         out = p.communicate()[0].strip()
         self.assertEqual(out, b'?')
 
         env["PYTHONIOENCODING"] = "ascii"
-        p = subprocess.Popen([sys.executable, "-c", 'print(chr(0xa2))'],
+        p = subprocess.Popen([sys.executable, "-E", "-c", 'print(chr(0xa2))'],
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                              env=env)
         out, err = p.communicate()
@@ -612,7 +612,7 @@ class SysModuleTest(unittest.TestCase):
         self.assertIn(rb"'\xa2'", err)
 
         env["PYTHONIOENCODING"] = "ascii:"
-        p = subprocess.Popen([sys.executable, "-c", 'print(chr(0xa2))'],
+        p = subprocess.Popen([sys.executable, "-E", "-c", 'print(chr(0xa2))'],
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                              env=env)
         out, err = p.communicate()
@@ -621,7 +621,7 @@ class SysModuleTest(unittest.TestCase):
         self.assertIn(rb"'\xa2'", err)
 
         env["PYTHONIOENCODING"] = ":surrogateescape"
-        p = subprocess.Popen([sys.executable, "-c", 'print(chr(0xdcbd))'],
+        p = subprocess.Popen([sys.executable, "-E", "-c", 'print(chr(0xdcbd))'],
                              stdout=subprocess.PIPE, env=env)
         out = p.communicate()[0].strip()
         self.assertEqual(out, b'\xbd')
@@ -634,7 +634,7 @@ class SysModuleTest(unittest.TestCase):
         env = dict(os.environ)
 
         env["PYTHONIOENCODING"] = ""
-        p = subprocess.Popen([sys.executable, "-c",
+        p = subprocess.Popen([sys.executable, "-E", "-c",
                                 'print(%a)' % test.support.FS_NONASCII],
                                 stdout=subprocess.PIPE, env=env)
         out = p.communicate()[0].strip()
@@ -689,7 +689,7 @@ class SysModuleTest(unittest.TestCase):
             'dump("stdout")',
             'dump("stderr")',
         ))
-        args = [sys.executable, "-c", code]
+        args = [sys.executable, "-E", "-c", code]
         if isolated:
             args.append("-I")
         if encoding is not None:

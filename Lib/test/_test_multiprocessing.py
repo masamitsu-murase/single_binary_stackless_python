@@ -3339,16 +3339,20 @@ class _TestImportStar(unittest.TestCase):
         files = glob.glob(pattern)
         modules = [os.path.splitext(os.path.split(f)[1])[0] for f in files]
         modules = ['multiprocessing.' + m for m in modules]
-        modules.remove('multiprocessing.__init__')
+        if "multiprocessing.__init__" in modules:
+            modules.remove('multiprocessing.__init__')
         modules.append('multiprocessing')
         return modules
 
     def test_import(self):
         modules = self.get_module_names()
         if sys.platform == 'win32':
-            modules.remove('multiprocessing.popen_fork')
-            modules.remove('multiprocessing.popen_forkserver')
-            modules.remove('multiprocessing.popen_spawn_posix')
+            if 'multiprocessing.popen_fork' in modules:
+                modules.remove('multiprocessing.popen_fork')
+            if 'multiprocessing.popen_forkserver' in modules:
+                modules.remove('multiprocessing.popen_forkserver')
+            if 'multiprocessing.popen_spawn_posix' in modules:
+                modules.remove('multiprocessing.popen_spawn_posix')
         else:
             modules.remove('multiprocessing.popen_spawn_win32')
             if not HAS_REDUCTION:

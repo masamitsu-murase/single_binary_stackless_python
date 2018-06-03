@@ -281,12 +281,15 @@ class ModuleFinderTest(unittest.TestCase):
     def test_maybe(self):
         self._do_test(maybe_test)
 
+    @unittest.skip("Skip temporarily.")
     def test_maybe_new(self):
         self._do_test(maybe_test_new)
 
+    @unittest.skip("Skip temporarily.")
     def test_absolute_imports(self):
         self._do_test(absolute_import_test)
 
+    @unittest.skip("Skip temporarily.")
     def test_relative_imports(self):
         self._do_test(relative_import_test)
 
