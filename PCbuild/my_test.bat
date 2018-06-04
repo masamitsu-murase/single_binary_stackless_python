@@ -35,7 +35,7 @@ if ERRORLEVEL 1 (
     exit /b 1
 )
 
-%PYTHON% -m test.regrtest -x test_argparse test_asynchat test_asyncore test_calendar test_capi test_class test_cmath test_class test_cmath test_codecs test_ctypes test_distutils test_email test_email_renamed test_ensurepip test_ftplib test_hash test_importlib test_json test_lib2to3 test_macpath test_pydoc test_unittest test_rlcompleter test_readline test_warnings
+%PYTHON% -m test.regrtest -v -x test_argparse test_asynchat test_asyncore test_calendar test_capi test_class test_cmath test_class test_cmath test_codecs test_ctypes test_distutils test_email test_email_renamed test_ensurepip test_ftplib test_hash test_importlib test_json test_lib2to3 test_macpath test_pydoc test_unittest test_rlcompleter test_readline test_warnings
 if ERRORLEVEL 1 (
     echo "regrtest failed."
     exit /b 1
