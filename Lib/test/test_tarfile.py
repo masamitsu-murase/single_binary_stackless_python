@@ -2178,7 +2178,7 @@ class MiscTest(unittest.TestCase):
 class CommandLineTest(unittest.TestCase):
 
     def tarfilecmd(self, *args, **kwargs):
-        rc, out, err = script_helper.assert_python_ok('-m', 'tarfile', *args,
+        rc, out, err = script_helper.assert_python_ok('-E', '-m', 'tarfile', *args,
                                                       **kwargs)
         return out.replace(os.linesep.encode(), b'\n')
 

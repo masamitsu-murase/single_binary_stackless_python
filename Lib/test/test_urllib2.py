@@ -50,7 +50,8 @@ class TrivialTests(unittest.TestCase):
         self.assertRaises(ValueError, urllib.request.urlopen, 'bogus url')
 
         # XXX Name hacking to get this to work on Windows.
-        fname = os.path.abspath(urllib.request.__file__).replace(os.sep, '/')
+        # fname = os.path.abspath(urllib.request.__file__).replace(os.sep, '/')
+        fname = os.path.abspath(__file__).replace(os.sep, '/')
 
         if os.name == 'nt':
             file_url = "file:///%s" % fname

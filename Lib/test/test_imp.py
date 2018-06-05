@@ -18,6 +18,8 @@ with warnings.catch_warnings():
 def requires_load_dynamic(meth):
     """Decorator to skip a test if not running under CPython or lacking
     imp.load_dynamic()."""
+    # Single binary does not support dynamic load.
+    return unittest.skip("Single binary does not support dynamic load.")
     meth = support.cpython_only(meth)
     return unittest.skipIf(not hasattr(imp, 'load_dynamic'),
                            'imp.load_dynamic() required')(meth)
@@ -307,6 +309,7 @@ class ImportTests(unittest.TestCase):
             self.assertRaisesRegex(ImportError, '^No module',
                 imp.find_module, support.TESTFN, ["."])
 
+    @unittest.skip("Single binary does not support imp.__file__.")
     def test_multiple_calls_to_get_data(self):
         # Issue #18755: make sure multiple calls to get_data() can succeed.
         loader = imp._LoadSourceCompatibility('imp', imp.__file__,

@@ -98,6 +98,7 @@ class BadUnicode(GetLineTestsBadData, unittest.TestCase):
 
 class LineCacheTests(unittest.TestCase):
 
+    @unittest.skip("EmbeddedImporter does not support cache.")
     def test_getline(self):
         getline = linecache.getline
 
@@ -130,6 +131,7 @@ class LineCacheTests(unittest.TestCase):
         lines = linecache.getlines(support.TESTFN)
         self.assertEqual(lines, ["\n", "def f():\n", "    return 3\n"])
 
+    @unittest.skip("EmbeddedImporter does not support cache.")
     def test_clearcache(self):
         cached = []
         for entry in MODULES:
@@ -222,6 +224,7 @@ class LineCacheTests(unittest.TestCase):
             linecache.lazycache(NONEXISTENT_FILENAME, globals()))
         self.assertEqual(4, len(linecache.cache[NONEXISTENT_FILENAME]))
 
+    @unittest.skip("EmbeddedImporter does not support cache.")
     def test_memoryerror(self):
         lines = linecache.getlines(FILENAME)
         self.assertTrue(lines)

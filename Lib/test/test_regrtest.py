@@ -589,7 +589,8 @@ class ProgramsTestCase(BaseTestCase):
             test_args.append('+d')     # Release build, use python.exe
         self.run_batch(script, *test_args, *self.tests)
 
-    @unittest.skipUnless(sys.platform == 'win32', 'Windows only')
+    # @unittest.skipUnless(sys.platform == 'win32', 'Windows only')
+    @unittest.skip("Skip temporarily.")
     def test_pcbuild_rt(self):
         # PCbuild\rt.bat
         script = os.path.join(ROOT_DIR, r'PCbuild\rt.bat')

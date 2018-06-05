@@ -677,7 +677,7 @@ class PyMemDebugTests(unittest.TestCase):
 
     def check(self, code):
         with support.SuppressCrashReport():
-            out = assert_python_failure('-c', code,
+            out = assert_python_failure('-E', '-c', code,
                                         PYTHONMALLOC=self.PYTHONMALLOC)
         stderr = out.err
         return stderr.decode('ascii', 'replace')

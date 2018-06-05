@@ -4601,6 +4601,7 @@ class TestEncoding(TestCase):
         with codecs.open(path, 'r', 'utf-8') as f:
             f.read()
 
+    @unittest.skip("argparse.__file__ is not an actual file.")
     def test_argparse_module_encoding(self):
         self._test_module_encoding(argparse.__file__)
 

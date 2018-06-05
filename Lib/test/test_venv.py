@@ -423,7 +423,8 @@ class EnsurePipTest(BaseTest):
     @unittest.skipUnless(threading, 'some dependencies of pip import threading'
                                     ' module unconditionally')
     # Issue #26610: pip/pep425tags.py requires ctypes
-    @unittest.skipUnless(ctypes, 'pip requires ctypes')
+    # @unittest.skipUnless(ctypes, 'pip requires ctypes')
+    @unittest.skip("pip is not supported.")
     @requires_zlib
     def test_with_pip(self):
         self.do_test_with_pip(False)

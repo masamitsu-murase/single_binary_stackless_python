@@ -2203,6 +2203,14 @@ test_set_exc_info(PyObject *self, PyObject *args)
 
 static int test_run_counter = 0;
 
+// Copied from datetime.h.
+// The following is necessary for a single binary.
+/* Define global variable for the C API and a macro for setting it. */
+static PyDateTime_CAPI *PyDateTimeAPI = NULL;
+
+#define PyDateTime_IMPORT \
+    PyDateTimeAPI = (PyDateTime_CAPI *)PyCapsule_Import(PyDateTime_CAPSULE_NAME, 0)
+
 static PyObject *
 test_datetime_capi(PyObject *self, PyObject *args) {
     if (PyDateTimeAPI) {

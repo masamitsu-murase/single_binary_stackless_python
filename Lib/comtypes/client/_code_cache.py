@@ -20,7 +20,7 @@ def _ensure_list(path):
 
 
 def _find_gen_dir():
-    """Create, if needed, and return a directory where automatically
+    r"""Create, if needed, and return a directory where automatically
     generated modules will be created.
 
     Usually, this is the directory 'Lib/site-packages/comtypes/gen'.

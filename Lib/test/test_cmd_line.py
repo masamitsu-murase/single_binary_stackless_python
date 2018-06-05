@@ -248,7 +248,8 @@ class CmdLineTest(unittest.TestCase):
             path = ":".join(sys.path)
             path = path.encode("ascii", "backslashreplace")
             sys.stdout.buffer.write(path)"""
-        rc, out, err = assert_python_ok('-S', '-c', code,
+        # rc, out, err = assert_python_ok('-S', '-c', code,
+        rc, out, err = assert_python_ok('-S', '-E', '-c', code,
                                         PYTHONPATH=path)
         self.assertIn(path1.encode('ascii'), out)
         self.assertIn(path2.encode('ascii'), out)
@@ -279,7 +280,8 @@ class CmdLineTest(unittest.TestCase):
                    if not key.startswith('PYTHON')}
             env['PYTHONIOENCODING'] = encoding
             p = subprocess.Popen(
-                [sys.executable, '-i'],
+                # [sys.executable, '-i'],
+                [sys.executable, '-E', '-i'],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
@@ -464,7 +466,8 @@ class CmdLineTest(unittest.TestCase):
     def test_isolatedmode(self):
         self.verify_valid_flag('-I')
         self.verify_valid_flag('-IEs')
-        rc, out, err = assert_python_ok('-I', '-c',
+        # rc, out, err = assert_python_ok('-I', '-c',
+        rc, out, err = assert_python_ok('-I', '-E', '-c',
             'from sys import flags as f; '
             'print(f.no_user_site, f.ignore_environment, f.isolated)',
             # dummyvar to prevent extraneous -E

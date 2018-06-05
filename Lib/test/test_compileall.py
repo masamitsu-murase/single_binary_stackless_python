@@ -236,7 +236,8 @@ class CommandLineTests(unittest.TestCase):
                     directory.rmdir()
         else:
             sys_path_writable = True
-        cls._sys_path_writable = sys_path_writable
+        # cls._sys_path_writable = sys_path_writable
+        cls._sys_path_writable = False  # embeddedimort does not support this.
 
     def _skip_if_sys_path_not_writable(self):
         if not self._sys_path_writable:
