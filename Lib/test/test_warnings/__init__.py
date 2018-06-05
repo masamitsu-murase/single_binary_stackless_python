@@ -1107,14 +1107,14 @@ class PyCatchWarningTests(CatchWarningTests, unittest.TestCase):
 class EnvironmentVariableTests(BaseTest):
 
     def test_single_warning(self):
-        rc, stdout, stderr = assert_python_ok("-c",
+        rc, stdout, stderr = assert_python_ok("-E", "-c",
             "import sys; sys.stdout.write(str(sys.warnoptions))",
             PYTHONWARNINGS="ignore::DeprecationWarning",
             PYTHONDEVMODE="")
         self.assertEqual(stdout, b"['ignore::DeprecationWarning']")
 
     def test_comma_separated_warnings(self):
-        rc, stdout, stderr = assert_python_ok("-c",
+        rc, stdout, stderr = assert_python_ok("-E", "-c",
             "import sys; sys.stdout.write(str(sys.warnoptions))",
             PYTHONWARNINGS="ignore::DeprecationWarning,ignore::UnicodeWarning",
             PYTHONDEVMODE="")
@@ -1122,7 +1122,7 @@ class EnvironmentVariableTests(BaseTest):
             b"['ignore::DeprecationWarning', 'ignore::UnicodeWarning']")
 
     def test_envvar_and_command_line(self):
-        rc, stdout, stderr = assert_python_ok("-Wignore::UnicodeWarning", "-c",
+        rc, stdout, stderr = assert_python_ok("-Wignore::UnicodeWarning", "-E", "-c",
             "import sys; sys.stdout.write(str(sys.warnoptions))",
             PYTHONWARNINGS="ignore::DeprecationWarning",
             PYTHONDEVMODE="")
@@ -1130,7 +1130,7 @@ class EnvironmentVariableTests(BaseTest):
             b"['ignore::DeprecationWarning', 'ignore::UnicodeWarning']")
 
     def test_conflicting_envvar_and_command_line(self):
-        rc, stdout, stderr = assert_python_failure("-Werror::DeprecationWarning", "-c",
+        rc, stdout, stderr = assert_python_failure("-Werror::DeprecationWarning", "-E", "-c",
             "import sys, warnings; sys.stdout.write(str(sys.warnoptions)); "
             "warnings.warn('Message', DeprecationWarning)",
             PYTHONWARNINGS="default::DeprecationWarning",
@@ -1176,7 +1176,7 @@ class EnvironmentVariableTests(BaseTest):
     @unittest.skipUnless(sys.getfilesystemencoding() != 'ascii',
                          'requires non-ascii filesystemencoding')
     def test_nonascii(self):
-        rc, stdout, stderr = assert_python_ok("-c",
+        rc, stdout, stderr = assert_python_ok("-E", "-c",
             "import sys; sys.stdout.write(str(sys.warnoptions))",
             PYTHONIOENCODING="utf-8",
             PYTHONWARNINGS="ignore:DeprecaciónWarning",
@@ -1198,10 +1198,10 @@ class BootstrapTest(unittest.TestCase):
         # importing linecache) yet
         with support.temp_cwd() as cwd, support.temp_cwd('encodings'):
             # encodings loaded by initfsencoding()
-            assert_python_ok('-c', 'pass', PYTHONPATH=cwd)
+            assert_python_ok("-E", '-c', 'pass', PYTHONPATH=cwd)
 
             # Use -W to load warnings module at startup
-            assert_python_ok('-c', 'pass', '-W', 'always', PYTHONPATH=cwd)
+            assert_python_ok('-E', '-c', 'pass', '-W', 'always', PYTHONPATH=cwd)
 
 
 class FinalizationTest(unittest.TestCase):
