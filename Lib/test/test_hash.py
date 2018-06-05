@@ -183,7 +183,7 @@ class HashRandomizationTests:
         else:
             env.pop('PYTHONHASHSEED', None)
         out = assert_python_ok(
-            '-c', self.get_hash_command(repr_),
+            '-E', '-c', self.get_hash_command(repr_),
             **env)
         stdout = out[1].strip()
         return int(stdout)
