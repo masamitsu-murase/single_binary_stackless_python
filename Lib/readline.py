@@ -77,4 +77,9 @@ else:
 
     console.install_readline(rl.readline)
 
+    def _dummy():
+        rl.mode.backward_delete_char(None)
+    redisplay = _dummy
+    __all__.append("redisplay")
+
 __all__.append("rl")
