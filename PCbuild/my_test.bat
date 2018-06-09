@@ -29,12 +29,6 @@ echo PYTHON %PYTHON%
 cd /d "%~dp0"
 %PYTHON% -c "import sys; print(sys.version)"
 
-%PYTHON% my_test\run_all.py
-if ERRORLEVEL 1 (
-    echo "Test failed."
-    exit /b 1
-)
-
 REM TODO test_threaded_import
 %PYTHON% -m test.regrtest -x test_ctypes test_distutils test_ensurepip test_importlib test_lib2to3 test_pydoc test_unittest test_readline test_threaded_import
 if ERRORLEVEL 1 (
@@ -42,6 +36,23 @@ if ERRORLEVEL 1 (
     exit /b 1
 )
 
+echo Tests for my changes
+%PYTHON% my_test\run_all.py
+if ERRORLEVEL 1 (
+    echo "Test failed."
+    exit /b 1
+)
+
+echo Tests for pyyaml
+cd my_test\test_pyyaml
+..\..\%PYTHON% tests\lib3\test_all.py
+if ERRORLEVEL 1 (
+    echo "pyyaml test failed."
+    exit /b 1
+)
+cd ..\..
+
+echo Tests for stackless
 %PYTHON% ..\Stackless\unittests\runAll.py
 if ERRORLEVEL 1 (
     echo "stackless test failed."
