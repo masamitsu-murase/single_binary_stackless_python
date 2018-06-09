@@ -719,7 +719,8 @@ class ElementTree:
               xml_declaration=None,
               default_namespace=None,
               method=None, *,
-              short_empty_elements=True):
+              short_empty_elements=True,
+              sort_attrib=True):
         """Write element tree to a file as XML.
 
         Arguments:
@@ -741,6 +742,8 @@ class ElementTree:
                                     they are emitted as a single self-closed
                                     tag, otherwise they are emitted as a pair
                                     of start/end tags
+
+          *sort_attrib* -- if True, sort attributes.
 
         """
         if not method:
@@ -770,7 +773,7 @@ class ElementTree:
                 qnames, namespaces = _namespaces(self._root, default_namespace)
                 serialize = _serialize[method]
                 serialize(write, self._root, qnames, namespaces,
-                          short_empty_elements=short_empty_elements)
+                          short_empty_elements=short_empty_elements, sort_attrib=sort_attrib)
 
     def write_c14n(self, file):
         # lxml.etree compatibility.  use output method instead
@@ -893,7 +896,7 @@ def _namespaces(elem, default_namespace=None):
     return qnames, namespaces
 
 def _serialize_xml(write, elem, qnames, namespaces,
-                   short_empty_elements, **kwargs):
+                   short_empty_elements, sort_attrib=True, **kwargs):
     tag = elem.tag
     text = elem.text
     if tag is Comment:
@@ -907,21 +910,28 @@ def _serialize_xml(write, elem, qnames, namespaces,
                 write(_escape_cdata(text))
             for e in elem:
                 _serialize_xml(write, e, qnames, None,
-                               short_empty_elements=short_empty_elements)
+                               short_empty_elements=short_empty_elements,
+                               sort_attrib=sort_attrib)
         else:
             write("<" + tag)
             items = list(elem.items())
             if items or namespaces:
                 if namespaces:
-                    for v, k in sorted(namespaces.items(),
-                                       key=lambda x: x[1]):  # sort on prefix
+                    ordered_namespaces = namespaces.items()
+                    if sort_attrib:
+                        ordered_namespaces = sorted(namespaces.items(),
+                                                    key=lambda x: x[1])  # sort on prefix
+                    for v, k in ordered_namespaces:
                         if k:
                             k = ":" + k
                         write(" xmlns%s=\"%s\"" % (
                             k,
                             _escape_attrib(v)
                             ))
-                for k, v in items:
+                orderd_items = items
+                if sort_attrib:
+                    orderd_items = sorted(items)  # lexical order
+                for k, v in orderd_items:
                     if isinstance(k, QName):
                         k = k.text
                     if isinstance(v, QName):
@@ -935,7 +945,8 @@ def _serialize_xml(write, elem, qnames, namespaces,
                     write(_escape_cdata(text))
                 for e in elem:
                     _serialize_xml(write, e, qnames, None,
-                                   short_empty_elements=short_empty_elements)
+                                   short_empty_elements=short_empty_elements,
+                                   sort_attrib=sort_attrib)
                 write("</" + tag + ">")
             else:
                 write(" />")
@@ -950,7 +961,7 @@ try:
 except NameError:
     pass
 
-def _serialize_html(write, elem, qnames, namespaces, **kwargs):
+def _serialize_html(write, elem, qnames, namespaces, sort_attrib=True, **kwargs):
     tag = elem.tag
     text = elem.text
     if tag is Comment:
@@ -963,21 +974,27 @@ def _serialize_html(write, elem, qnames, namespaces, **kwargs):
             if text:
                 write(_escape_cdata(text))
             for e in elem:
-                _serialize_html(write, e, qnames, None)
+                _serialize_html(write, e, qnames, None, sort_attrib=sort_attrib)
         else:
             write("<" + tag)
             items = list(elem.items())
             if items or namespaces:
                 if namespaces:
-                    for v, k in sorted(namespaces.items(),
-                                       key=lambda x: x[1]):  # sort on prefix
+                    ordered_namespaces = namespaces.items()
+                    if sort_attrib:
+                        ordered_namespaces = sorted(namespaces.items(),
+                                                    key=lambda x: x[1])  # sort on prefix
+                    for v, k in ordered_namespaces:
                         if k:
                             k = ":" + k
                         write(" xmlns%s=\"%s\"" % (
                             k,
                             _escape_attrib(v)
                             ))
-                for k, v in items:
+                orderd_items = items
+                if sort_attrib:
+                    orderd_items = sorted(items)  # lexical order
+                for k, v in orderd_items:
                     if isinstance(k, QName):
                         k = k.text
                     if isinstance(v, QName):
@@ -994,7 +1011,7 @@ def _serialize_html(write, elem, qnames, namespaces, **kwargs):
                 else:
                     write(_escape_cdata(text))
             for e in elem:
-                _serialize_html(write, e, qnames, None)
+                _serialize_html(write, e, qnames, None, sort_attrib=sort_attrib)
             if ltag not in HTML_EMPTY:
                 write("</" + tag + ">")
     if elem.tail:
@@ -1115,7 +1132,7 @@ def _escape_attrib_html(text):
 
 def tostring(element, encoding=None, method=None, *,
              xml_declaration=None, default_namespace=None,
-             short_empty_elements=True):
+             short_empty_elements=True, sort_attrib=True):
     """Generate string representation of XML element.
 
     All subelements are included.  If encoding is "unicode", a string
@@ -1134,7 +1151,8 @@ def tostring(element, encoding=None, method=None, *,
                                xml_declaration=xml_declaration,
                                default_namespace=default_namespace,
                                method=method,
-                               short_empty_elements=short_empty_elements)
+                               short_empty_elements=short_empty_elements,
+                               sort_attrib=sort_attrib)
     return stream.getvalue()
 
 class _ListDataStream(io.BufferedIOBase):
@@ -1156,14 +1174,15 @@ class _ListDataStream(io.BufferedIOBase):
 
 def tostringlist(element, encoding=None, method=None, *,
                  xml_declaration=None, default_namespace=None,
-                 short_empty_elements=True):
+                 short_empty_elements=True, sort_attrib=True):
     lst = []
     stream = _ListDataStream(lst)
     ElementTree(element).write(stream, encoding,
                                xml_declaration=xml_declaration,
                                default_namespace=default_namespace,
                                method=method,
-                               short_empty_elements=short_empty_elements)
+                               short_empty_elements=short_empty_elements,
+                               sort_attrib=sort_attrib)
     return lst
 
 
