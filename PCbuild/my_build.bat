@@ -98,7 +98,7 @@ if EXIST C:\Ruby23\bin\ruby.exe (
     set RUBY_EXE=ruby.exe
 )
 echo Creating embeddedimport_data.c...
-%RUBY_EXE% convert.rb
+%RUBY_EXE% create_embeddedimporter_data.rb
 if ERRORLEVEL 1 (
     echo Failed to create embeddedimport_data.c
     exit /b 1
