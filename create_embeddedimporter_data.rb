@@ -5,7 +5,7 @@ def get_file_data
   list = []
 
   Dir.glob("**/*.py").to_a.sort.each do |filename|
-    next if filename.start_with?("test/")
+    next if filename.start_with?("test/") || filename.include?("/test/")
     next if filename.start_with?("__pycache__/") || filename.include?("/__pycache__/")
 
     list.push({
