@@ -26,5 +26,20 @@ class TestOriginalChanges(unittest.TestCase):
         import yaml
         import pyreadline
 
+    def test_xml(self):
+        import xml.etree.ElementTree as ET
+
+        xml_text = """<data a="123" z="234" m="345">
+          <test a="123" z="234" m="345">test</test>
+        </data>"""
+        xml_text_sorted = """<data a="123" m="345" z="234">
+          <test a="123" m="345" z="234">test</test>
+        </data>"""
+        root = ET.fromstring(xml_text)
+        output_sorted = ET.tostring(root, encoding="unicode")
+        output = ET.tostring(root, encoding="unicode", sort_attrib=False)
+        self.assertEqual(xml_text_sorted, output_sorted)
+        self.assertEqual(xml_text, output)
+
 if __name__ == "__main__":
     unittest.main()
