@@ -181,9 +181,12 @@ def usage():
 def main():
     filename = None
     ignore_list = []
+    output_format = "%(filename)s:%(row)d:%(col)d: %(code)s %(text)s"
     for arg in sys.argv[1:]:
         if arg.startswith("--ignore="):
             ignore_list = arg.split("=", 1)[1].split(",")
+        elif arg.startswith("--format="):
+            output_format = arg.split("=", 1)[1]
         elif arg == "-h" or arg == "--help":
             usage()
             return 0
@@ -200,7 +203,8 @@ def main():
     filtered_results = list(filter(lambda x: (x.code not in ignore_list),
                                    all_results))
     for i in filtered_results:
-        print(i)
+        print(output_format % {"filename": i.filename, "row": i.lineno, "col": i.offset,
+                               "code": i.code, "text": i.text})
 
     if len(filtered_results) > 0:
         return 1
