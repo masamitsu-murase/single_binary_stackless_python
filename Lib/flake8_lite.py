@@ -195,7 +195,7 @@ def check_pycodestyle(filename):
 
 
 def usage():
-    print("python -m flake8_lite input.py [--ignore=E302,E305]")
+    print("python -m flake8_lite [--ignore=E302,E305] [--format=%(filename)s:%(row)d:%(col)d: %(code)s %(text)s] input.py")
 
 
 def main():
