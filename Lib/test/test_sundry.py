@@ -26,7 +26,7 @@ class TestUntestedModules(unittest.TestCase):
             import distutils.unixccompiler
 
             import distutils.command.bdist_dumb
-            if sys.platform.startswith('win'):
+            if sys.platform.startswith('win') and "_msi" in sys.builtin_module_names:
                 import distutils.command.bdist_msi
             import distutils.command.bdist
             import distutils.command.bdist_rpm
