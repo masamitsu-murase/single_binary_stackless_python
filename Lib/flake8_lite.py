@@ -24,7 +24,11 @@ import sys
 import pyflakes.api
 import pycodestyle
 
-__version__ = "1.1.0"
+__author__ = "Masamitsu MURASE"
+__copyright__ = "Copyright 2018, Masamitsu MURASE"
+__credits__ = ["Masamitsu MURASE"]
+__license__ = "MIT"
+__version__ = "1.1.1"
 
 
 class PyflakesReporter(object):
