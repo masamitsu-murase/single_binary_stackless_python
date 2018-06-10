@@ -23,11 +23,11 @@ LFLAGS = /NOLOGO /LTCG /NODEFAULTLIB:"libc" /IMPLIB:"python.lib" /SUBSYSTEM:CONS
 !ENDIF
 
 !IF "$(WINDOWS_PE)" == "0"
-ADDITIONAL_LIBS =
+ADDITIONAL_LIBS = _msi.lib
 !ELSE
 ADDITIONAL_LIBS =
 !ENDIF
-LIBS = _asyncio.lib _bz2.lib _ctypes.lib _decimal.lib _elementtree.lib _hashlib.lib _lzma.lib _msi.lib _multiprocessing.lib _overlapped.lib _socket.lib _sqlite3.lib \
+LIBS = _asyncio.lib _bz2.lib _ctypes.lib _decimal.lib _elementtree.lib _hashlib.lib _lzma.lib _multiprocessing.lib _overlapped.lib _socket.lib _sqlite3.lib \
         _ssl.lib _testcapi.lib _yaml.lib libyaml.lib liblzma.lib pyexpat.lib pythoncore.lib select.lib sqlite3.lib unicodedata.lib winsound.lib xxlimited.lib \
  	   $(ADDITIONAL_LIBS)
 

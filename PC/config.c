@@ -202,7 +202,9 @@ struct _inittab _PyImport_Inittab[] = {
     {"_elementtree", PyInit__elementtree},
     {"_hashlib", PyInit__hashlib},
     {"_lzma", PyInit__lzma},
+#ifndef Py_BUILD_FOR_WINDOWS_PE
     {"_msi", PyInit__msi},
+#endif
     {"_multiprocessing", PyInit__multiprocessing},
     {"_overlapped", PyInit__overlapped},
     {"_socket", PyInit__socket},
