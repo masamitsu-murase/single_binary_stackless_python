@@ -17,11 +17,26 @@ This is a StacklessPython for Windows, which is packed into a *single* binary.
 
 This binary includes standard library and the following libraries.
 
-* PyYaml and libyaml
-* comtypes
-* pyreadline
-* pycodestyle
-* pyflakes
+* [comtypes](https://pypi.org/project/comtypes/)  
+  Developed by Thomas Heller. Released under the MIT License.
+* [pycodestyle](https://pypi.org/project/pycodestyle/)  
+  Developed by Johann C. Rocholl. Released under the MIT (Expat) License.
+* [pyflakes](https://pypi.org/project/pyflakes/)  
+  Released under the MIT License.
+* [pyreadline](https://pypi.org/project/pyreadline/)  
+  Developed by Jorgen Stenarson. Released under the BSD License.
+* [PyYAML and libyaml](https://pypi.org/project/PyYAML/)  
+  Developed by Kirill Simonov. Released under the MIT License.
+
+## Additional features
+
+### embeddedimport
+
+(T.B.D)
+
+### flake8_lite
+
+(T.B.D)
 
 ---
 
