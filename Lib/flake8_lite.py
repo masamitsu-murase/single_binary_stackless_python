@@ -24,7 +24,11 @@ import sys
 import pyflakes.api
 import pycodestyle
 
-__version__ = "1.1.0"
+__author__ = "Masamitsu MURASE"
+__copyright__ = "Copyright 2018, Masamitsu MURASE"
+__credits__ = ["Masamitsu MURASE"]
+__license__ = "MIT"
+__version__ = "1.1.1"
 
 
 class PyflakesReporter(object):
@@ -195,7 +199,7 @@ def check_pycodestyle(filename):
 
 
 def usage():
-    print("python -m flake8_lite input.py [--ignore=E302,E305]")
+    print("python -m flake8_lite [--ignore=E302,E305] [--format=%(filename)s:%(row)d:%(col)d: %(code)s %(text)s] input.py")
 
 
 def main():
