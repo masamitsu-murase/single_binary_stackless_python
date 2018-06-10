@@ -1,10 +1,30 @@
 # coding: utf-8
 
+# Copyright 2018 Masamitsu MURASE
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
 import sys
 import pyflakes.api
 import pycodestyle
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 
 class PyflakesReporter(object):
@@ -181,9 +201,12 @@ def usage():
 def main():
     filename = None
     ignore_list = []
+    output_format = "%(filename)s:%(row)d:%(col)d: %(code)s %(text)s"
     for arg in sys.argv[1:]:
         if arg.startswith("--ignore="):
             ignore_list = arg.split("=", 1)[1].split(",")
+        elif arg.startswith("--format="):
+            output_format = arg.split("=", 1)[1]
         elif arg == "-h" or arg == "--help":
             usage()
             return 0
@@ -200,7 +223,9 @@ def main():
     filtered_results = list(filter(lambda x: (x.code not in ignore_list),
                                    all_results))
     for i in filtered_results:
-        print(i)
+        print(output_format % {"filename": i.filename, "row": i.lineno,
+                               "col": i.offset, "code": i.code,
+                               "text": i.text})
 
     if len(filtered_results) > 0:
         return 1
