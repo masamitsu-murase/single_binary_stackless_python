@@ -11,7 +11,7 @@ This is a StacklessPython for Windows, which is packed into a *single* binary.
 * python64.exe  
   64bit executable image.
 * python64_pe.exe  
-  64bit executable image without _msi built-in module.
+  64bit executable image without _msi built-in module. You can run this image on Windows PE.
 
 ## Included Libraries
 
@@ -32,11 +32,19 @@ This binary includes standard library and the following libraries.
 
 ### embeddedimport
 
-(T.B.D)
+This binary includes all standard libraries in itself. `embeddedimport` library provides this mechanism.
+
+Please refer to `embeddedimport.c`.
 
 ### flake8_lite
 
-(T.B.D)
+This binary includes both pyflakes and pycodestyle. `flake8_lite` is a wrapper for these lint libraries.
+
+You can use this library as follows:
+
+```
+python -m flake8_lite input.py
+```
 
 ---
 
