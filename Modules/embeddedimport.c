@@ -5,6 +5,10 @@
 
 #include "zlib.h"
 
+#include <windows.h>
+
+#define USER_SOURCE_ID  100
+
 struct st_embedded_searchorder {
     wchar_t suffix[14];
     int package;
@@ -22,6 +26,7 @@ typedef struct _embeddedimporter EmbeddedImporter;
 struct _embeddedimporter {
     PyObject_HEAD
     PyObject *dict;  // { filename: (data_offset) }
+    PyObject *dict_resource;  // { filename: (data_offset) }
     PyObject *prefix;
 };
 
@@ -31,6 +36,8 @@ extern const unsigned char embeddedimporter_raw_data_compressed[];
 extern const size_t embeddedimporter_raw_data_compressed_size;
 extern const size_t embeddedimporter_data_offset[];
 static char *embeddedimporter_raw_data;
+
+static char *embeddedimporter_raw_data_resource;
 
 static PyObject *EmbeddedImportError;
 
@@ -102,6 +109,125 @@ construct_filedata(EmbeddedImporter *self)
 }
 
 static int
+construct_filedata_from_resource(EmbeddedImporter *self)
+{
+    // Data structure
+    //   uint32_t compressed_size;
+    //   uint32_t uncompressed_size;
+    //   uint32_t file_count;
+    //   uint32_t [] file_offset;
+    //   unsigned char [] compressed_file_data;  // separated by '\0'
+    //   char [] file_name;  // separated by '\0'.
+
+    static PyObject *embeddedimporter_data_dict_resource = NULL;
+    static int resource_checked = 0;
+
+    uint32_t compressed_size;
+    uint32_t uncompressed_size;
+    uint32_t file_count;
+    uint32_t *file_offset;
+    char *file_name;
+    unsigned char *compressed_file_data;
+    HRSRC resource_handle;
+    HGLOBAL resource_data_handle;
+    unsigned char *resource_data;
+
+    PyObject *tuple;
+    size_t name_index, file_index;
+    uLongf raw_data_size;
+
+    if (embeddedimporter_data_dict_resource != NULL) {
+        Py_INCREF(embeddedimporter_data_dict_resource);
+        self->dict_resource = embeddedimporter_data_dict_resource;
+        return 0;
+    }
+
+    if (resource_checked) {
+        return -1;
+    }
+    resource_checked = 1;
+
+    resource_handle = FindResource(NULL, MAKEINTRESOURCE(USER_SOURCE_ID), RT_RCDATA);
+    if (resource_handle == NULL) {
+        return -1;
+    }
+
+    resource_data_handle = LoadResource(NULL, resource_handle);
+    if (resource_data_handle == NULL) {
+        return -1;
+    }
+
+    resource_data = LockResource(resource_data_handle);
+    if (resource_data == NULL) {
+        return -1;
+    }
+
+    //   uint32_t compressed_size;
+    //   uint32_t uncompressed_size;
+    //   uint32_t file_count;
+    //   uint32_t [] file_offset;
+    //   unsigned char [] compressed_file_data;  // separated by '\0'
+    //   char [] file_name;  // separated by '\0'.
+    compressed_size = *(uint32_t *)resource_data;
+    resource_data += sizeof(compressed_size);
+    uncompressed_size = *(uint32_t *)resource_data;
+    resource_data += sizeof(uncompressed_size);
+    file_count = *(uint32_t *)resource_data;
+    resource_data += sizeof(file_count);
+    file_offset = (uint32_t *)resource_data;
+    resource_data += sizeof(uint32_t) * file_count;
+    compressed_file_data = (unsigned char *)resource_data;
+    resource_data += compressed_size;
+    file_name = resource_data;
+
+    embeddedimporter_raw_data_resource = PyMem_Malloc(uncompressed_size);
+    if (embeddedimporter_raw_data_resource == NULL) {
+        return -1;
+    }
+
+    raw_data_size = uncompressed_size;
+    if (uncompress((Bytef *)embeddedimporter_raw_data_resource, &raw_data_size,
+                   compressed_file_data, compressed_size) != Z_OK
+          || raw_data_size != uncompressed_size) {
+        PyMem_Free(embeddedimporter_raw_data_resource);
+        return -1;
+    }
+
+    self->dict_resource = embeddedimporter_data_dict_resource = PyDict_New();
+    if (self->dict_resource == NULL) {
+        return -1;
+    }
+
+    for (file_index=0, name_index=0; file_index<file_count; file_index++) {
+        char *name = &file_name[name_index];
+        PyObject *name_obj;
+
+        tuple = PyTuple_New(1);
+        if (tuple == NULL
+            || PyTuple_SetItem(tuple, 0,
+                               PyLong_FromSize_t(file_offset[file_index])) < 0) {
+            Py_XDECREF(tuple);
+            return -1;
+        }
+
+        name_obj = PyUnicode_FromString(name);
+        if (name_obj == NULL || PyDict_SetItem(self->dict_resource, name_obj, tuple) < 0) {
+            Py_DECREF(tuple);
+            Py_XDECREF(name_obj);
+            return -1;
+        }
+        Py_DECREF(tuple);
+        Py_DECREF(name_obj);
+
+        for (; file_name[name_index]; name_index++)
+            ;
+        name_index++;
+    }
+
+    return 0;
+}
+
+static int
 embeddedimporter_init(EmbeddedImporter *self, PyObject *args, PyObject *kwds)
 {
     PyObject *path_obj;
@@ -166,6 +292,7 @@ embeddedimporter_init(EmbeddedImporter *self, PyObject *args, PyObject *kwds)
     if (construct_filedata(self) < 0) {
         return -1;
     }
+    construct_filedata_from_resource(self);
 
     return 0;
 }
@@ -176,6 +303,7 @@ embeddedimporter_traverse(PyObject *obj, visitproc visit, void *arg)
 {
     EmbeddedImporter *self = (EmbeddedImporter *)obj;
     Py_VISIT(self->dict);
+    Py_VISIT(self->dict_resource);
     if (self->prefix) {
         Py_VISIT(self->prefix);
     }
@@ -187,6 +315,7 @@ embeddedimporter_dealloc(EmbeddedImporter *self)
 {
     PyObject_GC_UnTrack(self);
     Py_XDECREF(self->dict);
+    Py_XDECREF(self->dict_resource);
     Py_XDECREF(self->prefix);
     Py_TYPE(self)->tp_free((PyObject *)self);
 }
@@ -198,7 +327,8 @@ embeddedimporter_repr(EmbeddedImporter *self)
 }
 
 static PyObject *
-find_tuple(EmbeddedImporter *self, const wchar_t *subname, int *is_package)
+find_tuple(EmbeddedImporter *self, const wchar_t *subname, int *is_package,
+           char **raw_data)
 {
     wchar_t buf[MAXPATHLEN + 1];
     size_t prefix_len, len;
@@ -236,11 +366,29 @@ find_tuple(EmbeddedImporter *self, const wchar_t *subname, int *is_package)
         if (Py_VerboseFlag > 1) {
             PySys_FormatStderr("# trying %c%U\n", (int)SEP, buf_obj);
         }
+
+        if (self->dict_resource) {
+            tuple = PyDict_GetItem(self->dict_resource, buf_obj);
+            if (tuple != NULL) {
+                if (is_package != NULL) {
+                    *is_package = eso->package;
+                }
+                if (raw_data != NULL) {
+                    *raw_data = embeddedimporter_raw_data_resource;
+                }
+                Py_XDECREF(buf_obj);
+                return tuple;
+            }
+        }
+
         tuple = PyDict_GetItem(self->dict, buf_obj);
         Py_XDECREF(buf_obj);
         if (tuple != NULL) {
             if (is_package != NULL) {
                 *is_package = eso->package;
+            }
+            if (raw_data != NULL) {
+                *raw_data = embeddedimporter_raw_data;
             }
             return tuple;
         }
@@ -284,7 +432,7 @@ embeddedimporter_find_module(PyObject *obj, PyObject *args)
     }
 
     subname = get_subname(fullname);
-    if (find_tuple(self, subname, NULL) == NULL) {
+    if (find_tuple(self, subname, NULL, NULL) == NULL) {
         Py_INCREF(Py_None);
         PyMem_Free(fullname);
         return Py_None;
@@ -333,6 +481,7 @@ embeddedimporter_load_module(PyObject *obj, PyObject *args)
     Py_ssize_t fullname_size;
     int is_package = 0;
     long data_offset;
+    char *raw_data;
 
     if (!PyArg_ParseTuple(args, "U:embeddedimporter.load_module",
                           &fullname_obj)) {
@@ -344,7 +493,7 @@ embeddedimporter_load_module(PyObject *obj, PyObject *args)
     }
 
     subname = get_subname(fullname);
-    tuple = find_tuple(self, subname, &is_package);
+    tuple = find_tuple(self, subname, &is_package, &raw_data);
     if (tuple == NULL) {
         PyErr_SetString(EmbeddedImportError, "not found");
         PyMem_Free(fullname);
@@ -352,7 +501,7 @@ embeddedimporter_load_module(PyObject *obj, PyObject *args)
     }
 
     data_offset = PyLong_AsLong(PyTuple_GetItem(tuple, 0));
-    code = Py_CompileStringObject(&embeddedimporter_raw_data[data_offset], fullname_obj,
+    code = Py_CompileStringObject(&raw_data[data_offset], fullname_obj,
                                   Py_file_input, NULL, -1);
     if (code == NULL) {
         PyMem_Free(fullname);
@@ -438,7 +587,7 @@ embeddedimporter_is_package(PyObject *obj, PyObject *args)
 
     fullname = PyUnicode_AsWideCharString(fullname_obj, NULL);
     subname = get_subname(fullname);
-    tuple = find_tuple(self, subname, &is_package);
+    tuple = find_tuple(self, subname, &is_package, NULL);
     PyMem_Free(fullname);
     if (tuple == NULL) {
         PyErr_SetString(EmbeddedImportError, "not found");
@@ -465,7 +614,7 @@ embeddedimporter_get_filename(PyObject *obj, PyObject *args)
 
     fullname = PyUnicode_AsWideCharString(fullname_obj, NULL);
     subname = get_subname(fullname);
-    tuple = find_tuple(self, subname, &is_package);
+    tuple = find_tuple(self, subname, &is_package, NULL);
     if (tuple == NULL) {
         return NULL;
     }
@@ -483,6 +632,7 @@ embeddedimporter_get_code(PyObject *obj, PyObject *args)
     PyObject *tuple;
     PyObject *code;
     long data_offset;
+    char *raw_data;
 
     if (!PyArg_ParseTuple(args, "U:embeddedimporter.get_code", &fullname_obj)) {
         return NULL;
@@ -490,7 +640,7 @@ embeddedimporter_get_code(PyObject *obj, PyObject *args)
 
     fullname = PyUnicode_AsWideCharString(fullname_obj, NULL);
     subname = get_subname(fullname);
-    tuple = find_tuple(self, subname, NULL);
+    tuple = find_tuple(self, subname, NULL, &raw_data);
     if (tuple == NULL) {
         PyErr_SetString(EmbeddedImportError, "not found");
         PyMem_Free(fullname);
@@ -498,7 +648,7 @@ embeddedimporter_get_code(PyObject *obj, PyObject *args)
     }
 
     data_offset = PyLong_AsLong(PyTuple_GetItem(tuple, 0));
-    code = Py_CompileStringObject(&embeddedimporter_raw_data[data_offset], fullname_obj,
+    code = Py_CompileStringObject(&raw_data[data_offset], fullname_obj,
                                   Py_file_input, NULL, -1);
     PyMem_Free(fullname);
     return code;
