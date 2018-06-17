@@ -7,7 +7,7 @@
 
 #include <windows.h>
 
-#define USER_SOURCE_ID  100
+#define USER_SOURCE_ID  200
 
 struct st_embedded_searchorder {
     wchar_t suffix[14];
@@ -123,6 +123,7 @@ construct_filedata(EmbeddedImporter *self)
     return 0;
 }
 
+#if Py_BUILD_RESOURCE_EMBEDDED_MODULE
 static int
 construct_filedata_from_resource(EmbeddedImporter *self)
 {
@@ -252,6 +253,7 @@ construct_filedata_from_resource(EmbeddedImporter *self)
 
     return 0;
 }
+#endif
 
 static int
 embeddedimporter_init(EmbeddedImporter *self, PyObject *args, PyObject *kwds)
@@ -318,7 +320,9 @@ embeddedimporter_init(EmbeddedImporter *self, PyObject *args, PyObject *kwds)
     if (construct_filedata(self) < 0) {
         return -1;
     }
+#if Py_BUILD_RESOURCE_EMBEDDED_MODULE
     construct_filedata_from_resource(self);
+#endif
 
     return 0;
 }
