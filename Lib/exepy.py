@@ -10,6 +10,7 @@ import ctypes
 import ctypes.wintypes as wintypes
 
 USER_SOURCE_ID = 100
+USER_COMMAND_ID = 101
 RT_RCDATA = 10
 if ctypes.sizeof(ctypes.c_void_p) == ctypes.sizeof(ctypes.c_ulonglong):
     ULONG_PTR = ctypes.c_ulonglong
@@ -74,20 +75,50 @@ def usage():
     print("Usage: python -m exepy output.exe input.py [input2.py ...]")
 
 
+def check_args(output_filename, input_filename):
+    if os.path.exists(output_filename):
+        print("Specify a new file as output.exe.")
+        sys.exit(2)
+
+    input_filename = [os.path.normpath(x) for x in input_filename]
+    if os.path.isfile(input_filename[0]):
+        if os.path.split(input_filename[0])[0] != "":
+            raise RuntimeError("File must be in the current directory.")
+
+    curdir = os.path.abspath(os.path.curdir)
+    for filename in input_filename:
+        if os.path.commonpath([curdir, os.path.abspath(filename)]) != curdir:
+            raise RuntimeError("File must be in the current directory.")
+        if os.path.isabs(filename):
+            raise RuntimeError("File must be a relative path.")
+
+    return output_filename, input_filename
+
+
 def main():
     if len(sys.argv) < 3:
         usage()
         sys.exit(1)
 
-    output_filename = sys.argv[1]
-    input_filename_list = sys.argv[2:]
-    if os.path.exists(output_filename):
-        print("Specify a new file as output.exe.")
-        sys.exit(2)
+    output_filename, input_filename_list = check_args(sys.argv[1], sys.argv[2:])
     resource_bin = create_resource_bin(input_filename_list)
-    shutil.copy(sys.executable, output_filename)
-    update_resource(USER_SOURCE_ID, resource_bin,
-                    os.path.abspath(output_filename))
+    main_module = os.path.splitext(os.path.basename(input_filename_list[0]))[0]
+    commands = ("-m", main_module)
+    # uint32_t  argc
+    # char []   argv
+    command_resource = struct.pack("=L", len(commands)) \
+        + b"".join((x.encode("ascii") + b"\0") for x in commands)
+    try:
+        print("Generating...")
+        shutil.copy(sys.executable, output_filename)
+        update_resource(USER_SOURCE_ID, resource_bin,
+                        os.path.abspath(output_filename))
+        update_resource(USER_COMMAND_ID, command_resource,
+                        os.path.abspath(output_filename))
+        print("Done.")
+    except Exception:
+        os.remove(output_filename)
+        raise
 
 
 if __name__ == "__main__":
