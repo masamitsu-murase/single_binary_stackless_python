@@ -95,6 +95,16 @@ def check_args(output_filename, input_filename):
     return output_filename, input_filename
 
 
+def create_command_resource_bin(commands):
+    # uint32_t  argc
+    # char []   argv
+    command_str = "".join((x + "\0") for x in commands) + "\0"
+    command_wchar_array = ctypes.create_unicode_buffer(command_str)
+    command_array = ctypes.create_string_buffer(ctypes.sizeof(command_wchar_array))
+    ctypes.memmove(command_array, command_wchar_array, ctypes.sizeof(command_wchar_array))
+    return struct.pack("=L", len(commands)) + command_array.raw
+
+
 def main():
     if len(sys.argv) < 3:
         usage()
@@ -104,10 +114,7 @@ def main():
     resource_bin = create_resource_bin(input_filename_list)
     main_module = os.path.splitext(os.path.basename(input_filename_list[0]))[0]
     commands = ("-m", main_module)
-    # uint32_t  argc
-    # char []   argv
-    command_resource = struct.pack("=L", len(commands)) \
-        + b"".join((x.encode("ascii") + b"\0") for x in commands)
+    command_resource = create_command_resource_bin(commands)
     try:
         print("Generating...")
         shutil.copy(sys.executable, output_filename)
