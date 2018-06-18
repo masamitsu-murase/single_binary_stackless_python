@@ -8,6 +8,7 @@
 #endif
 
 #ifdef MS_WINDOWS
+#if Py_BUILD_RESOURCE_EMBEDDED_MODULE
 #include <windows.h>
 
 #define USER_COMMAND_ID 101
@@ -59,16 +60,21 @@ override_args(int argc, wchar_t **argv, int *new_argc, wchar_t ***new_argv)
     *new_argc = argc_resource + 1;
     *new_argv = overridden_argv;
 }
+#endif
 
 int
 wmain(int argc, wchar_t **argv)
 {
+#if Py_BUILD_RESOURCE_EMBEDDED_MODULE
     int new_argc;
     wchar_t **new_argv;
 
     override_args(argc, argv, &new_argc, &new_argv);
 
     return Py_Main(new_argc, new_argv);
+#else
+    return Py_Main(argc, argv);
+#endif
 }
 #else
 
