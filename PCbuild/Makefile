@@ -17,9 +17,9 @@ DEFINES = /D "Py_BUILD_CORE" /D "Py_ENABLE_SHARED" /D "WIN32" /D "_CONSOLE" /D "
 CFLAGS = /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi
 
 !IF "$(BUILD_TARGET_CPU)" == "x86"
-LFLAGS = /NOLOGO /LTCG /NODEFAULTLIB:"libc" /IMPLIB:"python.lib" /SUBSYSTEM:CONSOLE /STACK:2000000 /MACHINE:X86 /SAFESEH /OPT:NOREF,NOICF /LIBPATH:$(ProjectDir)\PC\external\$(PlatformToolSet)\win32
+LFLAGS = /NOLOGO /LTCG /NODEFAULTLIB:"libc" /IMPLIB:"python.lib" /STACK:2000000 /MACHINE:X86 /SAFESEH /OPT:NOREF,NOICF /LIBPATH:$(ProjectDir)\PC\external\$(PlatformToolSet)\win32
 !ELSE
-LFLAGS = /NOLOGO /LTCG /NODEFAULTLIB:"libc" /IMPLIB:"python.lib" /SUBSYSTEM:CONSOLE /STACK:2000000 /MACHINE:X64 /OPT:NOREF,NOICF /LIBPATH:$(ProjectDir)\PC\external\$(PlatformToolSet)\amd64
+LFLAGS = /NOLOGO /LTCG /NODEFAULTLIB:"libc" /IMPLIB:"python.lib" /STACK:2000000 /MACHINE:X64 /OPT:NOREF,NOICF /LIBPATH:$(ProjectDir)\PC\external\$(PlatformToolSet)\amd64
 !ENDIF
 
 !IF "$(WINDOWS_PE)" == "0"
@@ -36,20 +36,26 @@ EXTERNAL_LIBS = shell32.lib user32.lib advapi32.lib ws2_32.lib ole32.lib oleaut3
 
 !IF "$(BUILD_TARGET_CPU)" == "x86"
 TARGET = python.exe
+TARGETW = pythonw.exe
 !ELSEIF "$(WINDOWS_PE)" == "0"
 TARGET = python64.exe
+TARGETW = pythonw64.exe
 !ELSE
 TARGET = python64_pe.exe
+TARGETW = pythonw64_pe.exe
 !ENDIF
 
 
-all: $(TARGET)
+all: $(TARGET) $(TARGETW)
 
 .c.obj:
 	$(CC) /c $< $(CFLAGS) /Fo$@
 
 $(TARGET): $(ProjectDir)\Programs\python.obj lib
-	$(LINK) /OUT:$(TARGET) $(LFLAGS) $(ProjectDir)\Programs\python.obj $(LIBS) $(EXTERNAL_LIBS)
+	$(LINK) /OUT:$(TARGET) $(LFLAGS) /SUBSYSTEM:CONSOLE $(ProjectDir)\Programs\python.obj $(LIBS) $(EXTERNAL_LIBS)
+
+$(TARGETW): $(ProjectDir)\PC\WinMain.obj lib
+	$(LINK) /OUT:$(TARGETW) $(LFLAGS) /SUBSYSTEM:WINDOWS $(ProjectDir)\PC\WinMain.obj $(LIBS) $(EXTERNAL_LIBS)
 
 lib:
 	$(MAKE) /$(MAKEFLAGS) /f Makefile_ssleay
