@@ -114,6 +114,8 @@ Copyright (C) 1994 Steen Lumholt.
 #define NATIVE_BYTEORDER 1
 #endif
 
+void TclEmbeddedFilesystemRegister();
+
 #ifdef MS_WINDOWS
 #include <conio.h>
 #define WAIT_FOR_STDIN
@@ -3531,6 +3533,8 @@ PyInit__tkinter(void)
     Tk_MacOSXSetupTkNotifier();
 #endif
 
+
+    TclEmbeddedFilesystemRegister();
 
     /* This helps the dynamic loader; in Unicode aware Tcl versions
        it also helps Tcl find its encodings. */
