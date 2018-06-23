@@ -7,8 +7,10 @@ tcltkDir = $(externalsDir)\tcltk-8.6.6.0
 
 !IF "$(BUILD_TARGET_CPU)" == "x86"
 tcltkBaseDir = $(tcltkDir)\win32
+tkReleaseDir = $(tkWinDir)\Release_VC13
 !ELSE
 tcltkBaseDir = $(tcltkDir)\amd64
+tkReleaseDir = $(tkWinDir)\Release_AMD64_VC13
 !ENDIF
 
 
@@ -16,7 +18,7 @@ all: tk86ts.lib tk_base.res
 
 tk86ts.lib:
 	cd $(tkWinDir) && $(MAKE) -f makefile.vc core OPTS=static TCLDIR=..\..\tcl-core-8.6.6.0
-	copy /Y $(tkWinDir)\Release_VC13\tk86ts.lib .
+	copy /Y $(tkReleaseDir)\tk86ts.lib .
 
 tk_base.res:
 	copy /Y $(ProjectDir)\PC\icons\python.ico $(tkWinDir)\rc\tk.ico
