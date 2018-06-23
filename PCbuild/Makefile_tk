@@ -32,3 +32,4 @@ clean:
 	-cd $(tkWinDir) && $(MAKE) -f makefile.vc clean
 	-del tk86ts.lib
 	-del tk_base.res
+	-del tk_basew.res
