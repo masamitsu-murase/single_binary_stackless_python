@@ -78,16 +78,9 @@ if ERRORLEVEL 1 exit /b 1
 :EXTRACT_EXTERNALS
 REM --------------------------------
 REM externals
-set IncludeTkinter=false
-if EXIST externals (
-    echo externals already exists.
-) else if EXIST externals.exe (
-    echo Extracting externals...
-    externals.exe -o. -y > NUL
-    if ERRORLEVEL 1 exit /b 1
-) else (
-    call PCbuild\get_externals.bat --no-tkinter
-    if ERRORLEVEL 1 exit /b 1
+if NOT EXIST externals (
+    echo externals not found.
+    exit /b 1
 )
 
 REM --------------------------------
