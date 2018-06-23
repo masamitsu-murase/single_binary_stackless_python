@@ -97,6 +97,17 @@ if ERRORLEVEL 1 (
     exit /b 1
 )
 
+REM --------------------------------
+REM tclEmbeddedFilesystem
+if EXIST C:\Python37\python.exe (
+    set PYTHON_EXE=C:\Python37\python.exe
+) else if EXIST C:\Python36\python.exe (
+    set PYTHON_EXE=C:\Python36\python.exe
+) else if EXIST C:\Python35\python.exe (
+    set PYTHON_EXE=C:\Python35\python.exe
+) else (
+    set PYTHON_EXE=python.exe
+)
 
 REM --------------------------------
 REM build
