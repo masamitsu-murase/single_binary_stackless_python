@@ -95,7 +95,6 @@ tags
 TAGS
 .coverage
 coverage/
-externals/
 htmlcov/
 Tools/msi/obj
 Tools/ssl/amd64
