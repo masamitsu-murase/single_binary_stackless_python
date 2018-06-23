@@ -1,0 +1,35 @@
+
+ProjectDir = ..
+externalsDir = $(ProjectDir)\externals
+tkDir = $(externalsDir)\tk-8.6.6.0
+tkWinDir = $(externalsDir)\tk-8.6.6.0\win
+tcltkDir = $(externalsDir)\tcltk-8.6.6.0
+
+!IF "$(BUILD_TARGET_CPU)" == "x86"
+tcltkBaseDir = $(tcltkDir)\win32
+tkReleaseDir = $(tkWinDir)\Release_VC13
+!ELSE
+tcltkBaseDir = $(tcltkDir)\amd64
+tkReleaseDir = $(tkWinDir)\Release_AMD64_VC13
+!ENDIF
+
+
+all: tk86ts.lib tk_base.res
+
+tk86ts.lib:
+	cd $(tkWinDir) && $(MAKE) -f makefile.vc core OPTS=static TCLDIR=..\..\tcl-core-8.6.6.0
+	copy /Y $(tkReleaseDir)\tk86ts.lib .
+
+tk_base.res:
+	copy /Y $(ProjectDir)\PC\icons\python.ico $(tkWinDir)\rc\tk.ico
+	cd $(tkWinDir)\rc && rc tk_base.rc
+	move /Y $(tkWinDir)\rc\tk_base.res .
+	copy /Y $(ProjectDir)\PC\icons\pythonw.ico $(tkWinDir)\rc\tk.ico
+	cd $(tkWinDir)\rc && rc tk_base.rc
+	move /Y $(tkWinDir)\rc\tk_base.res tk_basew.res
+
+clean:
+	-cd $(tkWinDir) && $(MAKE) -f makefile.vc clean
+	-del tk86ts.lib
+	-del tk_base.res
+	-del tk_basew.res
