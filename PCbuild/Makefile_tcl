@@ -1,0 +1,30 @@
+
+ProjectDir = ..
+externalsDir = $(ProjectDir)\externals
+tclDir = $(externalsDir)\tcl-core-8.6.6.0
+tclWinDir = $(externalsDir)\tcl-core-8.6.6.0\win
+tcltkDir = $(externalsDir)\tcltk-8.6.6.0
+
+!IF "$(BUILD_TARGET_CPU)" == "x86"
+tcltkBaseDir = $(tcltkDir)\win32
+!ELSE
+tcltkBaseDir = $(tcltkDir)\amd64
+!ENDIF
+
+
+all: tcl86ts.lib tclstub86.lib
+
+tcl86ts.lib: tcl_build
+	copy /Y $(tclWinDir)\Release_VC13\tcl86ts.lib .
+
+tclstub86.lib: tcl_build
+	copy /Y $(tclWinDir)\Release_VC13\tclstub86.lib .
+
+tcl_build:
+	$(PYTHON_EXE) $(ProjectDir)\create_tcl_embeddedfilesystem_data.py $(tcltkBaseDir) $(tclDir)\generic\tclEmbeddedFilesystemData.c
+	cd $(tclWinDir) && $(MAKE) -f makefile.vc core OPTS=static
+
+clean:
+	cd $(tclWinDir) && $(MAKE) -f makefile.vc clean
+    -del tcl86ts.lib
+    -del tclstub86.lib

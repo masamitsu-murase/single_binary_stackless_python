@@ -1,0 +1,28 @@
+
+ProjectDir = ..
+externalsDir = $(ProjectDir)\externals
+tkDir = $(externalsDir)\tk-8.6.6.0
+tkWinDir = $(externalsDir)\tk-8.6.6.0\win
+tcltkDir = $(externalsDir)\tcltk-8.6.6.0
+
+!IF "$(BUILD_TARGET_CPU)" == "x86"
+tcltkBaseDir = $(tcltkDir)\win32
+!ELSE
+tcltkBaseDir = $(tcltkDir)\amd64
+!ENDIF
+
+
+all: tk86ts.lib tk_base.res
+
+tk86ts.lib:
+	cd $(tkWinDir) && $(MAKE) -f makefile.vc core OPTS=static TCLDIR=..\..\tcl-core-8.6.6.0
+	copy /Y $(tkWinDir)\Release_VC13\tk86ts.lib .
+
+tk_base.res:
+	cd $(tkWinDir)\rc && rc tk_base.rc
+	copy /Y $(tkWinDir)\rc\tk_base.res .
+
+clean:
+	-cd $(tkWinDir) && $(MAKE) -f makefile.vc clean
+	-del tk86ts.lib
+	-del tk_base.res
