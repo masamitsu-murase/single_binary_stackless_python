@@ -10,6 +10,10 @@ import sysconfig
 import reindent
 import untabify
 
+try:
+    import stackless
+except ImportError:
+    stackless = None
 
 # Excluded directories which are copies of external libraries:
 # don't check their coding style
@@ -43,6 +47,12 @@ def status(message, modal=False, info=None):
             return result
         return call_fxn
     return decorated_fxn
+
+
+def is_stackless():
+    """Check if this is a Stackless Python source"""
+    return (stackless is not None and
+            os.path.exists(os.path.join(SRCDIR, 'Stackless')))
 
 
 def mq_patches_applied():
@@ -88,6 +98,8 @@ def get_base_branch():
         base_branch = "master"
     else:
         base_branch = "{0.major}.{0.minor}".format(version)
+    if is_stackless():
+        base_branch += "-slp"
     this_branch = get_git_branch()
     if this_branch is None or this_branch == base_branch:
         # Not on a git PR branch, so there's no base branch
