@@ -127,6 +127,12 @@ _get_tcl_lib_path()
     static int already_checked = 0;
 
     if (already_checked == 0) {
+        tcl_library_path = PyUnicode_FromString("embeddedfs:/tcl" TCL_VERSION);
+        if (tcl_library_path == NULL) {
+            return NULL;
+        }
+        already_checked = 1;
+#if 0
         PyObject *prefix;
         struct stat stat_buf;
         int stat_return_value;
@@ -174,6 +180,7 @@ _get_tcl_lib_path()
 #endif
         }
         already_checked = 1;
+#endif
     }
     return tcl_library_path;
 }
@@ -765,10 +772,10 @@ Tkapp_New(const char *screenName, const char *className,
     {
         PyObject *str_path;
         PyObject *utf8_path;
-        DWORD ret;
+        // DWORD ret;
 
-        ret = GetEnvironmentVariableW(L"TCL_LIBRARY", NULL, 0);
-        if (!ret && GetLastError() == ERROR_ENVVAR_NOT_FOUND) {
+        // ret = GetEnvironmentVariableW(L"TCL_LIBRARY", NULL, 0);
+        // if (!ret && GetLastError() == ERROR_ENVVAR_NOT_FOUND) {
             str_path = _get_tcl_lib_path();
             if (str_path == NULL && PyErr_Occurred()) {
                 return NULL;
@@ -784,7 +791,7 @@ Tkapp_New(const char *screenName, const char *className,
                            TCL_GLOBAL_ONLY);
                 Py_DECREF(utf8_path);
             }
-        }
+        // }
     }
 #endif
 
@@ -3546,11 +3553,11 @@ PyInit__tkinter(void)
             int set_var = 0;
             PyObject *str_path;
             wchar_t *wcs_path;
-            DWORD ret;
+            // DWORD ret;
 
-            ret = GetEnvironmentVariableW(L"TCL_LIBRARY", NULL, 0);
+            // ret = GetEnvironmentVariableW(L"TCL_LIBRARY", NULL, 0);
 
-            if (!ret && GetLastError() == ERROR_ENVVAR_NOT_FOUND) {
+            // if (!ret && GetLastError() == ERROR_ENVVAR_NOT_FOUND) {
                 str_path = _get_tcl_lib_path();
                 if (str_path == NULL && PyErr_Occurred()) {
                     Py_DECREF(m);
@@ -3565,7 +3572,7 @@ PyInit__tkinter(void)
                     SetEnvironmentVariableW(L"TCL_LIBRARY", wcs_path);
                     set_var = 1;
                 }
-            }
+            // }
 
             Tcl_FindExecutable(PyBytes_AS_STRING(cexe));
 
