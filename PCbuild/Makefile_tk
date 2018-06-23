@@ -19,8 +19,12 @@ tk86ts.lib:
 	copy /Y $(tkWinDir)\Release_VC13\tk86ts.lib .
 
 tk_base.res:
+	copy /Y $(ProjectDir)\PC\icons\python.ico $(tkWinDir)\rc\tk.ico
 	cd $(tkWinDir)\rc && rc tk_base.rc
-	copy /Y $(tkWinDir)\rc\tk_base.res .
+	move /Y $(tkWinDir)\rc\tk_base.res .
+	copy /Y $(ProjectDir)\PC\icons\pythonw.ico $(tkWinDir)\rc\tk.ico
+	cd $(tkWinDir)\rc && rc tk_base.rc
+	move /Y $(tkWinDir)\rc\tk_base.res tk_basew.res
 
 clean:
 	-cd $(tkWinDir) && $(MAKE) -f makefile.vc clean
