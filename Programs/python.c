@@ -6,7 +6,7 @@
 #if Py_BUILD_RESOURCE_EMBEDDED_MODULE
 #include <windows.h>
 
-#define USER_COMMAND_ID 101
+#define USER_COMMAND_ID 201
 
 
 static wchar_t *overridden_argv[128];

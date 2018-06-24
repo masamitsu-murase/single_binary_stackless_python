@@ -7,7 +7,7 @@
 
 #include <windows.h>
 
-#define USER_SOURCE_ID  100
+#define USER_SOURCE_ID  200
 
 struct st_embedded_searchorder {
     wchar_t suffix[14];
