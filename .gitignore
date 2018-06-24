@@ -95,10 +95,11 @@ tags
 TAGS
 .coverage
 coverage/
-externals/
 htmlcov/
 Tools/msi/obj
 Tools/ssl/amd64
 Tools/ssl/win32
 .vs/
 .vscode/
+Modules/embeddedimport_data.c
+externals/tcl-core-8.6.6.0/generic/tclEmbeddedFilesystemData.c

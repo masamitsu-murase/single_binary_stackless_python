@@ -17,9 +17,9 @@ DEFINES = /D "Py_BUILD_CORE" /D "Py_ENABLE_SHARED" /D "WIN32" /D "_CONSOLE" /D "
 CFLAGS = /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi
 
 !IF "$(BUILD_TARGET_CPU)" == "x86"
-LFLAGS = /NOLOGO /LTCG /NODEFAULTLIB:"libc" /IMPLIB:"python.lib" /SUBSYSTEM:CONSOLE /STACK:2000000 /MACHINE:X86 /SAFESEH /OPT:NOREF,NOICF /LIBPATH:$(ProjectDir)\PC\external\$(PlatformToolSet)\win32
+LFLAGS = /NOLOGO /LTCG /NODEFAULTLIB:"libc" /IMPLIB:"python.lib" /STACK:2000000 /MACHINE:X86 /SAFESEH /OPT:NOREF,NOICF /LIBPATH:$(ProjectDir)\PC\external\$(PlatformToolSet)\win32
 !ELSE
-LFLAGS = /NOLOGO /LTCG /NODEFAULTLIB:"libc" /IMPLIB:"python.lib" /SUBSYSTEM:CONSOLE /STACK:2000000 /MACHINE:X64 /OPT:NOREF,NOICF /LIBPATH:$(ProjectDir)\PC\external\$(PlatformToolSet)\amd64
+LFLAGS = /NOLOGO /LTCG /NODEFAULTLIB:"libc" /IMPLIB:"python.lib" /STACK:2000000 /MACHINE:X64 /OPT:NOREF,NOICF /LIBPATH:$(ProjectDir)\PC\external\$(PlatformToolSet)\amd64
 !ENDIF
 
 !IF "$(WINDOWS_PE)" == "0"
@@ -28,33 +28,43 @@ ADDITIONAL_LIBS = _msi.lib
 ADDITIONAL_LIBS =
 !ENDIF
 LIBS = _asyncio.lib _bz2.lib _ctypes.lib _decimal.lib _elementtree.lib _hashlib.lib _lzma.lib _multiprocessing.lib _overlapped.lib _socket.lib _sqlite3.lib \
-        _ssl.lib _testcapi.lib _yaml.lib libyaml.lib liblzma.lib pyexpat.lib pythoncore.lib select.lib sqlite3.lib unicodedata.lib winsound.lib xxlimited.lib \
+        _ssl.lib _testcapi.lib _tkinter.lib _yaml.lib libyaml.lib liblzma.lib pyexpat.lib pythoncore.lib select.lib sqlite3.lib unicodedata.lib winsound.lib xxlimited.lib \
  	   $(ADDITIONAL_LIBS)
 
 EXTERNAL_LIBS = shell32.lib user32.lib advapi32.lib ws2_32.lib ole32.lib oleaut32.lib gdi32.lib crypt32.lib msi.lib cabinet.lib rpcrt4.lib winmm.lib Shlwapi.lib Version.lib \
-          $(ProjectDir)\PCbuild\libeay.lib $(ProjectDir)\PCbuild\ssleay.lib #Mincore_downlevel.lib
+          $(ProjectDir)\PCbuild\libeay.lib $(ProjectDir)\PCbuild\ssleay.lib $(ProjectDir)\PCbuild\tcl86ts.lib $(ProjectDir)\PCbuild\tk86ts.lib $(ProjectDir)\PCbuild\tclstub86.lib netapi32.lib #Mincore_downlevel.lib
+RESOURCE = $(ProjectDir)\PCbuild\tk_base.res
+RESOURCEW = $(ProjectDir)\PCbuild\tk_basew.res
 
 !IF "$(BUILD_TARGET_CPU)" == "x86"
 TARGET = python.exe
+TARGETW = pythonw.exe
 !ELSEIF "$(WINDOWS_PE)" == "0"
 TARGET = python64.exe
+TARGETW = pythonw64.exe
 !ELSE
 TARGET = python64_pe.exe
+TARGETW = pythonw64_pe.exe
 !ENDIF
 
 
-all: $(TARGET)
+all: $(TARGET) $(TARGETW)
 
 .c.obj:
 	$(CC) /c $< $(CFLAGS) /Fo$@
 
 $(TARGET): $(ProjectDir)\Programs\python.obj lib
-	$(LINK) /OUT:$(TARGET) $(LFLAGS) $(ProjectDir)\Programs\python.obj $(LIBS) $(EXTERNAL_LIBS)
+	$(LINK) /OUT:$(TARGET) $(LFLAGS) /SUBSYSTEM:CONSOLE $(ProjectDir)\Programs\python.obj $(LIBS) $(EXTERNAL_LIBS) $(RESOURCE)
+
+$(TARGETW): $(ProjectDir)\PC\WinMain.obj lib
+	$(LINK) /OUT:$(TARGETW) $(LFLAGS) /SUBSYSTEM:WINDOWS $(ProjectDir)\PC\WinMain.obj $(LIBS) $(EXTERNAL_LIBS) $(RESOURCEW)
 
 lib:
 	$(MAKE) /$(MAKEFLAGS) /f Makefile_ssleay
 	$(MAKE) /$(MAKEFLAGS) /f Makefile_libeay
 	$(MAKE) /$(MAKEFLAGS) /f Makefile_libyaml
+	$(MAKE) /$(MAKEFLAGS) /f Makefile_tcl
+	$(MAKE) /$(MAKEFLAGS) /f Makefile_tk
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__asyncio
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__bz2
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__ctypes
@@ -69,6 +79,7 @@ lib:
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__sqlite3
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__ssl
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__testcapi
+	$(MAKE) /$(MAKEFLAGS) /f Makefile__tkinter
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__yaml
 	$(MAKE) /$(MAKEFLAGS) /f Makefile_liblzma
 	$(MAKE) /$(MAKEFLAGS) /f Makefile_pyexpat
@@ -83,6 +94,8 @@ clean:
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile_ssleay clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile_libeay clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile_libyaml clean
+	-$(MAKE) /$(MAKEFLAGS) /f Makefile_tcl clean
+	-$(MAKE) /$(MAKEFLAGS) /f Makefile_tk clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__asyncio clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__bz2 clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__ctypes clean
@@ -97,6 +110,7 @@ clean:
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__sqlite3 clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__ssl clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__testcapi clean
+	-$(MAKE) /$(MAKEFLAGS) /f Makefile__tkinter clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__yaml clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile_liblzma clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile_pyexpat clean

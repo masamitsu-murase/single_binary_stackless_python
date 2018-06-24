@@ -78,16 +78,9 @@ if ERRORLEVEL 1 exit /b 1
 :EXTRACT_EXTERNALS
 REM --------------------------------
 REM externals
-set IncludeTkinter=false
-if EXIST externals (
-    echo externals already exists.
-) else if EXIST externals.exe (
-    echo Extracting externals...
-    externals.exe -o. -y > NUL
-    if ERRORLEVEL 1 exit /b 1
-) else (
-    call PCbuild\get_externals.bat --no-tkinter
-    if ERRORLEVEL 1 exit /b 1
+if NOT EXIST externals (
+    echo externals not found.
+    exit /b 1
 )
 
 REM --------------------------------
@@ -104,6 +97,17 @@ if ERRORLEVEL 1 (
     exit /b 1
 )
 
+REM --------------------------------
+REM tclEmbeddedFilesystem
+if EXIST C:\Python37\python.exe (
+    set PYTHON_EXE=C:\Python37\python.exe
+) else if EXIST C:\Python36\python.exe (
+    set PYTHON_EXE=C:\Python36\python.exe
+) else if EXIST C:\Python35\python.exe (
+    set PYTHON_EXE=C:\Python35\python.exe
+) else (
+    set PYTHON_EXE=python.exe
+)
 
 REM --------------------------------
 REM build

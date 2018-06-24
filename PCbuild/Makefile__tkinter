@@ -1,11 +1,18 @@
 
 ProjectDir = ..
 externalsDir = $(ProjectDir)\externals
+tcltkDir = $(externalsDir)\tcltk-8.6.6.0
 
 !include common_arch.mak
 
-INCLUDES = /I "$(externalsDir)\tcltk\include" /I "$(ProjectDir)\Include" /I "$(ProjectDir)\PC" /I "$(ProjectDir)\Stackless"
-DEFINES = /D "MODULE_NAME=\"tkinter\"" /D "WITH_APPINIT" /D "Py_BUILD_CORE" /D "Py_ENABLE_SHARED" /D "WIN32" /D "NDEBUG"
+!IF "$(BUILD_TARGET_CPU)" == "x86"
+tcltkIncludeDir = $(tcltkDir)\win32\include
+!ELSE
+tcltkIncludeDir = $(tcltkDir)\amd64\include
+!ENDIF
+
+INCLUDES = /I "$(tcltkIncludeDir)" /I "$(ProjectDir)\Include" /I "$(ProjectDir)\PC" /I "$(ProjectDir)\Stackless"
+DEFINES = /D "MODULE_NAME=\"tkinter\"" /D "WITH_APPINIT" /D "Py_BUILD_CORE" /D "Py_ENABLE_SHARED" /D "WIN32" /D "NDEBUG" /D "STATIC_BUILD"
 CFLAGS = /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi
 LFLAGS = /NOLOGO /LTCG
 TARGET = _tkinter.lib
