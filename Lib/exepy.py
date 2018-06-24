@@ -10,8 +10,8 @@ import zlib
 import ctypes
 import ctypes.wintypes as wintypes
 
-USER_SOURCE_ID = 100
-USER_COMMAND_ID = 101
+USER_SOURCE_ID = 200
+USER_COMMAND_ID = 201
 
 RT_RCDATA = 10
 if ctypes.sizeof(ctypes.c_void_p) == ctypes.sizeof(ctypes.c_ulonglong):
