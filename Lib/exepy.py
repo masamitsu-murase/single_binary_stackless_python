@@ -10,6 +10,8 @@ import zlib
 import ctypes
 import ctypes.wintypes as wintypes
 
+__version__ = "1.0.0"
+
 USER_SOURCE_ID = 200
 USER_COMMAND_ID = 201
 
