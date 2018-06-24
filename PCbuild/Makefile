@@ -32,7 +32,9 @@ LIBS = _asyncio.lib _bz2.lib _ctypes.lib _decimal.lib _elementtree.lib _hashlib.
  	   $(ADDITIONAL_LIBS)
 
 EXTERNAL_LIBS = shell32.lib user32.lib advapi32.lib ws2_32.lib ole32.lib oleaut32.lib gdi32.lib crypt32.lib msi.lib cabinet.lib rpcrt4.lib winmm.lib Shlwapi.lib Version.lib \
-          $(ProjectDir)\PCbuild\libeay.lib $(ProjectDir)\PCbuild\ssleay.lib $(ProjectDir)\PCbuild\tcl86ts.lib $(ProjectDir)\PCbuild\tk86ts.lib $(ProjectDir)\PCbuild\tclstub86.lib $(ProjectDir)\PCbuild\tk_base.res netapi32.lib #Mincore_downlevel.lib
+          $(ProjectDir)\PCbuild\libeay.lib $(ProjectDir)\PCbuild\ssleay.lib $(ProjectDir)\PCbuild\tcl86ts.lib $(ProjectDir)\PCbuild\tk86ts.lib $(ProjectDir)\PCbuild\tclstub86.lib netapi32.lib #Mincore_downlevel.lib
+RESOURCE = $(ProjectDir)\PCbuild\tk_base.res
+RESOURCEW = $(ProjectDir)\PCbuild\tk_basew.res
 
 !IF "$(BUILD_TARGET_CPU)" == "x86"
 TARGET = python.exe
@@ -52,10 +54,10 @@ all: $(TARGET) $(TARGETW)
 	$(CC) /c $< $(CFLAGS) /Fo$@
 
 $(TARGET): $(ProjectDir)\Programs\python.obj lib
-	$(LINK) /OUT:$(TARGET) $(LFLAGS) /SUBSYSTEM:CONSOLE $(ProjectDir)\Programs\python.obj $(LIBS) $(EXTERNAL_LIBS)
+	$(LINK) /OUT:$(TARGET) $(LFLAGS) /SUBSYSTEM:CONSOLE $(ProjectDir)\Programs\python.obj $(LIBS) $(EXTERNAL_LIBS) $(RESOURCE)
 
 $(TARGETW): $(ProjectDir)\PC\WinMain.obj lib
-	$(LINK) /OUT:$(TARGETW) $(LFLAGS) /SUBSYSTEM:WINDOWS $(ProjectDir)\PC\WinMain.obj $(LIBS) $(EXTERNAL_LIBS)
+	$(LINK) /OUT:$(TARGETW) $(LFLAGS) /SUBSYSTEM:WINDOWS $(ProjectDir)\PC\WinMain.obj $(LIBS) $(EXTERNAL_LIBS) $(RESOURCEW)
 
 lib:
 	$(MAKE) /$(MAKEFLAGS) /f Makefile_ssleay
