@@ -22,6 +22,20 @@ else:
     raise NotImplementedError("No ULONG_PTR")
 
 
+class DummyStdout(object):
+    def write(self, *args, **kwargs):
+        pass
+
+    def flush(self):
+        pass
+
+
+if sys.stdout:
+    stdout = sys.stdout
+else:
+    stdout = DummyStdout()
+
+
 class ExeResourceUpdater(object):
     def __init__(self, exe_dll_filename):
         self.exe_dll_filename = exe_dll_filename
@@ -92,12 +106,14 @@ def create_resource_bin(input_filename_list):
 
 
 def usage():
-    print("Usage: python -m exepy output.exe input.py [input2.py ...]")
+    stdout.write("Usage: python -m exepy output.exe input.py [input2.py ...]\n")
+    stdout.flush()
 
 
 def check_args(output_filename, input_filename):
     if os.path.exists(output_filename):
-        print("Specify a new file as output.exe.")
+        stdout.write("Specify a new file as output.exe.\n")
+        stdout.flush()
         sys.exit(2)
 
     input_filename = [os.path.normpath(x) for x in input_filename]
@@ -136,8 +152,8 @@ def main():
     commands = ("-m", main_module)
     command_resource = create_command_resource_bin(commands)
     try:
-        sys.stdout.write("Generating.")
-        sys.stdout.flush()
+        stdout.write("Generating.")
+        stdout.flush()
         retry_max_count = 10
         for i in range(retry_max_count):
             try:
@@ -148,14 +164,15 @@ def main():
                     time.sleep(0.3)
             except RuntimeError:
                 if i != retry_max_count - 1:
-                    sys.stdout.write(".")
-                    sys.stdout.flush()
+                    stdout.write(".")
+                    stdout.flush()
                     time.sleep(0.1)
                 else:
                     raise
             else:
                 break
-        print("\nDone.")
+        stdout.write("\nDone.\n")
+        stdout.flush()
     except Exception:
         try:
             os.remove(output_filename)
