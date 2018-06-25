@@ -9,6 +9,7 @@ import time
 import zlib
 import ctypes
 import ctypes.wintypes as wintypes
+import glob
 import tkinter
 import tkinter.messagebox
 
@@ -122,7 +123,7 @@ def usage():
         stdout.flush()
 
 
-def check_args(output_filename, input_filename):
+def check_args(output_filename, org_input_filename):
     if os.path.exists(output_filename):
         if isinstance(stdout, DummyStdout):
             root = tkinter.Tk()
@@ -135,6 +136,14 @@ def check_args(output_filename, input_filename):
             stdout.write("Specify a new file as output.exe.\n")
             stdout.flush()
         sys.exit(2)
+
+    input_filename = []
+    for filename in org_input_filename:
+        if os.path.isdir(filename):
+            input_filename += glob.glob("%s/**/*.py" % filename.replace("\\", "/").rstrip("/"),
+                                         recursive=True)
+        else:
+            input_filename.append(filename)
 
     input_filename = [os.path.normpath(x) for x in input_filename]
     if os.path.isfile(input_filename[0]):
