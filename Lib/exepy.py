@@ -9,6 +9,9 @@ import time
 import zlib
 import ctypes
 import ctypes.wintypes as wintypes
+import glob
+import tkinter
+import tkinter.messagebox
 
 __version__ = "1.0.0"
 
@@ -108,15 +111,39 @@ def create_resource_bin(input_filename_list):
 
 
 def usage():
-    stdout.write("Usage: python -m exepy output.exe input.py [input2.py ...]\n")
-    stdout.flush()
-
-
-def check_args(output_filename, input_filename):
-    if os.path.exists(output_filename):
-        stdout.write("Specify a new file as output.exe.\n")
+    if isinstance(stdout, DummyStdout):
+        root = tkinter.Tk()
+        root.withdraw()
+        try:
+            tkinter.messagebox.showwarning("exepy", "Usage: python -m exepy output.exe input.py [input2.py ...]")
+        finally:
+            root.destroy()
+    else:
+        stdout.write("Usage: python -m exepy output.exe input.py [input2.py ...]\n")
         stdout.flush()
+
+
+def check_args(output_filename, org_input_filename):
+    if os.path.exists(output_filename):
+        if isinstance(stdout, DummyStdout):
+            root = tkinter.Tk()
+            root.withdraw()
+            try:
+                tkinter.messagebox.showwarning("exepy", "Specify a new file as output.exe.")
+            finally:
+                root.destroy()
+        else:
+            stdout.write("Specify a new file as output.exe.\n")
+            stdout.flush()
         sys.exit(2)
+
+    input_filename = []
+    for filename in org_input_filename:
+        if os.path.isdir(filename):
+            input_filename += glob.glob("%s/**/*.py" % filename.replace("\\", "/").rstrip("/"),
+                                         recursive=True)
+        else:
+            input_filename.append(filename)
 
     input_filename = [os.path.normpath(x) for x in input_filename]
     if os.path.isfile(input_filename[0]):
@@ -173,8 +200,16 @@ def main():
                     raise
             else:
                 break
-        stdout.write("\nDone.\n")
-        stdout.flush()
+        if isinstance(stdout, DummyStdout):
+            root = tkinter.Tk()
+            root.withdraw()
+            try:
+                tkinter.messagebox.showinfo("exepy", "Done.\n%s was successfully built." % output_filename)
+            finally:
+                root.destroy()
+        else:
+            stdout.write("\nDone.\n")
+            stdout.flush()
     except Exception:
         try:
             os.remove(output_filename)

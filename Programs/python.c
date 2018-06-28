@@ -47,7 +47,7 @@ override_args(int argc, wchar_t **argv, int *new_argc, wchar_t ***new_argv)
     resource_data += sizeof(argc_resource);
     argv_resource = (wchar_t *)resource_data;
 
-    if (argc_resource + 2 > sizeof(overridden_argv)/sizeof(overridden_argv[0])) {
+    if (argc_resource + argc + 1 > sizeof(overridden_argv)/sizeof(overridden_argv[0])) {
         return;
     }
 
@@ -56,8 +56,11 @@ override_args(int argc, wchar_t **argv, int *new_argc, wchar_t ***new_argv)
         overridden_argv[i + 1] = argv_resource;
         argv_resource += wcslen(argv_resource) + 1;
     }
+    for (i=1; i<argc; i++) {
+        overridden_argv[argc_resource + i] = argv[i];
+    }
 
-    *new_argc = argc_resource + 1;
+    *new_argc = argc_resource + argc;
     *new_argv = overridden_argv;
 }
 #endif
