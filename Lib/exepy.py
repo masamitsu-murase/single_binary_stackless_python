@@ -41,6 +41,15 @@ else:
     stdout = DummyStdout()
 
 
+class ExepyArgParserError(Exception):
+    pass
+
+
+class ExepyArgParser(argparse.ArgumentParser):
+    def error(self, message):
+        raise ExepyArgParserError(message)
+
+
 class ExeResourceUpdater(object):
     def __init__(self, exe_dll_filename):
         self.exe_dll_filename = exe_dll_filename
@@ -110,52 +119,33 @@ def create_resource_bin(input_filename_list):
         + compressed_data + file_name
 
 
-def usage():
-    if isinstance(stdout, DummyStdout):
-        root = tkinter.Tk()
-        root.withdraw()
-        try:
-            tkinter.messagebox.showwarning("exepy", "Usage: python -m exepy output.exe input.py [input2.py ...]")
-        finally:
-            root.destroy()
-    else:
-        stdout.write("Usage: python -m exepy output.exe input.py [input2.py ...]\n")
-        stdout.flush()
-
-
-def check_args(output_filename, org_input_filename):
-    if os.path.exists(output_filename):
-        if isinstance(stdout, DummyStdout):
-            root = tkinter.Tk()
-            root.withdraw()
-            try:
-                tkinter.messagebox.showwarning("exepy", "Specify a new file as output.exe.")
-            finally:
-                root.destroy()
-        else:
-            stdout.write("Specify a new file as output.exe.\n")
-            stdout.flush()
+def check_args(output_filename, org_input_filename, force):
+    if not force and os.path.exists(output_filename):
+        show_error("Specify a new file as output.exe.\n")
         sys.exit(2)
 
     input_filename = []
     for filename in org_input_filename:
         if os.path.isdir(filename):
             input_filename += glob.glob("%s/**/*.py" % filename.replace("\\", "/").rstrip("/"),
-                                         recursive=True)
+                                        recursive=True)
         else:
             input_filename.append(filename)
 
     input_filename = [os.path.normpath(x) for x in input_filename]
     if os.path.isfile(input_filename[0]):
         if os.path.split(input_filename[0])[0] != "":
-            raise RuntimeError("File must be in the current directory.")
+            show_error("File must be in the current directory.")
+            sys.exit(2)
 
     curdir = os.path.abspath(os.path.curdir)
     for filename in input_filename:
         if os.path.commonpath([curdir, os.path.abspath(filename)]) != curdir:
-            raise RuntimeError("File must be in the current directory.")
+            show_error("File must be in the current directory.")
+            sys.exit(2)
         if os.path.isabs(filename):
-            raise RuntimeError("File must be a relative path.")
+            show_error("File must be a relative path.")
+            sys.exit(2)
 
     return output_filename, input_filename
 
@@ -170,16 +160,55 @@ def create_command_resource_bin(commands):
     return struct.pack("=L", len(commands)) + command_array.raw
 
 
+def show_message(message):
+    if isinstance(stdout, DummyStdout):
+        root = tkinter.Tk()
+        root.withdraw()
+        try:
+            tkinter.messagebox.showinfo("exepy", message)
+        finally:
+            root.destroy()
+    else:
+        stdout.write(message)
+
+
+def show_error(message):
+    if isinstance(stdout, DummyStdout):
+        root = tkinter.Tk()
+        root.withdraw()
+        try:
+            tkinter.messagebox.showwarning("exepy", message)
+        finally:
+            root.destroy()
+    else:
+        stdout.write(message)
+
+
 def main():
-    if len(sys.argv) < 3:
-        usage()
+    parser = ExepyArgParser(description="Create a single executable binary.", add_help=False)
+    parser.add_argument("--force", "-f", help="overwrite exe_name", action="store_true")
+    parser.add_argument("exe_name", help="executable filename")
+    parser.add_argument("input_py", help="input filenames", nargs="+")
+    try:
+        args = parser.parse_args()
+    except ExepyArgParserError as exc:
+        show_error(parser.format_help() + "\n\n" + exc.args[0] + "\n")
         sys.exit(1)
 
-    output_filename, input_filename_list = check_args(sys.argv[1], sys.argv[2:])
-    resource_bin = create_resource_bin(input_filename_list)
-    main_module = os.path.splitext(os.path.basename(input_filename_list[0]))[0]
-    commands = ("-m", main_module)
-    command_resource = create_command_resource_bin(commands)
+    try:
+        output_filename, input_filename_list = check_args(args.exe_name, args.input_py, args.force)
+        resource_bin = create_resource_bin(input_filename_list)
+        main_module = os.path.splitext(os.path.basename(input_filename_list[0]))[0]
+        commands = ("-m", main_module)
+        command_resource = create_command_resource_bin(commands)
+    except Exception as error:
+        try:
+            os.remove(output_filename)
+        except Exception:
+            pass
+        show_error(str(error))
+        sys.exit(3)
+
     try:
         stdout.write("Generating.")
         stdout.flush()
@@ -200,22 +229,16 @@ def main():
                     raise
             else:
                 break
-        if isinstance(stdout, DummyStdout):
-            root = tkinter.Tk()
-            root.withdraw()
-            try:
-                tkinter.messagebox.showinfo("exepy", "Done.\n%s was successfully built." % output_filename)
-            finally:
-                root.destroy()
-        else:
-            stdout.write("\nDone.\n")
-            stdout.flush()
-    except Exception:
+        stdout.write("\n")
+        stdout.flush()
+        show_message("Done.\n%s was built successfully.\n" % output_filename)
+    except Exception as error:
         try:
             os.remove(output_filename)
         except Exception:
             pass
-        raise
+        show_error(str(error))
+        sys.exit(3)
 
 
 if __name__ == "__main__":
