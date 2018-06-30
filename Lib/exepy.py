@@ -187,6 +187,7 @@ def show_error(message):
 def main():
     parser = ExepyArgParser(description="Create a single executable binary.", add_help=False)
     parser.add_argument("--force", "-f", help="overwrite exe_name", action="store_true")
+    parser.add_argument("--nocommand", "-n", help="do not run '-m your_module'", action="store_true")
     parser.add_argument("exe_name", help="executable filename")
     parser.add_argument("input_py", help="input filenames", nargs="+")
     try:
@@ -218,7 +219,8 @@ def main():
                 shutil.copy(sys.executable, output_filename)
                 with ExeResourceUpdater(os.path.abspath(output_filename)) as updater:
                     updater.update(USER_SOURCE_ID, resource_bin)
-                    updater.update(USER_COMMAND_ID, command_resource)
+                    if not args.nocommand:
+                        updater.update(USER_COMMAND_ID, command_resource)
                     time.sleep(0.3)
             except RuntimeError:
                 if i != retry_max_count - 1:
