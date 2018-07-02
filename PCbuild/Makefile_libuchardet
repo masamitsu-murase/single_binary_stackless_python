@@ -1,0 +1,65 @@
+
+ProjectDir = ..
+externalsDir = $(ProjectDir)\externals
+uchardetDir = $(externalsDir)\uchardet-cchardet
+
+!include common_arch.mak
+
+INCLUDES = /I "$(libyamlDir)\include" /I "$(libyamlDir)\win32"
+DEFINES = /D "WIN32" /D "_LIB" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /DVERSION="0.0.6" /D_CRT_NONSTDC_NO_WARNINGS
+CFLAGS = /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi
+LFLAGS = /NOLOGO /LTCG
+TARGET = libuchardet.lib
+
+
+OBJS = $(uchardetDir)\src\CharDistribution.obj \
+       $(uchardetDir)\src\JpCntx.obj \
+       $(uchardetDir)\src\LangModels\LangArabicModel.obj \
+       $(uchardetDir)\src\LangModels\LangBulgarianModel.obj \
+       $(uchardetDir)\src\LangModels\LangCroatianModel.obj \
+       $(uchardetDir)\src\LangModels\LangCzechModel.obj \
+       $(uchardetDir)\src\LangModels\LangEsperantoModel.obj \
+       $(uchardetDir)\src\LangModels\LangEstonianModel.obj \
+       $(uchardetDir)\src\LangModels\LangFinnishModel.obj \
+       $(uchardetDir)\src\LangModels\LangFrenchModel.obj \
+       $(uchardetDir)\src\LangModels\LangDanishModel.obj \
+       $(uchardetDir)\src\LangModels\LangGermanModel.obj \
+       $(uchardetDir)\src\LangModels\LangGreekModel.obj \
+       $(uchardetDir)\src\LangModels\LangHungarianModel.obj \
+       $(uchardetDir)\src\LangModels\LangHebrewModel.obj \
+       $(uchardetDir)\src\LangModels\LangIrishModel.obj \
+       $(uchardetDir)\src\LangModels\LangItalianModel.obj \
+       $(uchardetDir)\src\LangModels\LangLithuanianModel.obj \
+       $(uchardetDir)\src\LangModels\LangLatvianModel.obj \
+       $(uchardetDir)\src\LangModels\LangMalteseModel.obj \
+       $(uchardetDir)\src\LangModels\LangPolishModel.obj \
+       $(uchardetDir)\src\LangModels\LangPortugueseModel.obj \
+       $(uchardetDir)\src\LangModels\LangRomanianModel.obj \
+       $(uchardetDir)\src\LangModels\LangRussianModel.obj \
+       $(uchardetDir)\src\LangModels\LangSlovakModel.obj \
+       $(uchardetDir)\src\LangModels\LangSloveneModel.obj \
+       $(uchardetDir)\src\LangModels\LangSwedishModel.obj \
+       $(uchardetDir)\src\LangModels\LangSpanishModel.obj \
+       $(uchardetDir)\src\LangModels\LangThaiModel.obj \
+       $(uchardetDir)\src\LangModels\LangTurkishModel.obj \
+       $(uchardetDir)\src\LangModels\LangVietnameseModel.obj \
+       $(uchardetDir)\src\nsHebrewProber.obj \
+       $(uchardetDir)\src\nsCharSetProber.obj \
+       $(uchardetDir)\src\nsBig5Prober.obj \
+       $(uchardetDir)\src\nsEUCJPProber.obj \
+       $(uchardetDir)\src\nsEUCKRProber.obj \
+       $(uchardetDir)\src\nsEUCTWProber.obj \
+       $(uchardetDir)\src\nsEscCharsetProber.obj \
+       $(uchardetDir)\src\nsEscSM.obj \
+       $(uchardetDir)\src\nsGB2312Prober.obj \
+       $(uchardetDir)\src\nsMBCSGroupProber.obj \
+       $(uchardetDir)\src\nsMBCSSM.obj \
+       $(uchardetDir)\src\nsSBCSGroupProber.obj \
+       $(uchardetDir)\src\nsSBCharSetProber.obj \
+       $(uchardetDir)\src\nsSJISProber.obj \
+       $(uchardetDir)\src\nsUTF8Prober.obj \
+       $(uchardetDir)\src\nsLatin1Prober.obj \
+       $(uchardetDir)\src\nsUniversalDetector.obj \
+       $(uchardetDir)\src\uchardet.obj
+
+!include common.mak
