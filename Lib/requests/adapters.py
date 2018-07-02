@@ -29,7 +29,7 @@ from urllib3.exceptions import ResponseError
 
 from .models import Response
 from .compat import urlparse, basestring
-from .utils import (DEFAULT_CA_BUNDLE_PATH, extract_zipped_paths,
+from .utils import (DEFAULT_CA_BUNDLE_PATH, DEFAULT_CA_BUNDLE_DATA, extract_zipped_paths,
                     get_encoding_from_headers, prepend_scheme_if_needed,
                     get_auth_from_url, urldefragauth, select_proxy)
 from .structures import CaseInsensitiveDict
@@ -223,12 +223,15 @@ class HTTPAdapter(BaseAdapter):
                 cert_loc = extract_zipped_paths(DEFAULT_CA_BUNDLE_PATH)
 
             if not cert_loc or not os.path.exists(cert_loc):
-                raise IOError("Could not find a suitable TLS CA certificate bundle, "
-                              "invalid path: {0}".format(cert_loc))
+                if not DEFAULT_CA_BUNDLE_DATA:
+                    raise IOError("Could not find a suitable TLS CA certificate bundle, "
+                                  "invalid path: {0}".format(cert_loc))
 
             conn.cert_reqs = 'CERT_REQUIRED'
 
-            if not os.path.isdir(cert_loc):
+            if not cert_loc or not os.path.exists(cert_loc):
+                conn.ca_cert_data = DEFAULT_CA_BUNDLE_DATA
+            elif not os.path.isdir(cert_loc):
                 conn.ca_certs = cert_loc
             else:
                 conn.ca_cert_dir = cert_loc
