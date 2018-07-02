@@ -1,0 +1,17 @@
+
+ProjectDir = ..
+externalsDir = $(ProjectDir)\externals
+uchardetDir = $(externalsDir)\uchardet-cchardet
+
+!include common_arch.mak
+
+INCLUDES = /I "$(uchardetDir)\src" /I "$(ProjectDir)\Include" /I "$(ProjectDir)\PC" /I "$(ProjectDir)\Stackless"
+DEFINES = /D "Py_BUILD_CORE" /D "Py_ENABLE_SHARED" /D "WIN32" /D "NDEBUG" /D "YAML_DECLARE_STATIC" /DCYTHON_FAST_PYCALL=0
+CFLAGS = /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi
+LFLAGS = /NOLOGO /LTCG
+TARGET = _cchardet.lib
+
+
+OBJS = $(ProjectDir)\Modules\_cchardet\_cchardet.obj
+
+!include common.mak
