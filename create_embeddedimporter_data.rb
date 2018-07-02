@@ -1,6 +1,15 @@
 
 require("zlib")
 
+def create_certifi_cacert_data
+  cacert_data = File.read("Lib/certifi/cacert.pem")
+  File.open("Lib/certifi/cacert.py", "w") do |file|
+    file.write '_ca_cert_data = r"""'
+    file.write cacert_data
+    file.puts '"""'
+  end
+end
+
 def get_file_data
   list = []
 
@@ -66,6 +75,8 @@ def output_list(list)
 end
 
 Dir.chdir(__dir__) do
+  create_certifi_cacert_data
+
   list = nil
   Dir.chdir("Lib") do
     list = get_file_data

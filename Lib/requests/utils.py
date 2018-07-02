@@ -37,6 +37,10 @@ from .exceptions import (
 NETRC_FILES = ('.netrc', '_netrc')
 
 DEFAULT_CA_BUNDLE_PATH = certs.where()
+if hasattr(certs, "ca_cert_data"):
+    DEFAULT_CA_BUNDLE_DATA = certs.ca_cert_data()
+else:
+    DEFAULT_CA_BUNDLE_DATA = None
 
 
 if sys.platform == 'win32':

@@ -9,6 +9,7 @@ This module returns the installation location of cacert.pem.
 """
 import os
 import warnings
+from .cacert import _ca_cert_data
 
 
 class DeprecatedBundleWarning(DeprecationWarning):
@@ -32,6 +33,11 @@ def old_where():
         DeprecatedBundleWarning
     )
     return where()
+
+
+def ca_cert_data():
+    return _ca_cert_data
+
 
 if __name__ == '__main__':
     print(where())
