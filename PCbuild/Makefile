@@ -27,8 +27,8 @@ ADDITIONAL_LIBS = _msi.lib
 !ELSE
 ADDITIONAL_LIBS =
 !ENDIF
-LIBS = _asyncio.lib _bz2.lib _ctypes.lib _decimal.lib _elementtree.lib _hashlib.lib _lzma.lib _multiprocessing.lib _overlapped.lib _socket.lib _sqlite3.lib \
-        _ssl.lib _testcapi.lib _tkinter.lib _yaml.lib libyaml.lib liblzma.lib pyexpat.lib pythoncore.lib select.lib sqlite3.lib unicodedata.lib winsound.lib xxlimited.lib \
+LIBS = _asyncio.lib _bz2.lib _cchardet.lib _ctypes.lib _decimal.lib _elementtree.lib _hashlib.lib _lzma.lib _multiprocessing.lib _overlapped.lib _socket.lib _sqlite3.lib \
+        _ssl.lib _testcapi.lib _tkinter.lib _yaml.lib libuchardet.lib libyaml.lib liblzma.lib pyexpat.lib pythoncore.lib select.lib sqlite3.lib unicodedata.lib winsound.lib xxlimited.lib \
  	   $(ADDITIONAL_LIBS)
 
 EXTERNAL_LIBS = shell32.lib user32.lib advapi32.lib ws2_32.lib ole32.lib oleaut32.lib gdi32.lib crypt32.lib msi.lib cabinet.lib rpcrt4.lib winmm.lib Shlwapi.lib Version.lib \
@@ -63,10 +63,12 @@ lib:
 	$(MAKE) /$(MAKEFLAGS) /f Makefile_ssleay
 	$(MAKE) /$(MAKEFLAGS) /f Makefile_libeay
 	$(MAKE) /$(MAKEFLAGS) /f Makefile_libyaml
+	$(MAKE) /$(MAKEFLAGS) /f Makefile_libuchardet
 	$(MAKE) /$(MAKEFLAGS) /f Makefile_tcl
 	$(MAKE) /$(MAKEFLAGS) /f Makefile_tk
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__asyncio
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__bz2
+	$(MAKE) /$(MAKEFLAGS) /f Makefile__cchardet
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__ctypes
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__decimal
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__elementtree
@@ -94,10 +96,12 @@ clean:
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile_ssleay clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile_libeay clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile_libyaml clean
+	-$(MAKE) /$(MAKEFLAGS) /f Makefile_libuchardet clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile_tcl clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile_tk clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__asyncio clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__bz2 clean
+	-$(MAKE) /$(MAKEFLAGS) /f Makefile__cchardet clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__ctypes clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__decimal clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__elementtree clean
