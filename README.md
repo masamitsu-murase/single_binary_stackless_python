@@ -6,11 +6,11 @@ This is a StacklessPython for Windows, which is packed into a *single* binary.
 
 ## Binaries
 
-* python.exe  
+* python.exe, pythonw.exe  
   32bit executable image.
-* python64.exe  
+* python64.exe, pythonw64.exe  
   64bit executable image.
-* python64_pe.exe  
+* python64\_pe.exe, pythonw64\_pe.exe  
   64bit executable image without _msi built-in module. You can run this image on Windows PE.
 
 ## Included Libraries
@@ -27,6 +27,18 @@ This binary includes standard library and the following libraries.
   Developed by Jorgen Stenarson. Released under the BSD License.
 * [PyYAML and libyaml](https://pypi.org/project/PyYAML/)  
   Developed by Kirill Simonov. Released under the MIT License.
+* [certifi](https://pypi.org/project/certifi/)  
+  Developed by Kenneth Reitz. Released under the MPL.
+* [idna](https://pypi.org/project/idna/)  
+  Developed by Kim Davies. Released under the BSD License.
+* [requests](https://pypi.org/project/requests/)  
+  Developed by Kenneth Reitz. Released under the Apache Software License.
+* [urllib3](https://pypi.org/project/urllib3/)  
+  Developed by Andrey Petrov. Released under the MIT License.
+* [cchardet and uchardet](https://pypi.org/project/cchardet/)  
+  Developed by PyYoshi. Released under the GPL and MPL.
+* [six](https://pypi.org/project/six/)  
+  Developed by Benjamin Peterson. Released under the MIT License.
 
 ## Additional features
 
