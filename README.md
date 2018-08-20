@@ -39,6 +39,10 @@ This binary includes standard library and the following libraries.
   Developed by PyYoshi. Released under the GPL and MPL.
 * [six](https://pypi.org/project/six/)  
   Developed by Benjamin Peterson. Released under the MIT License.
+* [jinja2](https://pypi.org/project/Jinja2/)  
+  Developed by Armin Ronacher. Released under the BSD License.
+* [markupsafe](https://pypi.org/project/MarkupSafe/)  
+  Developed by Armin Ronacher. Released under the BSD License.
 
 ## Additional features
 
