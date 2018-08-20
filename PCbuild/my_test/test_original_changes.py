@@ -25,6 +25,7 @@ class TestOriginalChanges(unittest.TestCase):
         import comtypes
         import yaml
         import pyreadline
+        import jinja2
 
     def test_xml(self):
         import xml.etree.ElementTree as ET
