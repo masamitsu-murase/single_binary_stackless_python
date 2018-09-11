@@ -1365,12 +1365,19 @@ class PyBuildExt(build_ext):
             # Sun yellow pages. Some systems have the functions in libc.
             if (host_platform not in ['cygwin', 'qnx6'] and
                 find_file('rpcsvc/yp_prot.h', inc_dirs, []) is not None):
-                if (self.compiler.find_library_file(lib_dirs, 'nsl')):
-                    libs = ['nsl']
-                else:
-                    libs = []
+                nis_libs = []
+                nis_includes = []
+                if self.compiler.find_library_file(lib_dirs, 'nsl'):
+                    nis_libs.append('nsl')
+                if self.compiler.find_library_file(lib_dirs, 'tirpc'):
+                    # Sun RPC has been moved from glibc to libtirpc
+                    # rpcsvc/yp_prot.h is still in /usr/include, but
+                    # rpc/rpc.h has been moved into tirpc/ subdir.
+                    nis_libs.append('tirpc')
+                    nis_includes.append('/usr/include/tirpc')
                 exts.append( Extension('nis', ['nismodule.c'],
-                                       libraries = libs) )
+                                       libraries = nis_libs,
+                                       include_dirs=nis_includes) )
             else:
                 missing.append('nis')
         else:
@@ -1391,7 +1398,7 @@ class PyBuildExt(build_ext):
             if host_platform == 'darwin':
                 # On OS X, there is no separate /usr/lib/libncursesw nor
                 # libpanelw.  If we are here, we found a locally-supplied
-                # version of libncursesw.  There should be also be a
+                # version of libncursesw.  There should also be a
                 # libpanelw.  _XOPEN_SOURCE defines are usually excluded
                 # for OS X but we need _XOPEN_SOURCE_EXTENDED here for
                 # ncurses wide char support
