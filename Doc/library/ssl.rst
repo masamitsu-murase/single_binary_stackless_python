@@ -1539,7 +1539,7 @@ to speed up repeated connections from the same clients.
 
 .. method:: SSLContext.load_dh_params(dhfile)
 
-   Load the key generation parameters for Diffie-Helman (DH) key exchange.
+   Load the key generation parameters for Diffie-Hellman (DH) key exchange.
    Using DH key exchange improves forward secrecy at the expense of
    computational resources (both on the server and on the client).
    The *dhfile* parameter should be the path to a file containing DH
@@ -2320,13 +2320,30 @@ successful call of :func:`~ssl.RAND_add`, :func:`~ssl.RAND_bytes` or
 :func:`~ssl.RAND_pseudo_bytes` is sufficient.
 
 
+.. ssl-libressl:
+
+LibreSSL support
+----------------
+
+LibreSSL is a fork of OpenSSL 1.0.1. The ssl module has limited support for
+LibreSSL. Some features are not available when the ssl module is compiled
+with LibreSSL.
+
+* LibreSSL >= 2.6.1 no longer supports NPN. The methods
+  :meth:`SSLContext.set_npn_protocols` and
+  :meth:`SSLSocket.selected_npn_protocol` are not available.
+* :meth:`SSLContext.set_default_verify_paths` ignores the env vars
+  :envvar:`SSL_CERT_FILE` and :envvar:`SSL_CERT_PATH` although
+  :func:`get_default_verify_paths` still reports them.
+
+
 .. seealso::
 
    Class :class:`socket.socket`
        Documentation of underlying :mod:`socket` class
 
    `SSL/TLS Strong Encryption: An Introduction <https://httpd.apache.org/docs/trunk/en/ssl/ssl_intro.html>`_
-       Intro from the Apache webserver documentation
+       Intro from the Apache HTTP Server documentation
 
    `RFC 1422: Privacy Enhancement for Internet Electronic Mail: Part II: Certificate-Based Key Management <https://www.ietf.org/rfc/rfc1422>`_
        Steve Kent
