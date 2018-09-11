@@ -1443,10 +1443,12 @@ access (use of, assignment to, or deletion of ``x.name``) for class instances.
 
 .. method:: object.__getattr__(self, name)
 
-   Called when an attribute lookup has not found the attribute in the usual places
-   (i.e. it is not an instance attribute nor is it found in the class tree for
-   ``self``).  ``name`` is the attribute name. This method should return the
-   (computed) attribute value or raise an :exc:`AttributeError` exception.
+   Called when the default attribute access fails with an :exc:`AttributeError`
+   (either :meth:`__getattribute__` raises an :exc:`AttributeError` because
+   *name* is not an instance attribute or an attribute in the class tree
+   for ``self``; or :meth:`__get__` of a *name* property raises
+   :exc:`AttributeError`).  This method should either return the (computed)
+   attribute value or raise an :exc:`AttributeError` exception.
 
    Note that if the attribute is found through the normal mechanism,
    :meth:`__getattr__` is not called.  (This is an intentional asymmetry between
@@ -1498,6 +1500,39 @@ access (use of, assignment to, or deletion of ``x.name``) for class instances.
 
    Called when :func:`dir` is called on the object. A sequence must be
    returned. :func:`dir` converts the returned sequence to a list and sorts it.
+
+
+Customizing module attribute access
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. index::
+   single: __class__ (module attribute)
+
+For a more fine grained customization of the module behavior (setting
+attributes, properties, etc.), one can set the ``__class__`` attribute of
+a module object to a subclass of :class:`types.ModuleType`. For example::
+
+   import sys
+   from types import ModuleType
+
+   class VerboseModule(ModuleType):
+       def __repr__(self):
+           return f'Verbose {self.__name__}'
+
+       def __setattr__(self, attr, value):
+           print(f'Setting {attr}...')
+           setattr(self, attr, value)
+
+   sys.modules[__name__].__class__ = VerboseModule
+
+.. note::
+   Setting module ``__class__`` only affects lookups made using the attribute
+   access syntax -- directly accessing the module globals (whether by code
+   within the module, or via a reference to the module's globals dictionary)
+   is unaffected.
+
+.. versionchanged:: 3.5
+   ``__class__`` module attribute is now writable.
 
 
 .. _descriptors:
@@ -1618,15 +1653,11 @@ instances cannot override the behavior of a property.
 __slots__
 ^^^^^^^^^
 
-By default, instances of classes have a dictionary for attribute storage.  This
-wastes space for objects having very few instance variables.  The space
-consumption can become acute when creating large numbers of instances.
+*__slots__* allow us to explicitly declare data members (like
+properties) and deny the creation of *__dict__* and *__weakref__*
+(unless explicitly declared in *__slots__* or available in a parent.)
 
-The default can be overridden by defining *__slots__* in a class definition.
-The *__slots__* declaration takes a sequence of instance variables and reserves
-just enough space in each instance to hold a value for each variable.  Space is
-saved because *__dict__* is not created for each instance.
-
+The space saved over using *__dict__* can be significant.
 
 .. data:: object.__slots__
 
@@ -1639,9 +1670,8 @@ saved because *__dict__* is not created for each instance.
 Notes on using *__slots__*
 """"""""""""""""""""""""""
 
-* When inheriting from a class without *__slots__*, the *__dict__* attribute of
-  that class will always be accessible, so a *__slots__* definition in the
-  subclass is meaningless.
+* When inheriting from a class without *__slots__*, the *__dict__* and
+  *__weakref__* attribute of the instances will always be accessible.
 
 * Without a *__dict__* variable, instances cannot be assigned new variables not
   listed in the *__slots__* definition.  Attempts to assign to an unlisted
@@ -1660,9 +1690,11 @@ Notes on using *__slots__*
   *__slots__*; otherwise, the class attribute would overwrite the descriptor
   assignment.
 
-* The action of a *__slots__* declaration is limited to the class where it is
-  defined.  As a result, subclasses will have a *__dict__* unless they also define
-  *__slots__* (which must only contain names of any *additional* slots).
+* The action of a *__slots__* declaration is not limited to the class
+  where it is defined.  *__slots__* declared in parents are available in
+  child classes. However, child subclasses will get a *__dict__*  and
+  *__weakref__* unless they also define *__slots__* (which should only
+  contain names of any *additional* slots).
 
 * If a class defines a slot also defined in a base class, the instance variable
   defined by the base class slot is inaccessible (except by retrieving its
@@ -1678,6 +1710,10 @@ Notes on using *__slots__*
 
 * *__class__* assignment works only if both classes have the same *__slots__*.
 
+* Multiple inheritance with multiple slotted parent classes can be used,
+  but only one parent is allowed to have attributes created by slots
+  (the other bases must have empty slot layouts) - violations raise
+  :exc:`TypeError`.
 
 .. _class-customization:
 
