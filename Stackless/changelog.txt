@@ -4,16 +4,11 @@ Stackless-Python News
 This file documents user visible changes to the Stackless extension of C-Python.
 For other changes see Misc/NEWS.
 
-What's New in Stackless 3.X.X?
-==============================
+What's New in Stackless 3.6.5 and 3.6.6?
+========================================
 
-*Release date: 20XX-XX-XX*
-
-
-What's New in Stackless 3.6.5?
-==============================
-
-*Release date: 2018-09-11*
+*Release date: 2018-09-12*  (3.6.6)
+*Release date: 2018-09-11*  (3.6.5)
 
 - https://github.com/stackless-dev/stackless/issues/168
   Make Stackless compatible with old Cython extension modules compiled
