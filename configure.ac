@@ -1481,9 +1481,6 @@ if test "${OPT-unset}" = "unset"
 then
     case $GCC in
     yes)
-        if test "$CC" != 'g++' ; then
-	    STRICT_PROTO="-Wstrict-prototypes"
-	fi
         # For gcc 4.x we need to use -fwrapv so lets check if its supported
         if "$CC" -v --help 2>/dev/null |grep -- -fwrapv > /dev/null; then
            WRAP="-fwrapv"
@@ -1529,8 +1526,6 @@ then
 	    OPT="-O3 -Wall"
 	    ;;
 	esac
-
-	OPT="$OPT $STRICT_PROTO"
 
 	case $ac_sys_system in
 	    SCO_SV*) OPT="$OPT -m486 -DSCO5"
@@ -1683,6 +1678,26 @@ yes)
       CFLAGS_NODIST="$CFLAGS_NODIST -Wno-missing-field-initializers"
     fi
 
+    AC_MSG_CHECKING(if we can turn off $CC invalid function cast warning)
+     ac_save_cc="$CC"
+     CC="$CC -Wcast-function-type -Werror"
+     AC_CACHE_VAL(ac_cv_disable_cast_function_type,
+       AC_COMPILE_IFELSE(
+         [
+           AC_LANG_PROGRAM([[]], [[]])
+         ],[
+           ac_cv_disable_cast_function_type=yes
+         ],[
+           ac_cv_disable_cast_function_type=no
+         ]))
+     CC="$ac_save_cc"
+    AC_MSG_RESULT($ac_cv_disable_cast_function_type)
+
+    if test $ac_cv_disable_cast_function_type = yes
+    then
+      CFLAGS_NODIST="$CFLAGS_NODIST -Wno-cast-function-type"
+    fi
+
     AC_MSG_CHECKING(if we can turn on $CC mixed sign comparison warning)
      ac_save_cc="$CC"
      CC="$CC -Wsign-compare"
@@ -1737,6 +1752,26 @@ yes)
       ac_cv_enable_unreachable_code_warning=no
     fi
     AC_MSG_RESULT($ac_cv_enable_unreachable_code_warning)
+
+    AC_MSG_CHECKING(if we can turn on $CC strict-prototypes warning)
+     ac_save_cc="$CC"
+     CC="$CC -Werror -Wstrict-prototypes"
+     AC_CACHE_VAL(ac_cv_enable_enable_strict_prototypes_warning,
+       AC_COMPILE_IFELSE(
+         [
+       AC_LANG_PROGRAM([[]], [[]])
+     ],[
+       ac_cv_enable_strict_prototypes_warning=yes
+     ],[
+       ac_cv_enable_strict_prototypes_warning=no
+     ]))
+     CC="$ac_save_cc"
+    AC_MSG_RESULT($ac_cv_enable_strict_prototypes_warning)
+
+    if test $ac_cv_enable_strict_prototypes_warning = yes
+    then
+      CFLAGS_NODIST="$CFLAGS_NODIST -Wstrict-prototypes"
+    fi
 
     # if using gcc on alpha, use -mieee to get (near) full IEEE 754
     # support.  Without this, treatment of subnormals doesn't follow

@@ -593,6 +593,8 @@ class ProgramsTestCase(BaseTestCase):
     def test_pcbuild_rt(self):
         # PCbuild\rt.bat
         script = os.path.join(ROOT_DIR, r'PCbuild\rt.bat')
+        if not os.path.isfile(script):
+            self.skipTest(f'File "{script}" does not exist')
         rt_args = ["-q"]             # Quick, don't run tests twice
         if platform.architecture()[0] == '64bit':
             rt_args.append('-x64')   # 64-bit build
@@ -835,22 +837,10 @@ class ArgsTestCase(BaseTestCase):
             import os
             import unittest
 
-            # Issue #25306: Disable popups and logs to stderr on assertion
-            # failures in MSCRT
-            try:
-                import msvcrt
-                msvcrt.CrtSetReportMode
-            except (ImportError, AttributeError):
-                # no Windows, o release build
-                pass
-            else:
-                for m in [msvcrt.CRT_WARN, msvcrt.CRT_ERROR, msvcrt.CRT_ASSERT]:
-                    msvcrt.CrtSetReportMode(m, 0)
-
             class FDLeakTest(unittest.TestCase):
                 def test_leak(self):
                     fd = os.open(__file__, os.O_RDONLY)
-                    # bug: never cloes the file descriptor
+                    # bug: never close the file descriptor
         """)
         self.check_leak(code, 'file descriptors')
 
