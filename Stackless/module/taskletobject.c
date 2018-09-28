@@ -160,6 +160,9 @@ tasklet_traverse(PyTaskletObject *t, visitproc visit, void *arg)
     Py_VISIT(t->f.frame);
     Py_VISIT(t->tempval);
     Py_VISIT(t->cstate);
+    Py_VISIT(t->exc_state.exc_type);
+    Py_VISIT(t->exc_state.exc_value);
+    Py_VISIT(t->exc_state.exc_traceback);
     return 0;
 }
 
@@ -180,6 +183,17 @@ tasklet_clear(PyTaskletObject *t)
     if (t->cstate != NULL && t->cstate->task == t)
         t->cstate->task = NULL;
     Py_CLEAR(t->cstate);
+
+    Py_CLEAR(t->exc_state.exc_type);
+    Py_CLEAR(t->exc_state.exc_value);
+    Py_CLEAR(t->exc_state.exc_traceback);
+
+    /* The stack of exception states should contain just this tasklet. */
+    assert(t->exc_info->previous_item == NULL);
+    if (Py_VerboseFlag && t->exc_info != &t->exc_state) {
+        fprintf(stderr,
+          "PyTaskletObject_Clear: warning: tasklet still has a generator\n");
+    }
 }
 
 /*
@@ -217,6 +231,20 @@ kill_finally (PyObject *ob)
 
 
 /* destructing a tasklet without destroying it */
+static inline void
+exc_state_clear(_PyErr_StackItem *exc_state)
+{
+    PyObject *t, *v, *tb;
+    t = exc_state->exc_type;
+    v = exc_state->exc_value;
+    tb = exc_state->exc_traceback;
+    exc_state->exc_type = NULL;
+    exc_state->exc_value = NULL;
+    exc_state->exc_traceback = NULL;
+    Py_XDECREF(t);
+    Py_XDECREF(v);
+    Py_XDECREF(tb);
+}
 
 static void
 tasklet_dealloc(PyTaskletObject *t)
@@ -252,6 +280,9 @@ tasklet_dealloc(PyTaskletObject *t)
     }
     Py_DECREF(t->tempval);
     Py_XDECREF(t->def_globals);
+    assert(t->exc_state.previous_item == NULL);
+    assert(t->exc_info  == &t->exc_state);
+    exc_state_clear(&t->exc_state);
     Py_TYPE(t)->tp_free((PyObject*)t);
 }
 
@@ -390,7 +421,7 @@ tasklet_bind(PyObject *self, PyObject *args, PyObject *kwargs)
     return self;
 }
 
-#define TASKLET_TUPLEFMT "iOiO"
+#define TASKLET_TUPLEFMT "iOiOOOOO"
 
 static PyObject *
 tasklet_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
@@ -409,6 +440,8 @@ tasklet_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     if (t == NULL)
         return NULL;
     memset(&t->flags, 0, sizeof(t->flags));
+    memset(&t->exc_state, 0, sizeof(t->exc_state));
+    t->exc_info = &t->exc_state;
     t->recursion_depth = 0;
     t->next = NULL;
     t->prev = NULL;
@@ -472,6 +505,7 @@ tasklet_reduce(PyTaskletObject * t)
     PyObject *tup = NULL, *lis = NULL;
     PyFrameObject *f;
     PyThreadState *ts = t->cstate->tstate;
+    PyObject *exc_type, *exc_value, *exc_traceback, *exc_info;
 
     if (ts && t == ts->st.current)
         RUNTIME_ERROR("You cannot __reduce__ the tasklet which is"
@@ -500,13 +534,55 @@ tasklet_reduce(PyTaskletObject * t)
     }
     if (PyList_Reverse(lis)) goto err_exit;
     assert(t->cstate != NULL);
+
+    if (t->exc_state.previous_item != NULL) {
+        PyErr_SetString(PyExc_SystemError, "unexpected previous _PyErr_StackItem in tasklet");
+        goto err_exit;
+    }
+
+    assert(!ts || t->exc_info != &ts->exc_state);
+    /* Because of the test a few lines above, it is guaranteed that t is not the current tasklet.
+     * Therefore we can simplify the line
+     *
+     * exc_info = slp_get_obj_for_exc_state(ts && ts->st.current == t ? ts->exc_info : t->exc_info, ts)
+     *
+     * to
+     */
+    assert(!(ts && ts->st.current == t));
+    exc_info = slp_get_obj_for_exc_state(t->exc_info);
+    if (exc_info == NULL)
+        goto err_exit;
+    assert(exc_info != Py_None);
+    if (exc_info == (PyObject *)t) {
+        Py_INCREF(Py_None);
+        Py_SETREF(exc_info, Py_None);
+    }
+    assert(!PyTasklet_Check(exc_info)); /* must be a generator, coro, asynccoro, ... */
+
+    exc_type = t->exc_state.exc_type;
+    exc_value = t->exc_state.exc_value;
+    exc_traceback = t->exc_state.exc_traceback;
+    if (exc_type == NULL) exc_type = Py_None;
+    if (exc_value == NULL) exc_value = Py_None;
+    if (exc_traceback == NULL) exc_traceback = Py_None;
+    Py_INCREF(exc_type);
+    Py_INCREF(exc_value);
+    Py_INCREF(exc_traceback);
     tup = Py_BuildValue("(O()(" TASKLET_TUPLEFMT "))",
                         Py_TYPE(t),
                         tasklet_flags_as_integer(t->flags),
                         t->tempval,
                         t->cstate->nesting_level,
-                        lis
+                        lis,
+                        exc_type,
+                        exc_value,
+                        exc_traceback,
+                        exc_info
                         );
+    Py_DECREF(exc_info);
+    Py_DECREF(exc_type);
+    Py_DECREF(exc_value);
+    Py_DECREF(exc_traceback);
 err_exit:
     Py_XDECREF(lis);
     return tup;
@@ -527,15 +603,22 @@ tasklet_setstate(PyObject *self, PyObject *args)
     PyTaskletObject *t = (PyTaskletObject *) self;
     PyObject *tempval, *lis;
     int flags, nesting_level;
+    PyObject *exc_type, *exc_value, *exc_traceback;
+    PyObject *old_type, *old_value, *old_traceback;
+    PyObject *exc_info_obj;
     PyFrameObject *f;
     Py_ssize_t i, nframes;
     int j;
 
-    if (!PyArg_ParseTuple(args, "iOiO!:tasklet",
+    if (!PyArg_ParseTuple(args, "iOiO!OOOO:tasklet",
                           &flags,
                           &tempval,
                           &nesting_level,
-                          &PyList_Type, &lis))
+                          &PyList_Type, &lis,
+                          &exc_type,
+                          &exc_value,
+                          &exc_traceback,
+                          &exc_info_obj))
         return NULL;
 
     nframes = PyList_GET_SIZE(lis);
@@ -597,7 +680,52 @@ tasklet_setstate(PyObject *self, PyObject *args)
             ++t->recursion_depth;
         }
     }
+
+    old_type = t->exc_state.exc_type;
+    old_value = t->exc_state.exc_value;
+    old_traceback = t->exc_state.exc_traceback;
+    if (exc_type != Py_None) {
+        Py_INCREF(exc_type);
+        t->exc_state.exc_type = exc_type;
+    } else
+        t->exc_state.exc_type = NULL;
+    if (exc_value != Py_None) {
+        Py_INCREF(exc_value);
+        t->exc_state.exc_value = exc_value;
+    } else
+        t->exc_state.exc_value = NULL;
+    if (exc_traceback != Py_None) {
+        Py_INCREF(exc_traceback);
+        t->exc_state.exc_traceback = exc_traceback;
+    } else
+        t->exc_state.exc_value = NULL;
+    assert(t->exc_state.previous_item == NULL);
+
+    /* t must not be current, otherwise we would have to assign to ts->exc_info_obj */
+    assert(t != PyThreadState_GET()->st.current);
+    if (exc_info_obj == Py_None) {
+        t->exc_info = &t->exc_state;
+    } else {
+        /* Check the preconditions for the next assignment.
+         *
+         * The cast in the assignment is OK, because all possible concrete types of exc_info_obj
+         * have the exec_state member at the same offset.
+         */
+        assert(PyGen_Check(exc_info_obj) ||
+                PyObject_TypeCheck(exc_info_obj, &PyCoro_Type) ||
+                PyObject_TypeCheck(exc_info_obj, &PyAsyncGen_Type));
+        Py_BUILD_ASSERT(offsetof(PyGenObject, gi_exc_state) == offsetof(PyCoroObject, cr_exc_state));
+        Py_BUILD_ASSERT(offsetof(PyGenObject, gi_exc_state) == offsetof(PyAsyncGenObject, ag_exc_state));
+        /* Make sure, that *exc_info_obj stays alive after Py_DECREF(args).
+         */
+        assert(Py_REFCNT(exc_info_obj) > 1);
+        t->exc_info = &(((PyGenObject *)exc_info_obj)->gi_exc_state);
+    }
+
     Py_INCREF(self);
+    Py_XDECREF(old_type);
+    Py_XDECREF(old_value);
+    Py_XDECREF(old_traceback);
     return self;
 }
 

@@ -520,7 +520,7 @@ class TestFramePickling(StacklessTestCase):
 
         state = reduce_current()[2]
         self.assertIsInstance(state, tuple)
-        self.assertEqual(len(state), 12)
+        self.assertEqual(len(state), 11)
 
         code = state[0]
         self.assertIsInstance(code, types.CodeType)

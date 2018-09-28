@@ -363,14 +363,14 @@ frame_settrace(PyFrameObject *f, PyObject* v, void *closure)
 static PyObject *
 frame_getback(PyFrameObject *f, void *nope)
 {
-	PyFrameObject *fb = f->f_back;
-	PyObject *ret;
+        PyFrameObject *fb = f->f_back;
+        PyObject *ret;
     /* move over cframe objects but halt at NULL or None */
-	while (fb != NULL && (PyObject*)fb != Py_None && !PyFrame_Check(fb))
-		fb = fb->f_back;
-	ret = (PyObject *) fb;
-	if (ret == NULL)
-		ret = Py_None;
+        while (fb != NULL && (PyObject*)fb != Py_None && !PyFrame_Check(fb))
+                fb = fb->f_back;
+        ret = (PyObject *) fb;
+        if (ret == NULL)
+                ret = Py_None;
     Py_INCREF(ret);
     return ret;
 }
@@ -380,7 +380,7 @@ frame_getback(PyFrameObject *f, void *nope)
 
 static PyGetSetDef frame_getsetlist[] = {
 #ifdef STACKLESS
-    {"f_back",	(getter)frame_getback, NULL, NULL},
+    {"f_back",  (getter)frame_getback, NULL, NULL},
 #endif
     {"f_locals",        (getter)frame_getlocals, NULL, NULL},
     {"f_lineno",        (getter)frame_getlineno,

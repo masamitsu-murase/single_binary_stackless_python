@@ -274,6 +274,9 @@ gen_send_ex(PyGenObject *gen, PyObject *arg, int exc, int closing)
     f->f_back->f_back = stopframe;
 
     gen->gi_running = 1;
+    assert(gen->gi_exc_state.previous_item == NULL);
+    gen->gi_exc_state.previous_item = tstate->exc_info;
+    tstate->exc_info = &gen->gi_exc_state;
 
     f->f_execute = PyEval_EvalFrameEx_slp;
 
@@ -321,6 +324,10 @@ gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result)
     /* Check, that this cframe belongs to gen */
     assert(f->f_back == (PyFrameObject *)cf);
 
+    assert(gen->gi_exc_state.previous_item != NULL);
+    ts->exc_info = gen->gi_exc_state.previous_item;
+    gen->gi_exc_state.previous_item = NULL;
+    gen->gi_running = 0;
 #endif
     /* If the generator just returned (as opposed to yielding), signal
      * that the generator is exhausted. */
@@ -405,8 +412,6 @@ gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result)
     }
 
 #ifdef STACKLESS
-    gen->gi_running = 0;
-
     /* Don't keep the reference to f_back any longer than necessary.  It
      * may keep a chain of frames alive or it could create a reference
      * cycle. */

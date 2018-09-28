@@ -357,12 +357,12 @@ typedef struct {
 } saved_tstat_with_magic_t;
 
 /* not a valid ptr and not a common integer */
-#define SAVED_TSTATE_MAGIC1 (((intptr_t)transfer_with_exc)+1)
-#define SAVED_TSTATE_MAGIC2 (-1*((intptr_t)transfer_with_exc))
+#define SAVED_TSTATE_MAGIC1 (((intptr_t)transfer_with_tracing)+1)
+#define SAVED_TSTATE_MAGIC2 (-1*((intptr_t)transfer_with_tracing))
 saved_tstat_with_magic_t * _dont_optimise_away_saved_tstat_with_magic;
 
 static int
-transfer_with_exc(PyCStackObject **cstprev, PyCStackObject *cst, PyTaskletObject *prev)
+transfer_with_tracing(PyCStackObject **cstprev, PyCStackObject *cst, PyTaskletObject *prev)
 {
     PyThreadState *ts = PyThreadState_GET();
     int ret;
@@ -384,24 +384,15 @@ transfer_with_exc(PyCStackObject **cstprev, PyCStackObject *cst, PyTaskletObject
     Py_XINCREF(sm.s.c_profileobj);
     Py_XINCREF(sm.s.c_traceobj);
 
-    sm.s.exc_type = ts->exc_type;
-    sm.s.exc_value = ts->exc_value;
-    sm.s.exc_traceback = ts->exc_traceback;
-
     PyEval_SetTrace(NULL, NULL);
     PyEval_SetProfile(NULL, NULL);
     ts->tracing = 0;
-    ts->exc_type = ts->exc_value = ts->exc_traceback = NULL;
 
     ret = slp_transfer(cstprev, cst, prev);
 
     ts->tracing = sm.s.tracing;
     PyEval_SetTrace(sm.s.c_tracefunc, sm.s.c_traceobj);
     PyEval_SetProfile(sm.s.c_profilefunc, sm.s.c_profileobj);
-
-    ts->exc_type = sm.s.exc_type;
-    ts->exc_value = sm.s.exc_value;
-    ts->exc_traceback = sm.s.exc_traceback;
 
     sm.magic1 = 0;
     sm.magic2 = 0;
@@ -548,37 +539,6 @@ kill_wrap_bad_guy(PyTaskletObject *prev, PyTaskletObject *bad_guy)
 /* slp_schedule_task is moved down and merged with soft switching */
 
 /* non-recursive scheduling */
-
-PyObject *
-slp_restore_exception(PyFrameObject *f, int exc, PyObject *retval)
-{
-    PyObject *tmp_type, *tmp_value, *tmp_tb;
-    PyThreadState *ts = PyThreadState_GET();
-    PyCFrameObject *cf = (PyCFrameObject *) f;
-
-    if (cf->ob1 == NULL) {
-        /* set_exc_info in ceval.c contains the same assertions */
-        assert(cf->ob2 == NULL);
-        assert(cf->ob3 == NULL);
-    }
-
-    /* Set new exception for this thread.
-     * This code is follows suit the code of set_exc_info() in ceval.c */
-    tmp_type = ts->exc_type;
-    tmp_value = ts->exc_value;
-    tmp_tb = ts->exc_traceback;
-    ts->exc_type = cf->ob1;
-    ts->exc_value = cf->ob2;
-    ts->exc_traceback = cf->ob3;
-    cf->ob1 = cf->ob2 = cf->ob3 = NULL;
-
-    Py_XDECREF(tmp_type);
-    Py_XDECREF(tmp_value);
-    Py_XDECREF(tmp_tb);
-
-    SLP_STORE_NEXT_FRAME(ts, cf->f_back);
-    return STACKLESS_PACK(ts, retval);
-}
 
 PyObject *
 slp_restore_tracing(PyFrameObject *f, int exc, PyObject *retval)
@@ -730,6 +690,49 @@ new_lock(void)
 
 #define acquire_lock(lock, flag) PyThread_acquire_lock(get_lock(lock), flag)
 #define release_lock(lock) PyThread_release_lock(get_lock(lock))
+
+/*
+ * Handling exception information during scheduling
+ * (since Stackless Python 3.7)
+ *
+ * Regular C-Python stores the exception state in the thread state,
+ * whereas Stackless stores the exception state in the tasklet object.
+ * When switching from one tasklet to another tasklet, we have to switch
+ * the exc_info-pointer in the thread state.
+ */
+
+#if 0
+#define SLP_EXCHANGE_EXCINFO(tstate, task) \
+    do { \
+        PyThreadState *ts_ = (tstate); \
+        PyTaskletObject *t_ = (task); \
+        _PyErr_StackItem *exc_info; \
+        PyObject * c = PyStackless_GetCurrent(); \
+        assert(ts_); \
+        assert(t_); \
+        exc_info = ts_->exc_info; \
+        assert(exc_info); \
+        assert(t_->exc_info); \
+        fprintf(stderr, "SLP_EXCHANGE_EXCINFO %3d current %14p,\tset task %p = %p,\ttstate %p = %p\n", __LINE__, c, t_, exc_info, ts_, t_->exc_info); \
+        Py_XDECREF(c); \
+        ts_->exc_info = t_->exc_info; \
+        t_->exc_info = exc_info; \
+    } while(0)
+#else
+#define SLP_EXCHANGE_EXCINFO(tstate, task) \
+    do { \
+        PyThreadState *ts_ = (tstate); \
+        PyTaskletObject *t_ = (task); \
+        _PyErr_StackItem *exc_info; \
+        assert(ts_); \
+        assert(t_); \
+        exc_info = ts_->exc_info; \
+        assert(exc_info); \
+        assert(t_->exc_info); \
+        ts_->exc_info = t_->exc_info; \
+        t_->exc_info = exc_info; \
+    } while(0)
+#endif
 
 static int schedule_thread_block(PyThreadState *ts)
 {
@@ -1017,7 +1020,6 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
                   int *did_switch)
 {
     PyCStackObject **cstprev;
-
     PyObject *retval;
     int (*transfer)(PyCStackObject **, PyCStackObject *, PyTaskletObject *);
     int transfer_result;
@@ -1062,44 +1064,6 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
             return -1;
     }
 
-    /* handle exception */
-    if (ts->exc_type == Py_None) {
-        Py_XDECREF(ts->exc_type);
-        ts->exc_type = NULL;
-    }
-    if (ts->exc_type != NULL) {
-        /* build a shadow frame if we are returning here */
-        assert(ts->frame != NULL);  /* XXX: Anselm, why ? */
-        /* The following code follows suit the code of sys.exc_clear() and
-         * ceval.c set_exc_info()
-         */
-        if (prev->f.frame != NULL) {
-            PyCFrameObject *f;
-            /* the following assert justifies the slp_cframe_new(..., 1) to link the frames */
-            assert(prev->f.frame == SLP_CURRENT_FRAME(ts));
-            f = slp_cframe_new(slp_restore_exception, 1);
-            if (f == NULL)
-                return -1;
-            f->ob1 = ts->exc_type;
-            f->ob2 = ts->exc_value;
-            f->ob3 = ts->exc_traceback;
-            ts->exc_type = NULL;
-            ts->exc_value = NULL;
-            ts->exc_traceback = NULL;
-            Py_SETREF(prev->f.frame, (PyFrameObject *) f);
-        } else {
-            PyObject *tmp_type, *tmp_value, *tmp_tb;
-            tmp_type = ts->exc_type;
-            tmp_value = ts->exc_value;
-            tmp_tb = ts->exc_traceback;
-            ts->exc_type = NULL;
-            ts->exc_value = NULL;
-            ts->exc_traceback = NULL;
-            Py_XDECREF(tmp_type);
-            Py_XDECREF(tmp_value);
-            Py_XDECREF(tmp_tb);
-        }
-    }
     if (ts->use_tracing || ts->tracing) {
         /* build a shadow frame if we are returning here */
         if (prev->f.frame != NULL) {
@@ -1170,8 +1134,10 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
             retval = slp_bomb_explode(retval);
     }
     /* no failure possible from here on */
+    SLP_EXCHANGE_EXCINFO(ts, prev);
     ts->recursion_depth = next->recursion_depth;
     ts->st.current = next;
+    SLP_EXCHANGE_EXCINFO(ts, next);
     if (did_switch)
         *did_switch = 1;
     *result = STACKLESS_PACK(ts, retval);
@@ -1186,23 +1152,27 @@ hard_switching:
 
     ts->st.current = next;
 
-    if (ts->exc_type == Py_None) {
-        Py_XDECREF(ts->exc_type);
-        ts->exc_type = NULL;
-    }
     ts->recursion_depth = next->recursion_depth;
     SLP_STORE_NEXT_FRAME(ts, next->f.frame);
     Py_CLEAR(next->f.frame);
 
     ++ts->st.nesting_level;
-    if (ts->exc_type != NULL || ts->use_tracing || ts->tracing)
-        transfer = transfer_with_exc;
+    if (ts->use_tracing || ts->tracing)
+        transfer = transfer_with_tracing;
     else
         transfer = slp_transfer;
 
+    SLP_EXCHANGE_EXCINFO(ts, prev);
+    SLP_EXCHANGE_EXCINFO(ts, next);
+
     transfer_result = transfer(cstprev, next->cstate, prev);
+    /* Note: If the transfer was successful from here on "prev" holds the
+     *       currently executing tasklet and "next" is the previous tasklet.
+     */
+
     --ts->st.nesting_level;
     if (transfer_result >= 0) {
+        /* Successful transfer. */
         PyFrameObject *f = SLP_CLAIM_NEXT_FRAME(ts);
 
         TASKLET_CLAIMVAL(prev, &retval);
@@ -1240,6 +1210,9 @@ hard_switching:
         return 0;
     }
     else {
+        /* Failed transfer. */
+        SLP_EXCHANGE_EXCINFO(ts, next);
+        SLP_EXCHANGE_EXCINFO(ts, prev);
         PyFrameObject *f = SLP_CLAIM_NEXT_FRAME(ts);
         Py_XDECREF(f);
         kill_wrap_bad_guy(prev, next);
@@ -1278,6 +1251,13 @@ slp_initialize_main_and_current(void)
     Py_INCREF(task);
     slp_current_insert(task);
     ts->st.current = task;
+
+    assert(task->exc_state.exc_type == NULL);
+    assert(task->exc_state.exc_value == NULL);
+    assert(task->exc_state.exc_traceback == NULL);
+    assert(task->exc_state.previous_item == NULL);
+    assert(task->exc_info == &task->exc_state);
+    SLP_EXCHANGE_EXCINFO(ts, task);
 
     NOTIFY_SCHEDULE(NULL, task, -1);
 
@@ -1368,6 +1348,9 @@ schedule_task_destruct(PyObject **retval, PyTaskletObject *prev, PyTaskletObject
         }
     } else {
         /* main is exiting */
+        assert(ts->st.main == NULL);
+        assert(ts->exc_info == &prev->exc_state);
+        SLP_EXCHANGE_EXCINFO(ts, prev);
         TASKLET_CLAIMVAL(prev, retval);
         if (PyBomb_Check(*retval))
             *retval = slp_bomb_explode(*retval);
@@ -1391,6 +1374,7 @@ slp_tasklet_end(PyObject *retval)
     PyThreadState *ts = PyThreadState_GET();
     PyTaskletObject *task = ts->st.current;
     PyTaskletObject *next;
+    _PyErr_StackItem *exc_info;
 
     int ismain = task == ts->st.main;
     int schedule_fail;
@@ -1461,14 +1445,15 @@ slp_tasklet_end(PyObject *retval)
      * of their execution.
      * The code follows suit the code of sys.exc_clear().
      */
-    if (ts->exc_type != NULL && ts->exc_type != Py_None) {
+    exc_info = _PyErr_GetTopmostException(ts);
+    if (exc_info->exc_type != NULL && exc_info->exc_type != Py_None) {
         PyObject *tmp_type, *tmp_value, *tmp_tb;
-        tmp_type = ts->exc_type;
-        tmp_value = ts->exc_value;
-        tmp_tb = ts->exc_traceback;
-        ts->exc_type = NULL;
-        ts->exc_value = NULL;
-        ts->exc_traceback = NULL;
+        tmp_type = exc_info->exc_type;
+        tmp_value = exc_info->exc_value;
+        tmp_tb = exc_info->exc_traceback;
+        exc_info->exc_type = NULL;
+        exc_info->exc_value = NULL;
+        exc_info->exc_traceback = NULL;
         Py_DECREF(tmp_type);
         Py_XDECREF(tmp_value);
         Py_XDECREF(tmp_tb);

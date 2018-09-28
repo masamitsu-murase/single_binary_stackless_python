@@ -9,6 +9,13 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://github.com/stackless-dev/stackless/issues/149
+  C-Python bpo-25612 (#1773) moves the exception state information from frame
+  object to coroutine (generator/thread) object where it belongs. As a
+  consequence Stackless moves the exception state information from thread
+  to tasklet. This changes the pickle format of frame, tasklet and generator
+  objects compared to previous major versions of Stackless.
+
 - https://github.com/stackless-dev/stackless/issues/166
   Fix C-API functions PyEval_EvalFrameEx() and PyEval_EvalFrame().
   They are now compatible with C-Python.

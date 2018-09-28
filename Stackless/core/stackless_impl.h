@@ -402,7 +402,6 @@ PyObject * slp_eval_frame_iter(struct _frame *f,  int throwflag, PyObject *retva
 PyObject * slp_eval_frame_setup_with(struct _frame *f,  int throwflag, PyObject *retval);
 PyObject * slp_eval_frame_with_cleanup(struct _frame *f,  int throwflag, PyObject *retval);
 /* other eval_frame functions from module/scheduling.c */
-PyObject * slp_restore_exception(PyFrameObject *f, int exc, PyObject *retval);
 PyObject * slp_restore_tracing(PyFrameObject *f, int exc, PyObject *retval);
 /* other eval_frame functions from Objects/typeobject.c */
 PyObject * slp_tp_init_callback(PyFrameObject *f, int exc, PyObject *retval);
@@ -748,6 +747,7 @@ PyObject * slp_curexc_to_bomb(void);
 PyObject * slp_nomemory_bomb(void);
 PyObject * slp_bomb_explode(PyObject *bomb);
 int slp_init_bombtype(void);
+PyObject * slp_get_obj_for_exc_state(_PyErr_StackItem *exc_info);
 
 /* handy abbrevations */
 

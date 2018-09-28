@@ -830,8 +830,7 @@ static int init_functype(void)
 
  ******************************************************/
 
-#define frametuplefmt "O)(OiSOiOOOiiOO"
-/* #define frametuplefmt "O)(OiSOiOOiOiiOO" */
+#define frametuplefmt "O)(OiSOiOOiiOO"
 
 DEF_INVALID_EXEC(eval_frame)
 DEF_INVALID_EXEC(eval_frame_value)
@@ -840,7 +839,6 @@ DEF_INVALID_EXEC(eval_frame_iter)
 DEF_INVALID_EXEC(eval_frame_setup_with)
 DEF_INVALID_EXEC(eval_frame_with_cleanup)
 DEF_INVALID_EXEC(channel_seq_callback)
-DEF_INVALID_EXEC(slp_restore_exception)
 DEF_INVALID_EXEC(slp_restore_tracing)
 DEF_INVALID_EXEC(slp_tp_init_callback)
 
@@ -852,7 +850,7 @@ frameobject_reduce(PyFrameObject *f)
     int i;
     PyObject **f_stacktop;
     PyObject *blockstack_as_tuple = NULL, *localsplus_as_tuple = NULL,
-    *res = NULL, *exec_name = NULL, *exc_as_tuple = NULL;
+    *res = NULL, *exec_name = NULL;
     int valid = 1;
     int have_locals = f->f_locals != NULL;
     PyObject * dummy_locals = NULL;
@@ -864,15 +862,6 @@ frameobject_reduce(PyFrameObject *f)
 
     if ((exec_name = slp_find_execname(f, &valid)) == NULL)
         return NULL;
-
-    if (f->f_exc_type != NULL && f->f_exc_type != Py_None) {
-        exc_as_tuple = slp_into_tuple_with_nulls(&f->f_exc_type, 3);
-        if (exc_as_tuple == NULL) goto err_exit;
-    }
-    else {
-        Py_INCREF(Py_None);
-        exc_as_tuple = Py_None;
-    }
 
     blockstack_as_tuple = PyTuple_New (f->f_iblock);
     if (blockstack_as_tuple == NULL) goto err_exit;
@@ -929,8 +918,6 @@ frameobject_reduce(PyFrameObject *f)
                          have_locals,
                          have_locals ? f->f_locals : dummy_locals,
                          f_trace,
-/*                           f->f_restricted, */
-                 exc_as_tuple,
                  f->f_lasti,
                  f->f_lineno,
                  blockstack_as_tuple,
@@ -939,7 +926,6 @@ frameobject_reduce(PyFrameObject *f)
 
 err_exit:
     Py_XDECREF(exec_name);
-    Py_XDECREF(exc_as_tuple);
     Py_XDECREF(blockstack_as_tuple);
     Py_XDECREF(localsplus_as_tuple);
     Py_XDECREF(dummy_locals);
@@ -948,7 +934,7 @@ err_exit:
 }
 
 #define frametuplenewfmt "O!"
-#define frametuplesetstatefmt "O!iUO!iO!OOiiO!O:frame_new"
+#define frametuplesetstatefmt "O!iUO!iO!OiiO!O:frame_new"
 
 static PyObject *
 frame_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
@@ -985,7 +971,7 @@ frame_setstate(PyFrameObject *f, PyObject *args)
     int f_lasti, f_lineno;
     Py_ssize_t i;
     PyObject *f_globals, *f_locals, *blockstack_as_tuple;
-    PyObject *localsplus_as_tuple, *exc_as_tuple, *trace, *f_code;
+    PyObject *localsplus_as_tuple, *trace, *f_code;
     PyObject *exec_name = NULL;
     PyFrame_ExecFunc *good_func, *bad_func;
     int valid, have_locals;
@@ -1004,7 +990,6 @@ frame_setstate(PyFrameObject *f, PyObject *args)
                            &have_locals,
                            &PyDict_Type, &f_locals,
                            &trace,
-                   &exc_as_tuple,
                    &f_lasti,
                    &f_lineno,
                    &PyTuple_Type, &blockstack_as_tuple,
@@ -1040,20 +1025,6 @@ frame_setstate(PyFrameObject *f, PyObject *args)
         Py_INCREF(trace);
         assert(f->f_trace == NULL);
         f->f_trace = trace;
-    }
-
-    if (exc_as_tuple != Py_None) {
-        if (PyTuple_GET_SIZE(exc_as_tuple) != 4) {
-            PyErr_SetString(PyExc_ValueError,
-                            "bad exception tuple for frame");
-            goto err_exit;
-        }
-        assert(f->f_exc_type == NULL);
-        assert(f->f_exc_value == NULL);
-        assert(f->f_exc_traceback == NULL);
-        assert(((&f->f_exc_type) + 1 == &f->f_exc_value) &&
-            ((&f->f_exc_type) + 2 == &f->f_exc_traceback));
-        slp_from_tuple_with_nulls(&f->f_exc_type, exc_as_tuple);
     }
 
     if (PyTuple_Check(localsplus_as_tuple)) {
@@ -1233,8 +1204,6 @@ static int init_frametype(void)
                              slp_eval_frame_with_cleanup, REF_INVALID_EXEC(eval_frame_with_cleanup))
         || slp_register_execute(&PyCFrame_Type, "channel_seq_callback",
                              channel_seq_callback, REF_INVALID_EXEC(channel_seq_callback))
-        || slp_register_execute(&PyCFrame_Type, "slp_restore_exception",
-                             slp_restore_exception, REF_INVALID_EXEC(slp_restore_exception))
         || slp_register_execute(&PyCFrame_Type, "slp_restore_tracing",
                              slp_restore_tracing, REF_INVALID_EXEC(slp_restore_tracing))
         || slp_register_execute(&PyCFrame_Type, "slp_tp_init_callback",
@@ -1434,39 +1403,6 @@ static int init_moduletype(void)
 #define initchain init_moduletype
 
 
-/******************************************************
-
-  pickling of class/instance methods (PyMethod)
-
- ******************************************************/
-#if PY_VERSION_HEX < 0x03040000 /* Native support in python 3.4 and above */
-
-static PyTypeObject wrap_PyMethod_Type;
-
-static PyObject *
-method_reduce(PyObject *m)
-{
-    PyObject *tup, *func, *self;
-    char *fmt = "(O(OO)" NO_STATE_FORMAT ")";
-
-    func = PyMethod_GET_FUNCTION(m);
-    self = PyMethod_GET_SELF(m);
-    if (self == NULL)
-        self = Py_None;
-    tup = Py_BuildValue(fmt, &wrap_PyMethod_Type, func, self NO_STATE_ARG);
-    return tup;
-}
-
-MAKE_WRAPPERTYPE(PyMethod_Type, method, "method", method_reduce,
-                 generic_new, generic_setstate)
-
-static int init_methodtype(void)
-{
-    return init_type(&wrap_PyMethod_Type, initchain);
-}
-#undef initchain
-#define initchain init_methodtype
-#endif
 
 /******************************************************
 
@@ -1576,118 +1512,6 @@ static int init_dictitemsviewtype(void)
 
 
 
-
-/******************************************************
-
-  pickling of method wrappers
-
- ******************************************************/
-#if PY_VERSION_HEX < 0x03040000 /* Native support in python 3.4 and above */
-
-/*
- * unfortunately we have to copy here.
- * XXX automate checking such situations.
- */
-
-typedef struct {
-    PyObject_HEAD
-    PyWrapperDescrObject *descr;
-    PyObject *self;
-} wrapperobject;
-
-static PyTypeObject wrap__PyMethodWrapper_Type;
-
-static PyObject *
-methw_reduce(wrapperobject *w)
-{
-    PyObject *name = PyObject_GetAttrString((PyObject *) w->descr,
-                                            "__name__");
-    PyObject *tup = NULL;
-
-    if (name != NULL) {
-        tup = Py_BuildValue("(O()(OO))",
-                            &wrap__PyMethodWrapper_Type,
-                            name,
-                            w->self
-                            );
-    }
-    Py_XDECREF(name);
-    return tup;
-}
-
-static PyObject *
-methw_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
-{
-    /* this is a bit hairy since we need to build a dummy one */
-    wrapperobject *w = NULL, *neww = NULL;
-    PyObject *it = NULL, *tup = PyTuple_New(0);
-
-    it = PyObject_GetIter(tup);
-    if (it != NULL)
-        w = (wrapperobject *) PyObject_GetAttrString(it, "__next__");
-    if (w != NULL && PyMethodWrapper_Check(w)) {
-        neww = (wrapperobject *) PyWrapper_New((PyObject *) w->descr,
-                                               w->self);
-    }
-    else
-        PyErr_SetString(PyExc_SystemError,
-                        "problem with wrapper pickling");
-    Py_DECREF(tup);
-    Py_XDECREF(w);
-    Py_XDECREF(it);
-    if (neww != NULL)
-        Py_TYPE(neww) = type;
-    return (PyObject *) neww;
-}
-
-static PyObject *
-methw_setstate(PyObject *self, PyObject *args)
-{
-    PyObject *name, *inst;
-    PyObject *w;
-
-    if (is_wrong_type(Py_TYPE(self))) return NULL;
-    if (!PyArg_ParseTuple(args, "O!O:method-wrapper",
-                          &PyUnicode_Type, &name,
-                          &inst))
-        return NULL;
-    /* now let's see if we can retrieve a wrapper, again */
-    w = PyObject_GetAttr(inst, name);
-    if (w != NULL && !PyMethodWrapper_Check(w)) {
-        PyErr_SetString(PyExc_ValueError,
-                        "bad unpickle data for method-wrapper");
-        return NULL;
-    }
-    if (w == NULL) return NULL;
-    /* now fill our object with the right data */
-    {
-        wrapperobject *neww = (wrapperobject *) self;
-        wrapperobject *oldw = (wrapperobject *) w;
-        Py_INCREF(oldw->descr);
-        Py_CLEAR(neww->descr);
-        neww->descr = oldw->descr;
-        Py_INCREF(oldw->self);
-        Py_CLEAR(neww->self);
-        neww->self = oldw->self;
-    }
-    Py_DECREF(w);
-    Py_TYPE(self) = Py_TYPE(self)->tp_base;
-    Py_INCREF(self);
-    return self;
-}
-
-
-MAKE_WRAPPERTYPE(_PyMethodWrapper_Type, methw, "method-wrapper", methw_reduce,
-                 methw_new, methw_setstate)
-
-static int init_methodwrappertype(void)
-{
-    return init_type(&wrap__PyMethodWrapper_Type, initchain);
-}
-#undef initchain
-#define initchain init_methodwrappertype
-#endif
-
 /******************************************************
 
   pickling of generators and coroutines
@@ -1700,6 +1524,27 @@ static PyTypeObject wrap_PyCoro_Type;
 /* Used to initialize a generator created by gen_new. */
 static PyFrameObject *gen_exhausted_frame = NULL;
 
+/* A helper for pickling the _PyErr_StackItem* members of generator-like and tasklet
+ * objects. This method returns a pointer to the object, that contains the
+ * that contains *exc_info.
+ */
+PyObject *
+slp_get_obj_for_exc_state(_PyErr_StackItem *exc_info) {
+    PyObject *result;
+    assert(exc_info);
+    Py_BUILD_ASSERT(offsetof(PyTaskletObject, exc_state) == offsetof(PyGenObject, gi_exc_state));
+    Py_BUILD_ASSERT(offsetof(PyTaskletObject, exc_state) == offsetof(PyCoroObject, cr_exc_state));
+    Py_BUILD_ASSERT(offsetof(PyTaskletObject, exc_state) == offsetof(PyAsyncGenObject, ag_exc_state));
+
+    result = (PyObject *)(((char *)exc_info) - offsetof(PyTaskletObject, exc_state));
+    assert(PyTasklet_Check(result) ||
+            PyGen_Check(result) ||
+            PyObject_TypeCheck(result, &PyCoro_Type) ||
+            PyObject_TypeCheck(result, &PyAsyncGen_Type));
+    Py_INCREF(result);
+    return result;
+}
+
 /* The usual reduce method.
  * Also assert at compile time, that the size of generator and coroutines is
  * equal.
@@ -1709,6 +1554,7 @@ _gen_reduce(PyTypeObject *type, PyGenObject *gen)
 {
     PyObject *tup;
     PyObject *frame_reducer = (PyObject *)gen->gi_frame;
+    PyObject *exc_type, *exc_value, *exc_traceback, *exc_info_obj;
     Py_BUILD_ASSERT(sizeof(PyGenObject) == sizeof(PyCoroObject));
 
     if (frame_reducer == NULL) {
@@ -1721,14 +1567,44 @@ _gen_reduce(PyTypeObject *type, PyGenObject *gen)
     }
     if (frame_reducer == NULL)
         return NULL;
-    tup = Py_BuildValue("(O()(OiOO))",
+
+    if (gen->gi_exc_state.previous_item != NULL) {
+        assert(gen->gi_exc_state.previous_item != &(PyThreadState_GET()->exc_state));
+        exc_info_obj = slp_get_obj_for_exc_state(gen->gi_exc_state.previous_item);
+        if (exc_info_obj == NULL)
+            return NULL;
+        assert(exc_info_obj != Py_None);
+    } else {
+        Py_INCREF(Py_None);
+        exc_info_obj = Py_None;
+    }
+
+    exc_type = gen->gi_exc_state.exc_type;
+    exc_value = gen->gi_exc_state.exc_value;
+    exc_traceback = gen->gi_exc_state.exc_traceback;
+    if (exc_type == NULL) exc_type = Py_None;
+    if (exc_value == NULL) exc_value = Py_None;
+    if (exc_traceback == NULL) exc_traceback = Py_None;
+    Py_INCREF(exc_type);
+    Py_INCREF(exc_value);
+    Py_INCREF(exc_traceback);
+
+    tup = Py_BuildValue("(O()(OiOOOOOO))",
                         type,
                         frame_reducer,
                         gen->gi_running,
                         gen->gi_name,
-                        gen->gi_qualname
+                        gen->gi_qualname,
+                        exc_type,
+                        exc_value,
+                        exc_traceback,
+                        exc_info_obj
                         );
     Py_DECREF(frame_reducer);
+    Py_DECREF(exc_info_obj);
+    Py_DECREF(exc_type);
+    Py_DECREF(exc_value);
+    Py_DECREF(exc_traceback);
     return tup;
 }
 
@@ -1769,14 +1645,24 @@ gen_setstate(PyObject *self, PyObject *args)
     int gi_running;
     PyObject *name = NULL;
     PyObject *qualname = NULL;
+    PyObject *exc_type, *exc_value, *exc_traceback;
+    PyObject *old_type, *old_value, *old_traceback;
+    PyObject *exc_info_obj;
 
     if (is_wrong_type(Py_TYPE(self))) return NULL;
 
     if ((args = unwrap_frame_arg(args)) == NULL)  /* now args is a counted ref! */
         return NULL;
 
-    if (!PyArg_ParseTuple(args, "Oi|OO:generator",
-                          &obj, &gi_running, &name, &qualname)) {
+    if (!PyArg_ParseTuple(args, "OiOOOOOO:generator",
+                          &obj,
+                          &gi_running,
+                          &name,
+                          &qualname,
+                          &exc_type,
+                          &exc_value,
+                          &exc_traceback,
+                          &exc_info_obj)) {
         Py_DECREF(args);
         return NULL;
     }
@@ -1820,12 +1706,44 @@ gen_setstate(PyObject *self, PyObject *args)
     f = (PyFrameObject *)obj;
     obj = NULL;
 
-    if (name == NULL) {
-        name = f->f_code->co_name;
-        assert(name != NULL);
-    }
-    if (qualname == NULL) {
-        qualname = name;
+    old_type = gen->gi_exc_state.exc_type;
+    old_value = gen->gi_exc_state.exc_value;
+    old_traceback = gen->gi_exc_state.exc_traceback;
+    if (exc_type != Py_None) {
+        Py_INCREF(exc_type);
+        gen->gi_exc_state.exc_type = exc_type;
+    } else
+        gen->gi_exc_state.exc_type = NULL;
+    if (exc_value != Py_None) {
+        Py_INCREF(exc_value);
+        gen->gi_exc_state.exc_value = exc_value;
+    } else
+        gen->gi_exc_state.exc_value = NULL;
+    if (exc_traceback != Py_None) {
+        Py_INCREF(exc_traceback);
+        gen->gi_exc_state.exc_traceback = exc_traceback;
+    } else
+        gen->gi_exc_state.exc_value = NULL;
+    assert(gen->gi_exc_state.previous_item == NULL);
+    if (exc_info_obj == Py_None) {
+        gen->gi_exc_state.previous_item = NULL;
+    } else {
+        /* Check the preconditions for the next assinment.
+         *
+         * The cast in the assignment is OK, because all possible concrete types of exc_info_obj
+         * have the exec_state member at the same offset.
+         */
+        assert(PyTasklet_Check(exc_info_obj) ||
+                PyGen_Check(exc_info_obj) ||
+                PyObject_TypeCheck(exc_info_obj, &PyCoro_Type) ||
+                PyObject_TypeCheck(exc_info_obj, &PyAsyncGen_Type));
+        Py_BUILD_ASSERT(offsetof(PyTaskletObject, exc_state) == offsetof(PyGenObject, gi_exc_state));
+        Py_BUILD_ASSERT(offsetof(PyTaskletObject, exc_state) == offsetof(PyCoroObject, cr_exc_state));
+        Py_BUILD_ASSERT(offsetof(PyTaskletObject, exc_state) == offsetof(PyAsyncGenObject, ag_exc_state));
+        /* Make sure, that *exc_info_obj stays alive after Py_DECREF(args) at the end of this function.
+         */
+        assert(Py_REFCNT(exc_info_obj) > 1);
+        gen->gi_exc_state.previous_item = &(((PyGenObject *)exc_info_obj)->gi_exc_state);
     }
 
     if (!gi_running) {
@@ -1882,6 +1800,9 @@ gen_setstate(PyObject *self, PyObject *args)
     Py_TYPE(gen) = Py_TYPE(gen)->tp_base;
     Py_INCREF(gen);
     Py_DECREF(args); /* holds the frame and name refs */
+    Py_XDECREF(old_type);
+    Py_XDECREF(old_value);
+    Py_XDECREF(old_traceback);
     return (PyObject *)gen;
 }
 

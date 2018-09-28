@@ -102,10 +102,6 @@ typedef struct _tasklet_tstate {
     Py_tracefunc c_tracefunc;
     PyObject *c_profileobj;
     PyObject *c_traceobj;
-
-    PyObject *exc_type;
-    PyObject *exc_value;
-    PyObject *exc_traceback;
 } PyTaskletTStateStruc;
 
 typedef struct _tasklet {
@@ -117,10 +113,17 @@ typedef struct _tasklet {
         struct _cframe *cframe;
     } f;
     PyObject *tempval;
+    struct _cstack *cstate;
+    /* Pointer to the top of the stack of the exceptions currently
+     * being handled */
+    _PyErr_StackItem *exc_info;
+    /* The exception currently being handled, if no coroutines/generators
+     * are present. Always last element on the stack referred to be exc_info.
+     */
+    _PyErr_StackItem exc_state;
     /* bits stuff */
     struct _tasklet_flags flags;
     int recursion_depth;
-    struct _cstack *cstate;
     PyObject *def_globals;
     PyObject *tsk_weakreflist;
 } PyTaskletObject;

@@ -52,7 +52,7 @@ typedef struct _frame {
     char f_executing;           /* whether the frame is still executing */
     PyTryBlock f_blockstack[CO_MAXBLOCKS]; /* for try and loop blocks */
 #ifdef STACKLESS
-    PyCodeObject *f_code;	    /* code segment */
+    PyCodeObject *f_code;           /* code segment */
 #endif
     PyObject *f_localsplus[1];  /* locals+stack, dynamically sized */
 } PyFrameObject;
