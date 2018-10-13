@@ -2,6 +2,7 @@
 
 
 __version__ = "10"
+__author__ = "Masamitsu MURASE"
 
 __included_module_info = {
     "comtypes": {
