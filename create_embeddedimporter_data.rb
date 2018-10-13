@@ -4,6 +4,7 @@ require("zlib")
 def create_certifi_cacert_data
   cacert_data = File.read("Lib/certifi/cacert.pem")
   File.open("Lib/certifi/cacert.py", "w") do |file|
+    file.puts '# This file was generated automatically.'
     file.write '_ca_cert_data = r"""'
     file.write cacert_data
     file.puts '"""'
