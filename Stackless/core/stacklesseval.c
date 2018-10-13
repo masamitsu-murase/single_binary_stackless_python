@@ -247,10 +247,7 @@ make_initial_stub(void)
     PyThreadState *ts = PyThreadState_GET();
     int result;
 
-    if (ts->st.initial_stub != NULL) {
-        Py_DECREF(ts->st.initial_stub);
-        ts->st.initial_stub = NULL;
-    }
+    Py_CLEAR(ts->st.initial_stub);
     ts->st.serial_last_jump = ++ts->st.serial;
     result = slp_transfer(&ts->st.initial_stub, NULL, NULL);
     if (result < 0)
