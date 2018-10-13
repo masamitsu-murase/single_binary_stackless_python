@@ -81,7 +81,6 @@ class Test(TestCase):
         (1 for a, b in [(1, 2)])
         ''')
 
-    @skipIf(version_info < (2, 7), "Python >= 2.7 only")
     def test_redefinedInSetComprehension(self):
         """
         Test that reusing a variable in a set comprehension does not raise
@@ -111,7 +110,6 @@ class Test(TestCase):
         {1 for a, b in [(1, 2)]}
         ''')
 
-    @skipIf(version_info < (2, 7), "Python >= 2.7 only")
     def test_redefinedInDictComprehension(self):
         """
         Test that reusing a variable in a dict comprehension does not raise
@@ -149,6 +147,25 @@ class Test(TestCase):
         self.flakes('''
         def a(): pass
         def a(): pass
+        ''', m.RedefinedWhileUnused)
+
+    def test_redefinedUnderscoreFunction(self):
+        """
+        Test that shadowing a function definition named with underscore doesn't
+        raise anything.
+        """
+        self.flakes('''
+        def _(): pass
+        def _(): pass
+        ''')
+
+    def test_redefinedUnderscoreImportation(self):
+        """
+        Test that shadowing an underscore importation raises a warning.
+        """
+        self.flakes('''
+        from .i18n import _
+        def _(): pass
         ''', m.RedefinedWhileUnused)
 
     def test_redefinedClassFunction(self):
@@ -260,7 +277,6 @@ class Test(TestCase):
             a = classmethod(a)
         ''')
 
-    @skipIf(version_info < (2, 6), "Python >= 2.6 only")
     def test_modernProperty(self):
         self.flakes("""
         class A:
@@ -1565,7 +1581,6 @@ class TestUnusedAssignment(TestCase):
             pass
         ''', m.UndefinedName)
 
-    @skipIf(version_info < (2, 7), "Python >= 2.7 only")
     def test_dictComprehension(self):
         """
         Dict comprehensions are properly handled.
@@ -1574,7 +1589,6 @@ class TestUnusedAssignment(TestCase):
         a = {1: x for x in range(10)}
         ''')
 
-    @skipIf(version_info < (2, 7), "Python >= 2.7 only")
     def test_setComprehensionAndLiteral(self):
         """
         Set comprehensions are properly handled.
@@ -1585,17 +1599,31 @@ class TestUnusedAssignment(TestCase):
         ''')
 
     def test_exceptionUsedInExcept(self):
-        as_exc = ', ' if version_info < (2, 6) else ' as '
         self.flakes('''
         try: pass
-        except Exception%se: e
-        ''' % as_exc)
+        except Exception as e: e
+        ''')
 
         self.flakes('''
         def download_review():
             try: pass
-            except Exception%se: e
-        ''' % as_exc)
+            except Exception as e: e
+        ''')
+
+    @skipIf(version_info < (3,),
+            "In Python 2 exception names stay bound after the exception handler")
+    def test_exceptionUnusedInExcept(self):
+        self.flakes('''
+        try: pass
+        except Exception as e: pass
+        ''', m.UnusedVariable)
+
+    def test_exceptionUnusedInExceptInFunction(self):
+        self.flakes('''
+        def download_review():
+            try: pass
+            except Exception as e: pass
+        ''', m.UnusedVariable)
 
     def test_exceptWithoutNameInFunction(self):
         """
@@ -1839,12 +1867,17 @@ class TestAsyncStatements(TestCase):
             name: str = 'Bob'
             age: int = 18
             foo: not_a_real_type = None
-        ''', m.UnusedVariable, m.UnusedVariable, m.UnusedVariable)
+        ''', m.UnusedVariable, m.UnusedVariable, m.UnusedVariable, m.UndefinedName)
         self.flakes('''
         def f():
             name: str
             print(name)
         ''', m.UndefinedName)
+        self.flakes('''
+        from typing import Any
+        def f():
+            a: Any
+        ''')
         self.flakes('''
         foo: not_a_real_type
         ''', m.UndefinedName)
@@ -1869,3 +1902,94 @@ class TestAsyncStatements(TestCase):
             class C:
                 foo: not_a_real_type = None
         ''', m.UndefinedName)
+        self.flakes('''
+        from foo import Bar
+        bar: Bar
+        ''')
+        self.flakes('''
+        from foo import Bar
+        bar: 'Bar'
+        ''')
+        self.flakes('''
+        import foo
+        bar: foo.Bar
+        ''')
+        self.flakes('''
+        import foo
+        bar: 'foo.Bar'
+        ''')
+        self.flakes('''
+        from foo import Bar
+        def f(bar: Bar): pass
+        ''')
+        self.flakes('''
+        from foo import Bar
+        def f(bar: 'Bar'): pass
+        ''')
+        self.flakes('''
+        from foo import Bar
+        def f(bar) -> Bar: return bar
+        ''')
+        self.flakes('''
+        from foo import Bar
+        def f(bar) -> 'Bar': return bar
+        ''')
+        self.flakes('''
+        bar: 'Bar'
+        ''', m.UndefinedName)
+        self.flakes('''
+        bar: 'foo.Bar'
+        ''', m.UndefinedName)
+        self.flakes('''
+        from foo import Bar
+        bar: str
+        ''', m.UnusedImport)
+        self.flakes('''
+        from foo import Bar
+        def f(bar: str): pass
+        ''', m.UnusedImport)
+        self.flakes('''
+        def f(a: A) -> A: pass
+        class A: pass
+        ''', m.UndefinedName, m.UndefinedName)
+        self.flakes('''
+        def f(a: 'A') -> 'A': return a
+        class A: pass
+        ''')
+        self.flakes('''
+        a: A
+        class A: pass
+        ''', m.UndefinedName)
+        self.flakes('''
+        a: 'A'
+        class A: pass
+        ''')
+        self.flakes('''
+        a: 'A B'
+        ''', m.ForwardAnnotationSyntaxError)
+        self.flakes('''
+        a: 'A; B'
+        ''', m.ForwardAnnotationSyntaxError)
+        self.flakes('''
+        a: '1 + 2'
+        ''')
+        self.flakes('''
+        a: 'a: "A"'
+        ''', m.ForwardAnnotationSyntaxError)
+
+    def test_raise_notimplemented(self):
+        self.flakes('''
+        raise NotImplementedError("This is fine")
+        ''')
+
+        self.flakes('''
+        raise NotImplementedError
+        ''')
+
+        self.flakes('''
+        raise NotImplemented("This isn't gonna work")
+        ''', m.RaiseNotImplemented)
+
+        self.flakes('''
+        raise NotImplemented
+        ''', m.RaiseNotImplemented)
