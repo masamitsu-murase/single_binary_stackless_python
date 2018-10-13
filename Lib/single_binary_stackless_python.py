@@ -83,7 +83,7 @@ __included_module_info = {
     },
     "single_binary_stackless_python": {
         "author": "Masamitsu MURASE",
-        "license": "MIT Lincense",
+        "license": "MIT License",
         "module_name": "single_binary_stackless_python"
     }
 }
@@ -95,3 +95,18 @@ def included_module_names():
 
 def included_module_info():
     return __included_module_info
+
+
+if __name__ == "__main__":
+    print("Version: %s" % __version__)
+    print("")
+
+    for info in __included_module_info.values():
+        module_name = info["module_name"]
+        module = __import__(module_name)
+        if hasattr(module, "__version__"):
+            version = module.__version__
+        elif module_name == "pyreadline":
+            import pyreadline.release
+            version = pyreadline.release.version
+        print("%s (%s)" % (module_name, version))
