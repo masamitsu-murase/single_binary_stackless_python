@@ -973,7 +973,7 @@ class SizeofTest(unittest.TestCase):
         extras = x.f_code.co_stacksize + x.f_code.co_nlocals +\
                   ncells + nfrees - 1
         slextra = 'P' if test.support.stackless else ''
-        check(x, vsize('8P2c4P3ic' + CO_MAXBLOCKS*'3i' + slextra + 'P' + extras*'P'))
+        check(x, vsize('5P2c4P3ic' + CO_MAXBLOCKS*'3i' + slextra + 'P' + extras*'P'))
         # function
         def func(): pass
         check(func, size('12P'))
@@ -990,7 +990,7 @@ class SizeofTest(unittest.TestCase):
             check(bar, size('PP'))
         # generator
         def get_gen(): yield 1
-        check(get_gen(), size('Pb2PPP'))
+        check(get_gen(), size('Pb2PPP4P'))
         # iterator
         check(iter('abc'), size('lP'))
         # callable-iterator
