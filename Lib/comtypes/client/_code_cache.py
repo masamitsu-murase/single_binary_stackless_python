@@ -67,7 +67,7 @@ def _find_gen_dir():
         if not os.path.exists(gen_dir):
             logger.info("Creating writeable comtypes cache directory: '%s'", gen_dir)
             os.makedirs(gen_dir)
-        gen.__path__.append(gen_dir)
+        gen_path.append(gen_dir)
     result = os.path.abspath(gen_path[-1])
     logger.info("Using writeable comtypes cache directory: '%s'", result)
     return result
@@ -119,12 +119,8 @@ def _is_writeable(path):
     which we can create files."""
     if not path:
         return False
-    try:
-        tempfile.TemporaryFile(dir=path[0])
-    except (OSError, IOError) as details:
-        logger.debug("Path is unwriteable: %s", details)
-        return False
-    return True
+    # TODO: should we add os.X_OK flag as well? It seems unnecessary on Windows.
+    return os.access(path[0], os.W_OK)
 
 def _get_module_filename(hmodule):
     """Call the Windows GetModuleFileName function which determines
