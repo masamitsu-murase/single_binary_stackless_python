@@ -180,12 +180,43 @@ class TestIterSourceCode(TestCase):
         """
         os.mkdir(os.path.join(self.tempdir, 'foo'))
         apath = self.makeEmptyFile('foo', 'a.py')
+        self.makeEmptyFile('foo', 'a.py~')
         os.mkdir(os.path.join(self.tempdir, 'bar'))
         bpath = self.makeEmptyFile('bar', 'b.py')
         cpath = self.makeEmptyFile('c.py')
         self.assertEqual(
             sorted(iterSourceCode([self.tempdir])),
             sorted([apath, bpath, cpath]))
+
+    def test_shebang(self):
+        """
+        Find Python files that don't end with `.py`, but contain a Python
+        shebang.
+        """
+        python = os.path.join(self.tempdir, 'a')
+        with open(python, 'w') as fd:
+            fd.write('#!/usr/bin/env python\n')
+
+        self.makeEmptyFile('b')
+
+        with open(os.path.join(self.tempdir, 'c'), 'w') as fd:
+            fd.write('hello\nworld\n')
+
+        python2 = os.path.join(self.tempdir, 'd')
+        with open(python2, 'w') as fd:
+            fd.write('#!/usr/bin/env python2\n')
+
+        python3 = os.path.join(self.tempdir, 'e')
+        with open(python3, 'w') as fd:
+            fd.write('#!/usr/bin/env python3\n')
+
+        pythonw = os.path.join(self.tempdir, 'f')
+        with open(pythonw, 'w') as fd:
+            fd.write('#!/usr/bin/env pythonw\n')
+
+        self.assertEqual(
+            sorted(iterSourceCode([self.tempdir])),
+            sorted([python, python2, python3, pythonw]))
 
     def test_multipleDirectories(self):
         """
@@ -484,6 +515,7 @@ foo(bar=baz, bax)
 foo(bar=baz, bax)
 %s""" % (sourcePath, column, message, last_line)])
 
+    @skipIf(PYPY, 'Output in PyPy varies highly, depending on version')
     def test_invalidEscape(self):
         """
         The invalid escape syntax raises ValueError in Python 2
@@ -493,13 +525,6 @@ foo(bar=baz, bax)
         sourcePath = self.makeTempFile(r"foo = '\xyz'")
         if ver < (3,):
             decoding_error = "%s: problem decoding source\n" % (sourcePath,)
-        elif PYPY:
-            # pypy3 only
-            decoding_error = """\
-%s:1:6: %s: ('unicodeescape', b'\\\\xyz', 0, 2, 'truncated \\\\xXX escape')
-foo = '\\xyz'
-     ^
-""" % (sourcePath, 'UnicodeDecodeError')
         else:
             last_line = '      ^\n' if ERROR_HAS_LAST_LINE else ''
             # Column has been "fixed" since 3.2.4 and 3.3.1
@@ -518,6 +543,9 @@ foo = '\\xyz'
         If the source file is not readable, this is reported on standard
         error.
         """
+        if os.getuid() == 0:
+            self.skipTest('root user can access all files regardless of '
+                          'permissions')
         sourcePath = self.makeTempFile('')
         os.chmod(sourcePath, 0)
         count, errors = self.getErrors(sourcePath)

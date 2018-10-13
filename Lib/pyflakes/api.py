@@ -5,12 +5,16 @@ from __future__ import with_statement
 
 import sys
 import os
+import re
 import _ast
 
 from pyflakes import checker, __version__
 from pyflakes import reporter as modReporter
 
 __all__ = ['check', 'checkPath', 'checkRecursive', 'iterSourceCode', 'main']
+
+
+PYTHON_SHEBANG_REGEX = re.compile(br'^#!.*\bpython[23w]?\b\s*$')
 
 
 def check(codeString, filename, reporter=None):
@@ -85,19 +89,8 @@ def checkPath(filename, reporter=None):
     if reporter is None:
         reporter = modReporter._makeDefaultReporter()
     try:
-        # in Python 2.6, compile() will choke on \r\n line endings. In later
-        # versions of python it's smarter, and we want binary mode to give
-        # compile() the best opportunity to do the right thing WRT text
-        # encodings.
-        if sys.version_info < (2, 7):
-            mode = 'rU'
-        else:
-            mode = 'rb'
-
-        with open(filename, mode) as f:
+        with open(filename, 'rb') as f:
             codestr = f.read()
-        if sys.version_info < (2, 7):
-            codestr += '\n'     # Work around for Python <= 2.6
     except UnicodeError:
         reporter.unexpectedError(filename, 'problem decoding source')
         return 1
@@ -106,6 +99,29 @@ def checkPath(filename, reporter=None):
         reporter.unexpectedError(filename, msg.args[1])
         return 1
     return check(codestr, filename, reporter)
+
+
+def isPythonFile(filename):
+    """Return True if filename points to a Python file."""
+    if filename.endswith('.py'):
+        return True
+
+    # Avoid obvious Emacs backup files
+    if filename.endswith("~"):
+        return False
+
+    max_bytes = 128
+
+    try:
+        with open(filename, 'rb') as f:
+            text = f.read(max_bytes)
+            if not text:
+                return False
+    except IOError:
+        return False
+
+    first_line = text.splitlines()[0]
+    return PYTHON_SHEBANG_REGEX.match(first_line)
 
 
 def iterSourceCode(paths):
@@ -120,8 +136,9 @@ def iterSourceCode(paths):
         if os.path.isdir(path):
             for dirpath, dirnames, filenames in os.walk(path):
                 for filename in filenames:
-                    if filename.endswith('.py'):
-                        yield os.path.join(dirpath, filename)
+                    full_path = os.path.join(dirpath, filename)
+                    if isPythonFile(full_path):
+                        yield full_path
         else:
             yield path
 
