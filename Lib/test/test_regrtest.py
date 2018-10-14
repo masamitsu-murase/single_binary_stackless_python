@@ -777,6 +777,7 @@ class ArgsTestCase(BaseTestCase):
             regex = ('10 slowest tests:\n')
             self.check_line(output, regex)
 
+    @unittest.skip("Skip temporarily because coverage sometimes does not work fine.")
     def test_coverage(self):
         # test --coverage
         test = self.create_test('coverage')
