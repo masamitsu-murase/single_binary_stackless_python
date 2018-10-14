@@ -69,7 +69,6 @@ extern PyObject* _PyWarnings_Init(void);
 extern PyObject* PyInit__string(void);
 extern PyObject* PyInit__stat(void);
 extern PyObject* PyInit__opcode(void);
-extern PyObject* PyInit__findvs(void);
 
 extern PyObject* PyInit__asyncio(void);
 extern PyObject* PyInit__bz2(void);
@@ -195,8 +194,6 @@ struct _inittab _PyImport_Inittab[] = {
     {"_stat", PyInit__stat},
     {"_opcode", PyInit__opcode},
 
-    {"_findvs", PyInit__findvs},
-
     {"_asyncio", PyInit__asyncio},
     {"_bz2", PyInit__bz2},
     {"_ctypes", PyInit__ctypes},
@@ -223,6 +220,7 @@ struct _inittab _PyImport_Inittab[] = {
     {"embeddedimport", PyInit_embeddedimport},
     {"_yaml", PyInit__yaml},
     {"_cchardet", PyInit__cchardet},
+
 #ifdef STACKLESS
     {"_stackless", PyInit__stackless},
 #endif

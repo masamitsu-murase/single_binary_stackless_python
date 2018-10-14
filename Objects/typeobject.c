@@ -2345,7 +2345,7 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
         }
 
         /* SF bug 475327 -- if that didn't trigger, we need 3
-           arguments. but PyArg_ParseTupleAndKeywords below may give
+           arguments. but PyArg_ParseTuple below may give
            a msg saying type() needs exactly 3. */
         if (nargs != 3) {
             PyErr_SetString(PyExc_TypeError,
@@ -5028,7 +5028,7 @@ PyType_Ready(PyTypeObject *type)
     /* PyType_Ready is the closest thing we have to a choke point
      * for type objects, so is the best place I can think of to try
      * to get type objects into the doubly-linked list of all objects.
-     * Still, not all type objects go thru PyType_Ready.
+     * Still, not all type objects go through PyType_Ready.
      */
     _Py_AddToAllObjects((PyObject *)type, 0);
 #endif
@@ -7020,9 +7020,9 @@ static slotdef slotdefs[] = {
     SQSLOT("__add__", sq_concat, NULL, wrap_binaryfunc,
            "__add__($self, value, /)\n--\n\nReturn self+value."),
     SQSLOT("__mul__", sq_repeat, NULL, wrap_indexargfunc,
-           "__mul__($self, value, /)\n--\n\nReturn self*value.n"),
+           "__mul__($self, value, /)\n--\n\nReturn self*value."),
     SQSLOT("__rmul__", sq_repeat, NULL, wrap_indexargfunc,
-           "__rmul__($self, value, /)\n--\n\nReturn self*value."),
+           "__rmul__($self, value, /)\n--\n\nReturn value*self."),
     SQSLOT("__getitem__", sq_item, slot_sq_item, wrap_sq_item,
            "__getitem__($self, key, /)\n--\n\nReturn self[key]."),
     SQSLOT("__setitem__", sq_ass_item, slot_sq_ass_item, wrap_sq_setitem,

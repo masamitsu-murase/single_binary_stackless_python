@@ -3157,7 +3157,7 @@ Inconsistent:
     PyErr_SetString(PyExc_ValueError, "fromutc: tz.dst() gave"
                     "inconsistent results; cannot convert");
 
-    /* fall thru to failure */
+    /* fall through to failure */
 Fail:
     Py_XDECREF(off);
     Py_XDECREF(dst);
@@ -5201,6 +5201,7 @@ datetime_astimezone(PyDateTime_DateTime *self, PyObject *args, PyObject *kw)
         return NULL;
 
     if (!HASTZINFO(self) || self->tzinfo == Py_None) {
+  naive:
         self_tzinfo = local_timezone_from_local(self);
         if (self_tzinfo == NULL)
             return NULL;
@@ -5221,6 +5222,16 @@ datetime_astimezone(PyDateTime_DateTime *self, PyObject *args, PyObject *kw)
     Py_DECREF(self_tzinfo);
     if (offset == NULL)
         return NULL;
+    else if(offset == Py_None) {
+        Py_DECREF(offset);
+        goto naive;
+    }
+    else if (!PyDelta_Check(offset)) {
+        Py_DECREF(offset);
+        PyErr_Format(PyExc_TypeError, "utcoffset() returned %.200s,"
+                     " expected timedelta or None", Py_TYPE(offset)->tp_name);
+        return NULL;
+    }
     /* result = self - offset */
     result = (PyDateTime_DateTime *)add_datetime_timedelta(self,
                                        (PyDateTime_Delta *)offset, -1);

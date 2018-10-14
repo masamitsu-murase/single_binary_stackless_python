@@ -68,6 +68,7 @@ static PyObject * unicode_concatenate(PyObject *, PyObject *,
 static PyObject * special_lookup(PyObject *, _Py_Identifier *);
 static int check_args_iterable(PyObject *func, PyObject *vararg);
 static void format_kwargs_mapping_error(PyObject *func, PyObject *kwargs);
+static void format_awaitable_error(PyTypeObject *, int);
 
 #define NAME_ERROR_MSG \
     "name '%.200s' is not defined"
@@ -2194,6 +2195,11 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
             PyObject *iterable = TOP();
             PyObject *iter = _PyCoro_GetAwaitableIter(iterable);
 
+            if (iter == NULL) {
+                format_awaitable_error(Py_TYPE(iterable),
+                                       _Py_OPCODE(next_instr[-2]));
+            }
+
             Py_DECREF(iterable);
 
             if (iter != NULL && PyCoro_CheckExact(iter)) {
@@ -4104,10 +4110,167 @@ slp_eval_frame_with_cleanup(PyFrameObject *f, int throwflag, PyObject *retval)
     return r;
 }
 
+static PyObject *
+run_frame_dispatch(PyFrameObject *f, int exc, PyObject *retval)
+{
+    PyThreadState *ts = PyThreadState_GET();
+    PyCFrameObject *cf = (PyCFrameObject*) f;
+    PyFrameObject *f_back;
+    int done = cf->i;
+
+    SLP_SET_CURRENT_FRAME(ts, f);
+
+    if (retval == NULL || done)
+        goto exit_run_frame_dispatch;
+
+    Py_DECREF(retval);
+
+    f = (PyFrameObject *)cf->ob1;
+    Py_INCREF(f);  /* cf->ob1 is just a borrowed ref */
+    f_back = (PyFrameObject *)cf->ob2;
+    Py_XINCREF(f_back);  /* cf->ob2 is just a borrowed ref */
+    if (cf->n) {  /* cf->n is throwflag */
+        retval = NULL;
+        slp_bomb_explode(cf->ob3); /* slp_bomb_explode steals the ref to the bomb */
+        cf->ob3 = NULL;
+    } else {
+        retval = cf->ob3; /* cf->ob3 is just a borrowed ref */
+        Py_XINCREF(retval);
+    }
+    retval = slp_frame_dispatch(f, f_back, cf->n, retval);
+    assert(!STACKLESS_UNWINDING(retval));
+    assert(SLP_CURRENT_FRAME_IS_VALID(ts));
+
+    cf->i = 1; /* mark ourself as done */
+
+    Py_DECREF(f);
+    Py_XDECREF(f_back);
+
+    /* pop frame */
+exit_run_frame_dispatch:
+    SLP_STORE_NEXT_FRAME(ts, cf->f_back);
+    return retval;
+}
+
 PyObject *
 _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
 {
-    return PyEval_EvalFrameEx_slp(f, throwflag, NULL);
+    /*
+     * This method is not used by Stackless Python. It is provided for compatibility
+     * with extension modules and Cython.
+     */
+    PyThreadState *tstate = PyThreadState_GET();
+    PyObject * retval = NULL;
+    PyFrameObject * f_back;
+
+    if (f == NULL)
+        return NULL;
+
+    /* The layout of PyFrameObject differs between Stackless and C-Python.
+     * Stackless f->f_execute is C-Python f->f_code. Stackless f->f_code is at
+     * the end, just before f_localsplus.
+     */
+    if (PyFrame_Check(f) && f->f_execute == NULL) {
+        /* A new frame returned from PyFrame_New() has f->f_execute == NULL.
+         * Set the usual execution function.
+         */
+        f->f_execute = PyEval_EvalFrameEx_slp;
+
+#if PY_VERSION_HEX < 0x03080000
+        /* Older versions of Cython used to create frames using C-Python layout
+         * of PyFrameObject. As a consequence f_code is overwritten by the first
+         * item of f_localsplus[]. To be able to fix it, we have a copy of
+         * f_code and a signature at the end of the block-stack.
+         * The Py_BUILD_ASSERT_EXPR checks,that our assumptions about the layout
+         * of PyFrameObject are true.
+         * See Stackless issue #168
+         */
+        (void) Py_BUILD_ASSERT_EXPR(offsetof(PyFrameObject, f_code) ==
+               offsetof(PyFrameObject, f_localsplus) - Py_MEMBER_SIZE(PyFrameObject, f_localsplus[0]));
+
+        /* Check for an old Cython frame */
+        if (f->f_iblock == 0 && f->f_lasti == -1 && /* blockstack is empty */
+            f->f_blockstack[0].b_type == -31683 && /* magic is present */
+            /* and f_code has been overwritten */
+            f->f_code != (&(f->f_code))[-1] &&
+            /* and (&(f->f_code))[-1] looks like a valid code object */
+            (&(f->f_code))[-1] && PyCode_Check((&(f->f_code))[-1]) &&
+            /* and there are arguments */
+            (&(f->f_code))[-1]->co_argcount > 0 &&
+            /* the last argument is NULL */
+            f->f_localsplus[(&(f->f_code))[-1]->co_argcount - 1] == NULL)
+        {
+            PyCodeObject * code = (&(f->f_code))[-1];
+            memmove(f->f_localsplus, f->f_localsplus-1, code->co_argcount * sizeof(f->f_localsplus[0]));
+            f->f_code = code;
+        } else
+#endif
+        if (!(f->f_code != NULL && PyCode_Check(f->f_code))) {
+            PyErr_BadInternalCall();
+            return NULL;
+        }
+    } else {
+        /* In order to detect a broken C-Python frame, we must compare f->f_execute
+         * with every valid frame function. Hard to implement completely.
+         * Therefore I'll check only for relevant functions.
+         * Amend the list as needed.
+         *
+         * If needed, we could try to fix an C-Python frame on the fly.
+         *
+         * (It is not possible to detect an C-Python frame by its size, because
+         * we need the code object to compute the expected size and the location
+         * of code objects varies between Stackless and C-Python frames).
+         */
+        if (!PyCFrame_Check(f) &&
+                f->f_execute != PyEval_EvalFrameEx_slp &&
+                f->f_execute != slp_eval_frame_value &&
+                f->f_execute != slp_eval_frame_noval &&
+                f->f_execute != slp_eval_frame_iter &&
+                f->f_execute != slp_eval_frame_setup_with &&
+                f->f_execute != slp_eval_frame_with_cleanup)  {
+            PyErr_BadInternalCall();
+            return NULL;
+        }
+    }
+
+    if (!throwflag) {
+        /* If throwflag is true, retval must be NULL. Otherwise it must be non-NULL.
+         */
+        Py_INCREF(Py_None);
+        retval = Py_None;
+    }
+
+    /* test, if the stackless system has been initialized. */
+    if (tstate->st.main == NULL) {
+        /* Call from extern. Same logic as PyStackless_Call_Main */
+        PyCFrameObject *cf;
+
+        cf = slp_cframe_new(run_frame_dispatch, 0);
+        if (cf == NULL)
+            return NULL;
+        if (throwflag) {
+            retval = slp_curexc_to_bomb();
+        }
+        Py_INCREF(f);
+        cf->ob1 = (PyObject*)f;
+        Py_XINCREF(f->f_back);
+        cf->ob2 = (PyObject*)f->f_back;
+        cf->ob3 = retval; /* transfer our ref. slp_frame_dispatch steals the ref */
+        cf->n = throwflag;
+        retval = slp_eval_frame((PyFrameObject *) cf);
+        Py_DECREF((PyObject *)cf);
+        return retval;
+    }
+
+    /* sanity check. */
+    assert(SLP_CURRENT_FRAME_IS_VALID(tstate));
+    f_back = f->f_back;
+    Py_XINCREF(f_back);
+    retval = slp_frame_dispatch(f, f_back, throwflag, retval);
+    Py_XDECREF(f_back);
+    assert(!STACKLESS_UNWINDING(retval));
+    assert(SLP_CURRENT_FRAME_IS_VALID(tstate));
+    return retval;
 }
 
 PyObject *
@@ -4343,7 +4506,7 @@ too_many_positional(PyCodeObject *co, Py_ssize_t given, Py_ssize_t defcount,
 }
 
 /* This is gonna seem *real weird*, but if you put some other code between
-   PyEval_EvalFrame() and PyEval_EvalCodeEx() you will need to adjust
+   PyEval_EvalFrame() and _PyEval_EvalFrameDefault() you will need to adjust
    the test in the if statements in Misc/gdbinit (pystack and pystackv). */
 
 static PyObject *
@@ -5946,6 +6109,25 @@ format_exc_unbound(PyCodeObject *co, int oparg)
                                 PyTuple_GET_SIZE(co->co_cellvars));
         format_exc_check_arg(PyExc_NameError,
                              UNBOUNDFREE_ERROR_MSG, name);
+    }
+}
+
+static void
+format_awaitable_error(PyTypeObject *type, int prevopcode)
+{
+    if (type->tp_as_async == NULL || type->tp_as_async->am_await == NULL) {
+        if (prevopcode == BEFORE_ASYNC_WITH) {
+            PyErr_Format(PyExc_TypeError,
+                         "'async with' received an object from __aenter__ "
+                         "that does not implement __await__: %.100s",
+                         type->tp_name);
+        }
+        else if (prevopcode == WITH_CLEANUP_START) {
+            PyErr_Format(PyExc_TypeError,
+                         "'async with' received an object from __aexit__ "
+                         "that does not implement __await__: %.100s",
+                         type->tp_name);
+        }
     }
 }
 
