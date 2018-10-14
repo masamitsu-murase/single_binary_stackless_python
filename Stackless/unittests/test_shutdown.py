@@ -478,7 +478,7 @@ class TestInterpreterShutdown(unittest.TestCase):
         script = __file__
         if script.endswith("pyc") or script.endswith("pyo"):
             script = script[:-1]
-        args = [sys.executable, "-S", "-E", script, "IST"]
+        args = [sys.executable, "-s", "-S", "-E", script, "IST"]
         args.append("--running")  # always needed. Killing blocked threads is not possible
         if is_hard:
             args.append("--hard")

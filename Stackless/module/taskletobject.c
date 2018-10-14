@@ -453,7 +453,7 @@ tasklet_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     t->cstate = ts->st.initial_stub;
     t->def_globals = PyEval_GetGlobals();
     Py_XINCREF(t->def_globals);
-    if (ts != slp_initial_tstate) {
+    if (ts != ts->interp->st.initial_tstate) {
         /* make sure to kill tasklets with their thread */
         if (slp_ensure_linkage(t)) {
             Py_DECREF(t);
@@ -1155,7 +1155,7 @@ bind_tasklet_to_frame(PyTaskletObject *task, PyFrameObject *frame)
         task->cstate = ts->st.initial_stub;
         Py_INCREF(task->cstate);
         Py_DECREF(hold);
-        if (ts != slp_initial_tstate)
+        if (ts != ts->interp->st.initial_tstate)
             if (slp_ensure_linkage(task))
                 return -1;
     }

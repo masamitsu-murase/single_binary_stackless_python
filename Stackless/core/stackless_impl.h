@@ -353,8 +353,6 @@ PyObject * slp_wrap_call_frame(PyFrameObject *frame, int exc, PyObject *retval);
 PyAPI_DATA(int) slp_enable_softswitch;
 PyAPI_DATA(int) slp_try_stackless;
 
-extern PyCStackObject * slp_cstack_chain;
-
 PyCStackObject * slp_cstack_new(PyCStackObject **cst, intptr_t *stackref, PyTaskletObject *task);
 size_t slp_cstack_save(PyCStackObject *cstprev);
 void slp_cstack_restore(PyCStackObject *cst);
@@ -667,9 +665,6 @@ void slp_channel_remove_slow(PyTaskletObject *task,
                              PyChannelObject **u_chan,
                              int *dir, PyTaskletObject **next);
 
-/* recording the main thread state */
-extern PyThreadState * slp_initial_tstate;
-
 /* protecting soft-switched tasklets in other threads */
 int slp_ensure_linkage(PyTaskletObject *task);
 
@@ -752,6 +747,7 @@ PyObject * slp_nomemory_bomb(void);
 PyObject * slp_bomb_explode(PyObject *bomb);
 int slp_init_bombtype(void);
 PyObject * slp_get_obj_for_exc_state(_PyErr_StackItem *exc_info);
+PyBombObject * slp_new_bomb(void);
 
 /* handy abbrevations */
 
@@ -802,10 +798,6 @@ int slp_pickle_with_tracing_state(void);
 
 /* debugging/monitoring */
 
-typedef int (slp_schedule_hook_func) (PyTaskletObject *from,
-                                       PyTaskletObject *to);
-extern slp_schedule_hook_func* _slp_schedule_fasthook;
-extern PyObject* _slp_schedule_hook;
 int slp_schedule_callback(PyTaskletObject *prev, PyTaskletObject *next);
 
 int slp_prepare_slots(PyTypeObject*);

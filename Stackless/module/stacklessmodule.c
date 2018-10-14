@@ -133,9 +133,6 @@ atomic_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
  ******************************************************/
 
-PyThreadState *slp_initial_tstate = NULL;
-
-static void *slp_error_handler = NULL;
 
 int
 slp_pickle_with_tracing_state()
@@ -787,46 +784,53 @@ static PyObject *
 set_error_handler(PyObject *self, PyObject *args)
 {
     PyObject *old, *handler = NULL;
+    PyThreadState * ts = PyThreadState_GET();
     if (!PyArg_ParseTuple(args, "|O:set_error_handler", &handler))
         return NULL;
-    old = slp_error_handler ? slp_error_handler : Py_None;
+    old = ts->interp->st.error_handler;
+    if (old == NULL)
+        old = Py_None;
     Py_INCREF(old);
     if (handler == Py_None)
         handler = NULL;
     Py_XINCREF(handler);
-    Py_CLEAR(slp_error_handler);
-    slp_error_handler = handler;
+    Py_XSETREF(ts->interp->st.error_handler, handler);
     return old;
 }
 
 int
 PyStackless_CallErrorHandler(void)
 {
-    assert(PyErr_Occurred());
-    if (slp_error_handler != NULL) {
-        PyObject *exc, *val, *tb;
-        PyObject *result;
-        PyErr_Fetch(&exc, &val, &tb); /* we own the refs in exc, val and tb */
-        assert(exc != NULL);
-        if (!val) {
-            Py_INCREF(Py_None);
-            val = Py_None;
-        }
-        if (!tb) {
-            Py_INCREF(Py_None);
-            tb = Py_None;
-        }
-        result = PyObject_CallFunction(slp_error_handler, "OOO", exc, val, tb);
-        Py_DECREF(exc);
-        Py_DECREF(val);
-        Py_DECREF(tb);
-        Py_XDECREF(result);
-        if (!result)
-            return -1; /* an error in the handler! */
-        return 0;
-    } else
-        return -1; /* just raise the current exception */
+    PyThreadState * ts = PyThreadState_GET();
+    PyObject * error_handler = ts->interp->st.error_handler;
+    int res = -1;  /* just raise the current exception */
+    PyObject *exc, *val, *tb;
+    PyObject *result;
 
+    assert(PyErr_Occurred());
+    if (error_handler == NULL)
+        return res;
+
+    Py_INCREF(error_handler);  /* Own a ref while calling the handler! */
+    PyErr_Fetch(&exc, &val, &tb); /* we own the refs in exc, val and tb */
+    assert(exc != NULL);
+    if (!val) {
+        Py_INCREF(Py_None);
+        val = Py_None;
+    }
+    if (!tb) {
+        Py_INCREF(Py_None);
+        tb = Py_None;
+    }
+    result = PyObject_CallFunction(error_handler, "OOO", exc, val, tb);
+    if (result)
+        res = 0;
+    Py_DECREF(error_handler);
+    Py_DECREF(exc);
+    Py_DECREF(val);
+    Py_DECREF(tb);
+    Py_XDECREF(result);
+    return res;
 }
 
 /******************************************************
@@ -1330,17 +1334,18 @@ PyStackless_CallCMethod_Main(PyMethodDef *meth, PyObject *self, char *format, ..
 
 void PyStackless_SetScheduleFastcallback(slp_schedule_hook_func func)
 {
-    _slp_schedule_fasthook = func;
+    PyThreadState_GET()->interp->st.schedule_fasthook = func;
 }
 
 int PyStackless_SetScheduleCallback(PyObject *callable)
 {
-    PyObject * temp = _slp_schedule_hook;
+    PyThreadState * ts = PyThreadState_GET();
+    PyObject * temp = ts->interp->st.schedule_hook;
     if(callable != NULL && !PyCallable_Check(callable))
         TYPE_ERROR("schedule callback must be callable", -1);
     Py_XINCREF(callable);
-    _slp_schedule_hook = callable;
-    if (callable!=NULL)
+    ts->interp->st.schedule_hook = callable;
+    if (callable != NULL)
         PyStackless_SetScheduleFastcallback(slp_schedule_callback);
     else
         PyStackless_SetScheduleFastcallback(NULL);
@@ -1362,7 +1367,8 @@ Pass None to switch monitoring off again.");
 static PyObject *
 set_schedule_callback(PyObject *self, PyObject *arg)
 {
-    PyObject * old = _slp_schedule_hook;
+    PyThreadState * ts = PyThreadState_GET();
+    PyObject * old = ts->interp->st.schedule_hook;
     if (NULL == old)
         old = Py_None;
     Py_INCREF(old);
@@ -1382,7 +1388,8 @@ This function returns None, if no callback is installed.");
 static PyObject *
 get_schedule_callback(PyObject *self)
 {
-    PyObject *temp = _slp_schedule_hook;
+    PyThreadState * ts = PyThreadState_GET();
+    PyObject *temp = ts->interp->st.schedule_hook;
     if (NULL == temp)
         temp = Py_None;
     Py_INCREF(temp);
@@ -1594,11 +1601,13 @@ PyDoc_STRVAR(slpmodule_getdebug__doc__,
 static PyObject *
 slpmodule_getuncollectables(PyObject *self)
 {
+    PyThreadState * ts = PyThreadState_GET();
     PyObject *lis = PyList_New(0);
-    PyCStackObject *cst = slp_cstack_chain;
+    PyCStackObject *cst, *cst_first = ts->interp->st.cstack_chain;
 
     if (lis == NULL)
         return NULL;
+    cst = cst_first;
     do {
         if (cst->task != NULL) {
             if (PyList_Append(lis, (PyObject *) cst->task)) {
@@ -1607,7 +1616,7 @@ slpmodule_getuncollectables(PyObject *self)
             }
         }
         cst = cst->next;
-    } while (cst != slp_cstack_chain);
+    } while (cst != cst_first);
     return lis;
 }
 
@@ -1811,7 +1820,8 @@ int
 _PyStackless_InitTypes(void)
 {
     /* record the thread state for thread support */
-    slp_initial_tstate = PyThreadState_GET();
+    PyThreadState * ts = PyThreadState_GET();
+    ts->interp->st.initial_tstate = ts;
 
     if (0
         || slp_init_bombtype()

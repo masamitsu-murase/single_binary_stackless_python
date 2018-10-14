@@ -32,9 +32,6 @@ int slp_enable_softswitch = 1;
  */
 int slp_try_stackless = 0;
 
-/* the list of all stacks of all threads */
-struct _cstack *slp_cstack_chain = NULL;
-
 
 /******************************************************
 
@@ -64,8 +61,9 @@ static void slp_cstack_cacheclear(void)
 static void
 cstack_dealloc(PyCStackObject *cst)
 {
-    slp_cstack_chain = cst;
-    SLP_CHAIN_REMOVE(PyCStackObject, &slp_cstack_chain, cst, next,
+    PyThreadState * ts = PyThreadState_GET();
+    ts->interp->st.cstack_chain = cst;
+    SLP_CHAIN_REMOVE(PyCStackObject, &ts->interp->st.cstack_chain, cst, next,
                      prev);
 #ifdef Py_REF_DEBUG
     PyObject_Del(cst);
@@ -125,7 +123,7 @@ slp_cstack_new(PyCStackObject **cst, intptr_t *stackref, PyTaskletObject *task)
 
     (*cst)->startaddr = stackbase;
     (*cst)->next = (*cst)->prev = NULL;
-    SLP_CHAIN_INSERT(PyCStackObject, &slp_cstack_chain, *cst, next, prev);
+    SLP_CHAIN_INSERT(PyCStackObject, &ts->interp->st.cstack_chain, *cst, next, prev);
     (*cst)->serial = ts->st.serial_last_jump;
     (*cst)->task = task;
     (*cst)->tstate = ts;
@@ -339,6 +337,12 @@ slp_eval_frame(PyFrameObject *f)
 
     if (fprev == NULL && ts->st.main == NULL) {
         int returning;
+        if (ts->interp->st.mem_bomb == NULL) {
+            /* allocate the permanent bomb to use for mem errors */
+            if ((ts->interp->st.mem_bomb = slp_new_bomb()) == NULL)
+                return NULL;
+        }
+
         /* this is the initial frame, so mark the stack base */
 
         /*
@@ -371,8 +375,10 @@ slp_eval_frame(PyFrameObject *f)
         if (returning != 1) {
             assert(f == SLP_PEEK_NEXT_FRAME(ts));
         }
+        assert(ts->interp->st.mem_bomb != NULL);
         return slp_run_tasklet();
     }
+    assert(ts->interp->st.mem_bomb != NULL); /* see above */
     Py_INCREF(Py_None);
     Py_XINCREF(fprev);
     retval = slp_frame_dispatch(f, fprev, 0, Py_None);
@@ -482,8 +488,10 @@ run_other_threads(PyObject **sleep, Py_ssize_t count)
 void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
 {
     PyThreadState *cts = PyThreadState_GET();
+    PyInterpreterState * interp = cts->interp;
     int in_loop = 0;
 
+    assert(target_ts == NULL || interp == target_ts->interp);
     if (target_ts == NULL || target_ts == cts) {
         /* Step I of III
          * A loop to kill tasklets on the current thread.
@@ -495,7 +503,7 @@ void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
          *    tstate of all cstacks, which still belong to the killed tasklet.
          */
         while (1) {
-            PyCStackObject *csfirst = slp_cstack_chain, *cs;
+            PyCStackObject *csfirst = interp->st.cstack_chain, *cs;
             PyTaskletObject *t;
 
             if (csfirst == NULL)
@@ -575,7 +583,7 @@ void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
             } /* already dead? */
 
             /* Now remove the tstate from all cstacks of tasklet t */
-            csfirst = slp_cstack_chain;
+            csfirst = interp->st.cstack_chain;
             if (csfirst != NULL) {
                 in_loop = 0;
                 for (cs = csfirst; ; cs = cs->next) {
@@ -624,7 +632,7 @@ other_threads:
 
             /* build a list of tasklets to be killed */
             SLP_HEAD_LOCK();
-            for (ts = cts->interp->tstate_head; ts != NULL; ts = ts->next) {
+            for (ts = interp->tstate_head; ts != NULL; ts = ts->next) {
                 if (ts != cts) {
                     /* Inactivate thread ts. In case the thread is active,
                      * it will be killed. If the thread is sleping, it
@@ -657,7 +665,7 @@ other_threads:
 
         /* other threads, second pass: kill tasklets with nesting-level > 0 and
          * clear tstate if target_ts != NULL && target_ts != cts. */
-        if (slp_cstack_chain == NULL) {
+        if (interp->st.cstack_chain == NULL) {
             Py_XDECREF(sleepfunc);
             goto current_main;
         }
@@ -671,7 +679,7 @@ other_threads:
          * Steps 1 and 2 must not run Python code (release the GIL), because another thread could
          * modify slp_cstack_chain.
          */
-        for(cs = slp_cstack_chain; cs != slp_cstack_chain || in_loop == 0; cs = cs->next) {
+        for(cs = interp->st.cstack_chain; cs != interp->st.cstack_chain || in_loop == 0; cs = cs->next) {
             /* Count tasklets to be killed.
              * This loop body must not release the GIL
              */
@@ -697,15 +705,15 @@ other_threads:
                 count++;
             }
         }
-        assert(cs == slp_cstack_chain);
+        assert(cs == interp->st.cstack_chain);
         if (count > 0) {
             PyObject *tasklets = PyTuple_New(count);
             if (NULL == tasklets) {
                 PyErr_Print();
                 return;
             }
-            assert(cs == slp_cstack_chain);
-            for(in_loop = 0, count=0; cs != slp_cstack_chain || in_loop == 0; cs = cs->next) {
+            assert(cs == interp->st.cstack_chain);
+            for(in_loop = 0, count=0; cs != interp->st.cstack_chain || in_loop == 0; cs = cs->next) {
                 /* Record tasklets to be killed.
                  * This loop body must not release the GIL.
                  */
@@ -785,10 +793,10 @@ current_main:
     if (target_ts == NULL || target_ts == cts) {
         PyCStackObject *cs;
 
-        if (slp_cstack_chain == NULL)
+        if (interp->st.cstack_chain == NULL)
             return;
         in_loop = 0;
-        for (cs = slp_cstack_chain; cs != slp_cstack_chain || in_loop == 0; cs = cs->next) {
+        for (cs = interp->st.cstack_chain; cs != interp->st.cstack_chain || in_loop == 0; cs = cs->next) {
             /* This loop body must not release the GIL. */
             assert(cs);
             assert(cs->next);

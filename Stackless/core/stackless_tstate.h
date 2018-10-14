@@ -11,22 +11,44 @@
 #endif
 #endif
 
+typedef struct _cstack PyCStackObject;
+typedef struct _bomb PyBombObject;
+typedef struct _tasklet PyTaskletObject;
+typedef int (slp_schedule_hook_func) (PyTaskletObject *from, PyTaskletObject *to);
+typedef struct _ts PyThreadState;
 typedef struct {
-    PyObject * reduce_frame_func;
+    PyCStackObject * cstack_chain;              /* the chain of all C-stacks of this interpreter. This is an uncounted/borrowed ref. */
+    PyObject * reduce_frame_func;               /* a function used to pickle frames */
+    PyObject * error_handler;                   /* the Stackless error handler */
+    PyObject * channel_hook;                    /* the channel callback function */
+    PyBombObject * mem_bomb;                    /* a permanent bomb to use for memory errors */
+    PyObject * schedule_hook;                   /* the schedule callback function */
+    slp_schedule_hook_func * schedule_fasthook; /* the fast C-only schedule_hook */
+    PyThreadState * initial_tstate;             /* recording the main thread state */
 } PyStacklessInterpreterState;
 
-#define SPL_INTERPRETERSTATE_NEW(interp) \
-    (interp)->st.reduce_frame_func = NULL
+#define SPL_INTERPRETERSTATE_NEW(interp)       \
+    (interp)->st.cstack_chain = NULL;          \
+    (interp)->st.reduce_frame_func = NULL;     \
+    (interp)->st.error_handler = NULL;         \
+    (interp)->st.channel_hook = NULL;          \
+    (interp)->st.mem_bomb = NULL;              \
+    (interp)->st.schedule_hook = NULL;         \
+    (interp)->st.schedule_fasthook = NULL;     \
+    (interp)->st.initial_tstate = NULL
 
-#define SPL_INTERPRETERSTATE_CLEAR(interp) \
-	Py_CLEAR((interp)->st.reduce_frame_func)
-
+#define SPL_INTERPRETERSTATE_CLEAR(interp)     \
+    (interp)->st.cstack_chain = NULL; /* uncounted ref */  \
+    Py_CLEAR((interp)->st.reduce_frame_func);  \
+    Py_CLEAR((interp)->st.error_handler);      \
+    Py_CLEAR((interp)->st.mem_bomb);           \
+    Py_CLEAR((interp)->st.channel_hook);       \
+    Py_CLEAR((interp)->st.schedule_hook);      \
+    (interp)->st.schedule_fasthook = NULL
 
 struct _frame; /* Avoid including frameobject.h */
 
 typedef struct _sts {
-    /* the blueprint for new stacks */
-    struct _cstack *initial_stub;
     /* "serial" is incremented each time we create a new stub.
      * (enter "stackless" from the outside)
      * and "serial_last_jump" indicates to which stub the current
@@ -40,6 +62,8 @@ typedef struct _sts {
     long serial;
     long serial_last_jump;
 #endif
+    /* the blueprint for new stacks */
+    struct _cstack *initial_stub;
     /* the base address for hijacking stacks. XXX deprecating */
     intptr_t *cstack_base;
     /* stack overflow check and init flag */

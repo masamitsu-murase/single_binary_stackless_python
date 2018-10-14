@@ -14,7 +14,6 @@
 static PyBombObject *free_list = NULL;
 static int numfree = 0;         /* number of bombs currently in free_list */
 #define MAXFREELIST 20          /* max value for numfree */
-static PyBombObject *mem_bomb = NULL; /* a permanent bomb to use for memory errors */
 
 static void
 bomb_dealloc(PyBombObject *bomb)
@@ -49,8 +48,8 @@ bomb_clear(PyBombObject *bomb)
     Py_CLEAR(bomb->curexc_traceback);
 }
 
-static PyBombObject *
-new_bomb(void)
+PyBombObject *
+slp_new_bomb(void)
 {
     PyBombObject *bomb;
 
@@ -77,7 +76,7 @@ static PyObject *
 bomb_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
     static char *kwlist[] = {"type", "value", "traceback", NULL};
-    PyBombObject *bomb = new_bomb();
+    PyBombObject *bomb = slp_new_bomb();
 
     if (bomb == NULL)
         return NULL;
@@ -112,7 +111,7 @@ slp_make_bomb(PyObject *klass, PyObject *args, char *msg)
                    " subclass as first parameter", msg);
         TYPE_ERROR(s, NULL);
     }
-    if ( (bomb = new_bomb()) == NULL)
+    if ( (bomb = slp_new_bomb()) == NULL)
         return NULL;
     Py_INCREF(klass);
     bomb->curexc_type = klass;
@@ -157,7 +156,7 @@ slp_exc_to_bomb(PyObject *exc, PyObject *val, PyObject *tb)
         return NULL;
     }
 
-    bomb = new_bomb();
+    bomb = slp_new_bomb();
     if (bomb == NULL)
         return NULL;
 
@@ -174,12 +173,15 @@ PyObject *
 slp_curexc_to_bomb(void)
 {
     PyBombObject *bomb;
-    assert(mem_bomb != NULL);  /* assert, that the bomb-type was initialized */
+
+    /* assert, that the bomb-type was initialized */
+    assert(PyType_HasFeature(&PyBomb_Type, Py_TPFLAGS_READY));
     if (PyErr_ExceptionMatches(PyExc_MemoryError)) {
-        bomb = mem_bomb;
+        bomb = PyThreadState_GET()->interp->st.mem_bomb;
+        assert(bomb != NULL);
         Py_INCREF(bomb);
     } else
-        bomb = new_bomb();
+        bomb = slp_new_bomb();
     if (bomb != NULL)
         PyErr_Fetch(&bomb->curexc_type, &bomb->curexc_value,
                     &bomb->curexc_traceback);
@@ -309,11 +311,7 @@ PyTypeObject PyBomb_Type = {
 int
 slp_init_bombtype(void)
 {
-    if (PyType_Ready(&PyBomb_Type))
-        return -1;
-    /* allocate the permanent bomb to use for mem errors */
-    mem_bomb = new_bomb();
-    return mem_bomb ? 0 : -1;
+    return PyType_Ready(&PyBomb_Type);
 }
 
 /*******************************************************************
@@ -347,8 +345,6 @@ slp_init_bombtype(void)
 
  ********************************************************************/
 
-slp_schedule_hook_func *_slp_schedule_fasthook;
-PyObject *_slp_schedule_hook;
 
 typedef struct {
     intptr_t magic1;
@@ -437,7 +433,12 @@ slp_get_saved_tstate(PyTaskletObject *task) {
 int
 slp_schedule_callback(PyTaskletObject *prev, PyTaskletObject *next)
 {
+    PyThreadState * ts = PyThreadState_GET();
+    PyObject *schedule_hook = ts->interp->st.schedule_hook;
     PyObject *args;
+
+    if (schedule_hook == NULL)
+        return 0;
 
     if (prev == NULL) prev = (PyTaskletObject *)Py_None;
     if (next == NULL) next = (PyTaskletObject *)Py_None;
@@ -446,7 +447,8 @@ slp_schedule_callback(PyTaskletObject *prev, PyTaskletObject *next)
         PyObject *type, *value, *traceback, *ret;
 
         PyErr_Fetch(&type, &value, &traceback);
-        ret = PyObject_Call(_slp_schedule_hook, args, NULL);
+        Py_INCREF(schedule_hook);
+        ret = PyObject_Call(schedule_hook, args, NULL);
         if (ret != NULL)
             PyErr_Restore(type, value, traceback);
         else {
@@ -456,6 +458,7 @@ slp_schedule_callback(PyTaskletObject *prev, PyTaskletObject *next)
         }
         Py_XDECREF(ret);
         Py_DECREF(args);
+        Py_DECREF(schedule_hook);
         return ret ? 0 : -1;
     }
     else
@@ -463,11 +466,12 @@ slp_schedule_callback(PyTaskletObject *prev, PyTaskletObject *next)
 }
 
 static void
-slp_call_schedule_fasthook(PyThreadState *ts, PyTaskletObject *prev, PyTaskletObject *next)
+slp_call_schedule_fasthook(slp_schedule_hook_func * hook, PyThreadState *ts, PyTaskletObject *prev, PyTaskletObject *next)
 {
     int ret;
     PyObject *tmp;
     PyTaskletObject * old_current;
+    assert(hook);
     if (ts->st.schedlock) {
         Py_FatalError("Recursive scheduler call due to callbacks!");
         return;
@@ -482,7 +486,7 @@ slp_call_schedule_fasthook(PyThreadState *ts, PyTaskletObject *prev, PyTaskletOb
     old_current = ts->st.current;
     if (prev)
         ts->st.current = prev;
-    ret = _slp_schedule_fasthook(prev, next);
+    ret = hook(prev, next);
     ts->st.current = old_current;
     ts->st.schedlock = 0;
     if (ret) {
@@ -501,10 +505,13 @@ slp_call_schedule_fasthook(PyThreadState *ts, PyTaskletObject *prev, PyTaskletOb
     ts->st.del_post_switch = tmp;
 }
 
-#define NOTIFY_SCHEDULE(prev, next, errflag) \
-    if (_slp_schedule_fasthook != NULL) { \
-        slp_call_schedule_fasthook(ts, prev, next); \
-    }
+#define NOTIFY_SCHEDULE(ts, prev, next, errflag) \
+    do { \
+        slp_schedule_hook_func * hook = (ts)->interp->st.schedule_fasthook; \
+        if (hook != NULL) { \
+            slp_call_schedule_fasthook(hook, ts, prev, next); \
+        } \
+    } while(0)
 
 static void
 kill_wrap_bad_guy(PyTaskletObject *prev, PyTaskletObject *bad_guy)
@@ -836,7 +843,7 @@ schedule_task_block(PyObject **result, PyTaskletObject *prev, int stackless, int
 
 cantblock:
     /* cannot block */
-    if (revive_main || (ts == slp_initial_tstate && wakeup->next == NULL)) {
+    if (revive_main || (ts == ts->interp->st.initial_tstate && wakeup->next == NULL)) {
         /* emulate old revive_main behavior:
          * passing a value only if it is an exception
          */
@@ -1038,7 +1045,7 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
         return 0;
     }
 
-    NOTIFY_SCHEDULE(prev, next, -1);
+    NOTIFY_SCHEDULE(ts, prev, next, -1);
 
     if (!(ts->st.runflags & PY_WATCHDOG_TOTALTIMEOUT))
         ts->st.tick_watermark = ts->st.tick_counter + ts->st.interval; /* reset timeslice */
@@ -1058,7 +1065,7 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
         prev->cstate = ts->st.initial_stub;
         Py_INCREF(prev->cstate);
     }
-    if (ts != slp_initial_tstate) {
+    if (ts != ts->interp->st.initial_tstate) {
         /* ensure to get all tasklets into the other thread's chain */
         if (slp_ensure_linkage(prev) || slp_ensure_linkage(next))
             return -1;
@@ -1259,7 +1266,7 @@ slp_initialize_main_and_current(void)
     assert(task->exc_info == &task->exc_state);
     SLP_EXCHANGE_EXCINFO(ts, task);
 
-    NOTIFY_SCHEDULE(NULL, task, -1);
+    NOTIFY_SCHEDULE(ts, NULL, task, -1);
 
     return 0;
 }
@@ -1388,7 +1395,7 @@ slp_tasklet_end(PyObject *retval)
         int handled = 0;
         if (PyErr_ExceptionMatches(PyExc_SystemExit)) {
             /* but if it is truly a SystemExit on the main thread, we want the exit! */
-            if (ts == slp_initial_tstate && !PyErr_ExceptionMatches(PyExc_TaskletExit)) {
+            if (ts == ts->interp->st.initial_tstate && !PyErr_ExceptionMatches(PyExc_TaskletExit)) {
                 PyStackless_HandleSystemExit();
                 handled = 1; /* handler returned, it wants us to silence it */
             } else if (!ismain) {

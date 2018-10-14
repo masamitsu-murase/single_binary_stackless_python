@@ -374,14 +374,13 @@ static PyMemberDef channel_members[] = {
  */
 
 
-static PyObject * channel_hook = NULL;
-
 static void
-channel_callback(PyChannelObject *channel, PyTaskletObject *task, int sending, int willblock)
+channel_callback(PyObject *channel_hook, PyChannelObject *channel, PyTaskletObject *task, int sending, int willblock)
 {
     PyObject *ret;
     PyObject *type, *value, *traceback;
 
+    assert(channel_hook);
     PyErr_Fetch(&type, &value, &traceback);
     ret = PyObject_CallFunction(channel_hook, "(OOii)", channel,
                                 task, sending, willblock);
@@ -398,31 +397,35 @@ channel_callback(PyChannelObject *channel, PyTaskletObject *task, int sending, i
 }
 
 #define NOTIFY_CHANNEL(channel, task, dir, cando, res) \
-    if(channel_hook != NULL) { \
-      if (ts->st.schedlock) {  \
-    RUNTIME_ERROR("Recursive channel call due to callbacks!", res); \
-      } \
-      ts->st.schedlock = 1; \
-      channel_callback(channel, task, dir > 0, !cando); \
-      ts->st.schedlock = 0;\
-   }
+    do { \
+        PyObject * channel_hook = ts->interp->st.channel_hook; \
+        if(channel_hook != NULL) { \
+            if (ts->st.schedlock) {  \
+                RUNTIME_ERROR("Recursive channel call due to callbacks!", res); \
+            } \
+            Py_INCREF(channel_hook);  /* Own a ref while calling channel_hook! */ \
+            ts->st.schedlock = 1; \
+            channel_callback(channel_hook, channel, task, dir > 0, !cando); \
+            ts->st.schedlock = 0; \
+            Py_DECREF(channel_hook); \
+        } \
+    } while(0)
 
 
 int PyStackless_SetChannelCallback(PyObject *callable)
 {
-    PyObject * temp = channel_hook;
+    PyThreadState * ts = PyThreadState_GET();
     if(callable != NULL && !PyCallable_Check(callable))
         TYPE_ERROR("channel callback must be callable", -1);
     Py_XINCREF(callable);
-    channel_hook = callable;
-    Py_XDECREF(temp);
+    Py_XSETREF(ts->interp->st.channel_hook, callable);
     return 0;
 }
 
 PyObject *
 slp_get_channel_callback(void)
 {
-    PyObject *temp = channel_hook;
+    PyObject *temp = PyThreadState_GET()->interp->st.channel_hook;
     Py_XINCREF(temp);
     return temp;
 }
