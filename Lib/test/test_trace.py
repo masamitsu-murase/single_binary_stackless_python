@@ -2,6 +2,7 @@ import os
 import sys
 from test.support import TESTFN, rmtree, unlink, captured_stdout
 from test.support.script_helper import assert_python_ok, assert_python_failure
+import textwrap
 import unittest
 
 import trace
@@ -292,6 +293,7 @@ class TestCallers(unittest.TestCase):
 
 
 # Created separately for issue #3821
+@unittest.skip("Skip temporarily because trace does not work fine with embeddedimport.")
 class TestCoverage(unittest.TestCase):
     def setUp(self):
         self.addCleanup(sys.settrace, sys.gettrace())
@@ -307,7 +309,6 @@ class TestCoverage(unittest.TestCase):
         r = tracer.results()
         r.write_results(show_missing=True, summary=True, coverdir=TESTFN)
 
-    @unittest.skip("Skip temporarily.")
     def test_coverage(self):
         tracer = trace.Trace(trace=0, count=1)
         with captured_stdout() as stdout:
@@ -367,6 +368,48 @@ class Test_Ignore(unittest.TestCase):
         # Matched before.
         self.assertTrue(ignore.names(jn('bar', 'baz.py'), 'baz'))
 
+# Created for Issue 31908 -- CLI utility not writing cover files
+class TestCoverageCommandLineOutput(unittest.TestCase):
+
+    codefile = 'tmp.py'
+    coverfile = 'tmp.cover'
+
+    def setUp(self):
+        with open(self.codefile, 'w') as f:
+            f.write(textwrap.dedent('''\
+                x = 42
+                if []:
+                    print('unreachable')
+            '''))
+
+    def tearDown(self):
+        unlink(self.codefile)
+        unlink(self.coverfile)
+
+    @unittest.skip("Skip temporarily because trace does not work fine with embeddedimport.")
+    def test_cover_files_written_no_highlight(self):
+        argv = '-m trace --count'.split() + [self.codefile]
+        status, stdout, stderr = assert_python_ok(*argv)
+        self.assertTrue(os.path.exists(self.coverfile))
+        with open(self.coverfile) as f:
+            self.assertEqual(f.read(),
+                "    1: x = 42\n"
+                "    1: if []:\n"
+                "           print('unreachable')\n"
+            )
+
+    @unittest.skip("Skip temporarily because trace does not work fine with embeddedimport.")
+    def test_cover_files_written_with_highlight(self):
+        argv = '-m trace --count --missing'.split() + [self.codefile]
+        status, stdout, stderr = assert_python_ok(*argv)
+        self.assertTrue(os.path.exists(self.coverfile))
+        with open(self.coverfile) as f:
+            self.assertEqual(f.read(), textwrap.dedent('''\
+                    1: x = 42
+                    1: if []:
+                >>>>>>     print('unreachable')
+            '''))
+
 class TestCommandLine(unittest.TestCase):
 
     def test_failures(self):
@@ -388,6 +431,17 @@ class TestCommandLine(unittest.TestCase):
             fd.write("a = 1\n")
             status, stdout, stderr = assert_python_ok('-m', 'trace', '-l', TESTFN)
             self.assertIn(b'functions called:', stdout)
+
+    @unittest.skip("Skip temporarily because trace converts argv to tuple from list.")
+    def test_sys_argv_list(self):
+        with open(TESTFN, 'w') as fd:
+            self.addCleanup(unlink, TESTFN)
+            fd.write("import sys\n")
+            fd.write("print(type(sys.argv))\n")
+
+        status, direct_stdout, stderr = assert_python_ok(TESTFN)
+        status, trace_stdout, stderr = assert_python_ok('-m', 'trace', '-l', TESTFN)
+        self.assertIn(direct_stdout.strip(), trace_stdout)
 
 if __name__ == '__main__':
     unittest.main()

@@ -101,5 +101,6 @@ Tools/ssl/amd64
 Tools/ssl/win32
 .vs/
 .vscode/
+gmon.out
 Modules/embeddedimport_data.c
 externals/tcl-core-8.6.6.0/generic/tclEmbeddedFilesystemData.c

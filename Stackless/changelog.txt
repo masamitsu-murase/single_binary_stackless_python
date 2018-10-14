@@ -4,6 +4,33 @@ Stackless-Python News
 This file documents user visible changes to the Stackless extension of C-Python.
 For other changes see Misc/NEWS.
 
+What's New in Stackless 3.6.5 and 3.6.6?
+========================================
+
+*Release date: 2018-09-12*  (3.6.6)
+*Release date: 2018-09-11*  (3.6.5)
+
+- https://github.com/stackless-dev/stackless/issues/168
+  Make Stackless compatible with old Cython extension modules compiled
+  for regular C-Python.
+
+- https://github.com/stackless-dev/stackless/issues/166
+  Fix C-API functions PyEval_EvalFrameEx() and PyEval_EvalFrame().
+  They are now compatible with C-Python.
+
+- https://github.com/stackless-dev/stackless/issues/167
+  Replace 'printf(...)' calls by PySys_WriteStderr(...). They are used to emit
+  an error message, if there is a pending error while entering Stackless
+  subsystem.
+
+- https://github.com/stackless-dev/stackless/issues/154
+  Fix a minor bug in STACKLESS_PROMOTE_WRAPPER and STACKLESS_PROMOTE_METHOD.
+
+- https://github.com/stackless-dev/stackless/issues/150
+  The prototype of PyStackless_GetCurrentId(void) was missing from
+  stackless_api.h. It is now defined.
+
+
 What's New in Stackless 3.6.4?
 ==============================
 

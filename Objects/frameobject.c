@@ -58,6 +58,9 @@ frame_getlineno(PyFrameObject *f, void *closure)
  *  o 'try'/'for'/'while' blocks can't be jumped into because the blockstack
  *    needs to be set up before their code runs, and for 'for' loops the
  *    iterator needs to be on the stack.
+ *  o Jumps cannot be made from within a trace function invoked with a
+ *    'return' or 'exception' event since the eval loop has been exited at
+ *    that time.
  */
 static int
 frame_setlineno(PyFrameObject *f, PyObject* p_new_lineno)
@@ -93,13 +96,32 @@ frame_setlineno(PyFrameObject *f, PyObject* p_new_lineno)
         return -1;
     }
 
+    /* Upon the 'call' trace event of a new frame, f->f_lasti is -1 and
+     * f->f_trace is NULL, check first on the first condition.
+     * Forbidding jumps from the 'call' event of a new frame is a side effect
+     * of allowing to set f_lineno only from trace functions. */
+    if (f->f_lasti == -1) {
+        PyErr_Format(PyExc_ValueError,
+                     "can't jump from the 'call' trace event of a new frame");
+        return -1;
+    }
+
     /* You can only do this from within a trace function, not via
      * _getframe or similar hackery. */
-    if (!f->f_trace)
-    {
+    if (!f->f_trace) {
         PyErr_Format(PyExc_ValueError,
-                     "f_lineno can only be set by a"
-                     " line trace function");
+                     "f_lineno can only be set by a trace function");
+        return -1;
+    }
+
+    /* Forbid jumps upon a 'return' trace event (except after executing a
+     * YIELD_VALUE or YIELD_FROM opcode, f_stacktop is not NULL in that case)
+     * and upon an 'exception' trace event.
+     * Jumps from 'call' trace events have already been forbidden above for new
+     * frames, so this check does not change anything for 'call' events. */
+    if (f->f_stacktop == NULL) {
+        PyErr_SetString(PyExc_ValueError,
+                "can only jump from a 'line' trace event");
         return -1;
     }
 
@@ -158,6 +180,16 @@ frame_setlineno(PyFrameObject *f, PyObject* p_new_lineno)
 
     /* We're now ready to look at the bytecode. */
     PyBytes_AsStringAndSize(f->f_code->co_code, (char **)&code, &code_len);
+
+    /* The trace function is called with a 'return' trace event after the
+     * execution of a yield statement. */
+    assert(f->f_lasti != -1);
+    if (code[f->f_lasti] == YIELD_VALUE || code[f->f_lasti] == YIELD_FROM) {
+        PyErr_SetString(PyExc_ValueError,
+                "can't jump from a yield statement");
+        return -1;
+    }
+
     min_addr = Py_MIN(new_lasti, f->f_lasti);
     max_addr = Py_MAX(new_lasti, f->f_lasti);
 
@@ -319,6 +351,13 @@ frame_setlineno(PyFrameObject *f, PyObject* p_new_lineno)
             PyObject *v = (*--f->f_stacktop);
             Py_DECREF(v);
         }
+        if (b->b_type == SETUP_FINALLY &&
+            code[b->b_handler] == WITH_CLEANUP_START)
+        {
+            /* Pop the exit function. */
+            PyObject *v = (*--f->f_stacktop);
+            Py_DECREF(v);
+        }
     }
 
     /* Finally set the new f_lineno and f_lasti and return OK. */
@@ -442,6 +481,13 @@ frame_dealloc(PyFrameObject *f)
 
     PyObject_GC_UnTrack(f);
     Py_TRASHCAN_SAFE_BEGIN(f)
+
+#if defined(STACKLESS) && PY_VERSION_HEX < 0x03080000
+    /* Clear the magic for the old Cython frame hack.
+     * See below in PyFrame_New() for a detailed explanation.
+     */
+    f->f_blockstack[0].b_type = 0;
+#endif
     /* Kill all local variables */
     valuestack = f->f_valuestack;
     for (p = f->f_localsplus; p < valuestack; p++)
@@ -754,6 +800,25 @@ PyFrame_New(PyThreadState *tstate, PyCodeObject *code, PyObject *globals,
 
 #ifdef STACKLESS
     f->f_execute = NULL;
+#if PY_VERSION_HEX < 0x03080000
+    if (code->co_argcount > 0) {
+        /*
+         * A hack for binary compatibility with Cython extension modules, which
+         * were created with an older Cythoncompiled with regular C-Python. These
+         * modules create frames using PyFrame_New then write to frame->f_localsplus
+         * to set the arguments. But C-Python f_localsplus is Stackless f_code.
+         * Therefore we add a copy of f_code and a magic number in the
+         * uninitialized f_blockstack array.
+         * If the blockstack is used, the magic is overwritten.
+         * To make sure, the pointer is aligned correctly, we address it relative to
+         * f_code.
+         * See Stackless issue #168
+         */
+        (&(f->f_code))[-1] = code;
+        /* an arbitrary negative number which is not an opcode */
+        f->f_blockstack[0].b_type = -31683;
+    }
+#endif
 #endif
     _PyObject_GC_TRACK(f);
     return f;
