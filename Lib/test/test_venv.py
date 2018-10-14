@@ -293,7 +293,8 @@ class BasicTest(BaseTest):
             'import sys; print(sys.executable)'])
         self.assertEqual(out.strip(), envpy.encode())
 
-    @unittest.skipUnless(os.name == 'nt', 'only relevant on Windows')
+    # @unittest.skipUnless(os.name == 'nt', 'only relevant on Windows')
+    @unittest.skip('venv is not supported.')
     def test_unicode_in_batch_file(self):
         """
         Test handling of Unicode paths
