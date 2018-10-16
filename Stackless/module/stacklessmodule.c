@@ -220,7 +220,8 @@ PyStackless_Schedule(PyObject *retval, int remove)
 PyObject *
 PyStackless_Schedule_nr(PyObject *retval, int remove)
 {
-    STACKLESS_PROPOSE_ALL();
+    PyThreadState *ts = PyThreadState_GET();
+    STACKLESS_PROPOSE_ALL(ts);
     return PyStackless_Schedule(retval, remove);
 }
 
@@ -362,15 +363,16 @@ PyDoc_STRVAR(enable_soft__doc__,
 static PyObject *
 enable_softswitch(PyObject *self, PyObject *flag)
 {
+    PyThreadState *ts = PyThreadState_GET();
     PyObject *ret;
     int newflag;
     if (!flag || flag == Py_None)
-        return PyBool_FromLong(slp_enable_softswitch);
+        return PyBool_FromLong(ts->interp->st.enable_softswitch);
     newflag = PyObject_IsTrue(flag);
     if (newflag == -1 && PyErr_Occurred())
         return NULL;
-    ret = PyBool_FromLong(slp_enable_softswitch);
-    slp_enable_softswitch = newflag;
+    ret = PyBool_FromLong(ts->interp->st.enable_softswitch);
+    ts->interp->st.enable_softswitch = newflag;
     return ret;
 }
 
@@ -1010,7 +1012,7 @@ PyDoc_STRVAR(test_nostacklesscalltype__doc__,
 "A callable extension type that does not support stackless calls\n"
 "It calls arg[0](*arg[1:], **kw).\n"
 "There are two special keyword arguments\n"
-"  post_callback: callback(result, stackless, slp_try_stackless, **kw) that runs after arg[0].\n"
+"  post_callback: callback(result, stackless, try_stackless, **kw) that runs after arg[0].\n"
 "  set_try_stackless: integer value, assigned to set spl_try_stackless."
 );
 
@@ -1026,7 +1028,7 @@ test_nostacklesscall_call(PyObject *f, PyObject *arg, PyObject *kw)
     PyObject * callback1;
     PyObject * callback2 = NULL;
     PyObject * rest;
-    int stackless = slp_try_stackless;
+    int stackless = (_PyRuntime.st.try_stackless);
 
     callback1 = PyTuple_GetItem(arg, 0);
     if (callback1 == NULL)
@@ -1050,7 +1052,7 @@ test_nostacklesscall_call(PyObject *f, PyObject *arg, PyObject *kw)
             l = PyObject_IsTrue(setTryStackless);
             Py_DECREF(setTryStackless);
             if (-1 != l)
-                slp_try_stackless = l;
+                (_PyRuntime.st.try_stackless) = l;
             else
                 return NULL;
         }
@@ -1080,14 +1082,14 @@ test_nostacklesscall_call(PyObject *f, PyObject *arg, PyObject *kw)
         return NULL;
     }
 
-    rest = Py_BuildValue("Oii", result, stackless, slp_try_stackless);
+    rest = Py_BuildValue("Oii", result, stackless, (_PyRuntime.st.try_stackless));
     Py_DECREF(result);
     if (rest == NULL) {
         Py_DECREF(callback2);
         return NULL;
     }
 
-    slp_try_stackless = 0;
+    (_PyRuntime.st.try_stackless) = 0;
     result = PyObject_Call(callback2, rest, kw);
     Py_DECREF(callback2);
     Py_DECREF(rest);

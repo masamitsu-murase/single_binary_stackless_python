@@ -48,7 +48,7 @@ _PyRuntimeState_Init(_PyRuntimeState *runtime)
     _PyMem_Initialize(&runtime->mem);
     _PyGC_Initialize(&runtime->gc);
     _PyEval_Initialize(&runtime->ceval);
-    slp_initialize(&runtime->sl);
+    slp_initialize(&runtime->st);
 
     runtime->gilstate.check_enabled = 1;
     /* A TSS key must be initialized with Py_tss_NEEDS_INIT

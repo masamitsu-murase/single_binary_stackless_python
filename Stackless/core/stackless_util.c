@@ -3,6 +3,13 @@
 #ifdef STACKLESS
 #include "stackless_impl.h"
 
+/* Initialize the Stackless runtime state */
+void
+slp_initialize(struct _stackless_runtime_state * state) {
+    /* initialize all fields to zero */
+    memset(state, 0, sizeof(*state));
+}
+
 /* Shorthands to return certain errors */
 
 PyObject *

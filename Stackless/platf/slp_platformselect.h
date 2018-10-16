@@ -1,3 +1,6 @@
+#ifndef STACKLESS_SLP_PLATFORM_SELECT_H
+#define STACKLESS_SLP_PLATFORM_SELECT_H
+
 /*
  * Platform Selection for Stackless
  */
@@ -82,3 +85,5 @@
 	((tstate)->st.cstack_root != NULL ? \
 	 CSTACK_SUBTRACT((tstate)->st.cstack_root, \
 	 (intptr_t*)&(stackvar)) > CSTACK_WATERMARK : 1)
+
+#endif

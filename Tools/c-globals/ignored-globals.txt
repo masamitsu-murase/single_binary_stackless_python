@@ -494,10 +494,6 @@ PyExc_TaskletExit
 _stackless_methtable
 
 # Stackless/core/stacklesseval.c
-# justification: cache
-cstack_cache
-cstack_cachecount
-
 # justification: constant singleton
 unwind_token
 Py_UnwindToken

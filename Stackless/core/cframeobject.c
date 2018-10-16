@@ -225,7 +225,7 @@ static PyObject * run_cframe(PyFrameObject *f, int exc, PyObject *retval)
     if (cf->ob2 == NULL)
         cf->ob2 = PyTuple_New(0);
     Py_DECREF(retval);
-    STACKLESS_PROPOSE_ALL();
+    STACKLESS_PROPOSE_ALL(ts);
     retval = PyObject_Call(cf->ob1, cf->ob2, cf->ob3);
     STACKLESS_ASSERT();
     cf->i = 1; /* mark ourself as done */

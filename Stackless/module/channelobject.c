@@ -618,7 +618,8 @@ impl_channel_send(PyChannelObject *self, PyObject *arg)
 int
 PyChannel_Send_nr(PyChannelObject *self, PyObject *arg)
 {
-    STACKLESS_PROPOSE_ALL();
+    PyThreadState *ts = PyThreadState_GET();
+    STACKLESS_PROPOSE_ALL(ts);
     return slp_return_wrapper(impl_channel_send(self, arg));
 }
 
@@ -801,9 +802,10 @@ impl_channel_receive(PyChannelObject *self)
 PyObject *
 PyChannel_Receive_nr(PyChannelObject *self)
 {
+    PyThreadState *ts = PyThreadState_GET();
     PyObject *ret;
 
-    STACKLESS_PROPOSE_ALL();
+    STACKLESS_PROPOSE_ALL(ts);
     ret = impl_channel_receive(self);
     STACKLESS_ASSERT();
     return ret;
@@ -960,7 +962,7 @@ _channel_send_sequence(PyChannelObject *self, PyObject *v)
 PyObject *
 channel_seq_callback(PyFrameObject *_f, int exc, PyObject *retval)
 {
-    PyThreadState *ts;
+    PyThreadState *ts = PyThreadState_GET();
     PyCFrameObject *f = (PyCFrameObject *) _f;
     PyChannelObject *ch;
     PyObject *item;
@@ -984,7 +986,7 @@ channel_seq_callback(PyFrameObject *_f, int exc, PyObject *retval)
     /* Run iterator to exhaustion. */
     for (; ; f->i++) {
         /* get the data */
-        STACKLESS_PROPOSE_ALL();
+        STACKLESS_PROPOSE_ALL(ts);
         item = PyIter_Next(f->ob1);
 
         if (STACKLESS_UNWINDING(item)) {
@@ -1006,7 +1008,7 @@ back_with_data:
 
         /* send the data */
         ch = (PyChannelObject *) f->ob2;
-        STACKLESS_PROPOSE_ALL();
+        STACKLESS_PROPOSE_ALL(ts);
         retval = impl_channel_send(ch, item);
         Py_DECREF(item);
         if (retval == NULL)
@@ -1024,7 +1026,6 @@ back_from_send:
 exit_frame:
 
     /* epilog to return from the frame */
-    ts = PyThreadState_GET();
     SLP_STORE_NEXT_FRAME(ts, f->f_back);
     Py_DECREF(f);
     return retval;

@@ -13,25 +13,6 @@
 
 /* Stackless extension for ceval.c */
 
-/******************************************************
-
-  Static Global Variables
-
-*******************************************************/
-
-/* the flag which decides whether we try to use soft switching */
-
-int slp_enable_softswitch = 1;
-
-/*
- * flag whether the next call should try to be stackless.
- * The protocol is: This flag may be only set if the called
- * thing supports it. It doesn't matter whether it uses the
- * chance, but it *must* set it to zero before returning.
- * This flags in a way serves as a parameter that we don't have.
- */
-int slp_try_stackless = 0;
-
 
 /******************************************************
 
@@ -39,8 +20,7 @@ int slp_try_stackless = 0;
 
  ******************************************************/
 
-static PyCStackObject *cstack_cache[CSTACK_SLOTS] = { NULL };
-static int cstack_cachecount = 0;
+
 
 /* this function will get called by PyStacklessEval_Fini */
 static void slp_cstack_cacheclear(void)
@@ -49,13 +29,13 @@ static void slp_cstack_cacheclear(void)
     PyCStackObject *stack;
 
     for (i=0; i < CSTACK_SLOTS; i++) {
-        while (cstack_cache[i] != NULL) {
-            stack = cstack_cache[i];
-            cstack_cache[i] = (PyCStackObject *) stack->startaddr;
+        while ((_PyRuntime.st.cstack_cache)[i] != NULL) {
+            stack = (_PyRuntime.st.cstack_cache)[i];
+            (_PyRuntime.st.cstack_cache)[i] = (PyCStackObject *) stack->startaddr;
             PyObject_Del(stack);
         }
     }
-    cstack_cachecount = 0;
+    (_PyRuntime.st.cstack_cachecount) = 0;
 }
 
 static void
@@ -72,11 +52,11 @@ cstack_dealloc(PyCStackObject *cst)
         PyObject_Del(cst);
     }
     else {
-        if (cstack_cachecount >= CSTACK_MAXCACHE)
+        if ((_PyRuntime.st.cstack_cachecount) >= CSTACK_MAXCACHE)
             slp_cstack_cacheclear();
-        cst->startaddr = (intptr_t *) cstack_cache[Py_SIZE(cst)];
-        cstack_cache[Py_SIZE(cst)] = cst;
-        ++cstack_cachecount;
+        cst->startaddr = (intptr_t *) (_PyRuntime.st.cstack_cache)[Py_SIZE(cst)];
+        (_PyRuntime.st.cstack_cache)[Py_SIZE(cst)] = cst;
+        ++(_PyRuntime.st.(_PyRuntime.st.cstack_cachecount));
     }
 #endif
 }
@@ -111,10 +91,10 @@ slp_cstack_new(PyCStackObject **cst, intptr_t *stackref, PyTaskletObject *task)
             (*cst)->task = NULL;
         Py_DECREF(*cst);
     }
-    if (size < CSTACK_SLOTS && ((*cst) = cstack_cache[size])) {
+    if (size < CSTACK_SLOTS && ((*cst) = (_PyRuntime.st.cstack_cache)[size])) {
         /* take stack from cache */
-        cstack_cache[size] = (PyCStackObject *) (*cst)->startaddr;
-        --cstack_cachecount;
+        (_PyRuntime.st.cstack_cache)[size] = (PyCStackObject *) (*cst)->startaddr;
+        --(_PyRuntime.st.cstack_cachecount);
         _Py_NewReference((PyObject *)(*cst));
     }
     else

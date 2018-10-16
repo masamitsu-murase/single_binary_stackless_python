@@ -25,6 +25,7 @@ typedef struct {
     PyObject * schedule_hook;                   /* the schedule callback function */
     slp_schedule_hook_func * schedule_fasthook; /* the fast C-only schedule_hook */
     PyThreadState * initial_tstate;             /* recording the main thread state */
+    int enable_softswitch;                      /* the flag which decides whether we try to use soft switching */
 } PyStacklessInterpreterState;
 
 #define SPL_INTERPRETERSTATE_NEW(interp)       \
@@ -35,7 +36,8 @@ typedef struct {
     (interp)->st.mem_bomb = NULL;              \
     (interp)->st.schedule_hook = NULL;         \
     (interp)->st.schedule_fasthook = NULL;     \
-    (interp)->st.initial_tstate = NULL
+    (interp)->st.initial_tstate = NULL;        \
+    (interp)->st.enable_softswitch = 1;
 
 #define SPL_INTERPRETERSTATE_CLEAR(interp)     \
     (interp)->st.cstack_chain = NULL; /* uncounted ref */  \
@@ -44,7 +46,8 @@ typedef struct {
     Py_CLEAR((interp)->st.mem_bomb);           \
     Py_CLEAR((interp)->st.channel_hook);       \
     Py_CLEAR((interp)->st.schedule_hook);      \
-    (interp)->st.schedule_fasthook = NULL
+    (interp)->st.schedule_fasthook = NULL;     \
+    (interp)->st.enable_softswitch = 1;
 
 struct _frame; /* Avoid including frameobject.h */
 

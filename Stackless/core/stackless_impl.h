@@ -349,10 +349,6 @@ PyObject * slp_wrap_call_frame(PyFrameObject *frame, int exc, PyObject *retval);
 
 /*** access to system-wide globals from stacklesseval.c ***/
 
-/* variables for the stackless protocol */
-PyAPI_DATA(int) slp_enable_softswitch;
-PyAPI_DATA(int) slp_try_stackless;
-
 PyCStackObject * slp_cstack_new(PyCStackObject **cst, intptr_t *stackref, PyTaskletObject *task);
 size_t slp_cstack_save(PyCStackObject *cstprev);
 void slp_cstack_restore(PyCStackObject *cst);
@@ -456,48 +452,47 @@ PyTaskletObject * slp_get_watchdog(PyThreadState *ts, int interrupt);
 
 /* macros for setting/resetting the stackless flag */
 
-#define STACKLESS_POSSIBLE()                                        \
-    (slp_enable_softswitch && \
-    PyThreadState_GET()->st.unwinding_retval == NULL)
+#define STACKLESS_POSSIBLE(tstate) \
+    ((tstate)->interp->st.enable_softswitch && (tstate)->st.unwinding_retval == NULL)
 
 #define STACKLESS_GETARG() \
     int stackless = (assert(SLP_CURRENT_FRAME_IS_VALID(PyThreadState_GET())), \
-                     stackless = slp_try_stackless, \
-                     slp_try_stackless = 0, \
+                     stackless = (_PyRuntime.st.try_stackless), \
+                     (_PyRuntime.st.try_stackless) = 0, \
                      stackless)
 
 #define STACKLESS_PROMOTE(func) \
-    (stackless ? slp_try_stackless = \
+    (stackless ? (_PyRuntime.st.try_stackless) = \
      Py_TYPE(func)->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_CALL : 0)
 
 #define STACKLESS_PROMOTE_FLAG(flag) \
-    (stackless ? slp_try_stackless = (flag) : 0)
+    (stackless ? (_PyRuntime.st.try_stackless) = (flag) : 0)
 
 #define STACKLESS_PROMOTE_METHOD(obj, meth) do { \
     if ((Py_TYPE(obj)->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_EXTENSION) && \
      Py_TYPE(obj)->tp_as_mapping) \
-        slp_try_stackless = stackless && Py_TYPE(obj)->tp_as_mapping->slpflags.meth; \
+        (_PyRuntime.st.try_stackless) = stackless && Py_TYPE(obj)->tp_as_mapping->slpflags.meth; \
 } while (0)
 
 #define STACKLESS_PROMOTE_WRAPPER(descr) \
-    (slp_try_stackless = stackless && (descr)->d_slpmask)
+    ((_PyRuntime.st.try_stackless) = stackless && (descr)->d_slpmask)
 
-#define STACKLESS_PROMOTE_ALL() ((void)(slp_try_stackless = stackless, NULL))
+#define STACKLESS_PROMOTE_ALL() ((void)((_PyRuntime.st.try_stackless) = stackless, NULL))
 
-#define STACKLESS_PROPOSE(func) {int stackless = STACKLESS_POSSIBLE(); \
+#define STACKLESS_PROPOSE(tstate, func) {int stackless = STACKLESS_POSSIBLE(tstate); \
                  STACKLESS_PROMOTE(func);}
 
-#define STACKLESS_PROPOSE_FLAG(flag) {int stackless = STACKLESS_POSSIBLE(); \
+#define STACKLESS_PROPOSE_FLAG(tstate, flag) {int stackless = STACKLESS_POSSIBLE(tstate); \
                       STACKLESS_PROMOTE_FLAG(flag);}
 
-#define STACKLESS_PROPOSE_METHOD(obj, meth) {int stackless = STACKLESS_POSSIBLE(); \
+#define STACKLESS_PROPOSE_METHOD(tstate, obj, meth) {int stackless = STACKLESS_POSSIBLE(tstate); \
                  STACKLESS_PROMOTE_METHOD(obj, meth);}
 
-#define STACKLESS_PROPOSE_ALL() slp_try_stackless = STACKLESS_POSSIBLE()
+#define STACKLESS_PROPOSE_ALL(tstate) (_PyRuntime.st.try_stackless) = STACKLESS_POSSIBLE(tstate)
 
-#define STACKLESS_RETRACT() slp_try_stackless = 0;
+#define STACKLESS_RETRACT() (_PyRuntime.st.try_stackless) = 0;
 
-#define STACKLESS_ASSERT() assert(!slp_try_stackless)
+#define STACKLESS_ASSERT() assert(!(_PyRuntime.st.try_stackless))
 
 /* this is just a tag to denote which methods are stackless */
 
@@ -511,7 +506,7 @@ PyTaskletObject * slp_get_watchdog(PyThreadState *ts, int interrupt);
 /*
 
   How this works:
-  There is one global variable slp_try_stackless which is used
+  There is one global variable (_PyRuntime.st.try_stackless) which is used
   like an implicit parameter. Since we don't have a real parameter,
   the flag is copied into the local variable "stackless" and cleared.
   This is done by the STACKLESS_GETARG() macro, which should be added to
@@ -527,7 +522,7 @@ PyTaskletObject * slp_get_watchdog(PyThreadState *ts, int interrupt);
 
   STACKLESS_GETARG()
 
-    move the slp_try_stackless flag into the local variable "stackless".
+    move the (_PyRuntime.st.try_stackless) flag into the local variable "stackless".
 
   STACKLESS_PROMOTE_ALL()
 
@@ -540,7 +535,7 @@ PyTaskletObject * slp_get_watchdog(PyThreadState *ts, int interrupt);
 
     if stackless was set and the function's type has set
     Py_TPFLAGS_HAVE_STACKLESS_CALL, then this flag will be
-    put back into slp_try_stackless, and we expect that the
+    put back into (_PyRuntime.st.try_stackless), and we expect that the
     function handles it correctly.
 
   STACKLESS_PROMOTE_FLAG(flag)
@@ -560,7 +555,7 @@ PyTaskletObject * slp_get_watchdog(PyThreadState *ts, int interrupt);
 
   STACKLESS_ASSERT()
 
-    make sure that slp_try_stackless was cleared. This debug feature
+    make sure that (_PyRuntime.st.try_stackless) was cleared. This debug feature
     tries to ensure that no unexpected nonrecursive call can happen.
 
   Some functions which are known to be stackless by nature
@@ -681,9 +676,7 @@ int slp_schedule_task(PyObject **result,
 void slp_thread_unblock(PyThreadState *ts);
 
 int slp_initialize_main_and_current(void);
-/* not yet implemented
-void slp_initialize(struct _stackless_runtime_state *); */
-#define slp_initialize(s) /* empty */
+void slp_initialize(struct _stackless_runtime_state *);
 
 /* setting the tasklet's tempval, optimized for no change */
 
@@ -839,9 +832,10 @@ long slp_parse_thread_id(PyObject *thread_id, unsigned long *id);
 #define STACKLESS_PROMOTE_METHOD(obj, meth) stackless = 0
 #define STACKLESS_PROMOTE_WRAPPER(descr) stackless = 0
 #define STACKLESS_PROMOTE_ALL() stackless = 0
-#define STACKLESS_PROPOSE(func) assert(1)
-#define STACKLESS_PROPOSE_FLAG(flag) assert(1)
-#define STACKLESS_PROPOSE_ALL() assert(1)
+#define STACKLESS_PROPOSE(tstate, func) assert(1)
+#define STACKLESS_PROPOSE_FLAG(tstate, flag) assert(1)
+#define STACKLESS_PROPOSE_ALL(tstate) assert(1)
+#define STACKLESS_PROPOSE_METHOD(tstate, obj, meth) assert(1)
 #define STACKLESS_RETRACT() assert(1)
 #define STACKLESS_ASSERT() assert(1)
 

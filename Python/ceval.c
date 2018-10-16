@@ -2998,7 +2998,7 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
             PyObject *next;
 #ifdef STACKLESS
             {
-                STACKLESS_PROPOSE_METHOD(iter, tp_iternext);
+                STACKLESS_PROPOSE_METHOD(tstate, iter, tp_iternext);
                 next = (*iter->ob_type->tp_iternext)(iter);
                 STACKLESS_ASSERT();
             }
@@ -3108,7 +3108,7 @@ stackless_iter_return:
             }
             SET_TOP(exit);
             Py_DECREF(mgr);
-            STACKLESS_PROPOSE_ALL();
+            STACKLESS_PROPOSE_ALL(tstate);
             res = _PyObject_CallNoArg(enter);
             STACKLESS_ASSERT();
             Py_DECREF(enter);
@@ -3210,7 +3210,7 @@ stackless_setup_with_return:
             stack[0] = exc;
             stack[1] = val;
             stack[2] = tb;
-            STACKLESS_PROPOSE_ALL();
+            STACKLESS_PROPOSE_ALL(tstate);
             res = _PyObject_FastCall(exit_func, stack, 3);
             STACKLESS_ASSERT();
             Py_DECREF(exit_func);
@@ -3437,7 +3437,7 @@ stackless_call_return:
             }
             assert(PyTuple_CheckExact(callargs));
 
-            STACKLESS_PROPOSE_ALL();
+            STACKLESS_PROPOSE_ALL(tstate);
             result = do_call_core(func, callargs, kwargs);
             STACKLESS_ASSERT();
             Py_DECREF(func);
@@ -5225,18 +5225,17 @@ call_function(PyObject ***pp_stack, Py_ssize_t oparg, PyObject *kwnames)
     Py_ssize_t nkwargs = (kwnames == NULL) ? 0 : PyTuple_GET_SIZE(kwnames);
     Py_ssize_t nargs = oparg - nkwargs;
     PyObject **stack = (*pp_stack) - nargs - nkwargs;
+    PyThreadState *tstate = PyThreadState_GET();
 
     /* Always dispatch PyCFunction first, because these are
        presumed to be the most frequent callable object.
     */
     if (PyCFunction_Check(func)) {
-        PyThreadState *tstate = PyThreadState_GET();
-        STACKLESS_PROPOSE_ALL();
+        STACKLESS_PROPOSE_ALL(tstate);
         C_TRACE(x, _PyCFunction_FastCallKeywords(func, stack, nargs, kwnames));
         STACKLESS_ASSERT();
     }
     else if (Py_TYPE(func) == &PyMethodDescr_Type) {
-        PyThreadState *tstate = PyThreadState_GET();
         if (tstate->use_tracing && tstate->c_profilefunc) {
             // We need to create PyCFunctionObject for tracing.
             PyMethodDescrObject *descr = (PyMethodDescrObject*)func;
@@ -5244,14 +5243,14 @@ call_function(PyObject ***pp_stack, Py_ssize_t oparg, PyObject *kwnames)
             if (func == NULL) {
                 return NULL;
             }
-            STACKLESS_PROPOSE_ALL();
+            STACKLESS_PROPOSE_ALL(tstate);
             C_TRACE(x, _PyCFunction_FastCallKeywords(func, stack+1, nargs-1,
                                                      kwnames));
             STACKLESS_ASSERT();
             Py_DECREF(func);
         }
         else {
-            STACKLESS_PROPOSE_ALL();
+            STACKLESS_PROPOSE_ALL(tstate);
             x = _PyMethodDescr_FastCallKeywords(func, stack, nargs, kwnames);
             STACKLESS_ASSERT();
         }
@@ -5275,7 +5274,7 @@ call_function(PyObject ***pp_stack, Py_ssize_t oparg, PyObject *kwnames)
             Py_INCREF(func);
         }
 
-        STACKLESS_PROPOSE_ALL();
+        STACKLESS_PROPOSE_ALL(tstate);
         if (PyFunction_Check(func)) {
             x = _PyFunction_FastCallKeywords(func, stack, nargs, kwnames);
         }
@@ -5286,7 +5285,7 @@ call_function(PyObject ***pp_stack, Py_ssize_t oparg, PyObject *kwnames)
         Py_DECREF(func);
     }
 
-    assert((STACKLESS_RETVAL(PyThreadState_GET(), x) != NULL) ^ (PyErr_Occurred() != NULL));
+    assert((STACKLESS_RETVAL(tstate, x) != NULL) ^ (PyErr_Occurred() != NULL));
 
     /* Clear the stack of the function object. */
     while ((*pp_stack) > pfunc) {

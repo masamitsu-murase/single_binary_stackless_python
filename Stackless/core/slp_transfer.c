@@ -45,6 +45,9 @@ or disable the STACKLESS flag.
 
 /* This define is no longer needed now? */
 #define SLP_EVAL
+#ifdef STACKLESS_SLP_PLATFORM_SELECT_H
+#undef STACKLESS_SLP_PLATFORM_SELECT_H
+#endif
 #include "platf/slp_platformselect.h"
 
 #ifdef EXTERNAL_ASM
