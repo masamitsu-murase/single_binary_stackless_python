@@ -5,6 +5,7 @@ import unittest
 import stackless
 import sys
 import time
+import struct
 from stackless import _test_nostacklesscall as apply_not_stackless
 
 from support import test_main  # @UnusedImport
@@ -544,7 +545,9 @@ class BindThreadTest(RemoteTaskletTests):
         with theThread:
             self.assertEqual(t.thread_id, theThread.ident)
             self.assertRaises(OverflowError, t.bind_thread, -2)
-            self.assertRaises(ValueError, t.bind_thread, sys.maxsize)
+            # try the max long value, it is very likely not a valid id
+            self.assertRaises(ValueError, t.bind_thread,
+                              ((1 << (struct.calcsize('@L')*8-1))-1))
             t.bind_thread(current_id)
         self.assertEqual(t.thread_id, current_id)
         t.run()
