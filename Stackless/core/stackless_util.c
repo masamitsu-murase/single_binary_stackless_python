@@ -197,7 +197,7 @@ slp_parse_thread_id(PyObject *thread_id, unsigned long *id)
     assert(id != NULL);
     if (thread_id == NULL)
         return 1;
-    /* thread_id is either an unsigned log or -1. We distinguish these values */
+    /* thread_id is either an unsigned long or -1. We distinguish these values */
     result1 = PyLong_AsLongAndOverflow(thread_id, &overflow);
     if (overflow == 0 && result1 == -1) {
         /* a special negative id */
