@@ -64,9 +64,6 @@ extern "C" {
 #undef STACKLESS
 #endif
 
-/* get some definitions for backward compatibility */
-#include "core/backwardcompat.h"
-
 #ifdef __cplusplus
 }
 #endif

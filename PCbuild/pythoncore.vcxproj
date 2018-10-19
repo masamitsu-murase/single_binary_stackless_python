@@ -213,7 +213,6 @@
     <ClInclude Include="..\Python\importdl.h" />
     <ClInclude Include="..\Python\thread_nt.h" />
     <ClInclude Include="..\Python\wordcode_helpers.h" />
-    <ClInclude Include="..\Stackless\core\backwardcompat.h" />
     <ClInclude Include="..\Stackless\core\cframeobject.h" />
     <ClInclude Include="..\Stackless\core\slp_exttype.h" />
     <ClInclude Include="..\Stackless\core\stackless_impl.h" />
