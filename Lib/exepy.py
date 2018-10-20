@@ -41,11 +41,42 @@ else:
     stdout = DummyStdout()
 
 
+def show_message(message):
+    if isinstance(stdout, DummyStdout):
+        root = tkinter.Tk()
+        root.withdraw()
+        try:
+            tkinter.messagebox.showinfo("exepy", message)
+        finally:
+            root.destroy()
+    else:
+        stdout.write(message)
+
+
+def show_error(message):
+    if isinstance(stdout, DummyStdout):
+        root = tkinter.Tk()
+        root.withdraw()
+        try:
+            tkinter.messagebox.showwarning("exepy", message)
+        finally:
+            root.destroy()
+    else:
+        stdout.write(message)
+
+
 class ExepyArgParserError(Exception):
     pass
 
 
 class ExepyArgParser(argparse.ArgumentParser):
+    def _print_message(self, message, file=None):
+        if message:
+            if file is None:
+                show_error(message)
+                return
+            file.write(message)
+
     def error(self, message):
         raise ExepyArgParserError(message)
 
@@ -160,42 +191,7 @@ def create_command_resource_bin(commands):
     return struct.pack("=L", len(commands)) + command_array.raw
 
 
-def show_message(message):
-    if isinstance(stdout, DummyStdout):
-        root = tkinter.Tk()
-        root.withdraw()
-        try:
-            tkinter.messagebox.showinfo("exepy", message)
-        finally:
-            root.destroy()
-    else:
-        stdout.write(message)
-
-
-def show_error(message):
-    if isinstance(stdout, DummyStdout):
-        root = tkinter.Tk()
-        root.withdraw()
-        try:
-            tkinter.messagebox.showwarning("exepy", message)
-        finally:
-            root.destroy()
-    else:
-        stdout.write(message)
-
-
-def main():
-    parser = ExepyArgParser(description="Create a single executable binary.", add_help=False)
-    parser.add_argument("--force", "-f", help="overwrite exe_name", action="store_true")
-    parser.add_argument("--nocommand", "-n", help="do not run '-m your_module'", action="store_true")
-    parser.add_argument("exe_name", help="executable filename")
-    parser.add_argument("input_py", help="input filenames", nargs="+")
-    try:
-        args = parser.parse_args()
-    except ExepyArgParserError as exc:
-        show_error(parser.format_help() + "\n\n" + exc.args[0] + "\n")
-        sys.exit(1)
-
+def create_exe(args):
     try:
         output_filename, input_filename_list = check_args(args.exe_name, args.input_py, args.force)
         resource_bin = create_resource_bin(input_filename_list)
@@ -241,6 +237,41 @@ def main():
             pass
         show_error(str(error))
         sys.exit(3)
+
+
+def extract_exe(args):
+    pass
+
+
+def main():
+    root_parser = ExepyArgParser(description="Create/Extract a single executable binary.", add_help=False)
+    subparsers = root_parser.add_subparsers(dest="command", title="command", metavar="[create|extract]")
+
+    # create
+    parser = subparsers.add_parser('create', aliases=["c"], help="Create exe file. See 'create -h'")
+    parser.add_argument("--force", "-f", help="overwrite exe_name", action="store_true")
+    parser.add_argument("--nocommand", "-n", help="do not run '-m your_module'", action="store_true")
+    parser.add_argument("exe_name", help="executable filename")
+    parser.add_argument("input_py", help="input filenames", nargs="+")
+
+    # extract
+    parser = subparsers.add_parser("extract", aliases=["e"], help="Extract exe file. See 'extract -h'")
+    parser.add_argument("--force", "-f", help="overwrite output files", action="store_true")
+    parser.add_argument("exe_name", help="executable filename")
+
+    try:
+        args = root_parser.parse_args()
+    except ExepyArgParserError as exc:
+        show_error(root_parser.format_help() + "\n\n" + exc.args[0] + "\n")
+        sys.exit(1)
+
+    if args.command == "create":
+        create_exe(args)
+    elif args.command == "extract":
+        extract_exe(args)
+    else:
+        show_error(root_parser.format_help() + "\n")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
