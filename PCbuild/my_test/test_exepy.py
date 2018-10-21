@@ -13,23 +13,23 @@ import glob
 class TestExepy(unittest.TestCase):
     TEMPDIR = "tempdir"
 
-    SINGLE_FILE_CONTENT = textwrap.dedent("""
+    SINGLE_FILE_CONTENT = textwrap.dedent("""\
     import sys
     print(len(sys.argv))
-    """[1:])
+    """)
 
-    DOUBLE_FILE_CONTENT1 = textwrap.dedent("""
+    DOUBLE_FILE_CONTENT1 = textwrap.dedent("""\
     import sys
     import hoge1
     hoge1.test()
-    """[1:])
+    """)
 
     SECOND_FILE_NAME = "hoge1.py"
-    DOUBLE_FILE_CONTENT2 = textwrap.dedent("""
+    DOUBLE_FILE_CONTENT2 = textwrap.dedent("""\
     import sys
     def test():
         print("file2")
-    """[1:])
+    """)
 
     def create_single_test_file(self, name):
         with open(name, "w") as file:
@@ -49,11 +49,25 @@ class TestExepy(unittest.TestCase):
             filename = "hoge.py"
             exename = "hoge.exe"
             self.create_single_test_file(filename)
-            cmd = [sys.executable, "-m", "exepy", exename, filename]
+            cmd = [sys.executable, "-m", "exepy", "create", exename, filename]
             subprocess.check_call(cmd)
             os.remove(filename)
             output = subprocess.check_output(exename, universal_newlines=True)
             self.assertEqual(output, "1\n")
+
+            cmd = [sys.executable, "-m", "exepy", "extract", exename]
+            subprocess.check_call(cmd)
+            with open(filename, "r") as file:
+                content = file.read()
+            self.assertEqual(content, self.SINGLE_FILE_CONTENT)
+
+            cmd = [sys.executable, "-m", "exepy", "extract", exename]
+            returncode = subprocess.call(cmd)
+            self.assertNotEqual(returncode, 0)
+
+            cmd = [sys.executable, "-m", "exepy", "extract", "-f", exename]
+            returncode = subprocess.call(cmd)
+            self.assertEqual(returncode, 0)
         finally:
             os.chdir(pwd)
             shutil.rmtree(self.TEMPDIR)
@@ -66,12 +80,21 @@ class TestExepy(unittest.TestCase):
             filename = "hoge.py"
             exename = "hoge.exe"
             self.create_double_test_file(filename)
-            cmd = [sys.executable, "-m", "exepy", exename, filename, self.SECOND_FILE_NAME]
+            cmd = [sys.executable, "-m", "exepy", "c", exename, filename, self.SECOND_FILE_NAME]
             subprocess.check_call(cmd)
             for file in glob.iglob("*.py"):
                 os.remove(file)
             output = subprocess.check_output(exename, universal_newlines=True)
             self.assertEqual(output, "file2\n")
+
+            cmd = [sys.executable, "-m", "exepy", "e", exename]
+            subprocess.check_call(cmd)
+            with open(filename, "r") as file:
+                content1 = file.read()
+            with open(self.SECOND_FILE_NAME, "r") as file:
+                content2 = file.read()
+            self.assertEqual(content1, self.DOUBLE_FILE_CONTENT1)
+            self.assertEqual(content2, self.DOUBLE_FILE_CONTENT2)
         finally:
             os.chdir(pwd)
             shutil.rmtree(self.TEMPDIR)
@@ -84,7 +107,7 @@ class TestExepy(unittest.TestCase):
             filename = "hoge.py"
             exename = "hoge.exe"
             self.create_single_test_file(filename)
-            cmd = [sys.executable, "-m", "exepy", exename, filename]
+            cmd = [sys.executable, "-m", "exepy", "create", exename, filename]
             subprocess.check_call(cmd)
             os.remove(filename)
             output = subprocess.check_output([exename, "arg1", "arg2"], universal_newlines=True)

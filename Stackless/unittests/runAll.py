@@ -28,6 +28,8 @@ def main(tests=None, **kwargs):
 
 
 if __name__ == '__main__':
-    main()
+    result = main()
     import gc
     gc.set_debug(gc.DEBUG_UNCOLLECTABLE)
+    import sys
+    sys.exit(result)

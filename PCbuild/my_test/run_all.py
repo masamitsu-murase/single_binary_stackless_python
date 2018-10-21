@@ -11,6 +11,6 @@ def main():
     test = loader.discover(os.path.dirname(__file__), "test*.py")
     # test = loader.discover(os.path.dirname(__file__), "*/test*.py")
     runner = unittest.TextTestRunner(verbosity=1)
-    runner.run(test)
+    sys.exit(not runner.run(test).wasSuccessful())
 
 main()
