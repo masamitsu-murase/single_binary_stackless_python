@@ -50,13 +50,13 @@ class TestExepy(unittest.TestCase):
             exename = "hoge.exe"
             self.create_single_test_file(filename)
             cmd = [sys.executable, "-m", "exepy", "create", exename, filename]
-            subprocess.check_call(cmd)
+            subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
             os.remove(filename)
             output = subprocess.check_output(exename, universal_newlines=True)
             self.assertEqual(output, "1\n")
 
             cmd = [sys.executable, "-m", "exepy", "extract", exename]
-            subprocess.check_call(cmd)
+            subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
             with open(filename, "r") as file:
                 content = file.read()
             self.assertEqual(content, self.SINGLE_FILE_CONTENT)
@@ -81,14 +81,14 @@ class TestExepy(unittest.TestCase):
             exename = "hoge.exe"
             self.create_double_test_file(filename)
             cmd = [sys.executable, "-m", "exepy", "c", exename, filename, self.SECOND_FILE_NAME]
-            subprocess.check_call(cmd)
+            subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
             for file in glob.iglob("*.py"):
                 os.remove(file)
             output = subprocess.check_output(exename, universal_newlines=True)
             self.assertEqual(output, "file2\n")
 
             cmd = [sys.executable, "-m", "exepy", "e", exename]
-            subprocess.check_call(cmd)
+            subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
             with open(filename, "r") as file:
                 content1 = file.read()
             with open(self.SECOND_FILE_NAME, "r") as file:
@@ -108,7 +108,7 @@ class TestExepy(unittest.TestCase):
             exename = "hoge.exe"
             self.create_single_test_file(filename)
             cmd = [sys.executable, "-m", "exepy", "create", exename, filename]
-            subprocess.check_call(cmd)
+            subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
             os.remove(filename)
             output = subprocess.check_output([exename, "arg1", "arg2"], universal_newlines=True)
             self.assertEqual(output, "3\n")
