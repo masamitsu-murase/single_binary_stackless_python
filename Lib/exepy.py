@@ -183,7 +183,7 @@ def check_args(output_filename, org_input_filename, force):
 
 def create_command_resource_bin(commands):
     # uint32_t  argc
-    # char []   argv
+    # wchar_t []   argv
     command_str = "".join((x + "\0") for x in commands)
     cmd_ws_array = ctypes.create_unicode_buffer(command_str)
     command_array = ctypes.create_string_buffer(ctypes.sizeof(cmd_ws_array))
@@ -239,8 +239,149 @@ def create_exe(args):
         sys.exit(3)
 
 
+class ExeResourceLoader(object):
+    def __init__(self, exe_filename):
+        self.exe_filename = exe_filename
+        self.module = None
+
+    def __enter__(self):
+        load_library = ctypes.windll.kernel32.LoadLibraryW
+        load_library.argtypes = [wintypes.LPCWSTR]
+        load_library.restype = wintypes.HMODULE
+        module = load_library(self.exe_filename)
+        if module == 0:
+            raise RuntimeError("LoadLibrary failed.")
+        self.module = module
+
+        return self
+
+    def load_resource(self, resource_id):
+        find_resource = ctypes.windll.kernel32.FindResourceW
+        find_resource.argtypes = [wintypes.HMODULE, ULONG_PTR, ULONG_PTR]
+        find_resource.restype = wintypes.HRSRC
+        resource = find_resource(self.module, resource_id, RT_RCDATA)
+        if resource == 0:
+            return None
+
+        load_resource = ctypes.windll.kernel32.LoadResource
+        load_resource.argtypes = [wintypes.HMODULE, wintypes.HRSRC]
+        load_resource.restype = wintypes.HGLOBAL
+        data_handle = load_resource(self.module, resource)
+        if data_handle == 0:
+            raise RuntimeError("LoadResource failed.")
+
+        lock_resource = ctypes.windll.kernel32.LockResource
+        lock_resource.argtypes = [wintypes.HGLOBAL]
+        lock_resource.restype = wintypes.LPVOID
+        data = lock_resource(data_handle)
+        if data == 0:
+            raise RuntimeError("LockResource failed.")
+
+        sizeof_resource = ctypes.windll.kernel32.SizeofResource
+        sizeof_resource.argtypes = [wintypes.HMODULE, wintypes.HRSRC]
+        sizeof_resource.restype = wintypes.DWORD
+        size = sizeof_resource(self.module, resource)
+        if size == 0:
+            raise RuntimeError("SizeofResource failed.")
+
+        buffer = ctypes.create_string_buffer(size)
+        ctypes.memmove(buffer, data, size)
+
+        return buffer.raw
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self.module is None:
+            return
+
+        free_library = ctypes.windll.kernel32.FreeLibrary
+        free_library.argtypes = [wintypes.HMODULE]
+        free_library.restype = wintypes.BOOL
+        free_library(self.module)
+
+
+def extract_resource_in_exe(exe_name):
+    if not os.path.isfile(exe_name):
+        raise RuntimeError("%s is not a valid file." % exe_name)
+
+    #     //   uint32_t compressed_size;
+    #     //   uint32_t uncompressed_size;
+    #     //   uint32_t file_count;
+    #     //   uint32_t [] file_offset;
+    #     //   unsigned char [] compressed_file_data;  // separated by '\0'
+    #     //   char [] file_name;  // separated by '\0'.
+    with ExeResourceLoader(exe_name) as loader:
+        source = loader.load_resource(USER_SOURCE_ID)
+        command = loader.load_resource(USER_COMMAND_ID)
+
+    offset = 0
+    compressed_size, uncompressed_size, file_count = struct.unpack_from("=LLL", source)
+    offset += 12
+    file_offset = struct.unpack_from("=%dL" % file_count, source, offset)
+    offset += 4 * file_count
+    compressed_file_data = struct.unpack_from("=%ds" % compressed_size, source, offset)[0]
+    uncompressed_file_data = zlib.decompress(compressed_file_data)
+    offset += compressed_size
+    file_name = struct.unpack_from("=%ds" % (len(source) - offset), source, offset)[0]
+
+    file_info = []
+    file_name_list = file_name.split(b"\0")
+    file_offset = file_offset + (uncompressed_size, )
+    for i in range(file_count):
+        info = {
+            "filename": file_name_list[i].decode("ascii"),
+            "content": uncompressed_file_data[file_offset[i]:(file_offset[i + 1] - 1)]
+        }
+        file_info.append(info)
+
+    argv = None
+    if command:
+        # uint32_t  argc
+        # wchar_t []   argv
+        offset = 0
+        command_count = struct.unpack_from("=L", command)[0]
+        offset += 4
+        command_byte = struct.unpack_from("=%ds" % (len(command) - offset), command, offset)[0]
+        # Add sentinel.
+        byte_buffer = ctypes.create_string_buffer(command_byte + (b"\0" * ctypes.sizeof(ctypes.c_wchar)))
+
+        argv = []
+        address = ctypes.addressof(byte_buffer)
+        address_end = address + len(command_byte)
+        for i in range(command_count):
+            arg = ctypes.wstring_at(address)
+            arg_len = ctypes.sizeof(ctypes.create_unicode_buffer(arg))
+            address += arg_len
+            argv.append(arg)
+            if address >= address_end:
+                raise RuntimeError("command string is corrupted.")
+
+    return file_info, argv
+
+
 def extract_exe(args):
-    pass
+    try:
+        file_info, argv = extract_resource_in_exe(args.exe_name)
+
+        if not args.force:
+            for info in file_info:
+                if os.path.exists(info["filename"]):
+                    raise RuntimeError("'%s' already exists." % info["filename"])
+        for info in file_info:
+            directory = os.path.dirname(info["filename"])
+            if directory and not os.path.isdir(directory):
+                os.makedirs(directory)
+            with open(info["filename"], "wb") as file:
+                file.write(info["content"])
+
+        if argv:
+            show_message("argv: " + " ".join(('"' + x + '"') for x in argv) + "\n")
+        else:
+            show_message("no argv" + "\n")
+
+        show_message("Files were extracted." + "\n")
+    except Exception as error:
+        show_error(str(error) + "\n")
+        sys.exit(1)
 
 
 def main():
@@ -265,9 +406,9 @@ def main():
         show_error(root_parser.format_help() + "\n\n" + exc.args[0] + "\n")
         sys.exit(1)
 
-    if args.command == "create":
+    if args.command in ("create", "c"):
         create_exe(args)
-    elif args.command == "extract":
+    elif args.command in ("extract", "e"):
         extract_exe(args)
     else:
         show_error(root_parser.format_help() + "\n")
