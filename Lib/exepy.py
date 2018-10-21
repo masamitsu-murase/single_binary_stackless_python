@@ -9,11 +9,11 @@ import time
 import zlib
 import ctypes
 import ctypes.wintypes as wintypes
-import glob
+import pathlib
 import tkinter
 import tkinter.messagebox
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 USER_SOURCE_ID = 200
 USER_COMMAND_ID = 201
@@ -157,9 +157,9 @@ def check_args(output_filename, org_input_filename, force):
 
     input_filename = []
     for filename in org_input_filename:
-        if os.path.isdir(filename):
-            input_filename += glob.glob("%s/**/*.py" % filename.replace("\\", "/").rstrip("/"),
-                                        recursive=True)
+        filepath = pathlib.Path(filename)
+        if filepath.is_dir():
+            input_filename += [str(i).replace("\\", "/") for i in filepath.glob("**/*") if i.is_file()]
         else:
             input_filename.append(filename)
 
@@ -260,21 +260,21 @@ class ExeResourceLoader(object):
         find_resource.argtypes = [wintypes.HMODULE, ULONG_PTR, ULONG_PTR]
         find_resource.restype = wintypes.HRSRC
         resource = find_resource(self.module, resource_id, RT_RCDATA)
-        if resource == 0:
+        if resource == 0 or resource is None:
             return None
 
         load_resource = ctypes.windll.kernel32.LoadResource
         load_resource.argtypes = [wintypes.HMODULE, wintypes.HRSRC]
         load_resource.restype = wintypes.HGLOBAL
         data_handle = load_resource(self.module, resource)
-        if data_handle == 0:
+        if data_handle == 0 or data_handle is None:
             raise RuntimeError("LoadResource failed.")
 
         lock_resource = ctypes.windll.kernel32.LockResource
         lock_resource.argtypes = [wintypes.HGLOBAL]
         lock_resource.restype = wintypes.LPVOID
         data = lock_resource(data_handle)
-        if data == 0:
+        if data == 0 or data is None:
             raise RuntimeError("LockResource failed.")
 
         sizeof_resource = ctypes.windll.kernel32.SizeofResource
