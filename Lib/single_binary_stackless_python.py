@@ -1,7 +1,7 @@
 # coding: utf-8
 
 
-__version__ = "12"
+__version__ = "13"
 __author__ = "Masamitsu MURASE"
 
 __included_module_info = {
