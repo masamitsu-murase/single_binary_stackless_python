@@ -101,6 +101,7 @@ if __name__ == "__main__":
     print("Version: %s" % __version__)
     print("")
 
+    print("Included 3rd party's libraries:")
     for info in __included_module_info.values():
         module_name = info["module_name"]
         module = __import__(module_name)
@@ -109,4 +110,7 @@ if __name__ == "__main__":
         elif module_name == "pyreadline":
             import pyreadline.release
             version = pyreadline.release.version
-        print("%s (%s)" % (module_name, version))
+        print("* %s (%s)  " % (module_name, version))
+        if "author" in info and info["author"]:
+            print("  Developed by %s.  " % info["author"])
+        print("  Distributed under the %s.  " % info["license"])
