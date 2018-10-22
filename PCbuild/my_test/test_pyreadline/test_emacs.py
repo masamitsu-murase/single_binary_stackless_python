@@ -384,7 +384,7 @@ class TestsHistory (unittest.TestCase):
 #----------------------------------------------------------------------
 
 if __name__ == '__main__':
-    Tester()
+    tester = Tester()
     tested=list(EmacsModeTest.tested_commands.keys())    
     tested.sort()
 #    print(" Tested functions ".center(60,"-"))
@@ -397,3 +397,4 @@ if __name__ == '__main__':
     not_tested.sort()
     print(" Not tested functions ".center(60,"-"))
     print("\n".join(not_tested))
+    sys.exit(not tester.result.wasSuccessful())
