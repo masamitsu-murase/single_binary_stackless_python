@@ -2141,7 +2141,7 @@ class Tests (unittest.TestCase):
 #----------------------------------------------------------------------
 
 if __name__  == '__main__':
-    Tester()
+    tester = Tester()
 
     tested=list(ViModeTest.tested_commands.keys())    
     tested.sort()
@@ -2155,5 +2155,5 @@ if __name__  == '__main__':
     not_tested.sort()
     print(" Not tested functions ".center(60,"-"))
     print("\n".join(not_tested))
-    
+    sys.exit(not tester.result.wasSuccessful())
     

@@ -43,6 +43,14 @@ if ERRORLEVEL 1 (
     exit /b 1
 )
 
+echo Tests for pyreadline
+cd my_test
+for %%i in (test_pyreadline\test_*.py) do (
+    python -m test_pyreadline.%%~ni
+    if ERRORLEVEL 1 exit /b 1
+)
+cd ..
+
 echo Tests for pyyaml
 cd my_test\test_pyyaml
 ..\..\%PYTHON% tests\lib3\test_all.py
