@@ -62,11 +62,11 @@ class TestExepy(unittest.TestCase):
             self.assertEqual(content, self.SINGLE_FILE_CONTENT)
 
             cmd = [sys.executable, "-m", "exepy", "extract", exename]
-            returncode = subprocess.call(cmd)
+            returncode = subprocess.call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             self.assertNotEqual(returncode, 0)
 
             cmd = [sys.executable, "-m", "exepy", "extract", "-f", exename]
-            returncode = subprocess.call(cmd)
+            returncode = subprocess.call(cmd, stdout=subprocess.DEVNULL)
             self.assertEqual(returncode, 0)
         finally:
             os.chdir(pwd)
