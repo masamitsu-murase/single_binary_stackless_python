@@ -46,8 +46,11 @@ if ERRORLEVEL 1 (
 echo Tests for pyreadline
 cd my_test
 for %%i in (test_pyreadline\test_*.py) do (
-    python -m test_pyreadline.%%~ni
-    if ERRORLEVEL 1 exit /b 1
+    ..\%PYTHON% -m test_pyreadline.%%~ni
+    if ERRORLEVEL 1 (
+        echo "pyreadline test failed."
+        exit /b 1
+    )
 )
 cd ..
 
