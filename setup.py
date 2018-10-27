@@ -724,6 +724,10 @@ class PyBuildExt(build_ext):
         # libraries, are platform-specific, or present other surprises.
         #
 
+        # Stackless Python test module.
+        if "_stackless" in sys.builtin_module_names:
+            exts.append( Extension('_teststackless', ['../Stackless/module/_teststackless.c']) )
+
         # Multimedia modules
         # These don't work for 64-bit platforms!!!
         # These represent audio samples or images as strings:

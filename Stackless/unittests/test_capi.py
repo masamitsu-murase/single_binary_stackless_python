@@ -29,6 +29,7 @@ import sys
 import time
 import traceback
 import unittest
+import _teststackless
 
 from support import test_main  # @UnusedImport
 from support import (StacklessTestCase, withThreads, require_one_thread,
