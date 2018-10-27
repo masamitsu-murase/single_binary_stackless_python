@@ -365,34 +365,34 @@ run_script(char *src, char *retname)
  */
 
 PyObject *
-slp_cannot_execute(PyFrameObject *f, char *exec_name, PyObject *retval)
+slp_cannot_execute(PyFrameObject *f, const char *exec_name, PyObject *retval)
 {
+    /*
+     * Special rule for frame execution functions: we now own a reference to retval!
+     */
+
     /*
      * show an error message and raise exception.
      */
-    PyObject *message;
     PyThreadState *tstate = PyThreadState_GET();
 
     /* if we already have an exception, we keep it */
-    if (retval == NULL)
-        goto err_exit;
-
-    message = PyUnicode_FromFormat("cannot execute invalid frame with "
-                                  "'%.100s': frame had a C state that"
-                                  " can't be restored.",
-                                  exec_name);
-    if (message == NULL) {
-        /* try at least something */
-        PyErr_SetString(PyExc_RuntimeError,
-                        "invalid frame, cannot build error message.");
-        goto err_exit;
+    if (retval != NULL) {
+        Py_DECREF(retval);
+        PyErr_Format(PyExc_RuntimeError, "cannot execute invalid frame with "
+                "'%.100s': frame had a C state that"
+                " can't be restored.",
+                exec_name);
     }
-    PyErr_SetObject(PyExc_RuntimeError, message);
-    Py_DECREF(message);
-err_exit:
+
     SLP_STORE_NEXT_FRAME(tstate, f->f_back);
-    --tstate->recursion_depth;
-    Py_XDECREF(retval);
+
+    if(PyFrame_Check(f)) {
+        /* Only real frames contribute to the recursion count.
+         * C-frames don't contribute, see tasklet_setstate(...) */
+        --tstate->recursion_depth;
+    }
+
     return NULL;
 }
 

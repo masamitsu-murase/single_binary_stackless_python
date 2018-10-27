@@ -9,6 +9,12 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://github.com/stackless-dev/stackless/issues/177
+  Fix a crasher in prickelpit.c slp_cannot_execute().
+  Stackless versions released after March 2017 can crash, if a program executes
+  an unpickled tasklet, that lost its C-state. Now Stackless always raises
+  RuntimeError.
+
 - https://github.com/stackless-dev/stackless/issues/152
   C-Python bpo30860 consolidates stateful C globals under a single struct.
   Stackless also moves its stateful C globals to the appropriate structures
