@@ -28,7 +28,7 @@ class TestOutside(StacklessTestCase):
                 c.send(i)
 
         def sink():
-            for i in range(n):
+            for i in range(n):  # @UnusedVariable
                 last[0] = c.receive()
         tasklet(source)()
         tasklet(sink)()
@@ -48,7 +48,7 @@ class TestOutside(StacklessTestCase):
                 c.send(i)
 
         def sink():
-            for i in range(n):
+            for i in range(n):  # @UnusedVariable
                 last[0] = c.receive()
 
         def createSource():
