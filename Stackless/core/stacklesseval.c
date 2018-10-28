@@ -56,7 +56,7 @@ cstack_dealloc(PyCStackObject *cst)
             slp_cstack_cacheclear();
         cst->startaddr = (intptr_t *) (_PyRuntime.st.cstack_cache)[Py_SIZE(cst)];
         (_PyRuntime.st.cstack_cache)[Py_SIZE(cst)] = cst;
-        ++(_PyRuntime.st.(_PyRuntime.st.cstack_cachecount));
+        ++(_PyRuntime.st.cstack_cachecount);
     }
 #endif
 }
