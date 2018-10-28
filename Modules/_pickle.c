@@ -9,6 +9,7 @@
 #include "structmember.h"
 
 #ifdef STACKLESS
+#define SLP_BUILD_CORE
 #include "core/stackless_impl.h"
 /* rename these because otherwise we will conflict with windows.h */
 #define FLOAT OP_FLOAT

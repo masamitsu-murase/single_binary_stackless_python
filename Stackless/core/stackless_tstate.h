@@ -1,3 +1,5 @@
+#ifndef Py_LIMITED_API
+
 /*** addition to tstate ***/
 #ifdef Py_DEBUG
 #ifndef SLP_WITH_FRAME_REF_DEBUG
@@ -103,6 +105,8 @@ typedef struct _sts {
 #endif
 } PyStacklessState;
 
+#ifdef Py_BUILD_CORE
+
 /* internal macro to temporarily disable soft interrupts */
 #define PY_WATCHDOG_NO_SOFT_IRQ (1<<31)
 
@@ -168,3 +172,6 @@ void slp_kill_tasks_with_stacks(struct _ts *tstate);
     Py_CLEAR(tstate->st.thread.block_lock); \
     tstate->st.thread.is_blocked = 0; \
     tstate->st.thread.is_idle = 0;
+
+#endif /* #ifdef Py_BUILD_CORE */
+#endif /* #ifndef Py_LIMITED_API */

@@ -46,7 +46,6 @@ Py_ssize_t slp_from_tuple_with_nulls(PyObject **start, PyObject *tup);
 
 /* helper functions for module dicts */
 
-PyObject * PyStackless_Pickle_ModuleDict(PyObject *pickler, PyObject *self);
 PyObject * slp_pickle_moduledict(PyObject *self, PyObject *args);
 extern char slp_pickle_moduledict__doc__[];
 

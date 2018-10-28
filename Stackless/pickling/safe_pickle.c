@@ -3,6 +3,7 @@
 
 #include "compile.h"
 
+#define SLP_BUILD_CORE
 #include "core/stackless_impl.h"
 #include "platf/slp_platformselect.h"
 

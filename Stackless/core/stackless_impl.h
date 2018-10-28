@@ -7,19 +7,24 @@
 extern "C" {
 #endif
 
+#if defined(Py_BUILD_CORE) && !defined(SLP_BUILD_CORE)
+#define SLP_BUILD_CORE
+#endif
+
 #ifdef STACKLESS
 
 #ifdef Py_BUILD_CORE
 #include "internal/pystate.h"
-#endif
 
 #include "structmember.h"
 #include "compile.h"
 
 /* platform specific constants (mainly SEH stuff to store )*/
 #include "platf/slp_platformselect.h"
+
+#endif /* #ifdef Py_BUILD_CORE */
+
 #include "core/stackless_structs.h"
-#include "pickling/prickelpit.h"
 
 /* CPython added these two macros in object.h for 2.7 and 3.5 */
 #ifndef Py_SETREF
@@ -39,6 +44,9 @@ extern "C" {
         Py_XDECREF(_py_tmp);                    \
     } while (0)
 #endif
+
+#ifdef SLP_BUILD_CORE
+#include "pickling/prickelpit.h"
 
 #undef STACKLESS_SPY
 /*
@@ -405,11 +413,19 @@ PyObject * slp_reduce_frame(PyFrameObject * frame);
 
 /* rebirth of software stack avoidance */
 
-typedef struct {
+typedef struct _unwindobject {
     PyObject_HEAD
 } PyUnwindObject;
 
+#else /* #ifdef SLP_BUILD_CORE */
+
+typedef struct _unwindobject PyUnwindObject;
+
+#endif /* #ifdef SLP_BUILD_CORE */
+
 PyAPI_DATA(PyUnwindObject *) Py_UnwindToken;
+
+#ifdef SLP_BUILD_CORE
 
 /* frame cloning both needed in tasklets and generators */
 
@@ -438,8 +454,12 @@ PyTaskletObject * slp_get_watchdog(PyThreadState *ts, int interrupt);
      retval = (tstate)->st.unwinding_retval, \
      (tstate)->st.unwinding_retval = NULL, retval))
 
+#endif /* #ifdef SLP_BUILD_CORE */
+
 #define STACKLESS_UNWINDING(obj) \
     ((PyObject *) (obj) == (PyObject *) Py_UnwindToken)
+
+#ifdef SLP_BUILD_CORE
 
 /* an arbitrary positive number */
 #define STACKLESS_UNWINDING_MAGIC 0x7fedcba9
@@ -782,10 +802,12 @@ int slp_resurrect_and_kill(PyObject *self,
                            void(*killer)(PyObject *));
 
 /* stackless pickling support */
-
 int slp_safe_pickling(int(*save)(PyObject *, PyObject *, int),
                       PyObject *self, PyObject *args,
                      int pers_save);
+
+PyObject * PyStackless_Pickle_ModuleDict(PyObject *pickler, PyObject *self);
+
 /* utility function used by the reduce methods of tasklet and frame */
 int slp_pickle_with_tracing_state(void);
 
@@ -817,10 +839,13 @@ void slp_head_unlock(void);
 
 long slp_parse_thread_id(PyObject *thread_id, unsigned long *id);
 
+#endif /* #ifdef SLP_BUILD_CORE */
+
 #include "stackless_api.h"
 
 #else /* STACKLESS */
 
+#ifdef SLP_BUILD_CORE
 /* turn the stackless flag macros into dummies */
 
 #define SLP_PEEK_NEXT_FRAME(tstate) \
@@ -846,6 +871,7 @@ long slp_parse_thread_id(PyObject *thread_id, unsigned long *id);
 
 #define slp_initialize(s) /* empty */
 
+#endif /* #ifdef SLP_BUILD_CORE */
 #endif /* STACKLESS */
 
 #ifdef __cplusplus

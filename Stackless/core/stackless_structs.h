@@ -5,11 +5,15 @@
 extern "C" {
 #endif
 
+#if defined(Py_BUILD_CORE) && !defined(SLP_BUILD_CORE)
+#define SLP_BUILD_CORE
+#endif
+
 #include "platf/slp_platformselect.h"
 #include "frameobject.h"
 
 #ifdef STACKLESS
-
+#ifdef SLP_BUILD_CORE
 
 /*** important structures: tasklet ***/
 
@@ -291,6 +295,13 @@ struct _stackless_runtime_state {
     } transfer;
 };
 
+#else /* #ifdef SLP_BUILD_CORE */
+
+typedef struct _channel PyChannelObject;
+typedef struct _cframe  PyCFrameObject;
+typedef struct _tasklet PyTaskletObject;
+
+#endif /* #ifdef SLP_BUILD_CORE */
 #endif /* #ifdef STACKLESS */
 
 #ifdef __cplusplus
