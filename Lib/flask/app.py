@@ -1678,7 +1678,7 @@ class Flask(_PackageBoundObject):
         return False
 
     def handle_user_exception(self, e):
-        """This method is called whenever an exception occurs that should be
+        r"""This method is called whenever an exception occurs that should be
         handled.  A special case are
         :class:`~werkzeug.exception.HTTPException`\s which are forwarded by
         this function to the :meth:`handle_http_exception` method.  This
