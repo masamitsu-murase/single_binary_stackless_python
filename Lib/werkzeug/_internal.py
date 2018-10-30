@@ -42,15 +42,15 @@ for _i in chain(range_type(32), range_type(127, 256)):
 
 _octal_re = re.compile(b'\\\\[0-3][0-7][0-7]')
 _quote_re = re.compile(b'[\\\\].')
-_legal_cookie_chars_re = b'[\w\d!#%&\'~_`><@,:/\$\*\+\-\.\^\|\)\(\?\}\{\=]'
+# _legal_cookie_chars_re = b'[\w\d!#%&\'~_`><@,:/\$\*\+\-\.\^\|\)\(\?\}\{\=]'
 _cookie_re = re.compile(b"""
     (?P<key>[^=]+)
-    \s*=\s*
+    \\s*=\\s*
     (?P<val>
         "(?:[^\\\\"]|\\\\.)*" |
          (?:.*?)
     )
-    \s*;
+    \\s*;
 """, flags=re.VERBOSE)
 
 
