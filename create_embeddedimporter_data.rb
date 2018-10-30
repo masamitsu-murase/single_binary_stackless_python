@@ -1,5 +1,6 @@
 
 require("zlib")
+require("base64")
 
 def create_certifi_cacert_data
   cacert_data = File.read("Lib/certifi/cacert.pem")
@@ -8,6 +9,20 @@ def create_certifi_cacert_data
     file.write '_ca_cert_data = r"""'
     file.write cacert_data
     file.puts '"""'
+  end
+end
+
+def create_werkzeug_shared_data
+  File.open("Lib/werkzeug/debug/_shared.py", "w") do |file|
+    file.puts '# This file was generated automatically.'
+    file.puts 'shared_file = {'
+
+    Dir.glob("Lib/werkzeug/debug/shared/*.*").to_a.sort.each do |filename|
+      next if File.basename(filename) == "ubuntu.ttf"
+
+      file.puts("    \"#{File.basename(filename)}\": " + '"""' + Base64.encode64(File.binread(filename)) + '""",')
+    end
+    file.puts "}"
   end
 end
 
@@ -77,6 +92,7 @@ end
 
 Dir.chdir(__dir__) do
   create_certifi_cacert_data
+  create_werkzeug_shared_data
 
   list = nil
   Dir.chdir("Lib") do
