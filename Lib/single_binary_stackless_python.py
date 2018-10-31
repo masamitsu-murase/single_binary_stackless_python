@@ -70,6 +70,26 @@ __included_module_info = {
         "license": "BSD License",
         "module_name": "markupsafe"
     },
+    "flask": {
+        "author": "Armin Ronacher",
+        "license": "BSD License",
+        "module_name": "flask"
+    },
+    "werkzeug": {
+        "author": "Armin Ronacher",
+        "license": "BSD License",
+        "module_name": "werkzeug"
+    },
+    "itsudangerous": {
+        "author": "Armin Ronacher",
+        "license": "BSD License",
+        "module_name": "itsudangerous"
+    },
+    "click": {
+        "author": "Armin Ronacher",
+        "license": "BSD License",
+        "module_name": "click"
+    },
 
     "exepy": {
         "author": "Masamitsu MURASE",
