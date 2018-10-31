@@ -15,7 +15,7 @@ end
 def create_werkzeug_shared_data
   File.open("Lib/werkzeug/debug/_shared.py", "w") do |file|
     file.puts '# This file was generated automatically.'
-    file.puts 'shared_file = {'
+    file.puts 'shared_files = {'
 
     Dir.glob("Lib/werkzeug/debug/shared/*.*").to_a.sort.each do |filename|
       next if File.basename(filename) == "ubuntu.ttf"
