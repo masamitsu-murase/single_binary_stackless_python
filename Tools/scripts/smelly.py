@@ -47,7 +47,7 @@ def get_smelly_symbols(stdout):
             continue
 
         symbol = parts[-1]
-        if symbol.startswith(('Py', '_Py')):
+        if symbol.startswith(('Py', '_Py', 'slp_')):
             continue
         symbol = '%s (type: %s)' % (symbol, symtype)
         symbols.append(symbol)
