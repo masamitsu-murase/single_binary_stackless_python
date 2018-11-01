@@ -13,6 +13,7 @@ environment, you can change the definition of where() to return a separately
 packaged CA bundle.
 """
 from certifi import where
+# Import ca_cert_data for single binarisation.
 try:
     from certifi import ca_cert_data
 except ImportError:
