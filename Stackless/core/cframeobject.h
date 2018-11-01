@@ -1,2 +1,2 @@
 
-int init_cframetype(void);
+int slp_init_cframetype(void);

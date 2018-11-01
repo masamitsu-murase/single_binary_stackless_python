@@ -51,7 +51,7 @@ extern char slp_pickle_moduledict__doc__[];
 
 /* initialization */
 
-PyObject *init_prickelpit(void);
+PyObject *slp_init_prickelpit(void);
 
 #ifdef __cplusplus
 }

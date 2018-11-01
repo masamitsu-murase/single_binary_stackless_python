@@ -960,7 +960,7 @@ _channel_send_sequence(PyChannelObject *self, PyObject *v)
  */
 
 PyObject *
-channel_seq_callback(PyFrameObject *_f, int exc, PyObject *retval)
+slp_channel_seq_callback(PyFrameObject *_f, int exc, PyObject *retval)
 {
     PyThreadState *ts = PyThreadState_GET();
     PyCFrameObject *f = (PyCFrameObject *) _f;
@@ -1046,7 +1046,7 @@ channel_send_sequence(PyChannelObject *self, PyObject *v)
     if (it == NULL)
         return NULL;
 
-    f = slp_cframe_new(channel_seq_callback, 1);
+    f = slp_cframe_new(slp_channel_seq_callback, 1);
     if (f == NULL)
         goto error;
 

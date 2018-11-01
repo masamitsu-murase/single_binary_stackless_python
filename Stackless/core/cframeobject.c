@@ -319,7 +319,7 @@ PyTypeObject PyCFrame_Type = {
     PyObject_Del,                      /* tp_free */
 };
 
-int init_cframetype(void)
+int slp_init_cframetype(void)
 {
     if (PyType_Ready(&PyCFrame_Type))
         return -1;

@@ -840,7 +840,7 @@ DEF_INVALID_EXEC(eval_frame_noval)
 DEF_INVALID_EXEC(eval_frame_iter)
 DEF_INVALID_EXEC(eval_frame_setup_with)
 DEF_INVALID_EXEC(eval_frame_with_cleanup)
-DEF_INVALID_EXEC(channel_seq_callback)
+DEF_INVALID_EXEC(slp_channel_seq_callback)
 DEF_INVALID_EXEC(slp_restore_tracing)
 DEF_INVALID_EXEC(slp_tp_init_callback)
 
@@ -1205,7 +1205,7 @@ static int init_frametype(PyObject * mod)
         || slp_register_execute(&PyFrame_Type, "eval_frame_with_cleanup",
                              slp_eval_frame_with_cleanup, REF_INVALID_EXEC(eval_frame_with_cleanup))
         || slp_register_execute(&PyCFrame_Type, "channel_seq_callback",
-                             channel_seq_callback, REF_INVALID_EXEC(channel_seq_callback))
+                             slp_channel_seq_callback, REF_INVALID_EXEC(slp_channel_seq_callback))
         || slp_register_execute(&PyCFrame_Type, "slp_restore_tracing",
                              slp_restore_tracing, REF_INVALID_EXEC(slp_restore_tracing))
         || slp_register_execute(&PyCFrame_Type, "slp_tp_init_callback",
@@ -1986,7 +1986,7 @@ static struct PyModuleDef _wrapmodule = {
 };
 
 PyObject*
-init_prickelpit(void)
+slp_init_prickelpit(void)
 {
     PyObject *tmp;
 

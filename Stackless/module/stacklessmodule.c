@@ -1702,7 +1702,7 @@ PyInit__stackless(void)
     };
 
     if (0
-        || init_cframetype()
+        || slp_init_cframetype()
         || PyType_Ready(&PyChannel_Type)
         || PyType_Ready(&PyAtomic_Type)
         )
@@ -1733,7 +1733,7 @@ PyInit__stackless(void)
     Py_DECREF(tmp);
 
     /* add the prickelpit submodule */
-    tmp = init_prickelpit();
+    tmp = slp_init_prickelpit();
     if (tmp == NULL)
         goto fail;
     INSERT("_wrap", tmp);

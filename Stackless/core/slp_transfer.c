@@ -86,7 +86,7 @@ extern int slp_switch(void);
 #endif
 
 /* a write only variable used to prevent overly optimisation */
-intptr_t *_dont_optimise_away_goobledigoobs;
+intptr_t *slp_dont_optimise_away_goobledigoobs;
 static int
 climb_stack_and_transfer(PyCStackObject **cstprev, PyCStackObject *cst,
                          PyTaskletObject *prev)
@@ -109,7 +109,7 @@ climb_stack_and_transfer(PyCStackObject **cstprev, PyCStackObject *cst,
         /* hinder the compiler to optimise away 
            goobledigoobs and the alloca call. 
            This happens with gcc 4.7.x and -O2 */
-        _dont_optimise_away_goobledigoobs = goobledigoobs;
+        slp_dont_optimise_away_goobledigoobs = goobledigoobs;
     }
     return slp_transfer(cstprev, cst, prev);
 }
