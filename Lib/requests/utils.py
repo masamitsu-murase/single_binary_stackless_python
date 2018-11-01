@@ -37,6 +37,7 @@ from .exceptions import (
 NETRC_FILES = ('.netrc', '_netrc')
 
 DEFAULT_CA_BUNDLE_PATH = certs.where()
+# Load ca_cert_data for single binarisation.
 if hasattr(certs, "ca_cert_data"):
     DEFAULT_CA_BUNDLE_DATA = certs.ca_cert_data()
 else:
