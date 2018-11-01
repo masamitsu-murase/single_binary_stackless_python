@@ -1,7 +1,8 @@
 from __future__ import absolute_import
 import unittest
-from stackless import test_cframe, test_cframe_nr, test_outside, test_cstate
+from stackless import test_cframe_nr, test_outside
 from stackless import tasklet, channel, run
+from _teststackless import test_cframe, test_cstate
 
 from support import test_main  # @UnusedImport
 from support import StacklessTestCase

@@ -837,56 +837,11 @@ PyStackless_CallErrorHandler(void)
 
 /******************************************************
 
-  some test functions
+  Some test functions, which access internal API
+
+  Other testfunctions go to _teststackless.c
 
  ******************************************************/
-
-
-PyDoc_STRVAR(test_cframe__doc__,
-"test_cframe(switches, words=0) -- a builtin testing function that does nothing\n\
-but tasklet switching. The function will call PyStackless_Schedule() for switches\n\
-times and then finish.\n\
-If words is given, as many words will be allocated on the C stack.\n\
-Usage: Create two tasklets for test_cframe and run them by run().\n\
-\n\
-    t1 = tasklet(test_cframe)(500000)\n\
-    t2 = tasklet(test_cframe)(500000)\n\
-    run()\n\
-This can be used to measure the execution time of 1.000.000 switches.");
-
-/* we define the stack max as the typical recursion limit
- * times the typical number of words per recursion.
- * That is 1000 * 64
- */
-
-#define STACK_MAX_USEFUL 64000
-#define STACK_MAX_USESTR "64000"
-
-static
-PyObject *
-test_cframe(PyObject *self, PyObject *args, PyObject *kwds)
-{
-    static char *argnames[] = {"switches", "words", NULL};
-    long switches, extra = 0;
-    long i;
-    PyObject *ret = Py_None;
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "l|l:test_cframe",
-                                     argnames, &switches, &extra))
-        return NULL;
-    if (extra < 0 || extra > STACK_MAX_USEFUL)
-        VALUE_ERROR("test_cframe: words are limited by 0 and " \
-                    STACK_MAX_USESTR, NULL);
-    if (extra > 0)
-        alloca(extra*sizeof(PyObject*));
-    Py_INCREF(ret);
-    for (i=0; i<switches; i++) {
-        Py_DECREF(ret);
-        ret = PyStackless_Schedule(Py_None, 0);
-        if (ret == NULL) return NULL;
-    }
-    return ret;
-}
 
 PyDoc_STRVAR(test_outside__doc__,
 "test_outside() -- a builtin testing function.\n\
@@ -992,19 +947,6 @@ test_cframe_nr(PyObject *self, PyObject *args, PyObject *kwds)
     Py_DECREF(cf);
     Py_INCREF(Py_None);
     return STACKLESS_PACK(ts, Py_None);
-}
-
-
-PyDoc_STRVAR(test_cstate__doc__,
-"test_cstate(callable) -- a builtin testing function that simply returns the\n\
-result of calling its single argument.  Used for testing to force stackless\n\
-into using hard switching.");
-
-static
-PyObject *
-test_cstate(PyObject *f, PyObject *callable)
-{
-    return PyObject_CallObject(callable, NULL);
 }
 
 
@@ -1127,95 +1069,6 @@ static PyObject *get_test_nostacklesscallobj(void)
     if (PyType_Ready(&test_nostacklesscallType) < 0)
         return NULL;
     return (PyObject*)PyObject_New(test_nostacklesscallObject, &test_nostacklesscallType);
-}
-
-
-PyDoc_STRVAR(test_PyEval_EvalFrameEx__doc__,
-"test_PyEval_EvalFrameEx(code, globals, args=()) -- a builtin testing function.\n\
-This function tests the C-API function PyEval_EvalFrameEx(), which is not used\n\
-by Stackless Python.\n\
-The function creates a frame from code, globals and args and executes the frame.");
-
-static PyObject* test_PyEval_EvalFrameEx(PyObject *self, PyObject *args, PyObject *kwds) {
-    static char *kwlist[] = {"code", "globals", "args", "alloca", "throw", "oldcython",
-                             "code2", NULL};
-    PyThreadState *tstate = PyThreadState_GET();
-    PyCodeObject *co, *code2 = NULL;
-    PyObject *globals, *co_args = NULL;
-    Py_ssize_t alloca_size = 0;
-    PyObject *exc = NULL;
-    PyObject *oldcython = NULL;
-    PyFrameObject *f;
-    PyObject *result = NULL;
-    void *p;
-    Py_ssize_t na;
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!O!|O!nOO!O!:test_PyEval_EvalFrameEx", kwlist,
-            &PyCode_Type, &co, &PyDict_Type, &globals, &PyTuple_Type, &co_args, &alloca_size,
-            &exc, &PyBool_Type, &oldcython, &PyCode_Type, &code2))
-        return NULL;
-    if (exc && !PyExceptionInstance_Check(exc)) {
-        PyErr_SetString(PyExc_TypeError, "exc must be an exception instance");
-        return NULL;
-    }
-    p = alloca(alloca_size);
-    assert(globals != NULL);
-    assert(tstate != NULL);
-    na = PyTuple_Size(co->co_freevars);
-    if (na == -1)
-        return NULL;
-    if (na > 0) {
-        PyErr_Format(PyExc_ValueError, "code requires cell variables");
-        return NULL;
-    }
-    f = PyFrame_New(tstate, co, globals, NULL);
-    if (f == NULL) {
-        return NULL;
-    }
-    if (co_args) {
-        PyObject **fastlocals;
-        Py_ssize_t i;
-        na = PyTuple_Size(co_args);
-        if (na == -1)
-            goto exit;
-        if (na > co->co_argcount) {
-            PyErr_Format(PyExc_ValueError, "too many items in tuple 'args'");
-            goto exit;
-        }
-        fastlocals = f->f_localsplus;
-        if (oldcython == Py_True) {
-            /* Use the f_localsplus offset from regular C-Python. Old versions of cython used to
-             * access f_localplus directly. Current versions compute the field offset for
-             * f_localsplus at run-time.
-             */
-            fastlocals--;
-        }
-        for (i = 0; i < na; i++) {
-            PyObject *arg = PyTuple_GetItem(co_args, i);
-            if (arg == NULL) {
-                goto exit;
-            }
-            Py_INCREF(arg);
-            fastlocals[i] = arg;
-        }
-        if (alloca_size > 0 && na > 0) {
-            Py_SETREF(fastlocals[0], PyLong_FromVoidPtr(p));
-        }
-    }
-    if (exc) {
-        PyErr_SetObject(PyExceptionInstance_Class(exc), exc);
-    }
-    if (code2) {
-        Py_INCREF(code2);
-        Py_SETREF(f->f_code, code2);
-    }
-    result = PyEval_EvalFrameEx(f, exc != NULL);
-    /* result = Py_None; Py_INCREF(Py_None); */
-exit:
-    ++tstate->recursion_depth;
-    Py_DECREF(f);
-    --tstate->recursion_depth;
-    return result;
 }
 
 
@@ -1687,16 +1540,10 @@ static PyMethodDef stackless_methods[] = {
      getmain__doc__},
     {"enable_softswitch",           (PCF)enable_softswitch,     METH_O,
      enable_soft__doc__},
-    {"test_cframe",                 (PCF)test_cframe,           METH_VARARGS | METH_KEYWORDS,
-     test_cframe__doc__},
     {"test_cframe_nr",              (PCF)test_cframe_nr,        METH_VARARGS | METH_KEYWORDS,
     test_cframe_nr__doc__},
     {"test_outside",                (PCF)test_outside,          METH_NOARGS,
     test_outside__doc__},
-    {"test_cstate",                 (PCF)test_cstate,           METH_O,
-    test_cstate__doc__},
-    {"test_PyEval_EvalFrameEx",     (PCF)test_PyEval_EvalFrameEx, METH_VARARGS | METH_KEYWORDS,
-    test_PyEval_EvalFrameEx__doc__},
     {"set_channel_callback",        (PCF)set_channel_callback,  METH_O,
      set_channel_callback__doc__},
     {"get_channel_callback",        (PCF)get_channel_callback,  METH_NOARGS,

@@ -53,16 +53,16 @@ class Test_PyEval_EvalFrameEx(StacklessTestCase):
         f = self.function
         if inspect.ismethod(f):
             f = f.__func__
-        return stackless.test_PyEval_EvalFrameEx(f.__code__, f.__globals__, args, **kw)
+        return _teststackless.test_PyEval_EvalFrameEx(f.__code__, f.__globals__, args, **kw)
 
     def test_free_vars(self):
-        # stackless.test_PyEval_EvalFrameEx can't handle code, that contains free variables.
+        # _teststackless.test_PyEval_EvalFrameEx can't handle code, that contains free variables.
         x = None
 
         def f():
             return x
         self.assertTupleEqual(f.__code__.co_freevars, ('x',))
-        self.assertRaises(ValueError, stackless.test_PyEval_EvalFrameEx, f.__code__, f.__globals__)
+        self.assertRaises(ValueError, _teststackless.test_PyEval_EvalFrameEx, f.__code__, f.__globals__)
 
     def test_0_args(self):
         self.assertRaises(UnboundLocalError, self.call_PyEval_EvalFrameEx)
@@ -86,7 +86,7 @@ class Test_PyEval_EvalFrameEx(StacklessTestCase):
         def f(C):
             return C()
 
-        c = stackless.test_PyEval_EvalFrameEx(f.__code__, f.__globals__, (C,))
+        c = _teststackless.test_PyEval_EvalFrameEx(f.__code__, f.__globals__, (C,))
         self.assertIsInstance(c, C)
         self.assertTrue(c.initialized)
 
@@ -102,7 +102,7 @@ class Test_PyEval_EvalFrameEx(StacklessTestCase):
             return 666
 
         stackless.tasklet(other_tasklet)()
-        result = stackless.test_PyEval_EvalFrameEx(f.__code__, f.__globals__)
+        result = _teststackless.test_PyEval_EvalFrameEx(f.__code__, f.__globals__)
         self.assertTrue(self.other_done)
         self.assertEqual(result, 666)
 
@@ -112,7 +112,7 @@ class Test_PyEval_EvalFrameEx(StacklessTestCase):
 
         try:
             exc = ZeroDivisionError("test")
-            stackless.test_PyEval_EvalFrameEx(f.__code__, f.__globals__, (), throw=exc)
+            _teststackless.test_PyEval_EvalFrameEx(f.__code__, f.__globals__, (), throw=exc)
         except ZeroDivisionError:
             e, tb = sys.exc_info()[1:]
             self.assertIs(e, exc)
@@ -134,13 +134,13 @@ class Test_PyEval_EvalFrameEx(StacklessTestCase):
         # first a dry run to check the threading logic
         lock.acquire()
         self.thread_done = False
-        _thread.start_new_thread(g, (stackless.test_PyEval_EvalFrameEx, f.__code__, f.__globals__, (self, lock)))
+        _thread.start_new_thread(g, (_teststackless.test_PyEval_EvalFrameEx, f.__code__, f.__globals__, (self, lock)))
         lock.acquire()
         self.assertTrue(self.thread_done)
         # return  # uncomment to skip the real test
         # and now the real smoke test: now PyEval_EvalFrameEx gets called without a main tasklet
         self.thread_done = False
-        _thread.start_new_thread(stackless.test_PyEval_EvalFrameEx, (f.__code__, f.__globals__, (self, lock)))
+        _thread.start_new_thread(_teststackless.test_PyEval_EvalFrameEx, (f.__code__, f.__globals__, (self, lock)))
         lock.acquire()
         self.assertTrue(self.thread_done)
 
@@ -154,7 +154,7 @@ class Test_PyEval_EvalFrameEx(StacklessTestCase):
         saved_sys_stderr = sys.stderr
         sys.stderr = iobuffer = io.StringIO()
         try:
-            _thread.start_new_thread(stackless.test_PyEval_EvalFrameEx, (f.__code__, f.__globals__, ()), dict(throw=exc))
+            _thread.start_new_thread(_teststackless.test_PyEval_EvalFrameEx, (f.__code__, f.__globals__, ()), dict(throw=exc))
             time.sleep(0.1)
         finally:
             sys.stderr = saved_sys_stderr
@@ -175,8 +175,8 @@ class Test_PyEval_EvalFrameEx(StacklessTestCase):
         def f2(code):
             return code
 
-        self.assertIs(stackless.test_PyEval_EvalFrameEx(f.__code__, f.__globals__, (f.__code__,), oldcython=False), f.__code__)
-        self.assertIs(stackless.test_PyEval_EvalFrameEx(f.__code__, f.__globals__, (f2.__code__,), oldcython=True), f2.__code__)
+        self.assertIs(_teststackless.test_PyEval_EvalFrameEx(f.__code__, f.__globals__, (f.__code__,), oldcython=False), f.__code__)
+        self.assertIs(_teststackless.test_PyEval_EvalFrameEx(f.__code__, f.__globals__, (f2.__code__,), oldcython=True), f2.__code__)
 
     @testcase_leaks_references("f->f_code get overwritten without Py_DECREF")
     def test_oldcython_frame_code_is_1st_arg_bad(self):
@@ -189,7 +189,7 @@ class Test_PyEval_EvalFrameEx(StacklessTestCase):
         #  - oldcython=True,
         # because a fix would result in a segmentation fault, if the number of
         # arguments is to low (test case test_0_args)
-        self.assertRaises(UnboundLocalError, stackless.test_PyEval_EvalFrameEx, f.__code__, f.__globals__, (f.__code__,), oldcython=True)
+        self.assertRaises(UnboundLocalError, _teststackless.test_PyEval_EvalFrameEx, f.__code__, f.__globals__, (f.__code__,), oldcython=True)
 
     def test_other_code_object(self):
         # A pathological test for Stackless issue #168
@@ -199,7 +199,7 @@ class Test_PyEval_EvalFrameEx(StacklessTestCase):
         def f2(arg):
             return arg
 
-        self.assertIs(stackless.test_PyEval_EvalFrameEx(f.__code__, f.__globals__, (f2,), code2=f2.__code__), f2)
+        self.assertIs(_teststackless.test_PyEval_EvalFrameEx(f.__code__, f.__globals__, (f2,), code2=f2.__code__), f2)
 
 
 if __name__ == "__main__":

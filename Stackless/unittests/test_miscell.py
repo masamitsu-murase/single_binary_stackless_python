@@ -12,6 +12,8 @@ import time
 import os
 import struct
 from stackless import _test_nostacklesscall as apply_not_stackless
+import _teststackless
+
 try:
     import _thread as thread
     import threading
@@ -783,8 +785,8 @@ class TestContextManager(StacklessTestCase):
 
         def task():
             with ContextManager():
-                # you can set a gdb breakpoint in stacklessmodule.c test_cframe()
-                stackless.test_cframe(0, 0)
+                # you can set a gdb breakpoint in _teststackless.c test_cframe()
+                _teststackless.test_cframe(0, 0)
                 # We need a return statement, to set stack TOP to an int()
                 return None
             self.fail("Not reached")
@@ -879,7 +881,7 @@ class TestBind(StacklessTestCase):
     def task(self, with_c_state):
         try:
             if with_c_state:
-                stackless.test_cstate(lambda: stackless.schedule_remove(None))
+                _teststackless.test_cstate(lambda: stackless.schedule_remove(None))
             else:
                 stackless.schedule_remove(None)
         finally:

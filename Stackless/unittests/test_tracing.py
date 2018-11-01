@@ -3,6 +3,7 @@ import unittest
 import stackless
 import sys
 import inspect
+import _teststackless
 from support import test_main  # @UnusedImport
 from support import StacklessTestCase
 
@@ -194,7 +195,7 @@ class TestTracingProperties(StacklessTestCase):
         # create tasklet (hard-switched), set trace, run, clear trace, run
         tf = self.nullTraceFunc
         # enforce hard switching
-        t = stackless.tasklet(stackless.test_cstate)(self.task2)
+        t = stackless.tasklet(_teststackless.test_cstate)(self.task2)
         self._testSetTraceOnTasklet3(t, tf)
 
     def _testSetTraceOnTasklet4(self, t, tf):
@@ -219,7 +220,7 @@ class TestTracingProperties(StacklessTestCase):
         # create tasklet (hard-switched), run, set trace, run
         tf = self.nullTraceFunc
         # enforce hard switching
-        t = stackless.tasklet(stackless.test_cstate)
+        t = stackless.tasklet(_teststackless.test_cstate)
         t(lambda: self.task2(expected_trace_function=tf))
         self._testSetTraceOnTasklet4(t, tf)
 
@@ -280,7 +281,7 @@ class TestTracingProperties(StacklessTestCase):
         # create tasklet (hard-switched), set profile, run, clear profile, run
         tf = self.nullTraceFunc
         # enforce hard switching
-        t = stackless.tasklet(stackless.test_cstate)(self.task2)
+        t = stackless.tasklet(_teststackless.test_cstate)(self.task2)
         self._testSetProfileOnTasklet3(t, tf)
 
     def _testSetProfileOnTasklet4(self, t, tf):
@@ -305,7 +306,7 @@ class TestTracingProperties(StacklessTestCase):
         # create tasklet (hard-switched), run, set profile, run
         tf = self.nullTraceFunc
         # enforce hard switching
-        t = stackless.tasklet(stackless.test_cstate)
+        t = stackless.tasklet(_teststackless.test_cstate)
         t(lambda: self.task2(expected_profile_function=tf))
         self._testSetProfileOnTasklet4(t, tf)
 

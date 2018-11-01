@@ -6,6 +6,7 @@ import stackless
 import sys
 import time
 import struct
+import _teststackless
 from stackless import _test_nostacklesscall as apply_not_stackless
 
 from support import test_main  # @UnusedImport
@@ -183,7 +184,7 @@ class TestRebindCrash(SkipMixin, StacklessTestCase):
         def taskletfunc():
             result.append(stackless.getcurrent())
             if nontrivial:
-                stackless.test_cstate(remove)
+                _teststackless.test_cstate(remove)
             else:
                 remove()
             if job:

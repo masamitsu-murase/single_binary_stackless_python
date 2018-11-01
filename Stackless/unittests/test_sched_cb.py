@@ -4,6 +4,7 @@ import stackless
 import gc
 import traceback
 import sys
+import _teststackless
 
 from support import test_main  # @UnusedImport
 from support import StacklessTestCase
@@ -32,8 +33,8 @@ class SchedulingCallbackTestCase(StacklessTestCase):
 
         mon1 = SchedulingMonitor()
         stackless.set_schedule_callback(mon1)
-        stackless.tasklet(stackless.test_cframe)(3)
-        stackless.tasklet(stackless.test_cframe)(3)
+        stackless.tasklet(_teststackless.test_cframe)(3)
+        stackless.tasklet(_teststackless.test_cframe)(3)
         # precondition
         self.assertEqual(mon1.count, 0,
                          "No callbacks before running")
@@ -54,7 +55,7 @@ class SchedulingCallbackTestCase(StacklessTestCase):
         stackless.set_schedule_callback(mon1)
         v = 3
         for i in range(n):
-            stackless.tasklet(stackless.test_cframe)(v)
+            stackless.tasklet(_teststackless.test_cframe)(v)
         c1 = mon1.count
         fu(c1 == 0, "No callbacks before running")
         stackless.run()
@@ -65,7 +66,7 @@ class SchedulingCallbackTestCase(StacklessTestCase):
         stackless.set_schedule_callback(mon2)
         v = 5
         for i in range(n):
-            stackless.tasklet(stackless.test_cframe)(v)
+            stackless.tasklet(_teststackless.test_cframe)(v)
         stackless.run()
         c2 = mon2.count
         fu(c2 >= n * v, "At least as may callbacks as many test_cframe calls")
@@ -75,7 +76,7 @@ class SchedulingCallbackTestCase(StacklessTestCase):
         stackless.set_schedule_callback(None)
         v = 7
         for i in range(n):
-            stackless.tasklet(stackless.test_cframe)(v)
+            stackless.tasklet(_teststackless.test_cframe)(v)
         stackless.run()
         c1p = mon1.count
         c2p = mon2.count

@@ -9,6 +9,11 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://github.com/stackless-dev/stackless/issues/175
+  Cleanup of the Stackless C-API: Including stackless_api.h in an extension
+  module no longer defines internal stuff. Additionally I moved test code
+  from module "stackless" into the new module "_teststackless".
+
 - https://github.com/stackless-dev/stackless/issues/177
   Fix a crasher in prickelpit.c slp_cannot_execute().
   Stackless versions released after March 2017 can crash, if a program executes
