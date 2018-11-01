@@ -579,6 +579,40 @@ PyDoc_STRVAR(builtin_repr__doc__,
 #define BUILTIN_REPR_METHODDEF    \
     {"repr", (PyCFunction)builtin_repr, METH_O, builtin_repr__doc__},
 
+PyDoc_STRVAR(builtin_round__doc__,
+"round($module, /, number, ndigits=None)\n"
+"--\n"
+"\n"
+"Round a number to a given precision in decimal digits.\n"
+"\n"
+"The return value is an integer if ndigits is omitted or None.  Otherwise\n"
+"the return value has the same type as the number.  ndigits may be negative.");
+
+#define BUILTIN_ROUND_METHODDEF    \
+    {"round", (PyCFunction)builtin_round, METH_FASTCALL|METH_KEYWORDS, builtin_round__doc__},
+
+static PyObject *
+builtin_round_impl(PyObject *module, PyObject *number, PyObject *ndigits);
+
+static PyObject *
+builtin_round(PyObject *module, PyObject **args, Py_ssize_t nargs, PyObject *kwnames)
+{
+    PyObject *return_value = NULL;
+    static const char * const _keywords[] = {"number", "ndigits", NULL};
+    static _PyArg_Parser _parser = {"O|O:round", _keywords, 0};
+    PyObject *number;
+    PyObject *ndigits = NULL;
+
+    if (!_PyArg_ParseStackAndKeywords(args, nargs, kwnames, &_parser,
+        &number, &ndigits)) {
+        goto exit;
+    }
+    return_value = builtin_round_impl(module, number, ndigits);
+
+exit:
+    return return_value;
+}
+
 PyDoc_STRVAR(builtin_sum__doc__,
 "sum($module, iterable, start=0, /)\n"
 "--\n"
@@ -682,4 +716,4 @@ builtin_issubclass(PyObject *module, PyObject **args, Py_ssize_t nargs)
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=b5cea348d1b96b65 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=d3e2223a690877d7 input=a9049054013a1b77]*/

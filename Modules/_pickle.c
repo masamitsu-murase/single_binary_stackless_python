@@ -1792,8 +1792,10 @@ fast_save_enter(PicklerObject *self, PyObject *obj)
             }
         }
         key = PyLong_FromVoidPtr(obj);
-        if (key == NULL)
+        if (key == NULL) {
+            self->fast_nesting = -1;
             return 0;
+        }
         if (PyDict_GetItemWithError(self->fast_memo, key)) {
             Py_DECREF(key);
             PyErr_Format(PyExc_ValueError,
@@ -1804,6 +1806,8 @@ fast_save_enter(PicklerObject *self, PyObject *obj)
             return 0;
         }
         if (PyErr_Occurred()) {
+            Py_DECREF(key);
+            self->fast_nesting = -1;
             return 0;
         }
         if (PyDict_SetItem(self->fast_memo, key, Py_None) < 0) {

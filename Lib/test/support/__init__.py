@@ -95,7 +95,7 @@ __all__ = [
     "check__all__", "requires_android_level", "requires_multiprocessing_queue",
     # sys
     "is_jython", "is_android", "check_impl_detail", "unix_shell",
-    "setswitchinterval", "android_not_root",
+    "setswitchinterval",
     # network
     "HOST", "IPV6_ENABLED", "find_unused_port", "bind_port", "open_urlresource",
     "bind_unix_socket",
@@ -785,7 +785,6 @@ try:
 except AttributeError:
     # sys.getandroidapilevel() is only available on Android
     is_android = False
-android_not_root = (is_android and os.geteuid() != 0)
 
 if sys.platform != 'win32':
     unix_shell = '/system/bin/sh' if is_android else '/bin/sh'
@@ -2777,7 +2776,7 @@ class SaveSignals:
         import signal
         self.signal = signal
         self.signals = list(range(1, signal.NSIG))
-        # SIGKILL and SIGSTOP signals cannot be ignored nor catched
+        # SIGKILL and SIGSTOP signals cannot be ignored nor caught
         for signame in ('SIGKILL', 'SIGSTOP'):
             try:
                 signum = getattr(signal, signame)
