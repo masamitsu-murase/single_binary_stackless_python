@@ -432,11 +432,6 @@ PyAPI_DATA(PyUnwindObject *) Py_UnwindToken;
 struct _frame * slp_clone_frame(struct _frame *f);
 struct _frame * slp_ensure_new_frame(struct _frame *f);
 
-/* exposing some hidden types */
-PyAPI_DATA(PyTypeObject) PyMethodDescr_Type;
-PyAPI_DATA(PyTypeObject) PyClassMethodDescr_Type;
-
-#define PyMethodWrapper_Check(op) PyObject_TypeCheck(op, &_PyMethodWrapper_Type)
 
 /* access to the current watchdog tasklet */
 PyTaskletObject * slp_get_watchdog(PyThreadState *ts, int interrupt);
