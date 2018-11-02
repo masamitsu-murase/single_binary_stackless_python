@@ -170,8 +170,10 @@ PyInterpreterState_New(void)
     interp->after_forkers_parent = NULL;
     interp->after_forkers_child = NULL;
 #endif
+    interp->pyexitfunc = NULL;
+    interp->pyexitmodule = NULL;
 #ifdef STACKLESS
-        SPL_INTERPRETERSTATE_NEW(interp);
+    SPL_INTERPRETERSTATE_NEW(interp);
 #endif
 
     HEAD_LOCK();
