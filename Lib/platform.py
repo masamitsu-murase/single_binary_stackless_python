@@ -1204,9 +1204,6 @@ def _sys_version(sys_version=None):
         _, branch, revision = sys._git
     elif hasattr(sys, '_mercurial'):
         _, branch, revision = sys._mercurial
-    elif hasattr(sys, 'subversion'):
-        # sys.subversion was added in Python 2.5
-        _, branch, revision = sys.subversion
     else:
         branch = ''
         revision = ''
@@ -1261,7 +1258,7 @@ def python_branch():
     """ Returns a string identifying the Python implementation
         branch.
 
-        For CPython this is the Subversion branch from which the
+        For CPython this is the SCM branch from which the
         Python binary was built.
 
         If not available, an empty string is returned.
@@ -1275,7 +1272,7 @@ def python_revision():
     """ Returns a string identifying the Python implementation
         revision.
 
-        For CPython this is the Subversion revision from which the
+        For CPython this is the SCM revision from which the
         Python binary was built.
 
         If not available, an empty string is returned.
