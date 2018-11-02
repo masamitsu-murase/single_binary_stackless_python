@@ -88,7 +88,7 @@ static PyObject *
 builtin_format_impl(PyObject *module, PyObject *value, PyObject *format_spec);
 
 static PyObject *
-builtin_format(PyObject *module, PyObject **args, Py_ssize_t nargs)
+builtin_format(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
 {
     PyObject *return_value = NULL;
     PyObject *value;
@@ -158,7 +158,7 @@ builtin_compile_impl(PyObject *module, PyObject *source, PyObject *filename,
                      int optimize);
 
 static PyObject *
-builtin_compile(PyObject *module, PyObject **args, Py_ssize_t nargs, PyObject *kwnames)
+builtin_compile(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
 {
     PyObject *return_value = NULL;
     static const char * const _keywords[] = {"source", "filename", "mode", "flags", "dont_inherit", "optimize", NULL};
@@ -193,7 +193,7 @@ static PyObject *
 builtin_divmod_impl(PyObject *module, PyObject *x, PyObject *y);
 
 static PyObject *
-builtin_divmod(PyObject *module, PyObject **args, Py_ssize_t nargs)
+builtin_divmod(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
 {
     PyObject *return_value = NULL;
     PyObject *x;
@@ -230,7 +230,7 @@ builtin_eval_impl(PyObject *module, PyObject *source, PyObject *globals,
                   PyObject *locals);
 
 static PyObject *
-builtin_eval(PyObject *module, PyObject **args, Py_ssize_t nargs)
+builtin_eval(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
 {
     STACKLESS_GETARG();
     PyObject *return_value = NULL;
@@ -271,7 +271,7 @@ builtin_exec_impl(PyObject *module, PyObject *source, PyObject *globals,
                   PyObject *locals);
 
 static PyObject *
-builtin_exec(PyObject *module, PyObject **args, Py_ssize_t nargs)
+builtin_exec(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
 {
     STACKLESS_GETARG();
     PyObject *return_value = NULL;
@@ -328,7 +328,7 @@ static PyObject *
 builtin_hasattr_impl(PyObject *module, PyObject *obj, PyObject *name);
 
 static PyObject *
-builtin_hasattr(PyObject *module, PyObject **args, Py_ssize_t nargs)
+builtin_hasattr(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
 {
     PyObject *return_value = NULL;
     PyObject *obj;
@@ -373,7 +373,7 @@ builtin_setattr_impl(PyObject *module, PyObject *obj, PyObject *name,
                      PyObject *value);
 
 static PyObject *
-builtin_setattr(PyObject *module, PyObject **args, Py_ssize_t nargs)
+builtin_setattr(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
 {
     PyObject *return_value = NULL;
     PyObject *obj;
@@ -406,7 +406,7 @@ static PyObject *
 builtin_delattr_impl(PyObject *module, PyObject *obj, PyObject *name);
 
 static PyObject *
-builtin_delattr(PyObject *module, PyObject **args, Py_ssize_t nargs)
+builtin_delattr(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
 {
     PyObject *return_value = NULL;
     PyObject *obj;
@@ -515,7 +515,7 @@ static PyObject *
 builtin_pow_impl(PyObject *module, PyObject *x, PyObject *y, PyObject *z);
 
 static PyObject *
-builtin_pow(PyObject *module, PyObject **args, Py_ssize_t nargs)
+builtin_pow(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
 {
     PyObject *return_value = NULL;
     PyObject *x;
@@ -552,7 +552,7 @@ static PyObject *
 builtin_input_impl(PyObject *module, PyObject *prompt);
 
 static PyObject *
-builtin_input(PyObject *module, PyObject **args, Py_ssize_t nargs)
+builtin_input(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
 {
     PyObject *return_value = NULL;
     PyObject *prompt = NULL;
@@ -595,7 +595,7 @@ static PyObject *
 builtin_round_impl(PyObject *module, PyObject *number, PyObject *ndigits);
 
 static PyObject *
-builtin_round(PyObject *module, PyObject **args, Py_ssize_t nargs, PyObject *kwnames)
+builtin_round(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
 {
     PyObject *return_value = NULL;
     static const char * const _keywords[] = {"number", "ndigits", NULL};
@@ -630,7 +630,7 @@ static PyObject *
 builtin_sum_impl(PyObject *module, PyObject *iterable, PyObject *start);
 
 static PyObject *
-builtin_sum(PyObject *module, PyObject **args, Py_ssize_t nargs)
+builtin_sum(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
 {
     PyObject *return_value = NULL;
     PyObject *iterable;
@@ -665,7 +665,7 @@ builtin_isinstance_impl(PyObject *module, PyObject *obj,
                         PyObject *class_or_tuple);
 
 static PyObject *
-builtin_isinstance(PyObject *module, PyObject **args, Py_ssize_t nargs)
+builtin_isinstance(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
 {
     PyObject *return_value = NULL;
     PyObject *obj;
@@ -700,7 +700,7 @@ builtin_issubclass_impl(PyObject *module, PyObject *cls,
                         PyObject *class_or_tuple);
 
 static PyObject *
-builtin_issubclass(PyObject *module, PyObject **args, Py_ssize_t nargs)
+builtin_issubclass(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
 {
     PyObject *return_value = NULL;
     PyObject *cls;
@@ -716,4 +716,4 @@ builtin_issubclass(PyObject *module, PyObject **args, Py_ssize_t nargs)
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=d3e2223a690877d7 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=e63f11c23d2a3ddd input=a9049054013a1b77]*/
