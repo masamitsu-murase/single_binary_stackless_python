@@ -61,7 +61,9 @@ PyAPI_FUNC(int) _PyCoreConfig_Copy(
     _PyCoreConfig *config,
     const _PyCoreConfig *config2);
 
-PyAPI_FUNC(_PyInitError) _PyMainInterpreterConfig_Read(_PyMainInterpreterConfig *, _PyCoreConfig *);
+PyAPI_FUNC(_PyInitError) _PyMainInterpreterConfig_Read(
+    _PyMainInterpreterConfig *config,
+    const _PyCoreConfig *core_config);
 PyAPI_FUNC(void) _PyMainInterpreterConfig_Clear(_PyMainInterpreterConfig *);
 PyAPI_FUNC(int) _PyMainInterpreterConfig_Copy(
     _PyMainInterpreterConfig *config,
@@ -105,6 +107,9 @@ PyAPI_FUNC(int) Py_FdIsInteractive(FILE *, const char *);
 
 /* Bootstrap __main__ (defined in Modules/main.c) */
 PyAPI_FUNC(int) Py_Main(int argc, wchar_t **argv);
+#ifdef Py_BUILD_CORE
+PyAPI_FUNC(int) _Py_UnixMain(int argc, char **argv);
+#endif
 
 /* In getpath.c */
 PyAPI_FUNC(wchar_t *) Py_GetProgramFullPath(void);
@@ -194,7 +199,7 @@ PyAPI_FUNC(int) _PyOS_URandomNonblock(void *buffer, Py_ssize_t size);
 
 /* Legacy locale support */
 #ifndef Py_LIMITED_API
-PyAPI_FUNC(void) _Py_CoerceLegacyLocale(void);
+PyAPI_FUNC(void) _Py_CoerceLegacyLocale(const _PyCoreConfig *config);
 PyAPI_FUNC(int) _Py_LegacyLocaleDetected(void);
 PyAPI_FUNC(char *) _Py_SetLocaleFromEnv(int category);
 #endif
