@@ -38,6 +38,49 @@ struct _gilstate_runtime_state {
 #define _PyGILState_check_enabled _PyRuntime.gilstate.check_enabled
 
 
+typedef struct {
+    /* Full path to the Python program */
+    wchar_t *program_full_path;
+    wchar_t *prefix;
+#ifdef MS_WINDOWS
+    wchar_t *dll_path;
+#else
+    wchar_t *exec_prefix;
+#endif
+    /* Set by Py_SetPath(), or computed by _PyPathConfig_Init() */
+    wchar_t *module_search_path;
+    /* Python program name */
+    wchar_t *program_name;
+    /* Set by Py_SetPythonHome() or PYTHONHOME environment variable */
+    wchar_t *home;
+} _PyPathConfig;
+
+#ifdef MS_WINDOWS
+#define _PyPathConfig_INIT \
+    {.program_full_path = NULL, \
+     .prefix = NULL, \
+     .dll_path = NULL, \
+     .module_search_path = NULL, \
+     .program_name = NULL, \
+     .home = NULL}
+#else
+#define _PyPathConfig_INIT \
+    {.program_full_path = NULL, \
+     .prefix = NULL, \
+     .exec_prefix = NULL, \
+     .module_search_path = NULL, \
+     .program_name = NULL, \
+     .home = NULL}
+#endif
+
+PyAPI_DATA(_PyPathConfig) _Py_path_config;
+
+PyAPI_FUNC(_PyInitError) _PyPathConfig_Calculate(
+    _PyPathConfig *config,
+    const _PyMainInterpreterConfig *main_config);
+PyAPI_FUNC(void) _PyPathConfig_Clear(_PyPathConfig *config);
+
+
 /* Full Python runtime state */
 
 typedef struct pyruntimestate {
