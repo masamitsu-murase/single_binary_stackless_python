@@ -998,7 +998,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(C().x, 0)
         self.assertEqual(C(2).x, 4)
 
-        # Make sure that if we'r frozen, post-init can't set
+        # Make sure that if we're frozen, post-init can't set
         #  attributes.
         @dataclass(frozen=True)
         class C:
@@ -1831,7 +1831,7 @@ class TestCase(unittest.TestCase):
         #  if we're also replacing one that does exist.  Test this
         #  here, because setting attributes on frozen instances is
         #  handled slightly differently from non-frozen ones.
-        with self.assertRaisesRegex(TypeError, "__init__\(\) got an unexpected "
+        with self.assertRaisesRegex(TypeError, r"__init__\(\) got an unexpected "
                                              "keyword argument 'a'"):
             c1 = replace(c, x=20, a=5)
 
@@ -1842,7 +1842,7 @@ class TestCase(unittest.TestCase):
             y: int
 
         c = C(1, 2)
-        with self.assertRaisesRegex(TypeError, "__init__\(\) got an unexpected "
+        with self.assertRaisesRegex(TypeError, r"__init__\(\) got an unexpected "
                                     "keyword argument 'z'"):
             c1 = replace(c, z=3)
 

@@ -1403,7 +1403,7 @@ class PyBuildExt(build_ext):
             if host_platform == 'darwin':
                 # On OS X, there is no separate /usr/lib/libncursesw nor
                 # libpanelw.  If we are here, we found a locally-supplied
-                # version of libncursesw.  There should be also be a
+                # version of libncursesw.  There should also be a
                 # libpanelw.  _XOPEN_SOURCE defines are usually excluded
                 # for OS X but we need _XOPEN_SOURCE_EXTENDED here for
                 # ncurses wide char support
@@ -2073,6 +2073,7 @@ class PyBuildExt(build_ext):
                                                          'Modules',
                                                          '_decimal',
                                                          'libmpdec'))]
+            libraries = ['m']
             sources = [
               '_decimal/_decimal.c',
               '_decimal/libmpdec/basearith.c',
@@ -2168,7 +2169,7 @@ class PyBuildExt(build_ext):
         ext = Extension (
             '_decimal',
             include_dirs=include_dirs,
-            libraries=['m'],
+            libraries=libraries,
             define_macros=define_macros,
             undef_macros=undef_macros,
             extra_compile_args=extra_compile_args,
