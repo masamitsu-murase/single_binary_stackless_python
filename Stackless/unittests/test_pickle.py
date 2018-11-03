@@ -685,6 +685,24 @@ class TestCoroutinePickling(StacklessPickleTestCase):
         self.assertIsNone(c.cr_frame)
         self.assertRaisesRegex(RuntimeError, "cannot reuse already awaited coroutine", c.send, None)
 
+    def test_pickling_origin(self):
+        old_coroutine_origin_tracking_depth = sys.get_coroutine_origin_tracking_depth()
+        self.addCleanup(sys.set_coroutine_origin_tracking_depth, old_coroutine_origin_tracking_depth)
+        sys.set_coroutine_origin_tracking_depth(5)
+        c = self.c()
+        self.assertEqual(c.send(None), 1)
+        orig_origin = c.cr_origin
+        self.assertIsInstance(orig_origin, tuple)
+        p = self.dumps(c)
+        c = self.loads(p)
+        self.assertIsInstance(c, types.CoroutineType)
+        self.assertIsNotNone(c.cr_await)
+        self.assertIsNotNone(c.cr_frame)
+        origin = c.cr_origin
+        self.assertIsInstance(origin, tuple)
+        self.assertIsNot(origin, orig_origin)
+        self.assertTupleEqual(orig_origin, origin)
+        self.assertRaises(StopIteration, c.send, None)
 
 class TestCopy(StacklessTestCase):
     ITERATOR_TYPE = type(iter("abc"))

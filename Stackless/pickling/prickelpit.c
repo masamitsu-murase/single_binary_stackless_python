@@ -1516,7 +1516,7 @@ static int init_dictitemsviewtype(PyObject * mod)
 
 /******************************************************
 
-  pickling of generators and coroutines
+  pickling of generators, coroutines and asynchronous generators
 
  ******************************************************/
 
@@ -1547,73 +1547,221 @@ slp_get_obj_for_exc_state(_PyErr_StackItem *exc_info) {
     return result;
 }
 
-/* The usual reduce method.
- * Also assert at compile time, that the size of generator and coroutines is
- * equal.
+/*
+ * Common code for reducing PyGenObject, PyCoroObject and PyAsyncGenObject
  */
-static PyObject *
-_gen_reduce(PyTypeObject *type, PyGenObject *gen)
+
+typedef struct {
+    PyObject *frame;
+    PyObject *exc_type;
+    PyObject *exc_value;
+    PyObject *exc_traceback;
+    PyObject *exc_info_obj;
+    PyObject *code;
+    PyObject *name;
+    PyObject *qualname;
+    char running;
+} gen_obj_head_ty;
+
+static void
+gen_obj_head_clear(gen_obj_head_ty *goh)
 {
-    PyObject *tup;
-    PyObject *frame_reducer = (PyObject *)gen->gi_frame;
-    PyObject *exc_type, *exc_value, *exc_traceback, *exc_info_obj;
-    Py_BUILD_ASSERT(sizeof(PyGenObject) == sizeof(PyCoroObject));
-
-    if (frame_reducer == NULL) {
-        /* Pickle NULL as None. See gen_setstate() for the corresponding
-         * unpickling code. */
-        Py_INCREF(Py_None);
-        frame_reducer = Py_None;
-    } else {
-        frame_reducer = slp_reduce_frame(gen->gi_frame);
-    }
-    if (frame_reducer == NULL)
-        return NULL;
-
-    if (gen->gi_exc_state.previous_item != NULL) {
-        assert(gen->gi_exc_state.previous_item != &(PyThreadState_GET()->exc_state));
-        exc_info_obj = slp_get_obj_for_exc_state(gen->gi_exc_state.previous_item);
-        if (exc_info_obj == NULL)
-            return NULL;
-        assert(exc_info_obj != Py_None);
-    } else {
-        Py_INCREF(Py_None);
-        exc_info_obj = Py_None;
-    }
-
-    exc_type = gen->gi_exc_state.exc_type;
-    exc_value = gen->gi_exc_state.exc_value;
-    exc_traceback = gen->gi_exc_state.exc_traceback;
-    if (exc_type == NULL) exc_type = Py_None;
-    if (exc_value == NULL) exc_value = Py_None;
-    if (exc_traceback == NULL) exc_traceback = Py_None;
-    Py_INCREF(exc_type);
-    Py_INCREF(exc_value);
-    Py_INCREF(exc_traceback);
-
-    tup = Py_BuildValue("(O()(OiOOOOOO))",
-                        type,
-                        frame_reducer,
-                        gen->gi_running,
-                        gen->gi_name,
-                        gen->gi_qualname,
-                        exc_type,
-                        exc_value,
-                        exc_traceback,
-                        exc_info_obj
-                        );
-    Py_DECREF(frame_reducer);
-    Py_DECREF(exc_info_obj);
-    Py_DECREF(exc_type);
-    Py_DECREF(exc_value);
-    Py_DECREF(exc_traceback);
-    return tup;
+    Py_DECREF(goh->frame);
+    Py_DECREF(goh->exc_type);
+    Py_DECREF(goh->exc_value);
+    Py_DECREF(goh->exc_traceback);
+    Py_DECREF(goh->exc_info_obj);
+    Py_XDECREF(goh->code);
+    Py_XDECREF(goh->name);
+    Py_XDECREF(goh->qualname);
 }
 
+/* Reduce the frame of an (asynchronous) generator or a coroutine
+ */
+static int
+reduce_to_gen_obj_head(gen_obj_head_ty *goh, PyFrameObject * frame, const _PyErr_StackItem *exc_state)
+{
+    goh->code = goh->name = goh->qualname = NULL;
+    /* Pickle NULL as None. See gen_setstate() for the corresponding
+     * unpickling code. */
+    if (frame != NULL) {
+        goh->frame = slp_reduce_frame(frame);
+        if (goh->frame == NULL)
+            return -1;
+    }
+    else {
+        Py_INCREF(Py_None);
+        goh->frame = Py_None;
+    }
+
+    assert(exc_state != NULL);
+    if (exc_state->previous_item != NULL) {
+        assert(exc_state->previous_item != &(PyThreadState_GET()->exc_state));
+        goh->exc_info_obj = slp_get_obj_for_exc_state(exc_state->previous_item);
+        if (goh->exc_info_obj == NULL) {
+            Py_DECREF(goh->frame);
+            return -1;
+        }
+    }
+    else {
+        Py_INCREF(Py_None);
+        goh->exc_info_obj = Py_None;
+    }
+
+    goh->exc_type = exc_state->exc_type;
+    goh->exc_value = exc_state->exc_value;
+    goh->exc_traceback = exc_state->exc_traceback;
+    if (goh->exc_type == NULL) goh->exc_type = Py_None;
+    if (goh->exc_value == NULL) goh->exc_value = Py_None;
+    if (goh->exc_traceback == NULL) goh->exc_traceback = Py_None;
+    Py_INCREF(goh->exc_type);
+    Py_INCREF(goh->exc_value);
+    Py_INCREF(goh->exc_traceback);
+    return 0;
+}
+
+static int
+setstate_from_gen_obj_head(const gen_obj_head_ty *goh,
+    PyFrameObject **p_frame, _PyErr_StackItem *exc_state,
+    PyObject **p_code, PyObject **p_name, PyObject **p_qualname, char *p_running)
+{
+    PyFrameObject *f, *old_frame;
+    PyObject *code, *old_code;
+    PyObject *old_type, *old_value, *old_traceback;
+    PyObject *old_name, *old_qualname;
+
+    if (goh->frame == Py_None) {
+        /* No frame, generator is exhausted */
+        f = NULL;
+
+        /* Even if frame is NULL, code is still valid. Therefore
+        * I set it to the code of the exhausted frame singleton.
+        */
+        assert(gen_exhausted_frame != NULL);
+        assert(PyFrame_Check(gen_exhausted_frame));
+        code = (PyObject *)gen_exhausted_frame->f_code;
+    }
+    else if (!PyFrame_Check(goh->frame)) {
+        PyErr_SetString(PyExc_TypeError, "invalid frame object");
+        return -1;
+    }
+    else {
+        f = (PyFrameObject *)(goh->frame);
+        if (!goh->running) {
+            f = slp_ensure_new_frame(f);
+            if (f == NULL) {
+                return -1;
+            }
+        }
+        else {
+            Py_INCREF(f);
+        }
+        code = (PyObject *)f->f_code;
+    }
+    Py_INCREF(code);
+
+    *p_running = goh->running;
+    old_name = *p_name;
+    Py_INCREF(goh->name);
+    *p_name = goh->name;
+    old_qualname = *p_qualname;
+    Py_INCREF(goh->qualname);
+    *p_qualname = goh->qualname;
+
+    old_type = exc_state->exc_type;
+    old_value = exc_state->exc_value;
+    old_traceback = exc_state->exc_traceback;
+    if (goh->exc_type != Py_None) {
+        Py_INCREF(goh->exc_type);
+        exc_state->exc_type = goh->exc_type;
+    }
+    else
+        exc_state->exc_type = NULL;
+
+    if (goh->exc_value != Py_None) {
+        Py_INCREF(goh->exc_value);
+        exc_state->exc_value = goh->exc_value;
+    }
+    else
+        exc_state->exc_value = NULL;
+
+    if (goh->exc_traceback != Py_None) {
+        Py_INCREF(goh->exc_traceback);
+        exc_state->exc_traceback = goh->exc_traceback;
+    }
+    else
+        exc_state->exc_value = NULL;
+
+    assert(exc_state->previous_item == NULL);
+    if (goh->exc_info_obj == Py_None) {
+        exc_state->previous_item = NULL;
+    }
+    else {
+        /* Check the preconditions for the next assinment.
+        *
+        * The cast in the assignment is OK, because all possible concrete types of exc_info_obj
+        * have the exec_state member at the same offset.
+        */
+        assert(PyTasklet_Check(goh->exc_info_obj) ||
+            PyGen_Check(goh->exc_info_obj) ||
+            PyObject_TypeCheck(goh->exc_info_obj, &PyCoro_Type) ||
+            PyObject_TypeCheck(goh->exc_info_obj, &PyAsyncGen_Type));
+        Py_BUILD_ASSERT(offsetof(PyTaskletObject, exc_state) == offsetof(PyGenObject, gi_exc_state));
+        Py_BUILD_ASSERT(offsetof(PyTaskletObject, exc_state) == offsetof(PyCoroObject, cr_exc_state));
+        Py_BUILD_ASSERT(offsetof(PyTaskletObject, exc_state) == offsetof(PyAsyncGenObject, ag_exc_state));
+        /* Make sure, that *exc_info_obj stays alive after Py_DECREF(args) at the end of this function.
+        */
+        assert(Py_REFCNT(goh->exc_info_obj) > 1);
+        exc_state->previous_item = &(((PyGenObject *)(goh->exc_info_obj))->gi_exc_state);
+    }
+
+    /*
+    * The frame might now be initially unpickled (with PyNone as f_back),
+    * or it is already chained into a tasklet.
+    * Fortunately, we can simply leave it this way:
+    * since gi_running is set, there is no way to continue the
+    * generator without the corresponding tasklet.
+    */
+    old_frame = *p_frame;
+    *p_frame = f;
+    old_code = *p_code;
+    *p_code = code;
+
+    Py_XDECREF(old_type);
+    Py_XDECREF(old_value);
+    Py_XDECREF(old_traceback);
+    Py_XDECREF(old_name);
+    Py_XDECREF(old_qualname);
+    Py_XDECREF(old_code);
+    Py_XDECREF(old_frame);
+
+    return 0;
+}
+
+/* The usual reduce method.
+ */
 static PyObject *
 gen_reduce(PyGenObject *gen)
 {
-    return _gen_reduce(&wrap_PyGen_Type, gen);
+    PyObject *tup;
+    gen_obj_head_ty goh;
+
+    if (reduce_to_gen_obj_head(&goh, gen->gi_frame, &gen->gi_exc_state))
+        return NULL;
+
+    tup = Py_BuildValue("(O()(ObOOOOOO))",
+        &wrap_PyGen_Type,
+        goh.frame,
+        gen->gi_running,
+        gen->gi_name,
+        gen->gi_qualname,
+        goh.exc_type,
+        goh.exc_value,
+        goh.exc_traceback,
+        goh.exc_info_obj
+    );
+    gen_obj_head_clear(&goh);
+    return tup;
 }
 
 static PyObject *
@@ -1625,13 +1773,8 @@ gen_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     /* A reference to frame is stolen by PyGen_New. */
     assert(gen_exhausted_frame != NULL);
     assert(PyFrame_Check(gen_exhausted_frame));
-    if (type == &wrap_PyGen_Type) {
-        gen = (PyGenObject *)PyGen_NewWithQualName(slp_ensure_new_frame(gen_exhausted_frame), NULL, NULL);
-    }
-    else {
-        assert(type == &wrap_PyCoro_Type);
-        gen = (PyGenObject *)PyCoro_New(slp_ensure_new_frame(gen_exhausted_frame), NULL, NULL);
-    }
+    assert(type == &wrap_PyGen_Type);
+    gen = (PyGenObject *)PyGen_NewWithQualName(slp_ensure_new_frame(gen_exhausted_frame), NULL, NULL);
     if (gen == NULL)
         return NULL;
     Py_TYPE(gen) = type;
@@ -1642,169 +1785,36 @@ static PyObject *
 gen_setstate(PyObject *self, PyObject *args)
 {
     PyGenObject *gen = (PyGenObject *) self;
-    PyFrameObject *f;
-    PyObject *obj;
-    int gi_running;
-    PyObject *name = NULL;
-    PyObject *qualname = NULL;
-    PyObject *exc_type, *exc_value, *exc_traceback;
-    PyObject *old_type, *old_value, *old_traceback;
-    PyObject *exc_info_obj;
+    gen_obj_head_ty goh;
 
     if (is_wrong_type(Py_TYPE(self))) return NULL;
 
     if ((args = unwrap_frame_arg(args)) == NULL)  /* now args is a counted ref! */
         return NULL;
 
-    if (!PyArg_ParseTuple(args, "OiOOOOOO:generator",
-                          &obj,
-                          &gi_running,
-                          &name,
-                          &qualname,
-                          &exc_type,
-                          &exc_value,
-                          &exc_traceback,
-                          &exc_info_obj)) {
+    if (!PyArg_ParseTuple(args, "ObOOOOOO:generator",
+                          &goh.frame,
+                          &goh.running,
+                          &goh.name,
+                          &goh.qualname,
+                          &goh.exc_type,
+                          &goh.exc_value,
+                          &goh.exc_traceback,
+                          &goh.exc_info_obj)) {
         Py_DECREF(args);
         return NULL;
     }
 
-    if (obj == Py_None) {
-        /* No frame, generator is exhausted */
-        Py_CLEAR(gen->gi_frame);
-
-        /* Even if gi_frame is NULL, gi_code is still valid. Therefore
-         * I set it to the code of the exhausted frame singleton. 
-         */
-        assert(gen_exhausted_frame != NULL);
-        assert(PyFrame_Check(gen_exhausted_frame));
-        obj = (PyObject *)gen_exhausted_frame->f_code;
-        Py_INCREF(obj);
-        Py_SETREF(gen->gi_code, obj);
-
-        gen->gi_running = gi_running;
-        if (name == NULL) {
-            name = gen_exhausted_frame->f_code->co_name;
-            assert(name != NULL);
-        }
-        if (qualname == NULL) {
-            qualname = name;
-        }
-        Py_INCREF(name);
-        Py_SETREF(gen->gi_name, name);
-        Py_INCREF(qualname);
-        Py_SETREF(gen->gi_qualname, qualname);
-        Py_TYPE(gen) = Py_TYPE(gen)->tp_base;
-        Py_INCREF(gen);
-        Py_DECREF(args); /* holds the obj ref */
-        return (PyObject *)gen;
-    }
-    if (!PyFrame_Check(obj)) {
-        PyErr_SetString(PyExc_TypeError,
-                        "invalid frame object for gen_setstate");
-        Py_DECREF(args); /* holds the obj ref */
+    if (setstate_from_gen_obj_head(&goh,
+        &gen->gi_frame, &gen->gi_exc_state, &gen->gi_code,
+        &gen->gi_name, &gen->gi_qualname, &gen->gi_running)) {
+        Py_DECREF(args);
         return NULL;
     }
-    f = (PyFrameObject *)obj;
-    obj = NULL;
 
-    old_type = gen->gi_exc_state.exc_type;
-    old_value = gen->gi_exc_state.exc_value;
-    old_traceback = gen->gi_exc_state.exc_traceback;
-    if (exc_type != Py_None) {
-        Py_INCREF(exc_type);
-        gen->gi_exc_state.exc_type = exc_type;
-    } else
-        gen->gi_exc_state.exc_type = NULL;
-    if (exc_value != Py_None) {
-        Py_INCREF(exc_value);
-        gen->gi_exc_state.exc_value = exc_value;
-    } else
-        gen->gi_exc_state.exc_value = NULL;
-    if (exc_traceback != Py_None) {
-        Py_INCREF(exc_traceback);
-        gen->gi_exc_state.exc_traceback = exc_traceback;
-    } else
-        gen->gi_exc_state.exc_value = NULL;
-    assert(gen->gi_exc_state.previous_item == NULL);
-    if (exc_info_obj == Py_None) {
-        gen->gi_exc_state.previous_item = NULL;
-    } else {
-        /* Check the preconditions for the next assinment.
-         *
-         * The cast in the assignment is OK, because all possible concrete types of exc_info_obj
-         * have the exec_state member at the same offset.
-         */
-        assert(PyTasklet_Check(exc_info_obj) ||
-                PyGen_Check(exc_info_obj) ||
-                PyObject_TypeCheck(exc_info_obj, &PyCoro_Type) ||
-                PyObject_TypeCheck(exc_info_obj, &PyAsyncGen_Type));
-        Py_BUILD_ASSERT(offsetof(PyTaskletObject, exc_state) == offsetof(PyGenObject, gi_exc_state));
-        Py_BUILD_ASSERT(offsetof(PyTaskletObject, exc_state) == offsetof(PyCoroObject, cr_exc_state));
-        Py_BUILD_ASSERT(offsetof(PyTaskletObject, exc_state) == offsetof(PyAsyncGenObject, ag_exc_state));
-        /* Make sure, that *exc_info_obj stays alive after Py_DECREF(args) at the end of this function.
-         */
-        assert(Py_REFCNT(exc_info_obj) > 1);
-        gen->gi_exc_state.previous_item = &(((PyGenObject *)exc_info_obj)->gi_exc_state);
-    }
-
-    if (!gi_running) {
-        if ((f = slp_ensure_new_frame(f)) != NULL) {
-            /* use a second one for late initialization */
-            PyGenObject *tmpgen;
-            /* PyGenerator_New eats an existing reference */
-            if ((tmpgen = (PyGenObject *)
-                    PyGen_NewWithQualName(f, NULL, NULL)) == NULL) {
-                Py_DECREF(f);
-                Py_DECREF(args); /* holds the frame and name refs */
-                return NULL;
-            }
-            Py_INCREF(f);
-            Py_SETREF(gen->gi_frame, f);
-            Py_INCREF(f->f_code);
-            Py_SETREF(gen->gi_code, (PyObject *)f->f_code);
-            Py_INCREF(name);
-            Py_SETREF(gen->gi_name, name);
-            Py_INCREF(qualname);
-            Py_SETREF(gen->gi_qualname, qualname);
-            /* The frame the temporary generator references
-               will have GeneratorExit raised on it, when the
-               temporary generator is torn down.  So clearing
-               the frame from the temporary generator before
-               discarding it, will save the frame for later. */
-            Py_CLEAR(((PyGenObject *)tmpgen)->gi_frame);
-            Py_DECREF(tmpgen);
-            Py_INCREF(gen);
-            Py_TYPE(gen) = Py_TYPE(gen)->tp_base;
-        }
-        else
-            gen = NULL;
-        Py_DECREF(args); /* holds the frame and name refs */
-        return (PyObject *) gen;
-    }
-
-    /*
-     * The frame might now be initially unpickled (with PyNone as f_back),
-     * or it is already chained into a tasklet.
-     * Fortunately, we can simply leave it this way:
-     * since gi_running is set, there is no way to continue the
-     * generator without the corresponding tasklet.
-     */
-    Py_INCREF(f);
-    Py_SETREF(gen->gi_frame, f);
-    Py_INCREF(f->f_code);
-    Py_SETREF(gen->gi_code, (PyObject *)f->f_code);
-    gen->gi_running = gi_running;
-    Py_INCREF(name);
-    Py_SETREF(gen->gi_name, name);
-    Py_INCREF(qualname);
-    Py_SETREF(gen->gi_qualname, qualname);
     Py_TYPE(gen) = Py_TYPE(gen)->tp_base;
     Py_INCREF(gen);
     Py_DECREF(args); /* holds the frame and name refs */
-    Py_XDECREF(old_type);
-    Py_XDECREF(old_value);
-    Py_XDECREF(old_traceback);
     return (PyObject *)gen;
 }
 
@@ -1833,7 +1843,7 @@ static int init_generatortype(PyObject * mod)
     assert(gen_exhausted_frame == NULL);
     gen_exhausted_frame = slp_ensure_new_frame(gen->gi_frame);
     if (gen_exhausted_frame == NULL) {
-        return -1;
+        res = -1;
     }
 
     Py_DECREF(gen);
@@ -1843,13 +1853,104 @@ static int init_generatortype(PyObject * mod)
 #define initchain init_generatortype
 
 static PyObject *
-coro_reduce(PyGenObject *gen)
+coro_reduce(PyCoroObject *coro)
 {
-    return _gen_reduce(&wrap_PyCoro_Type, gen);
+    PyObject *tup;
+    gen_obj_head_ty goh;
+    PyObject *origin;
+
+    if (reduce_to_gen_obj_head(&goh, coro->cr_frame, &coro->cr_exc_state))
+        return NULL;
+
+    origin = coro->cr_origin;
+    assert(origin != Py_None);
+    if (origin == NULL) {
+        /* encode NULL as Py_None */
+        origin = Py_None;  /* borrowed ref */
+    }
+    Py_INCREF(origin);
+
+    tup = Py_BuildValue("(O()(ObOOOOOOO))",
+        &wrap_PyCoro_Type,
+        goh.frame,
+        coro->cr_running,
+        coro->cr_name,
+        coro->cr_qualname,
+        goh.exc_type,
+        goh.exc_value,
+        goh.exc_traceback,
+        goh.exc_info_obj,
+        origin
+    );
+
+    Py_DECREF(origin);
+    gen_obj_head_clear(&goh);
+    return tup;
+}
+
+static PyObject *
+coro_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+    PyCoroObject *coro;
+    if (is_wrong_type(type)) return NULL;
+
+    /* A reference to frame is stolen by PyGen_New. */
+    assert(gen_exhausted_frame != NULL);
+    assert(PyFrame_Check(gen_exhausted_frame));
+    assert(type == &wrap_PyCoro_Type);
+    coro = (PyCoroObject *)PyCoro_New(slp_ensure_new_frame(gen_exhausted_frame), NULL, NULL);
+    if (coro == NULL)
+        return NULL;
+    Py_TYPE(coro) = type;
+    return (PyObject *)coro;
+}
+
+static PyObject *
+coro_setstate(PyObject *self, PyObject *args)
+{
+    PyCoroObject *coro = (PyCoroObject *)self;
+    gen_obj_head_ty goh;
+    PyObject *origin;
+
+    if (is_wrong_type(Py_TYPE(self))) return NULL;
+
+    if ((args = unwrap_frame_arg(args)) == NULL)  /* now args is a counted ref! */
+        return NULL;
+
+    if (!PyArg_ParseTuple(args, "ObOOOOOOO:coro_setstate",
+        &goh.frame,
+        &goh.running,
+        &goh.name,
+        &goh.qualname,
+        &goh.exc_type,
+        &goh.exc_value,
+        &goh.exc_traceback,
+        &goh.exc_info_obj,
+        &origin)) {
+        Py_DECREF(args);
+        return NULL;
+    }
+
+    if (setstate_from_gen_obj_head(&goh,
+        &coro->cr_frame, &coro->cr_exc_state, &coro->cr_code,
+        &coro->cr_name, &coro->cr_qualname, &coro->cr_running)) {
+        Py_DECREF(args);
+        return NULL;
+    }
+    if (origin == Py_None)
+        origin = NULL;  /* NULL is pickled as Py_None */
+    else
+        Py_INCREF(origin);
+    Py_XSETREF(coro->cr_origin, origin);
+
+    Py_TYPE(coro) = Py_TYPE(coro)->tp_base;
+    Py_INCREF(coro);
+    Py_DECREF(args); /* holds the frame and name refs */
+    return (PyObject *)coro;
 }
 
 MAKE_WRAPPERTYPE(PyCoro_Type, coro, "coroutine", coro_reduce,
-    gen_new, gen_setstate)
+    coro_new, coro_setstate)
 
 static int init_coroutinetype(PyObject * mod)
 {
