@@ -800,7 +800,7 @@ class TestCopy(StacklessTestCase):
         async def c():
             return 1
         obj = c()
-        c = self._test(obj, 'cr_running', 'cr_code', '__name__', '__qualname__')
+        c = self._test(obj, 'cr_running', 'cr_code', '__name__', '__qualname__', 'cr_origin')
         self.assertRaises(StopIteration, obj.send, None)
         self.assertRaises(StopIteration, c.send, None)
 
