@@ -1287,7 +1287,13 @@ compute_cr_origin(int origin_depth)
     /* First count how many frames we have */
     int frame_count = 0;
     for (; frame && frame_count < origin_depth; ++frame_count) {
-        frame = frame->f_back;
+#ifdef STACKLESS
+        do {
+#endif
+            frame = frame->f_back;
+#ifdef STACKLESS
+        } while (frame != NULL && !PyFrame_Check(frame));
+#endif
     }
 
     /* Now collect them */
@@ -1304,7 +1310,13 @@ compute_cr_origin(int origin_depth)
             return NULL;
         }
         PyTuple_SET_ITEM(cr_origin, i, frameinfo);
-        frame = frame->f_back;
+#ifdef STACKLESS
+        do {
+#endif
+            frame = frame->f_back;
+#ifdef STACKLESS
+        } while (frame != NULL && !PyFrame_Check(frame));
+#endif
     }
 
     return cr_origin;
