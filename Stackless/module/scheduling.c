@@ -1032,7 +1032,7 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
     int transfer_result;
 
     /* remove the no-soft-irq flag from the runflags */
-    int no_soft_irq = ts->st.runflags & PY_WATCHDOG_NO_SOFT_IRQ;
+    uint8_t no_soft_irq = ts->st.runflags & PY_WATCHDOG_NO_SOFT_IRQ;
     ts->st.runflags &= ~PY_WATCHDOG_NO_SOFT_IRQ;
 
     slp_schedule_soft_irq(ts, prev, &next, no_soft_irq);

@@ -500,7 +500,7 @@ generic_channel_cando(PyThreadState *ts, PyObject **result, PyChannelObject *sel
     PyTaskletObject *source = ts->st.current;
     PyTaskletObject *switchto, *target, *next;
     int interthread;
-    int oldflags, runflags = 0;
+    uint8_t oldflags, runflags = 0;
     int switched, fail;
 
     /* swap data and perform necessary scheduling */

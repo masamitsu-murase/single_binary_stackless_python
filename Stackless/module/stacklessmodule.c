@@ -372,7 +372,7 @@ enable_softswitch(PyObject *self, PyObject *flag)
     if (newflag == -1 && PyErr_Occurred())
         return NULL;
     ret = PyBool_FromLong(ts->interp->st.enable_softswitch);
-    ts->interp->st.enable_softswitch = newflag;
+    ts->interp->st.enable_softswitch = !!newflag;
     return ret;
 }
 
@@ -483,6 +483,11 @@ PyStackless_RunWatchdogEx(long timeout, int flags)
     int old_runflags = 0;
     long old_watermark = 0, old_interval = 0;
     int interrupt;
+
+    if (flags < 0 || flags >= (1U << (sizeof(ts->st.runflags) * CHAR_BIT))) {
+        PyErr_SetString(PyExc_ValueError, "flags must be in [0..255]");
+        return NULL;
+    }
 
     if (ts->st.main == NULL)
         return PyStackless_RunWatchdog_M(timeout, flags);

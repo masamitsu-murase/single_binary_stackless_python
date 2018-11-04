@@ -27,7 +27,7 @@ typedef struct {
     PyObject * schedule_hook;                   /* the schedule callback function */
     slp_schedule_hook_func * schedule_fasthook; /* the fast C-only schedule_hook */
     PyThreadState * initial_tstate;             /* recording the main thread state */
-    int enable_softswitch;                      /* the flag which decides whether we try to use soft switching */
+    uint8_t enable_softswitch;                  /* the flag which decides whether we try to use soft switching */
 } PyStacklessInterpreterState;
 
 #define SPL_INTERPRETERSTATE_NEW(interp)       \
@@ -94,12 +94,10 @@ typedef struct _sts {
     PyObject *unwinding_retval;                 /* The return value during stack unwinding */
     Py_ssize_t frame_refcnt;                    /* The number of owned references to frames */
     int runcount;
-    /* trap recursive scheduling via callbacks */
-    int schedlock;
-    int runflags;                               /* flags for stackless.run() behaviour */
-    /* number of nested interpreters (1.0/2.0 merge) */
-    int nesting_level;
+    int nesting_level;                          /* number of nested interpreters */
     int switch_trap;                            /* if non-zero, switching is forbidden */
+    uint8_t schedlock;                          /* trap recursive scheduling via callbacks */
+    uint8_t runflags;                           /* flags for stackless.run() behaviour */
 #ifdef SLP_WITH_FRAME_REF_DEBUG
     struct _frame *next_frame;                  /* a ref counted copy of PyThreadState.frame */
 #endif
@@ -108,7 +106,7 @@ typedef struct _sts {
 #ifdef Py_BUILD_CORE
 
 /* internal macro to temporarily disable soft interrupts */
-#define PY_WATCHDOG_NO_SOFT_IRQ (1<<31)
+#define PY_WATCHDOG_NO_SOFT_IRQ (1U<<7)
 
 /* these macros go into pystate.c */
 #ifdef SLP_WITH_FRAME_REF_DEBUG
@@ -137,10 +135,10 @@ typedef struct _sts {
     tstate->st.unwinding_retval = NULL; \
     tstate->st.frame_refcnt = 0; \
     tstate->st.runcount = 0; \
-    tstate->st.schedlock = 0; \
     tstate->st.nesting_level = 0; \
-    tstate->st.runflags = 0; \
     tstate->st.switch_trap = 0; \
+    tstate->st.schedlock = 0; \
+    tstate->st.runflags = 0; \
     __STACKLESS_PYSTATE_NEW_NEXT_FRAME
 
 
