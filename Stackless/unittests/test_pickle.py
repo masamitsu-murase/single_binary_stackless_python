@@ -4,6 +4,7 @@ import unittest
 import gc
 import inspect
 import copy
+import threading
 
 from stackless import schedule, tasklet, stackless
 
@@ -803,6 +804,57 @@ class TestCopy(StacklessTestCase):
         c = self._test(obj, 'cr_running', 'cr_code', '__name__', '__qualname__', 'cr_origin')
         self.assertRaises(StopIteration, obj.send, None)
         self.assertRaises(StopIteration, c.send, None)
+
+
+class TestPickleFlags(unittest.TestCase):
+    def _test_pickle_flags(self, func):
+        old = func()
+        n_flags = sum(1 for k in dir(stackless) if k.startswith('PICKLEFLAGS_'))
+        m = 1 << n_flags
+        self.assertEqual(old, 0)
+        self.assertEqual(func(-1), 0)
+        self.assertEqual(func(-1, -1), 0)
+        self.assertEqual(func(0xffffff, 0), 0)
+        self.assertEqual(func(0), 0)
+        for i in range(1, m):
+            self.assertEqual(func(i), i - 1)
+        self.assertEqual(func(0), m - 1)
+        self.assertRaises(ValueError, func, -2)
+        self.assertRaises(ValueError, func, m)
+        self.assertEqual(func(-1), old)
+
+    def test_pickle_flags(self):
+        self._test_pickle_flags(stackless.pickle_flags)
+
+    def test_pickle_flags_default(self):
+        self._test_pickle_flags(stackless.pickle_flags_default)
+
+    def test_new_thread(self):
+        def run():
+            self.pickle_flags = stackless.pickle_flags()
+
+        current = stackless.pickle_flags()
+        old = stackless.pickle_flags_default(0)
+        self.assertEqual(stackless.pickle_flags(), current)
+        self.addCleanup(stackless.pickle_flags_default, old)
+
+        t = threading.Thread(target=run)
+        t.start()
+        t.join(10)
+        self.assertFalse(t.is_alive())
+        self.assertEqual(self.pickle_flags, 0)
+        self.pickle_flags = None
+
+        stackless.pickle_flags_default(1)
+        self.assertEqual(stackless.pickle_flags(), current)
+
+        t = threading.Thread(target=run)
+        t.start()
+        t.join(10)
+        self.assertFalse(t.is_alive())
+
+        self.assertEqual(self.pickle_flags, 1)
+        self.assertEqual(stackless.pickle_flags(), current)
 
 
 if __name__ == '__main__':

@@ -9,6 +9,10 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://github.com/stackless-dev/stackless/issues/139
+  New functions stackless.pickle_flags() and stackless.pickle_flags_default().
+  They can be used to control pickling of certain objects.
+
 - https://github.com/stackless-dev/stackless/issues/175
   Cleanup of the Stackless C-API: Including stackless_api.h in an extension
   module no longer defines internal stuff. Additionally I moved test code

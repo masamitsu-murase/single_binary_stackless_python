@@ -21,6 +21,8 @@ def __reduce__():
 def __reduce_ex__(*args):
     return "stackless"
 
+PICKLEFLAGS_PRESERVE_TRACING_STATE = 1
+
 # Backwards support for unpickling older pickles, even from 2.7
 from _stackless import _wrap
 sys.modules["stackless._wrap"] = _wrap

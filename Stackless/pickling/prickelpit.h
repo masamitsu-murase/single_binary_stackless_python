@@ -11,12 +11,12 @@ extern "C" {
 *******************************************************/
 
 int slp_register_execute(PyTypeObject *t, char *name,
-				         PyFrame_ExecFunc *good,
-				         PyFrame_ExecFunc *bad);
+                                         PyFrame_ExecFunc *good,
+                                         PyFrame_ExecFunc *bad);
 
 int slp_find_execfuncs(PyTypeObject *type, PyObject *exec_name,
-				       PyFrame_ExecFunc **good,
-				       PyFrame_ExecFunc **bad);
+                                       PyFrame_ExecFunc **good,
+                                       PyFrame_ExecFunc **bad);
 
 PyObject * slp_find_execname(PyFrameObject *f, int *valid);
 
@@ -28,7 +28,7 @@ PyObject * slp_cannot_execute(PyFrameObject *f, const char *exec_name, PyObject 
 static PyObject *\
 cannot_##procname(PyFrameObject *f, int exc, PyObject *retval) \
 { \
-	return slp_cannot_execute(f, #procname, retval); \
+        return slp_cannot_execute(f, #procname, retval); \
 }
 
 #define REF_INVALID_EXEC(procname) (cannot_##procname)
@@ -43,6 +43,10 @@ Py_ssize_t slp_from_tuple_with_nulls(PyObject **start, PyObject *tup);
 /* loads data from a tuple where the first element holds null markers.
    return value is the number of elements (length-1)
  */
+
+/* flags */
+#define SLP_PICKLEFLAGS_PRESERVE_TRACING_STATE (1U)
+#define SLP_PICKLEFLAGS__MAX_VALUE             ((1<<1)-1) /* must be a signed value */
 
 /* helper functions for module dicts */
 

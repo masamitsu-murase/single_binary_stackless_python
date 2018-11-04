@@ -28,6 +28,7 @@ typedef struct {
     slp_schedule_hook_func * schedule_fasthook; /* the fast C-only schedule_hook */
     PyThreadState * initial_tstate;             /* recording the main thread state */
     uint8_t enable_softswitch;                  /* the flag which decides whether we try to use soft switching */
+    uint8_t pickleflags;                        /* flags for pickling / unpickling */
 } PyStacklessInterpreterState;
 
 #define SPL_INTERPRETERSTATE_NEW(interp)       \
@@ -39,7 +40,8 @@ typedef struct {
     (interp)->st.schedule_hook = NULL;         \
     (interp)->st.schedule_fasthook = NULL;     \
     (interp)->st.initial_tstate = NULL;        \
-    (interp)->st.enable_softswitch = 1;
+    (interp)->st.enable_softswitch = 1;        \
+    (interp)->st.pickleflags = 0;
 
 #define SPL_INTERPRETERSTATE_CLEAR(interp)     \
     (interp)->st.cstack_chain = NULL; /* uncounted ref */  \
@@ -49,7 +51,8 @@ typedef struct {
     Py_CLEAR((interp)->st.channel_hook);       \
     Py_CLEAR((interp)->st.schedule_hook);      \
     (interp)->st.schedule_fasthook = NULL;     \
-    (interp)->st.enable_softswitch = 1;
+    (interp)->st.enable_softswitch = 1;        \
+    (interp)->st.pickleflags = 0;
 
 struct _frame; /* Avoid including frameobject.h */
 
@@ -98,6 +101,7 @@ typedef struct _sts {
     int switch_trap;                            /* if non-zero, switching is forbidden */
     uint8_t schedlock;                          /* trap recursive scheduling via callbacks */
     uint8_t runflags;                           /* flags for stackless.run() behaviour */
+    uint8_t pickleflags;                        /* flags for pickling / unpickling */
 #ifdef SLP_WITH_FRAME_REF_DEBUG
     struct _frame *next_frame;                  /* a ref counted copy of PyThreadState.frame */
 #endif
@@ -139,6 +143,7 @@ typedef struct _sts {
     tstate->st.switch_trap = 0; \
     tstate->st.schedlock = 0; \
     tstate->st.runflags = 0; \
+    tstate->st.pickleflags = tstate->interp->st.pickleflags; \
     __STACKLESS_PYSTATE_NEW_NEXT_FRAME
 
 

@@ -12,6 +12,11 @@
 #include "pickling/prickelpit.h"
 #include "core/stackless_methods.h"
 
+/*[clinic input]
+module _stackless
+[clinic start generated code]*/
+/*[clinic end generated code: output=da39a3ee5e6b4b0d input=9edda6c2b9dbd340]*/
+#include "clinic/stacklessmodule.c.h"
 
 /******************************************************
 
@@ -132,6 +137,97 @@ atomic_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
   The Stackless Module
 
  ******************************************************/
+
+ /*
+  * pickle flags
+  */
+
+
+/*[clinic input]
+_stackless.pickle_flags_default
+
+   new_default: 'l' = -1
+       The new default value for pickle-flags.
+   mask: 'l' = -1
+       A bit mask, that indicates the valid bits in argument "new_default".
+
+Get and set the per interpreter default value for pickle-flags.
+
+The function returns the previous pickle-flags. To inquire the pickle-flags
+without changing them, omit the arguments.
+[clinic start generated code]*/
+
+static PyObject *
+_stackless_pickle_flags_default_impl(PyObject *module, long new_default,
+                                     long mask)
+/*[clinic end generated code: output=60e5303388b2dee1 input=ed5fcb139f236812]*/
+{
+    PyThreadState *ts = PyThreadState_GET();
+    long old_default;
+
+    if (new_default < -1 || (new_default & mask) > SLP_PICKLEFLAGS__MAX_VALUE) {
+        PyErr_SetString(PyExc_ValueError, "you must not set an undefined pickle-flag");
+        return NULL;
+    }
+    old_default = ts->interp->st.pickleflags;
+    if (new_default != -1) {
+        uint8_t v;
+        Py_BUILD_ASSERT(sizeof(ts->interp->st.pickleflags) == sizeof(v));
+        v = ts->interp->st.pickleflags & ~mask;
+        new_default &= mask;
+        v |= Py_SAFE_DOWNCAST(new_default, long, uint8_t);
+        ts->interp->st.pickleflags = Py_SAFE_DOWNCAST(v, long, uint8_t);
+    }
+    return PyLong_FromLong(old_default);
+}
+
+
+/*[clinic input]
+_stackless.pickle_flags
+
+   new_flags: 'l' = -1
+       The new value for pickle-flags of the current thread.
+   mask: 'l' = -1
+       A bit mask, that indicates the valid bits in argument "new_flags".
+
+Get and set pickle-flags.
+
+A number of option flags control various aspects of Stackless pickling
+behavior. The flags are represented by the bits of an integer value.
+The function returns the previous pickle-flags. To inquire the
+pickle-flags without changing them, omit the arguments.
+
+Currently the following bits are defined:
+ - bit 0, value 1: pickle the tracing/profiling state of a tasklet.
+
+All other bits must be set to 0.
+[clinic start generated code]*/
+
+static PyObject *
+_stackless_pickle_flags_impl(PyObject *module, long new_flags, long mask)
+/*[clinic end generated code: output=fd773a5b06ab0c48 input=4a6920285b2c9019]*/
+{
+    PyThreadState *ts = PyThreadState_GET();
+    long old_flags;
+
+    Py_BUILD_ASSERT(sizeof(ts->interp->st.pickleflags) == sizeof(ts->st.pickleflags));
+    Py_BUILD_ASSERT((1U << (sizeof(ts->st.pickleflags) * CHAR_BIT)) > SLP_PICKLEFLAGS__MAX_VALUE);
+    if (new_flags < -1 || (new_flags & mask) > SLP_PICKLEFLAGS__MAX_VALUE) {
+        PyErr_SetString(PyExc_ValueError, "you must not set an undefined pickle-flag");
+        return NULL;
+    }
+    old_flags = ts->st.pickleflags;
+    if (new_flags != -1) {
+        uint8_t v;
+        Py_BUILD_ASSERT(sizeof(ts->st.pickleflags) == sizeof(v));
+        v = ts->st.pickleflags & ~mask;
+        new_flags &= mask;
+        v |= Py_SAFE_DOWNCAST(new_flags, long, uint8_t);
+        ts->st.pickleflags = Py_SAFE_DOWNCAST(v, long, uint8_t);
+    }
+    return PyLong_FromLong(old_flags);
+}
+
 
 
 int
@@ -484,7 +580,7 @@ PyStackless_RunWatchdogEx(long timeout, int flags)
     long old_watermark = 0, old_interval = 0;
     int interrupt;
 
-    if (flags < 0 || flags >= (1U << (sizeof(ts->st.runflags) * CHAR_BIT))) {
+    if (flags < 0 || flags >= (1 << (sizeof(ts->st.runflags) * CHAR_BIT))) {
         PyErr_SetString(PyExc_ValueError, "flags must be in [0..255]");
         return NULL;
     }
@@ -1529,6 +1625,8 @@ PyDoc_STRVAR(slpmodule_getthreads__doc__,
 #define METH_KS METH_VARARGS | METH_KEYWORDS | METH_STACKLESS
 
 static PyMethodDef stackless_methods[] = {
+        _STACKLESS_PICKLE_FLAGS_DEFAULT_METHODDEF
+        _STACKLESS_PICKLE_FLAGS_METHODDEF
     {"schedule",                    (PCF)schedule,              METH_KS,
      schedule__doc__},
     {"schedule_remove",             (PCF)schedule_remove,       METH_KS,
