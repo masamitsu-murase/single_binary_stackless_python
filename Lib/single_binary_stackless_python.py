@@ -80,10 +80,10 @@ __included_module_info = {
         "license": "BSD License",
         "module_name": "werkzeug"
     },
-    "itsudangerous": {
+    "itsdangerous": {
         "author": "Armin Ronacher",
         "license": "BSD License",
-        "module_name": "itsudangerous"
+        "module_name": "itsdangerous"
     },
     "click": {
         "author": "Armin Ronacher",
