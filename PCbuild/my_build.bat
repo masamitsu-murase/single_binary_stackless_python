@@ -118,7 +118,7 @@ if ERRORLEVEL 1 exit /b 1
 
 cd /d "%~dp0.."
 if not "%APPVEYOR%" == "" (
-    7z a Lib.7z -mx=9 -bd "-ir!Lib\*.py" "-xr!test" "-xr!__pycache__" > NUL
+    7z a Lib.7z -mx=9 -bd -ir^^!Lib\*.py -xr^^!test -xr^^!__pycache__ > NUL
 )
 
 exit /b 0
