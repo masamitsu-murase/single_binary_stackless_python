@@ -41,3 +41,5 @@ test_script:
 artifacts:
   - path: PCbuild\python*.exe
     name: python_exe
+  - path: Lib.7z
+    name: lib_7z
