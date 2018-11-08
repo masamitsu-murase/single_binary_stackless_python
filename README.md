@@ -43,6 +43,14 @@ This binary includes standard library and the following libraries.
   Developed by Armin Ronacher. Released under the BSD License.
 * [markupsafe](https://pypi.org/project/MarkupSafe/)  
   Developed by Armin Ronacher. Released under the BSD License.
+* [flask](https://pypi.org/project/Flask/)  
+  Developed by Armin Ronacher. Released under the BSD License.
+* [werkzeug](https://pypi.org/project/Werkzeug/)  
+  Developed by Armin Ronacher. Released under the BSD License.
+* [itsdangerous](https://pypi.org/project/itsdangerous/)  
+  Developed by Armin Ronacher. Released under the BSD License.
+* [click](https://pypi.org/project/click/)  
+  Developed by Armin Ronacher. Released under the BSD License.
 
 ## Additional features
 
@@ -61,6 +69,20 @@ You can use this library as follows:
 ```
 python -m flake8_lite input.py
 ```
+
+For more details, please see `python -m flake8_lite --help`.
+
+### exepy
+
+This library can pack python scripts into a single executable binary.
+
+You can use this library as follows:
+
+```
+python -m exepy create sample.exe sample.py
+```
+
+For more details, please see `python -m exepy --help` and `python -m exepy create --help`.
 
 ---
 
