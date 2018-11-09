@@ -100,3 +100,37 @@ different address than *t1*, which was displayed earlier.
     this is true, is where not all the functions called by the code within
     the tasklet are |PY| functions.  The Stackless pickling mechanism
     has no ability to deal with C functions that may have been called.
+
+.. note::
+
+    It is not possible to unpickle running tasklets which were pickled by a
+    different minor version of |SLP|. A running tasklet contains frame
+    objects and frame objects contain code objects. And code objects are
+    usually incompatible between different minor versions of |CPY|.
+
+======================
+Pickling other objects
+======================
+
+In order to be able to pickle tasklets Stackless needs to be able to pickle
+several other objects, which can't be pickled by |CPY|. |SLP|
+uses :func:`copyreg.pickle` to register “reduction” functions for the following
+types:
+:data:`~types.FunctionType`,
+:data:`~types.CodeType`,
+:data:`~types.CoroutineType`,
+:data:`~types.GeneratorType`,
+:data:`~types.ModuleType`,
+:data:`~types.TracebackType`,
+:ref:`Cell Objects <cell-objects>` and
+all kinds of :ref:`Dictionary view objects <dict-views>`.
+
+Frames
+======
+
+|SLP| can pickle frames, but only as part of a
+tasklet, a traceback-object, a generator, a coroutine or an asynchronous
+generator. Stackless does not register a "reduction" function for
+:data:`~types.FrameType`. This way Stackless stays compatible with application
+code that registers its own "reduction" function for :data:`~types.FrameType`.
+
