@@ -857,6 +857,7 @@ frameobject_reduce(PyFrameObject *f)
     int have_locals = f->f_locals != NULL;
     PyObject * dummy_locals = NULL;
     PyObject * f_trace = NULL;
+    PyThreadState *ts = PyThreadState_GET();
 
     if (!have_locals)
         if ((dummy_locals = PyDict_New()) == NULL)
@@ -901,9 +902,7 @@ frameobject_reduce(PyFrameObject *f)
         f_trace = Py_None;
     Py_INCREF(f_trace);
     if (f_trace != Py_None) {
-        int with_trace_func = slp_pickle_with_tracing_state();
-        if (-1 == with_trace_func) goto err_exit;
-        if (!with_trace_func) {
+        if (!(ts->st.pickleflags & SLP_PICKLEFLAGS_PRESERVE_TRACING_STATE)) {
             Py_DECREF(f_trace);
             f_trace = Py_None;
             Py_INCREF(f_trace);

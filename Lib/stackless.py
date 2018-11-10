@@ -153,10 +153,13 @@ def transmogrify():
         @property
         def pickle_with_tracing_state(self):
             """Will tasklet save their tracing state when pickled?"""
-            return self._stackless.pickle_with_tracing_state
+            return bool(self.pickle_flags() & self.PICKLEFLAGS_PRESERVE_TRACING_STATE)
         @pickle_with_tracing_state.setter
         def pickle_with_tracing_state(self, val):
-            self._stackless.pickle_with_tracing_state = val
+            val = self.PICKLEFLAGS_PRESERVE_TRACING_STATE if val else 0
+            with self.atomic():
+                self.pickle_flags(val, self.PICKLEFLAGS_PRESERVE_TRACING_STATE)
+                self.pickle_flags_default(val, self.PICKLEFLAGS_PRESERVE_TRACING_STATE)
 
     m = StacklessModuleType("stackless", __doc__)
     m.__dict__.update(globals())

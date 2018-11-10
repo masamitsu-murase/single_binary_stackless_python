@@ -516,9 +516,7 @@ tasklet_reduce(PyTaskletObject * t)
     while (f != NULL) {
         int append_frame = 1;
         if (PyCFrame_Check(f) && ((PyCFrameObject *)f)->f_execute == slp_restore_tracing) {
-            append_frame = slp_pickle_with_tracing_state();
-            if (-1 == append_frame)
-                goto err_exit;
+            append_frame = ts->st.pickleflags & SLP_PICKLEFLAGS_PRESERVE_TRACING_STATE;
         }
         if (append_frame) {
             int ret;

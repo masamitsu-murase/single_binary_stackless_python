@@ -803,9 +803,6 @@ int slp_safe_pickling(int(*save)(PyObject *, PyObject *, int),
 
 PyObject * PyStackless_Pickle_ModuleDict(PyObject *pickler, PyObject *self);
 
-/* utility function used by the reduce methods of tasklet and frame */
-int slp_pickle_with_tracing_state(void);
-
 /* debugging/monitoring */
 
 int slp_schedule_callback(PyTaskletObject *prev, PyTaskletObject *next);

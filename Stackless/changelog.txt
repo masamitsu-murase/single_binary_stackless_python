@@ -9,6 +9,10 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://github.com/stackless-dev/stackless/issues/180
+  Deprecate stackless.pickle_with_tracing_state. It has been replaced by
+  stackless.pickle_flags() and stackless.pickle_flags_default().
+
 - https://github.com/stackless-dev/stackless/issues/139
   New functions stackless.pickle_flags() and stackless.pickle_flags_default().
   They can be used to control pickling of certain objects.

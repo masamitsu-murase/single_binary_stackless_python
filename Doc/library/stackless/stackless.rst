@@ -390,19 +390,13 @@ Attributes
 
    A boolean value, that indicates if a pickled tasklet contains
    information about the tracing and/or profiling state of the tasklet.
-   By default :attr:`pickle_with_tracing_state` is `False`. Usually
-   there's no need to change this value.
 
-   If you need to set this attribute on a per thread base,
-   you can redefine the attribute as a thread local property::
+   .. deprecated:: 3.7
 
-      >>> import stackless
-      >>> import threading
-      >>> stackless._pickle_with_tracing = threading.local()
-      >>> stackless.__class__.pickle_with_tracing = \
-      ...     property(fget=lambda m:getattr(m._pickle_with_tracing,'v',False),
-      ...              fset=lambda m,v:setattr(m._pickle_with_tracing, 'v', v),
-      ...              doc="thread local pickle_with_tracing flag")
+      It is now possible to use :func:`pickle_flags_default` and
+      :func:`pickle_flags` with :const:`PICKLEFLAGS_PRESERVE_TRACING_STATE`.
+      This attribute is now a wrapper around :func:`pickle_flags_default`
+      and :func:`pickle_flags`.
 
 .. _slp-exc:
 

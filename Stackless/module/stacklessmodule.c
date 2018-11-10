@@ -229,25 +229,6 @@ _stackless_pickle_flags_impl(PyObject *module, long new_flags, long mask)
 }
 
 
-
-int
-slp_pickle_with_tracing_state()
-{
-    PyObject *flag, *slp_module;
-    int result = -1;
-
-    slp_module = PyImport_ImportModule("_stackless");
-    if (slp_module == NULL)
-        return -1;
-    flag = PyObject_GetAttrString(slp_module, "pickle_with_tracing_state");
-    Py_DECREF(slp_module);
-    if (NULL != flag) {
-        result = PyObject_IsTrue(flag);
-        Py_DECREF(flag);
-    }
-    return result;
-}
-
 PyDoc_STRVAR(schedule__doc__,
 "schedule(retval=stackless.current) -- switch to the next runnable tasklet.\n\
 The return value for this call is retval, with the current\n\
