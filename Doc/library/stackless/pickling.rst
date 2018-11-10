@@ -4,7 +4,7 @@
 Pickling --- Serialisation of running tasklets
 **********************************************
 
-One of the most impressive features of Stackless, is the ability to pickle
+One of the most impressive features of |SLP|, is the ability to pickle
 tasklets.  This allows you to take a tasklet mid-execution, serialise it to
 a chunk of data and then unserialise that data at a later point, creating a
 new tasklet from it that resumes where the last left off.
@@ -98,7 +98,7 @@ different address than *t1*, which was displayed earlier.
     It should be possible to pickle any tasklets that you might want to.
     However, not all tasklets can be unpickled.  One of the cases in which
     this is true, is where not all the functions called by the code within
-    the tasklet are |PY| functions.  The Stackless pickling mechanism
+    the tasklet are |PY| functions.  The |SLP| pickling mechanism
     has no ability to deal with C functions that may have been called.
 
 .. note::
@@ -112,11 +112,12 @@ different address than *t1*, which was displayed earlier.
 Pickling other objects
 ======================
 
-In order to be able to pickle tasklets Stackless needs to be able to pickle
+In order to be able to pickle tasklets |SLP| needs to be able to pickle
 several other objects, which can't be pickled by |CPY|. |SLP|
 uses :func:`copyreg.pickle` to register “reduction” functions for the following
 types:
 :data:`~types.FunctionType`,
+:data:`~types.AsyncGeneratorType`,
 :data:`~types.CodeType`,
 :data:`~types.CoroutineType`,
 :data:`~types.GeneratorType`,
@@ -130,7 +131,41 @@ Frames
 
 |SLP| can pickle frames, but only as part of a
 tasklet, a traceback-object, a generator, a coroutine or an asynchronous
-generator. Stackless does not register a "reduction" function for
-:data:`~types.FrameType`. This way Stackless stays compatible with application
+generator. |SLP| does not register a "reduction" function for
+:data:`~types.FrameType`. This way |SLP| stays compatible with application
 code that registers its own "reduction" function for :data:`~types.FrameType`.
 
+.. _slp_pickling_asyncgen:
+
+Asynchronous Generators
+=======================
+
+.. versionadded:: 3.7
+
+At C-level asynchronous generators have an attribute ``ag_finalizer`` and a flag,
+if ag_finalizer has been initialised. The value of ``ag_finalizer`` is a callable
+|PY|-object, which has been set by :func:`sys.set_asyncgen_hooks`.
+You can use :func:`stackless.pickle_flags` to control how |SLP| pickles and
+unpickles an asynchronous generator.
+
+Pickling
+--------
+
+By default (no flags set) |SLP| does not pickle ``ag_finalizer`` but a
+marker, if a ``ag_finalizer`` has been set.
+If :const:`~stackless.PICKLEFLAGS_PRESERVE_AG_FINALIZER` has been set,
+|SLP| pickles ``ag_finalizer`` by value.
+Otherwise, if :const:`~stackless.PICKLEFLAGS_RESET_AG_FINALIZER` has
+been set, |SLP| pickles ``ag_finalizer`` as uninitialised.
+
+Unpickling
+----------
+
+By default |SLP| initialises the generator upon unpickling using the
+``firstiter`` and ``finalizer`` values set by :func:`sys.set_asyncgen_hooks`,
+if ``ag_finalizer`` of the original asynchronous generator was initialised.
+If :const:`~stackless.PICKLEFLAGS_PRESERVE_AG_FINALIZER` has been set and if
+``ag_finalizer`` has been pickled by value, |SLP| unpickles
+``ag_finalizer`` by value.
+Otherwise, if :const:`~stackless.PICKLEFLAGS_RESET_AG_FINALIZER` has
+been set, |SLP| unpickles ``ag_finalizer`` as uninitialised.

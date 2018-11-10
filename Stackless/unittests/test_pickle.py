@@ -4,6 +4,7 @@ import unittest
 import gc
 import inspect
 import copy
+import contextlib
 import threading
 
 from stackless import schedule, tasklet, stackless
@@ -705,6 +706,127 @@ class TestCoroutinePickling(StacklessPickleTestCase):
         self.assertTupleEqual(orig_origin, origin)
         self.assertRaises(StopIteration, c.send, None)
 
+
+async_gen_finalize_counter = 0
+
+
+def async_gen_finalize(async_gen):
+    global async_gen_finalize_counter
+    async_gen_finalize_counter += 1
+    # print("async_gen_finalize: ", async_gen_finalize_counter)
+
+
+class TestAsyncGenPickling(StacklessPickleTestCase):
+    async def ag(self):
+        yield 100
+
+    @contextlib.contextmanager
+    def asyncgen_hooks(self, finalizer):
+        old_agen_hooks = sys.get_asyncgen_hooks()
+        sys.set_asyncgen_hooks(firstiter=lambda agen: None,
+                               finalizer=finalizer)
+        try:
+            yield None
+        finally:
+            sys.set_asyncgen_hooks(*old_agen_hooks)
+
+    @contextlib.contextmanager
+    def pickle_flags(self, preserve_finalizer=False, reset_finalizer=False):
+        old_flags = stackless.pickle_flags()
+        new_flags = ((old_flags & ~(stackless.PICKLEFLAGS_PRESERVE_AG_FINALIZER |
+                                    stackless.PICKLEFLAGS_RESET_AG_FINALIZER)) |
+                     (stackless.PICKLEFLAGS_PRESERVE_AG_FINALIZER if preserve_finalizer else 0) |
+                     (stackless.PICKLEFLAGS_RESET_AG_FINALIZER if reset_finalizer else 0))
+        old_flags = stackless.pickle_flags(new_flags)
+        try:
+            yield old_flags
+        finally:
+            stackless.pickle_flags(old_flags)
+
+    def test_without_pickling(self):
+        ag = self.ag()
+        self.assertIsInstance(ag, types.AsyncGeneratorType)
+        self.assertIs(ag, ag.__aiter__())
+        self.assertIsNotNone(ag.ag_frame)
+        c = ag.__anext__()
+        with self.assertRaises(StopIteration) as cm:
+            c.send(None)
+        self.assertEqual(cm.exception.value, 100)
+        self.assertIsNotNone(ag.ag_frame)
+        c = ag.__anext__()
+        self.assertRaises(StopAsyncIteration, c.send, None)
+        self.assertIsNone(ag.ag_frame)
+        self.assertRaises(StopIteration, c.send, None)
+        c = ag.__anext__()
+        self.assertRaises(StopAsyncIteration, c.send, None)
+
+    def test_pickling1(self):
+        ag = self.ag()
+        p = self.dumps(ag)
+        ag = self.loads(p)
+        self.assertIsInstance(ag, types.AsyncGeneratorType)
+        self.assertIs(ag, ag.__aiter__())
+        self.assertIsNotNone(ag.ag_frame)
+        c = ag.__anext__()
+        with self.assertRaises(StopIteration) as cm:
+            c.send(None)
+        self.assertEqual(cm.exception.value, 100)
+        self.assertIsNotNone(ag.ag_frame)
+        c = ag.__anext__()
+        self.assertRaises(StopAsyncIteration, c.send, None)
+        self.assertIsNone(ag.ag_frame)
+        self.assertRaises(StopIteration, c.send, None)
+        c = ag.__anext__()
+        self.assertRaises(StopAsyncIteration, c.send, None)
+
+    def test_pickling2(self):
+        ag = self.ag()
+        with self.asyncgen_hooks(async_gen_finalize):
+            c = ag.__anext__()
+        self.assertRaises(StopIteration, c.send, None)
+        with self.pickle_flags(preserve_finalizer=True):
+            p = self.dumps(ag)
+            # import pickletools; pickletools.dis(pickletools.optimize(p))
+            old = async_gen_finalize_counter
+            del ag
+            del c
+            gc.collect()
+            self.assertEqual(async_gen_finalize_counter, old + 1)
+            ag = self.loads(p)
+            self.assertIsNotNone(ag.ag_frame)
+            c = ag.__anext__()
+            self.assertRaises(StopAsyncIteration, c.send, None)
+            self.assertIsNone(ag.ag_frame)
+            self.assertRaises(StopIteration, c.send, None)
+            c = ag.__anext__()
+            self.assertRaises(StopAsyncIteration, c.send, None)
+            ag = self.loads(p)
+            old = async_gen_finalize_counter
+            del ag
+            gc.collect()
+            self.assertEqual(async_gen_finalize_counter, old + 1)
+
+    def test_pickling3(self):
+        old_agen_hooks = sys.get_asyncgen_hooks()
+        sys.set_asyncgen_hooks(firstiter=lambda agen: None,
+                               finalizer=async_gen_finalize)
+        try:
+            ag = self.ag()
+        finally:
+            sys.set_asyncgen_hooks(*old_agen_hooks)
+
+        c = ag.__anext__()
+        self.assertRaises(StopIteration, c.send, None)
+        c = ag.__anext__()
+        self.assertRaises(StopAsyncIteration, c.send, None)
+        p = self.dumps(ag)
+        ag = self.loads(p)
+        self.assertIsNone(ag.ag_frame)
+        self.assertRaises(StopIteration, c.send, None)
+        c = ag.__anext__()
+        self.assertRaises(StopAsyncIteration, c.send, None)
+
+
 class TestCopy(StacklessTestCase):
     ITERATOR_TYPE = type(iter("abc"))
 
@@ -804,6 +926,14 @@ class TestCopy(StacklessTestCase):
         c = self._test(obj, 'cr_running', 'cr_code', '__name__', '__qualname__', 'cr_origin')
         self.assertRaises(StopIteration, obj.send, None)
         self.assertRaises(StopIteration, c.send, None)
+
+    def test_async_generator(self):
+        async def ag():
+            yield 100
+        obj = ag()
+        ag = self._test(obj, 'ag_running', 'ag_code', '__name__', '__qualname__')
+        with self.assertRaises(StopIteration):
+            ag.aclose().send(None)
 
 
 class TestPickleFlags(unittest.TestCase):

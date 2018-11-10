@@ -65,8 +65,9 @@ PyDoc_STRVAR(_stackless_pickle_flags__doc__,
 "pickle-flags without changing them, omit the arguments.\n"
 "\n"
 "Currently the following bits are defined:\n"
-" - bit 0, value 1: pickle the tracing/profiling state of a tasklet.\n"
-"\n"
+" - bit 0, value 1: pickle the tracing/profiling state of a tasklet;\n"
+" - bit 1, value 2: preserve the finalizer of an asynchronous generator;\n"
+" - bit 2, value 4: reset the finalizer of an asynchronous generator.\n"
 "All other bits must be set to 0.");
 
 #define _STACKLESS_PICKLE_FLAGS_METHODDEF    \
@@ -103,4 +104,4 @@ exit:
 #ifndef _STACKLESS_PICKLE_FLAGS_METHODDEF
     #define _STACKLESS_PICKLE_FLAGS_METHODDEF
 #endif /* !defined(_STACKLESS_PICKLE_FLAGS_METHODDEF) */
-/*[clinic end generated code: output=6426d5e99d494bc0 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=4ad6a9f914110629 input=a9049054013a1b77]*/

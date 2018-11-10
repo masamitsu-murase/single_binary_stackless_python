@@ -1465,6 +1465,15 @@ async_gen_init_hooks(PyAsyncGenObject *o)
 }
 
 
+#ifdef STACKLESS
+int
+slp_async_gen_init_hooks(PyAsyncGenObject *o)
+{
+    return async_gen_init_hooks(o);
+}
+#endif
+
+
 static PyObject *
 async_gen_anext(PyAsyncGenObject *o)
 {

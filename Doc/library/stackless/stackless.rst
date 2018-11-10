@@ -37,6 +37,20 @@ Constants
    .. versionadded:: 3.7
 
 
+.. data:: PICKLEFLAGS_PRESERVE_AG_FINALIZER
+          PICKLEFLAGS_RESET_AG_FINALIZER
+
+   These two constants define the option flags for the function
+   :func:`pickle_flags`.
+
+   .. seealso:: :ref:`Pickling of Asynchronous Generators <slp_pickling_asyncgen>`
+
+   .. versionadded:: 3.7
+
+   .. note::
+      These constants have been added on a provisional basis (see :pep:`411`
+      for details.)
+
 ---------
 Functions
 ---------
@@ -302,7 +316,9 @@ Pickling related functions:
 
    Currently the following pickle option flags are defined:
 
-    - bit 0: :const:`PICKLEFLAGS_PRESERVE_TRACING_STATE`.
+    - bit 0: :const:`PICKLEFLAGS_PRESERVE_TRACING_STATE`;
+    - bit 1: :const:`PICKLEFLAGS_PRESERVE_AG_FINALIZER`;
+    - bit 2: :const:`PICKLEFLAGS_RESET_AG_FINALIZER`.
 
    All other bits must be set to 0.
 

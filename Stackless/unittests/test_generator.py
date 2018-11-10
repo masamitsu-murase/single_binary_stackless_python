@@ -4,7 +4,8 @@ import gc
 import stackless
 import types
 import pickle
-import copyreg
+import contextlib
+import sys
 
 from support import test_main  # @UnusedImport
 from support import StacklessTestCase
@@ -83,6 +84,94 @@ class TestGeneratorPickling(StacklessTestCase):
         self.assertRaises(StopIteration, gen_orig.__next__)
         gen_new = pickle.loads(p)
         self.assertRaises(StopIteration, gen_new.__next__)
+
+
+class TestAsyncGenPickling(StacklessTestCase):
+    def setUp(self):
+        StacklessTestCase.setUp(self)
+        self.firstiter_called = None
+        self.finalizer_called = None
+        self.finalizer2_called = None
+
+    async def ag(self):
+        yield 1
+        yield 2
+
+    @contextlib.contextmanager
+    def asyncgen_hooks(self, firstiter, finalizer):
+        old_agen_hooks = sys.get_asyncgen_hooks()
+        sys.set_asyncgen_hooks(firstiter=firstiter,
+                               finalizer=finalizer)
+        try:
+            yield None
+        finally:
+            sys.set_asyncgen_hooks(*old_agen_hooks)
+
+    @contextlib.contextmanager
+    def pickle_flags(self, flags):
+        old_flags = stackless.pickle_flags(flags)
+        try:
+            yield old_flags
+        finally:
+            stackless.pickle_flags(old_flags)
+
+    def finalizer(self, async_gen):
+        self.finalizer_called = id(async_gen)
+
+    def finalizer2(self, async_gen):
+        self.finalizer2_called = id(async_gen)
+
+    def firstiter(self, async_gen):
+        self.firstiter_called = id(async_gen)
+
+    def _test_finalizer(self, pf_dump, pf_load):
+        ag = self.ag()
+        id_ag = id(ag)
+        with self.asyncgen_hooks(self.firstiter, self.finalizer):
+            ag.__anext__().close()
+            self.assertEqual(self.firstiter_called, id_ag)
+        with self.pickle_flags(pf_dump):
+            p = pickle.dumps(ag)
+
+        del ag
+        self.assertEqual(self.finalizer_called, id_ag)
+
+        self.finalizer_called = self.finalizer2_called = self.firstiter_called = None
+
+        with self.asyncgen_hooks(self.firstiter, self.finalizer2):
+            with self.pickle_flags(pf_load):
+                ag = pickle.loads(p)
+
+        id_ag = id(ag)
+        del ag
+        self.assertEqual(self.firstiter_called,
+                         id_ag if (pf_load, pf_dump) in ((0, 0), (2, 0), (0, 2)) else None)
+        self.assertEqual(self.finalizer_called,
+                         id_ag if (pf_load, pf_dump) in ((2, 2), ) else None)
+        self.assertEqual(self.finalizer2_called,
+                         id_ag if (pf_load, pf_dump) in ((0, 0), (2, 0), (0, 2)) else None)
+
+        self.finalizer_called = self.finalizer2_called = self.firstiter_called = None
+
+        with self.pickle_flags(pf_load):
+            ag = pickle.loads(p)
+
+        id_ag = id(ag)
+        with self.asyncgen_hooks(self.firstiter, self.finalizer2):
+            ag.__anext__().close()
+        del ag
+        self.assertEqual(self.firstiter_called,
+                         id_ag if pf_load == 4 or pf_dump == 4 else None)
+        self.assertEqual(self.finalizer_called,
+                         id_ag if (pf_load, pf_dump) in ((2, 2), ) else None)
+        self.assertEqual(self.finalizer2_called,
+                         id_ag if pf_load == 4 or pf_dump == 4 else None)
+
+    def test_finalizer(self):
+        for pf_dump in (0, 2, 4):
+            for pf_load in (0, 2, 4):
+                with self.subTest(pf_dump=pf_dump, pf_load=pf_load):
+                    self._test_finalizer(pf_dump, pf_load)
 
 
 if __name__ == '__main__':

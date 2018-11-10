@@ -1521,6 +1521,7 @@ static int init_dictitemsviewtype(PyObject * mod)
 
 static PyTypeObject wrap_PyGen_Type;
 static PyTypeObject wrap_PyCoro_Type;
+static PyTypeObject wrap_PyAsyncGen_Type;
 
 /* Used to initialize a generator created by gen_new. */
 static PyFrameObject *gen_exhausted_frame = NULL;
@@ -1958,6 +1959,157 @@ static int init_coroutinetype(PyObject * mod)
 #undef initchain
 #define initchain init_coroutinetype
 
+static PyObject *
+async_gen_reduce(PyAsyncGenObject *async_gen)
+{
+    PyThreadState *ts = PyThreadState_GET();
+    PyObject *tup;
+    gen_obj_head_ty goh;
+    PyObject *finalizer;
+    int hooks_inited;
+
+    if (reduce_to_gen_obj_head(&goh, async_gen->ag_frame, &async_gen->ag_exc_state))
+        return NULL;
+
+    if (ts->st.pickleflags & SLP_PICKLEFLAGS_PRESERVE_AG_FINALIZER) {
+        hooks_inited = async_gen->ag_hooks_inited;
+        finalizer = async_gen->ag_finalizer;
+        assert(finalizer != Py_None);
+        if (finalizer == NULL) {
+            /* encode NULL as Py_None */
+            finalizer = Py_None;  /* borrowed ref */
+        }
+    }
+    else if (ts->st.pickleflags & SLP_PICKLEFLAGS_RESET_AG_FINALIZER) {
+        hooks_inited = 0;
+        finalizer = Py_None;
+    }
+    else {
+        hooks_inited = async_gen->ag_hooks_inited;
+        finalizer = async_gen->ag_finalizer != NULL ? Py_True : Py_None;
+    }
+    Py_INCREF(finalizer);
+
+    tup = Py_BuildValue("(O()(ObOOOOOOOii))",
+        &wrap_PyAsyncGen_Type,
+        goh.frame,
+        async_gen->ag_running,
+        async_gen->ag_name,
+        async_gen->ag_qualname,
+        goh.exc_type,
+        goh.exc_value,
+        goh.exc_traceback,
+        goh.exc_info_obj,
+        finalizer,
+        hooks_inited,
+        async_gen->ag_closed
+    );
+
+    Py_DECREF(finalizer);
+    gen_obj_head_clear(&goh);
+    return tup;
+}
+
+static PyObject *
+async_gen_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+    PyAsyncGenObject *async_gen;
+    if (is_wrong_type(type)) return NULL;
+
+    /* A reference to frame is stolen by PyGen_New. */
+    assert(gen_exhausted_frame != NULL);
+    assert(PyFrame_Check(gen_exhausted_frame));
+    assert(type == &wrap_PyAsyncGen_Type);
+    async_gen = (PyAsyncGenObject *)PyAsyncGen_New(slp_ensure_new_frame(gen_exhausted_frame), NULL, NULL);
+    if (async_gen == NULL)
+        return NULL;
+    Py_TYPE(async_gen) = type;
+    return (PyObject *)async_gen;
+}
+
+static PyObject *
+async_gen_setstate(PyObject *self, PyObject *args)
+{
+    PyThreadState *ts = PyThreadState_GET();
+    PyAsyncGenObject *async_gen = (PyAsyncGenObject *)self;
+    gen_obj_head_ty goh;
+    PyObject *finalizer;
+    int closed;
+    int hooks_inited;
+
+    if (is_wrong_type(Py_TYPE(self))) return NULL;
+
+    if ((args = unwrap_frame_arg(args)) == NULL)  /* now args is a counted ref! */
+        return NULL;
+
+    if (!PyArg_ParseTuple(args, "ObOOOOOOOii:async_gen_setstate",
+        &goh.frame,
+        &goh.running,
+        &goh.name,
+        &goh.qualname,
+        &goh.exc_type,
+        &goh.exc_value,
+        &goh.exc_traceback,
+        &goh.exc_info_obj,
+        &finalizer,
+        &hooks_inited,
+        &closed)) {
+        Py_DECREF(args);
+        return NULL;
+    }
+
+    if (setstate_from_gen_obj_head(&goh,
+        &async_gen->ag_frame, &async_gen->ag_exc_state, &async_gen->ag_code,
+        &async_gen->ag_name, &async_gen->ag_qualname, &async_gen->ag_running)) {
+        Py_DECREF(args);
+        return NULL;
+    }
+
+    async_gen->ag_closed = closed;
+    Py_TYPE(async_gen) = Py_TYPE(async_gen)->tp_base;
+
+    if (ts->st.pickleflags & SLP_PICKLEFLAGS_PRESERVE_AG_FINALIZER &&
+        finalizer != Py_True) {
+        if (finalizer == Py_None) {
+            /* NULL is pickled as Py_None */
+            async_gen->ag_hooks_inited = hooks_inited;
+            Py_CLEAR(async_gen->ag_finalizer);
+        }
+        else {
+            async_gen->ag_hooks_inited = hooks_inited;
+            Py_INCREF(finalizer);
+            Py_XSETREF(async_gen->ag_finalizer, finalizer);
+        }
+    }
+    else if (ts->st.pickleflags & SLP_PICKLEFLAGS_RESET_AG_FINALIZER ||
+        !hooks_inited) {
+        async_gen->ag_hooks_inited = 0;
+        Py_CLEAR(async_gen->ag_finalizer);
+    } else {
+        assert(hooks_inited);
+        async_gen->ag_hooks_inited = 0;
+        if (slp_async_gen_init_hooks(async_gen)) {
+            async_gen = NULL;
+            goto error;
+        }
+    }
+
+    Py_INCREF(async_gen);
+error:
+    Py_DECREF(args); /* holds the frame and name refs */
+    return (PyObject *)async_gen;
+}
+
+MAKE_WRAPPERTYPE(PyAsyncGen_Type, async_gen, "async_generator", async_gen_reduce,
+    async_gen_new, async_gen_setstate)
+
+static int
+init_async_gentype(PyObject * mod)
+{
+    return init_type(&wrap_PyAsyncGen_Type, initchain, mod);
+}
+#undef initchain
+#define initchain init_async_gentype
 
 /******************************************************
 

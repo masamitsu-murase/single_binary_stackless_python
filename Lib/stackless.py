@@ -22,6 +22,8 @@ def __reduce_ex__(*args):
     return "stackless"
 
 PICKLEFLAGS_PRESERVE_TRACING_STATE = 1
+PICKLEFLAGS_PRESERVE_AG_FINALIZER = 2
+PICKLEFLAGS_RESET_AG_FINALIZER = 4
 
 # Backwards support for unpickling older pickles, even from 2.7
 from _stackless import _wrap

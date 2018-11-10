@@ -198,14 +198,15 @@ The function returns the previous pickle-flags. To inquire the
 pickle-flags without changing them, omit the arguments.
 
 Currently the following bits are defined:
- - bit 0, value 1: pickle the tracing/profiling state of a tasklet.
-
+ - bit 0, value 1: pickle the tracing/profiling state of a tasklet;
+ - bit 1, value 2: preserve the finalizer of an asynchronous generator;
+ - bit 2, value 4: reset the finalizer of an asynchronous generator.
 All other bits must be set to 0.
 [clinic start generated code]*/
 
 static PyObject *
 _stackless_pickle_flags_impl(PyObject *module, long new_flags, long mask)
-/*[clinic end generated code: output=fd773a5b06ab0c48 input=4a6920285b2c9019]*/
+/*[clinic end generated code: output=fd773a5b06ab0c48 input=36479a8e5486c711]*/
 {
     PyThreadState *ts = PyThreadState_GET();
     long old_flags;
