@@ -6,8 +6,9 @@ import inspect
 import copy
 import contextlib
 import threading
+import stackless
 
-from stackless import schedule, tasklet, stackless
+from stackless import schedule, tasklet
 
 from support import test_main  # @UnusedImport
 from support import StacklessTestCase, StacklessPickleTestCase, get_reduce_frame
@@ -21,7 +22,7 @@ import copyreg
 
 def reduce(obj):
     return object, ()  # just create an empty object instance
-copyreg.pickle(type(sys.stdout), reduce, object)
+copyreg.pickle(type(sys.stdout), reduce, object)  # @IgnorePep8
 
 VERBOSE = False
 glist = []
@@ -205,7 +206,7 @@ def ctxpickling(testCase, n, when, expect_type, suppress_exc):
                 raise expect_type("raised by ctxpickling")
     except SystemExit:
         raise
-    except:
+    except:  # @IgnorePep8
         exc_info = sys.exc_info()
     else:
         exc_info = (None, None, None)
@@ -465,8 +466,8 @@ class TestPickledTasklets(StacklessPickleTestCase):
         # ValueError: frame exec function at 1e00bf40 is not registered!
 
         def sender(chan):
-            l = [1, 2, 3, 4]
-            chan.send_sequence(l)
+            li = [1, 2, 3, 4]
+            chan.send_sequence(li)
 
         def receiver(chan):
             length = 4
@@ -627,7 +628,7 @@ class TestTraceback(StacklessPickleTestCase):
         # check linkage
         all_outerframes_orig = inspect.getouterframes(innerframes_orig[-1][0])
         all_outerframes = inspect.getouterframes(innerframes[-1][0])
-        l = len(innerframes_orig)
+        l = len(innerframes_orig)  # @IgnorePep8
         self.assertGreater(len(all_outerframes_orig), l)
         self.assertGreaterEqual(len(all_outerframes), l)
         # compare the content
@@ -827,6 +828,89 @@ class TestAsyncGenPickling(StacklessPickleTestCase):
         self.assertRaises(StopAsyncIteration, c.send, None)
 
 
+class TestAsyncGenASendPickling(StacklessPickleTestCase):
+    async def ag(self):
+        yield 100
+
+    def inspect(self, ags):
+        r = stackless._wrap.async_generator_asend.__reduce__(ags)
+        self.assertIs(r[0], stackless._wrap.async_generator_asend)
+        self.assertIsInstance(r[2][0], types.AsyncGeneratorType)
+        return r[2][1:]
+
+    def test_without_pickling(self):
+        ags = self.ag().__anext__()
+        self.assertTupleEqual(self.inspect(ags), (None, 0, False))
+        with self.assertRaises(StopIteration) as cm:
+            ags.__next__()
+        self.assertEqual(cm.exception.value, 100)
+        self.assertTupleEqual(self.inspect(ags), (None, 2, False))
+
+    def test_pickling1(self):
+        ags = self.ag().__anext__()
+        p = self.dumps(ags)
+        ags = self.loads(p)
+        self.assertTupleEqual(self.inspect(ags), (None, 0, False))
+        with self.assertRaises(StopIteration) as cm:
+            ags.__next__()
+        self.assertEqual(cm.exception.value, 100)
+        self.assertTupleEqual(self.inspect(ags), (None, 2, False))
+
+    def test_pickling2(self):
+        ags = self.ag().asend(NotImplemented)
+        p = self.dumps(ags)
+        ags = self.loads(p)
+        self.assertTupleEqual(self.inspect(ags), (NotImplemented, 0, True))
+        self.assertRaises(TypeError, ags.__next__)
+        self.assertTupleEqual(self.inspect(ags), (NotImplemented, 2, True))
+
+
+class TestAsyncGenAThrowPickling(StacklessPickleTestCase):
+    async def ag(self):
+        yield 100
+        yield 200
+
+    def inspect(self, ags):
+        r = stackless._wrap.async_generator_athrow.__reduce__(ags)
+        self.assertIs(r[0], stackless._wrap.async_generator_athrow)
+        self.assertIsInstance(r[2][0], types.AsyncGeneratorType)
+        return r[2][1:]
+
+    def test_without_pickling(self):
+        a = self.ag()
+        ags = a.__anext__()
+        with self.assertRaises(StopIteration) as cm:
+            ags.__next__()
+        self.assertEqual(cm.exception.value, 100)
+        e = ZeroDivisionError("bla bla")
+        agt = a.athrow(e)
+        self.assertTupleEqual(self.inspect(agt), ((e, ), 0, True))
+        with self.assertRaises(ZeroDivisionError) as cm:
+            agt.__next__()
+        self.assertIs(cm.exception, e)
+        self.assertTupleEqual(self.inspect(agt), ((e, ), 1, True))
+
+    def test_pickling1(self):
+        a = self.ag()
+        ags = a.__anext__()
+        with self.assertRaises(StopIteration) as cm:
+            ags.__next__()
+        self.assertEqual(cm.exception.value, 100)
+        e = ZeroDivisionError("bla bla")
+        agt = a.athrow(e)
+        p = self.dumps(agt)
+        agt = self.loads(p)
+        x = self.inspect(agt)
+        self.assertIsInstance(x[0][0], ZeroDivisionError)
+        self.assertIsNot(x[0][0], e)
+        e = x[0][0]
+        self.assertTupleEqual(x, ((e, ), 0, True))
+        with self.assertRaises(ZeroDivisionError) as cm:
+            agt.__next__()
+        self.assertIs(cm.exception, e)
+        self.assertTupleEqual(self.inspect(agt), ((e, ), 1, True))
+
+
 class TestCopy(StacklessTestCase):
     ITERATOR_TYPE = type(iter("abc"))
 
@@ -934,6 +1018,26 @@ class TestCopy(StacklessTestCase):
         ag = self._test(obj, 'ag_running', 'ag_code', '__name__', '__qualname__')
         with self.assertRaises(StopIteration):
             ag.aclose().send(None)
+
+    def test_async_gen_asend(self):
+        async def ag():
+            yield 100
+        obj = ag().__anext__()
+        ags = self._test(obj)
+        with self.assertRaises(StopIteration) as cm:
+            ags.send(None)
+        self.assertEqual(cm.exception.value, 100)
+
+    def test_async_gen_athrow(self):
+        async def ag():
+            yield 100
+        a = ag()
+        self.assertRaises(StopIteration, a.__anext__().__next__)
+        obj = a.athrow(ZeroDivisionError("foo"))
+        agt = self._test(obj)
+        with self.assertRaises(ZeroDivisionError) as cm:
+            agt.__next__()
+        self.assertTupleEqual(cm.exception.args, ("foo",))
 
 
 class TestPickleFlags(unittest.TestCase):

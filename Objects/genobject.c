@@ -1465,15 +1465,6 @@ async_gen_init_hooks(PyAsyncGenObject *o)
 }
 
 
-#ifdef STACKLESS
-int
-slp_async_gen_init_hooks(PyAsyncGenObject *o)
-{
-    return async_gen_init_hooks(o);
-}
-#endif
-
-
 static PyObject *
 async_gen_anext(PyAsyncGenObject *o)
 {
@@ -2199,3 +2190,140 @@ async_gen_athrow_new(PyAsyncGenObject *gen, PyObject *args)
     _PyObject_GC_TRACK((PyObject*)o);
     return (PyObject*)o;
 }
+
+
+#ifdef STACKLESS
+int
+slp_async_gen_init_hooks(PyAsyncGenObject *o)
+{
+    return async_gen_init_hooks(o);
+}
+
+
+PyObject *
+slp_async_gen_asend_reduce(PyObject *o, PyTypeObject * wrapper_type)
+{
+    PyAsyncGenASend *asend;
+    PyObject *tup;
+
+    assert(o != NULL);
+    assert(PyAsyncGenASend_CheckExact(o));
+    assert(wrapper_type != NULL);
+
+    asend = (PyAsyncGenASend *)o;
+    tup = Py_BuildValue("(O()(OOiO))",
+                wrapper_type,
+                asend->ags_gen,
+                asend->ags_sendval ? asend->ags_sendval : Py_None,
+                (int)asend->ags_state,
+                asend->ags_sendval ? Py_True : Py_False);
+    return tup;
+}
+
+
+PyObject *
+slp_async_gen_asend_new(PyAsyncGenObject *gen)
+{
+    return async_gen_asend_new(gen, NULL);
+}
+
+PyObject *
+slp_async_gen_asend_setstate(PyObject *self, PyObject *args)
+{
+    PyAsyncGenASend *asend;
+    PyObject *gen, *send_val, *has_sendval;
+    int state;
+
+    assert(self != NULL);
+    asend = (PyAsyncGenASend *)self;
+
+    assert(args != NULL);
+    if (!PyArg_ParseTuple(args, "O!OiO!:async_gen_asend_setstate",
+        &PyAsyncGen_Type,
+        &gen,
+        &send_val,
+        &state,
+        &PyBool_Type,
+        &has_sendval)) {
+        return NULL;
+    }
+
+    assert(PyAsyncGen_CheckExact(gen));
+    Py_INCREF(gen);
+    Py_SETREF(asend->ags_gen, (PyAsyncGenObject*)gen);
+    if (has_sendval != Py_True)
+        send_val = NULL;
+    else
+        Py_INCREF(send_val);
+    Py_XSETREF(asend->ags_sendval, send_val);
+    asend->ags_state = state;
+
+    Py_TYPE(self) = Py_TYPE(self)->tp_base;
+    Py_INCREF(self);
+    return self;
+}
+
+
+PyObject *
+slp_async_gen_athrow_reduce(PyObject *o, PyTypeObject * wrapper_type)
+{
+    PyAsyncGenAThrow *athrow;
+    PyObject *tup;
+
+    assert(o != NULL);
+    assert((Py_TYPE(o) == &_PyAsyncGenAThrow_Type));
+    assert(wrapper_type != NULL);
+
+    athrow = (PyAsyncGenAThrow *)o;
+    tup = Py_BuildValue("(O()(OOiO))",
+                wrapper_type,
+                athrow->agt_gen,
+                athrow->agt_args ? athrow->agt_args : Py_None,
+                (int)athrow->agt_state,
+                athrow->agt_args ? Py_True : Py_False);
+    return tup;
+}
+
+
+PyObject *
+slp_async_gen_athrow_new(PyAsyncGenObject *gen)
+{
+    return async_gen_athrow_new(gen, NULL);
+}
+
+PyObject *
+slp_async_gen_athrow_setstate(PyObject *self, PyObject *args)
+{
+    PyAsyncGenAThrow *athrow;
+    PyObject *gen, *agt_args, *has_args;
+    int state;
+
+    assert(self != NULL);
+    athrow = (PyAsyncGenAThrow *)self;
+
+    assert(args != NULL);
+    if (!PyArg_ParseTuple(args, "O!OiO!:async_gen_athrow_setstate",
+        &PyAsyncGen_Type,
+        &gen,
+        &agt_args,
+        &state,
+        &PyBool_Type,
+        &has_args)) {
+        return NULL;
+    }
+
+    assert(PyAsyncGen_CheckExact(gen));
+    Py_INCREF(gen);
+    Py_SETREF(athrow->agt_gen, (PyAsyncGenObject*)gen);
+    if (has_args != Py_True)
+        agt_args = NULL;
+    else
+        Py_INCREF(agt_args);
+    Py_XSETREF(athrow->agt_args, agt_args);
+    athrow->agt_state = state;
+
+    Py_TYPE(self) = Py_TYPE(self)->tp_base;
+    Py_INCREF(self);
+    return self;
+}
+#endif

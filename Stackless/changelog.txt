@@ -16,7 +16,8 @@ What's New in Stackless 3.X.X?
 - https://github.com/stackless-dev/stackless/issues/139
   New functions stackless.pickle_flags() and stackless.pickle_flags_default().
   They can be used to control pickling of certain objects.
-  Stackless can now pickle asynchronous generators.
+  Stackless can now pickle asynchronous generators and awaitables of type
+  PyAsyncGenASend or PyAsyncGenAThrow (see PEP 525).
 
 - https://github.com/stackless-dev/stackless/issues/175
   Cleanup of the Stackless C-API: Including stackless_api.h in an extension

@@ -1522,9 +1522,12 @@ static int init_dictitemsviewtype(PyObject * mod)
 static PyTypeObject wrap_PyGen_Type;
 static PyTypeObject wrap_PyCoro_Type;
 static PyTypeObject wrap_PyAsyncGen_Type;
+static PyTypeObject wrap__PyAsyncGenASend_Type;
+static PyTypeObject wrap__PyAsyncGenAThrow_Type;
 
 /* Used to initialize a generator created by gen_new. */
 static PyFrameObject *gen_exhausted_frame = NULL;
+static PyAsyncGenObject *gen_exhausted_asyncgen = NULL;
 
 /* A helper for pickling the _PyErr_StackItem* members of generator-like and tasklet
  * objects. This method returns a pointer to the object, that contains the
@@ -1844,6 +1847,13 @@ static int init_generatortype(PyObject * mod)
     gen_exhausted_frame = slp_ensure_new_frame(gen->gi_frame);
     if (gen_exhausted_frame == NULL) {
         res = -1;
+    } else {
+        /* A reference to frame is stolen by PyGen_New. */
+        Py_INCREF(gen_exhausted_frame);
+        gen_exhausted_asyncgen = (PyAsyncGenObject *)PyAsyncGen_New(gen_exhausted_frame, NULL, NULL);
+    }
+    if (gen_exhausted_asyncgen == NULL) {
+        res = -1;
     }
 
     Py_DECREF(gen);
@@ -2110,6 +2120,81 @@ init_async_gentype(PyObject * mod)
 }
 #undef initchain
 #define initchain init_async_gentype
+
+static PyObject *
+async_generator_asend_reduce(PyObject *o)
+{
+    return slp_async_gen_asend_reduce(o, &wrap__PyAsyncGenASend_Type);
+}
+
+static PyObject *
+async_generator_asend_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+    PyObject * o;
+    if (is_wrong_type(type)) return NULL;
+    assert(type == &wrap__PyAsyncGenASend_Type);
+    assert(gen_exhausted_asyncgen != NULL);
+    o = slp_async_gen_asend_new(gen_exhausted_asyncgen);
+    if (o != NULL)
+        Py_TYPE(o) = type;
+    return o;
+}
+
+static PyObject *
+async_generator_asend_setstate(PyObject *self, PyObject *args)
+{
+    if (is_wrong_type(Py_TYPE(self))) return NULL;
+    return slp_async_gen_asend_setstate(self, args);
+}
+
+MAKE_WRAPPERTYPE(_PyAsyncGenASend_Type, asyncgen_asend, "async_generator_asend", async_generator_asend_reduce,
+        async_generator_asend_new, async_generator_asend_setstate)
+
+static int
+init_async_generator_asend_type(PyObject * mod)
+{
+    return init_type(&wrap__PyAsyncGenASend_Type, initchain, mod);
+}
+#undef initchain
+#define initchain init_async_generator_asend_type
+
+static PyObject *
+async_generator_athrow_reduce(PyObject *o)
+{
+    return slp_async_gen_athrow_reduce(o, &wrap__PyAsyncGenAThrow_Type);
+}
+
+static PyObject *
+async_generator_athrow_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+    PyObject * o;
+    if (is_wrong_type(type)) return NULL;
+    assert(type == &wrap__PyAsyncGenAThrow_Type);
+    assert(gen_exhausted_asyncgen != NULL);
+    o = slp_async_gen_athrow_new(gen_exhausted_asyncgen);
+    if (o != NULL)
+        Py_TYPE(o) = type;
+    return o;
+}
+
+static PyObject *
+async_generator_athrow_setstate(PyObject *self, PyObject *args)
+{
+    if (is_wrong_type(Py_TYPE(self))) return NULL;
+    return slp_async_gen_athrow_setstate(self, args);
+}
+
+MAKE_WRAPPERTYPE(_PyAsyncGenAThrow_Type, asyncgen_athrow, "async_generator_athrow", async_generator_athrow_reduce,
+        async_generator_athrow_new, async_generator_athrow_setstate)
+
+static int
+init_async_generator_athrow_type(PyObject * mod)
+{
+    return init_type(&wrap__PyAsyncGenAThrow_Type, initchain, mod);
+}
+#undef initchain
+#define initchain init_async_generator_athrow_type
+
 
 /******************************************************
 

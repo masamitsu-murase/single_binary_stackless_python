@@ -116,14 +116,15 @@ In order to be able to pickle tasklets |SLP| needs to be able to pickle
 several other objects, which can't be pickled by |CPY|. |SLP|
 uses :func:`copyreg.pickle` to register “reduction” functions for the following
 types:
-:data:`~types.FunctionType`,
 :data:`~types.AsyncGeneratorType`,
 :data:`~types.CodeType`,
 :data:`~types.CoroutineType`,
+:data:`~types.FunctionType`,
 :data:`~types.GeneratorType`,
 :data:`~types.ModuleType`,
 :data:`~types.TracebackType`,
-:ref:`Cell Objects <cell-objects>` and
+:ref:`Cell Objects <cell-objects>`,
+C-types PyAsyncGenASend and PyAsyncGenAThrow (see :pep:`525`) as well as
 all kinds of :ref:`Dictionary view objects <dict-views>`.
 
 Frames

@@ -803,6 +803,12 @@ int slp_safe_pickling(int(*save)(PyObject *, PyObject *, int),
 
 PyObject * PyStackless_Pickle_ModuleDict(PyObject *pickler, PyObject *self);
 int slp_async_gen_init_hooks(PyAsyncGenObject *o);
+PyObject * slp_async_gen_asend_reduce(PyObject *o, PyTypeObject * wrapper_type);
+PyObject * slp_async_gen_asend_new(PyAsyncGenObject *gen);
+PyObject * slp_async_gen_asend_setstate(PyObject *self, PyObject *args);
+PyObject * slp_async_gen_athrow_reduce(PyObject *o, PyTypeObject * wrapper_type);
+PyObject * slp_async_gen_athrow_new(PyAsyncGenObject *gen);
+PyObject * slp_async_gen_athrow_setstate(PyObject *self, PyObject *args);
 
 /* debugging/monitoring */
 
