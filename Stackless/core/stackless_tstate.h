@@ -13,20 +13,23 @@
 #endif
 #endif
 
-typedef struct _cstack PyCStackObject;
-typedef struct _bomb PyBombObject;
-typedef struct _tasklet PyTaskletObject;
-typedef int (slp_schedule_hook_func) (PyTaskletObject *from, PyTaskletObject *to);
-typedef struct _ts PyThreadState;
+/* forward declarations */
+struct _cstack;
+struct _bomb;
+struct _tasklet;
+struct _ts;
+
+typedef int (slp_schedule_hook_func) (struct _tasklet *from, struct _tasklet *to);
+
 typedef struct {
-    PyCStackObject * cstack_chain;              /* the chain of all C-stacks of this interpreter. This is an uncounted/borrowed ref. */
+    struct _cstack * cstack_chain;              /* the chain of all C-stacks of this interpreter. This is an uncounted/borrowed ref. */
     PyObject * reduce_frame_func;               /* a function used to pickle frames */
     PyObject * error_handler;                   /* the Stackless error handler */
     PyObject * channel_hook;                    /* the channel callback function */
-    PyBombObject * mem_bomb;                    /* a permanent bomb to use for memory errors */
+    struct _bomb * mem_bomb;                    /* a permanent bomb to use for memory errors */
     PyObject * schedule_hook;                   /* the schedule callback function */
     slp_schedule_hook_func * schedule_fasthook; /* the fast C-only schedule_hook */
-    PyThreadState * initial_tstate;             /* recording the main thread state */
+    struct _ts * initial_tstate;                /* recording the main thread state */
     uint8_t enable_softswitch;                  /* the flag which decides whether we try to use soft switching */
     uint8_t pickleflags;                        /* flags for pickling / unpickling */
 } PyStacklessInterpreterState;
@@ -152,7 +155,6 @@ typedef struct _sts {
    we use Py_CLEAR, since it clears the pointer before deallocating.
  */
 
-struct _ts; /* Forward */
 
 void slp_kill_tasks_with_stacks(struct _ts *tstate);
 
