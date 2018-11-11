@@ -361,7 +361,6 @@ typedef struct {
 /* not a valid ptr and not a common integer */
 #define SAVED_TSTATE_MAGIC1 (((intptr_t)transfer_with_exc)+1)
 #define SAVED_TSTATE_MAGIC2 (-1*((intptr_t)transfer_with_exc))
-saved_tstat_with_magic_t * _dont_optimise_away_saved_tstat_with_magic;
 
 static int
 transfer_with_exc(PyCStackObject **cstprev, PyCStackObject *cst, PyTaskletObject *prev)
@@ -376,7 +375,7 @@ transfer_with_exc(PyCStackObject **cstprev, PyCStackObject *cst, PyTaskletObject
     /* prevent overly compiler optimisation.
     We store the address of sm into a global variable.
     This way the optimizer can't change the layout of the structure. */
-    _dont_optimise_away_saved_tstat_with_magic = &sm;
+    SLP_DO_NOT_OPTIMIZE_AWAY(&sm);
 
     sm.s.tracing = ts->tracing;
     sm.s.c_profilefunc = ts->c_profilefunc;

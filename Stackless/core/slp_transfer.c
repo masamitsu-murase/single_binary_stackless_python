@@ -45,6 +45,8 @@ static PyTaskletObject *_prev;
 #define SLP_EVAL
 #include "platf/slp_platformselect.h"
 
+SLP_DO_NOT_OPTIMIZE_AWAY_DEFINITIONS
+
 #ifdef EXTERNAL_ASM
 /* CCP addition: Make these functions, to be called from assembler.
  * The token include file for the given platform should enable the
@@ -80,8 +82,6 @@ extern int slp_switch(void);
 
 #endif
 
-/* a write only variable used to prevent overly optimisation */
-intptr_t *global_goobledigoobs;
 static int
 climb_stack_and_transfer(PyCStackObject **cstprev, PyCStackObject *cst,
                          PyTaskletObject *prev)
@@ -96,15 +96,14 @@ climb_stack_and_transfer(PyCStackObject **cstprev, PyCStackObject *cst,
     intptr_t probe;
     register ptrdiff_t needed = &probe - ts->st.cstack_base;
     /* in rare cases, the need might have vanished due to the recursion */
-    register intptr_t *goobledigoobs;
     if (needed > 0) {
-        goobledigoobs = alloca(needed * sizeof(intptr_t));
-        if (goobledigoobs == NULL)
+        register void * stack_ptr_tmp = alloca(needed * sizeof(intptr_t));
+        if (stack_ptr_tmp == NULL)
             return -1;
-        /* hinder the compiler to optimise away 
-           goobledigoobs and the alloca call. 
+        /* hinder the compiler to optimise away
+           stack_ptr_tmp and the alloca call.
            This happens with gcc 4.7.x and -O2 */
-        global_goobledigoobs = goobledigoobs;
+        SLP_DO_NOT_OPTIMIZE_AWAY(stack_ptr_tmp);
     }
     return slp_transfer(cstprev, cst, prev);
 }
