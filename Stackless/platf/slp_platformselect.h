@@ -20,9 +20,9 @@
 #elif defined(__GNUC__) && defined(sparc) && defined(sun)
 #include "switch_sparc_sun_gcc.h" /* SunOS sparc with gcc */
 #elif defined(__GNUC__) && defined(__s390__) && defined(__linux__)
-#include "switch_s390_unix.h"	/* Linux/S390 */
+#include "switch_s390_unix.h"   /* Linux/S390 */
 #elif defined(__GNUC__) && defined(__s390x__) && defined(__linux__)
-#include "switch_s390_unix.h"	/* Linux/S390 zSeries (identical) */
+#include "switch_s390_unix.h"   /* Linux/S390 zSeries (identical) */
 #elif defined(__GNUC__) && defined(__arm__) && defined(__thumb__)
 #include "switch_arm_thumb_gcc.h" /* gcc using arm thumb */
 #elif defined(__GNUC__) && defined(__arm32__)
@@ -34,6 +34,51 @@
 #endif
 
 /* default definitions if not defined in above files */
+
+/*
+ * Call SLP_DO_NOT_OPTIMIZE_AWAY(pointer) to ensure that pointer will be
+ * computed even post-optimization.  Use it for pointers that are computed but
+ * otherwise are useless. The compiler tends to do a good job at eliminating
+ * unused variables, and this macro fools it into thinking var is in fact
+ * needed.
+ */
+
+#ifndef SLP_DO_NOT_OPTIMIZE_AWAY
+
+/* Code is based on Facebook folly
+ * https://github.com/facebook/folly/blob/master/folly/Benchmark.h,
+ * which has an Apache 2 license.
+ */
+#ifdef _MSC_VER
+
+#pragma optimize("", off)
+
+static inline void doNotOptimizeDependencySink(const void* p) {}
+
+#pragma optimize("", on)
+
+#define SLP_DO_NOT_OPTIMIZE_AWAY(pointer) doNotOptimizeDependencySink(pointer)
+#define SLP_DO_NOT_OPTIMIZE_AWAY_DEFINITIONS /* empty */
+
+#elif (defined(__GNUC__) || defined(__clang__))
+/*
+ * The "r" constraint forces the compiler to make datum available
+ * in a register to the asm block, which means that it must have
+ * computed/loaded it.
+ */
+#define SLP_DO_NOT_OPTIMIZE_AWAY(pointer) \
+    do {__asm__ volatile("" ::"r"(pointer));} while(0)
+#define SLP_DO_NOT_OPTIMIZE_AWAY_DEFINITIONS /* empty */
+#else
+/*
+ * Unknown compiler
+ */
+#define SLP_DO_NOT_OPTIMIZE_AWAY(pointer) \
+    do { slp_do_not_opimize_away_sink = ((void*)(pointer)); } while(0)
+extern uint8_t* volatile slp_do_not_opimize_away_sink;
+#define SLP_DO_NOT_OPTIMIZE_AWAY_DEFINITIONS uint8_t* volatile slp_do_not_opimize_away_sink;
+#endif
+#endif
 
 /* adjust slots to typical size of a few recursions on your system */
 
@@ -82,8 +127,8 @@
 #endif
 
 #define CSTACK_SAVE_NOW(tstate, stackvar) \
-	((tstate)->st.cstack_root != NULL ? \
-	 CSTACK_SUBTRACT((tstate)->st.cstack_root, \
-	 (intptr_t*)&(stackvar)) > CSTACK_WATERMARK : 1)
+        ((tstate)->st.cstack_root != NULL ? \
+         CSTACK_SUBTRACT((tstate)->st.cstack_root, \
+         (intptr_t*)&(stackvar)) > CSTACK_WATERMARK : 1)
 
 #endif

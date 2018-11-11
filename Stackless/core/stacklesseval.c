@@ -256,11 +256,14 @@ climb_stack_and_eval_frame(PyFrameObject *f)
     intptr_t probe;
     ptrdiff_t needed = &probe - ts->st.cstack_base;
     /* in rare cases, the need might have vanished due to the recursion */
-    intptr_t *goobledigoobs;
     if (needed > 0) {
-        goobledigoobs = alloca(needed * sizeof(intptr_t));
-        if (goobledigoobs == NULL)
+        register void * stack_ptr_tmp = alloca(needed * sizeof(intptr_t));
+        if (stack_ptr_tmp == NULL)
             return NULL;
+        /* hinder the compiler to optimise away
+        stack_ptr_tmp and the alloca call.
+        This happens with gcc 4.7.x and -O2 */
+        SLP_DO_NOT_OPTIMIZE_AWAY(stack_ptr_tmp);
     }
     return slp_eval_frame(f);
 }

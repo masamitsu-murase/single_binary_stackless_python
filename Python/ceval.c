@@ -3854,9 +3854,6 @@ stackless_interrupt_call:
 
 
 #ifdef STACKLESS
-/* a global write only dummy variable */
-char slp_dont_optimise_away_slp_eval_frame_functions;
-
 PyObject * _Py_HOT_FUNCTION
 slp_eval_frame_noval(PyFrameObject *f, int throwflag, PyObject *retval)
 {
@@ -3866,7 +3863,8 @@ slp_eval_frame_noval(PyFrameObject *f, int throwflag, PyObject *retval)
      * it serves as a marker whether we expect a value or
      * not, and it makes debugging a little easier.
      */
-    slp_dont_optimise_away_slp_eval_frame_functions = 1;
+    SLP_DO_NOT_OPTIMIZE_AWAY((char *)1);
+
     r = slp_eval_frame_value(f, throwflag, retval);
     return r;
 }
@@ -3881,7 +3879,7 @@ slp_eval_frame_iter(PyFrameObject *f, int throwflag, PyObject *retval)
      * for_iter operation. In this case we need to handle
      * null without error as valid result.
      */
-    slp_dont_optimise_away_slp_eval_frame_functions = 2;
+    SLP_DO_NOT_OPTIMIZE_AWAY((char *)2);
     r = slp_eval_frame_value(f, throwflag, retval);
     return r;
 }
@@ -3896,7 +3894,7 @@ slp_eval_frame_setup_with(PyFrameObject *f, int throwflag, PyObject *retval)
      * SETUP_WITH operation.
      * NOTE / XXX: see above.
      */
-    slp_dont_optimise_away_slp_eval_frame_functions = 3;
+    SLP_DO_NOT_OPTIMIZE_AWAY((char *)3);
     r = slp_eval_frame_value(f, throwflag, retval);
     return r;
 }
@@ -3911,7 +3909,7 @@ slp_eval_frame_with_cleanup(PyFrameObject *f, int throwflag, PyObject *retval)
      * WITH_CLEANUP operation.
      * NOTE / XXX: see above.
      */
-    slp_dont_optimise_away_slp_eval_frame_functions = 4;
+    SLP_DO_NOT_OPTIMIZE_AWAY((char *)4);
     r = slp_eval_frame_value(f, throwflag, retval);
     return r;
 }
