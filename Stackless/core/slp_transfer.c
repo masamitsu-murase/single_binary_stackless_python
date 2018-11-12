@@ -122,6 +122,10 @@ slp_transfer(PyCStackObject **cstprev, PyCStackObject *cst,
 {
     PyThreadState *ts = PyThreadState_GET();
     int result;
+    /* Use a volatile pointer to prevent inlining of slp_switch().
+     * See Stackless issue 183
+     */
+    static int (*volatile slp_switch_ptr)(void) = slp_switch;
 
     /* since we change the stack we must assure that the protocol was met */
     STACKLESS_ASSERT();
@@ -153,7 +157,7 @@ slp_transfer(PyCStackObject **cstprev, PyCStackObject *cst,
     _cstprev = cstprev;
     _cst = cst;
     _prev = prev;
-    result = slp_switch();
+    result = slp_switch_ptr();
     SLP_ASSERT_FRAME_IN_TRANSFER(ts);
     if (!result) {
         if (_cst) {

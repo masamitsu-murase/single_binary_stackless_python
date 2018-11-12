@@ -37,15 +37,7 @@
 #define REGS_TO_SAVE "r13", "r14", "r15", "r16", "r17", "r18", "r19", "r20", \
        "r21", "r22", "r23", "r24", "r25", "r26", "r27", "r28", "r29", "r31", \
        "cr2", "cr3", "cr4"
-/*
- * You may want to make the function static enable optimizations.
- * However, the ABI SPEC does not apply to static functions. Therefore
- * I make slp_switch a regular global function.
- */
-#if 0
-static
-#endif
-int
+static int
 slp_switch(void)
 {
     register int *stackref, stsizediff;
