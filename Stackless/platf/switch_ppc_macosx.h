@@ -42,15 +42,7 @@
        "cr2", "cr3", "cr4"
 #endif
 
-/*
- * You may want to make the function static enable optimizations.
- * However, the ABI SPEC does not apply to static functions. Therefore
- * I make slp_switch a regular global function.
- */
-#if 0
-static
-#endif
-int
+static int
 slp_switch(void)
 {
     static int x = 0;

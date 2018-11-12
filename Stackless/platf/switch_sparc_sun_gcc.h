@@ -23,15 +23,7 @@
 
 #define STACK_MAGIC 0
 
-/*
- * You may want to make the function static enable optimizations.
- * However, the ABI SPEC does not apply to static functions. Therefore
- * I make slp_switch a regular global function.
- */
-#if 0
-static
-#endif
-int
+static int
 slp_switch(void)
 {
     register int *stackref, stsizediff;
