@@ -147,6 +147,8 @@ typedef struct _is {
     void (*pyexitfunc)(PyObject *);
     PyObject *pyexitmodule;
 
+    uint64_t tstate_next_unique_id;
+
 #ifdef STACKLESS
     PyStacklessInterpreterState st;
 #endif
@@ -276,6 +278,12 @@ typedef struct _ts {
 
     PyObject *async_gen_firstiter;
     PyObject *async_gen_finalizer;
+
+    PyObject *context;
+    uint64_t context_ver;
+
+    /* Unique thread state id. */
+    uint64_t id;
 
     /* XXX signal handlers should also be here */
 

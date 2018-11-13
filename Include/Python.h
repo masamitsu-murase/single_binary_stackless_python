@@ -112,6 +112,7 @@
 #include "pyerrors.h"
 
 #include "pystate.h"
+#include "context.h"
 
 #include "pyarena.h"
 #include "modsupport.h"
