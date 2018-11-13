@@ -683,17 +683,19 @@ _Py_InitializeCore(const _PyCoreConfig *core_config)
        Instead we destroy the previously created GIL here, which ensures
        that we can call Py_Initialize / Py_FinalizeEx multiple times. */
     _PyEval_FiniThreads();
+
     /* Auto-thread-state API */
     _PyGILState_Init(interp, tstate);
 
-#ifdef STACKLESS
-    if (!_PyStackless_InitTypes()) {
-        PyErr_Print();
-        Py_FatalError("Py_Initialize: can't init stackless types");
-    }
-#endif
+    /* Create the GIL */
+    PyEval_InitThreads();
 
     _Py_ReadyTypes();
+
+#ifdef STACKLESS
+    if (!_PyStackless_InitTypes())
+        return _Py_INIT_ERR("can't init stackless types");
+#endif
 
     if (!_PyFrame_Init())
         return _Py_INIT_ERR("can't init frames");
