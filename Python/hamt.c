@@ -4,11 +4,6 @@
 #include "internal/pystate.h"
 #include "internal/hamt.h"
 
-/* popcnt support in Visual Studio */
-#ifdef _MSC_VER
-#include <intrin.h>
-#endif
-
 /*
 This file provides an implemention of an immutable mapping using the
 Hash Array Mapped Trie (or HAMT) datastructure.
@@ -61,7 +56,7 @@ tree structure:
                      +---+ -- +----+----+----+ -- +----+
                                       |
                      +---+ -- +----+----+----+ -- +----+
-  a 3rd level node   | 0 | .. | 04 | 05 | 06 | .. | 31 |   0b01011 = 5  (3)
+  a 3rd level node   | 0 | .. | 04 | 05 | 06 | .. | 31 |   0b00101 = 5  (3)
                      +---+ -- +----+----+----+ -- +----+
                                       |
                      +---+ -- +----+----+----+----+
@@ -440,18 +435,21 @@ hamt_bitpos(int32_t hash, uint32_t shift)
 static inline uint32_t
 hamt_bitcount(uint32_t i)
 {
-#if defined(__GNUC__) && (__GNUC__ > 4)
-    return (uint32_t)__builtin_popcountl(i);
-#elif defined(__clang__) && (__clang_major__ > 3)
-    return (uint32_t)__builtin_popcountl(i);
-#elif defined(_MSC_VER)
-    return (uint32_t)__popcnt(i);
-#else
-    /* https://graphics.stanford.edu/~seander/bithacks.html */
+    /* We could use native popcount instruction but that would
+       require to either add configure flags to enable SSE4.2
+       support or to detect it dynamically.  Otherwise, we have
+       a risk of CPython not working properly on older hardware.
+
+       In practice, there's no observable difference in
+       performance between using a popcount instruction or the
+       following fallback code.
+
+       The algorithm is copied from:
+       https://graphics.stanford.edu/~seander/bithacks.html
+    */
     i = i - ((i >> 1) & 0x55555555);
     i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
-    return ((i + (i >> 4) & 0xF0F0F0F) * 0x1010101) >> 24;
-#endif
+    return (((i + (i >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24;
 }
 
 static inline uint32_t
@@ -1055,6 +1053,10 @@ hamt_node_bitmap_without(PyHamtNode_Bitmap *self,
 #endif
 
                 PyHamtNode_Bitmap *clone = hamt_node_bitmap_clone(self);
+                if (clone == NULL) {
+                    return W_ERROR;
+                }
+
                 Py_SETREF(clone->b_array[val_idx],
                           (PyObject *)sub_node);  /* borrow */
 
@@ -1116,7 +1118,6 @@ hamt_node_bitmap_find(PyHamtNode_Bitmap *self,
     }
 
     idx = hamt_bitindex(self->b_bitmap, bit);
-    assert(idx >= 0);
     key_idx = idx * 2;
     val_idx = key_idx + 1;
 

@@ -134,7 +134,9 @@ PyContextVar_New(const char *name, PyObject *def)
     if (pyname == NULL) {
         return NULL;
     }
-    return contextvar_new(pyname, def);
+    PyContextVar *var = contextvar_new(pyname, def);
+    Py_DECREF(pyname);
+    return var;
 }
 
 
@@ -143,7 +145,8 @@ PyContextVar_Get(PyContextVar *var, PyObject *def, PyObject **val)
 {
     assert(PyContextVar_CheckExact(var));
 
-    PyThreadState *ts = PyThreadState_Get();
+    PyThreadState *ts = PyThreadState_GET();
+    assert(ts != NULL);
     if (ts->context == NULL) {
         goto not_found;
     }
@@ -741,8 +744,8 @@ contextvar_new(PyObject *name, PyObject *def)
     var->var_cached_tsid = 0;
     var->var_cached_tsver = 0;
 
-    if (_PyObject_GC_IS_TRACKED(name) ||
-            (def != NULL && _PyObject_GC_IS_TRACKED(def)))
+    if (_PyObject_GC_MAY_BE_TRACKED(name) ||
+            (def != NULL && _PyObject_GC_MAY_BE_TRACKED(def)))
     {
         PyObject_GC_Track(var);
     }
@@ -1171,7 +1174,7 @@ get_token_missing(void)
 int
 PyContext_ClearFreeList(void)
 {
-    int size = ctx_freelist_len;
+    Py_ssize_t size = ctx_freelist_len;
     while (ctx_freelist_len) {
         PyContext *ctx = ctx_freelist;
         ctx_freelist = (PyContext *)ctx->ctx_weakreflist;
