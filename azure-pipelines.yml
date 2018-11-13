@@ -8,7 +8,7 @@ jobs:
     inputs:
       versionSpec: '3.x' 
       addToPath: true 
-      architecture: 'x64'
+      architecture: 'x86'
   - task: UseRubyVersion@0
     inputs:
       versionSpec: '>= 2.4' 
@@ -27,7 +27,7 @@ jobs:
     inputs:
       versionSpec: '3.x' 
       addToPath: true 
-      architecture: 'x64'
+      architecture: 'x86'
   - task: UseRubyVersion@0
     inputs:
       versionSpec: '>= 2.4' 
@@ -46,7 +46,7 @@ jobs:
     inputs:
       versionSpec: '3.x' 
       addToPath: true 
-      architecture: 'x64'
+      architecture: 'x86'
   - task: UseRubyVersion@0
     inputs:
       versionSpec: '>= 2.4' 
