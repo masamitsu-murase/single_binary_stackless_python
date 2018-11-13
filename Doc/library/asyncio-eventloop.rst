@@ -543,6 +543,37 @@ Creating listening connections
    .. versionadded:: 3.5.3
 
 
+File Transferring
+-----------------
+
+.. coroutinemethod:: AbstractEventLoop.sendfile(transport, file, \
+                                                offset=0, count=None, \
+                                                *, fallback=True)
+
+   Send a *file* to *transport*, return the total number of bytes
+   which were sent.
+
+   The method uses high-performance :meth:`os.sendfile` if available.
+
+   *file* must be a regular file object opened in binary mode.
+
+   *offset* tells from where to start reading the file. If specified,
+   *count* is the total number of bytes to transmit as opposed to
+   sending the file until EOF is reached. File position is updated on
+   return or also in case of error in which case :meth:`file.tell()
+   <io.IOBase.tell>` can be used to figure out the number of bytes
+   which were sent.
+
+   *fallback* set to ``True`` makes asyncio to manually read and send
+   the file when the platform does not support the sendfile syscall
+   (e.g. Windows or SSL socket on Unix).
+
+   Raise :exc:`SendfileNotAvailableError` if the system does not support
+   *sendfile* syscall and *fallback* is ``False``.
+
+   .. versionadded:: 3.7
+
+
 TLS Upgrade
 -----------
 
@@ -751,6 +782,12 @@ Resolve host name
    This method is a :ref:`coroutine <coroutine>`, similar to
    :meth:`socket.getnameinfo` function but non-blocking.
 
+.. versionchanged:: 3.7
+   Both *getaddrinfo* and *getnameinfo* methods were always documented
+   to return a coroutine, but prior to Python 3.7 they were, in fact,
+   returning :class:`asyncio.Future` objects.  Starting with Python 3.7
+   both methods are coroutines.
+
 
 Connect pipes
 -------------
@@ -821,7 +858,7 @@ Call a function in an :class:`~concurrent.futures.Executor` (pool of threads or
 pool of processes). By default, an event loop uses a thread pool executor
 (:class:`~concurrent.futures.ThreadPoolExecutor`).
 
-.. coroutinemethod:: AbstractEventLoop.run_in_executor(executor, func, \*args)
+.. method:: AbstractEventLoop.run_in_executor(executor, func, \*args)
 
    Arrange for a *func* to be called in the specified executor.
 
@@ -831,17 +868,14 @@ pool of processes). By default, an event loop uses a thread pool executor
    :ref:`Use functools.partial to pass keywords to the *func*
    <asyncio-pass-keywords>`.
 
+   This method returns a :class:`asyncio.Future` object.
+
    .. versionchanged:: 3.5.3
       :meth:`BaseEventLoop.run_in_executor` no longer configures the
       ``max_workers`` of the thread pool executor it creates, instead
       leaving it up to the thread pool executor
       (:class:`~concurrent.futures.ThreadPoolExecutor`) to set the
       default.
-
-   .. versionchanged:: 3.7
-      Even though the method was always documented as a coroutine
-      method, before Python 3.7 it returned a :class:`Future`.
-      Since Python 3.7, this is an ``async def`` method.
 
 .. method:: AbstractEventLoop.set_default_executor(executor)
 

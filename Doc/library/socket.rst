@@ -578,6 +578,14 @@ Other functions
 The :mod:`socket` module also offers various network-related services:
 
 
+.. function:: close(fd)
+
+   Close a socket file descriptor. This is like :func:`os.close`, but for
+   sockets. On some platforms (most noticeable Windows) :func:`os.close`
+   does not work for socket file descriptors.
+
+   .. versionadded:: 3.7
+
 .. function:: getaddrinfo(host, port, family=0, type=0, proto=0, flags=0)
 
    Translate the *host*/*port* argument into a sequence of 5-tuples that contain
@@ -1077,6 +1085,16 @@ to sockets.
    this buffer is returned as a bytes object.  It is up to the caller to decode the
    contents of the buffer (see the optional built-in module :mod:`struct` for a way
    to decode C structures encoded as byte strings).
+
+
+.. method:: socket.getblocking()
+
+   Return ``True`` if socket is in blocking mode, ``False`` if in
+   non-blocking.
+
+   This is equivalent to checking ``socket.gettimeout() == 0``.
+
+   .. versionadded:: 3.7
 
 
 .. method:: socket.gettimeout()

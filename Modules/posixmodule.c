@@ -176,6 +176,14 @@ corresponding Unix manual entries for more information on calls.");
 #else
 /* Unix functions that the configure script doesn't check for */
 #define HAVE_EXECV      1
+/* bpo-32705: Current Android does not have posix_spawn
+ * Most likely posix_spawn will be available in next Android version (Android
+ * P, API 28). Need revisit then. See
+ * https://android-review.googlesource.com/c/platform/bionic/+/504842
+ **/
+#ifndef __ANDROID__
+#define HAVE_POSIX_SPAWN 1
+#endif
 #define HAVE_FORK       1
 #if defined(__USLC__) && defined(__SCO_VERSION__)       /* SCO UDK Compiler */
 #define HAVE_FORK1      1
@@ -245,6 +253,10 @@ extern int lstat(const char *, struct stat *);
 #endif /* !HAVE_UNISTD_H */
 
 #endif /* !_MSC_VER */
+
+#ifdef HAVE_POSIX_SPAWN
+#include <spawn.h>
+#endif
 
 #ifdef HAVE_UTIME_H
 #include <utime.h>
@@ -394,6 +406,10 @@ static int win32_can_symlink = 0;
 #define MODNAME "posix"
 #endif
 
+#if defined(__sun)
+/* Something to implement in autoconf, not present in autoconf 2.69 */
+#define HAVE_STRUCT_STAT_ST_FSTYPE 1
+#endif
 
 #ifdef HAVE_FORK
 static void
@@ -1789,6 +1805,9 @@ static PyStructSequence_Field stat_result_fields[] = {
 #ifdef HAVE_STRUCT_STAT_ST_FILE_ATTRIBUTES
     {"st_file_attributes", "Windows file attribute bits"},
 #endif
+#ifdef HAVE_STRUCT_STAT_ST_FSTYPE
+    {"st_fstype",  "Type of filesystem"},
+#endif
     {0}
 };
 
@@ -1832,6 +1851,12 @@ static PyStructSequence_Field stat_result_fields[] = {
 #define ST_FILE_ATTRIBUTES_IDX (ST_BIRTHTIME_IDX+1)
 #else
 #define ST_FILE_ATTRIBUTES_IDX ST_BIRTHTIME_IDX
+#endif
+
+#ifdef HAVE_STRUCT_STAT_ST_FSTYPE
+#define ST_FSTYPE_IDX (ST_FILE_ATTRIBUTES_IDX+1)
+#else
+#define ST_FSTYPE_IDX ST_FILE_ATTRIBUTES_IDX
 #endif
 
 static PyStructSequence_Desc stat_result_desc = {
@@ -2056,6 +2081,10 @@ _pystat_fromstructstat(STRUCT_STAT *st)
 #ifdef HAVE_STRUCT_STAT_ST_FILE_ATTRIBUTES
     PyStructSequence_SET_ITEM(v, ST_FILE_ATTRIBUTES_IDX,
                               PyLong_FromUnsignedLong(st->st_file_attributes));
+#endif
+#ifdef HAVE_STRUCT_STAT_ST_FSTYPE
+   PyStructSequence_SET_ITEM(v, ST_FSTYPE_IDX,
+                              PyUnicode_FromString(st->st_fstype));
 #endif
 
     if (PyErr_Occurred()) {
@@ -5080,6 +5109,194 @@ os_execve_impl(PyObject *module, path_t *path, PyObject *argv, PyObject *env)
 
 #endif /* HAVE_EXECV */
 
+#ifdef HAVE_POSIX_SPAWN
+
+enum posix_spawn_file_actions_identifier {
+    POSIX_SPAWN_OPEN,
+    POSIX_SPAWN_CLOSE,
+    POSIX_SPAWN_DUP2
+};
+
+/*[clinic input]
+
+os.posix_spawn
+    path: path_t
+        Path of executable file.
+    argv: object
+        Tuple or list of strings.
+    env: object
+        Dictionary of strings mapping to strings.
+    file_actions: object = None
+        FileActions object.
+    /
+
+Execute the program specified by path in a new process.
+[clinic start generated code]*/
+
+static PyObject *
+os_posix_spawn_impl(PyObject *module, path_t *path, PyObject *argv,
+                    PyObject *env, PyObject *file_actions)
+/*[clinic end generated code: output=d023521f541c709c input=0ec9f1cfdc890be5]*/
+{
+    EXECV_CHAR **argvlist = NULL;
+    EXECV_CHAR **envlist;
+    Py_ssize_t argc, envc;
+
+    /* posix_spawn has three arguments: (path, argv, env), where
+   argv is a list or tuple of strings and env is a dictionary
+       like posix.environ. */
+
+    if (!PySequence_Check(argv)){
+        PyErr_SetString(PyExc_TypeError,
+                        "posix_spawn: argv must be a tuple or list");
+        goto fail;
+    }
+    argc = PySequence_Size(argv);
+    if (argc < 1) {
+        PyErr_SetString(PyExc_ValueError, "posix_spawn: argv must not be empty");
+        return NULL;
+    }
+
+    if (!PyMapping_Check(env)) {
+        PyErr_SetString(PyExc_TypeError,
+                        "posix_spawn: environment must be a mapping object");
+        goto fail;
+    }
+
+    argvlist = parse_arglist(argv, &argc);
+    if (argvlist == NULL) {
+        goto fail;
+    }
+    if (!argvlist[0][0]) {
+        PyErr_SetString(PyExc_ValueError,
+            "posix_spawn: argv first element cannot be empty");
+        goto fail;
+    }
+
+    envlist = parse_envlist(env, &envc);
+    if (envlist == NULL)
+        goto fail;
+
+    pid_t pid;
+    posix_spawn_file_actions_t *file_actionsp = NULL;
+    if (file_actions  != NULL && file_actions != Py_None){
+        posix_spawn_file_actions_t _file_actions;
+        if(posix_spawn_file_actions_init(&_file_actions) != 0){
+            PyErr_SetString(PyExc_TypeError,
+                            "Error initializing file actions");
+            goto fail;
+        }
+
+
+        file_actionsp = &_file_actions;
+
+
+        PyObject* seq = PySequence_Fast(file_actions, "file_actions must be a sequence");
+        if(seq == NULL){
+            goto fail;
+        }
+        PyObject* file_actions_obj;
+        PyObject* mode_obj;
+
+        for (int i = 0; i < PySequence_Fast_GET_SIZE(seq); ++i) {
+            file_actions_obj = PySequence_Fast_GET_ITEM(seq, i);
+
+            if(!PySequence_Check(file_actions_obj) | !PySequence_Size(file_actions_obj)){
+                PyErr_SetString(PyExc_TypeError,"Each file_action element must be a non empty sequence");
+                goto fail;
+            }
+
+
+            mode_obj = PySequence_Fast_GET_ITEM(file_actions_obj, 0);
+            int mode = PyLong_AsLong(mode_obj);
+
+            /* Populate the file_actions object */
+
+            switch(mode) {
+
+                case POSIX_SPAWN_OPEN:
+                    if(PySequence_Size(file_actions_obj) != 5){
+                        PyErr_SetString(PyExc_TypeError,"A open file_action object must have 5 elements");
+                        goto fail;
+                    }
+
+                    long open_fd = PyLong_AsLong(PySequence_GetItem(file_actions_obj, 1));
+                    if(PyErr_Occurred()) {
+                        goto fail;
+                    }
+                    const char* open_path = PyUnicode_AsUTF8(PySequence_GetItem(file_actions_obj, 2));
+                    if(open_path == NULL){
+                        goto fail;
+                    }
+                    long open_oflag = PyLong_AsLong(PySequence_GetItem(file_actions_obj, 3));
+                    if(PyErr_Occurred()) {
+                        goto fail;
+                    }
+                    long open_mode = PyLong_AsLong(PySequence_GetItem(file_actions_obj, 4));
+                    if(PyErr_Occurred()) {
+                        goto fail;
+                    }
+                    posix_spawn_file_actions_addopen(file_actionsp, open_fd, open_path, open_oflag, open_mode);
+                    break;
+
+                case POSIX_SPAWN_CLOSE:
+                    if(PySequence_Size(file_actions_obj) != 2){
+                        PyErr_SetString(PyExc_TypeError,"A close file_action object must have 2 elements");
+                        goto fail;
+                    }
+
+                    long close_fd = PyLong_AsLong(PySequence_GetItem(file_actions_obj, 1));
+                    if(PyErr_Occurred()) {
+                        goto fail;
+                    }
+                    posix_spawn_file_actions_addclose(file_actionsp, close_fd);
+                    break;
+
+                case POSIX_SPAWN_DUP2:
+                    if(PySequence_Size(file_actions_obj) != 3){
+                        PyErr_SetString(PyExc_TypeError,"A dup2 file_action object must have 3 elements");
+                        goto fail;
+                    }
+
+                    long fd1 = PyLong_AsLong(PySequence_GetItem(file_actions_obj, 1));
+                    if(PyErr_Occurred()) {
+                        goto fail;
+                    }
+                    long fd2 = PyLong_AsLong(PySequence_GetItem(file_actions_obj, 2));
+                    if(PyErr_Occurred()) {
+                        goto fail;
+                    }
+                    posix_spawn_file_actions_adddup2(file_actionsp, fd1, fd2);
+                    break;
+
+                default:
+                    PyErr_SetString(PyExc_TypeError,"Unknown file_actions identifier");
+                    goto fail;
+            }
+        }
+        Py_DECREF(seq);
+}
+
+    _Py_BEGIN_SUPPRESS_IPH
+        posix_spawn(&pid, path->narrow, file_actionsp, NULL, argvlist, envlist);
+        return PyLong_FromPid(pid);
+    _Py_END_SUPPRESS_IPH
+
+    path_error(path);
+
+    free_string_array(envlist, envc);
+
+fail:
+
+    if (argvlist) {
+        free_string_array(argvlist, argc);
+    }
+    return NULL;
+
+
+}
+#endif /* HAVE_POSIX_SPAWN */
+
 
 #if defined(HAVE_SPAWNV) || defined(HAVE_WSPAWNV)
 /*[clinic input]
@@ -5171,7 +5388,6 @@ os_spawnv_impl(PyObject *module, int mode, path_t *path, PyObject *argv)
     else
         return Py_BuildValue(_Py_PARSE_INTPTR, spawnval);
 }
-
 
 /*[clinic input]
 os.spawnve
@@ -8163,6 +8379,94 @@ os_pread_impl(PyObject *module, int fd, int length, Py_off_t offset)
 }
 #endif /* HAVE_PREAD */
 
+#if defined(HAVE_PREADV) || defined (HAVE_PREADV2)
+/*[clinic input]
+os.preadv -> Py_ssize_t
+
+    fd: int
+    buffers: object
+    offset: Py_off_t
+    flags: int = 0
+    /
+
+Reads from a file descriptor into a number of mutable bytes-like objects.
+
+Combines the functionality of readv() and pread(). As readv(), it will
+transfer data into each buffer until it is full and then move on to the next
+buffer in the sequence to hold the rest of the data. Its fourth argument,
+specifies the file offset at which the input operation is to be performed. It
+will return the total number of bytes read (which can be less than the total
+capacity of all the objects).
+
+The flags argument contains a bitwise OR of zero or more of the following flags:
+
+- RWF_HIPRI
+- RWF_NOWAIT
+
+Using non-zero flags requires Linux 4.6 or newer.
+[clinic start generated code]*/
+
+static Py_ssize_t
+os_preadv_impl(PyObject *module, int fd, PyObject *buffers, Py_off_t offset,
+               int flags)
+/*[clinic end generated code: output=26fc9c6e58e7ada5 input=4173919dc1f7ed99]*/
+{
+    Py_ssize_t cnt, n;
+    int async_err = 0;
+    struct iovec *iov;
+    Py_buffer *buf;
+
+    if (!PySequence_Check(buffers)) {
+        PyErr_SetString(PyExc_TypeError,
+            "preadv2() arg 2 must be a sequence");
+        return -1;
+    }
+
+    cnt = PySequence_Size(buffers);
+    if (cnt < 0) {
+        return -1;
+    }
+
+#ifndef HAVE_PREADV2
+    if(flags != 0) {
+        argument_unavailable_error("preadv2", "flags");
+        return -1;
+    }
+#endif
+
+    if (iov_setup(&iov, &buf, buffers, cnt, PyBUF_WRITABLE) < 0) {
+        return -1;
+    }
+#ifdef HAVE_PREADV2
+    do {
+        Py_BEGIN_ALLOW_THREADS
+        _Py_BEGIN_SUPPRESS_IPH
+        n = preadv2(fd, iov, cnt, offset, flags);
+        _Py_END_SUPPRESS_IPH
+        Py_END_ALLOW_THREADS
+    } while (n < 0 && errno == EINTR && !(async_err = PyErr_CheckSignals()));
+#else
+    do {
+        Py_BEGIN_ALLOW_THREADS
+        _Py_BEGIN_SUPPRESS_IPH
+        n = preadv(fd, iov, cnt, offset);
+        _Py_END_SUPPRESS_IPH
+        Py_END_ALLOW_THREADS
+    } while (n < 0 && errno == EINTR && !(async_err = PyErr_CheckSignals()));
+#endif
+
+    iov_cleanup(iov, buf, cnt);
+    if (n < 0) {
+        if (!async_err) {
+            posix_error();
+        }
+        return -1;
+    }
+
+    return n;
+}
+#endif /* HAVE_PREADV */
+
 
 /*[clinic input]
 os.write -> Py_ssize_t
@@ -8612,6 +8916,97 @@ os_pwrite_impl(PyObject *module, int fd, Py_buffer *buffer, Py_off_t offset)
     return size;
 }
 #endif /* HAVE_PWRITE */
+
+#if defined(HAVE_PWRITEV) || defined (HAVE_PWRITEV2)
+/*[clinic input]
+os.pwritev -> Py_ssize_t
+
+    fd: int
+    buffers: object
+    offset: Py_off_t
+    flags: int = 0
+    /
+
+Writes the contents of bytes-like objects to a file descriptor at a given offset.
+
+Combines the functionality of writev() and pwrite(). All buffers must be a sequence
+of bytes-like objects. Buffers are processed in array order. Entire contents of first
+buffer is written before proceeding to second, and so on. The operating system may
+set a limit (sysconf() value SC_IOV_MAX) on the number of buffers that can be used.
+This function writes the contents of each object to the file descriptor and returns
+the total number of bytes written.
+
+The flags argument contains a bitwise OR of zero or more of the following flags:
+
+- RWF_DSYNC
+- RWF_SYNC
+
+Using non-zero flags requires Linux 4.7 or newer.
+[clinic start generated code]*/
+
+static Py_ssize_t
+os_pwritev_impl(PyObject *module, int fd, PyObject *buffers, Py_off_t offset,
+                int flags)
+/*[clinic end generated code: output=e3dd3e9d11a6a5c7 input=803dc5ddbf0cfd3b]*/
+{
+    Py_ssize_t cnt;
+    Py_ssize_t result;
+    int async_err = 0;
+    struct iovec *iov;
+    Py_buffer *buf;
+
+    if (!PySequence_Check(buffers)) {
+        PyErr_SetString(PyExc_TypeError,
+            "pwritev() arg 2 must be a sequence");
+        return -1;
+    }
+
+    cnt = PySequence_Size(buffers);
+    if (cnt < 0) {
+        return -1;
+    }
+
+#ifndef HAVE_PWRITEV2
+    if(flags != 0) {
+        argument_unavailable_error("pwritev2", "flags");
+        return -1;
+    }
+#endif
+
+    if (iov_setup(&iov, &buf, buffers, cnt, PyBUF_SIMPLE) < 0) {
+        return -1;
+    }
+#ifdef HAVE_PWRITEV2
+    do {
+        Py_BEGIN_ALLOW_THREADS
+        _Py_BEGIN_SUPPRESS_IPH
+        result = pwritev2(fd, iov, cnt, offset, flags);
+        _Py_END_SUPPRESS_IPH
+        Py_END_ALLOW_THREADS
+    } while (result < 0 && errno == EINTR && !(async_err = PyErr_CheckSignals()));
+#else
+    do {
+        Py_BEGIN_ALLOW_THREADS
+        _Py_BEGIN_SUPPRESS_IPH
+        result = pwritev(fd, iov, cnt, offset);
+        _Py_END_SUPPRESS_IPH
+        Py_END_ALLOW_THREADS
+    } while (result < 0 && errno == EINTR && !(async_err = PyErr_CheckSignals()));
+#endif
+
+    iov_cleanup(iov, buf, cnt);
+    if (result < 0) {
+        if (!async_err) {
+            posix_error();
+        }
+        return -1;
+    }
+
+    return result;
+}
+#endif /* HAVE_PWRITEV */
+
+
 
 
 #ifdef HAVE_MKFIFO
@@ -12414,6 +12809,7 @@ static PyMethodDef posix_methods[] = {
     OS_NICE_METHODDEF
     OS_GETPRIORITY_METHODDEF
     OS_SETPRIORITY_METHODDEF
+    OS_POSIX_SPAWN_METHODDEF
 #ifdef HAVE_READLINK
     {"readlink",        (PyCFunction)posix_readlink,
                         METH_VARARGS | METH_KEYWORDS,
@@ -12506,9 +12902,11 @@ static PyMethodDef posix_methods[] = {
     OS_READ_METHODDEF
     OS_READV_METHODDEF
     OS_PREAD_METHODDEF
+    OS_PREADV_METHODDEF
     OS_WRITE_METHODDEF
     OS_WRITEV_METHODDEF
     OS_PWRITE_METHODDEF
+    OS_PWRITEV_METHODDEF
 #ifdef HAVE_SENDFILE
     {"sendfile",        (PyCFunction)posix_sendfile, METH_VARARGS | METH_KEYWORDS,
                             posix_sendfile__doc__},
@@ -12951,6 +13349,26 @@ all_ins(PyObject *m)
 #endif
 #ifdef F_TEST
     if (PyModule_AddIntMacro(m, F_TEST)) return -1;
+#endif
+
+#ifdef RWF_DSYNC
+    if (PyModule_AddIntConstant(m, "RWF_DSYNC", RWF_DSYNC)) return -1;
+#endif
+#ifdef RWF_HIPRI
+    if (PyModule_AddIntConstant(m, "RWF_HIPRI", RWF_HIPRI)) return -1;
+#endif
+#ifdef RWF_SYNC
+    if (PyModule_AddIntConstant(m, "RWF_SYNC", RWF_SYNC)) return -1;
+#endif
+#ifdef RWF_NOWAIT
+    if (PyModule_AddIntConstant(m, "RWF_NOWAIT", RWF_NOWAIT)) return -1;
+#endif
+
+/* constants for posix_spawn */
+#ifdef HAVE_POSIX_SPAWN
+    if (PyModule_AddIntConstant(m, "POSIX_SPAWN_OPEN", POSIX_SPAWN_OPEN)) return -1;
+    if (PyModule_AddIntConstant(m, "POSIX_SPAWN_CLOSE", POSIX_SPAWN_CLOSE)) return -1;
+    if (PyModule_AddIntConstant(m, "POSIX_SPAWN_DUP2", POSIX_SPAWN_DUP2)) return -1;
 #endif
 
 #ifdef HAVE_SPAWNV
