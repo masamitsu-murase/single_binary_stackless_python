@@ -1,0 +1,32 @@
+
+jobs:
+- job: x86
+  pool:
+    vmImage: 'vs2015-win2012r2'
+  steps:
+  - script: |
+      cmd /c PCbuild\my_build.bat $(variables.target_type) $(variables.vc_version)
+      cmd /c PCbuild\my_test.bat $(variables.target_type) $(variables.vc_version)
+    env:
+      target_type: x86
+      vc_version: 2015
+- job: x64
+  pool:
+    vmImage: 'vs2015-win2012r2'
+  steps:
+  - script: |
+      cmd /c PCbuild\my_build.bat $(variables.target_type) $(variables.vc_version)
+      cmd /c PCbuild\my_test.bat $(variables.target_type) $(variables.vc_version)
+    env:
+      target_type: x64
+      vc_version: 2015
+- job: x64_pe
+  pool:
+    vmImage: 'vs2015-win2012r2'
+  steps:
+  - script: |
+      cmd /c PCbuild\my_build.bat $(variables.target_type) $(variables.vc_version)
+      cmd /c PCbuild\my_test.bat $(variables.target_type) $(variables.vc_version)
+    env:
+      target_type: x64_pe
+      vc_version: 2015
