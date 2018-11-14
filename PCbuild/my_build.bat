@@ -90,12 +90,12 @@ if EXIST C:\Ruby23\bin\ruby.exe (
 ) else (
     set RUBY_EXE=ruby.exe
 )
-echo Creating embeddedimport_data.c...
-%RUBY_EXE% create_embeddedimporter_data.rb
-if ERRORLEVEL 1 (
-    echo Failed to create embeddedimport_data.c
-    exit /b 1
-)
+REM echo Creating embeddedimport_data.c...
+REM %RUBY_EXE% create_embeddedimporter_data.rb
+REM if ERRORLEVEL 1 (
+REM     echo Failed to create embeddedimport_data.c
+REM     exit /b 1
+REM )
 
 REM --------------------------------
 REM tclEmbeddedFilesystem

@@ -23,15 +23,15 @@ jobs:
   pool:
     vmImage: 'vs2015-win2012r2'
   steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '3.x' 
-      addToPath: true 
-      architecture: 'x86'
-  - task: UseRubyVersion@0
-    inputs:
-      versionSpec: '>= 2.4' 
-      addToPath: true 
+  # - task: UsePythonVersion@0
+  #   inputs:
+  #     versionSpec: '3.x' 
+  #     addToPath: true 
+  #     architecture: 'x86'
+  # - task: UseRubyVersion@0
+  #   inputs:
+  #     versionSpec: '>= 2.4' 
+  #     addToPath: true 
   - script: |
       cmd /c PCbuild\my_build.bat $(variables.target_type) $(variables.vc_version)
       cmd /c PCbuild\my_test.bat $(variables.target_type) $(variables.vc_version)
