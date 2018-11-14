@@ -11,7 +11,6 @@ extern "C" {
 #include "internal/mem.h"
 #include "internal/ceval.h"
 #include "internal/warnings.h"
-#include "core/stackless_structs.h"
 
 
 /* GIL state */

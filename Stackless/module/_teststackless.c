@@ -17,6 +17,9 @@
 
 #include "Python.h"
 #include "stackless_api.h"
+#ifdef MS_WINDOWS
+#include "malloc.h" /* for alloca */
+#endif
 
  /******************************************************
 

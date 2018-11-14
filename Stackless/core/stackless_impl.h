@@ -691,7 +691,6 @@ int slp_schedule_task(PyObject **result,
 void slp_thread_unblock(PyThreadState *ts);
 
 int slp_initialize_main_and_current(void);
-void slp_initialize(struct _stackless_runtime_state *);
 
 /* setting the tasklet's tempval, optimized for no change */
 

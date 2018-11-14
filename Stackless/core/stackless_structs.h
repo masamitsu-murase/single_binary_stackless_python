@@ -9,7 +9,6 @@ extern "C" {
 #define SLP_BUILD_CORE
 #endif
 
-#include "platf/slp_platformselect.h"
 #include "frameobject.h"
 
 #ifdef STACKLESS
@@ -261,39 +260,6 @@ PyAPI_DATA(PyTypeObject) PyChannel_Type;
 #define PyChannel_Check(op) PyObject_TypeCheck(op, &PyChannel_Type)
 #define PyChannel_CheckExact(op) (Py_TYPE(op) == PyChannel_TypePtr)
 
-/*
- * Stackless runtime state
- *
- * Initialized by
- * void slp_initialize(struct _stackless_runtime_state * state)
- * in stackless_util.c
- */
-struct _stackless_runtime_state {
-    /*
-     * flag whether the next call should try to be stackless.
-     * The protocol is: This flag may be only set if the called
-     * thing supports it. It doesn't matter whether it uses the
-     * chance, but it *must* set it to zero before returning.
-     * This flags in a way serves as a parameter that we don't have.
-     *
-     * As long as the GIL is shared between sub-interpreters,
-     * try_stackless can be a field in the runtime state.
-     */
-    int try_stackless;
-
-    /* Used to manage free C-stack objects, see stacklesseval.c */
-    int cstack_cachecount;
-    PyCStackObject *cstack_cache[CSTACK_SLOTS];
-
-    /*
-     * Used during a hard switch.
-     */
-    struct {
-        PyCStackObject **cstprev;
-        PyCStackObject *cst;
-        PyTaskletObject *prev;
-    } transfer;
-};
 
 #else /* #ifdef SLP_BUILD_CORE */
 

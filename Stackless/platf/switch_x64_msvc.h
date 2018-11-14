@@ -44,7 +44,6 @@
 #define STACKLESS_SPY
 
 #ifdef IMPLEMENT_STACKLESSMODULE
-#include "Windows.h"
 #define CANNOT_READ_MEM(p, bytes) IsBadReadPtr(p, bytes)
 
 static int IS_ON_STACK(void*p)

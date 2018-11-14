@@ -11,6 +11,7 @@
 #ifdef STACKLESS
 #define SLP_BUILD_CORE
 #include "core/stackless_impl.h"
+#include "platf/slp_platformselect.h" /* for stack saving */
 /* rename these because otherwise we will conflict with windows.h */
 #define FLOAT OP_FLOAT
 #define INT OP_INT

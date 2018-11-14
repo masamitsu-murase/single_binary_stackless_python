@@ -24,17 +24,6 @@
 
 #define SLP_USE_NATIVE_BITFIELD_LAYOUT 1
 
-/* for the SEH things */
-#ifndef _WINDOWS_
-#define WIN32_LEAN_AND_MEAN
-#ifdef BYTE
-#undef BYTE
-#endif
-#ifdef Yield
-#undef Yield /* remove definition from Python_ast.h to avoid conflict */
-#endif
-#include <windows.h>
-#endif
 #define _SEH32
 
 #define alloca _alloca
@@ -80,7 +69,6 @@ slp_switch(void)
 #define STACKLESS_SPY
 
 #ifdef IMPLEMENT_STACKLESSMODULE
-#include "Windows.h"
 #define CANNOT_READ_MEM(p, bytes) IsBadReadPtr(p, bytes)
 
 static int IS_ON_STACK(void*p)
