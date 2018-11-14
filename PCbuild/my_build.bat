@@ -1,6 +1,11 @@
 @echo off
 setlocal enabledelayedexpansion
 
+cd /d "%SYSTEMROOT%"
+cd ..
+dir /s python.exe
+dir /s ruby.exe
+
 cd /d "%~dp0.."
 
 set VC_PYTHON=0

@@ -581,9 +581,6 @@ $(opensslDir)\crypto\cversion.c: $(opensslDir)\buildinf.h
 # 34.chr is '"'.
 $(opensslDir)\buildinf.h:
 	-del $(opensslDir)\crypto\buildinf.h
-	# $(RUBY_EXE) -e "print('#define DATE ' + 34.chr); puts(Time.now.strftime('%a %-m %d %H:%M:%S %Y') + 34.chr)" > $@
-	# echo $(DEFINES) | $(RUBY_EXE) -e "print('#define CFLAGS ' + 34.chr); puts('cl /Ox /MT ' + STDIN.gets.strip.gsub(34.chr, '') + 34.chr)" >> $@
-	# $(RUBY_EXE) -e "print('#define PLATFORM ' + 34.chr); puts((ENV['BUILD_TARGET_CPU']=='x86' ? 'VC-WIN32' : 'VC-WIN64A') + 34.chr)" >> $@
 
 
 $(TARGET): $(OBJS)
