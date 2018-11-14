@@ -468,6 +468,25 @@ class TestShutdown(StacklessTestCase):
         self.assertEqual(rc, 42)
 
 
+def is_high_load():
+    try:
+        sched_getaffinity = os.sched_getaffinity
+    except AttributeError:
+        ncpus = os.cpu_count()
+        if ncpus is None:
+            return False
+    else:
+        ncpus = len(sched_getaffinity(0))
+    try:
+        load = os.getloadavg()[0]
+    except (OSError, AttributeError):
+        return False
+    if ncpus <= 1:
+        return load > 0.5
+    return load + 1 > ncpus
+
+
+@unittest.skipIf(is_high_load(), "system load is to high for this test")
 class TestInterpreterShutdown(unittest.TestCase):
     # intentionally not a subclass of StacklessTestCase.
 
