@@ -2,11 +2,11 @@
 jobs:
 - job: x86
   pool:
-    vmImage: 'vs2015-win2012r2'
+    vmImage: 'vs2017-win2016'
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '3.x' 
+      versionSpec: '3.6' 
       addToPath: true 
       architecture: 'x86'
   - task: UseRubyVersion@0
