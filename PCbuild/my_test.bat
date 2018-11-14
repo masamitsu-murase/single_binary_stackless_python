@@ -30,7 +30,8 @@ cd /d "%~dp0"
 %PYTHON% -c "import sys; print(sys.version)"
 
 REM TODO test_threaded_import
-%PYTHON% -m test.regrtest -x test_ctypes test_distutils test_ensurepip test_idle test_importlib test_lib2to3 test_pydoc test_sqlite test_ttk_textonly test_unittest test_readline test_threaded_import
+REM %PYTHON% -m test.regrtest -x test_ctypes test_distutils test_ensurepip test_idle test_importlib test_lib2to3 test_pydoc test_sqlite test_ttk_textonly test_unittest test_readline test_threaded_import
+%PYTHON% -m test.regrtest -vv test_pathlib
 if ERRORLEVEL 1 (
     echo "regrtest failed."
     exit /b 1
