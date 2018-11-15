@@ -4,6 +4,8 @@ setlocal enabledelayedexpansion
 cd
 
 cd /d "%~dp0.."
+cd
+python -c "import os; print(os.getcwd())"
 
 set VC_PYTHON=0
 if "%2" == "2008" goto SET_VC_VERSION
