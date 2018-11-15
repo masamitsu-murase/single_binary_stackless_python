@@ -32,9 +32,11 @@ jobs:
   #   inputs:
   #     versionSpec: '>= 2.4' 
   #     addToPath: true 
-  - script: |
-      cmd /c PCbuild\my_build.bat $(variables.target_type) $(variables.vc_version)
-      cmd /c PCbuild\my_test.bat $(variables.target_type) $(variables.vc_version)
+  - script: cmd /c PCbuild\my_build.bat $(variables.target_type) $(variables.vc_version)
+    env:
+      target_type: x64
+      vc_version: 2015
+  - script: cmd /c PCbuild\my_test.bat $(variables.target_type) $(variables.vc_version)
     env:
       target_type: x64
       vc_version: 2015
