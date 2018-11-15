@@ -1,6 +1,8 @@
 @echo off
 setlocal enabledelayedexpansion
 
+cd
+
 cd /d "%~dp0.."
 
 set VC_PYTHON=0
