@@ -88,7 +88,7 @@ REM embeddedimport
 if EXIST C:\Ruby23\bin\ruby.exe (
     set RUBY_EXE=C:\Ruby23\bin\ruby.exe
 ) else (
-    set RUBY_EXE=ruby.exe
+    set RUBY_EXE=%~dp0my_tools\ocraruby.exe
 )
 echo Creating embeddedimport_data.c...
 %RUBY_EXE% create_embeddedimporter_data.rb
@@ -106,7 +106,7 @@ if EXIST C:\Python37\python.exe (
 ) else if EXIST C:\Python35\python.exe (
     set PYTHON_EXE=C:\Python35\python.exe
 ) else (
-    set PYTHON_EXE=python.exe
+    set PYTHON_EXE=%~dp0my_tools\python.exe
 )
 
 REM --------------------------------
