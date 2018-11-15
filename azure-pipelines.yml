@@ -32,6 +32,10 @@ jobs:
   #   inputs:
   #     versionSpec: '>= 2.4' 
   #     addToPath: true 
+  - script: git config --global core.autoCRLF false
+    displayName: "Disable git autoCRLF"
+  - checkout: self
+    displayName: "checkout"
   - script: cmd /c PCbuild\my_build.bat $(variables.target_type) $(variables.vc_version)
     env:
       target_type: x64
