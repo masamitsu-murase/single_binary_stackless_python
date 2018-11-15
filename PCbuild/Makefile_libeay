@@ -578,12 +578,12 @@ all: $(TARGET)
 
 $(opensslDir)\crypto\cversion.c: $(opensslDir)\buildinf.h
 
-# 34.chr is '"'.
+# chr(34) is '"'.
 $(opensslDir)\buildinf.h:
 	-del $(opensslDir)\crypto\buildinf.h
-	$(RUBY_EXE) -e "print('#define DATE ' + 34.chr); puts(Time.now.strftime('%a %-m %d %H:%M:%S %Y') + 34.chr)" > $@
-	echo $(DEFINES) | $(RUBY_EXE) -e "print('#define CFLAGS ' + 34.chr); puts('cl /Ox /MT ' + STDIN.gets.strip.gsub(34.chr, '') + 34.chr)" >> $@
-	$(RUBY_EXE) -e "print('#define PLATFORM ' + 34.chr); puts((ENV['BUILD_TARGET_CPU']=='x86' ? 'VC-WIN32' : 'VC-WIN64A') + 34.chr)" >> $@
+	$(PYTHON_EXE) -c "import time; print('#define DATE ' + chr(34) + time.strftime('%a %m %d %H:%M:%S %Y') + chr(34))" > $@
+	echo $(DEFINES) | $(PYTHON_EXE) -c "print('#define CFLAGS ' + chr(34) + 'cl /Ox /MT ' + input().strip().replace(chr(34), '') + chr(34))" >> $@
+	$(PYTHON_EXE) -c "import os; print('#define PLATFORM ' + chr(34) + ('VC-WIN32' if os.environ.get('BUILD_TARGET_CPU') == 'x86' else 'VC-WIN64A') + chr(34))" >> $@
 
 
 $(TARGET): $(OBJS)
