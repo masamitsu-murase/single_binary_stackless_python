@@ -1,65 +1,27 @@
 
 jobs:
-- job: x86
-  pool:
-    vmImage: 'vs2017-win2016'
-  steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '3.6' 
-      addToPath: true 
-      architecture: 'x86'
-  - task: UseRubyVersion@0
-    inputs:
-      versionSpec: '>= 2.4' 
-      addToPath: true 
-  - script: |
-      cmd /c PCbuild\my_build.bat $(variables.target_type) $(variables.vc_version)
-      cmd /c PCbuild\my_test.bat $(variables.target_type) $(variables.vc_version)
-    env:
-      target_type: x86
-      vc_version: 2015
-- job: x64
+- job: windows
+  displayName: Windows
   pool:
     vmImage: 'vs2015-win2012r2'
+  strategy:
+    matrix:
+      x86:
+        target_type: x86
+        vc_version: 2015
+      x64:
+        target_type: x64
+        vc_version: 2015
+      x64_pe:
+        target_type: x64_pe
+        vc_version: 2015
   steps:
-  # - task: UsePythonVersion@0
-  #   inputs:
-  #     versionSpec: '3.x' 
-  #     addToPath: true 
-  #     architecture: 'x86'
-  # - task: UseRubyVersion@0
-  #   inputs:
-  #     versionSpec: '>= 2.4' 
-  #     addToPath: true 
   - script: git config --global core.autoCRLF false
     displayName: "Disable git autoCRLF"
   - checkout: self
     displayName: "checkout"
-  - script: cmd /c PCbuild\my_build.bat $(variables.target_type) $(variables.vc_version)
-    env:
-      target_type: x64
-      vc_version: 2015
-  - script: cmd /c PCbuild\my_test.bat $(variables.target_type) $(variables.vc_version)
-    env:
-      target_type: x64
-      vc_version: 2015
-- job: x64_pe
-  pool:
-    vmImage: 'vs2015-win2012r2'
-  steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '3.x' 
-      addToPath: true 
-      architecture: 'x86'
-  - task: UseRubyVersion@0
-    inputs:
-      versionSpec: '>= 2.4' 
-      addToPath: true 
-  - script: |
-      cmd /c PCbuild\my_build.bat $(variables.target_type) $(variables.vc_version)
-      cmd /c PCbuild\my_test.bat $(variables.target_type) $(variables.vc_version)
-    env:
-      target_type: x64_pe
-      vc_version: 2015
+    fetchDepth: 50
+  - script: cmd /c PCbuild\my_build.bat $(target_type) $(vc_version)
+    displayName: Build
+  - script: cmd /c PCbuild\my_test.bat $(target_type) $(vc_version)
+    displayName: Test
