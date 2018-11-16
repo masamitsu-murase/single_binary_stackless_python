@@ -88,7 +88,7 @@ REM embeddedimport
 if EXIST C:\Ruby23\bin\ruby.exe (
     set RUBY_EXE=C:\Ruby23\bin\ruby.exe
 ) else (
-    set RUBY_EXE=ruby.exe
+    set RUBY_EXE=%~dp0my_tools\ocraruby.exe
 )
 echo Creating embeddedimport_data.c...
 %RUBY_EXE% create_embeddedimporter_data.rb
@@ -106,7 +106,7 @@ if EXIST C:\Python37\python.exe (
 ) else if EXIST C:\Python35\python.exe (
     set PYTHON_EXE=C:\Python35\python.exe
 ) else (
-    set PYTHON_EXE=python.exe
+    set PYTHON_EXE=%~dp0my_tools\python.exe
 )
 
 REM --------------------------------
@@ -119,6 +119,8 @@ if ERRORLEVEL 1 exit /b 1
 cd /d "%~dp0.."
 if not "%APPVEYOR%" == "" (
     7z a Lib.7z -mx=9 -bd -ir^^!Lib\*.py -xr^^!test -xr^^!__pycache__ > NUL
+) else if not "%TF_BUILD%" == "" (
+    PCbuild\my_tools\7za.exe a Lib.7z -mx=9 -bd -ir^^!Lib\*.py -xr^^!test -xr^^!__pycache__ > NUL
 )
 
 exit /b 0
