@@ -25,3 +25,8 @@ jobs:
     displayName: Build
   - script: cmd /c PCbuild\my_test.bat $(target_type) $(vc_version)
     displayName: Test
+  - task: PublishBuildArtifacts@1
+    inputs:
+      pathtoPublish: PCbuild\python*.exe
+      artifactName: python
+      publishLocation: Container
