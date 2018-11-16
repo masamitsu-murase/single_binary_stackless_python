@@ -30,8 +30,20 @@ jobs:
       contents: PCbuild\python*.exe
       targetFolder: $(Build.ArtifactStagingDirectory)
       flattenFolders: true
+      cleanTargetFolder: true
   - task: PublishBuildArtifacts@1
     inputs:
       pathtoPublish: $(Build.ArtifactStagingDirectory)
       artifactName: python_exe
+      publishLocation: Container
+  - task: CopyFiles@2
+    inputs:
+      contents: Lib.7z
+      targetFolder: $(Build.ArtifactStagingDirectory)
+      flattenFolders: true
+      cleanTargetFolder: true
+  - task: PublishBuildArtifacts@1
+    inputs:
+      pathtoPublish: $(Build.ArtifactStagingDirectory)
+      artifactName: lib_7z
       publishLocation: Container
