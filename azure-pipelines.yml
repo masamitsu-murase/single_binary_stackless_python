@@ -23,8 +23,8 @@ jobs:
     fetchDepth: 50
   - script: cmd /c PCbuild\my_build.bat $(target_type) $(vc_version)
     displayName: Build
-  # - script: cmd /c PCbuild\my_test.bat $(target_type) $(vc_version)
-  #   displayName: Test
+  - script: cmd /c PCbuild\my_test.bat $(target_type) $(vc_version)
+    displayName: Test
   - task: CopyFiles@2
     inputs:
       contents: PCbuild\python*.exe
