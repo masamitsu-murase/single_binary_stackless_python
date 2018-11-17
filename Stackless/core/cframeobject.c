@@ -25,6 +25,7 @@
  */
 
 #include "Python.h"
+#include "structmember.h"
 
 #ifdef STACKLESS
 #include "stackless_impl.h"

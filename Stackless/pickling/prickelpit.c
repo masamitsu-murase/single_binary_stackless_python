@@ -1,6 +1,7 @@
 #include "Python.h"
 #ifdef STACKLESS
 
+#include <stddef.h>  /* for offsetof() */
 #include "compile.h"
 
 #include "core/stackless_impl.h"

@@ -14,17 +14,11 @@ extern "C" {
 #ifdef STACKLESS
 
 #ifdef Py_BUILD_CORE
-#include "internal/pystate.h"
-
-#include "structmember.h"
-#include "compile.h"
-
-/* platform specific constants (mainly SEH stuff to store )*/
-#include "platf/slp_platformselect.h"
-
+#include "internal/pystate.h"  /* for _PyRuntime */
 #endif /* #ifdef Py_BUILD_CORE */
 
 #include "core/stackless_structs.h"
+#include "stackless_api.h"
 
 /* CPython added these two macros in object.h for 2.7 and 3.5 */
 #ifndef Py_SETREF
@@ -838,8 +832,6 @@ void slp_head_unlock(void);
 long slp_parse_thread_id(PyObject *thread_id, unsigned long *id);
 
 #endif /* #ifdef SLP_BUILD_CORE */
-
-#include "stackless_api.h"
 
 #else /* STACKLESS */
 

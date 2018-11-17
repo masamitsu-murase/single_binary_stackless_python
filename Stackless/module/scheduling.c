@@ -1,4 +1,5 @@
 #include "Python.h"
+#include "structmember.h"
 
 #ifdef STACKLESS
 #include "core/stackless_impl.h"

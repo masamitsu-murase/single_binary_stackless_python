@@ -1,5 +1,6 @@
 
 #include "Python.h"
+#include <stddef.h> /* For ptrdiff_t */
 
 #ifdef STACKLESS
 

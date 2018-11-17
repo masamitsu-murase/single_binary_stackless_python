@@ -10,6 +10,7 @@
 #include "platf/slp_platformselect.h"
 #include "core/cframeobject.h"
 #include "pickling/prickelpit.h"
+#include <stddef.h>  /* for offsetof(), required by core/stackless_methods.h */
 #include "core/stackless_methods.h"
 
 /*[clinic input]
