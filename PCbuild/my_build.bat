@@ -84,21 +84,7 @@ if NOT EXIST externals (
 )
 
 REM --------------------------------
-REM embeddedimport
-if EXIST C:\Ruby23\bin\ruby.exe (
-    set RUBY_EXE=C:\Ruby23\bin\ruby.exe
-) else (
-    set RUBY_EXE=%~dp0my_tools\ocraruby.exe
-)
-echo Creating embeddedimport_data.c...
-%RUBY_EXE% create_embeddedimporter_data.rb
-if ERRORLEVEL 1 (
-    echo Failed to create embeddedimport_data.c
-    exit /b 1
-)
-
-REM --------------------------------
-REM tclEmbeddedFilesystem
+REM for embedded_import and tclEmbeddedFilesystem
 if EXIST C:\Python37\python.exe (
     set PYTHON_EXE=C:\Python37\python.exe
 ) else if EXIST C:\Python36\python.exe (
@@ -107,6 +93,15 @@ if EXIST C:\Python37\python.exe (
     set PYTHON_EXE=C:\Python35\python.exe
 ) else (
     set PYTHON_EXE=%~dp0my_tools\python.exe
+)
+
+REM --------------------------------
+REM embeddedimport
+echo Creating embeddedimport_data.c...
+%PYTHON_EXE% create_embeddedimporter_data.py
+if ERRORLEVEL 1 (
+    echo Failed to create embeddedimport_data.c
+    exit /b 1
 )
 
 REM --------------------------------
