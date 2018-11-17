@@ -98,7 +98,7 @@ if EXIST C:\Python37\python.exe (
 REM --------------------------------
 REM embeddedimport
 echo Creating embeddedimport_data.c...
-%PYTHON_EXE% create_embeddedimporter_data.rb
+%PYTHON_EXE% create_embeddedimporter_data.py
 if ERRORLEVEL 1 (
     echo Failed to create embeddedimport_data.c
     exit /b 1
