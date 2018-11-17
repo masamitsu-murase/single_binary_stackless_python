@@ -62,7 +62,8 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <Link>
-      <BaseAddress>0x1e1F0000</BaseAddress>
+      <BaseAddress>
+      </BaseAddress>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
