@@ -24,8 +24,6 @@
 
 #define SLP_USE_NATIVE_BITFIELD_LAYOUT 1
 
-#define alloca _alloca
-
 #define STACK_REFPLUS 1
 #define STACK_MAGIC 0
 

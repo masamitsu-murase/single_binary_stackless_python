@@ -26,8 +26,6 @@
 
 #define _SEH32
 
-#define alloca _alloca
-
 #define STACK_REFPLUS 1
 
 /* switching related stuff */
