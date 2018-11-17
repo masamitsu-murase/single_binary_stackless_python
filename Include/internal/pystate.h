@@ -12,6 +12,9 @@ extern "C" {
 #include "internal/ceval.h"
 #include "internal/warnings.h"
 
+#ifdef STACKLESS
+#include "core/stackless_pystate.h"
+#endif
 
 /* GIL state */
 

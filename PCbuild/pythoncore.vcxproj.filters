@@ -474,6 +474,9 @@
     <ClInclude Include="..\Stackless\core\stackless_tstate.h">
       <Filter>Stackless\core</Filter>
     </ClInclude>
+    <ClInclude Include="..\Stackless\core\stackless_pystate.h">
+      <Filter>Stackless\core</Filter>
+    </ClInclude>
     <ClInclude Include="..\Stackless\module\channelobject.h">
       <Filter>Stackless\module</Filter>
     </ClInclude>

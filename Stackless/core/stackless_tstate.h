@@ -1,8 +1,6 @@
-#ifndef Py_LIMITED_API
+/* This include file is included from pystate.h only */
 
-#ifdef Py_BUILD_CORE
-#include "platf/slp_platformselect.h"
-#endif
+#ifndef Py_LIMITED_API
 
 /*** addition to tstate ***/
 #ifdef Py_DEBUG
@@ -186,42 +184,6 @@ void slp_kill_tasks_with_stacks(struct _ts *tstate);
     Py_CLEAR(tstate->st.thread.block_lock); \
     tstate->st.thread.is_blocked = 0; \
     tstate->st.thread.is_idle = 0;
-
-/*
- * Stackless runtime state
- *
- * Initialized by
- * void slp_initialize(struct _stackless_runtime_state * state)
- * in stackless_util.c
- */
-struct _stackless_runtime_state {
-    /*
-     * flag whether the next call should try to be stackless.
-     * The protocol is: This flag may be only set if the called
-     * thing supports it. It doesn't matter whether it uses the
-     * chance, but it *must* set it to zero before returning.
-     * This flags in a way serves as a parameter that we don't have.
-     *
-     * As long as the GIL is shared between sub-interpreters,
-     * try_stackless can be a field in the runtime state.
-     */
-    int try_stackless;
-
-    /* Used to manage free C-stack objects, see stacklesseval.c */
-    int cstack_cachecount;
-    struct _cstack *cstack_cache[CSTACK_SLOTS];
-
-    /*
-     * Used during a hard switch.
-     */
-    struct {
-        struct _cstack **cstprev;
-        struct _cstack *cst;
-        struct _tasklet *prev;
-    } transfer;
-};
-
-void slp_initialize(struct _stackless_runtime_state *);
 
 #endif /* #ifdef Py_BUILD_CORE */
 #endif /* #ifndef Py_LIMITED_API */

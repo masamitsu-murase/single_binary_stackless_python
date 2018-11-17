@@ -1047,6 +1047,7 @@ PYTHON_HEADERS= \
 		$(srcdir)/Stackless/core/stackless_impl.h \
 		$(srcdir)/Stackless/core/stackless_structs.h \
 		$(srcdir)/Stackless/core/stackless_tstate.h \
+		$(srcdir)/Stackless/core/stackless_pystate.h \
 		$(srcdir)/Stackless/module/channelobject.h \
 		$(srcdir)/Stackless/pickling/prickelpit.h \
 		$(srcdir)/Stackless/platf/slp_platformselect.h \

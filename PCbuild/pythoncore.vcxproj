@@ -219,6 +219,7 @@
     <ClInclude Include="..\Stackless\core\stackless_methods.h" />
     <ClInclude Include="..\Stackless\core\stackless_structs.h" />
     <ClInclude Include="..\Stackless\core\stackless_tstate.h" />
+    <ClInclude Include="..\Stackless\core\stackless_pystate.h" />
     <ClInclude Include="..\Stackless\module\channelobject.h" />
     <ClInclude Include="..\Stackless\pickling\prickelpit.h" />
     <ClInclude Include="..\Stackless\platf\slp_platformselect.h" />
