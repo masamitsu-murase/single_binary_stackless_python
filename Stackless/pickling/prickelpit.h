@@ -54,10 +54,18 @@ Py_ssize_t slp_from_tuple_with_nulls(PyObject **start, PyObject *tup);
 
 PyObject * slp_pickle_moduledict(PyObject *self, PyObject *args);
 extern char slp_pickle_moduledict__doc__[];
+PyObject * PyStackless_Pickle_ModuleDict(PyObject *pickler, PyObject *self);
 
 /* initialization */
 
 PyObject *slp_init_prickelpit(void);
+
+/* pickle with stack spilling */
+int slp_safe_pickling(int(*save)(PyObject *, PyObject *, int),
+                      PyObject *self, PyObject *args,
+                     int pers_save);
+
+
 
 #ifdef __cplusplus
 }

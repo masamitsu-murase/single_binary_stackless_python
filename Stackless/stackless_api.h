@@ -34,9 +34,10 @@ extern "C" {
 
  ******************************************************/
 
-#include "core/stackless_impl.h"
-
 #ifdef STACKLESS
+
+#include "core/stackless_structs.h"
+
 /*
  * create a new tasklet object.
  * type must be derived from PyTasklet_Type or NULL.
@@ -393,6 +394,20 @@ PyAPI_FUNC(int) PyStackless_SetScheduleCallback(PyObject *callable);
  * scheduler monitoring with a faster interface.
  */
 PyAPI_FUNC(void) PyStackless_SetScheduleFastcallback(slp_schedule_hook_func func);
+
+/******************************************************
+
+  other functions
+
+ ******************************************************/
+
+
+/*
+ * Stack unwinding
+ */
+PyAPI_DATA(PyUnwindObject *) Py_UnwindToken;
+#define STACKLESS_UNWINDING(obj) \
+    ((PyObject *) (obj) == (PyObject *) Py_UnwindToken)
 
 /******************************************************
 

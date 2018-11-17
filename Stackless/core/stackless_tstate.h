@@ -36,6 +36,7 @@ typedef struct {
     uint8_t pickleflags;                        /* flags for pickling / unpickling */
 } PyStacklessInterpreterState;
 
+#ifdef Py_BUILD_CORE
 #define SLP_INITIAL_TSTATE(tstate) \
     (assert(tstate), \
      assert((tstate)->interp->st.initial_tstate), \
@@ -63,6 +64,8 @@ typedef struct {
     (interp)->st.schedule_fasthook = NULL;     \
     (interp)->st.enable_softswitch = 1;        \
     (interp)->st.pickleflags = 0;
+
+#endif /* #ifdef Py_BUILD_CORE */
 
 struct _frame; /* Avoid including frameobject.h */
 

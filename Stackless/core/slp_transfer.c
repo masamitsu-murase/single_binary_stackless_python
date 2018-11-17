@@ -1,17 +1,7 @@
-
 #include "Python.h"
 #include <stddef.h> /* For ptrdiff_t */
 
 #ifdef STACKLESS
-
-#ifndef STACKLESS
-**********
-If you see this error message,
-your operating system is not supported yet.
-Please provide an implementation of the switch_XXX.h
-or disable the STACKLESS flag.
-**********
-#endif
 
 #include "stackless_impl.h"
 
@@ -50,6 +40,15 @@ or disable the STACKLESS flag.
 #undef STACKLESS_SLP_PLATFORM_SELECT_H
 #endif
 #include "platf/slp_platformselect.h"
+
+#ifndef STACKLESS
+**********
+If you see this error message,
+your operating system is not supported yet.
+Please provide an implementation of the switch_XXX.h
+or disable the STACKLESS flag.
+**********
+#endif
 
 SLP_DO_NOT_OPTIMIZE_AWAY_DEFINITIONS
 

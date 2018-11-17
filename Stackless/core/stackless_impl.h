@@ -7,39 +7,19 @@
 extern "C" {
 #endif
 
+#ifdef STACKLESS
+
 #if defined(Py_BUILD_CORE) && !defined(SLP_BUILD_CORE)
 #define SLP_BUILD_CORE
 #endif
 
-#ifdef STACKLESS
+#include "stackless_api.h"
+
+#ifdef SLP_BUILD_CORE
 
 #ifdef Py_BUILD_CORE
 #include "internal/pystate.h"  /* for _PyRuntime */
-#endif /* #ifdef Py_BUILD_CORE */
-
-#include "core/stackless_structs.h"
-#include "stackless_api.h"
-
-/* CPython added these two macros in object.h for 2.7 and 3.5 */
-#ifndef Py_SETREF
-#define Py_SETREF(op, op2)                      \
-    do {                                        \
-        PyObject *_py_tmp = (PyObject *)(op);   \
-        (op) = (op2);                           \
-        Py_DECREF(_py_tmp);                     \
-    } while (0)
 #endif
-
-#ifndef Py_XSETREF
-#define Py_XSETREF(op, op2)                     \
-    do {                                        \
-        PyObject *_py_tmp = (PyObject *)(op);   \
-        (op) = (op2);                           \
-        Py_XDECREF(_py_tmp);                    \
-    } while (0)
-#endif
-
-#ifdef SLP_BUILD_CORE
 #include "pickling/prickelpit.h"
 
 #undef STACKLESS_SPY
@@ -405,22 +385,6 @@ PyObject * slp_tp_init_callback(PyFrameObject *f, int exc, PyObject *retval);
 /* functions related to pickling */
 PyObject * slp_reduce_frame(PyFrameObject * frame);
 
-/* rebirth of software stack avoidance */
-
-typedef struct _unwindobject {
-    PyObject_HEAD
-} PyUnwindObject;
-
-#else /* #ifdef SLP_BUILD_CORE */
-
-typedef struct _unwindobject PyUnwindObject;
-
-#endif /* #ifdef SLP_BUILD_CORE */
-
-PyAPI_DATA(PyUnwindObject *) Py_UnwindToken;
-
-#ifdef SLP_BUILD_CORE
-
 /* frame cloning both needed in tasklets and generators */
 
 struct _frame * slp_clone_frame(struct _frame *f);
@@ -443,12 +407,10 @@ PyTaskletObject * slp_get_watchdog(PyThreadState *ts, int interrupt);
      retval = (tstate)->st.unwinding_retval, \
      (tstate)->st.unwinding_retval = NULL, retval))
 
-#endif /* #ifdef SLP_BUILD_CORE */
-
+#if 0 /* defined in stackless_api.h */
 #define STACKLESS_UNWINDING(obj) \
     ((PyObject *) (obj) == (PyObject *) Py_UnwindToken)
-
-#ifdef SLP_BUILD_CORE
+#endif
 
 /* an arbitrary positive number */
 #define STACKLESS_UNWINDING_MAGIC 0x7fedcba9
@@ -757,17 +719,6 @@ PyObject * slp_runtime_error(const char *msg);
 PyObject * slp_value_error(const char *msg);
 PyObject * slp_null_error(void);
 
-/* this seems to be needed for gcc */
-
-/* Define NULL pointer value */
-
-#undef NULL
-#ifdef  __cplusplus
-#define NULL    0
-#else
-#define NULL    ((void *)0)
-#endif
-
 #define TYPE_ERROR(str, ret) return (slp_type_error(str), ret)
 #define RUNTIME_ERROR(str, ret) return (slp_runtime_error(str), ret)
 #define VALUE_ERROR(str, ret) return (slp_value_error(str), ret)
@@ -790,11 +741,6 @@ int slp_resurrect_and_kill(PyObject *self,
                            void(*killer)(PyObject *));
 
 /* stackless pickling support */
-int slp_safe_pickling(int(*save)(PyObject *, PyObject *, int),
-                      PyObject *self, PyObject *args,
-                     int pers_save);
-
-PyObject * PyStackless_Pickle_ModuleDict(PyObject *pickler, PyObject *self);
 int slp_async_gen_init_hooks(PyAsyncGenObject *o);
 PyObject * slp_async_gen_asend_reduce(PyObject *o, PyTypeObject * wrapper_type);
 PyObject * slp_async_gen_asend_new(PyAsyncGenObject *gen);

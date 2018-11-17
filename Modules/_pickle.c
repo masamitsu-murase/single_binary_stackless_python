@@ -10,12 +10,9 @@
 
 #ifdef STACKLESS
 #define SLP_BUILD_CORE
-#include "core/stackless_impl.h"
+#include "stackless_api.h"
+#include "pickling/prickelpit.h"
 #include "platf/slp_platformselect.h" /* for stack saving */
-/* rename these because otherwise we will conflict with windows.h */
-#define FLOAT OP_FLOAT
-#define INT OP_INT
-#define LONG OP_LONG
 #endif
 
 PyDoc_STRVAR(pickle_module_doc,

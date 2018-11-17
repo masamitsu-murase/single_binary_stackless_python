@@ -5,14 +5,16 @@
 extern "C" {
 #endif
 
+#ifdef STACKLESS
+
 #if defined(Py_BUILD_CORE) && !defined(SLP_BUILD_CORE)
 #define SLP_BUILD_CORE
 #endif
 
-#include "frameobject.h"
-
-#ifdef STACKLESS
 #ifdef SLP_BUILD_CORE
+
+#include "frameobject.h"
+#include "platf/slp_platformselect.h"
 
 /*** important structures: tasklet ***/
 
@@ -148,10 +150,24 @@ typedef struct _cstack {
     int nesting_level;
     PyThreadState *tstate;
 #ifdef _SEH32
-    DWORD exception_list; /* SEH handler on Win32 */
+	/* SEH handler on Win32
+	 * The correct type is DWORD, but we do not want to include <windows.h>.
+	 * Instead we use a compile time assertion to ensure, that we use an
+	 * equivalent type.
+	 */
+    unsigned long exception_list;
 #endif
     intptr_t *startaddr;
-    intptr_t stack[1];
+    intptr_t stack[
+#if defined(_WINDOWS_) && defined(_SEH32)
+		/* Assert the equivalence of DWORD and unsigned long. If <windows.h>
+		 * is included, _WINDOWS_ is defined.
+		 * Py_BUILD_ASSERT_EXPR needs an expression and this is the only one.
+		 */
+		Py_BUILD_ASSERT_EXPR(sizeof(unsigned long) == sizeof(DWORD)) +
+		Py_BUILD_ASSERT_EXPR(((DWORD)-1) > 0) + /* signedness */
+#endif
+		1];
 } PyCStackObject;
 
 
@@ -239,6 +255,9 @@ typedef struct _cframe {
     void *any2;
 } PyCFrameObject;
 
+typedef struct _unwindobject {
+    PyObject_HEAD
+} PyUnwindObject;
 
 
 /*** associated type objects ***/
@@ -266,6 +285,7 @@ PyAPI_DATA(PyTypeObject) PyChannel_Type;
 typedef struct _channel PyChannelObject;
 typedef struct _cframe  PyCFrameObject;
 typedef struct _tasklet PyTaskletObject;
+typedef struct _unwindobject PyUnwindObject;
 
 #endif /* #ifdef SLP_BUILD_CORE */
 #endif /* #ifdef STACKLESS */
