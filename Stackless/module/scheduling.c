@@ -842,7 +842,7 @@ schedule_task_block(PyObject **result, PyTaskletObject *prev, int stackless, int
 
 cantblock:
     /* cannot block */
-    if (revive_main || (ts == ts->interp->st.initial_tstate && wakeup->next == NULL)) {
+    if (revive_main || (ts == SLP_INITIAL_TSTATE(ts) && wakeup->next == NULL)) {
         /* emulate old revive_main behavior:
          * passing a value only if it is an exception
          */
@@ -1064,7 +1064,7 @@ slp_schedule_task_prepared(PyThreadState *ts, PyObject **result, PyTaskletObject
         prev->cstate = ts->st.initial_stub;
         Py_INCREF(prev->cstate);
     }
-    if (ts != ts->interp->st.initial_tstate) {
+    if (ts != SLP_INITIAL_TSTATE(ts)) {
         /* ensure to get all tasklets into the other thread's chain */
         if (slp_ensure_linkage(prev) || slp_ensure_linkage(next))
             return -1;
@@ -1394,9 +1394,11 @@ slp_tasklet_end(PyObject *retval)
         int handled = 0;
         if (PyErr_ExceptionMatches(PyExc_SystemExit)) {
             /* but if it is truly a SystemExit on the main thread, we want the exit! */
-            if (ts == ts->interp->st.initial_tstate && !PyErr_ExceptionMatches(PyExc_TaskletExit)) {
-                PyStackless_HandleSystemExit();
-                handled = 1; /* handler returned, it wants us to silence it */
+            if (ts == SLP_INITIAL_TSTATE(ts) && !PyErr_ExceptionMatches(PyExc_TaskletExit)) {
+                if (ts->interp == _PyRuntime.interpreters.main) {
+                    PyStackless_HandleSystemExit();
+                    handled = 1; /* handler returned, it wants us to silence it */
+                }
             } else if (!ismain) {
                 /* deal with TaskletExit on a non-main tasklet */
                 handled = 1;

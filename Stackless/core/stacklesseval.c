@@ -319,13 +319,6 @@ slp_eval_frame(PyFrameObject *f)
     PyObject *retval;
 
     if (fprev == NULL && ts->st.main == NULL) {
-        int returning;
-        if (ts->interp->st.mem_bomb == NULL) {
-            /* allocate the permanent bomb to use for mem errors */
-            if ((ts->interp->st.mem_bomb = slp_new_bomb()) == NULL)
-                return NULL;
-        }
-
         /* this is the initial frame, so mark the stack base */
 
         /*
@@ -337,12 +330,46 @@ slp_eval_frame(PyFrameObject *f)
          * with a __del__ method is destroyed. This __del__
          * will run as a toplevel frame, with f_back == NULL!
          */
+        int returning;
 
+        /* complete the interpreter state */
+        if (ts->interp->st.initial_tstate == NULL) {
+            ts->interp->st.initial_tstate = ts;
+        }
+        if (ts->interp->st.mem_bomb == NULL) {
+            /* allocate the permanent bomb to use for mem errors */
+            if ((ts->interp->st.mem_bomb = slp_new_bomb()) == NULL)
+                return NULL;
+        }
+
+        /* mark the stack base */
         stackref = STACK_REFPLUS + (intptr_t *) &f;
         if (ts->st.cstack_base == NULL)
             ts->st.cstack_base = stackref - CSTACK_GOODGAP;
-        if (stackref > ts->st.cstack_base)
-            return climb_stack_and_eval_frame(f);
+        if (stackref > ts->st.cstack_base) {
+			PyCStackObject *cst;
+            retval = climb_stack_and_eval_frame(f);
+			cst = ts->st.initial_stub;
+			/* might be NULL in OOM conditions */
+			if (cst != NULL) {
+                PyCStackObject *other;
+                register int found = 0;
+                assert(cst->startaddr == ts->st.cstack_base);
+                for (other = cst->next; other != cst; other = other->next) {
+                    if (Py_SIZE(other) != 0 && other->task != NULL && other->tstate == ts) {
+                        assert(other->startaddr == ts->st.cstack_base);
+                        found = 1;
+                        break;
+                    }
+                }
+                if (!found) {
+                    Py_CLEAR(ts->st.initial_stub);
+                    ts->st.cstack_base = NULL;
+                    ts->st.cstack_root = NULL;
+                }
+            }
+            return retval;
+        }
 
         assert(SLP_CURRENT_FRAME(ts) == NULL);  /* else we would change the current frame */
         SLP_STORE_NEXT_FRAME(ts, f);
@@ -358,9 +385,11 @@ slp_eval_frame(PyFrameObject *f)
         if (returning != 1) {
             assert(f == SLP_PEEK_NEXT_FRAME(ts));
         }
+        assert(ts->interp->st.initial_tstate != NULL);
         assert(ts->interp->st.mem_bomb != NULL);
         return slp_run_tasklet();
     }
+    assert(ts->interp->st.initial_tstate != NULL);
     assert(ts->interp->st.mem_bomb != NULL); /* see above */
     Py_INCREF(Py_None);
     Py_XINCREF(fprev);

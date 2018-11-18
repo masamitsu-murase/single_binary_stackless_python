@@ -1753,10 +1753,6 @@ static int init_stackless_methods(void)
 int
 _PyStackless_InitTypes(void)
 {
-    /* record the thread state for thread support */
-    PyThreadState * ts = PyThreadState_GET();
-    ts->interp->st.initial_tstate = ts;
-
     if (0
         || slp_init_bombtype()
         || init_stackless_methods()

@@ -38,6 +38,11 @@ typedef struct {
     uint8_t pickleflags;                        /* flags for pickling / unpickling */
 } PyStacklessInterpreterState;
 
+#define SLP_INITIAL_TSTATE(tstate) \
+    (assert(tstate), \
+     assert((tstate)->interp->st.initial_tstate), \
+     (tstate)->interp->st.initial_tstate)
+
 #define SPL_INTERPRETERSTATE_NEW(interp)       \
     (interp)->st.cstack_chain = NULL;          \
     (interp)->st.reduce_frame_func = NULL;     \

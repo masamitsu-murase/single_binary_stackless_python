@@ -598,6 +598,11 @@ tstate_delete_common(PyThreadState *tstate)
     if (tstate->next)
         tstate->next->prev = tstate->prev;
     HEAD_UNLOCK();
+#ifdef STACKLESS
+    if (interp->st.initial_tstate == tstate) {
+        interp->st.initial_tstate = NULL;
+    }
+#endif
     if (tstate->on_delete != NULL) {
         tstate->on_delete(tstate->on_delete_data);
     }
