@@ -620,6 +620,9 @@ embeddedimporter_get_filename(PyObject *obj, PyObject *args)
     subname = get_subname(fullname);
     tuple = find_tuple(self, subname, &is_package, NULL);
     if (tuple == NULL) {
+        if (PyErr_Occurred() == NULL) {
+            PyErr_SetString(EmbeddedImportError, "not found");
+        }
         return NULL;
     }
     modpath = get_modpath(self, subname, is_package);
