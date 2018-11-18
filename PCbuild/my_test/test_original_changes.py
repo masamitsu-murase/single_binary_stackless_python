@@ -25,15 +25,20 @@ class TestOriginalChanges(unittest.TestCase):
     def test_embeddedimport(self):
         import json
         self.assertEqual(json.__file__, sys.executable + r"\json\__init__.py")
+        self.assertEqual(json.__loader__.get_filename("json"), sys.executable + r"\json\__init__.py")
         with open(os.path.join(os.path.dirname(__file__), "../../Lib/json/__init__.py"), "r") as file:
             source = file.read()
         self.assertEqual(json.__loader__.get_source("json"), source)
 
         import json.decoder
         self.assertEqual(json.decoder.__file__, sys.executable + r"\json\decoder.py")
+        self.assertEqual(json.decoder.__loader__.get_filename("json.decoder"), sys.executable + r"\json\decoder.py")
         with open(os.path.join(os.path.dirname(__file__), "../../Lib/json/decoder.py"), "r") as file:
             source = file.read()
         self.assertEqual(json.decoder.__loader__.get_source("json.decoder"), source)
+
+        with self.assertRaises(ImportError):
+            json.__loader__.get_filename("json_not_exist")
 
     def test_xml(self):
         import xml.etree.ElementTree as ET
