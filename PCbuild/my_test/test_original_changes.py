@@ -23,11 +23,6 @@ class TestOriginalChanges(unittest.TestCase):
             self.assertNotIn("_msi", sys.builtin_module_names)
 
     def test_embeddedimport(self):
-        import comtypes
-        import yaml
-        import pyreadline
-        import jinja2
-
         import json
         self.assertEqual(json.__file__, sys.executable + r"\json\__init__.py")
         with open(os.path.join(os.path.dirname(__file__), "../../Lib/json/__init__.py"), "r") as file:
