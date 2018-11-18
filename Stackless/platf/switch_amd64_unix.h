@@ -42,9 +42,9 @@
 
 /* 
  * In order to switch the stack, we use the fact, that the compiler 
- * already knows how to preserve registers accross function calls.
+ * already knows how to preserve registers across function calls.
  *
- * The relevant AMD64 ABI specifigation pecisely defines which registers
+ * The relevant AMD64 ABI specification precisely defines which registers
  * must be preserved and which registers may be modified. 
  * We use a gcc inline assembly feature to pretend that the inline 
  * assembly block modifies the registers to be preserved. As a result, 
@@ -60,7 +60,7 @@
  * %mxcsr       SSE2 control and status word
  * %fcw         x87 control word
  * 
- * The compiler always preserves the %rsp register accros a function call.
+ * The compiler always preserves the %rsp register across a function call.
  *
  * Depending on the usage of a frame pointer, which is optional
  * for the AMD64 ABI, the compiler already preserves the %rbp 
