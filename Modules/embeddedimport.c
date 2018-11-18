@@ -620,6 +620,9 @@ embeddedimporter_get_filename(PyObject *obj, PyObject *args)
     subname = get_subname(fullname);
     tuple = find_tuple(self, subname, &is_package, NULL);
     if (tuple == NULL) {
+        if (PyErr_Occurred() == NULL) {
+            PyErr_SetString(EmbeddedImportError, "not found");
+        }
         return NULL;
     }
     modpath = get_modpath(self, subname, is_package);
@@ -658,6 +661,36 @@ embeddedimporter_get_code(PyObject *obj, PyObject *args)
     return code;
 }
 
+static PyObject *
+embeddedimporter_get_source(PyObject *obj, PyObject *args)
+{
+    EmbeddedImporter *self = (EmbeddedImporter *)obj;
+    wchar_t *fullname, *subname;
+    PyObject *fullname_obj;
+    PyObject *tuple;
+    PyObject *code;
+    long data_offset;
+    char *raw_data;
+
+    if (!PyArg_ParseTuple(args, "U:embeddedimporter_get_source", &fullname_obj)) {
+        return NULL;
+    }
+
+    fullname = PyUnicode_AsWideCharString(fullname_obj, NULL);
+    subname = get_subname(fullname);
+    tuple = find_tuple(self, subname, NULL, &raw_data);
+    if (tuple == NULL) {
+        PyErr_SetString(EmbeddedImportError, "not found");
+        PyMem_Free(fullname);
+        return NULL;
+    }
+
+    data_offset = PyLong_AsLong(PyTuple_GetItem(tuple, 0));
+    code = PyUnicode_FromString(&raw_data[data_offset]);
+    PyMem_Free(fullname);
+    return code;
+}
+
 PyDoc_STRVAR(doc_find_module,
 "find_module(fullname, path=None) -> self or None.\n\
 \n\
@@ -691,6 +724,12 @@ PyDoc_STRVAR(doc_get_code,
 Return the code object for the specified module. Raise EmbeddedImportError\n\
 if the module couldn't be found.");
 
+PyDoc_STRVAR(doc_get_source,
+"get_source(fullname) -> source string.\n\
+\n\
+Return the source code for the specified module. Raise EmbeddedImportError\n\
+if the module couldn't be found.");
+
 static PyMethodDef embeddedimporter_methods[] = {
     {"find_module", embeddedimporter_find_module, METH_VARARGS,
      doc_find_module},
@@ -702,6 +741,8 @@ static PyMethodDef embeddedimporter_methods[] = {
      doc_is_package},
     {"get_code", embeddedimporter_get_code, METH_VARARGS,
      doc_get_code},
+    {"get_source", embeddedimporter_get_source, METH_VARARGS,
+     doc_get_source},
     {NULL,              NULL}   /* sentinel */
 };
 

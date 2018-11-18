@@ -4,6 +4,7 @@ import os
 import sys
 import unittest
 
+
 class TestOriginalChanges(unittest.TestCase):
     def test_flags(self):
         self.assertEqual(sys.flags.dont_write_bytecode, 1)
@@ -22,10 +23,22 @@ class TestOriginalChanges(unittest.TestCase):
             self.assertNotIn("_msi", sys.builtin_module_names)
 
     def test_embeddedimport(self):
-        import comtypes
-        import yaml
-        import pyreadline
-        import jinja2
+        import json
+        self.assertEqual(json.__file__, sys.executable + r"\json\__init__.py")
+        self.assertEqual(json.__loader__.get_filename("json"), sys.executable + r"\json\__init__.py")
+        with open(os.path.join(os.path.dirname(__file__), "../../Lib/json/__init__.py"), "r") as file:
+            source = file.read() + "\n"  # See create_embeddedimport.py
+        self.assertEqual(json.__loader__.get_source("json"), source)
+
+        import json.decoder
+        self.assertEqual(json.decoder.__file__, sys.executable + r"\json\decoder.py")
+        self.assertEqual(json.decoder.__loader__.get_filename("json.decoder"), sys.executable + r"\json\decoder.py")
+        with open(os.path.join(os.path.dirname(__file__), "../../Lib/json/decoder.py"), "r") as file:
+            source = file.read() + "\n"  # See create_embeddedimport.py
+        self.assertEqual(json.decoder.__loader__.get_source("json.decoder"), source)
+
+        with self.assertRaises(ImportError):
+            json.__loader__.get_filename("json_not_exist")
 
     def test_xml(self):
         import xml.etree.ElementTree as ET
@@ -41,6 +54,7 @@ class TestOriginalChanges(unittest.TestCase):
         output = ET.tostring(root, encoding="unicode", sort_attrib=False)
         self.assertEqual(xml_text_sorted, output_sorted)
         self.assertEqual(xml_text, output)
+
 
 if __name__ == "__main__":
     unittest.main()
