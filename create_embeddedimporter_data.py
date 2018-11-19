@@ -32,7 +32,7 @@ def get_file_data():
             with open(filename, "r", encoding="utf-8") as file:
                 bindata = file.read().encode("utf-8")
         else:
-            with open(filename "rb") as file:
+            with open(filename, "rb") as file:
                 bindata = file.read()
         file_list.append({
             "filename": filename,
