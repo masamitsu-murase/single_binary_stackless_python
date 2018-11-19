@@ -28,8 +28,12 @@ def get_file_data():
         if os.path.basename(filename) == "ubuntu.ttf":
             continue
 
-        with open(filename, "r", encoding="utf-8") as file:
-            bindata = file.read().encode("utf-8")
+        if filename.endswith(".py"):
+            with open(filename, "r", encoding="utf-8") as file:
+                bindata = file.read().encode("utf-8")
+        else:
+            with open(filename "rb") as file:
+                bindata = file.read()
         file_list.append({
             "filename": filename,
             "data": bindata + b"\0"
