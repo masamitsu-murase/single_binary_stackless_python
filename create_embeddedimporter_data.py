@@ -2,41 +2,29 @@
 import glob
 import os
 import os.path
-import binascii
 import zlib
-
-
-def create_werkzeug_shared_data():
-    with open("Lib/werkzeug/debug/_shared.py", "w") as file:
-        file.write("# This file was generated automatically.\n")
-        file.write('shared_files = {\n')
-
-        for filename in sorted(glob.glob("Lib/werkzeug/debug/shared/*.*")):
-            if os.path.basename(filename) == "ubuntu.ttf":
-                continue
-
-            with open(filename, "rb") as binfile:
-                bindata = binascii.b2a_base64(binfile.read(), newline=False).decode("ascii")
-            data = "\n".join(bindata[i:(i + 60)] for i in range(0, len(bindata), 60))
-            file.write('    "%s": """' % os.path.basename(filename))
-            file.write(data)
-            file.write('\n""",\n')
-        file.write("}\n")
 
 
 def get_file_data():
     file_list = []
 
     all_filenames = [i.replace(os.path.sep, "/") for i in glob.glob("**/*.py", recursive=True)] + \
-        ["certifi/cacert.pem"]
+        ["certifi/cacert.pem"] + \
+        [i.replace(os.path.sep, "/") for i in glob.glob("werkzeug/debug/shared/*.*")]
     for filename in sorted(all_filenames):
         if filename.startswith("test/") or "/test/" in filename:
             continue
         if filename.startswith("__pycache__/") or "/__pycache__/" in filename:
             continue
+        if os.path.basename(filename) == "ubuntu.ttf":
+            continue
 
-        with open(filename, "r", encoding="utf-8") as file:
-            bindata = file.read().encode("utf-8")
+        if filename.endswith(".py"):
+            with open(filename, "r", encoding="utf-8") as file:
+                bindata = file.read().encode("utf-8")
+        else:
+            with open(filename, "rb") as file:
+                bindata = file.read()
         file_list.append({
             "filename": filename,
             "data": bindata + b"\0"
@@ -85,7 +73,6 @@ def output_list(file_list):
 pwd = os.getcwd()
 try:
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    create_werkzeug_shared_data()
 
     os.chdir("Lib")
     file_list = get_file_data()

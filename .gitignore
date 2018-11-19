@@ -105,4 +105,3 @@ gmon.out
 Modules/embeddedimport_data.c
 externals/tcl-core-8.6.6.0/generic/tclEmbeddedFilesystemData.c
 Lib/comtypes/test/
-Lib/werkzeug/debug/_shared.py
