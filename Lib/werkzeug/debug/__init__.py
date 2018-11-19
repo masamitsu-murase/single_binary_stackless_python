@@ -27,13 +27,6 @@ from werkzeug.security import gen_salt
 from werkzeug._internal import _log
 from werkzeug._compat import text_type
 
-import base64
-try:
-    from werkzeug.debug._shared import shared_files
-except ImportError:
-    shared_files = {}
-
-
 # DEPRECATED
 #: import this here because it once was documented as being available
 #: from this module.  In case there are users left ...
@@ -352,10 +345,13 @@ class DebuggedApplication(object):
 
     def get_resource(self, request, filename):
         """Return a static resource from the shared folder."""
-        # filename = join(dirname(__file__), 'shared', basename(filename))
-        filename = basename(filename)
+        filename = join(dirname(__file__), 'shared', basename(filename))
+        try:
+            data = __loader__.get_data(filename)
+        except OSError:
+            data = None
         # if isfile(filename):
-        if filename in shared_files:
+        if data is not None:
             mimetype = mimetypes.guess_type(filename)[0] \
                 or 'application/octet-stream'
             # f = open(filename, 'rb')
@@ -363,7 +359,7 @@ class DebuggedApplication(object):
             #     return Response(f.read(), mimetype=mimetype)
             # finally:
             #     f.close()
-            return Response(base64.b64decode(shared_files[filename]), mimetype=mimetype)
+            return Response(data, mimetype=mimetype)
         return Response('Not Found', status=404)
 
     def check_pin_trust(self, environ):
