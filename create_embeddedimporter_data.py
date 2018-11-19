@@ -6,16 +6,6 @@ import binascii
 import zlib
 
 
-def create_certifi_cacert_data():
-    with open("Lib/certifi/cacert.pem", "r") as file:
-        cacert_data = file.read()
-    with open("Lib/certifi/cacert.py", "w") as file:
-        file.write("# This file was generated automatically.\n")
-        file.write('_ca_cert_data = r"""')
-        file.write(cacert_data)
-        file.write('"""\n')
-
-
 def create_werkzeug_shared_data():
     with open("Lib/werkzeug/debug/_shared.py", "w") as file:
         file.write("# This file was generated automatically.\n")
@@ -37,7 +27,8 @@ def create_werkzeug_shared_data():
 def get_file_data():
     file_list = []
 
-    all_filenames = [i.replace(os.path.sep, "/") for i in glob.glob("**/*.py", recursive=True)]
+    all_filenames = [i.replace(os.path.sep, "/") for i in glob.glob("**/*.py", recursive=True)] + \
+        ["certifi/cacert.pem"]
     for filename in sorted(all_filenames):
         if filename.startswith("test/") or "/test/" in filename:
             continue
@@ -94,7 +85,6 @@ def output_list(file_list):
 pwd = os.getcwd()
 try:
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    create_certifi_cacert_data()
     create_werkzeug_shared_data()
 
     os.chdir("Lib")
