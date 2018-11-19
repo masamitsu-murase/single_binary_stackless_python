@@ -79,7 +79,6 @@ pwd = os.getcwd()
 try:
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     create_certifi_cacert_data()
-    create_werkzeug_shared_data()
 
     os.chdir("Lib")
     file_list = get_file_data()
