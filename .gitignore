@@ -117,7 +117,6 @@ Tools/ssl/win32
 Modules/embeddedimport_data.c
 externals/tcl-core-8.6.6.0/generic/tclEmbeddedFilesystemData.c
 Lib/comtypes/test/
-Lib/werkzeug/debug/_shared.py
 
 # Two-trick pony for OSX and other case insensitive file systems:
 # Ignore ./python binary on Unix but still look into ./Python/ directory.
