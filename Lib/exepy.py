@@ -9,7 +9,7 @@ import time
 import zlib
 import ctypes
 import ctypes.wintypes as wintypes
-import glob
+import pathlib
 import tkinter
 import tkinter.messagebox
 
@@ -157,9 +157,9 @@ def check_args(output_filename, org_input_filename, force):
 
     input_filename = []
     for filename in org_input_filename:
-        if os.path.isdir(filename):
-            input_filename += glob.glob("%s/**/*.py" % filename.replace("\\", "/").rstrip("/"),
-                                        recursive=True)
+        filepath = pathlib.Path(filename)
+        if filepath.is_dir():
+            input_filename += [str(i).replace("\\", "/") for i in filepath.glob("**/*")]
         else:
             input_filename.append(filename)
 
