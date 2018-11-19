@@ -48,7 +48,7 @@ def get_file_data():
             bindata = file.read().encode("utf-8")
         file_list.append({
             "filename": filename,
-            "data": bindata + b"\n\0"
+            "data": bindata + b"\0"
         })
 
     return file_list
