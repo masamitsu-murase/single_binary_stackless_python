@@ -20,6 +20,10 @@ static struct st_embedded_searchorder embedded_searchorder[] = {
     {L"", 0}
 };
 
+#ifdef ALTSEP
+_Py_IDENTIFIER(replace);
+#endif
+
 
 typedef struct _embeddedimporter EmbeddedImporter;
 
@@ -79,6 +83,7 @@ construct_filedata(EmbeddedImporter *self)
     for (file_index=0, name_index=0; embeddedimporter_filename[name_index]; file_index++) {
         char *name = &embeddedimporter_filename[name_index];
         PyObject *name_obj;
+        size_t data_size;
 
         for (; embeddedimporter_filename[name_index]; name_index++) {
             if (embeddedimporter_filename[name_index] == '/') {
@@ -87,11 +92,21 @@ construct_filedata(EmbeddedImporter *self)
         }
         name_index++;
 
-        tuple = PyTuple_New(1);
-        if (tuple == NULL
-            || PyTuple_SetItem(tuple, 0,
-                               PyLong_FromSize_t(embeddedimporter_data_offset[file_index])) < 0) {
-            Py_XDECREF(tuple);
+        tuple = PyTuple_New(2);
+        if (tuple == NULL) {
+            return -1;
+        }
+        if (PyTuple_SetItem(tuple, 0, PyLong_FromSize_t(embeddedimporter_data_offset[file_index])) < 0) {
+            Py_DECREF(tuple);
+            return -1;
+        }
+        if (embeddedimporter_filename[name_index]) {
+            data_size = embeddedimporter_data_offset[file_index + 1] - embeddedimporter_data_offset[file_index] - 1;
+        } else {
+            data_size = embeddedimporter_raw_data_size - embeddedimporter_data_offset[file_index] - 1;
+        }
+        if (PyTuple_SetItem(tuple, 1, PyLong_FromSize_t(data_size)) < 0) {
+            Py_DECREF(tuple);
             return -1;
         }
 
@@ -202,12 +217,23 @@ construct_filedata_from_resource(EmbeddedImporter *self)
     for (file_index=0, name_index=0; file_index<file_count; file_index++) {
         char *name = &file_name[name_index];
         PyObject *name_obj;
+        size_t data_size;
 
-        tuple = PyTuple_New(1);
-        if (tuple == NULL
-            || PyTuple_SetItem(tuple, 0,
-                               PyLong_FromSize_t(file_offset[file_index])) < 0) {
-            Py_XDECREF(tuple);
+        tuple = PyTuple_New(2);
+        if (tuple == NULL) {
+            return -1;
+        }
+        if (PyTuple_SetItem(tuple, 0, PyLong_FromSize_t(file_offset[file_index])) < 0) {
+            Py_DECREF(tuple);
+            return -1;
+        }
+        if (file_index + 1 < file_count) {
+            data_size = file_offset[file_index + 1] - file_offset[file_index] - 1;
+        } else {
+            data_size = uncompressed_size - file_offset[file_index] - 1;
+        }
+        if (PyTuple_SetItem(tuple, 1, PyLong_FromSize_t(data_size)) < 0) {
+            Py_DECREF(tuple);
             return -1;
         }
 
@@ -669,7 +695,7 @@ embeddedimporter_get_source(PyObject *obj, PyObject *args)
     PyObject *fullname_obj;
     PyObject *tuple;
     PyObject *code;
-    long data_offset;
+    long data_offset, data_size;
     char *raw_data;
 
     if (!PyArg_ParseTuple(args, "U:embeddedimporter_get_source", &fullname_obj)) {
@@ -686,9 +712,89 @@ embeddedimporter_get_source(PyObject *obj, PyObject *args)
     }
 
     data_offset = PyLong_AsLong(PyTuple_GetItem(tuple, 0));
-    code = PyUnicode_FromString(&raw_data[data_offset]);
+    data_size = PyLong_AsLong(PyTuple_GetItem(tuple, 1));
+    code = PyUnicode_FromStringAndSize(&raw_data[data_offset], data_size);
     PyMem_Free(fullname);
     return code;
+}
+
+static PyObject *
+embeddedimporter_get_data(PyObject *obj, PyObject *args)
+{
+    EmbeddedImporter *self = (EmbeddedImporter *)obj;
+    PyObject *path, *key;
+    PyObject *toc_entry;
+    Py_ssize_t path_start, path_len, len;
+    PyObject *fullpath = NULL;
+    PyObject *tuple = NULL;
+    const char *raw_data;
+    long offset;
+
+    if (!PyArg_ParseTuple(args, "U:embeddedimporter.get_data", &path)) {
+        return NULL;
+    }
+
+#ifdef ALTSEP
+    path = _PyObject_CallMethodId((PyObject *)&PyUnicode_Type, &PyId_replace,
+                                  "OCC", path, ALTSEP, SEP);
+    if (!path) {
+        return NULL;
+    }
+#else
+    Py_INCREF(path);
+#endif
+    if (PyUnicode_READY(path) == -1) {
+        goto error;
+    }
+
+    path_len = PyUnicode_GET_LENGTH(path);
+
+    fullpath = PyUnicode_FromWideChar(Py_GetProgramFullPath(), -1);
+    if (!fullpath) {
+        goto error;
+    }
+    len = PyUnicode_GET_LENGTH(fullpath);
+    path_start = 0;
+    if (PyUnicode_Tailmatch(path, fullpath, 0, len, -1)
+        && PyUnicode_READ_CHAR(path, len) == SEP) {
+        path_start = len + 1;
+    }
+
+    key = PyUnicode_Substring(path, path_start, path_len);
+    if (key == NULL) {
+        Py_DECREF(fullpath);
+        goto error;
+    }
+
+    if (self->dict_resource) {
+        tuple = PyDict_GetItem(self->dict_resource, key);
+        if (tuple != NULL) {
+            raw_data = embeddedimporter_raw_data_resource;
+        }
+    }
+    if (tuple == NULL) {
+        tuple = PyDict_GetItem(self->dict, key);
+        if (tuple != NULL) {
+            raw_data = embeddedimporter_raw_data;
+        }
+    }
+
+    if (tuple == NULL) {
+        PyErr_SetFromErrnoWithFilenameObject(PyExc_IOError, key);
+        Py_DECREF(fullpath);
+        Py_DECREF(key);
+        goto error;
+    }
+
+    Py_DECREF(fullpath);
+    Py_DECREF(key);
+    Py_DECREF(path);
+    offset = PyLong_AsLong(PyTuple_GetItem(tuple, 0));
+    return PyBytes_FromStringAndSize(&raw_data[offset], PyLong_AsLong(PyTuple_GetItem(tuple, 1)));
+
+  error:
+    Py_DECREF(path);
+    return NULL;
 }
 
 PyDoc_STRVAR(doc_find_module,
@@ -730,6 +836,12 @@ PyDoc_STRVAR(doc_get_source,
 Return the source code for the specified module. Raise EmbeddedImportError\n\
 if the module couldn't be found.");
 
+PyDoc_STRVAR(doc_get_data,
+"get_data(pathname) -> string with file data.\n\
+\n\
+Return the data associated with 'pathname'. Raise IOError if\n\
+the file wasn't found.");
+
 static PyMethodDef embeddedimporter_methods[] = {
     {"find_module", embeddedimporter_find_module, METH_VARARGS,
      doc_find_module},
@@ -743,6 +855,8 @@ static PyMethodDef embeddedimporter_methods[] = {
      doc_get_code},
     {"get_source", embeddedimporter_get_source, METH_VARARGS,
      doc_get_source},
+    {"get_data", embeddedimporter_get_data, METH_VARARGS,
+     doc_get_data},
     {NULL,              NULL}   /* sentinel */
 };
 
