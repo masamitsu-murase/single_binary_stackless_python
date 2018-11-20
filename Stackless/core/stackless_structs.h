@@ -260,6 +260,16 @@ typedef struct _unwindobject {
 } PyUnwindObject;
 
 
+#else /* #ifdef SLP_BUILD_CORE */
+
+typedef struct _channel PyChannelObject;
+typedef struct _cframe  PyCFrameObject;
+typedef struct _tasklet PyTaskletObject;
+typedef struct _unwindobject PyUnwindObject;
+typedef struct _bomb PyBombObject;
+
+#endif /* #ifdef SLP_BUILD_CORE */
+
 /*** associated type objects ***/
 
 PyAPI_DATA(PyTypeObject) PyCFrame_Type;
@@ -279,15 +289,6 @@ PyAPI_DATA(PyTypeObject) PyChannel_Type;
 #define PyChannel_Check(op) PyObject_TypeCheck(op, &PyChannel_Type)
 #define PyChannel_CheckExact(op) (Py_TYPE(op) == PyChannel_TypePtr)
 
-
-#else /* #ifdef SLP_BUILD_CORE */
-
-typedef struct _channel PyChannelObject;
-typedef struct _cframe  PyCFrameObject;
-typedef struct _tasklet PyTaskletObject;
-typedef struct _unwindobject PyUnwindObject;
-
-#endif /* #ifdef SLP_BUILD_CORE */
 #endif /* #ifdef STACKLESS */
 
 #ifdef __cplusplus
