@@ -16,7 +16,7 @@
 
 /* This include file is included from internal/pystate.h only */
 
-#include "platf/slp_platformselect.h"  /* for CSTACK_SLOTS */
+#include "platf/slp_platformselect.h"  /* for SLP_CSTACK_SLOTS */
 
 /*
  * Stackless runtime state
@@ -40,7 +40,7 @@ struct _stackless_runtime_state {
 
     /* Used to manage free C-stack objects, see stacklesseval.c */
     int cstack_cachecount;
-    struct _cstack *cstack_cache[CSTACK_SLOTS];
+    struct _cstack *cstack_cache[SLP_CSTACK_SLOTS];
 
     /*
      * Used during a hard switch.

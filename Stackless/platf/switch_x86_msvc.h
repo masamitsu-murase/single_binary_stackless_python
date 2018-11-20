@@ -6,7 +6,7 @@
  *      needed to add another magic constant to insure
  *      that f in slp_eval_frame(PyFrameObject *f)
  *      gets included into the saved stack area.
- *      STACK_REFPLUS will probably be 1 in most cases.
+ *      SLP_STACK_REFPLUS will probably be 1 in most cases.
  * 26-Sep-02  Christian Tismer  <tismer@tismer.com>
  *      again as a result of virtualized stack access,
  *      the compiler used less registers. Needed to
@@ -15,7 +15,7 @@
  * 17-Sep-02  Christian Tismer  <tismer@tismer.com>
  *      after virtualizing stack save/restore, the
  *      stack size shrunk a bit. Needed to introduce
- *      an adjustment STACK_MAGIC per platform.
+ *      an adjustment SLP_STACK_MAGIC per platform.
  * 15-Sep-02  Gerd Woetzel       <gerd.woetzel@GMD.DE>
  *      slightly changed framework for sparc
  * 01-Mar-02  Christian Tismer  <tismer@tismer.com>
@@ -24,14 +24,14 @@
 
 #define SLP_USE_NATIVE_BITFIELD_LAYOUT 1
 
-#define _SEH32
+#define SLP_SEH32
 
-#define STACK_REFPLUS 1
+#define SLP_STACK_REFPLUS 1
 
 /* switching related stuff */
 #ifdef SLP_EVAL
 
-#define STACK_MAGIC 0
+#define SLP_STACK_MAGIC 0
 
 #pragma optimize("", off)
 
@@ -67,9 +67,9 @@ slp_switch(void)
 #define STACKLESS_SPY
 
 #ifdef IMPLEMENT_STACKLESSMODULE
-#define CANNOT_READ_MEM(p, bytes) IsBadReadPtr(p, bytes)
+#define SLP_CANNOT_READ_MEM(p, bytes) IsBadReadPtr(p, bytes)
 
-static int IS_ON_STACK(void*p)
+static int SLP_IS_ON_STACK(void*p)
 {
     int stackref;
     int stackbase = ((int)&stackref) & 0xfffff000;

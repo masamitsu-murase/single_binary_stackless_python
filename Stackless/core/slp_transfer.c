@@ -19,7 +19,7 @@
 
 #define SLP_SAVE_STATE(stackref, stsizediff) \
     intptr_t stsizeb; \
-    stackref += STACK_MAGIC; \
+    stackref += SLP_STACK_MAGIC; \
     if (_cstprev != NULL) { \
         if (slp_cstack_new(_cstprev, (intptr_t *)stackref, _prev) == NULL) __return(-1); \
         stsizeb = slp_cstack_save(*_cstprev); \
@@ -52,10 +52,10 @@ or disable the STACKLESS flag.
 
 SLP_DO_NOT_OPTIMIZE_AWAY_DEFINITIONS
 
-#ifdef EXTERNAL_ASM
+#ifdef SLP_EXTERNAL_ASM
 /* CCP addition: Make these functions, to be called from assembler.
  * The token include file for the given platform should enable the
- * EXTERNAL_ASM define so that this is included.
+ * SLP_EXTERNAL_ASM define so that this is included.
  */
 
 /* There are two cases where slp_save_state would return 0, the

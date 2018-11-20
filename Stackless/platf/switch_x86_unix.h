@@ -8,11 +8,11 @@
  *      needed to add another magic constant to insure
  *      that f in slp_eval_frame(PyFrameObject *f)
  *      gets included into the saved stack area.
- *      STACK_REFPLUS will probably be 1 in most cases.
+ *      SLP_STACK_REFPLUS will probably be 1 in most cases.
  * 17-Sep-02  Christian Tismer  <tismer@tismer.com>
  *      after virtualizing stack save/restore, the
  *      stack size shrunk a bit. Needed to introduce
- *      an adjustment STACK_MAGIC per platform.
+ *      an adjustment SLP_STACK_MAGIC per platform.
  * 15-Sep-02  Gerd Woetzel       <gerd.woetzel@GMD.DE>
  *      slightly changed framework for spark
  * 31-Avr-02  Armin Rigo         <arigo@ulb.ac.be>
@@ -23,11 +23,11 @@
 
 #define SLP_USE_NATIVE_BITFIELD_LAYOUT 1
 
-#define STACK_REFPLUS 1
+#define SLP_STACK_REFPLUS 1
 
 #ifdef SLP_EVAL
 
-#define STACK_MAGIC 0
+#define SLP_STACK_MAGIC 0
 
 /*
  * In order to switch the stack, we use the fact, that the compiler
@@ -99,7 +99,7 @@ slp_switch(void)
     }
 }
 
-
+#undef REGS_CLOBBERED
 #endif
 
 /*

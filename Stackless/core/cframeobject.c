@@ -247,7 +247,7 @@ exit_run_cframe:
     return retval;
 }
 
-DEF_INVALID_EXEC(run_cframe)
+SLP_DEF_INVALID_EXEC(run_cframe)
 
 PyCFrameObject *
 slp_cframe_newfunc(PyObject *func, PyObject *args, PyObject *kwds, unsigned int linked)
@@ -326,7 +326,7 @@ int slp_init_cframetype(void)
         return -1;
     /* register the cframe exec func */
     return slp_register_execute(&PyCFrame_Type, "run_cframe",
-                                run_cframe, REF_INVALID_EXEC(run_cframe));
+                                run_cframe, SLP_REF_INVALID_EXEC(run_cframe));
 }
 
 /* Clear out the free list */

@@ -1405,15 +1405,15 @@ _peek(PyObject *self, PyObject *v)
     if (!PyLong_Check(v)) goto noobject;
     o = (PyObject*) PyLong_AsVoidPtr(v);
     /* this is plain heuristics, use for now */
-    if (CANNOT_READ_MEM(o, sizeof(PyObject))) goto noobject;
-    if (IS_ON_STACK(o)) goto noobject;
+    if (SLP_CANNOT_READ_MEM(o, sizeof(PyObject))) goto noobject;
+    if (SLP_IS_ON_STACK(o)) goto noobject;
     if (Py_REFCNT(o) < 1 || Py_REFCNT(o) > 10000) goto noobject;
     t = Py_TYPE(o);
     for (i=0; i<100; i++) {
         if (t == &PyType_Type)
             break;
-        if (CANNOT_READ_MEM(t, sizeof(PyTypeObject))) goto noobject;
-        if (IS_ON_STACK(o)) goto noobject;
+        if (SLP_CANNOT_READ_MEM(t, sizeof(PyTypeObject))) goto noobject;
+        if (SLP_IS_ON_STACK(o)) goto noobject;
         if (Py_REFCNT(t) < 1 || Py_REFCNT(t) > 10000) goto noobject;
         if (!(isalpha(t->tp_name[0])||t->tp_name[0]=='_'))
             goto noobject;

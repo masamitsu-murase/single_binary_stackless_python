@@ -6,11 +6,11 @@
  *      Ported from ppc.
  */
 
-#define STACK_REFPLUS 1
+#define SLP_STACK_REFPLUS 1
 
 #ifdef SLP_EVAL
 
-#define STACK_MAGIC 0
+#define SLP_STACK_MAGIC 0
 
 #ifdef __mips64
 #define REGS_TO_SAVE "$16", "$17", "$18", "$19", "$20", "$21", "$22", \
@@ -42,6 +42,7 @@ slp_switch(void)
     return 0;
 }
 
+#undef REGS_TO_SAVE
 #endif
 
 /*

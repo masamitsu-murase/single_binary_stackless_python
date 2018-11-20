@@ -25,7 +25,7 @@ extern "C" {
 #undef STACKLESS_SPY
 /*
  * if a platform wants to support self-inspection via _peek,
- * it must provide a function or macro CANNOT_READ_MEM(adr, len)
+ * it must provide a function or macro SLP_CANNOT_READ_MEM(adr, len)
  * which allows to spy at memory without causing exceptions.
  * This would usually be done in place with the assembly macros.
  */

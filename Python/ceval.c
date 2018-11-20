@@ -4032,7 +4032,7 @@ PyEval_EvalFrameEx_slp(PyFrameObject *f, int throwflag, PyObject *retval)
      * PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
      */
 
-    if (CSTACK_SAVE_NOW(tstate, f))
+    if (SLP_CSTACK_SAVE_NOW(tstate, f))
         return slp_eval_frame_newstack(f, throwflag, retval);
 
     /* push frame */

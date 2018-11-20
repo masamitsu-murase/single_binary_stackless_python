@@ -21,10 +21,10 @@
  *
  */
 
-#define STACK_REFPLUS 1
+#define SLP_STACK_REFPLUS 1
 
 #ifdef SLP_EVAL
-#define STACK_MAGIC 0
+#define SLP_STACK_MAGIC 0
 #define REGS_TO_SAVE /*"r1", "r2", "r3", "r4",*/ "r5", "r6", "fp", "ip", "lr"
 
 static int
@@ -46,4 +46,5 @@ slp_switch(void)
     }
 }
 
+#undef REGS_TO_SAVE
 #endif

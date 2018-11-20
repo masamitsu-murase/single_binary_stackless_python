@@ -6,16 +6,16 @@
  *      needed to add another magic constant to insure
  *      that f in slp_eval_frame(PyFrameObject *f)
  *      gets included into the saved stack area.
- *      STACK_REFPLUS will probably be 1 in most cases.
+ *      SLP_STACK_REFPLUS will probably be 1 in most cases.
  * 06-Oct-02  Gustavo Niemeyer <niemeyer@conectiva.com>
  *      Ported to Linux/S390.
  */
 
-#define STACK_REFPLUS 1
+#define SLP_STACK_REFPLUS 1
 
 #ifdef SLP_EVAL
 
-#define STACK_MAGIC 0
+#define SLP_STACK_MAGIC 0
 
 #define REGS_TO_SAVE "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r14", \
              "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", \
@@ -39,6 +39,7 @@ slp_switch(void)
     }
 }
 
+#undef REGS_TO_SAVE
 #endif
 
 /*

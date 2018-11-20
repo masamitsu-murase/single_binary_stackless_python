@@ -28,7 +28,7 @@ static void slp_cstack_cacheclear(void)
     int i;
     PyCStackObject *stack;
 
-    for (i=0; i < CSTACK_SLOTS; i++) {
+    for (i=0; i < SLP_CSTACK_SLOTS; i++) {
         while ((_PyRuntime.st.cstack_cache)[i] != NULL) {
             stack = (_PyRuntime.st.cstack_cache)[i];
             (_PyRuntime.st.cstack_cache)[i] = (PyCStackObject *) stack->startaddr;
@@ -48,11 +48,11 @@ cstack_dealloc(PyCStackObject *cst)
 #ifdef Py_REF_DEBUG
     PyObject_Del(cst);
 #else
-    if (Py_SIZE(cst) >= CSTACK_SLOTS) {
+    if (Py_SIZE(cst) >= SLP_CSTACK_SLOTS) {
         PyObject_Del(cst);
     }
     else {
-        if ((_PyRuntime.st.cstack_cachecount) >= CSTACK_MAXCACHE)
+        if ((_PyRuntime.st.cstack_cachecount) >= SLP_CSTACK_MAXCACHE)
             slp_cstack_cacheclear();
         cst->startaddr = (intptr_t *) (_PyRuntime.st.cstack_cache)[Py_SIZE(cst)];
         (_PyRuntime.st.cstack_cache)[Py_SIZE(cst)] = cst;
@@ -91,7 +91,7 @@ slp_cstack_new(PyCStackObject **cst, intptr_t *stackref, PyTaskletObject *task)
             (*cst)->task = NULL;
         Py_DECREF(*cst);
     }
-    if (size < CSTACK_SLOTS && ((*cst) = (_PyRuntime.st.cstack_cache)[size])) {
+    if (size < SLP_CSTACK_SLOTS && ((*cst) = (_PyRuntime.st.cstack_cache)[size])) {
         /* take stack from cache */
         (_PyRuntime.st.cstack_cache)[size] = (PyCStackObject *) (*cst)->startaddr;
         --(_PyRuntime.st.cstack_cachecount);
@@ -108,7 +108,7 @@ slp_cstack_new(PyCStackObject **cst, intptr_t *stackref, PyTaskletObject *task)
     (*cst)->task = task;
     (*cst)->tstate = ts;
     (*cst)->nesting_level = ts->st.nesting_level;
-#ifdef _SEH32
+#ifdef SLP_SEH32
     //save the SEH handler
     (*cst)->exception_list = 0;
 #endif
@@ -122,7 +122,7 @@ slp_cstack_save(PyCStackObject *cstprev)
 
     memcpy((cstprev)->stack, (cstprev)->startaddr -
                              Py_SIZE(cstprev), stsizeb);
-#ifdef _SEH32
+#ifdef SLP_SEH32
     //save the SEH handler
     cstprev->exception_list = (DWORD)
                 __readfsdword(FIELD_OFFSET(NT_TIB, ExceptionList));
@@ -132,7 +132,7 @@ slp_cstack_save(PyCStackObject *cstprev)
 }
 
 void
-#ifdef _SEH32
+#ifdef SLP_SEH32
 #pragma warning(disable:4733) /* disable warning about modifying FS[0] */
 #endif
 slp_cstack_restore(PyCStackObject *cst)
@@ -142,7 +142,7 @@ slp_cstack_restore(PyCStackObject *cst)
     cst->task = NULL;
     memcpy(cst->startaddr - Py_SIZE(cst), &cst->stack,
            Py_SIZE(cst) * sizeof(intptr_t));
-#ifdef _SEH32
+#ifdef SLP_SEH32
     //restore the SEH handler
     assert(cst->exception_list);
     __writefsdword(FIELD_OFFSET(NT_TIB, ExceptionList), (DWORD)(cst->exception_list));
@@ -343,9 +343,9 @@ slp_eval_frame(PyFrameObject *f)
         }
 
         /* mark the stack base */
-        stackref = STACK_REFPLUS + (intptr_t *) &f;
+        stackref = SLP_STACK_REFPLUS + (intptr_t *) &f;
         if (ts->st.cstack_base == NULL)
-            ts->st.cstack_base = stackref - CSTACK_GOODGAP;
+            ts->st.cstack_base = stackref - SLP_CSTACK_GOODGAP;
         if (stackref > ts->st.cstack_base) {
 			PyCStackObject *cst;
             retval = climb_stack_and_eval_frame(f);
@@ -863,7 +863,7 @@ eval_frame_callback(PyFrameObject *f, int exc, PyObject *retval)
      * ourselves in an infinite loop of stack spilling.
      */
     saved_base = ts->st.cstack_root;
-    ts->st.cstack_root = STACK_REFPLUS + (intptr_t *) &f;
+    ts->st.cstack_root = SLP_STACK_REFPLUS + (intptr_t *) &f;
 
     /* pull in the right retval and tempval from the arguments */
     Py_SETREF(retval, cf->ob1);
@@ -926,14 +926,14 @@ slp_eval_frame_newstack(PyFrameObject *f, int exc, PyObject *retval)
          * magic here will clear that exception.
          */
         intptr_t *old = ts->st.cstack_root;
-        ts->st.cstack_root = STACK_REFPLUS + (intptr_t *) &f;
+        ts->st.cstack_root = SLP_STACK_REFPLUS + (intptr_t *) &f;
         retval = PyEval_EvalFrameEx_slp(f, exc, retval);
         ts->st.cstack_root = old;
         return retval;
     }
     if (ts->st.cstack_root == NULL) {
         /* this is a toplevel call.  Store the root of stack spilling */
-        ts->st.cstack_root = STACK_REFPLUS + (intptr_t *) &f;
+        ts->st.cstack_root = SLP_STACK_REFPLUS + (intptr_t *) &f;
         retval = PyEval_EvalFrameEx_slp(f, exc, retval);
         /* and reset it.  We may reenter stackless at a completely different
          * depth later

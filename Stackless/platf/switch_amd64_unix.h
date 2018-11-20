@@ -15,12 +15,12 @@
  * 24-Nov-02  Christian Tismer  <tismer at tismer.com>
  *      needed to add another magic constant to insure
  *      that f in slp_eval_frame(PyFrameObject *f)
- *      STACK_REFPLUS will probably be 1 in most cases.
+ *      SLP_STACK_REFPLUS will probably be 1 in most cases.
  *      gets included into the saved stack area.
  * 17-Sep-02  Christian Tismer  <tismer at tismer.com>
  *      after virtualizing stack save/restore, the
  *      stack size shrunk a bit. Needed to introduce
- *      an adjustment STACK_MAGIC per platform.
+ *      an adjustment SLP_STACK_MAGIC per platform.
  * 15-Sep-02  Gerd Woetzel       <gerd.woetzel at GMD.DE>
  *      slightly changed framework for spark
  * 31-Avr-02  Armin Rigo         <arigo at ulb.ac.be>
@@ -31,13 +31,13 @@
 
 #define SLP_USE_NATIVE_BITFIELD_LAYOUT 1
 
-#define STACK_REFPLUS 1
+#define SLP_STACK_REFPLUS 1
 
 #ifdef SLP_EVAL
 
-/* #define STACK_MAGIC 3 */
+/* #define SLP_STACK_MAGIC 3 */
 /* the above works fine with gcc 2.96, but 2.95.3 wants this */
-#define STACK_MAGIC 0
+#define SLP_STACK_MAGIC 0
 
 
 /* 
@@ -138,6 +138,7 @@ slp_switch(void)
     }
 }
 
+#undef REGS_CLOBBERED
 #endif
 /*
  * further self-processing support

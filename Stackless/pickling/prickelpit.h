@@ -24,14 +24,14 @@ PyObject * slp_cannot_execute(PyFrameObject *f, const char *exec_name, PyObject 
 
 /* macros to define and use an invalid frame executor */
 
-#define DEF_INVALID_EXEC(procname) \
+#define SLP_DEF_INVALID_EXEC(procname) \
 static PyObject *\
 cannot_##procname(PyFrameObject *f, int exc, PyObject *retval) \
 { \
         return slp_cannot_execute(f, #procname, retval); \
 }
 
-#define REF_INVALID_EXEC(procname) (cannot_##procname)
+#define SLP_REF_INVALID_EXEC(procname) (cannot_##procname)
 
 
 /* pickling of arrays with nulls */

@@ -835,15 +835,15 @@ static int init_functype(PyObject * mod)
 
 #define frametuplefmt "O)(OiSOiOOiiOO"
 
-DEF_INVALID_EXEC(eval_frame)
-DEF_INVALID_EXEC(eval_frame_value)
-DEF_INVALID_EXEC(eval_frame_noval)
-DEF_INVALID_EXEC(eval_frame_iter)
-DEF_INVALID_EXEC(eval_frame_setup_with)
-DEF_INVALID_EXEC(eval_frame_with_cleanup)
-DEF_INVALID_EXEC(slp_channel_seq_callback)
-DEF_INVALID_EXEC(slp_restore_tracing)
-DEF_INVALID_EXEC(slp_tp_init_callback)
+SLP_DEF_INVALID_EXEC(eval_frame)
+SLP_DEF_INVALID_EXEC(eval_frame_value)
+SLP_DEF_INVALID_EXEC(eval_frame_noval)
+SLP_DEF_INVALID_EXEC(eval_frame_iter)
+SLP_DEF_INVALID_EXEC(eval_frame_setup_with)
+SLP_DEF_INVALID_EXEC(eval_frame_with_cleanup)
+SLP_DEF_INVALID_EXEC(slp_channel_seq_callback)
+SLP_DEF_INVALID_EXEC(slp_restore_tracing)
+SLP_DEF_INVALID_EXEC(slp_tp_init_callback)
 
 static PyTypeObject wrap_PyFrame_Type;
 
@@ -1193,23 +1193,23 @@ MAKE_WRAPPERTYPE(PyFrame_Type, frame, "frame", frameobject_reduce, frame_new, fr
 static int init_frametype(PyObject * mod)
 {
     return slp_register_execute(&PyFrame_Type, "eval_frame",
-                             PyEval_EvalFrameEx_slp, REF_INVALID_EXEC(eval_frame))
+                             PyEval_EvalFrameEx_slp, SLP_REF_INVALID_EXEC(eval_frame))
         || slp_register_execute(&PyFrame_Type, "eval_frame_value",
-                             slp_eval_frame_value, REF_INVALID_EXEC(eval_frame_value))
+                             slp_eval_frame_value, SLP_REF_INVALID_EXEC(eval_frame_value))
         || slp_register_execute(&PyFrame_Type, "eval_frame_noval",
-                             slp_eval_frame_noval, REF_INVALID_EXEC(eval_frame_noval))
+                             slp_eval_frame_noval, SLP_REF_INVALID_EXEC(eval_frame_noval))
         || slp_register_execute(&PyFrame_Type, "eval_frame_iter",
-                             slp_eval_frame_iter, REF_INVALID_EXEC(eval_frame_iter))
+                             slp_eval_frame_iter, SLP_REF_INVALID_EXEC(eval_frame_iter))
         || slp_register_execute(&PyFrame_Type, "eval_frame_setup_with",
-                             slp_eval_frame_setup_with, REF_INVALID_EXEC(eval_frame_setup_with))
+                             slp_eval_frame_setup_with, SLP_REF_INVALID_EXEC(eval_frame_setup_with))
         || slp_register_execute(&PyFrame_Type, "eval_frame_with_cleanup",
-                             slp_eval_frame_with_cleanup, REF_INVALID_EXEC(eval_frame_with_cleanup))
+                             slp_eval_frame_with_cleanup, SLP_REF_INVALID_EXEC(eval_frame_with_cleanup))
         || slp_register_execute(&PyCFrame_Type, "channel_seq_callback",
-                             slp_channel_seq_callback, REF_INVALID_EXEC(slp_channel_seq_callback))
+                             slp_channel_seq_callback, SLP_REF_INVALID_EXEC(slp_channel_seq_callback))
         || slp_register_execute(&PyCFrame_Type, "slp_restore_tracing",
-                             slp_restore_tracing, REF_INVALID_EXEC(slp_restore_tracing))
+                             slp_restore_tracing, SLP_REF_INVALID_EXEC(slp_restore_tracing))
         || slp_register_execute(&PyCFrame_Type, "slp_tp_init_callback",
-                             slp_tp_init_callback, REF_INVALID_EXEC(slp_tp_init_callback))
+                             slp_tp_init_callback, SLP_REF_INVALID_EXEC(slp_tp_init_callback))
         || init_type(&wrap_PyFrame_Type, initchain, mod);
 }
 #undef initchain
@@ -1825,7 +1825,7 @@ gen_setstate(PyObject *self, PyObject *args)
 MAKE_WRAPPERTYPE(PyGen_Type, gen, "generator", gen_reduce,
                  gen_new, gen_setstate)
 
-DEF_INVALID_EXEC(gen_iternext_callback)
+SLP_DEF_INVALID_EXEC(gen_iternext_callback)
 
 static int init_generatortype(PyObject * mod)
 {
@@ -1841,7 +1841,7 @@ static int init_generatortype(PyObject * mod)
     cbframe = gen->gi_frame->f_back;
     res = slp_register_execute(Py_TYPE(cbframe), "gen_iternext_callback",
               gen->gi_frame->f_back->f_execute,
-              REF_INVALID_EXEC(gen_iternext_callback))
+              SLP_REF_INVALID_EXEC(gen_iternext_callback))
           || init_type(&wrap_PyGen_Type, initchain, mod);
 
     assert(gen_exhausted_frame == NULL);

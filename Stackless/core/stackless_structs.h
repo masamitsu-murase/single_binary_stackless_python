@@ -149,7 +149,7 @@ typedef struct _cstack {
     struct _tasklet *task;
     int nesting_level;
     PyThreadState *tstate;
-#ifdef _SEH32
+#ifdef SLP_SEH32
 	/* SEH handler on Win32
 	 * The correct type is DWORD, but we do not want to include <windows.h>.
 	 * Instead we use a compile time assertion to ensure, that we use an
@@ -159,7 +159,7 @@ typedef struct _cstack {
 #endif
     intptr_t *startaddr;
     intptr_t stack[
-#if defined(_WINDOWS_) && defined(_SEH32)
+#if defined(_WINDOWS_) && defined(SLP_SEH32)
 		/* Assert the equivalence of DWORD and unsigned long. If <windows.h>
 		 * is included, _WINDOWS_ is defined.
 		 * Py_BUILD_ASSERT_EXPR needs an expression and this is the only one.

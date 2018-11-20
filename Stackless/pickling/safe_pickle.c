@@ -31,7 +31,7 @@ pickle_callback(PyFrameObject *f, int exc, PyObject *retval)
      * ourselves in an infinite loop of stack spilling.
      */
     saved_base = ts->st.cstack_root;
-    ts->st.cstack_root = STACK_REFPLUS + (intptr_t *) &f;
+    ts->st.cstack_root = SLP_STACK_REFPLUS + (intptr_t *) &f;
     if (retval) {
         Py_DECREF(retval);
         cf->i = cPickle_save(cf->ob1, cf->ob2, cf->n);
@@ -128,7 +128,7 @@ pickle_M(PyObject *self, PyObject *args, int pers_save)
     _self = self;
     _args = args;
     _pers_save = pers_save;
-    ts->st.cstack_root = STACK_REFPLUS + (intptr_t *) &self;
+    ts->st.cstack_root = SLP_STACK_REFPLUS + (intptr_t *) &self;
     ret = slp_int_wrapper(slp_eval_frame((PyFrameObject *)cf));
     return ret;
 }

@@ -82,34 +82,34 @@ extern uint8_t* volatile slp_do_not_opimize_away_sink;
 
 /* adjust slots to typical size of a few recursions on your system */
 
-#ifndef CSTACK_SLOTS
-#define CSTACK_SLOTS        1024
+#ifndef SLP_CSTACK_SLOTS
+#define SLP_CSTACK_SLOTS        1024
 #endif
 
 /* how many cstacks to cache at all */
 
-#ifndef CSTACK_MAXCACHE
-#define CSTACK_MAXCACHE     100
+#ifndef SLP_CSTACK_MAXCACHE
+#define SLP_CSTACK_MAXCACHE     100
 #endif
 
 /* a good estimate how much the cstack level differs between
    initialisation and main C-Python(r) code. Not critical, but saves time.
    Note that this will vanish with the greenlet approach. */
 
-#ifndef CSTACK_GOODGAP
-#define CSTACK_GOODGAP      4096
+#ifndef SLP_CSTACK_GOODGAP
+#define SLP_CSTACK_GOODGAP      4096
 #endif
 
 /* stack size in pointer to trigger stack spilling */
 
-#ifndef CSTACK_WATERMARK
-#define CSTACK_WATERMARK 16384
+#ifndef SLP_CSTACK_WATERMARK
+#define SLP_CSTACK_WATERMARK 16384
 #endif
 
 /* define direction of stack growth */
 
-#ifndef CSTACK_DOWNWARDS
-#define CSTACK_DOWNWARDS 1   /* 0 for upwards */
+#ifndef SLP_CSTACK_DOWNWARDS
+#define SLP_CSTACK_DOWNWARDS 1   /* 0 for upwards */
 #endif
 
 /**************************************************************
@@ -118,17 +118,17 @@ extern uint8_t* volatile slp_do_not_opimize_away_sink;
 
  **************************************************************/
 
-#if CSTACK_DOWNWARDS == 1
-#define CSTACK_COMPARE(a, b) (a) < (b)
-#define CSTACK_SUBTRACT(a, b) (a) - (b)
+#if SLP_CSTACK_DOWNWARDS == 1
+#define SLP_CSTACK_COMPARE(a, b) (a) < (b)
+#define SLP_CSTACK_SUBTRACT(a, b) (a) - (b)
 #else
-#define CSTACK_COMPARE(a, b) (a) > (b)
-#define CSTACK_SUBTRACT(a, b) (b) - (a)
+#define SLP_CSTACK_COMPARE(a, b) (a) > (b)
+#define SLP_CSTACK_SUBTRACT(a, b) (b) - (a)
 #endif
 
-#define CSTACK_SAVE_NOW(tstate, stackvar) \
+#define SLP_CSTACK_SAVE_NOW(tstate, stackvar) \
         ((tstate)->st.cstack_root != NULL ? \
-         CSTACK_SUBTRACT((tstate)->st.cstack_root, \
-         (intptr_t*)&(stackvar)) > CSTACK_WATERMARK : 1)
+         SLP_CSTACK_SUBTRACT((tstate)->st.cstack_root, \
+         (intptr_t*)&(stackvar)) > SLP_CSTACK_WATERMARK : 1)
 
 #endif
