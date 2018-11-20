@@ -31,6 +31,26 @@ class TestExepy(unittest.TestCase):
         print("file2")
     """)
 
+    RESOURCE_FILE_CONTENT1 = textwrap.dedent("""\
+    import dir
+    import os
+
+    data = __loader__.get_data(os.path.join(os.path.dirname(__file__), "image.bin"))
+    if data == b"\x01\x02\x03\x04\x05\x06":
+        print("ok")
+    else:
+        print("ng")
+    """)
+    RESOURCE_FILE_CONTENT2 = textwrap.dedent("""\
+    import os
+
+    data = __loader__.get_data(os.path.join(os.path.dirname(__file__), "image.bin"))
+    if data == b"\x01\x02\x03\x04\x05\x06" * 2:
+        print("ok")
+    else:
+        print("ng")
+    """)
+
     def create_single_test_file(self, name):
         with open(name, "w") as file:
             file.write(self.SINGLE_FILE_CONTENT)
@@ -40,6 +60,18 @@ class TestExepy(unittest.TestCase):
             file.write(self.DOUBLE_FILE_CONTENT1)
         with open(self.SECOND_FILE_NAME, "w") as file:
             file.write(self.DOUBLE_FILE_CONTENT2)
+
+    def create_resource_test_file(self, name):
+        with open(name, "w") as file:
+            file.write(self.RESOURCE_FILE_CONTENT1)
+        with open("image.bin", "wb") as file:
+            file.write(b"\x01\x02\x03\x04\x05\x06")
+        os.mkdir("dir")
+        os.makedirs("dir/dir")
+        with open("dir/__init__.py", "w") as file:
+            file.write(self.RESOURCE_FILE_CONTENT2)
+        with open("dir/image.bin", "wb") as file:
+            file.write(b"\x01\x02\x03\x04\x05\x06" * 2)
 
     def test_create_exe(self):
         os.mkdir(self.TEMPDIR)
@@ -95,6 +127,25 @@ class TestExepy(unittest.TestCase):
                 content2 = file.read()
             self.assertEqual(content1, self.DOUBLE_FILE_CONTENT1)
             self.assertEqual(content2, self.DOUBLE_FILE_CONTENT2)
+        finally:
+            os.chdir(pwd)
+            shutil.rmtree(self.TEMPDIR)
+
+    def test_resource(self):
+        os.mkdir(self.TEMPDIR)
+        pwd = os.path.abspath(os.curdir)
+        os.chdir(self.TEMPDIR)
+        try:
+            filename = "hoge.py"
+            exename = "hoge.exe"
+            self.create_resource_test_file(filename)
+            cmd = [sys.executable, "-m", "exepy", "create", exename, filename, "image.bin", "dir"]
+            subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
+            os.remove(filename)
+            os.remove("image.bin")
+            shutil.rmtree("dir")
+            output = subprocess.check_output([exename], universal_newlines=True)
+            self.assertEqual(output, "ok\nok\n")
         finally:
             os.chdir(pwd)
             shutil.rmtree(self.TEMPDIR)
