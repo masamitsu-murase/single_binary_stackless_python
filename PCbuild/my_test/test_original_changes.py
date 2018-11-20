@@ -6,6 +6,11 @@ import unittest
 
 
 class TestOriginalChanges(unittest.TestCase):
+    def test_werkzeug(self):
+        import werkzeug.debug
+        app = werkzeug.debug.DebuggedApplication(None)
+        self.assertIsNotNone(app.get_resource(None, "less.png"))
+
     def test_flags(self):
         self.assertEqual(sys.flags.dont_write_bytecode, 1)
         self.assertEqual(sys.flags.ignore_environment, 1)
