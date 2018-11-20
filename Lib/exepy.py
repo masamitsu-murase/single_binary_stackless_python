@@ -159,7 +159,7 @@ def check_args(output_filename, org_input_filename, force):
     for filename in org_input_filename:
         filepath = pathlib.Path(filename)
         if filepath.is_dir():
-            input_filename += [str(i).replace("\\", "/") for i in filepath.glob("**/*")]
+            input_filename += [str(i).replace("\\", "/") for i in filepath.glob("**/*") if i.is_file()]
         else:
             input_filename.append(filename)
 
