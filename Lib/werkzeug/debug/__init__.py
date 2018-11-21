@@ -346,20 +346,28 @@ class DebuggedApplication(object):
     def get_resource(self, request, filename):
         """Return a static resource from the shared folder."""
         filename = join(dirname(__file__), 'shared', basename(filename))
+        # if isfile(filename):
+        #     mimetype = mimetypes.guess_type(filename)[0] \
+        #         or 'application/octet-stream'
+        #     f = open(filename, 'rb')
+        #     try:
+        #         return Response(f.read(), mimetype=mimetype)
+        #     finally:
+        #         f.close()
+        data = None
         if isfile(filename):
-            mimetype = mimetypes.guess_type(filename)[0] \
-                or 'application/octet-stream'
-            f = open(filename, 'rb')
-            try:
-                return Response(f.read(), mimetype=mimetype)
-            finally:
-                f.close()
-        if hasattr(__loader__, "get_data"):
+            with open(filename, 'rb') as file:
+                data = file.read()
+        elif '__loader__' in globals() and hasattr(__loader__, "get_data"):
             try:
                 data = __loader__.get_data(filename)
-                return Response(data, mimetype=mimetype)
             except IOError:
-                pass
+                data = None
+
+        if data is not None:
+            mimetype = mimetypes.guess_type(filename)[0] \
+                or 'application/octet-stream'
+            return Response(data, mimetype=mimetype)
         return Response('Not Found', status=404)
 
     def check_pin_trust(self, environ):
