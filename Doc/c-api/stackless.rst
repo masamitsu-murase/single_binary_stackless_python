@@ -368,6 +368,20 @@ debugging and monitoring functions
 
   Scheduler monitoring with a faster interface.
 
+Other functions
+---------------
+
+Stack unwinding
+~~~~~~~~~~~~~~~
+
+.. c:var:: PyUnwindObject * Py_UnwindToken
+
+   A singleton that indicates C-stack unwinding
+
+.. c:function:: int STACKLESS_UNWINDING(obj)
+
+   Return 1, if *obj* is :c:data:`Py_UnwindToken` and 0 otherwise.
+
 Interface functions
 -------------------
 
