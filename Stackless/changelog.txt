@@ -29,6 +29,12 @@ What's New in Stackless 3.X.X?
   Stackless can now pickle asynchronous generators and awaitables of type
   PyAsyncGenASend or PyAsyncGenAThrow (see PEP 525).
 
+What's New in Stackless 3.7.0a3 and 3.7.0a4
+-------------------------------------------
+
+3.7.0a4: git commit d3a65ddc, 2018-11-02
+3.7.0a3: git commit df89dafa, 2018-11-02
+
 - https://github.com/stackless-dev/stackless/issues/175
   Cleanup of the Stackless C-API: Including stackless_api.h in an extension
   module no longer defines internal stuff. Additionally I moved test code
@@ -52,6 +58,12 @@ What's New in Stackless 3.X.X?
   consequence Stackless moves the exception state information from thread
   to tasklet. This changes the pickle format of frame, tasklet and generator
   objects compared to previous major versions of Stackless.
+
+What's New in Stackless 3.6.5 and 3.6.6?
+========================================
+
+*Release date: 2018-09-12*  (3.6.6)
+*Release date: 2018-09-11*  (3.6.5)
 
 - https://github.com/stackless-dev/stackless/issues/166
   Fix C-API functions PyEval_EvalFrameEx() and PyEval_EvalFrame().
@@ -78,6 +90,11 @@ What's New in Stackless 3.X.X?
   "unsigned long".
   The prototype of PyStackless_GetCurrentId(void) was missing from
   stackless_api.h. It is now defined.
+
+What's New in Stackless 3.6.4?
+==============================
+
+*Release date: 2017-12-21*
 
 - https://github.com/stackless-dev/stackless/issues/146
   Always initialize _stackless.bonb type. Prevents a NULL-pointer access,
@@ -116,8 +133,19 @@ What's New in Stackless 3.X.X?
 - https://github.com/stackless-dev/stackless/issues/135
   Fix small memory leaks for types with Stackless extensions.
 
+What's New in Stackless 3.5.3 and 3.5.4?
+========================================
+
+*Release date: 2017-09-03*  (3.5.4)
+*Release date: 2017-09-03*  (3.5.3)
+
 - https://bitbucket.org/stackless-dev/stackless/issues/130
   Pickling exhausted generators no longer crashes.
+
+What's New in Stackless 3.4.3?
+==============================
+
+*Release date: 2017-04-16*
 
 - https://bitbucket.org/stackless-dev/stackless/issues/129
   C-API: Calling PyTasklet_New( NULL, ...) no longer crashes.
@@ -337,6 +365,11 @@ What's New in Stackless 3.X.X?
 - https://bitbucket.org/stackless-dev/stackless/issue/77
   Fix a NULL pointer exception, if a call to stackless.tasklet() fails
   (i.e. called with invalid arguments).
+
+What's New in Stackless 3.4.2?
+==============================
+
+*Release date: 2015-02-15*
 
 - https://bitbucket.org/stackless-dev/stackless/issue/60
   Fix a crash
