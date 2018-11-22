@@ -414,6 +414,7 @@ slp_register_execute(PyTypeObject *t, char *name, PyFrame_ExecFunc *good,
 {
     PyObject *g = NULL, *b = NULL, *nameobj = NULL;
     PyObject *tup = NULL, *dic = NULL;
+    PyObject *o;
     proxyobject *dp = NULL;
     int ret = -1;
 
@@ -446,20 +447,17 @@ slp_register_execute(PyTypeObject *t, char *name, PyFrame_ExecFunc *good,
         Py_INCREF(dp);
     }
     if (0
-        || PyDict_GetItem(dp->dict, nameobj) != NULL
-        || PyDict_GetItem(dp->dict, g) != NULL
-        || PyDict_GetItem(dp->dict, b) != NULL
+        || (o = PyDict_SetDefault(dp->dict, nameobj, tup)) == NULL
+        || !PyObject_RichCompareBool(o, tup, Py_EQ)
+        || (o = PyDict_SetDefault(dp->dict, g, nameobj)) == NULL
+        || !PyObject_RichCompareBool(o, nameobj, Py_EQ)
+        || (o = PyDict_SetDefault(dp->dict, b, nameobj)) == NULL
+        || !PyObject_RichCompareBool(o, nameobj, Py_EQ)
         ) {
-        PyErr_SetString(PyExc_SystemError,
-                        "duplicate/ambiguous exec func");
+		if (! PyErr_Occurred())
+	        PyErr_SetString(PyExc_SystemError, "duplicate/ambiguous exec func");
         goto err_exit;
     }
-    if (0
-        || PyDict_SetItem(dp->dict, nameobj, tup)
-        || PyDict_SetItem(dp->dict, g, nameobj)
-        || PyDict_SetItem(dp->dict, b, nameobj)
-        )
-        goto err_exit;
     PyErr_Clear();
     ret = 0;
 err_exit:
