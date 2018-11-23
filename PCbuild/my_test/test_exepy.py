@@ -104,6 +104,28 @@ class TestExepy(unittest.TestCase):
             os.chdir(pwd)
             shutil.rmtree(self.TEMPDIR)
 
+    def test_nocommand(self):
+        os.mkdir(self.TEMPDIR)
+        pwd = os.path.abspath(os.curdir)
+        os.chdir(self.TEMPDIR)
+        try:
+            filename = "hoge.py"
+            exename = "hoge.exe"
+            self.create_single_test_file(filename)
+            cmd = [sys.executable, "-m", "exepy", "--nocommand", "create", exename, filename]
+            subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
+            os.remove(filename)
+
+            cmd = [sys.executable, "-m", "exepy", "extract", exename]
+            output = subprocess.check_output(cmd)
+            with open(filename, "r") as file:
+                content = file.read()
+            self.assertEqual(content, self.SINGLE_FILE_CONTENT)
+            self.assertIn("no argv", output)
+        finally:
+            os.chdir(pwd)
+            shutil.rmtree(self.TEMPDIR)
+
     def test_2_files(self):
         os.mkdir(self.TEMPDIR)
         pwd = os.path.abspath(os.curdir)
