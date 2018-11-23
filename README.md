@@ -58,6 +58,8 @@ This binary includes standard library and the following libraries.
 
 This binary includes all standard libraries in itself. `embeddedimport` library provides this mechanism.
 
+`embeddedimport` supports `get_data` and `get_source`.
+
 Please refer to `embeddedimport.c`.
 
 ### flake8_lite
