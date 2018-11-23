@@ -13,7 +13,7 @@ import pathlib
 import tkinter
 import tkinter.messagebox
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 USER_SOURCE_ID = 200
 USER_COMMAND_ID = 201
