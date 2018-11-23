@@ -112,7 +112,7 @@ class TestExepy(unittest.TestCase):
             filename = "hoge.py"
             exename = "hoge.exe"
             self.create_single_test_file(filename)
-            cmd = [sys.executable, "-m", "exepy", "--nocommand", "create", exename, filename]
+            cmd = [sys.executable, "-m", "exepy", "create", "--nocommand", exename, filename]
             subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
             os.remove(filename)
 
