@@ -117,7 +117,7 @@ class TestExepy(unittest.TestCase):
             os.remove(filename)
 
             cmd = [sys.executable, "-m", "exepy", "extract", exename]
-            output = subprocess.check_output(cmd)
+            output = subprocess.check_output(cmd, universal_newlines=True)
             with open(filename, "r") as file:
                 content = file.read()
             self.assertEqual(content, self.SINGLE_FILE_CONTENT)
