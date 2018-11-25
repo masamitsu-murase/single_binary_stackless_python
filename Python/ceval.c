@@ -1025,7 +1025,11 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
         PUSH(retval); /* we are back from a function call */
     }
     else {
-        if (f->f_execute == slp_eval_frame_iter) {
+        if (f->f_execute == slp_eval_frame_noval) {
+            /* don't push it, frame ignores value */
+            Py_XDECREF(retval);
+        }
+        else if (f->f_execute == slp_eval_frame_iter) {
             /* finalise the for_iter operation */
             NEXTOPARG();
             if (opcode == EXTENDED_ARG) {
@@ -1096,14 +1100,9 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
                 /*f->f_execute = PyEval_EvalFrame_value;
                 PREDICT(WITH_CLEANUP_FINISH); */
             }
-        }
-        else {
-            /* don't push it, frame ignores value */
-            assert (f->f_execute == slp_eval_frame_noval);
-            Py_XDECREF(retval);
-        }
+        } else
+            Py_FatalError("invalid frame function");
         f->f_execute = slp_eval_frame_value;
-
     }
 
     /* always check for an error flag */
