@@ -548,6 +548,64 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
     return tstate->interp->eval_frame(f, throwflag);
 }
 
+#ifdef STACKLESS
+#define EXTENDED_ARG_OFFSET(x) \
+    (assert(sizeof(x) == 4), \
+     (!((x) >> 8)  ? 0 : \
+     (!((x) >> 16) ? 1 : \
+     (!((x) >> 24) ? 2 : 3 ))))
+
+#define HANDLE_UNWINDING(frame_func, has_opcode, retval__) \
+do { \
+    if (has_opcode) \
+        next_instr -= 1 + EXTENDED_ARG_OFFSET(oparg); \
+    SLP_DISABLE_GCC_W_ADDRESS /* suppress warning, if frame_func is a function */ \
+    if (frame_func != NULL) { \
+    SLP_RESTORE_WARNINGS \
+        f->f_execute = (frame_func); \
+    } \
+    /* keep the reference to the frame to be called. */ \
+    f->f_stacktop = stack_pointer; \
+    /* Set f->f_lasti to the instruction before the current one or to the */ \
+    /* first instruction (-1). See "f->f_lasti refers to ..." above.      */ \
+    f->f_lasti = INSTR_OFFSET() != 0 ? \
+            assert(INSTR_OFFSET() >= sizeof(_Py_CODEUNIT)), \
+            (int)(INSTR_OFFSET() - sizeof(_Py_CODEUNIT)) : -1; \
+    if (SLP_PEEK_NEXT_FRAME(tstate)->f_back != f) \
+        return (retval__); \
+    STACKLESS_UNPACK(tstate, (retval__)); \
+    { \
+        PyFrameObject *f2 = SLP_CLAIM_NEXT_FRAME(tstate); \
+        (retval__) = CALL_FRAME_FUNCTION(f2, 0, (retval__)); \
+        Py_DECREF(f2); \
+        if (SLP_PEEK_NEXT_FRAME(tstate) != f) { \
+            assert(f->f_execute == slp_eval_frame_value || f->f_execute == slp_eval_frame_noval || \
+                f->f_execute == slp_eval_frame_setup_with || f->f_execute == slp_eval_frame_with_cleanup); \
+            if (f->f_execute == slp_eval_frame_noval) \
+                f->f_execute = slp_eval_frame_value; \
+            return (retval__); \
+        } \
+        f2 = SLP_CLAIM_NEXT_FRAME(tstate); \
+        assert(f == f2); \
+        Py_DECREF(f2); \
+    } \
+    if (STACKLESS_UNWINDING(retval__)) \
+        STACKLESS_UNPACK(tstate, (retval__)); \
+    f->f_stacktop = NULL; \
+    SLP_DISABLE_GCC_W_ADDRESS /* suppress warning, if frame_func is a function */ \
+    if (frame_func != NULL) { \
+    SLP_RESTORE_WARNINGS \
+        assert(f->f_execute == (frame_func)); \
+    } \
+    else { \
+        assert(f->f_execute == slp_eval_frame_value || f->f_execute == slp_eval_frame_noval); \
+    } \
+    f->f_execute = slp_eval_frame_value; \
+    if (has_opcode) \
+        next_instr += 1 + EXTENDED_ARG_OFFSET(oparg); \
+} while(0)
+#endif
+
 PyObject* _Py_HOT_FUNCTION
 #ifdef STACKLESS
 slp_eval_frame_value(PyFrameObject *f, int throwflag, PyObject *retval)
@@ -2945,10 +3003,7 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
                 STACKLESS_ASSERT();
             }
             if (STACKLESS_UNWINDING(next)) {
-                retval = next;
-                goto stackless_iter;
-stackless_iter_return:
-                next = retval;
+                HANDLE_UNWINDING(slp_eval_frame_iter, 1, next);
                 iter = TOP();
             }
 #else
@@ -3056,10 +3111,7 @@ stackless_iter_return:
             Py_DECREF(enter);
 #ifdef STACKLESS
             if (STACKLESS_UNWINDING(res)) {
-                retval = res;
-                goto stackless_setup_with;
-stackless_setup_with_return:
-                res = retval;
+                HANDLE_UNWINDING(slp_eval_frame_setup_with, 1, res);
             }
 #endif
             if (res == NULL)
@@ -3158,10 +3210,7 @@ stackless_setup_with_return:
             Py_DECREF(exit_func);
 #ifdef STACKLESS
             if (STACKLESS_UNWINDING(res)) {
-                retval = res;
-                goto stackless_with_cleanup;
-stackless_with_cleanup_return:
-                res = retval;
+                HANDLE_UNWINDING(slp_eval_frame_with_cleanup, 0, res);
                 /* recompute exc after the goto */
                 exc = TOP();
                 if (PyLong_Check(exc))
@@ -3283,8 +3332,7 @@ stackless_with_cleanup_return:
             }
 #ifdef STACKLESS
             if (STACKLESS_UNWINDING(res)) {
-                retval = res;
-                goto stackless_call;
+                HANDLE_UNWINDING(NULL, 0, res);
             }
 #endif
 
@@ -3302,10 +3350,7 @@ stackless_with_cleanup_return:
             stack_pointer = sp;
 #ifdef STACKLESS
             if (STACKLESS_UNWINDING(res)) {
-                retval = res;
-                goto stackless_call;
-stackless_call_return:
-                res = retval;
+                HANDLE_UNWINDING(NULL, 0, res);
             }
 #endif
             PUSH(res);
@@ -3326,8 +3371,7 @@ stackless_call_return:
             Py_DECREF(names);
 #ifdef STACKLESS
             if (STACKLESS_UNWINDING(res)) {
-                retval = res;
-                goto stackless_call;
+                HANDLE_UNWINDING(NULL, 0, res);
             }
 #endif
             PUSH(res);
@@ -3387,12 +3431,11 @@ stackless_call_return:
             Py_XDECREF(kwargs);
 #ifdef STACKLESS
             if (STACKLESS_UNWINDING(result)) {
-                retval = result;
-                (void) POP();  /* compensate for the PUSH(res) after label stackless_call_return: */
-                goto stackless_call;
-            }
+                (void) POP();  /* top of stack causes a GC related assertion error */
+                HANDLE_UNWINDING(NULL, 0, result);
+                PUSH(result)
+            } else
 #endif
-
             SET_TOP(result);
             if (result == NULL) {
                 goto error;
@@ -3710,77 +3753,6 @@ exit_eval_frame:
 
     return _Py_CheckFunctionResult(NULL, retval, "PyEval_EvalFrameEx");
 
-stackless_setup_with:
-    f->f_execute = slp_eval_frame_setup_with;
-    goto stackless_call_with_opcode;
-
-stackless_with_cleanup:
-    f->f_execute = slp_eval_frame_with_cleanup;
-    goto stackless_call;
-
-stackless_iter:
-    /* restore this opcode and enable frame to handle it */
-    f->f_execute = slp_eval_frame_iter;
-stackless_call_with_opcode:
-
-#define EXTENDED_ARG_OFFSET(x) \
-    (assert(sizeof(x) == 4), \
-     (!((x) >> 8)  ? 0 : \
-     (!((x) >> 16) ? 1 : \
-     (!((x) >> 24) ? 2 : 3 ))))
-
-    next_instr -= 1 + EXTENDED_ARG_OFFSET(oparg);
-
-stackless_call:
-    /*
-     * keep the reference to the frame to be called.
-     */
-    f->f_stacktop = stack_pointer;
-
-    /* Set f->f_lasti to the instruction before the current one or to the
-     * first instruction (-1). See "f->f_lasti refers to ..." above.
-     */
-    f->f_lasti = INSTR_OFFSET() != 0 ?
-            assert(INSTR_OFFSET() >= sizeof(_Py_CODEUNIT)),
-            (int)(INSTR_OFFSET() - sizeof(_Py_CODEUNIT)) : -1;
-    if (SLP_PEEK_NEXT_FRAME(tstate)->f_back != f)
-        return retval;
-    STACKLESS_UNPACK(tstate, retval);
-    {
-        PyFrameObject *f2 = SLP_CLAIM_NEXT_FRAME(tstate);
-        retval = CALL_FRAME_FUNCTION(f2, 0, retval);
-        Py_DECREF(f2);
-        if (SLP_PEEK_NEXT_FRAME(tstate) != f) {
-            assert(f->f_execute == slp_eval_frame_value || f->f_execute == slp_eval_frame_noval ||
-                f->f_execute == slp_eval_frame_setup_with || f->f_execute == slp_eval_frame_with_cleanup);
-            if (f->f_execute == slp_eval_frame_noval)
-                f->f_execute = slp_eval_frame_value;
-            return retval;
-        }
-        f2 = SLP_CLAIM_NEXT_FRAME(tstate);
-        assert(f == f2);
-        Py_DECREF(f2);
-    }
-    if (STACKLESS_UNWINDING(retval))
-        STACKLESS_UNPACK(tstate, retval);
-
-    f->f_stacktop = NULL;
-    if (f->f_execute == slp_eval_frame_iter) {
-        next_instr += 1 + EXTENDED_ARG_OFFSET(oparg);;
-        f->f_execute = slp_eval_frame_value;
-        goto stackless_iter_return;
-    }
-    else if (f->f_execute == slp_eval_frame_setup_with) {
-        next_instr += 1 + EXTENDED_ARG_OFFSET(oparg);
-        f->f_execute = slp_eval_frame_value;
-        goto stackless_setup_with_return;
-    }
-    else if (f->f_execute == slp_eval_frame_with_cleanup) {
-        f->f_execute = slp_eval_frame_value;
-        goto stackless_with_cleanup_return;
-    }
-
-    goto stackless_call_return;
 
 stackless_interrupt_call:
     /* interrupted during unwinding */
