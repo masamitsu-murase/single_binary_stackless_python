@@ -9,6 +9,7 @@ PlatformToolSet = v141
 
 CC = cl.exe
 LINK = link.exe
+MT = mt.exe
 
 !include common_arch.mak
 
@@ -53,11 +54,13 @@ all: $(TARGET) $(TARGETW)
 .c.obj:
 	$(CC) /c $< $(CFLAGS) /Fo$@
 
-$(TARGET): $(ProjectDir)\Programs\python.obj lib
+$(TARGET): $(ProjectDir)\Programs\python.obj lib $(ProjectDir)\PC\python.manifest
 	$(LINK) /OUT:$(TARGET) $(LFLAGS) /SUBSYSTEM:CONSOLE $(ProjectDir)\Programs\python.obj $(LIBS) $(EXTERNAL_LIBS) $(RESOURCE)
+	$(MT) -manifest $(ProjectDir)\PC\python.manifest -outputresource:$(TARGET);1
 
-$(TARGETW): $(ProjectDir)\PC\WinMain.obj lib
+$(TARGETW): $(ProjectDir)\PC\WinMain.obj lib $(ProjectDir)\PC\python.manifest
 	$(LINK) /OUT:$(TARGETW) $(LFLAGS) /SUBSYSTEM:WINDOWS $(ProjectDir)\PC\WinMain.obj $(LIBS) $(EXTERNAL_LIBS) $(RESOURCEW)
+	$(MT) -manifest $(ProjectDir)\PC\python.manifest -outputresource:$(TARGETW);1
 
 lib:
 	$(MAKE) /$(MAKEFLAGS) /f Makefile_ssleay
