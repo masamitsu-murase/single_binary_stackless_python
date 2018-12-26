@@ -49,7 +49,7 @@ cframe_dealloc(PyCFrameObject *cf)
         free_list = cf;
     }
     else
-        PyObject_GC_Del(cf);
+        Py_TYPE(cf)->tp_free((PyObject*)cf);
 }
 
 static int
@@ -331,7 +331,7 @@ PyTypeObject PyCFrame_Type = {
     0,                                 /* tp_init */
     0,                                 /* tp_alloc */
     cframe_new,                        /* tp_new */
-    PyObject_Del,                      /* tp_free */
+    PyObject_GC_Del,                   /* tp_free */
 };
 
 int slp_init_cframetype(void)

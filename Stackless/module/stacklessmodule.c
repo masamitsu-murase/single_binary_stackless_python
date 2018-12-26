@@ -42,15 +42,6 @@ typedef struct PyAtomicObject
 } PyAtomicObject;
 
 static PyObject *
-atomic_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
-
-static void
-atomic_dealloc(PyObject *self)
-{
-    PyObject_DEL(self);
-}
-
-static PyObject *
 atomic_enter(PyObject *self)
 {
     PyAtomicObject *a = (PyAtomicObject*)self;
@@ -90,7 +81,7 @@ PyTypeObject PyAtomic_Type = {
     "_stackless.atomic",
     sizeof(PyAtomicObject),
     0,
-    atomic_dealloc,                             /* tp_dealloc */
+    0,                                          /* tp_dealloc */
     0,                                          /* tp_print */
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
@@ -123,15 +114,8 @@ PyTypeObject PyAtomic_Type = {
     0,                                          /* tp_dictoffset */
     0,                                          /* tp_init */
     0,                                          /* tp_alloc */
-    atomic_new,                                 /* tp_new */
+    PyType_GenericNew,                          /* tp_new */
 };
-
-static PyObject *
-atomic_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
-{
-    PyAtomicObject *a = PyObject_NEW(PyAtomicObject, &PyAtomic_Type);
-    return (PyObject *)a;
-}
 
 /******************************************************
 

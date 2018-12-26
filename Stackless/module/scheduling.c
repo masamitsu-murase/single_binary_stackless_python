@@ -29,7 +29,7 @@ bomb_dealloc(PyBombObject *bomb)
         free_list = bomb;
     }
     else
-        PyObject_GC_Del(bomb);
+        Py_TYPE(bomb)->tp_free((PyObject*)bomb);
 }
 
 static int
