@@ -43,7 +43,7 @@ currently executing.
 Example - is the main tasklet the current tasklet::
 
     stackless.main == stackless.current
-    
+
 Example - is the current tasklet the main tasklet::
 
     stackless.current.is_main == 1
@@ -68,13 +68,13 @@ The ``tasklet`` class
    This class exposes the form of lightweight thread (the tasklet) provided by
    |SLP|.  Wrapping a callable object and arguments to pass into
    it when it is invoked, the callable is run within the tasklet.
-   
+
    Tasklets are usually created in the following manner::
-   
+
    >>> stackless.tasklet(func)(1, 2, 3, name="test")
-   
+
    The above code is equivalent to::
-   
+
    >>> t = stackless.tasklet()
    >>> t.bind(func)
    >>> t.setup(1, 2, 3, name="test")
@@ -90,7 +90,7 @@ The ``tasklet`` class
 
    Note that when an implicit :meth:`tasklet.insert` is invoked, there is no need
    to hold a reference to the created tasklet.
-   
+
 .. method:: tasklet.bind(func=None, args=None, kwargs=None)
 
    Bind the tasklet to the given callable object, *func*::
@@ -111,10 +111,10 @@ The ``tasklet`` class
 
    *func* can be None when providing arguments, in which case a previous call
    to :meth:`tasklet.bind` must have provided the function.
-   
+
    To clear the binding of a tasklet set all arguments to ``None``. This
    is especially useful, if you run a tasklet only partially::
-   
+
       >>> def func():
       ...     try:
       ...        ... # part 1
@@ -125,10 +125,10 @@ The ``tasklet`` class
       >>> t = stackless.tasklet(func)()
       >>> stackless.enable_softswitch(True)
       >>> stackless.run() # execute part 1 of func
-      >>> t.bind(None)    # unbind func(). Don't execute the finally block  
-   
+      >>> t.bind(None)    # unbind func(). Don't execute the finally block
+
    If a tasklet is alive, it can be rebound only if the tasklet is
-   not the current tasklet and if the tasklet is not scheduled and 
+   not the current tasklet and if the tasklet is not scheduled and
    if the tasklet is restorable. :meth:`bind` raises :exc:`RuntimeError`,
    if these conditions are not met.
 
@@ -139,12 +139,12 @@ The ``tasklet`` class
    >>> t = stackless.tasklet()
    >>> t.bind(func)
    >>> t.setup(1, 2, name="test")
-   
+
    In most every case, programmers will instead pass the arguments and
    callable into the tasklet constructor instead::
 
    >>> t = stackless.tasklet(func)(1, 2, name="test")
-   
+
    Note that when tasklets have been bound to a callable object and
    provided with arguments to pass to it, they are implicitly
    scheduled and will be run in turn when the scheduler is next run.
@@ -168,9 +168,9 @@ The ``tasklet`` class
 .. method:: tasklet.remove()
 
    Remove a tasklet from the runnables queue.
-   
+
    .. note::
-   
+
       If this tasklet has a non-trivial C-state attached, Stackless
       will kill the tasklet when the containing thread terminates.
       Since this will happen in some unpredictable order, it may cause unwanted
@@ -182,9 +182,9 @@ The ``tasklet`` class
    If the tasklet is alive and not blocked on a channel, then it will be run
    immediately.  However, this behaves differently depending on whether
    the tasklet is in the scheduler's chain of runnable tasklets.
-   
+
    Example - running a tasklet that is scheduled::
-   
+
       >>> def f(name):
       ...     while True:
       ...         c=stackless.current
@@ -206,7 +206,7 @@ The ``tasklet`` class
    yields, the next tasklet in the chain is scheduled and so forth until the
    tasklet that actually ran *t1* - that is the main tasklet - is scheduled and
    resumes execution.
-   
+
    If you were to run *t2* instead of *t1*, then we would have only seen the
    output of *t2* and *t3*, because the tasklet calling :attr:`run` is before
    *t1* in the chain.
@@ -226,7 +226,7 @@ The ``tasklet`` class
       t2 id=36355504, next.id=36356016, main.id=36356016, main.scheduled=True
       >>> t2.scheduled
       True
-      
+
    While the ability to run a tasklet directly is useful on occasion, that
    the scheduler is still involved and that this is merely directing its
    operation in limited ways, is something you need to be aware of.
@@ -238,10 +238,10 @@ The ``tasklet`` class
    the scheduling queue.
 
    The target tasklet must belong to the same thread as the caller.
-   
-   Example - switch to a tasklet that is scheduled. Function f is defined as 
+
+   Example - switch to a tasklet that is scheduled. Function f is defined as
    in the previous example::
-      
+
       >>> t1 = stackless.tasklet(f)("t1")
       >>> t2 = stackless.tasklet(f)("t2")
       >>> t3 = stackless.tasklet(f)("t3")
@@ -259,8 +259,8 @@ The ``tasklet`` class
         File "<stdin>", line 6, in f
       KeyboardInterrupt
       >>>
-      
-   What you see here is that the main tasklet was removed from the scheduler. 
+
+   What you see here is that the main tasklet was removed from the scheduler.
    Therefore the scheduler runs until it got interrupted by a keyboard interrupt.
 
 .. method:: tasklet.raise_exception(exc_class, *args)
@@ -268,7 +268,7 @@ The ``tasklet`` class
    Raise an exception on the given tasklet.  *exc_class* is required to be a
    sub-class of :exc:`Exception`.  It is instantiated with the given arguments
    *args* and raised within the given tasklet.
-   
+
    In order to make best use of this function, you should be familiar with
    how tasklets and the scheduler :ref:`deal with exceptions
    <slp-exc-section>`, and the purpose of the :ref:`TaskletExit <slp-exc>`
@@ -312,7 +312,7 @@ The ``tasklet`` class
 .. method:: tasklet.set_atomic(flag)
 
    This method is used to construct a block of code within which the tasklet
-   will not be auto-scheduled when preemptive scheduling.  It is useful for 
+   will not be auto-scheduled when preemptive scheduling.  It is useful for
    wrapping critical sections that should not be interrupted::
 
      old_value = t.set_atomic(1)
@@ -353,8 +353,8 @@ The following (read-only) attributes allow tasklet state to be checked:
 .. attribute:: tasklet.paused
 
    This attribute is ``True`` when a tasklet is alive, but not scheduled or
-   blocked on a channel. This state is entered after a :meth:`tasklet.bind` with 
-   2 or 3 arguments, a :meth:`tasklet.remove` or by the main tasklet, when it 
+   blocked on a channel. This state is entered after a :meth:`tasklet.bind` with
+   2 or 3 arguments, a :meth:`tasklet.remove` or by the main tasklet, when it
    is acting as a watchdog.
 
 .. attribute:: tasklet.blocked
@@ -368,11 +368,11 @@ The following (read-only) attributes allow tasklet state to be checked:
 
 .. attribute:: tasklet.restorable
 
-   This attribute is ``True``, if the tasklet can be completely restored by 
-   pickling/unpickling. If a tasklet is restorable, it is possible to continue 
+   This attribute is ``True``, if the tasklet can be completely restored by
+   pickling/unpickling. If a tasklet is restorable, it is possible to continue
    running the unpickled tasklet from whatever point in execution it may be.
-   
-   All tasklets can be pickled for debugging/inspection 
+
+   All tasklets can be pickled for debugging/inspection
    purposes, but an unpickled tasklet might have lost runtime information (C stack).
    For the tasklet to be runnable, it must not have lost runtime information
    (C stack usage for instance).
@@ -416,12 +416,12 @@ The following attributes allow identification of tasklet place:
       import stackless
       def is_current_main(tasklet):
           return tasklet is stackless.main
-   
+
 .. attribute:: tasklet.thread_id
 
    This attribute is the id of the thread the tasklet belongs to.  If its
    thread has terminated, the attribute value is ``-1``.
-   
+
    The relationship between tasklets and threads is :doc:`covered elsewhere
    <threads>`.
 
@@ -439,16 +439,16 @@ The following attributes allow a tasklets place in a chain to be identified:
 
    The next tasklet in the chain that this tasklet is linked into.
 
-The following attributes are intended only for implementing debuggers, 
-profilers, coverage tools and the like. Their behavior is part of the 
-implementation platform, rather than part of the language definition, 
+The following attributes are intended only for implementing debuggers,
+profilers, coverage tools and the like. Their behavior is part of the
+implementation platform, rather than part of the language definition,
 and thus may not be available in all |SLP| implementations.
 
 .. attribute:: tasklet.trace_function
 
 .. attribute:: tasklet.profile_function
 
-   The trace / profile function of the tasklet. These attributes 
+   The trace / profile function of the tasklet. These attributes
    are the tasklet counterparts of the functions :func:`sys.settrace`,
    :func:`sys.gettrace`, :func:`sys.setprofile` and :func:`sys.getprofile`.
 
@@ -457,16 +457,16 @@ and thus may not be available in all |SLP| implementations.
 Tasklet Life Cycle
 ^^^^^^^^^^^^^^^^^^
 
-Here is a somewhat simplified state chart that shows the life cycle of a 
-tasklet instance. The chart does not show the nesting-level, the thread-id 
-and the flags atomic, ignore-nesting, block-trap and restorable. 
+Here is a somewhat simplified state chart that shows the life cycle of a
+tasklet instance. The chart does not show the nesting-level, the thread-id
+and the flags atomic, ignore-nesting, block-trap and restorable.
 
 .. image:: tasklet_state_chart.png
 
-Furthermore the diagram does not show the scheduler functions 
-:func:`stackless.run`, :func:`stackless.schedule` and 
-:func:`stackless.schedule_remove()`. For the purpose of understanding the 
-state transitions these functions are roughly equivalent to the following 
+Furthermore the diagram does not show the scheduler functions
+:func:`stackless.run`, :func:`stackless.schedule` and
+:func:`stackless.schedule_remove()`. For the purpose of understanding the
+state transitions these functions are roughly equivalent to the following
 |PY| definitions::
 
    def run():
@@ -476,9 +476,9 @@ state transitions these functions are roughly equivalent to the following
                stackless.current.next.run()
            main.switch()
        stackless.tasklet(watchdog)().switch()
-      
+
    def schedule():
        stackless.current.next.run()
-   
+
    def schedule_remove():
        stackless.current.next.switch()
