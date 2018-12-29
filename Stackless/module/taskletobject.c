@@ -189,12 +189,13 @@ tasklet_clear(PyTaskletObject *t)
     Py_CLEAR(t->exc_state.exc_value);
     Py_CLEAR(t->exc_state.exc_traceback);
 
-    /* The stack of exception states should contain just this tasklet. */
-    assert(t->exc_info->previous_item == NULL);
-    if (Py_VerboseFlag && t->exc_info != &t->exc_state) {
-        fprintf(stderr,
-          "PyTaskletObject_Clear: warning: tasklet still has a generator\n");
-    }
+    /* Assert that the tasklet is at the end of the chain. */
+    assert(t->exc_state.previous_item == NULL);
+    /* Unlink the exc_info chain. There is no guarantee, that
+     * the object t->exc_info points to still exists, because
+     * the order of calls to tp_clear is undefined.
+     */
+    t->exc_info = &t->exc_state;
 }
 
 /*
@@ -281,8 +282,13 @@ tasklet_dealloc(PyTaskletObject *t)
     }
     Py_DECREF(t->tempval);
     Py_XDECREF(t->def_globals);
+    /* Assert that the tasklet is at the end of the chain. */
     assert(t->exc_state.previous_item == NULL);
-    assert(t->exc_info  == &t->exc_state);
+    /* Unlink the exc_info chain. There is no guarantee, that
+     * the object t->exc_info points to still exists, because
+     * the order of calls to tp_clear is undefined.
+     */
+    t->exc_info = &t->exc_state;
     exc_state_clear(&t->exc_state);
     Py_TYPE(t)->tp_free((PyObject*)t);
 }
