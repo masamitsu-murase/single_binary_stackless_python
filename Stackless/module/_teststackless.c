@@ -183,9 +183,14 @@ demo_soft_switchable(PyObject *retval, long *step, PyObject **ob1,
          * Therefore we may call STACKLESS_PROMOTE_ALL();
          */
         PyObject * args = PyTuple_New(0);
+        if (!args) {
+            Py_CLEAR(retval);
+            goto exit_func;
+        }
         STACKLESS_PROMOTE_ALL();
         Py_SETREF(retval, PyObject_Call(retval, args, NULL));
         STACKLESS_ASSERT();
+        Py_DECREF(args);
         if (STACKLESS_UNWINDING(retval))
             return retval;
         /* no break */
