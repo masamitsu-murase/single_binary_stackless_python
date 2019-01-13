@@ -9,6 +9,10 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://github.com/stackless-dev/stackless/issues/206
+  Fix the error handling of the Python implementation of function-object
+  pickling.
+
 - https://github.com/stackless-dev/stackless/issues/204
   Fix bpo-24596 for Stackless too.
 
