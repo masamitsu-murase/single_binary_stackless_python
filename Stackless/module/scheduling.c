@@ -1393,14 +1393,14 @@ slp_tasklet_end(PyObject *retval)
      */
     if (retval == NULL) {
         int handled = 0;
-        if (PyErr_ExceptionMatches(PyExc_SystemExit)) {
+        if (!ismain && PyErr_ExceptionMatches(PyExc_SystemExit)) {
             /* but if it is truly a SystemExit on the main thread, we want the exit! */
             if (ts == SLP_INITIAL_TSTATE(ts) && !PyErr_ExceptionMatches(PyExc_TaskletExit)) {
                 if (ts->interp == _PyRuntime.interpreters.main) {
                     PyStackless_HandleSystemExit();
                     handled = 1; /* handler returned, it wants us to silence it */
                 }
-            } else if (!ismain) {
+            } else {
                 /* deal with TaskletExit on a non-main tasklet */
                 handled = 1;
             }
