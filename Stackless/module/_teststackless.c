@@ -133,7 +133,7 @@ demo_soft_switchable(PyObject *retval, long *step, PyObject **ob1,
             else if (retval == NULL)
                 goto exit_func;
         }
-        /* no break */
+        /* fall through */
     case 1:
         (*step)++;
         /*
@@ -162,7 +162,7 @@ demo_soft_switchable(PyObject *retval, long *step, PyObject **ob1,
         /*
          * And so on ...
          */
-        /* no break */
+        /* fall through */
     case 2:
         /*
          * Prepare the result
@@ -193,8 +193,8 @@ demo_soft_switchable(PyObject *retval, long *step, PyObject **ob1,
         Py_DECREF(args);
         if (STACKLESS_UNWINDING(retval))
             return retval;
-        /* no break */
 
+        /* fall through */
     case 101:
         (*step)++;  // set to the next step
 
