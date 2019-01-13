@@ -3,6 +3,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#ifdef STACKLESS
 
 /******************************************************
 
@@ -66,7 +67,7 @@ int slp_safe_pickling(int(*save)(PyObject *, PyObject *, int),
                      int pers_save);
 
 
-
+#endif /* STACKLESS */
 #ifdef __cplusplus
 }
 #endif

@@ -2546,13 +2546,13 @@ static PyStacklessFunctionDeclarationObject task_step_impl_declaration = {
 static PyObject *
 task_step_impl_part1(TaskObj *task, PyObject *exc, int *failed)
 {
-    STACKLESS_GETARG();
 #else  /* #ifdef STACKLESS */
 
 static PyObject *
 task_step_impl(TaskObj *task, PyObject *exc)
 {
 #endif  /* #ifdef STACKLESS */
+    STACKLESS_GETARG();
     int res;
     int clear_exc = 0;
     PyObject *result = NULL;

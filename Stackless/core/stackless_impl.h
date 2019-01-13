@@ -3,17 +3,17 @@
 
 #include "Python.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifdef STACKLESS
-
 #if defined(Py_BUILD_CORE) && !defined(SLP_BUILD_CORE)
 #define SLP_BUILD_CORE
 #endif
 
 #include "stackless_api.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifdef STACKLESS
 
 #ifdef SLP_BUILD_CORE
 
@@ -780,6 +780,8 @@ long slp_parse_thread_id(PyObject *thread_id, unsigned long *id);
 
 #define SLP_PEEK_NEXT_FRAME(tstate) \
     ((tstate)->frame)
+
+#define STACKLESS_PROMOTE_WRAPPER(descr) assert(1)
 
 #define STACKLESS_PROPOSE(tstate, func) assert(1)
 #define STACKLESS_PROPOSE_FLAG(tstate, flag) assert(1)

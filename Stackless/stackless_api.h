@@ -468,16 +468,6 @@ STACKLESS_RETRACT()
 #define STACKLESS_PROMOTE_FLAG(flag) \
     (stackless ? (_PyStackless_TRY_STACKLESS = (flag)) : 0)
 
-#define STACKLESS_PROMOTE_METHOD(obj, slot_name) \
-    STACKLESS_PROMOTE_FLAG( \
-        (Py_TYPE(obj)->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_EXTENSION) && \
-        Py_TYPE(obj)->tp_as_mapping && \
-                Py_TYPE(obj)->tp_as_mapping->slpflags.slot_name)
-
-#define STACKLESS_PROMOTE(obj) \
-    STACKLESS_PROMOTE_FLAG( \
-        Py_TYPE(obj)->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_CALL)
-
 #define STACKLESS_RETRACT() (_PyStackless_TRY_STACKLESS = 0)
 
 #define STACKLESS_ASSERT() assert(!_PyStackless_TRY_STACKLESS)
@@ -490,6 +480,18 @@ STACKLESS_RETRACT()
 #define STACKLESS_RETRACT() assert(1)
 #define STACKLESS_ASSERT() assert(1)
 #endif
+
+#define STACKLESS_PROMOTE_METHOD(obj, slot_name) \
+    STACKLESS_PROMOTE_FLAG( \
+        (Py_TYPE(obj)->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_EXTENSION) && \
+        Py_TYPE(obj)->tp_as_mapping && \
+                Py_TYPE(obj)->tp_as_mapping->slpflags.slot_name)
+
+#define STACKLESS_PROMOTE(obj) \
+    STACKLESS_PROMOTE_FLAG( \
+        Py_TYPE(obj)->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_CALL)
+
+
 #ifdef STACKLESS
 
 /******************************************************
