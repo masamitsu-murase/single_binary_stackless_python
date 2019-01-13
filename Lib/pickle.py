@@ -989,29 +989,40 @@ class _Pickler:
             return self.save_reduce(type, (...,), obj=obj)
         return self.save_global(obj)
 
+    ## Stackless addition BEGIN
     def save_function(self, obj):
         try:
             return self.save_global(obj)
         except PicklingError as e:
-            pass
-        # Check copy_reg.dispatch_table
-        reduce = dispatch_table.get(type(obj))
-        if reduce:
-            rv = reduce(obj)
-        else:
-            # Check for a __reduce_ex__ method, fall back to __reduce__
-            reduce = getattr(obj, "__reduce_ex__", None)
+            # Check copy_reg.dispatch_table
+            reduce = dispatch_table.get(type(obj))
             if reduce:
-                rv = reduce(self.proto)
+                rv = reduce(obj)
             else:
-                reduce = getattr(obj, "__reduce__", None)
+                # Check for a __reduce_ex__ method, fall back to __reduce__
+                reduce = getattr(obj, "__reduce_ex__", None)
                 if reduce:
-                    rv = reduce()
+                    try:
+                        rv = reduce(self.proto)
+                    except PicklingError:
+                        raise
+                    except Exception as e2:
+                        raise PicklingError("Can't reduce function %r" % (obj,)) from e2
                 else:
-                    raise e
+                    reduce = getattr(obj, "__reduce__", None)
+                    if reduce:
+                        try:
+                            rv = reduce()
+                        except PicklingError:
+                            raise
+                        except Exception as e2:
+                            raise PicklingError("Can't reduce function %r" % (obj,)) from e2
+                    else:
+                        raise e
         return self.save_reduce(obj=obj, *rv)
 
     dispatch[FunctionType] = save_function
+    ## Stackless addition END
     dispatch[type] = save_type
 
 
