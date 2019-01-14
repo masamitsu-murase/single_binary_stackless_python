@@ -1063,7 +1063,7 @@ TESTPYTHON=	$(RUNSHARED) ./$(BUILDPYTHON) $(TESTPYTHONOPTS)
 TESTRUNNER=	$(TESTPYTHON) $(srcdir)/Tools/scripts/run_tests.py
 TESTTIMEOUT=	1200
 
-.PHONY: test testall testuniversal buildbottest pythoninfo
+.PHONY: test testall testuniversal buildbottest pythoninfo teststackless
 
 # Run a basic set of regression tests.
 # This excludes some tests that are particularly resource-intensive.
@@ -1084,8 +1084,8 @@ testall:	@DEF_MAKE_RULE@ platform
 		-$(TESTRUNNER) -u all $(TESTOPTS)
 		$(TESTRUNNER) -u all $(TESTOPTS)
 
-teststackless:	all platform
-		$(TESTPYTHON) Stackless/unittests/runAll.py
+teststackless:	@DEF_MAKE_RULE@ platform
+		$(TESTPYTHON) -E $(srcdir)/Stackless/unittests/runAll.py
 
 # Run the test suite for both architectures in a Universal build on OSX.
 # Must be run on an Intel box.

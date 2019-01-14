@@ -94,15 +94,7 @@
     "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15"
 #endif
 
-/* 
- * You may want to make the function static enable optimizations.
- * However, the ABI SPEC does not apply to static functions. Therefore 
- * I make slp_switch a regular global function.
- */
-#if 0
-static
-#endif
-int
+static int
 slp_switch(void)
 {
     register long *stackref, stsizediff;

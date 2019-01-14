@@ -4,6 +4,31 @@ Stackless-Python News
 This file documents user visible changes to the Stackless extension of C-Python.
 For other changes see Misc/NEWS.
 
+What's New in Stackless 3.X.X?
+==============================
+
+*Release date: 20XX-XX-XX*
+
+- https://github.com/stackless-dev/stackless/issues/206
+  Fix the error handling of the Python implementation of function-object
+  pickling.
+
+- https://github.com/stackless-dev/stackless/issues/204
+  Fix bpo-24596 for Stackless too.
+
+- https://github.com/stackless-dev/stackless/issues/200
+  Fix a bug in the C-API functions PyTasklet_Run_nr() and
+  PyTasklet_Switch_nr(). Under exotic conditions the functions could
+  cause undefined behavior.
+
+- https://github.com/stackless-dev/stackless/issues/193
+  Fix the macros PyTasklet_CheckExact(op) and PyChannel_CheckExact(op).
+  Previously they contained a reference to a non existing variable.
+
+- https://github.com/stackless-dev/stackless/issues/182
+  Fix "make teststackless" for out of tree builds
+
+
 What's New in Stackless 3.6.5 and 3.6.6?
 ========================================
 
@@ -516,7 +541,8 @@ What's New in Stackless 3.3.5?
 
 
 Here is a break. Nobody wrote a change log. If you are interested
-in software archaeology look at http://svn.python.org/view/stackless.
+in software archaeology look at
+https://github.com/stackless-dev/stackless_historic.
 
 
 The very beginning of Stackless
