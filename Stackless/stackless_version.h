@@ -5,4 +5,4 @@
 
 /* keep this entry up-to-date */
 #define STACKLESS_VERSION "3.1b3 060516"
-#define SINGLE_BINARY_VERSION "L17"
+#define SINGLE_BINARY_VERSION "L18"
