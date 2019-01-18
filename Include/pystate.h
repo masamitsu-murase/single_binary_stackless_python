@@ -11,6 +11,8 @@ extern "C" {
 #include "slp_tstate.h"
 #endif
 
+#include "pythread.h"
+
 /* This limitation is for performance and simplicity. If needed it can be
 removed (with effort). */
 #define MAX_CO_EXTRA_USERS 255
@@ -114,6 +116,8 @@ typedef struct _is {
     struct _ts *tstate_head;
 
     int64_t id;
+    int64_t id_refcount;
+    PyThread_type_lock id_mutex;
 
     PyObject *modules;
     PyObject *modules_by_index;
