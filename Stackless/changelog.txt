@@ -4,10 +4,10 @@ Stackless-Python News
 This file documents user visible changes to the Stackless extension of C-Python.
 For other changes see Misc/NEWS.
 
-What's New in Stackless 3.X.X?
+What's New in Stackless 3.7.0?
 ==============================
 
-*Release date: 20XX-XX-XX*
+*Release date: 2019-01-18*
 
 - https://github.com/stackless-dev/stackless/issues/208
   Move Stackless include files to Include/ and Include/internal and rename them
@@ -25,7 +25,7 @@ What's New in Stackless 3.X.X?
 
 - https://github.com/stackless-dev/stackless/issues/202
   The private include file "stackless_methods.h" is obsolete and has been
-  removed.  
+  removed.
 
 - https://github.com/stackless-dev/stackless/issues/201
   Enable stackless calls of "wrapper_descriptor" objects, if soft-switching is
