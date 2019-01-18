@@ -1751,7 +1751,7 @@ static PyMappingMethods TaskStepMethWrapper_as_mapping = {
 };
 #endif
 
-PyTypeObject TaskStepMethWrapper_Type = {
+static PyTypeObject TaskStepMethWrapper_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     "TaskStepMethWrapper",
     .tp_basicsize = sizeof(TaskStepMethWrapper),
@@ -1839,7 +1839,7 @@ static PyMappingMethods TaskWakeupMethWrapper_as_mapping = {
 };
 #endif
 
-PyTypeObject TaskWakeupMethWrapper_Type = {
+static PyTypeObject TaskWakeupMethWrapper_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     "TaskWakeupMethWrapper",
     .tp_basicsize = sizeof(TaskWakeupMethWrapper),
