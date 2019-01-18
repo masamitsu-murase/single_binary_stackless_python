@@ -356,7 +356,7 @@ wrapperdescr_raw_call(PyWrapperDescrObject *descr, PyObject *self,
     PyObject * result;
 
     if (descr->d_base->flags & PyWrapperFlag_KEYWORDS) {
-        wrapperfunc_kwds wk = (wrapperfunc_kwds)wrapper;
+        wrapperfunc_kwds wk = (wrapperfunc_kwds)(void(*)(void))wrapper;
         STACKLESS_PROMOTE_WRAPPER(descr);
         result = (*wk)(self, args, descr->d_wrapped, kwds);
         STACKLESS_ASSERT();
