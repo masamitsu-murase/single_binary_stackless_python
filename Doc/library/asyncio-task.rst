@@ -270,6 +270,9 @@ Sleeping
    If *result* is provided, it is returned to the caller
    when the coroutine completes.
 
+   ``sleep()`` always suspends the current task, allowing other tasks
+   to run.
+
    The *loop* argument is deprecated and scheduled for removal
    in Python 3.10.
 
@@ -893,8 +896,7 @@ enforced.
    Return ``True`` if *obj* is a :ref:`coroutine object <coroutine>`.
 
    This method is different from :func:`inspect.iscoroutine` because
-   it returns ``True`` for generator-based coroutines decorated with
-   :func:`@coroutine <coroutine>`.
+   it returns ``True`` for generator-based coroutines.
 
 .. function:: iscoroutinefunction(func)
 
