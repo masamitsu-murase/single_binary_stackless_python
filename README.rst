@@ -9,6 +9,18 @@ This is Python version 3.7.0+
    :alt: CPython build status on Appveyor
    :target: https://ci.appveyor.com/project/python/cpython/branch/master
 
+.. image:: https://dev.azure.com/python/cpython/_apis/build/status/Linux-Buildbot?branchName=3.7&label=Linux
+   :alt: CPython build status on VSTS (Linux)
+   :target: https://dev.azure.com/python/cpython/_build/latest?definitionId=6&branchName=3.7
+
+.. image:: https://dev.azure.com/python/cpython/_apis/build/status/macOS-Buildbot?branchName=3.7&label=macOS
+   :alt: CPython build status on VSTS (macOS)
+   :target: https://dev.azure.com/python/cpython/_build/latest?definitionId=5&branchName=3.7
+
+.. image:: https://dev.azure.com/python/cpython/_apis/build/status/Windows-Buildbot?branchName=3.7&label=Windows
+   :alt: CPython build status on VSTS (Windows)
+   :target: https://dev.azure.com/python/cpython/_build/latest?definitionId=4&branchName=3.7
+
 .. image:: https://codecov.io/gh/python/cpython/branch/master/graph/badge.svg
    :alt: CPython code coverage on Codecov
    :target: https://codecov.io/gh/python/cpython
@@ -188,6 +200,8 @@ If the failure persists and appears to be a problem with Python rather than
 your environment, you can `file a bug report <https://bugs.python.org>`_ and
 include relevant output from that command to show the issue.
 
+See `Running & Writing Tests <https://devguide.python.org/runtests/>`_
+for more on running tests.
 
 Installing multiple versions
 ----------------------------

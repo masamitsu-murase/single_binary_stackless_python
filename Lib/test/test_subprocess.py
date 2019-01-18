@@ -2228,15 +2228,9 @@ class POSIXProcessTestCase(BaseTestCase):
             env = os.environ.copy()
             env[key] = value
             # Use C locale to get ASCII for the locale encoding to force
-            # surrogate-escaping of \xFF in the child process; otherwise it can
-            # be decoded as-is if the default locale is latin-1.
+            # surrogate-escaping of \xFF in the child process
             env['LC_ALL'] = 'C'
-            if sys.platform.startswith("aix"):
-                # On AIX, the C locale uses the Latin1 encoding
-                decoded_value = encoded_value.decode("latin1", "surrogateescape")
-            else:
-                # On other UNIXes, the C locale uses the ASCII encoding
-                decoded_value = value
+            decoded_value = value
             stdout = subprocess.check_output(
                 [sys.executable, "-c", script],
                 env=env)
@@ -2534,6 +2528,36 @@ class POSIXProcessTestCase(BaseTestCase):
         # inheritable flag must not be changed in the parent process
         self.assertEqual(os.get_inheritable(inheritable), True)
         self.assertEqual(os.get_inheritable(non_inheritable), False)
+
+
+    # bpo-32270: Ensure that descriptors specified in pass_fds
+    # are inherited even if they are used in redirections.
+    # Contributed by @izbyshev.
+    def test_pass_fds_redirected(self):
+        """Regression test for https://bugs.python.org/issue32270."""
+        fd_status = support.findfile("fd_status.py", subdir="subprocessdata")
+        pass_fds = []
+        for _ in range(2):
+            fd = os.open(os.devnull, os.O_RDWR)
+            self.addCleanup(os.close, fd)
+            pass_fds.append(fd)
+
+        stdout_r, stdout_w = os.pipe()
+        self.addCleanup(os.close, stdout_r)
+        self.addCleanup(os.close, stdout_w)
+        pass_fds.insert(1, stdout_w)
+
+        with subprocess.Popen([sys.executable, fd_status],
+                              stdin=pass_fds[0],
+                              stdout=pass_fds[1],
+                              stderr=pass_fds[2],
+                              close_fds=True,
+                              pass_fds=pass_fds):
+            output = os.read(stdout_r, 1024)
+        fds = {int(num) for num in output.split(b',')}
+
+        self.assertEqual(fds, {0, 1, 2} | frozenset(pass_fds), f"output={output!a}")
+
 
     def test_stdout_stdin_are_single_inout_fd(self):
         with io.open(os.devnull, "r+") as inout:
