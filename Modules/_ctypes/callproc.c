@@ -452,6 +452,12 @@ PyCArg_dealloc(PyCArgObject *self)
     PyObject_Del(self);
 }
 
+static int
+is_literal_char(unsigned char c)
+{
+    return c < 128 && _PyUnicode_IsPrintable(c) && c != '\\' && c != '\'';
+}
+
 static PyObject *
 PyCArg_repr(PyCArgObject *self)
 {
@@ -484,7 +490,7 @@ PyCArg_repr(PyCArgObject *self)
 #ifdef MS_WIN32
             "<cparam '%c' (%I64d)>",
 #else
-            "<cparam '%c' (%qd)>",
+            "<cparam '%c' (%lld)>",
 #endif
             self->tag, self->value.q);
         break;
@@ -498,8 +504,14 @@ PyCArg_repr(PyCArgObject *self)
         break;
 
     case 'c':
-        sprintf(buffer, "<cparam '%c' (%c)>",
-            self->tag, self->value.c);
+        if (is_literal_char((unsigned char)self->value.c)) {
+            sprintf(buffer, "<cparam '%c' ('%c')>",
+                self->tag, self->value.c);
+        }
+        else {
+            sprintf(buffer, "<cparam '%c' ('\\x%02x')>",
+                self->tag, (unsigned char)self->value.c);
+        }
         break;
 
 /* Hm, are these 'z' and 'Z' codes useful at all?
@@ -514,8 +526,14 @@ PyCArg_repr(PyCArgObject *self)
         break;
 
     default:
-        sprintf(buffer, "<cparam '%c' at %p>",
-            self->tag, self);
+        if (is_literal_char((unsigned char)self->tag)) {
+            sprintf(buffer, "<cparam '%c' at %p>",
+                (unsigned char)self->tag, self);
+        }
+        else {
+            sprintf(buffer, "<cparam 0x%02x at %p>",
+                (unsigned char)self->tag, self);
+        }
         break;
     }
     return PyUnicode_FromString(buffer);
