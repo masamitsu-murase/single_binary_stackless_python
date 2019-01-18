@@ -11,6 +11,7 @@ except ImportError:
 
 import asyncio
 from asyncio import log
+from asyncio import protocols
 from asyncio import sslproto
 from asyncio import tasks
 from test.test_asyncio import utils as test_utils
@@ -185,28 +186,28 @@ class BaseStartTLS(func_tests.FunctionalTestCaseMixin):
 
         for usemv in [False, True]:
             proto = Proto(1, usemv)
-            sslproto._feed_data_to_bufferred_proto(proto, b'12345')
+            protocols._feed_data_to_buffered_proto(proto, b'12345')
             self.assertEqual(proto.data, b'12345')
 
             proto = Proto(2, usemv)
-            sslproto._feed_data_to_bufferred_proto(proto, b'12345')
+            protocols._feed_data_to_buffered_proto(proto, b'12345')
             self.assertEqual(proto.data, b'12345')
 
             proto = Proto(2, usemv)
-            sslproto._feed_data_to_bufferred_proto(proto, b'1234')
+            protocols._feed_data_to_buffered_proto(proto, b'1234')
             self.assertEqual(proto.data, b'1234')
 
             proto = Proto(4, usemv)
-            sslproto._feed_data_to_bufferred_proto(proto, b'1234')
+            protocols._feed_data_to_buffered_proto(proto, b'1234')
             self.assertEqual(proto.data, b'1234')
 
             proto = Proto(100, usemv)
-            sslproto._feed_data_to_bufferred_proto(proto, b'12345')
+            protocols._feed_data_to_buffered_proto(proto, b'12345')
             self.assertEqual(proto.data, b'12345')
 
             proto = Proto(0, usemv)
             with self.assertRaisesRegex(RuntimeError, 'empty buffer'):
-                sslproto._feed_data_to_bufferred_proto(proto, b'12345')
+                protocols._feed_data_to_buffered_proto(proto, b'12345')
 
     def test_start_tls_client_reg_proto_1(self):
         HELLO_MSG = b'1' * self.PAYLOAD_SIZE
@@ -600,6 +601,8 @@ class BaseStartTLS(func_tests.FunctionalTestCaseMixin):
                     server_side=True)
             except ssl.SSLError:
                 pass
+            except OSError:
+                pass
             finally:
                 sock.close()
 
@@ -636,6 +639,7 @@ class BaseStartTLS(func_tests.FunctionalTestCaseMixin):
             except ssl.SSLError:
                 pass
             finally:
+                orig_sock.close()
                 sock.close()
 
         async def client(addr):
@@ -649,6 +653,8 @@ class BaseStartTLS(func_tests.FunctionalTestCaseMixin):
             writer.write(b'B')
             with self.assertRaises(ssl.SSLError):
                 await reader.readline()
+
+            writer.close()
             return 'OK'
 
         with self.tcp_server(server,
