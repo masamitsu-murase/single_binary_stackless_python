@@ -183,6 +183,17 @@ PyAPI_FUNC(int) _Py_GetLocaleconvNumeric(
 
 #endif   /* Py_LIMITED_API */
 
+#ifdef Py_BUILD_CORE
+PyAPI_FUNC(int) _Py_GetForceASCII(void);
+
+/* Reset "force ASCII" mode (if it was initialized).
+
+   This function should be called when Python changes the LC_CTYPE locale,
+   so the "force ASCII" mode can be detected again on the new locale
+   encoding. */
+PyAPI_FUNC(void) _Py_ResetForceASCII(void);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
