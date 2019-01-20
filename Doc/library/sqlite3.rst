@@ -229,8 +229,8 @@ Module functions and constants
    Registers a callable to convert a bytestring from the database into a custom
    Python type. The callable will be invoked for all database values that are of
    the type *typename*. Confer the parameter *detect_types* of the :func:`connect`
-   function for how the type detection works. Note that the case of *typename* and
-   the name of the type in your query must match!
+   function for how the type detection works. Note that *typename* and the name of
+   the type in your query are matched in case-insensitive manner.
 
 
 .. function:: register_adapter(type, callable)
@@ -763,6 +763,20 @@ Exceptions
    Exception raised for programming errors, e.g. table not found or already
    exists, syntax error in the SQL statement, wrong number of parameters
    specified, etc.  It is a subclass of :exc:`DatabaseError`.
+
+.. exception:: OperationalError
+
+   Exception raised for errors that are related to the database's operation
+   and not necessarily under the control of the programmer, e.g. an unexpected
+   disconnect occurs, the data source name is not found, a transaction could
+   not be processed, etc.  It is a subclass of :exc:`DatabaseError`.
+
+.. exception:: NotSupportedError
+
+   Exception raised in case a method or database API was used which is not
+   supported by the database, e.g. calling the :meth:`~Connection.rollback`
+   method on a connection that does not support transaction or has
+   transactions turned off.  It is a subclass of :exc:`DatabaseError`.
 
 
 .. _sqlite3-types:
