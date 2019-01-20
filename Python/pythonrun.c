@@ -1352,7 +1352,7 @@ err_input(perrdetail *err)
     errtype = PyExc_SyntaxError;
     switch (err->error) {
     case E_ERROR:
-        return;
+        goto cleanup;
     case E_SYNTAX:
         errtype = PyExc_IndentationError;
         if (err->expected == INDENT)
@@ -1361,6 +1361,10 @@ err_input(perrdetail *err)
             msg = "unexpected indent";
         else if (err->token == DEDENT)
             msg = "unexpected unindent";
+        else if (err->expected == NOTEQUAL) {
+            errtype = PyExc_SyntaxError;
+            msg = "with Barry as BDFL, use '<>' instead of '!='";
+        }
         else {
             errtype = PyExc_SyntaxError;
             msg = "invalid syntax";
