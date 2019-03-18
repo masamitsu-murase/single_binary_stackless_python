@@ -243,7 +243,6 @@ class BasicTest(BaseTest):
             self.assertIn('include-system-site-packages = %s\n' % s, data)
 
     @unittest.skipUnless(can_symlink(), 'Needs symlinks')
-    @unittest.skipIf(os.name == 'nt', 'Symlinks are never used on Windows')
     def test_symlinking(self):
         """
         Test symlinking works as expected
@@ -305,6 +304,19 @@ class BasicTest(BaseTest):
             encoding='oem',
         )
         self.assertEqual(out.strip(), '0')
+
+    def test_multiprocessing(self):
+        """
+        Test that the multiprocessing is able to spawn.
+        """
+        rmtree(self.env_dir)
+        self.run_with_capture(venv.create, self.env_dir)
+        envpy = os.path.join(os.path.realpath(self.env_dir),
+                             self.bindir, self.exe)
+        out, err = check_output([envpy, '-c',
+            'from multiprocessing import Pool; ' +
+            'print(Pool(1).apply_async("Python".lower).get(3))'])
+        self.assertEqual(out.strip(), "python".encode())
 
 @skipInVenv
 class EnsurePipTest(BaseTest):
