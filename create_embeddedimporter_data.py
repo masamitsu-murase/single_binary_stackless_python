@@ -21,6 +21,7 @@ def get_file_data():
             continue
 
         if filename.endswith(".py"):
+            # Remove comments
             with open(filename, "rb") as file:
                 comments_tuple = tuple(x for x in tokenize.tokenize(file.readline) if x.type == tokenize.COMMENT)
             data = []
