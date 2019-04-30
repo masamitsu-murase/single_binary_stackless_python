@@ -30,7 +30,10 @@ def get_file_data():
                 comment = next(comments_iter, None)
                 for lineno, line in enumerate(file, 1):
                     if comment and comment.start[0] == lineno and comment.end[0] == lineno:
-                        data.append(line[:comment.start[1]] + line[comment.end[1]:])
+                        if line[comment.end[1]:] == "\n":
+                            data.append(line[:comment.start[1]].rstrip() + line[comment.end[1]:])
+                        else:
+                            data.append(line[:comment.start[1]] + line[comment.end[1]:])
                         comment = next(comments_iter, None)
                     else:
                         data.append(line)
