@@ -2,6 +2,7 @@
 import glob
 import os
 import os.path
+import tokenize
 import zlib
 
 
@@ -20,8 +21,23 @@ def get_file_data():
             continue
 
         if filename.endswith(".py"):
+            # Remove comments
+            with open(filename, "rb") as file:
+                comments_tuple = tuple(x for x in tokenize.tokenize(file.readline) if x.type == tokenize.COMMENT)
+            data = []
+            comments_iter = iter(comments_tuple)
             with open(filename, "r", encoding="utf-8") as file:
-                bindata = file.read().encode("utf-8")
+                comment = next(comments_iter, None)
+                for lineno, line in enumerate(file, 1):
+                    if comment and comment.start[0] == lineno and comment.end[0] == lineno:
+                        if line[comment.end[1]:] == "\n":
+                            data.append(line[:comment.start[1]].rstrip() + line[comment.end[1]:])
+                        else:
+                            data.append(line[:comment.start[1]] + line[comment.end[1]:])
+                        comment = next(comments_iter, None)
+                    else:
+                        data.append(line)
+            bindata = "".join(data).encode("utf-8")
         else:
             with open(filename, "rb") as file:
                 bindata = file.read()

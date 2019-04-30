@@ -83,6 +83,7 @@ class TestExepy(unittest.TestCase):
             self.create_single_test_file(filename)
             cmd = [sys.executable, "-m", "exepy", "create", exename, filename]
             subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
+            shutil.copy(exename, "..")  # For potential bug in azure-pipelines
             os.remove(filename)
             output = subprocess.check_output(exename, universal_newlines=True)
             self.assertEqual(output, "1\n")
@@ -103,6 +104,8 @@ class TestExepy(unittest.TestCase):
         finally:
             os.chdir(pwd)
             shutil.rmtree(self.TEMPDIR)
+            if os.path.isfile(exename):
+                os.remove(exename)
 
     def test_nocommand(self):
         os.mkdir(self.TEMPDIR)
@@ -114,6 +117,7 @@ class TestExepy(unittest.TestCase):
             self.create_single_test_file(filename)
             cmd = [sys.executable, "-m", "exepy", "create", "--nocommand", exename, filename]
             subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
+            shutil.copy(exename, "..")  # For potential bug in azure-pipelines
             os.remove(filename)
 
             cmd = [sys.executable, "-m", "exepy", "extract", exename]
@@ -125,6 +129,8 @@ class TestExepy(unittest.TestCase):
         finally:
             os.chdir(pwd)
             shutil.rmtree(self.TEMPDIR)
+            if os.path.isfile(exename):
+                os.remove(exename)
 
     def test_2_files(self):
         os.mkdir(self.TEMPDIR)
@@ -136,6 +142,7 @@ class TestExepy(unittest.TestCase):
             self.create_double_test_file(filename)
             cmd = [sys.executable, "-m", "exepy", "c", exename, filename, self.SECOND_FILE_NAME]
             subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
+            shutil.copy(exename, "..")  # For potential bug in azure-pipelines
             for file in glob.iglob("*.py"):
                 os.remove(file)
             output = subprocess.check_output(exename, universal_newlines=True)
@@ -152,6 +159,8 @@ class TestExepy(unittest.TestCase):
         finally:
             os.chdir(pwd)
             shutil.rmtree(self.TEMPDIR)
+            if os.path.isfile(exename):
+                os.remove(exename)
 
     def test_resource(self):
         os.mkdir(self.TEMPDIR)
@@ -163,6 +172,7 @@ class TestExepy(unittest.TestCase):
             self.create_resource_test_file(filename)
             cmd = [sys.executable, "-m", "exepy", "create", exename, filename, "image.bin", "dir"]
             subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
+            shutil.copy(exename, "..")  # For potential bug in azure-pipelines
             os.remove(filename)
             os.remove("image.bin")
             shutil.rmtree("dir")
@@ -171,6 +181,8 @@ class TestExepy(unittest.TestCase):
         finally:
             os.chdir(pwd)
             shutil.rmtree(self.TEMPDIR)
+            if os.path.isfile(exename):
+                os.remove(exename)
 
     def test_argument(self):
         os.mkdir(self.TEMPDIR)
@@ -182,12 +194,15 @@ class TestExepy(unittest.TestCase):
             self.create_single_test_file(filename)
             cmd = [sys.executable, "-m", "exepy", "create", exename, filename]
             subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
+            shutil.copy(exename, "..")  # For potential bug in azure-pipelines
             os.remove(filename)
             output = subprocess.check_output([exename, "arg1", "arg2"], universal_newlines=True)
             self.assertEqual(output, "3\n")
         finally:
             os.chdir(pwd)
             shutil.rmtree(self.TEMPDIR)
+            if os.path.isfile(exename):
+                os.remove(exename)
 
 
 if __name__ == "__main__":
