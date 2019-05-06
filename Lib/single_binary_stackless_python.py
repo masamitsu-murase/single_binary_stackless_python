@@ -90,6 +90,11 @@ __included_module_info = {
         "license": "BSD License",
         "module_name": "click"
     },
+    "diff_match_patch": {
+        "author": "Google Inc.",
+        "license": "Apache License 2.0",
+        "module_name": "diff_match_patch"
+    },
 
     "exepy": {
         "author": "Masamitsu MURASE",
