@@ -23,7 +23,7 @@ tclstub86.lib: tcl_build
 	copy /Y $(tclReleaseDir)\tclstub86.lib .
 
 tcl_build:
-	$(PYTHON_EXE) $(ProjectDir)\create_tcl_embeddedfilesystem_data.py $(tcltkBaseDir) $(tclDir)\generic\tclEmbeddedFilesystemData.c
+	$(PYTHON_EXE) $(ProjectDir)\my_tools\create_tcl_embeddedfilesystem_data.py $(tcltkBaseDir) $(tclDir)\generic\tclEmbeddedFilesystemData.c
 	cd $(tclWinDir) && $(MAKE) -f makefile.vc core OPTS=static
 
 clean:

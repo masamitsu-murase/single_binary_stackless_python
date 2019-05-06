@@ -1,0 +1,7 @@
+- name: "Google: diff-match-patch"
+  github_user: "google"
+  github_repository: "diff-match-patch"
+  sha: "b750d263fa1f4a4c37c97196ff2bc05a0aa2006b"
+  output_dir: "diff_match_patch"
+  exclude_dirs:
+    - "tests"

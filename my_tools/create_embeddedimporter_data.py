@@ -89,6 +89,7 @@ def output_list(file_list):
 pwd = os.getcwd()
 try:
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    os.chdir("..")
 
     os.chdir("Lib")
     file_list = get_file_data()
