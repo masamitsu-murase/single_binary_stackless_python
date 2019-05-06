@@ -23,10 +23,10 @@ def main():
             shutil.rmtree(output_dir)
         if "tag" in lib:
             github_downloader.download_sha_with_filter(lib["github_user"], lib["github_repository"], lib["tag"],
-                                                       output_dir, "python3")
+                                                       output_dir, lib["filter_dir"])
         else:
             github_downloader.download_sha_with_filter(lib["github_user"], lib["github_repository"], lib["sha"],
-                                                       output_dir, "python3")
+                                                       output_dir, lib["filter_dir"])
         if "exclude_dirs" in lib:
             for exclude_dir in lib["exclude_dirs"]:
                 if os.path.exists(os.path.join(output_dir, exclude_dir)):
