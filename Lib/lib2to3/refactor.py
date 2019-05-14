@@ -26,13 +26,70 @@ from .fixer_util import find_root
 from . import pytree, pygram
 from . import btm_matcher as bm
 
+_FIX_FILES = (
+    "__init__.py",
+    "fix_apply.py",
+    "fix_asserts.py",
+    "fix_basestring.py",
+    "fix_buffer.py",
+    "fix_dict.py",
+    "fix_except.py",
+    "fix_exec.py",
+    "fix_execfile.py",
+    "fix_exitfunc.py",
+    "fix_filter.py",
+    "fix_funcattrs.py",
+    "fix_future.py",
+    "fix_getcwdu.py",
+    "fix_has_key.py",
+    "fix_idioms.py",
+    "fix_import.py",
+    "fix_imports.py",
+    "fix_imports2.py",
+    "fix_input.py",
+    "fix_intern.py",
+    "fix_isinstance.py",
+    "fix_itertools.py",
+    "fix_itertools_imports.py",
+    "fix_long.py",
+    "fix_map.py",
+    "fix_metaclass.py",
+    "fix_methodattrs.py",
+    "fix_ne.py",
+    "fix_next.py",
+    "fix_nonzero.py",
+    "fix_numliterals.py",
+    "fix_operator.py",
+    "fix_paren.py",
+    "fix_print.py",
+    "fix_raise.py",
+    "fix_raw_input.py",
+    "fix_reduce.py",
+    "fix_reload.py",
+    "fix_renames.py",
+    "fix_repr.py",
+    "fix_set_literal.py",
+    "fix_standarderror.py",
+    "fix_sys_exc.py",
+    "fix_throw.py",
+    "fix_tuple_params.py",
+    "fix_types.py",
+    "fix_unicode.py",
+    "fix_urllib.py",
+    "fix_ws_comma.py",
+    "fix_xrange.py",
+    "fix_xreadlines.py",
+    "fix_zip.py"
+)
+
 
 def get_all_fix_names(fixer_pkg, remove_prefix=True):
     """Return a sorted list of all available fix names in the given package."""
     pkg = __import__(fixer_pkg, [], [], ["*"])
     fixer_dir = os.path.dirname(pkg.__file__)
     fix_names = []
-    for name in sorted(os.listdir(fixer_dir)):
+    # for name in sorted(os.listdir(fixer_dir)):
+    for name in sorted(_FIX_FILES):
         if name.startswith("fix_") and name.endswith(".py"):
             if remove_prefix:
                 name = name[4:]
