@@ -10,6 +10,7 @@ def get_file_data():
     file_list = []
 
     all_filenames = [i.replace(os.path.sep, "/") for i in glob.glob("**/*.py", recursive=True)] + \
+        [i.replace(os.path.sep, "/") for i in glob.glob("lib2to3/*.pickle")] + \
         ["certifi/cacert.pem"] + \
         [i.replace(os.path.sep, "/") for i in glob.glob("werkzeug/debug/shared/*.*")]
     for filename in sorted(all_filenames):
