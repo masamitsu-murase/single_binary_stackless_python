@@ -7,7 +7,8 @@ python_libraries:
     filter_dir: "comtypes"
     exclude_dirs:
       - "test"
-    post_process: "2to3"
+    post_processes:
+      - "2to3"
   - name: "pycodestyle"
     github_user: "PyCQA"
     github_repository: "pycodestyle"

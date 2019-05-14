@@ -4,7 +4,7 @@ import os
 directory = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(directory)
 
-# import lib2to3.main
+import lib2to3.main
 import shutil
 import yaml
 import github_downloader
@@ -43,8 +43,8 @@ def update():
             for post_process in lib["post_processes"]:
                 if post_process == "2to3":
                     print("Executing lib2to3...")
-                    # if lib2to3.main.main("lib2to3.fixes", ["-w", "-n", output_dir]) != 0:
-                    #     raise RuntimeError("lib2to3 failed.")
+                    if lib2to3.main.main("lib2to3.fixes", ["-w", "-n", output_dir]) != 0:
+                        raise RuntimeError("lib2to3 failed.")
                 elif post_process == "patch":
                     pass
 
