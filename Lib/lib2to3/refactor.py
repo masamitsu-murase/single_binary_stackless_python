@@ -27,12 +27,68 @@ from .fixer_util import find_root
 from . import pytree, pygram
 from . import btm_matcher as bm
 
+_FIX_FILES = (
+    "__init__",
+    "fix_apply",
+    "fix_asserts",
+    "fix_basestring",
+    "fix_buffer",
+    "fix_dict",
+    "fix_except",
+    "fix_exec",
+    "fix_execfile",
+    "fix_exitfunc",
+    "fix_filter",
+    "fix_funcattrs",
+    "fix_future",
+    "fix_getcwdu",
+    "fix_has_key",
+    "fix_idioms",
+    "fix_import",
+    "fix_imports",
+    "fix_imports2",
+    "fix_input",
+    "fix_intern",
+    "fix_isinstance",
+    "fix_itertools",
+    "fix_itertools_imports",
+    "fix_long",
+    "fix_map",
+    "fix_metaclass",
+    "fix_methodattrs",
+    "fix_ne",
+    "fix_next",
+    "fix_nonzero",
+    "fix_numliterals",
+    "fix_operator",
+    "fix_paren",
+    "fix_print",
+    "fix_raise",
+    "fix_raw_input",
+    "fix_reduce",
+    "fix_reload",
+    "fix_renames",
+    "fix_repr",
+    "fix_set_literal",
+    "fix_standarderror",
+    "fix_sys_exc",
+    "fix_throw",
+    "fix_tuple_params",
+    "fix_types",
+    "fix_unicode",
+    "fix_urllib",
+    "fix_ws_comma",
+    "fix_xrange",
+    "fix_xreadlines",
+    "fix_zip"
+)
+
 
 def get_all_fix_names(fixer_pkg, remove_prefix=True):
     """Return a sorted list of all available fix names in the given package."""
     pkg = __import__(fixer_pkg, [], [], ["*"])
     fix_names = []
-    for finder, name, ispkg in pkgutil.iter_modules(pkg.__path__):
+    for name in sorted(_FIX_FILES):
         if name.startswith("fix_"):
             if remove_prefix:
                 name = name[4:]
