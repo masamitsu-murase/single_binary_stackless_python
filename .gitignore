@@ -25,7 +25,7 @@ Doc/env/
 Doc/.env/
 Include/pydtrace_probes.h
 Lib/distutils/command/*.pdb
-Lib/lib2to3/*.pickle
+# Lib/lib2to3/*.pickle
 Lib/test/data/*
 #Makefile
 Makefile.pre
