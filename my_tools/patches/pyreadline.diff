@@ -1,0 +1,26 @@
+diff --git b/lineeditor/history.py a/lineeditor/history.py
+index ab46c44..ee93329 100644
+--- b/lineeditor/history.py
++++ a/lineeditor/history.py
+@@ -79,7 +79,7 @@ class LineHistory(object):
+         if filename is None:
+             filename = self.history_filename
+         try:
+-            for line in open(filename, 'r'):
++            for line in open(filename, 'rb'):
+                 self.add_history(lineobj.ReadLineTextBuffer(ensure_unicode(line.rstrip())))
+         except IOError:
+             self.history = []
+diff --git b/modes/basemode.py a/modes/basemode.py
+index 17084ac..797f946 100644
+--- b/modes/basemode.py
++++ a/modes/basemode.py
+@@ -510,7 +510,7 @@ class BaseMode(object):
+         self.finalize()
+         
+     def ipython_paste(self,e):
+-        """Paste windows clipboard. If enable_ipython_paste_list_of_lists is 
++        r"""Paste windows clipboard. If enable_ipython_paste_list_of_lists is 
+         True then try to convert tabseparated data to repr of list of lists or 
+         repr of array.
+         If enable_ipython_paste_for_paths==True then change \\ to / and spaces to \space"""
