@@ -1,20 +1,24 @@
 
 import sys
 import os
-directory = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(directory)
+DIRECTORY = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(DIRECTORY)
 
-import lib2to3.main
 import shutil
 import yaml
 import github_downloader
+import subprocess
 
 
-LIB_DIR = os.path.normpath(os.path.join(directory, "..", "Lib"))
+LIB_DIR = os.path.normpath(os.path.join(DIRECTORY, "..", "Lib"))
+
+
+# Patch was created by the following command.
+# git diff -R --relative .
 
 
 def update():
-    with open(os.path.join(directory, "external_libraries.yaml"), "r") as file:
+    with open(os.path.join(DIRECTORY, "external_libraries.yaml"), "r") as file:
         external_libraries = yaml.load(file)
 
     for lib in external_libraries["python_libraries"]:
@@ -41,12 +45,13 @@ def update():
                     shutil.rmtree(os.path.join(output_dir, exclude_dir))
         if "post_processes" in lib:
             for post_process in lib["post_processes"]:
-                if post_process == "2to3":
-                    print("Executing lib2to3...")
-                    if lib2to3.main.main("lib2to3.fixes", ["-w", "-n", output_dir]) != 0:
-                        raise RuntimeError("lib2to3 failed.")
-                elif post_process == "patch":
-                    pass
+                if post_process["type"] == "2to3":
+                    print("  Executing lib2to3...")
+                    subprocess.check_call([sys.executable, "-m", "lib2to3", "-w", "-n", output_dir], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                elif post_process["type"] == "patch":
+                    print("  Applying patch '%s'..." % post_process['filename'])
+                    patch_path = os.path.normpath(os.path.join(DIRECTORY, "patches", post_process["filename"]))
+                    subprocess.check_call(["git", "--git-dir=", "apply", "--whitespace=nowarn", patch_path], cwd=output_dir)
 
 
 if __name__ == "__main__":

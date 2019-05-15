@@ -8,7 +8,9 @@ python_libraries:
     exclude_dirs:
       - "test"
     post_processes:
-      - "2to3"
+      - type: "2to3"
+      - type: "patch"
+        filename: "comtypes.diff"
   - name: "pycodestyle"
     github_user: "PyCQA"
     github_repository: "pycodestyle"
@@ -36,6 +38,9 @@ python_libraries:
       # - "test"
       - "examples"
       - "code layout.txt"
+    post_processes:
+      - type: "patch"
+        filename: "pyreadline.diff"
   - name: "PyYAML"
     github_user: "yaml"
     github_repository: "pyyaml"
@@ -48,6 +53,9 @@ python_libraries:
     tag: "2018.08.24"
     output_dir: "certifi"
     filter_dir: "certifi"
+    post_processes:
+      - type: "patch"
+        filename: "certifi.diff"
   - name: "IDNA"
     github_user: "kjd"
     github_repository: "idna"
@@ -60,12 +68,18 @@ python_libraries:
     tag: "v2.20.0"
     output_dir: "requests"
     filter_dir: "requests"
+    post_processes:
+      - type: "patch"
+        filename: "requests.diff"
   - name: "urllib3"
     github_user: "urllib3"
     github_repository: "urllib3"
     tag: "1.23"
     output_dir: "urllib3"
     filter_dir: "urllib3"
+    post_processes:
+      - type: "patch"
+        filename: "urllib3.diff"
   - name: "cchardet"
     github_user: "PyYoshi"
     github_repository: "cChardet"
@@ -74,6 +88,9 @@ python_libraries:
     filter_dir: "src/cchardet"
     exclude_dirs:
       - "_cchardet.pyx"
+    post_processes:
+      - type: "patch"
+        filename: "cchardet.diff"
   - name: "six"
     github_user: "benjaminp"
     github_repository: "six"
@@ -101,12 +118,18 @@ python_libraries:
     tag: "1.0.2"
     output_dir: "flask"
     filter_dir: "flask"
+    post_processes:
+      - type: "patch"
+        filename: "flask.diff"
   - name: "Werkzeug"
     github_user: "pallets"
     github_repository: "werkzeug"
     tag: "0.13"
     output_dir: "werkzeug"
     filter_dir: "werkzeug"
+    post_processes:
+      - type: "patch"
+        filename: "werkzeug.diff"
   - name: "itsdangerous"
     github_user: "pallets"
     github_repository: "itsdangerous"
