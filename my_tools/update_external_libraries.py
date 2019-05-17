@@ -27,7 +27,7 @@ def process_github_library(lib, base_dir):
         elif os.path.isdir(output_dir):
             shutil.rmtree(output_dir)
     if "tag" in lib:
-        github_downloader.download_sha_with_filter(lib["github_user"], lib["github_repository"], lib["tag"],
+        github_downloader.download_tag_with_filter(lib["github_user"], lib["github_repository"], lib["tag"],
                                                    output_dir, lib["filter_dir"],
                                                    lib.get("skip_depth"))
     else:
