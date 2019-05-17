@@ -1,0 +1,26 @@
+diff --git b/_yaml.pxd a/_yaml.pxd
+index 7937c9d..d556de9 100644
+--- b/_yaml.pxd
++++ a/_yaml.pxd
+@@ -9,7 +9,7 @@ cdef extern from "_yaml.h":
+     char *PyString_AS_STRING(object o)
+     int PyString_GET_SIZE(object o)
+     object PyString_FromStringAndSize(char *v, int l)
+-    object PyUnicode_FromString(char *u)
++    object PyUnicode_FromString(const char *u)
+     object PyUnicode_DecodeUTF8(char *u, int s, char *e)
+     object PyUnicode_AsUTF8String(object o)
+     int PY_MAJOR_VERSION
+diff --git b/_yaml.pyx a/_yaml.pyx
+index 83eca65..ffba568 100644
+--- b/_yaml.pyx
++++ a/_yaml.pyx
+@@ -2,7 +2,7 @@
+ import yaml
+ 
+ def get_version_string():
+-    cdef char *value
++    cdef const char *value
+     value = yaml_get_version_string()
+     if PY_MAJOR_VERSION < 3:
+         return value
