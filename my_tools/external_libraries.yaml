@@ -86,11 +86,13 @@ python_libraries:
     tag: "2.0.0"
     output_dir: "cchardet"
     filter_dir: "src/cchardet"
-    exclude_dirs:
-      - "_cchardet.pyx"
     post_processes:
       - type: "patch"
         filename: "cchardet.diff"
+      - type: "python"
+        command: ["import sys; sys.path.insert(0, '../../my_tools'); from Cython.Compiler.Main import main; main(command_line = 1)", "-3", "_cchardet.pyx"]
+      - type: "python"
+        command: ["import shutil; shutil.copyfile('_cchardet.pyx', '../../Modules/_cchardet/_cchardet.pyx'); shutil.copyfile('_cchardet.c', '../../Modules/_cchardet/_cchardet.c');"]
   - name: "six"
     github_user: "benjaminp"
     github_repository: "six"
@@ -157,10 +159,8 @@ c_libraries:
     tag: "3.13"
     output_dir: ""
     filter_dir: "ext"
-  - name: "cChardet"
-    github_user: "PyYoshi"
-    github_repository: "cChardet"
-    tag: "2.0.0"
-    output_dir: "_cchardet"
-    filter_dir: "src/cchardet/_cchardet.pyx"
-    skip_depth: 2
+    post_processes:
+      - type: "patch"
+        filename: "_yaml.diff"
+      - type: "python"
+        command: ["import sys; sys.path.insert(0, '../my_tools'); from Cython.Compiler.Main import main; main(command_line = 1)", "-3", "_yaml.pyx"]

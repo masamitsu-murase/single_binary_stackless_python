@@ -8,7 +8,7 @@
     #error Cython requires Python 2.6+ or Python 3.3+.
 #else
 #define CYTHON_ABI "0_28_3"
-#define CYTHON_FUTURE_DIVISION 0
+#define CYTHON_FUTURE_DIVISION 1
 #include <stddef.h>
 #ifndef offsetof
   #define offsetof(type, member) ( (size_t) & ((type*)0) -> member )
@@ -1026,7 +1026,7 @@ static const char __pyx_k_cline_in_traceback[] = "cline_in_traceback";
 static const char __pyx_k_detected_confidence[] = "detected_confidence";
 static const char __pyx_k_detect_with_confidence[] = "detect_with_confidence";
 static const char __pyx_k_self__ud_cannot_be_converted_to[] = "self._ud cannot be converted to a Python object for pickling";
-static PyObject *__pyx_kp_s_Handle_data_error;
+static PyObject *__pyx_kp_u_Handle_data_error;
 static PyObject *__pyx_n_s_TypeError;
 static PyObject *__pyx_kp_b__3;
 static PyObject *__pyx_n_s_cchardet__cchardet;
@@ -2277,7 +2277,7 @@ static struct PyModuleDef __pyx_moduledef = {
 #endif
 
 static __Pyx_StringTabEntry __pyx_string_tab[] = {
-  {&__pyx_kp_s_Handle_data_error, __pyx_k_Handle_data_error, sizeof(__pyx_k_Handle_data_error), 0, 0, 1, 0},
+  {&__pyx_kp_u_Handle_data_error, __pyx_k_Handle_data_error, sizeof(__pyx_k_Handle_data_error), 0, 1, 0, 0},
   {&__pyx_n_s_TypeError, __pyx_k_TypeError, sizeof(__pyx_k_TypeError), 0, 0, 1, 1},
   {&__pyx_kp_b__3, __pyx_k__3, sizeof(__pyx_k__3), 0, 0, 0, 0},
   {&__pyx_n_s_cchardet__cchardet, __pyx_k_cchardet__cchardet, sizeof(__pyx_k_cchardet__cchardet), 0, 0, 1, 1},
@@ -2320,7 +2320,7 @@ static int __Pyx_InitCachedConstants(void) {
  * 
  *     uchardet_data_end(ud)
  */
-  __pyx_tuple_ = PyTuple_Pack(1, __pyx_kp_s_Handle_data_error); if (unlikely(!__pyx_tuple_)) __PYX_ERR(1, 22, __pyx_L1_error)
+  __pyx_tuple_ = PyTuple_Pack(1, __pyx_kp_u_Handle_data_error); if (unlikely(!__pyx_tuple_)) __PYX_ERR(1, 22, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple_);
   __Pyx_GIVEREF(__pyx_tuple_);
 
@@ -2342,7 +2342,7 @@ static int __Pyx_InitCachedConstants(void) {
  *             elif result == 0:
  *                 self._done = 1
  */
-  __pyx_tuple__4 = PyTuple_Pack(1, __pyx_kp_s_Handle_data_error); if (unlikely(!__pyx_tuple__4)) __PYX_ERR(1, 71, __pyx_L1_error)
+  __pyx_tuple__4 = PyTuple_Pack(1, __pyx_kp_u_Handle_data_error); if (unlikely(!__pyx_tuple__4)) __PYX_ERR(1, 71, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__4);
   __Pyx_GIVEREF(__pyx_tuple__4);
 
