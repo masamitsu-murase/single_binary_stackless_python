@@ -12,6 +12,6 @@ LFLAGS = /NOLOGO /LTCG
 TARGET = _cchardet.lib
 
 
-OBJS = $(ProjectDir)\Modules\_cchardet\_cchardet.obj
+OBJS = $(ProjectDir)\Modules\_cchardet.obj
 
 !include common.mak

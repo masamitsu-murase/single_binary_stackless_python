@@ -559,8 +559,8 @@ static CYTHON_INLINE float __PYX_NAN() {
   #endif
 #endif
 
-#define __PYX_HAVE__cchardet___cchardet
-#define __PYX_HAVE_API__cchardet___cchardet
+#define __PYX_HAVE___cchardet
+#define __PYX_HAVE_API___cchardet
 /* Early includes */
 #include "uchardet.h"
 #ifdef _OPENMP
@@ -771,16 +771,16 @@ static const char *__pyx_f[] = {
 };
 
 /*--- Type declarations ---*/
-struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector;
+struct __pyx_obj_9_cchardet_UniversalDetector;
 
-/* "cchardet/_cchardet.pyx":35
+/* "_cchardet.pyx":35
  *     return None, None
  * 
  * cdef class UniversalDetector:             # <<<<<<<<<<<<<<
  *     cdef uchardet_t _ud
  *     cdef int _done
  */
-struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector {
+struct __pyx_obj_9_cchardet_UniversalDetector {
   PyObject_HEAD
   uchardet_t _ud;
   int _done;
@@ -995,13 +995,13 @@ static int __Pyx_check_binary_version(void);
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t);
 
 
-/* Module declarations from 'cchardet._cchardet' */
-static PyTypeObject *__pyx_ptype_8cchardet_9_cchardet_UniversalDetector = 0;
-#define __Pyx_MODULE_NAME "cchardet._cchardet"
-extern int __pyx_module_is_main_cchardet___cchardet;
-int __pyx_module_is_main_cchardet___cchardet = 0;
+/* Module declarations from '_cchardet' */
+static PyTypeObject *__pyx_ptype_9_cchardet_UniversalDetector = 0;
+#define __Pyx_MODULE_NAME "_cchardet"
+extern int __pyx_module_is_main__cchardet;
+int __pyx_module_is_main__cchardet = 0;
 
-/* Implementation of 'cchardet._cchardet' */
+/* Implementation of '_cchardet' */
 static PyObject *__pyx_builtin_TypeError;
 static const char __pyx_k__3[] = "";
 static const char __pyx_k_ud[] = "ud";
@@ -1012,6 +1012,7 @@ static const char __pyx_k_test[] = "__test__";
 static const char __pyx_k_length[] = "length";
 static const char __pyx_k_reduce[] = "__reduce__";
 static const char __pyx_k_result[] = "result";
+static const char __pyx_k_cchardet[] = "_cchardet";
 static const char __pyx_k_getstate[] = "__getstate__";
 static const char __pyx_k_setstate[] = "__setstate__";
 static const char __pyx_k_TypeError[] = "TypeError";
@@ -1021,7 +1022,6 @@ static const char __pyx_k_reduce_cython[] = "__reduce_cython__";
 static const char __pyx_k_setstate_cython[] = "__setstate_cython__";
 static const char __pyx_k_detected_charset[] = "detected_charset";
 static const char __pyx_k_Handle_data_error[] = "Handle data error";
-static const char __pyx_k_cchardet__cchardet[] = "cchardet._cchardet";
 static const char __pyx_k_cline_in_traceback[] = "cline_in_traceback";
 static const char __pyx_k_detected_confidence[] = "detected_confidence";
 static const char __pyx_k_detect_with_confidence[] = "detect_with_confidence";
@@ -1029,7 +1029,7 @@ static const char __pyx_k_self__ud_cannot_be_converted_to[] = "self._ud cannot b
 static PyObject *__pyx_kp_u_Handle_data_error;
 static PyObject *__pyx_n_s_TypeError;
 static PyObject *__pyx_kp_b__3;
-static PyObject *__pyx_n_s_cchardet__cchardet;
+static PyObject *__pyx_n_s_cchardet;
 static PyObject *__pyx_kp_s_cchardet_pyx;
 static PyObject *__pyx_n_s_cline_in_traceback;
 static PyObject *__pyx_n_s_detect_with_confidence;
@@ -1049,16 +1049,16 @@ static PyObject *__pyx_n_s_setstate;
 static PyObject *__pyx_n_s_setstate_cython;
 static PyObject *__pyx_n_s_test;
 static PyObject *__pyx_n_s_ud;
-static PyObject *__pyx_pf_8cchardet_9_cchardet_detect_with_confidence(CYTHON_UNUSED PyObject *__pyx_self, const char* __pyx_v_msg); /* proto */
-static int __pyx_pf_8cchardet_9_cchardet_17UniversalDetector___init__(struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_2reset(struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *__pyx_v_self, const char* __pyx_v_msg); /* proto */
-static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6close(struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4done___get__(struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6result___get__(struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_8__reduce_cython__(CYTHON_UNUSED struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_10__setstate_cython__(CYTHON_UNUSED struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *__pyx_v_self, CYTHON_UNUSED PyObject *__pyx_v___pyx_state); /* proto */
-static PyObject *__pyx_tp_new_8cchardet_9_cchardet_UniversalDetector(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/
+static PyObject *__pyx_pf_9_cchardet_detect_with_confidence(CYTHON_UNUSED PyObject *__pyx_self, const char* __pyx_v_msg); /* proto */
+static int __pyx_pf_9_cchardet_17UniversalDetector___init__(struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_2reset(struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_4feed(struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self, const char* __pyx_v_msg); /* proto */
+static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_6close(struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_4done___get__(struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_6result___get__(struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_8__reduce_cython__(CYTHON_UNUSED struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_10__setstate_cython__(CYTHON_UNUSED struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self, CYTHON_UNUSED PyObject *__pyx_v___pyx_state); /* proto */
+static PyObject *__pyx_tp_new_9_cchardet_UniversalDetector(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/
 static PyObject *__pyx_tuple_;
 static PyObject *__pyx_tuple__2;
 static PyObject *__pyx_tuple__4;
@@ -1069,7 +1069,7 @@ static PyObject *__pyx_tuple__8;
 static PyObject *__pyx_codeobj__9;
 /* Late includes */
 
-/* "cchardet/_cchardet.pyx":14
+/* "_cchardet.pyx":14
  *     cdef float uchardet_get_confidence(uchardet_t ud)
  * 
  * def detect_with_confidence(const_char_ptr msg):             # <<<<<<<<<<<<<<
@@ -1078,9 +1078,9 @@ static PyObject *__pyx_codeobj__9;
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_8cchardet_9_cchardet_1detect_with_confidence(PyObject *__pyx_self, PyObject *__pyx_arg_msg); /*proto*/
-static PyMethodDef __pyx_mdef_8cchardet_9_cchardet_1detect_with_confidence = {"detect_with_confidence", (PyCFunction)__pyx_pw_8cchardet_9_cchardet_1detect_with_confidence, METH_O, 0};
-static PyObject *__pyx_pw_8cchardet_9_cchardet_1detect_with_confidence(PyObject *__pyx_self, PyObject *__pyx_arg_msg) {
+static PyObject *__pyx_pw_9_cchardet_1detect_with_confidence(PyObject *__pyx_self, PyObject *__pyx_arg_msg); /*proto*/
+static PyMethodDef __pyx_mdef_9_cchardet_1detect_with_confidence = {"detect_with_confidence", (PyCFunction)__pyx_pw_9_cchardet_1detect_with_confidence, METH_O, 0};
+static PyObject *__pyx_pw_9_cchardet_1detect_with_confidence(PyObject *__pyx_self, PyObject *__pyx_arg_msg) {
   const char* __pyx_v_msg;
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
@@ -1090,18 +1090,18 @@ static PyObject *__pyx_pw_8cchardet_9_cchardet_1detect_with_confidence(PyObject 
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
-  __Pyx_AddTraceback("cchardet._cchardet.detect_with_confidence", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("_cchardet.detect_with_confidence", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_8cchardet_9_cchardet_detect_with_confidence(__pyx_self, ((const char*)__pyx_v_msg));
+  __pyx_r = __pyx_pf_9_cchardet_detect_with_confidence(__pyx_self, ((const char*)__pyx_v_msg));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_8cchardet_9_cchardet_detect_with_confidence(CYTHON_UNUSED PyObject *__pyx_self, const char* __pyx_v_msg) {
+static PyObject *__pyx_pf_9_cchardet_detect_with_confidence(CYTHON_UNUSED PyObject *__pyx_self, const char* __pyx_v_msg) {
   int __pyx_v_length;
   uchardet_t __pyx_v_ud;
   int __pyx_v_result;
@@ -1115,7 +1115,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_detect_with_confidence(CYTHON_UNU
   PyObject *__pyx_t_4 = NULL;
   __Pyx_RefNannySetupContext("detect_with_confidence", 0);
 
-  /* "cchardet/_cchardet.pyx":15
+  /* "_cchardet.pyx":15
  * 
  * def detect_with_confidence(const_char_ptr msg):
  *     cdef int length = len(msg)             # <<<<<<<<<<<<<<
@@ -1125,7 +1125,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_detect_with_confidence(CYTHON_UNU
   __pyx_t_1 = strlen(__pyx_v_msg); 
   __pyx_v_length = __pyx_t_1;
 
-  /* "cchardet/_cchardet.pyx":17
+  /* "_cchardet.pyx":17
  *     cdef int length = len(msg)
  * 
  *     cdef uchardet_t ud = uchardet_new()             # <<<<<<<<<<<<<<
@@ -1134,7 +1134,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_detect_with_confidence(CYTHON_UNU
  */
   __pyx_v_ud = uchardet_new();
 
-  /* "cchardet/_cchardet.pyx":19
+  /* "_cchardet.pyx":19
  *     cdef uchardet_t ud = uchardet_new()
  * 
  *     cdef int result = uchardet_handle_data(ud, msg, length)             # <<<<<<<<<<<<<<
@@ -1143,7 +1143,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_detect_with_confidence(CYTHON_UNU
  */
   __pyx_v_result = uchardet_handle_data(__pyx_v_ud, __pyx_v_msg, __pyx_v_length);
 
-  /* "cchardet/_cchardet.pyx":20
+  /* "_cchardet.pyx":20
  * 
  *     cdef int result = uchardet_handle_data(ud, msg, length)
  *     if result == -1:             # <<<<<<<<<<<<<<
@@ -1153,7 +1153,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_detect_with_confidence(CYTHON_UNU
   __pyx_t_2 = ((__pyx_v_result == -1L) != 0);
   if (unlikely(__pyx_t_2)) {
 
-    /* "cchardet/_cchardet.pyx":21
+    /* "_cchardet.pyx":21
  *     cdef int result = uchardet_handle_data(ud, msg, length)
  *     if result == -1:
  *         uchardet_delete(ud)             # <<<<<<<<<<<<<<
@@ -1162,7 +1162,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_detect_with_confidence(CYTHON_UNU
  */
     uchardet_delete(__pyx_v_ud);
 
-    /* "cchardet/_cchardet.pyx":22
+    /* "_cchardet.pyx":22
  *     if result == -1:
  *         uchardet_delete(ud)
  *         raise Exception("Handle data error")             # <<<<<<<<<<<<<<
@@ -1175,7 +1175,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_detect_with_confidence(CYTHON_UNU
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     __PYX_ERR(1, 22, __pyx_L1_error)
 
-    /* "cchardet/_cchardet.pyx":20
+    /* "_cchardet.pyx":20
  * 
  *     cdef int result = uchardet_handle_data(ud, msg, length)
  *     if result == -1:             # <<<<<<<<<<<<<<
@@ -1184,7 +1184,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_detect_with_confidence(CYTHON_UNU
  */
   }
 
-  /* "cchardet/_cchardet.pyx":24
+  /* "_cchardet.pyx":24
  *         raise Exception("Handle data error")
  * 
  *     uchardet_data_end(ud)             # <<<<<<<<<<<<<<
@@ -1193,7 +1193,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_detect_with_confidence(CYTHON_UNU
  */
   uchardet_data_end(__pyx_v_ud);
 
-  /* "cchardet/_cchardet.pyx":26
+  /* "_cchardet.pyx":26
  *     uchardet_data_end(ud)
  * 
  *     cdef bytes detected_charset = uchardet_get_charset(ud)             # <<<<<<<<<<<<<<
@@ -1205,7 +1205,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_detect_with_confidence(CYTHON_UNU
   __pyx_v_detected_charset = ((PyObject*)__pyx_t_3);
   __pyx_t_3 = 0;
 
-  /* "cchardet/_cchardet.pyx":27
+  /* "_cchardet.pyx":27
  * 
  *     cdef bytes detected_charset = uchardet_get_charset(ud)
  *     cdef float detected_confidence = uchardet_get_confidence(ud)             # <<<<<<<<<<<<<<
@@ -1214,7 +1214,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_detect_with_confidence(CYTHON_UNU
  */
   __pyx_v_detected_confidence = uchardet_get_confidence(__pyx_v_ud);
 
-  /* "cchardet/_cchardet.pyx":28
+  /* "_cchardet.pyx":28
  *     cdef bytes detected_charset = uchardet_get_charset(ud)
  *     cdef float detected_confidence = uchardet_get_confidence(ud)
  *     uchardet_delete(ud)             # <<<<<<<<<<<<<<
@@ -1223,7 +1223,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_detect_with_confidence(CYTHON_UNU
  */
   uchardet_delete(__pyx_v_ud);
 
-  /* "cchardet/_cchardet.pyx":30
+  /* "_cchardet.pyx":30
  *     uchardet_delete(ud)
  * 
  *     if detected_charset:             # <<<<<<<<<<<<<<
@@ -1233,7 +1233,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_detect_with_confidence(CYTHON_UNU
   __pyx_t_2 = (PyBytes_GET_SIZE(__pyx_v_detected_charset) != 0);
   if (__pyx_t_2) {
 
-    /* "cchardet/_cchardet.pyx":31
+    /* "_cchardet.pyx":31
  * 
  *     if detected_charset:
  *         return detected_charset, detected_confidence             # <<<<<<<<<<<<<<
@@ -1255,7 +1255,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_detect_with_confidence(CYTHON_UNU
     __pyx_t_4 = 0;
     goto __pyx_L0;
 
-    /* "cchardet/_cchardet.pyx":30
+    /* "_cchardet.pyx":30
  *     uchardet_delete(ud)
  * 
  *     if detected_charset:             # <<<<<<<<<<<<<<
@@ -1264,7 +1264,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_detect_with_confidence(CYTHON_UNU
  */
   }
 
-  /* "cchardet/_cchardet.pyx":33
+  /* "_cchardet.pyx":33
  *         return detected_charset, detected_confidence
  * 
  *     return None, None             # <<<<<<<<<<<<<<
@@ -1276,7 +1276,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_detect_with_confidence(CYTHON_UNU
   __pyx_r = __pyx_tuple__2;
   goto __pyx_L0;
 
-  /* "cchardet/_cchardet.pyx":14
+  /* "_cchardet.pyx":14
  *     cdef float uchardet_get_confidence(uchardet_t ud)
  * 
  * def detect_with_confidence(const_char_ptr msg):             # <<<<<<<<<<<<<<
@@ -1288,7 +1288,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_detect_with_confidence(CYTHON_UNU
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_3);
   __Pyx_XDECREF(__pyx_t_4);
-  __Pyx_AddTraceback("cchardet._cchardet.detect_with_confidence", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("_cchardet.detect_with_confidence", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v_detected_charset);
@@ -1297,7 +1297,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_detect_with_confidence(CYTHON_UNU
   return __pyx_r;
 }
 
-/* "cchardet/_cchardet.pyx":42
+/* "_cchardet.pyx":42
  *     cdef float _detected_confidence
  * 
  *     def __init__(self):             # <<<<<<<<<<<<<<
@@ -1306,27 +1306,27 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_detect_with_confidence(CYTHON_UNU
  */
 
 /* Python wrapper */
-static int __pyx_pw_8cchardet_9_cchardet_17UniversalDetector_1__init__(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static int __pyx_pw_8cchardet_9_cchardet_17UniversalDetector_1__init__(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static int __pyx_pw_9_cchardet_17UniversalDetector_1__init__(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static int __pyx_pw_9_cchardet_17UniversalDetector_1__init__(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   int __pyx_r;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__init__ (wrapper)", 0);
   if (unlikely(PyTuple_GET_SIZE(__pyx_args) > 0)) {
     __Pyx_RaiseArgtupleInvalid("__init__", 1, 0, 0, PyTuple_GET_SIZE(__pyx_args)); return -1;}
   if (unlikely(__pyx_kwds) && unlikely(PyDict_Size(__pyx_kwds) > 0) && unlikely(!__Pyx_CheckKeywordStrings(__pyx_kwds, "__init__", 0))) return -1;
-  __pyx_r = __pyx_pf_8cchardet_9_cchardet_17UniversalDetector___init__(((struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *)__pyx_v_self));
+  __pyx_r = __pyx_pf_9_cchardet_17UniversalDetector___init__(((struct __pyx_obj_9_cchardet_UniversalDetector *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static int __pyx_pf_8cchardet_9_cchardet_17UniversalDetector___init__(struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *__pyx_v_self) {
+static int __pyx_pf_9_cchardet_17UniversalDetector___init__(struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self) {
   int __pyx_r;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__init__", 0);
 
-  /* "cchardet/_cchardet.pyx":43
+  /* "_cchardet.pyx":43
  * 
  *     def __init__(self):
  *         self._ud = uchardet_new()             # <<<<<<<<<<<<<<
@@ -1335,7 +1335,7 @@ static int __pyx_pf_8cchardet_9_cchardet_17UniversalDetector___init__(struct __p
  */
   __pyx_v_self->_ud = uchardet_new();
 
-  /* "cchardet/_cchardet.pyx":44
+  /* "_cchardet.pyx":44
  *     def __init__(self):
  *         self._ud = uchardet_new()
  *         self._done = 0             # <<<<<<<<<<<<<<
@@ -1344,7 +1344,7 @@ static int __pyx_pf_8cchardet_9_cchardet_17UniversalDetector___init__(struct __p
  */
   __pyx_v_self->_done = 0;
 
-  /* "cchardet/_cchardet.pyx":45
+  /* "_cchardet.pyx":45
  *         self._ud = uchardet_new()
  *         self._done = 0
  *         self._closed = 0             # <<<<<<<<<<<<<<
@@ -1353,7 +1353,7 @@ static int __pyx_pf_8cchardet_9_cchardet_17UniversalDetector___init__(struct __p
  */
   __pyx_v_self->_closed = 0;
 
-  /* "cchardet/_cchardet.pyx":46
+  /* "_cchardet.pyx":46
  *         self._done = 0
  *         self._closed = 0
  *         self._detected_charset = b""             # <<<<<<<<<<<<<<
@@ -1366,7 +1366,7 @@ static int __pyx_pf_8cchardet_9_cchardet_17UniversalDetector___init__(struct __p
   __Pyx_DECREF(__pyx_v_self->_detected_charset);
   __pyx_v_self->_detected_charset = __pyx_kp_b__3;
 
-  /* "cchardet/_cchardet.pyx":47
+  /* "_cchardet.pyx":47
  *         self._closed = 0
  *         self._detected_charset = b""
  *         self._detected_confidence = 0.0             # <<<<<<<<<<<<<<
@@ -1375,7 +1375,7 @@ static int __pyx_pf_8cchardet_9_cchardet_17UniversalDetector___init__(struct __p
  */
   __pyx_v_self->_detected_confidence = 0.0;
 
-  /* "cchardet/_cchardet.pyx":42
+  /* "_cchardet.pyx":42
  *     cdef float _detected_confidence
  * 
  *     def __init__(self):             # <<<<<<<<<<<<<<
@@ -1389,7 +1389,7 @@ static int __pyx_pf_8cchardet_9_cchardet_17UniversalDetector___init__(struct __p
   return __pyx_r;
 }
 
-/* "cchardet/_cchardet.pyx":49
+/* "_cchardet.pyx":49
  *         self._detected_confidence = 0.0
  * 
  *     def reset(self):             # <<<<<<<<<<<<<<
@@ -1398,25 +1398,25 @@ static int __pyx_pf_8cchardet_9_cchardet_17UniversalDetector___init__(struct __p
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_8cchardet_9_cchardet_17UniversalDetector_3reset(PyObject *__pyx_v_self, CYTHON_UNUSED PyObject *unused); /*proto*/
-static PyObject *__pyx_pw_8cchardet_9_cchardet_17UniversalDetector_3reset(PyObject *__pyx_v_self, CYTHON_UNUSED PyObject *unused) {
+static PyObject *__pyx_pw_9_cchardet_17UniversalDetector_3reset(PyObject *__pyx_v_self, CYTHON_UNUSED PyObject *unused); /*proto*/
+static PyObject *__pyx_pw_9_cchardet_17UniversalDetector_3reset(PyObject *__pyx_v_self, CYTHON_UNUSED PyObject *unused) {
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("reset (wrapper)", 0);
-  __pyx_r = __pyx_pf_8cchardet_9_cchardet_17UniversalDetector_2reset(((struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *)__pyx_v_self));
+  __pyx_r = __pyx_pf_9_cchardet_17UniversalDetector_2reset(((struct __pyx_obj_9_cchardet_UniversalDetector *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_2reset(struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *__pyx_v_self) {
+static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_2reset(struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   int __pyx_t_1;
   __Pyx_RefNannySetupContext("reset", 0);
 
-  /* "cchardet/_cchardet.pyx":50
+  /* "_cchardet.pyx":50
  * 
  *     def reset(self):
  *         if not self._closed:             # <<<<<<<<<<<<<<
@@ -1426,7 +1426,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_2reset(struct
   __pyx_t_1 = ((!(__pyx_v_self->_closed != 0)) != 0);
   if (__pyx_t_1) {
 
-    /* "cchardet/_cchardet.pyx":51
+    /* "_cchardet.pyx":51
  *     def reset(self):
  *         if not self._closed:
  *             self._done = 0             # <<<<<<<<<<<<<<
@@ -1435,7 +1435,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_2reset(struct
  */
     __pyx_v_self->_done = 0;
 
-    /* "cchardet/_cchardet.pyx":52
+    /* "_cchardet.pyx":52
  *         if not self._closed:
  *             self._done = 0
  *             self._closed = 0             # <<<<<<<<<<<<<<
@@ -1444,7 +1444,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_2reset(struct
  */
     __pyx_v_self->_closed = 0;
 
-    /* "cchardet/_cchardet.pyx":53
+    /* "_cchardet.pyx":53
  *             self._done = 0
  *             self._closed = 0
  *             self._detected_charset = b""             # <<<<<<<<<<<<<<
@@ -1457,7 +1457,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_2reset(struct
     __Pyx_DECREF(__pyx_v_self->_detected_charset);
     __pyx_v_self->_detected_charset = __pyx_kp_b__3;
 
-    /* "cchardet/_cchardet.pyx":54
+    /* "_cchardet.pyx":54
  *             self._closed = 0
  *             self._detected_charset = b""
  *             self._detected_confidence = 0.0             # <<<<<<<<<<<<<<
@@ -1466,7 +1466,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_2reset(struct
  */
     __pyx_v_self->_detected_confidence = 0.0;
 
-    /* "cchardet/_cchardet.pyx":55
+    /* "_cchardet.pyx":55
  *             self._detected_charset = b""
  *             self._detected_confidence = 0.0
  *             uchardet_reset(self._ud)             # <<<<<<<<<<<<<<
@@ -1475,7 +1475,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_2reset(struct
  */
     uchardet_reset(__pyx_v_self->_ud);
 
-    /* "cchardet/_cchardet.pyx":50
+    /* "_cchardet.pyx":50
  * 
  *     def reset(self):
  *         if not self._closed:             # <<<<<<<<<<<<<<
@@ -1484,7 +1484,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_2reset(struct
  */
   }
 
-  /* "cchardet/_cchardet.pyx":49
+  /* "_cchardet.pyx":49
  *         self._detected_confidence = 0.0
  * 
  *     def reset(self):             # <<<<<<<<<<<<<<
@@ -1499,7 +1499,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_2reset(struct
   return __pyx_r;
 }
 
-/* "cchardet/_cchardet.pyx":57
+/* "_cchardet.pyx":57
  *             uchardet_reset(self._ud)
  * 
  *     def feed(self, const_char_ptr msg):             # <<<<<<<<<<<<<<
@@ -1508,8 +1508,8 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_2reset(struct
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_8cchardet_9_cchardet_17UniversalDetector_5feed(PyObject *__pyx_v_self, PyObject *__pyx_arg_msg); /*proto*/
-static PyObject *__pyx_pw_8cchardet_9_cchardet_17UniversalDetector_5feed(PyObject *__pyx_v_self, PyObject *__pyx_arg_msg) {
+static PyObject *__pyx_pw_9_cchardet_17UniversalDetector_5feed(PyObject *__pyx_v_self, PyObject *__pyx_arg_msg); /*proto*/
+static PyObject *__pyx_pw_9_cchardet_17UniversalDetector_5feed(PyObject *__pyx_v_self, PyObject *__pyx_arg_msg) {
   const char* __pyx_v_msg;
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
@@ -1519,18 +1519,18 @@ static PyObject *__pyx_pw_8cchardet_9_cchardet_17UniversalDetector_5feed(PyObjec
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
-  __Pyx_AddTraceback("cchardet._cchardet.UniversalDetector.feed", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("_cchardet.UniversalDetector.feed", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(((struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *)__pyx_v_self), ((const char*)__pyx_v_msg));
+  __pyx_r = __pyx_pf_9_cchardet_17UniversalDetector_4feed(((struct __pyx_obj_9_cchardet_UniversalDetector *)__pyx_v_self), ((const char*)__pyx_v_msg));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *__pyx_v_self, const char* __pyx_v_msg) {
+static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_4feed(struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self, const char* __pyx_v_msg) {
   int __pyx_v_length;
   int __pyx_v_result;
   PyObject *__pyx_r = NULL;
@@ -1540,7 +1540,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct 
   PyObject *__pyx_t_3 = NULL;
   __Pyx_RefNannySetupContext("feed", 0);
 
-  /* "cchardet/_cchardet.pyx":61
+  /* "_cchardet.pyx":61
  *         cdef int result
  * 
  *         if self._closed:             # <<<<<<<<<<<<<<
@@ -1550,7 +1550,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct 
   __pyx_t_1 = (__pyx_v_self->_closed != 0);
   if (__pyx_t_1) {
 
-    /* "cchardet/_cchardet.pyx":62
+    /* "_cchardet.pyx":62
  * 
  *         if self._closed:
  *             return             # <<<<<<<<<<<<<<
@@ -1561,7 +1561,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct 
     __pyx_r = Py_None; __Pyx_INCREF(Py_None);
     goto __pyx_L0;
 
-    /* "cchardet/_cchardet.pyx":61
+    /* "_cchardet.pyx":61
  *         cdef int result
  * 
  *         if self._closed:             # <<<<<<<<<<<<<<
@@ -1570,7 +1570,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct 
  */
   }
 
-  /* "cchardet/_cchardet.pyx":64
+  /* "_cchardet.pyx":64
  *             return
  * 
  *         length = len(msg)             # <<<<<<<<<<<<<<
@@ -1580,7 +1580,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct 
   __pyx_t_2 = strlen(__pyx_v_msg); 
   __pyx_v_length = __pyx_t_2;
 
-  /* "cchardet/_cchardet.pyx":65
+  /* "_cchardet.pyx":65
  * 
  *         length = len(msg)
  *         if length > 0:             # <<<<<<<<<<<<<<
@@ -1590,7 +1590,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct 
   __pyx_t_1 = ((__pyx_v_length > 0) != 0);
   if (__pyx_t_1) {
 
-    /* "cchardet/_cchardet.pyx":66
+    /* "_cchardet.pyx":66
  *         length = len(msg)
  *         if length > 0:
  *             result = uchardet_handle_data(self._ud, msg, length)             # <<<<<<<<<<<<<<
@@ -1599,7 +1599,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct 
  */
     __pyx_v_result = uchardet_handle_data(__pyx_v_self->_ud, __pyx_v_msg, __pyx_v_length);
 
-    /* "cchardet/_cchardet.pyx":68
+    /* "_cchardet.pyx":68
  *             result = uchardet_handle_data(self._ud, msg, length)
  * 
  *             if result == -1:             # <<<<<<<<<<<<<<
@@ -1609,7 +1609,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct 
     switch (__pyx_v_result) {
       case -1L:
 
-      /* "cchardet/_cchardet.pyx":69
+      /* "_cchardet.pyx":69
  * 
  *             if result == -1:
  *                 self._closed = 1             # <<<<<<<<<<<<<<
@@ -1618,7 +1618,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct 
  */
       __pyx_v_self->_closed = 1;
 
-      /* "cchardet/_cchardet.pyx":70
+      /* "_cchardet.pyx":70
  *             if result == -1:
  *                 self._closed = 1
  *                 uchardet_delete(self._ud)             # <<<<<<<<<<<<<<
@@ -1627,7 +1627,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct 
  */
       uchardet_delete(__pyx_v_self->_ud);
 
-      /* "cchardet/_cchardet.pyx":71
+      /* "_cchardet.pyx":71
  *                 self._closed = 1
  *                 uchardet_delete(self._ud)
  *                 raise Exception("Handle data error")             # <<<<<<<<<<<<<<
@@ -1640,7 +1640,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct 
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
       __PYX_ERR(1, 71, __pyx_L1_error)
 
-      /* "cchardet/_cchardet.pyx":68
+      /* "_cchardet.pyx":68
  *             result = uchardet_handle_data(self._ud, msg, length)
  * 
  *             if result == -1:             # <<<<<<<<<<<<<<
@@ -1649,7 +1649,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct 
  */
       break;
 
-      /* "cchardet/_cchardet.pyx":72
+      /* "_cchardet.pyx":72
  *                 uchardet_delete(self._ud)
  *                 raise Exception("Handle data error")
  *             elif result == 0:             # <<<<<<<<<<<<<<
@@ -1658,7 +1658,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct 
  */
       case 0:
 
-      /* "cchardet/_cchardet.pyx":73
+      /* "_cchardet.pyx":73
  *                 raise Exception("Handle data error")
  *             elif result == 0:
  *                 self._done = 1             # <<<<<<<<<<<<<<
@@ -1667,7 +1667,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct 
  */
       __pyx_v_self->_done = 1;
 
-      /* "cchardet/_cchardet.pyx":72
+      /* "_cchardet.pyx":72
  *                 uchardet_delete(self._ud)
  *                 raise Exception("Handle data error")
  *             elif result == 0:             # <<<<<<<<<<<<<<
@@ -1678,7 +1678,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct 
       default: break;
     }
 
-    /* "cchardet/_cchardet.pyx":75
+    /* "_cchardet.pyx":75
  *                 self._done = 1
  * 
  *             self._detected_charset = uchardet_get_charset(self._ud)             # <<<<<<<<<<<<<<
@@ -1693,7 +1693,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct 
     __pyx_v_self->_detected_charset = ((PyObject*)__pyx_t_3);
     __pyx_t_3 = 0;
 
-    /* "cchardet/_cchardet.pyx":76
+    /* "_cchardet.pyx":76
  * 
  *             self._detected_charset = uchardet_get_charset(self._ud)
  *             self._detected_confidence = uchardet_get_confidence(self._ud)             # <<<<<<<<<<<<<<
@@ -1702,7 +1702,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct 
  */
     __pyx_v_self->_detected_confidence = uchardet_get_confidence(__pyx_v_self->_ud);
 
-    /* "cchardet/_cchardet.pyx":65
+    /* "_cchardet.pyx":65
  * 
  *         length = len(msg)
  *         if length > 0:             # <<<<<<<<<<<<<<
@@ -1711,7 +1711,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct 
  */
   }
 
-  /* "cchardet/_cchardet.pyx":57
+  /* "_cchardet.pyx":57
  *             uchardet_reset(self._ud)
  * 
  *     def feed(self, const_char_ptr msg):             # <<<<<<<<<<<<<<
@@ -1724,7 +1724,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct 
   goto __pyx_L0;
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_3);
-  __Pyx_AddTraceback("cchardet._cchardet.UniversalDetector.feed", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("_cchardet.UniversalDetector.feed", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -1732,7 +1732,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct 
   return __pyx_r;
 }
 
-/* "cchardet/_cchardet.pyx":78
+/* "_cchardet.pyx":78
  *             self._detected_confidence = uchardet_get_confidence(self._ud)
  * 
  *     def close(self):             # <<<<<<<<<<<<<<
@@ -1741,26 +1741,26 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4feed(struct 
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_8cchardet_9_cchardet_17UniversalDetector_7close(PyObject *__pyx_v_self, CYTHON_UNUSED PyObject *unused); /*proto*/
-static PyObject *__pyx_pw_8cchardet_9_cchardet_17UniversalDetector_7close(PyObject *__pyx_v_self, CYTHON_UNUSED PyObject *unused) {
+static PyObject *__pyx_pw_9_cchardet_17UniversalDetector_7close(PyObject *__pyx_v_self, CYTHON_UNUSED PyObject *unused); /*proto*/
+static PyObject *__pyx_pw_9_cchardet_17UniversalDetector_7close(PyObject *__pyx_v_self, CYTHON_UNUSED PyObject *unused) {
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("close (wrapper)", 0);
-  __pyx_r = __pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6close(((struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *)__pyx_v_self));
+  __pyx_r = __pyx_pf_9_cchardet_17UniversalDetector_6close(((struct __pyx_obj_9_cchardet_UniversalDetector *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6close(struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *__pyx_v_self) {
+static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_6close(struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   int __pyx_t_1;
   PyObject *__pyx_t_2 = NULL;
   __Pyx_RefNannySetupContext("close", 0);
 
-  /* "cchardet/_cchardet.pyx":79
+  /* "_cchardet.pyx":79
  * 
  *     def close(self):
  *         if not self._closed:             # <<<<<<<<<<<<<<
@@ -1770,7 +1770,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6close(struct
   __pyx_t_1 = ((!(__pyx_v_self->_closed != 0)) != 0);
   if (__pyx_t_1) {
 
-    /* "cchardet/_cchardet.pyx":80
+    /* "_cchardet.pyx":80
  *     def close(self):
  *         if not self._closed:
  *             uchardet_data_end(self._ud)             # <<<<<<<<<<<<<<
@@ -1779,7 +1779,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6close(struct
  */
     uchardet_data_end(__pyx_v_self->_ud);
 
-    /* "cchardet/_cchardet.pyx":81
+    /* "_cchardet.pyx":81
  *         if not self._closed:
  *             uchardet_data_end(self._ud)
  *             self._detected_charset = uchardet_get_charset(self._ud)             # <<<<<<<<<<<<<<
@@ -1794,7 +1794,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6close(struct
     __pyx_v_self->_detected_charset = ((PyObject*)__pyx_t_2);
     __pyx_t_2 = 0;
 
-    /* "cchardet/_cchardet.pyx":82
+    /* "_cchardet.pyx":82
  *             uchardet_data_end(self._ud)
  *             self._detected_charset = uchardet_get_charset(self._ud)
  *             self._detected_confidence = uchardet_get_confidence(self._ud)             # <<<<<<<<<<<<<<
@@ -1803,7 +1803,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6close(struct
  */
     __pyx_v_self->_detected_confidence = uchardet_get_confidence(__pyx_v_self->_ud);
 
-    /* "cchardet/_cchardet.pyx":84
+    /* "_cchardet.pyx":84
  *             self._detected_confidence = uchardet_get_confidence(self._ud)
  * 
  *             uchardet_delete(self._ud)             # <<<<<<<<<<<<<<
@@ -1812,7 +1812,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6close(struct
  */
     uchardet_delete(__pyx_v_self->_ud);
 
-    /* "cchardet/_cchardet.pyx":85
+    /* "_cchardet.pyx":85
  * 
  *             uchardet_delete(self._ud)
  *             self._closed = 1             # <<<<<<<<<<<<<<
@@ -1821,7 +1821,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6close(struct
  */
     __pyx_v_self->_closed = 1;
 
-    /* "cchardet/_cchardet.pyx":79
+    /* "_cchardet.pyx":79
  * 
  *     def close(self):
  *         if not self._closed:             # <<<<<<<<<<<<<<
@@ -1830,7 +1830,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6close(struct
  */
   }
 
-  /* "cchardet/_cchardet.pyx":78
+  /* "_cchardet.pyx":78
  *             self._detected_confidence = uchardet_get_confidence(self._ud)
  * 
  *     def close(self):             # <<<<<<<<<<<<<<
@@ -1843,7 +1843,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6close(struct
   goto __pyx_L0;
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_2);
-  __Pyx_AddTraceback("cchardet._cchardet.UniversalDetector.close", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("_cchardet.UniversalDetector.close", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -1851,7 +1851,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6close(struct
   return __pyx_r;
 }
 
-/* "cchardet/_cchardet.pyx":88
+/* "_cchardet.pyx":88
  * 
  *     @property
  *     def done(self):             # <<<<<<<<<<<<<<
@@ -1860,26 +1860,26 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6close(struct
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_8cchardet_9_cchardet_17UniversalDetector_4done_1__get__(PyObject *__pyx_v_self); /*proto*/
-static PyObject *__pyx_pw_8cchardet_9_cchardet_17UniversalDetector_4done_1__get__(PyObject *__pyx_v_self) {
+static PyObject *__pyx_pw_9_cchardet_17UniversalDetector_4done_1__get__(PyObject *__pyx_v_self); /*proto*/
+static PyObject *__pyx_pw_9_cchardet_17UniversalDetector_4done_1__get__(PyObject *__pyx_v_self) {
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__get__ (wrapper)", 0);
-  __pyx_r = __pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4done___get__(((struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *)__pyx_v_self));
+  __pyx_r = __pyx_pf_9_cchardet_17UniversalDetector_4done___get__(((struct __pyx_obj_9_cchardet_UniversalDetector *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4done___get__(struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *__pyx_v_self) {
+static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_4done___get__(struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
   int __pyx_t_2;
   __Pyx_RefNannySetupContext("__get__", 0);
 
-  /* "cchardet/_cchardet.pyx":89
+  /* "_cchardet.pyx":89
  *     @property
  *     def done(self):
  *         return bool(self._done)             # <<<<<<<<<<<<<<
@@ -1897,7 +1897,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4done___get__
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "cchardet/_cchardet.pyx":88
+  /* "_cchardet.pyx":88
  * 
  *     @property
  *     def done(self):             # <<<<<<<<<<<<<<
@@ -1908,7 +1908,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4done___get__
   /* function exit code */
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
-  __Pyx_AddTraceback("cchardet._cchardet.UniversalDetector.done.__get__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("_cchardet.UniversalDetector.done.__get__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -1916,7 +1916,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4done___get__
   return __pyx_r;
 }
 
-/* "cchardet/_cchardet.pyx":92
+/* "_cchardet.pyx":92
  * 
  *     @property
  *     def result(self):             # <<<<<<<<<<<<<<
@@ -1925,19 +1925,19 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_4done___get__
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_8cchardet_9_cchardet_17UniversalDetector_6result_1__get__(PyObject *__pyx_v_self); /*proto*/
-static PyObject *__pyx_pw_8cchardet_9_cchardet_17UniversalDetector_6result_1__get__(PyObject *__pyx_v_self) {
+static PyObject *__pyx_pw_9_cchardet_17UniversalDetector_6result_1__get__(PyObject *__pyx_v_self); /*proto*/
+static PyObject *__pyx_pw_9_cchardet_17UniversalDetector_6result_1__get__(PyObject *__pyx_v_self) {
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__get__ (wrapper)", 0);
-  __pyx_r = __pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6result___get__(((struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *)__pyx_v_self));
+  __pyx_r = __pyx_pf_9_cchardet_17UniversalDetector_6result___get__(((struct __pyx_obj_9_cchardet_UniversalDetector *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6result___get__(struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *__pyx_v_self) {
+static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_6result___get__(struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -1946,7 +1946,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6result___get
   PyObject *__pyx_t_4 = NULL;
   __Pyx_RefNannySetupContext("__get__", 0);
 
-  /* "cchardet/_cchardet.pyx":93
+  /* "_cchardet.pyx":93
  *     @property
  *     def result(self):
  *         if len(self._detected_charset):             # <<<<<<<<<<<<<<
@@ -1964,7 +1964,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6result___get
   __pyx_t_3 = (__pyx_t_2 != 0);
   if (__pyx_t_3) {
 
-    /* "cchardet/_cchardet.pyx":94
+    /* "_cchardet.pyx":94
  *     def result(self):
  *         if len(self._detected_charset):
  *             return self._detected_charset, self._detected_confidence             # <<<<<<<<<<<<<<
@@ -1986,7 +1986,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6result___get
     __pyx_t_4 = 0;
     goto __pyx_L0;
 
-    /* "cchardet/_cchardet.pyx":93
+    /* "_cchardet.pyx":93
  *     @property
  *     def result(self):
  *         if len(self._detected_charset):             # <<<<<<<<<<<<<<
@@ -1995,7 +1995,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6result___get
  */
   }
 
-  /* "cchardet/_cchardet.pyx":96
+  /* "_cchardet.pyx":96
  *             return self._detected_charset, self._detected_confidence
  *         else:
  *             return None, None             # <<<<<<<<<<<<<<
@@ -2007,7 +2007,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6result___get
     goto __pyx_L0;
   }
 
-  /* "cchardet/_cchardet.pyx":92
+  /* "_cchardet.pyx":92
  * 
  *     @property
  *     def result(self):             # <<<<<<<<<<<<<<
@@ -2019,7 +2019,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6result___get
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
   __Pyx_XDECREF(__pyx_t_4);
-  __Pyx_AddTraceback("cchardet._cchardet.UniversalDetector.result.__get__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("_cchardet.UniversalDetector.result.__get__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -2034,19 +2034,19 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_6result___get
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_8cchardet_9_cchardet_17UniversalDetector_9__reduce_cython__(PyObject *__pyx_v_self, CYTHON_UNUSED PyObject *unused); /*proto*/
-static PyObject *__pyx_pw_8cchardet_9_cchardet_17UniversalDetector_9__reduce_cython__(PyObject *__pyx_v_self, CYTHON_UNUSED PyObject *unused) {
+static PyObject *__pyx_pw_9_cchardet_17UniversalDetector_9__reduce_cython__(PyObject *__pyx_v_self, CYTHON_UNUSED PyObject *unused); /*proto*/
+static PyObject *__pyx_pw_9_cchardet_17UniversalDetector_9__reduce_cython__(PyObject *__pyx_v_self, CYTHON_UNUSED PyObject *unused) {
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__reduce_cython__ (wrapper)", 0);
-  __pyx_r = __pyx_pf_8cchardet_9_cchardet_17UniversalDetector_8__reduce_cython__(((struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *)__pyx_v_self));
+  __pyx_r = __pyx_pf_9_cchardet_17UniversalDetector_8__reduce_cython__(((struct __pyx_obj_9_cchardet_UniversalDetector *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_8__reduce_cython__(CYTHON_UNUSED struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *__pyx_v_self) {
+static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_8__reduce_cython__(CYTHON_UNUSED struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -2073,7 +2073,7 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_8__reduce_cyt
   /* function exit code */
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
-  __Pyx_AddTraceback("cchardet._cchardet.UniversalDetector.__reduce_cython__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("_cchardet.UniversalDetector.__reduce_cython__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __Pyx_XGIVEREF(__pyx_r);
   __Pyx_RefNannyFinishContext();
@@ -2088,19 +2088,19 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_8__reduce_cyt
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_8cchardet_9_cchardet_17UniversalDetector_11__setstate_cython__(PyObject *__pyx_v_self, PyObject *__pyx_v___pyx_state); /*proto*/
-static PyObject *__pyx_pw_8cchardet_9_cchardet_17UniversalDetector_11__setstate_cython__(PyObject *__pyx_v_self, PyObject *__pyx_v___pyx_state) {
+static PyObject *__pyx_pw_9_cchardet_17UniversalDetector_11__setstate_cython__(PyObject *__pyx_v_self, PyObject *__pyx_v___pyx_state); /*proto*/
+static PyObject *__pyx_pw_9_cchardet_17UniversalDetector_11__setstate_cython__(PyObject *__pyx_v_self, PyObject *__pyx_v___pyx_state) {
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__setstate_cython__ (wrapper)", 0);
-  __pyx_r = __pyx_pf_8cchardet_9_cchardet_17UniversalDetector_10__setstate_cython__(((struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *)__pyx_v_self), ((PyObject *)__pyx_v___pyx_state));
+  __pyx_r = __pyx_pf_9_cchardet_17UniversalDetector_10__setstate_cython__(((struct __pyx_obj_9_cchardet_UniversalDetector *)__pyx_v_self), ((PyObject *)__pyx_v___pyx_state));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_10__setstate_cython__(CYTHON_UNUSED struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *__pyx_v_self, CYTHON_UNUSED PyObject *__pyx_v___pyx_state) {
+static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_10__setstate_cython__(CYTHON_UNUSED struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self, CYTHON_UNUSED PyObject *__pyx_v___pyx_state) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -2127,15 +2127,15 @@ static PyObject *__pyx_pf_8cchardet_9_cchardet_17UniversalDetector_10__setstate_
   /* function exit code */
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
-  __Pyx_AddTraceback("cchardet._cchardet.UniversalDetector.__setstate_cython__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("_cchardet.UniversalDetector.__setstate_cython__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __Pyx_XGIVEREF(__pyx_r);
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_tp_new_8cchardet_9_cchardet_UniversalDetector(PyTypeObject *t, CYTHON_UNUSED PyObject *a, CYTHON_UNUSED PyObject *k) {
-  struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *p;
+static PyObject *__pyx_tp_new_9_cchardet_UniversalDetector(PyTypeObject *t, CYTHON_UNUSED PyObject *a, CYTHON_UNUSED PyObject *k) {
+  struct __pyx_obj_9_cchardet_UniversalDetector *p;
   PyObject *o;
   if (likely((t->tp_flags & Py_TPFLAGS_IS_ABSTRACT) == 0)) {
     o = (*t->tp_alloc)(t, 0);
@@ -2143,13 +2143,13 @@ static PyObject *__pyx_tp_new_8cchardet_9_cchardet_UniversalDetector(PyTypeObjec
     o = (PyObject *) PyBaseObject_Type.tp_new(t, __pyx_empty_tuple, 0);
   }
   if (unlikely(!o)) return 0;
-  p = ((struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *)o);
+  p = ((struct __pyx_obj_9_cchardet_UniversalDetector *)o);
   p->_detected_charset = ((PyObject*)Py_None); Py_INCREF(Py_None);
   return o;
 }
 
-static void __pyx_tp_dealloc_8cchardet_9_cchardet_UniversalDetector(PyObject *o) {
-  struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *p = (struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector *)o;
+static void __pyx_tp_dealloc_9_cchardet_UniversalDetector(PyObject *o) {
+  struct __pyx_obj_9_cchardet_UniversalDetector *p = (struct __pyx_obj_9_cchardet_UniversalDetector *)o;
   #if CYTHON_USE_TP_FINALIZE
   if (unlikely(PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_HAVE_FINALIZE) && Py_TYPE(o)->tp_finalize) && (!PyType_IS_GC(Py_TYPE(o)) || !_PyGC_FINALIZED(o))) {
     if (PyObject_CallFinalizerFromDealloc(o)) return;
@@ -2159,35 +2159,35 @@ static void __pyx_tp_dealloc_8cchardet_9_cchardet_UniversalDetector(PyObject *o)
   (*Py_TYPE(o)->tp_free)(o);
 }
 
-static PyObject *__pyx_getprop_8cchardet_9_cchardet_17UniversalDetector_done(PyObject *o, CYTHON_UNUSED void *x) {
-  return __pyx_pw_8cchardet_9_cchardet_17UniversalDetector_4done_1__get__(o);
+static PyObject *__pyx_getprop_9_cchardet_17UniversalDetector_done(PyObject *o, CYTHON_UNUSED void *x) {
+  return __pyx_pw_9_cchardet_17UniversalDetector_4done_1__get__(o);
 }
 
-static PyObject *__pyx_getprop_8cchardet_9_cchardet_17UniversalDetector_result(PyObject *o, CYTHON_UNUSED void *x) {
-  return __pyx_pw_8cchardet_9_cchardet_17UniversalDetector_6result_1__get__(o);
+static PyObject *__pyx_getprop_9_cchardet_17UniversalDetector_result(PyObject *o, CYTHON_UNUSED void *x) {
+  return __pyx_pw_9_cchardet_17UniversalDetector_6result_1__get__(o);
 }
 
-static PyMethodDef __pyx_methods_8cchardet_9_cchardet_UniversalDetector[] = {
-  {"reset", (PyCFunction)__pyx_pw_8cchardet_9_cchardet_17UniversalDetector_3reset, METH_NOARGS, 0},
-  {"feed", (PyCFunction)__pyx_pw_8cchardet_9_cchardet_17UniversalDetector_5feed, METH_O, 0},
-  {"close", (PyCFunction)__pyx_pw_8cchardet_9_cchardet_17UniversalDetector_7close, METH_NOARGS, 0},
-  {"__reduce_cython__", (PyCFunction)__pyx_pw_8cchardet_9_cchardet_17UniversalDetector_9__reduce_cython__, METH_NOARGS, 0},
-  {"__setstate_cython__", (PyCFunction)__pyx_pw_8cchardet_9_cchardet_17UniversalDetector_11__setstate_cython__, METH_O, 0},
+static PyMethodDef __pyx_methods_9_cchardet_UniversalDetector[] = {
+  {"reset", (PyCFunction)__pyx_pw_9_cchardet_17UniversalDetector_3reset, METH_NOARGS, 0},
+  {"feed", (PyCFunction)__pyx_pw_9_cchardet_17UniversalDetector_5feed, METH_O, 0},
+  {"close", (PyCFunction)__pyx_pw_9_cchardet_17UniversalDetector_7close, METH_NOARGS, 0},
+  {"__reduce_cython__", (PyCFunction)__pyx_pw_9_cchardet_17UniversalDetector_9__reduce_cython__, METH_NOARGS, 0},
+  {"__setstate_cython__", (PyCFunction)__pyx_pw_9_cchardet_17UniversalDetector_11__setstate_cython__, METH_O, 0},
   {0, 0, 0, 0}
 };
 
-static struct PyGetSetDef __pyx_getsets_8cchardet_9_cchardet_UniversalDetector[] = {
-  {(char *)"done", __pyx_getprop_8cchardet_9_cchardet_17UniversalDetector_done, 0, (char *)0, 0},
-  {(char *)"result", __pyx_getprop_8cchardet_9_cchardet_17UniversalDetector_result, 0, (char *)0, 0},
+static struct PyGetSetDef __pyx_getsets_9_cchardet_UniversalDetector[] = {
+  {(char *)"done", __pyx_getprop_9_cchardet_17UniversalDetector_done, 0, (char *)0, 0},
+  {(char *)"result", __pyx_getprop_9_cchardet_17UniversalDetector_result, 0, (char *)0, 0},
   {0, 0, 0, 0, 0}
 };
 
-static PyTypeObject __pyx_type_8cchardet_9_cchardet_UniversalDetector = {
+static PyTypeObject __pyx_type_9_cchardet_UniversalDetector = {
   PyVarObject_HEAD_INIT(0, 0)
-  "cchardet._cchardet.UniversalDetector", /*tp_name*/
-  sizeof(struct __pyx_obj_8cchardet_9_cchardet_UniversalDetector), /*tp_basicsize*/
+  "_cchardet.UniversalDetector", /*tp_name*/
+  sizeof(struct __pyx_obj_9_cchardet_UniversalDetector), /*tp_basicsize*/
   0, /*tp_itemsize*/
-  __pyx_tp_dealloc_8cchardet_9_cchardet_UniversalDetector, /*tp_dealloc*/
+  __pyx_tp_dealloc_9_cchardet_UniversalDetector, /*tp_dealloc*/
   0, /*tp_print*/
   0, /*tp_getattr*/
   0, /*tp_setattr*/
@@ -2215,17 +2215,17 @@ static PyTypeObject __pyx_type_8cchardet_9_cchardet_UniversalDetector = {
   0, /*tp_weaklistoffset*/
   0, /*tp_iter*/
   0, /*tp_iternext*/
-  __pyx_methods_8cchardet_9_cchardet_UniversalDetector, /*tp_methods*/
+  __pyx_methods_9_cchardet_UniversalDetector, /*tp_methods*/
   0, /*tp_members*/
-  __pyx_getsets_8cchardet_9_cchardet_UniversalDetector, /*tp_getset*/
+  __pyx_getsets_9_cchardet_UniversalDetector, /*tp_getset*/
   0, /*tp_base*/
   0, /*tp_dict*/
   0, /*tp_descr_get*/
   0, /*tp_descr_set*/
   0, /*tp_dictoffset*/
-  __pyx_pw_8cchardet_9_cchardet_17UniversalDetector_1__init__, /*tp_init*/
+  __pyx_pw_9_cchardet_17UniversalDetector_1__init__, /*tp_init*/
   0, /*tp_alloc*/
-  __pyx_tp_new_8cchardet_9_cchardet_UniversalDetector, /*tp_new*/
+  __pyx_tp_new_9_cchardet_UniversalDetector, /*tp_new*/
   0, /*tp_free*/
   0, /*tp_is_gc*/
   0, /*tp_bases*/
@@ -2280,7 +2280,7 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_kp_u_Handle_data_error, __pyx_k_Handle_data_error, sizeof(__pyx_k_Handle_data_error), 0, 1, 0, 0},
   {&__pyx_n_s_TypeError, __pyx_k_TypeError, sizeof(__pyx_k_TypeError), 0, 0, 1, 1},
   {&__pyx_kp_b__3, __pyx_k__3, sizeof(__pyx_k__3), 0, 0, 0, 0},
-  {&__pyx_n_s_cchardet__cchardet, __pyx_k_cchardet__cchardet, sizeof(__pyx_k_cchardet__cchardet), 0, 0, 1, 1},
+  {&__pyx_n_s_cchardet, __pyx_k_cchardet, sizeof(__pyx_k_cchardet), 0, 0, 1, 1},
   {&__pyx_kp_s_cchardet_pyx, __pyx_k_cchardet_pyx, sizeof(__pyx_k_cchardet_pyx), 0, 0, 1, 0},
   {&__pyx_n_s_cline_in_traceback, __pyx_k_cline_in_traceback, sizeof(__pyx_k_cline_in_traceback), 0, 0, 1, 1},
   {&__pyx_n_s_detect_with_confidence, __pyx_k_detect_with_confidence, sizeof(__pyx_k_detect_with_confidence), 0, 0, 1, 1},
@@ -2313,7 +2313,7 @@ static int __Pyx_InitCachedConstants(void) {
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__Pyx_InitCachedConstants", 0);
 
-  /* "cchardet/_cchardet.pyx":22
+  /* "_cchardet.pyx":22
  *     if result == -1:
  *         uchardet_delete(ud)
  *         raise Exception("Handle data error")             # <<<<<<<<<<<<<<
@@ -2324,7 +2324,7 @@ static int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple_);
   __Pyx_GIVEREF(__pyx_tuple_);
 
-  /* "cchardet/_cchardet.pyx":33
+  /* "_cchardet.pyx":33
  *         return detected_charset, detected_confidence
  * 
  *     return None, None             # <<<<<<<<<<<<<<
@@ -2335,7 +2335,7 @@ static int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__2);
   __Pyx_GIVEREF(__pyx_tuple__2);
 
-  /* "cchardet/_cchardet.pyx":71
+  /* "_cchardet.pyx":71
  *                 self._closed = 1
  *                 uchardet_delete(self._ud)
  *                 raise Exception("Handle data error")             # <<<<<<<<<<<<<<
@@ -2346,7 +2346,7 @@ static int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__4);
   __Pyx_GIVEREF(__pyx_tuple__4);
 
-  /* "cchardet/_cchardet.pyx":96
+  /* "_cchardet.pyx":96
  *             return self._detected_charset, self._detected_confidence
  *         else:
  *             return None, None             # <<<<<<<<<<<<<<
@@ -2374,7 +2374,7 @@ static int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__7);
   __Pyx_GIVEREF(__pyx_tuple__7);
 
-  /* "cchardet/_cchardet.pyx":14
+  /* "_cchardet.pyx":14
  *     cdef float uchardet_get_confidence(uchardet_t ud)
  * 
  * def detect_with_confidence(const_char_ptr msg):             # <<<<<<<<<<<<<<
@@ -2435,14 +2435,14 @@ static int __Pyx_modinit_type_init_code(void) {
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__Pyx_modinit_type_init_code", 0);
   /*--- Type init code ---*/
-  if (PyType_Ready(&__pyx_type_8cchardet_9_cchardet_UniversalDetector) < 0) __PYX_ERR(1, 35, __pyx_L1_error)
-  __pyx_type_8cchardet_9_cchardet_UniversalDetector.tp_print = 0;
-  if ((CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP) && likely(!__pyx_type_8cchardet_9_cchardet_UniversalDetector.tp_dictoffset && __pyx_type_8cchardet_9_cchardet_UniversalDetector.tp_getattro == PyObject_GenericGetAttr)) {
-    __pyx_type_8cchardet_9_cchardet_UniversalDetector.tp_getattro = __Pyx_PyObject_GenericGetAttr;
+  if (PyType_Ready(&__pyx_type_9_cchardet_UniversalDetector) < 0) __PYX_ERR(1, 35, __pyx_L1_error)
+  __pyx_type_9_cchardet_UniversalDetector.tp_print = 0;
+  if ((CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP) && likely(!__pyx_type_9_cchardet_UniversalDetector.tp_dictoffset && __pyx_type_9_cchardet_UniversalDetector.tp_getattro == PyObject_GenericGetAttr)) {
+    __pyx_type_9_cchardet_UniversalDetector.tp_getattro = __Pyx_PyObject_GenericGetAttr;
   }
-  if (PyObject_SetAttrString(__pyx_m, "UniversalDetector", (PyObject *)&__pyx_type_8cchardet_9_cchardet_UniversalDetector) < 0) __PYX_ERR(1, 35, __pyx_L1_error)
-  if (__Pyx_setup_reduce((PyObject*)&__pyx_type_8cchardet_9_cchardet_UniversalDetector) < 0) __PYX_ERR(1, 35, __pyx_L1_error)
-  __pyx_ptype_8cchardet_9_cchardet_UniversalDetector = &__pyx_type_8cchardet_9_cchardet_UniversalDetector;
+  if (PyObject_SetAttrString(__pyx_m, "UniversalDetector", (PyObject *)&__pyx_type_9_cchardet_UniversalDetector) < 0) __PYX_ERR(1, 35, __pyx_L1_error)
+  if (__Pyx_setup_reduce((PyObject*)&__pyx_type_9_cchardet_UniversalDetector) < 0) __PYX_ERR(1, 35, __pyx_L1_error)
+  __pyx_ptype_9_cchardet_UniversalDetector = &__pyx_type_9_cchardet_UniversalDetector;
   __Pyx_RefNannyFinishContext();
   return 0;
   __pyx_L1_error:;
@@ -2619,14 +2619,14 @@ if (!__Pyx_RefNanny) {
   #if PY_MAJOR_VERSION < 3 && (__PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT)
   if (__Pyx_init_sys_getdefaultencoding_params() < 0) __PYX_ERR(1, 1, __pyx_L1_error)
   #endif
-  if (__pyx_module_is_main_cchardet___cchardet) {
+  if (__pyx_module_is_main__cchardet) {
     if (PyObject_SetAttrString(__pyx_m, "__name__", __pyx_n_s_main) < 0) __PYX_ERR(1, 1, __pyx_L1_error)
   }
   #if PY_MAJOR_VERSION >= 3
   {
     PyObject *modules = PyImport_GetModuleDict(); if (unlikely(!modules)) __PYX_ERR(1, 1, __pyx_L1_error)
-    if (!PyDict_GetItemString(modules, "cchardet._cchardet")) {
-      if (unlikely(PyDict_SetItemString(modules, "cchardet._cchardet", __pyx_m) < 0)) __PYX_ERR(1, 1, __pyx_L1_error)
+    if (!PyDict_GetItemString(modules, "_cchardet")) {
+      if (unlikely(PyDict_SetItemString(modules, "_cchardet", __pyx_m) < 0)) __PYX_ERR(1, 1, __pyx_L1_error)
     }
   }
   #endif
@@ -2647,19 +2647,19 @@ if (!__Pyx_RefNanny) {
   if (__Pyx_patch_abc() < 0) __PYX_ERR(1, 1, __pyx_L1_error)
   #endif
 
-  /* "cchardet/_cchardet.pyx":14
+  /* "_cchardet.pyx":14
  *     cdef float uchardet_get_confidence(uchardet_t ud)
  * 
  * def detect_with_confidence(const_char_ptr msg):             # <<<<<<<<<<<<<<
  *     cdef int length = len(msg)
  * 
  */
-  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_8cchardet_9_cchardet_1detect_with_confidence, NULL, __pyx_n_s_cchardet__cchardet); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 14, __pyx_L1_error)
+  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_9_cchardet_1detect_with_confidence, NULL, __pyx_n_s_cchardet); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 14, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_detect_with_confidence, __pyx_t_1) < 0) __PYX_ERR(1, 14, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "cchardet/_cchardet.pyx":1
+  /* "_cchardet.pyx":1
  * cdef extern from *:             # <<<<<<<<<<<<<<
  *     ctypedef char* const_char_ptr "const char*"
  * 
@@ -2676,11 +2676,11 @@ if (!__Pyx_RefNanny) {
   __Pyx_XDECREF(__pyx_t_1);
   if (__pyx_m) {
     if (__pyx_d) {
-      __Pyx_AddTraceback("init cchardet._cchardet", 0, __pyx_lineno, __pyx_filename);
+      __Pyx_AddTraceback("init _cchardet", 0, __pyx_lineno, __pyx_filename);
     }
     Py_DECREF(__pyx_m); __pyx_m = 0;
   } else if (!PyErr_Occurred()) {
-    PyErr_SetString(PyExc_ImportError, "init cchardet._cchardet");
+    PyErr_SetString(PyExc_ImportError, "init _cchardet");
   }
   __pyx_L0:;
   __Pyx_RefNannyFinishContext();
