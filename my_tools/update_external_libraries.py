@@ -59,10 +59,16 @@ def update():
         external_libraries = yaml.load(file)
 
     for lib in external_libraries["python_libraries"]:
-        process_github_library(lib, LIB_DIR)
+        try:
+            process_github_library(lib, LIB_DIR)
+        except Exception:
+            print("  **Failed.**")
 
     for lib in external_libraries["c_libraries"]:
-        process_github_library(lib, MODULES_DIR)
+        try:
+            process_github_library(lib, MODULES_DIR)
+        except Exception:
+            print("  **Failed.**")
 
 
 if __name__ == "__main__":
