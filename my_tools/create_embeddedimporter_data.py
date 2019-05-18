@@ -6,6 +6,18 @@ import tokenize
 import zlib
 
 
+def check_skip(filename):
+    if filename.startswith("test/") or "/test/" in filename:
+        return True
+    if filename.startswith("__pycache__/") or "/__pycache__/" in filename:
+        return True
+    if os.path.basename(filename) == "ubuntu.ttf":
+        return True
+    if filename.startswith("lib2to3/tests/"):
+        return True
+    return False
+
+
 def get_file_data():
     file_list = []
 
@@ -14,11 +26,7 @@ def get_file_data():
         ["certifi/cacert.pem"] + \
         [i.replace(os.path.sep, "/") for i in glob.glob("werkzeug/debug/shared/*.*")]
     for filename in sorted(all_filenames):
-        if filename.startswith("test/") or "/test/" in filename:
-            continue
-        if filename.startswith("__pycache__/") or "/__pycache__/" in filename:
-            continue
-        if os.path.basename(filename) == "ubuntu.ttf":
+        if check_skip(filename):
             continue
 
         if filename.endswith(".py"):
