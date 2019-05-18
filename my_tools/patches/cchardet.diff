@@ -1,0 +1,10 @@
+diff --git b/__init__.py a/__init__.py
+index fa83d73..f48132b 100644
+--- b/__init__.py
++++ a/__init__.py
+@@ -1,4 +1,4 @@
+-from cchardet import _cchardet
++import _cchardet
+ from .version import __version__
+ 
+ 

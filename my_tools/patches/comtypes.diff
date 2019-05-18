@@ -1,0 +1,26 @@
+diff --git b/client/_code_cache.py a/client/_code_cache.py
+index 6218ef1..20c8b86 100644
+--- b/client/_code_cache.py
++++ a/client/_code_cache.py
+@@ -20,7 +20,7 @@ def _ensure_list(path):
+ 
+ 
+ def _find_gen_dir():
+-    """Create, if needed, and return a directory where automatically
++    r"""Create, if needed, and return a directory where automatically
+     generated modules will be created.
+ 
+     Usually, this is the directory 'Lib/site-packages/comtypes/gen'.
+diff --git b/client/_generate.py a/client/_generate.py
+index 7ef2e27..d24e4f3 100644
+--- b/client/_generate.py
++++ a/client/_generate.py
+@@ -34,7 +34,7 @@ def _name_module(tlib):
+     return "comtypes.gen." + modname
+ 
+ def GetModule(tlib):
+-    """Create a module wrapping a COM typelibrary on demand.
++    r"""Create a module wrapping a COM typelibrary on demand.
+ 
+     'tlib' must be an ITypeLib COM pointer instance, the pathname of a
+     type library, or a tuple/list specifying the arguments to a
