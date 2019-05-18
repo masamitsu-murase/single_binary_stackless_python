@@ -12,6 +12,7 @@ import subprocess
 
 LIB_DIR = os.path.normpath(os.path.join(DIRECTORY, "..", "Lib"))
 MODULES_DIR = os.path.normpath(os.path.join(DIRECTORY, "..", "Modules"))
+EXT_DIR = os.path.normpath(os.path.join(DIRECTORY, "..", "externals"))
 
 
 # Patch was created by the following command.
@@ -67,6 +68,12 @@ def update():
     for lib in external_libraries["c_libraries"]:
         try:
             process_github_library(lib, MODULES_DIR)
+        except Exception:
+            print("  **Failed.**")
+
+    for lib in external_libraries["ext_libraries"]:
+        try:
+            process_github_library(lib, EXT_DIR)
         except Exception:
             print("  **Failed.**")
 
