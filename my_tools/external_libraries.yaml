@@ -142,14 +142,6 @@ python_libraries:
     tag: "7.0"
     output_dir: "click"
     filter_dir: "click"
-  - name: "Google: diff-match-patch"
-    github_user: "google"
-    github_repository: "diff-match-patch"
-    sha: "b750d263fa1f4a4c37c97196ff2bc05a0aa2006b"
-    output_dir: "diff_match_patch"
-    filter_dir: "python3"
-    exclude_dirs:
-      - "tests"
 c_libraries:
   - name: "PyYAML"
     github_user: "yaml"
