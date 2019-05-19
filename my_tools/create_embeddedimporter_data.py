@@ -15,6 +15,10 @@ def check_skip(filename):
         return True
     if filename.startswith("lib2to3/tests/"):
         return True
+    if filename.startswith("distutils/tests/"):
+        return True
+    if filename.startswith("idlelib/idle_test/"):
+        return True
     return False
 
 
