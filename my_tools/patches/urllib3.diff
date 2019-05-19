@@ -1,8 +1,8 @@
-diff --git b/connection.py a/connection.py
-index a03b573..b798d54 100644
---- b/connection.py
-+++ a/connection.py
-@@ -281,13 +281,14 @@ class VerifiedHTTPSConnection(HTTPSConnection):
+diff --git a/connection.py b/connection.py
+index ba269b7..c602bfe 100644
+--- a/connection.py
++++ b/connection.py
+@@ -268,13 +268,14 @@ class VerifiedHTTPSConnection(HTTPSConnection):
      cert_reqs = None
      ca_certs = None
      ca_cert_dir = None
@@ -18,7 +18,7 @@ index a03b573..b798d54 100644
          """
          This method should only be called once, before the connection is used.
          """
-@@ -296,7 +297,7 @@ class VerifiedHTTPSConnection(HTTPSConnection):
+@@ -283,7 +284,7 @@ class VerifiedHTTPSConnection(HTTPSConnection):
          # they gave us an SSL Context object we should use whatever is set for
          # it.
          if cert_reqs is None:
@@ -27,7 +27,7 @@ index a03b573..b798d54 100644
                  cert_reqs = 'CERT_REQUIRED'
              elif self.ssl_context is not None:
                  cert_reqs = self.ssl_context.verify_mode
-@@ -308,6 +309,7 @@ class VerifiedHTTPSConnection(HTTPSConnection):
+@@ -295,6 +296,7 @@ class VerifiedHTTPSConnection(HTTPSConnection):
          self.assert_fingerprint = assert_fingerprint
          self.ca_certs = ca_certs and os.path.expanduser(ca_certs)
          self.ca_cert_dir = ca_cert_dir and os.path.expanduser(ca_cert_dir)
@@ -35,18 +35,18 @@ index a03b573..b798d54 100644
  
      def connect(self):
          # Add certificate verification
-@@ -352,6 +354,7 @@ class VerifiedHTTPSConnection(HTTPSConnection):
+@@ -340,6 +342,7 @@ class VerifiedHTTPSConnection(HTTPSConnection):
              certfile=self.cert_file,
              ca_certs=self.ca_certs,
              ca_cert_dir=self.ca_cert_dir,
 +            ca_cert_data=self.ca_cert_data,
-             server_hostname=hostname,
+             server_hostname=server_hostname,
              ssl_context=context)
  
-diff --git b/connectionpool.py a/connectionpool.py
-index 8fcb0bc..5f43e49 100644
---- b/connectionpool.py
-+++ a/connectionpool.py
+diff --git a/connectionpool.py b/connectionpool.py
+index d65581e..4e1a0fe 100644
+--- a/connectionpool.py
++++ b/connectionpool.py
 @@ -761,13 +761,13 @@ class HTTPSConnectionPool(HTTPConnectionPool):
                   key_file=None, cert_file=None, cert_reqs=None,
                   ca_certs=None, ssl_version=None,
@@ -79,11 +79,11 @@ index 8fcb0bc..5f43e49 100644
                            assert_hostname=self.assert_hostname,
                            assert_fingerprint=self.assert_fingerprint)
              conn.ssl_version = self.ssl_version
-diff --git b/util/ssl_.py a/util/ssl_.py
-index 2893752..4447979 100644
---- b/util/ssl_.py
-+++ a/util/ssl_.py
-@@ -305,7 +305,7 @@ def create_urllib3_context(ssl_version=None, cert_reqs=None,
+diff --git a/util/ssl_.py b/util/ssl_.py
+index d9b2060..39d8adb 100644
+--- a/util/ssl_.py
++++ b/util/ssl_.py
+@@ -289,7 +289,7 @@ def create_urllib3_context(ssl_version=None, cert_reqs=None,
  def ssl_wrap_socket(sock, keyfile=None, certfile=None, cert_reqs=None,
                      ca_certs=None, server_hostname=None,
                      ssl_version=None, ciphers=None, ssl_context=None,
@@ -92,12 +92,13 @@ index 2893752..4447979 100644
      """
      All arguments except for server_hostname, ssl_context, and ca_cert_dir have
      the same meaning as they do when using :func:`ssl.wrap_socket`.
-@@ -342,6 +342,8 @@ def ssl_wrap_socket(sock, keyfile=None, certfile=None, cert_reqs=None,
-             if e.errno == errno.ENOENT:
+@@ -326,6 +326,9 @@ def ssl_wrap_socket(sock, keyfile=None, certfile=None, cert_reqs=None,
                  raise SSLError(e)
              raise
+ 
 +    elif ca_cert_data:
 +        context.load_verify_locations(cadata=ca_cert_data)
-     elif getattr(context, 'load_default_certs', None) is not None:
-         # try to load OS default certs; works well on Windows (require Python3.4+)
-         context.load_default_certs()
++
+     # Don't load system certs unless there were no CA certs or
+     # SSLContext object specified manually.
+     elif ssl_context is None and hasattr(context, 'load_default_certs'):
