@@ -9,7 +9,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
-import pkgutil
 import re
 import sys
 import uuid
@@ -19,7 +18,7 @@ import getpass
 import hashlib
 import mimetypes
 from itertools import chain
-from os.path import join, basename
+from os.path import join, dirname, basename, isfile
 from werkzeug.wrappers import BaseRequest as Request, BaseResponse as Response
 from werkzeug.http import parse_cookie
 from werkzeug.debug.tbtools import get_current_traceback, render_console_html
@@ -27,6 +26,7 @@ from werkzeug.debug.console import Console
 from werkzeug.security import gen_salt
 from werkzeug._internal import _log
 from werkzeug._compat import text_type
+
 
 # DEPRECATED
 #: import this here because it once was documented as being available
@@ -92,7 +92,11 @@ def get_machine_id():
                 with wr.OpenKey(wr.HKEY_LOCAL_MACHINE,
                                 'SOFTWARE\\Microsoft\\Cryptography', 0,
                                 wr.KEY_READ | wr.KEY_WOW64_64KEY) as rk:
-                    return wr.QueryValueEx(rk, 'MachineGuid')[0]
+                    machineGuid, wrType = wr.QueryValueEx(rk, 'MachineGuid')
+                    if (wrType == wr.REG_SZ):
+                        return machineGuid.encode('utf-8')
+                    else:
+                        return machineGuid
             except WindowsError:
                 pass
 
@@ -346,15 +350,15 @@ class DebuggedApplication(object):
 
     def get_resource(self, request, filename):
         """Return a static resource from the shared folder."""
-        filename = join('shared', basename(filename))
-        try:
-            data = pkgutil.get_data(__package__, filename)
-        except OSError:
-            data = None
-        if data is not None:
+        filename = join(dirname(__file__), 'shared', basename(filename))
+        if isfile(filename):
             mimetype = mimetypes.guess_type(filename)[0] \
                 or 'application/octet-stream'
-            return Response(data, mimetype=mimetype)
+            f = open(filename, 'rb')
+            try:
+                return Response(f.read(), mimetype=mimetype)
+            finally:
+                f.close()
         return Response('Not Found', status=404)
 
     def check_pin_trust(self, environ):

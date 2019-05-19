@@ -2,7 +2,7 @@
 import yaml
 
 def get_version_string():
-    cdef const char *value
+    cdef char *value
     value = yaml_get_version_string()
     if PY_MAJOR_VERSION < 3:
         return value

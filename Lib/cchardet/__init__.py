@@ -1,4 +1,4 @@
-import _cchardet
+from cchardet import _cchardet
 from .version import __version__
 
 

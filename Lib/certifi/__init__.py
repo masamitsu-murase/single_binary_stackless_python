@@ -1,3 +1,3 @@
-from .core import where, old_where, ca_cert_data
+from .core import where
 
-__version__ = "2018.08.24"
+__version__ = "2019.03.09"
