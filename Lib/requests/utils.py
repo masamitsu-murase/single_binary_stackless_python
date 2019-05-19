@@ -40,6 +40,12 @@ DEFAULT_CA_BUNDLE_PATH = certs.where()
 
 DEFAULT_PORTS = {'http': 80, 'https': 443}
 
+# Load ca_cert_data for single binarisation.
+if hasattr(certs, "ca_cert_data"):
+    DEFAULT_CA_BUNDLE_DATA = certs.ca_cert_data()
+else:
+    DEFAULT_CA_BUNDLE_DATA = None
+
 
 if sys.platform == 'win32':
     # provide a proxy_bypass version on Windows without DNS lookups

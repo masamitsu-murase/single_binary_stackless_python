@@ -761,13 +761,13 @@ class HTTPSConnectionPool(HTTPConnectionPool):
                  key_file=None, cert_file=None, cert_reqs=None,
                  ca_certs=None, ssl_version=None,
                  assert_hostname=None, assert_fingerprint=None,
-                 ca_cert_dir=None, **conn_kw):
+                 ca_cert_dir=None, ca_cert_data=None, **conn_kw):
 
         HTTPConnectionPool.__init__(self, host, port, strict, timeout, maxsize,
                                     block, headers, retries, _proxy, _proxy_headers,
                                     **conn_kw)
 
-        if ca_certs and cert_reqs is None:
+        if (ca_certs or ca_cert_data) and cert_reqs is None:
             cert_reqs = 'CERT_REQUIRED'
 
         self.key_file = key_file
@@ -775,6 +775,7 @@ class HTTPSConnectionPool(HTTPConnectionPool):
         self.cert_reqs = cert_reqs
         self.ca_certs = ca_certs
         self.ca_cert_dir = ca_cert_dir
+        self.ca_cert_data = ca_cert_data
         self.ssl_version = ssl_version
         self.assert_hostname = assert_hostname
         self.assert_fingerprint = assert_fingerprint
@@ -791,6 +792,7 @@ class HTTPSConnectionPool(HTTPConnectionPool):
                           cert_reqs=self.cert_reqs,
                           ca_certs=self.ca_certs,
                           ca_cert_dir=self.ca_cert_dir,
+                          ca_cert_data=self.ca_cert_data,
                           assert_hostname=self.assert_hostname,
                           assert_fingerprint=self.assert_fingerprint)
             conn.ssl_version = self.ssl_version

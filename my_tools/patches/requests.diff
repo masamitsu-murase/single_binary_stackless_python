@@ -1,7 +1,7 @@
-diff --git b/adapters.py a/adapters.py
+diff --git a/adapters.py b/adapters.py
 index fa4d9b3..6b80628 100644
---- b/adapters.py
-+++ a/adapters.py
+--- a/adapters.py
++++ b/adapters.py
 @@ -30,7 +30,8 @@ from urllib3.exceptions import LocationValueError
  
  from .models import Response
@@ -34,10 +34,10 @@ index fa4d9b3..6b80628 100644
                  conn.ca_certs = cert_loc
              else:
                  conn.ca_cert_dir = cert_loc
-diff --git b/certs.py a/certs.py
+diff --git a/certs.py b/certs.py
 index d1a378d..7d63b3b 100644
---- b/certs.py
-+++ a/certs.py
+--- a/certs.py
++++ b/certs.py
 @@ -13,6 +13,11 @@ environment, you can change the definition of where() to return a separately
  packaged CA bundle.
  """
@@ -50,19 +50,20 @@ index d1a378d..7d63b3b 100644
  
  if __name__ == '__main__':
      print(where())
-diff --git b/utils.py a/utils.py
-index 0ce7fe1..3260d1f 100644
---- b/utils.py
-+++ a/utils.py
-@@ -37,6 +37,11 @@ from .exceptions import (
- NETRC_FILES = ('.netrc', '_netrc')
+diff --git a/utils.py b/utils.py
+index 8170a8d..6c8e93a 100644
+--- a/utils.py
++++ b/utils.py
+@@ -40,6 +40,12 @@ DEFAULT_CA_BUNDLE_PATH = certs.where()
  
- DEFAULT_CA_BUNDLE_PATH = certs.where()
+ DEFAULT_PORTS = {'http': 80, 'https': 443}
+ 
 +# Load ca_cert_data for single binarisation.
 +if hasattr(certs, "ca_cert_data"):
 +    DEFAULT_CA_BUNDLE_DATA = certs.ca_cert_data()
 +else:
 +    DEFAULT_CA_BUNDLE_DATA = None
- 
++
  
  if sys.platform == 'win32':
+     # provide a proxy_bypass version on Windows without DNS lookups

@@ -1387,7 +1387,7 @@ class MapAdapter(object):
 
     def dispatch(self, view_func, path_info=None, method=None,
                  catch_http_exceptions=False):
-        """Does the complete dispatching process.  `view_func` is called with
+        r"""Does the complete dispatching process.  `view_func` is called with
         the endpoint and a dict with the values for the view.  It should
         look up the view function, call it, and return a response object
         or WSGI application.  http exceptions are not caught by default
