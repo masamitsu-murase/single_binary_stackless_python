@@ -40,17 +40,6 @@ def _test_selector_event(selector, fd, event):
         return bool(key.events & event)
 
 
-if hasattr(socket, 'TCP_NODELAY'):
-    def _set_nodelay(sock):
-        if (sock.family in {socket.AF_INET, socket.AF_INET6} and
-                base_events._is_stream_socket(sock.type) and
-                sock.proto == socket.IPPROTO_TCP):
-            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-else:
-    def _set_nodelay(sock):
-        pass
-
-
 class BaseSelectorEventLoop(base_events.BaseEventLoop):
     """Selector event loop.
 
@@ -691,7 +680,7 @@ class _SelectorSocketTransport(_SelectorTransport):
         # Disable the Nagle algorithm -- small writes will be
         # sent without waiting for the TCP ACK.  This generally
         # decreases the latency (in some cases significantly.)
-        _set_nodelay(self._sock)
+        base_events._set_nodelay(self._sock)
 
         self._loop.call_soon(self._protocol.connection_made, self)
         # only start reading when connection_made() has been called
@@ -703,18 +692,16 @@ class _SelectorSocketTransport(_SelectorTransport):
                                  waiter, None)
 
     def pause_reading(self):
-        if self._closing:
-            raise RuntimeError('Cannot pause_reading() when closing')
-        if self._paused:
-            raise RuntimeError('Already paused')
+        if self._closing or self._paused:
+            return
         self._paused = True
         self._loop._remove_reader(self._sock_fd)
         if self._loop.get_debug():
             logger.debug("%r pauses reading", self)
 
     def resume_reading(self):
-        if not self._paused:
-            raise RuntimeError('Not paused')
+        if self._closing or not self._paused:
+            return
         self._paused = False
         self._add_reader(self._sock_fd, self._read_ready)
         if self._loop.get_debug():

@@ -17,7 +17,6 @@ from asyncio.selector_events import _SelectorTransport
 from asyncio.selector_events import _SelectorSslTransport
 from asyncio.selector_events import _SelectorSocketTransport
 from asyncio.selector_events import _SelectorDatagramTransport
-from asyncio.selector_events import _set_nodelay
 
 
 MOCK_ANY = mock.ANY
@@ -81,6 +80,7 @@ class BaseSelectorEventLoopTests(test_utils.TestCase):
         with test_utils.disable_logger():
             transport = self.loop._make_ssl_transport(
                 m, asyncio.Protocol(), m, waiter)
+
             # execute the handshake while the logger is disabled
             # to ignore SSL handshake failure
             test_utils.run_briefly(self.loop)
@@ -884,14 +884,19 @@ class SelectorSocketTransportTests(test_utils.TestCase):
         test_utils.run_briefly(self.loop)
         self.assertFalse(tr._paused)
         self.loop.assert_reader(7, tr._read_ready)
+
+        tr.pause_reading()
         tr.pause_reading()
         self.assertTrue(tr._paused)
-        self.assertFalse(7 in self.loop.readers)
+        self.loop.assert_no_reader(7)
+
+        tr.resume_reading()
         tr.resume_reading()
         self.assertFalse(tr._paused)
         self.loop.assert_reader(7, tr._read_ready)
-        with self.assertRaises(RuntimeError):
-            tr.resume_reading()
+
+        tr.close()
+        self.loop.assert_no_reader(7)
 
     def test_read_ready(self):
         transport = self.socket_transport()
@@ -1850,31 +1855,6 @@ class SelectorDatagramTransportTests(test_utils.TestCase):
             test_utils.MockPattern(
                 'Fatal error on transport\nprotocol:.*\ntransport:.*'),
             exc_info=(ConnectionRefusedError, MOCK_ANY, MOCK_ANY))
-
-
-class TestSelectorUtils(test_utils.TestCase):
-    def check_set_nodelay(self, sock):
-        opt = sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY)
-        self.assertFalse(opt)
-
-        _set_nodelay(sock)
-
-        opt = sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY)
-        self.assertTrue(opt)
-
-    @unittest.skipUnless(hasattr(socket, 'TCP_NODELAY'),
-                         'need socket.TCP_NODELAY')
-    def test_set_nodelay(self):
-        sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM,
-                             proto=socket.IPPROTO_TCP)
-        with sock:
-            self.check_set_nodelay(sock)
-
-        sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM,
-                             proto=socket.IPPROTO_TCP)
-        with sock:
-            sock.setblocking(False)
-            self.check_set_nodelay(sock)
 
 
 if __name__ == '__main__':

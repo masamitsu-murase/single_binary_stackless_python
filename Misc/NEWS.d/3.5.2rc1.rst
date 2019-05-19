@@ -1366,7 +1366,7 @@ fileinput now uses sys.stdin as-is if it does not have a buffer attribute
 .. nonce: AtHkWA
 .. section: Library
 
-Copying the lru_cache() wrapper object now always works, independedly from
+Copying the lru_cache() wrapper object now always works, independently from
 the type of the wrapped object (by returning the original object unchanged).
 
 ..
@@ -1953,9 +1953,9 @@ Fix linking extension modules for cross builds. Patch by Xavier de Gaye.
 .. section: Build
 
 Disable the rules for running _freeze_importlib and pgen when
-cross-compiling.  The output of these programs is normally saved with the source
-code anyway, and is still regenerated when doing a native build. Patch by
-Xavier de Gaye.
+cross-compiling.  The output of these programs is normally saved with the
+source code anyway, and is still regenerated when doing a native build.
+Patch by Xavier de Gaye.
 
 ..
 

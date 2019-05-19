@@ -514,6 +514,7 @@ deque_inplace_concat(dequeobject *deque, PyObject *other)
 static PyObject *
 deque_copy(PyObject *deque)
 {
+    PyObject *result;
     dequeobject *old_deque = (dequeobject *)deque;
     if (Py_TYPE(deque) == &deque_type) {
         dequeobject *new_deque;
@@ -538,10 +539,19 @@ deque_copy(PyObject *deque)
         return NULL;
     }
     if (old_deque->maxlen < 0)
-        return PyObject_CallFunction((PyObject *)(Py_TYPE(deque)), "O", deque, NULL);
+        result = PyObject_CallFunctionObjArgs((PyObject *)(Py_TYPE(deque)),
+                                              deque, NULL);
     else
-        return PyObject_CallFunction((PyObject *)(Py_TYPE(deque)), "Oi",
-            deque, old_deque->maxlen, NULL);
+        result = PyObject_CallFunction((PyObject *)(Py_TYPE(deque)), "Oi",
+                                       deque, old_deque->maxlen, NULL);
+    if (result != NULL && !PyObject_TypeCheck(result, &deque_type)) {
+        PyErr_Format(PyExc_TypeError,
+                     "%.200s() must return a deque, not %.200s",
+                     Py_TYPE(deque)->tp_name, Py_TYPE(result)->tp_name);
+        Py_DECREF(result);
+        return NULL;
+    }
+    return result;
 }
 
 PyDoc_STRVAR(copy_doc, "Return a shallow copy of a deque.");
@@ -1331,7 +1341,7 @@ deque_traverse(dequeobject *deque, visitproc visit, void *arg)
 }
 
 static PyObject *
-deque_reduce(dequeobject *deque)
+deque_reduce(dequeobject *deque, PyObject *Py_UNUSED(ignored))
 {
     PyObject *dict, *it;
     _Py_IDENTIFIER(__dict__);
@@ -1529,7 +1539,7 @@ deque_bool(dequeobject *deque)
 }
 
 static PyObject *
-deque_get_maxlen(dequeobject *deque)
+deque_get_maxlen(dequeobject *deque, void *Py_UNUSED(ignored))
 {
     if (deque->maxlen < 0)
         Py_RETURN_NONE;
