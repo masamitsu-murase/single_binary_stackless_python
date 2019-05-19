@@ -7,7 +7,7 @@ import unittest
 
 
 class TestOriginalChanges(unittest.TestCase):
-    def xtest_lib2to3(self):
+    def test_lib2to3(self):
         import lib2to3.main
         self.assertTrue(lib2to3, "import lib2to3.main")
 
