@@ -864,8 +864,11 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStr(PyObject* obj, PyObject
 /* GetBuiltinName.proto */
 static PyObject *__Pyx_GetBuiltinName(PyObject *name);
 
-/* IncludeStringH.proto */
-#include <string.h>
+/* ArgTypeTest.proto */
+#define __Pyx_ArgTypeTest(obj, type, none_allowed, name, exact)\
+    ((likely((Py_TYPE(obj) == type) | (none_allowed && (obj == Py_None)))) ? 1 :\
+        __Pyx__ArgTypeTest(obj, type, name, exact))
+static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *name, int exact);
 
 /* PyObjectCall.proto */
 #if CYTHON_COMPILING_IN_CPYTHON
@@ -1049,10 +1052,10 @@ static PyObject *__pyx_n_s_setstate;
 static PyObject *__pyx_n_s_setstate_cython;
 static PyObject *__pyx_n_s_test;
 static PyObject *__pyx_n_s_ud;
-static PyObject *__pyx_pf_9_cchardet_detect_with_confidence(CYTHON_UNUSED PyObject *__pyx_self, const char* __pyx_v_msg); /* proto */
+static PyObject *__pyx_pf_9_cchardet_detect_with_confidence(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_msg); /* proto */
 static int __pyx_pf_9_cchardet_17UniversalDetector___init__(struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self); /* proto */
 static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_2reset(struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_4feed(struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self, const char* __pyx_v_msg); /* proto */
+static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_4feed(struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self, PyObject *__pyx_v_msg); /* proto */
 static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_6close(struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self); /* proto */
 static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_4done___get__(struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self); /* proto */
 static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_6result___get__(struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self); /* proto */
@@ -1072,36 +1075,31 @@ static PyObject *__pyx_codeobj__9;
 /* "_cchardet.pyx":14
  *     cdef float uchardet_get_confidence(uchardet_t ud)
  * 
- * def detect_with_confidence(const_char_ptr msg):             # <<<<<<<<<<<<<<
+ * def detect_with_confidence(bytes msg):             # <<<<<<<<<<<<<<
  *     cdef int length = len(msg)
  * 
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_9_cchardet_1detect_with_confidence(PyObject *__pyx_self, PyObject *__pyx_arg_msg); /*proto*/
+static PyObject *__pyx_pw_9_cchardet_1detect_with_confidence(PyObject *__pyx_self, PyObject *__pyx_v_msg); /*proto*/
 static PyMethodDef __pyx_mdef_9_cchardet_1detect_with_confidence = {"detect_with_confidence", (PyCFunction)__pyx_pw_9_cchardet_1detect_with_confidence, METH_O, 0};
-static PyObject *__pyx_pw_9_cchardet_1detect_with_confidence(PyObject *__pyx_self, PyObject *__pyx_arg_msg) {
-  const char* __pyx_v_msg;
+static PyObject *__pyx_pw_9_cchardet_1detect_with_confidence(PyObject *__pyx_self, PyObject *__pyx_v_msg) {
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("detect_with_confidence (wrapper)", 0);
-  assert(__pyx_arg_msg); {
-    __pyx_v_msg = __Pyx_PyObject_AsWritableString(__pyx_arg_msg); if (unlikely((__pyx_v_msg == ((const char*)NULL)) && PyErr_Occurred())) __PYX_ERR(1, 14, __pyx_L3_error)
-  }
-  goto __pyx_L4_argument_unpacking_done;
-  __pyx_L3_error:;
-  __Pyx_AddTraceback("_cchardet.detect_with_confidence", __pyx_clineno, __pyx_lineno, __pyx_filename);
-  __Pyx_RefNannyFinishContext();
-  return NULL;
-  __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_9_cchardet_detect_with_confidence(__pyx_self, ((const char*)__pyx_v_msg));
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_msg), (&PyBytes_Type), 1, "msg", 1))) __PYX_ERR(1, 14, __pyx_L1_error)
+  __pyx_r = __pyx_pf_9_cchardet_detect_with_confidence(__pyx_self, ((PyObject*)__pyx_v_msg));
 
   /* function exit code */
+  goto __pyx_L0;
+  __pyx_L1_error:;
+  __pyx_r = NULL;
+  __pyx_L0:;
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_9_cchardet_detect_with_confidence(CYTHON_UNUSED PyObject *__pyx_self, const char* __pyx_v_msg) {
+static PyObject *__pyx_pf_9_cchardet_detect_with_confidence(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_msg) {
   int __pyx_v_length;
   uchardet_t __pyx_v_ud;
   int __pyx_v_result;
@@ -1109,20 +1107,25 @@ static PyObject *__pyx_pf_9_cchardet_detect_with_confidence(CYTHON_UNUSED PyObje
   float __pyx_v_detected_confidence;
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
-  size_t __pyx_t_1;
-  int __pyx_t_2;
-  PyObject *__pyx_t_3 = NULL;
+  Py_ssize_t __pyx_t_1;
+  const char* __pyx_t_2;
+  int __pyx_t_3;
   PyObject *__pyx_t_4 = NULL;
+  PyObject *__pyx_t_5 = NULL;
   __Pyx_RefNannySetupContext("detect_with_confidence", 0);
 
   /* "_cchardet.pyx":15
  * 
- * def detect_with_confidence(const_char_ptr msg):
+ * def detect_with_confidence(bytes msg):
  *     cdef int length = len(msg)             # <<<<<<<<<<<<<<
  * 
  *     cdef uchardet_t ud = uchardet_new()
  */
-  __pyx_t_1 = strlen(__pyx_v_msg); 
+  if (unlikely(__pyx_v_msg == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
+    __PYX_ERR(1, 15, __pyx_L1_error)
+  }
+  __pyx_t_1 = PyBytes_GET_SIZE(__pyx_v_msg); if (unlikely(__pyx_t_1 == ((Py_ssize_t)-1))) __PYX_ERR(1, 15, __pyx_L1_error)
   __pyx_v_length = __pyx_t_1;
 
   /* "_cchardet.pyx":17
@@ -1141,7 +1144,12 @@ static PyObject *__pyx_pf_9_cchardet_detect_with_confidence(CYTHON_UNUSED PyObje
  *     if result == -1:
  *         uchardet_delete(ud)
  */
-  __pyx_v_result = uchardet_handle_data(__pyx_v_ud, __pyx_v_msg, __pyx_v_length);
+  if (unlikely(__pyx_v_msg == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "expected bytes, NoneType found");
+    __PYX_ERR(1, 19, __pyx_L1_error)
+  }
+  __pyx_t_2 = __Pyx_PyBytes_AsWritableString(__pyx_v_msg); if (unlikely((__pyx_t_2 == ((const char*)NULL)) && PyErr_Occurred())) __PYX_ERR(1, 19, __pyx_L1_error)
+  __pyx_v_result = uchardet_handle_data(__pyx_v_ud, __pyx_t_2, __pyx_v_length);
 
   /* "_cchardet.pyx":20
  * 
@@ -1150,8 +1158,8 @@ static PyObject *__pyx_pf_9_cchardet_detect_with_confidence(CYTHON_UNUSED PyObje
  *         uchardet_delete(ud)
  *         raise Exception("Handle data error")
  */
-  __pyx_t_2 = ((__pyx_v_result == -1L) != 0);
-  if (unlikely(__pyx_t_2)) {
+  __pyx_t_3 = ((__pyx_v_result == -1L) != 0);
+  if (unlikely(__pyx_t_3)) {
 
     /* "_cchardet.pyx":21
  *     cdef int result = uchardet_handle_data(ud, msg, length)
@@ -1169,10 +1177,10 @@ static PyObject *__pyx_pf_9_cchardet_detect_with_confidence(CYTHON_UNUSED PyObje
  * 
  *     uchardet_data_end(ud)
  */
-    __pyx_t_3 = __Pyx_PyObject_Call(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])), __pyx_tuple_, NULL); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 22, __pyx_L1_error)
-    __Pyx_GOTREF(__pyx_t_3);
-    __Pyx_Raise(__pyx_t_3, 0, 0, 0);
-    __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+    __pyx_t_4 = __Pyx_PyObject_Call(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])), __pyx_tuple_, NULL); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 22, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_4);
+    __Pyx_Raise(__pyx_t_4, 0, 0, 0);
+    __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
     __PYX_ERR(1, 22, __pyx_L1_error)
 
     /* "_cchardet.pyx":20
@@ -1200,10 +1208,10 @@ static PyObject *__pyx_pf_9_cchardet_detect_with_confidence(CYTHON_UNUSED PyObje
  *     cdef float detected_confidence = uchardet_get_confidence(ud)
  *     uchardet_delete(ud)
  */
-  __pyx_t_3 = __Pyx_PyBytes_FromString(uchardet_get_charset(__pyx_v_ud)); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 26, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_3);
-  __pyx_v_detected_charset = ((PyObject*)__pyx_t_3);
-  __pyx_t_3 = 0;
+  __pyx_t_4 = __Pyx_PyBytes_FromString(uchardet_get_charset(__pyx_v_ud)); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 26, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_4);
+  __pyx_v_detected_charset = ((PyObject*)__pyx_t_4);
+  __pyx_t_4 = 0;
 
   /* "_cchardet.pyx":27
  * 
@@ -1230,8 +1238,8 @@ static PyObject *__pyx_pf_9_cchardet_detect_with_confidence(CYTHON_UNUSED PyObje
  *         return detected_charset, detected_confidence
  * 
  */
-  __pyx_t_2 = (PyBytes_GET_SIZE(__pyx_v_detected_charset) != 0);
-  if (__pyx_t_2) {
+  __pyx_t_3 = (PyBytes_GET_SIZE(__pyx_v_detected_charset) != 0);
+  if (__pyx_t_3) {
 
     /* "_cchardet.pyx":31
  * 
@@ -1241,18 +1249,18 @@ static PyObject *__pyx_pf_9_cchardet_detect_with_confidence(CYTHON_UNUSED PyObje
  *     return None, None
  */
     __Pyx_XDECREF(__pyx_r);
-    __pyx_t_3 = PyFloat_FromDouble(__pyx_v_detected_confidence); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 31, __pyx_L1_error)
-    __Pyx_GOTREF(__pyx_t_3);
-    __pyx_t_4 = PyTuple_New(2); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 31, __pyx_L1_error)
+    __pyx_t_4 = PyFloat_FromDouble(__pyx_v_detected_confidence); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 31, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
+    __pyx_t_5 = PyTuple_New(2); if (unlikely(!__pyx_t_5)) __PYX_ERR(1, 31, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_5);
     __Pyx_INCREF(__pyx_v_detected_charset);
     __Pyx_GIVEREF(__pyx_v_detected_charset);
-    PyTuple_SET_ITEM(__pyx_t_4, 0, __pyx_v_detected_charset);
-    __Pyx_GIVEREF(__pyx_t_3);
-    PyTuple_SET_ITEM(__pyx_t_4, 1, __pyx_t_3);
-    __pyx_t_3 = 0;
-    __pyx_r = __pyx_t_4;
+    PyTuple_SET_ITEM(__pyx_t_5, 0, __pyx_v_detected_charset);
+    __Pyx_GIVEREF(__pyx_t_4);
+    PyTuple_SET_ITEM(__pyx_t_5, 1, __pyx_t_4);
     __pyx_t_4 = 0;
+    __pyx_r = __pyx_t_5;
+    __pyx_t_5 = 0;
     goto __pyx_L0;
 
     /* "_cchardet.pyx":30
@@ -1279,15 +1287,15 @@ static PyObject *__pyx_pf_9_cchardet_detect_with_confidence(CYTHON_UNUSED PyObje
   /* "_cchardet.pyx":14
  *     cdef float uchardet_get_confidence(uchardet_t ud)
  * 
- * def detect_with_confidence(const_char_ptr msg):             # <<<<<<<<<<<<<<
+ * def detect_with_confidence(bytes msg):             # <<<<<<<<<<<<<<
  *     cdef int length = len(msg)
  * 
  */
 
   /* function exit code */
   __pyx_L1_error:;
-  __Pyx_XDECREF(__pyx_t_3);
   __Pyx_XDECREF(__pyx_t_4);
+  __Pyx_XDECREF(__pyx_t_5);
   __Pyx_AddTraceback("_cchardet.detect_with_confidence", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
@@ -1471,7 +1479,7 @@ static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_2reset(struct __pyx_obj
  *             self._detected_confidence = 0.0
  *             uchardet_reset(self._ud)             # <<<<<<<<<<<<<<
  * 
- *     def feed(self, const_char_ptr msg):
+ *     def feed(self, bytes msg):
  */
     uchardet_reset(__pyx_v_self->_ud);
 
@@ -1502,42 +1510,38 @@ static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_2reset(struct __pyx_obj
 /* "_cchardet.pyx":57
  *             uchardet_reset(self._ud)
  * 
- *     def feed(self, const_char_ptr msg):             # <<<<<<<<<<<<<<
+ *     def feed(self, bytes msg):             # <<<<<<<<<<<<<<
  *         cdef int length
  *         cdef int result
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_9_cchardet_17UniversalDetector_5feed(PyObject *__pyx_v_self, PyObject *__pyx_arg_msg); /*proto*/
-static PyObject *__pyx_pw_9_cchardet_17UniversalDetector_5feed(PyObject *__pyx_v_self, PyObject *__pyx_arg_msg) {
-  const char* __pyx_v_msg;
+static PyObject *__pyx_pw_9_cchardet_17UniversalDetector_5feed(PyObject *__pyx_v_self, PyObject *__pyx_v_msg); /*proto*/
+static PyObject *__pyx_pw_9_cchardet_17UniversalDetector_5feed(PyObject *__pyx_v_self, PyObject *__pyx_v_msg) {
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("feed (wrapper)", 0);
-  assert(__pyx_arg_msg); {
-    __pyx_v_msg = __Pyx_PyObject_AsWritableString(__pyx_arg_msg); if (unlikely((__pyx_v_msg == ((const char*)NULL)) && PyErr_Occurred())) __PYX_ERR(1, 57, __pyx_L3_error)
-  }
-  goto __pyx_L4_argument_unpacking_done;
-  __pyx_L3_error:;
-  __Pyx_AddTraceback("_cchardet.UniversalDetector.feed", __pyx_clineno, __pyx_lineno, __pyx_filename);
-  __Pyx_RefNannyFinishContext();
-  return NULL;
-  __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_9_cchardet_17UniversalDetector_4feed(((struct __pyx_obj_9_cchardet_UniversalDetector *)__pyx_v_self), ((const char*)__pyx_v_msg));
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_msg), (&PyBytes_Type), 1, "msg", 1))) __PYX_ERR(1, 57, __pyx_L1_error)
+  __pyx_r = __pyx_pf_9_cchardet_17UniversalDetector_4feed(((struct __pyx_obj_9_cchardet_UniversalDetector *)__pyx_v_self), ((PyObject*)__pyx_v_msg));
 
   /* function exit code */
+  goto __pyx_L0;
+  __pyx_L1_error:;
+  __pyx_r = NULL;
+  __pyx_L0:;
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_4feed(struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self, const char* __pyx_v_msg) {
+static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_4feed(struct __pyx_obj_9_cchardet_UniversalDetector *__pyx_v_self, PyObject *__pyx_v_msg) {
   int __pyx_v_length;
   int __pyx_v_result;
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   int __pyx_t_1;
-  size_t __pyx_t_2;
-  PyObject *__pyx_t_3 = NULL;
+  Py_ssize_t __pyx_t_2;
+  const char* __pyx_t_3;
+  PyObject *__pyx_t_4 = NULL;
   __Pyx_RefNannySetupContext("feed", 0);
 
   /* "_cchardet.pyx":61
@@ -1577,7 +1581,11 @@ static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_4feed(struct __pyx_obj_
  *         if length > 0:
  *             result = uchardet_handle_data(self._ud, msg, length)
  */
-  __pyx_t_2 = strlen(__pyx_v_msg); 
+  if (unlikely(__pyx_v_msg == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
+    __PYX_ERR(1, 64, __pyx_L1_error)
+  }
+  __pyx_t_2 = PyBytes_GET_SIZE(__pyx_v_msg); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(1, 64, __pyx_L1_error)
   __pyx_v_length = __pyx_t_2;
 
   /* "_cchardet.pyx":65
@@ -1597,7 +1605,12 @@ static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_4feed(struct __pyx_obj_
  * 
  *             if result == -1:
  */
-    __pyx_v_result = uchardet_handle_data(__pyx_v_self->_ud, __pyx_v_msg, __pyx_v_length);
+    if (unlikely(__pyx_v_msg == Py_None)) {
+      PyErr_SetString(PyExc_TypeError, "expected bytes, NoneType found");
+      __PYX_ERR(1, 66, __pyx_L1_error)
+    }
+    __pyx_t_3 = __Pyx_PyBytes_AsWritableString(__pyx_v_msg); if (unlikely((__pyx_t_3 == ((const char*)NULL)) && PyErr_Occurred())) __PYX_ERR(1, 66, __pyx_L1_error)
+    __pyx_v_result = uchardet_handle_data(__pyx_v_self->_ud, __pyx_t_3, __pyx_v_length);
 
     /* "_cchardet.pyx":68
  *             result = uchardet_handle_data(self._ud, msg, length)
@@ -1634,10 +1647,10 @@ static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_4feed(struct __pyx_obj_
  *             elif result == 0:
  *                 self._done = 1
  */
-      __pyx_t_3 = __Pyx_PyObject_Call(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])), __pyx_tuple__4, NULL); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 71, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_3);
-      __Pyx_Raise(__pyx_t_3, 0, 0, 0);
-      __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+      __pyx_t_4 = __Pyx_PyObject_Call(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])), __pyx_tuple__4, NULL); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 71, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_4);
+      __Pyx_Raise(__pyx_t_4, 0, 0, 0);
+      __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
       __PYX_ERR(1, 71, __pyx_L1_error)
 
       /* "_cchardet.pyx":68
@@ -1685,13 +1698,13 @@ static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_4feed(struct __pyx_obj_
  *             self._detected_confidence = uchardet_get_confidence(self._ud)
  * 
  */
-    __pyx_t_3 = __Pyx_PyBytes_FromString(uchardet_get_charset(__pyx_v_self->_ud)); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 75, __pyx_L1_error)
-    __Pyx_GOTREF(__pyx_t_3);
-    __Pyx_GIVEREF(__pyx_t_3);
+    __pyx_t_4 = __Pyx_PyBytes_FromString(uchardet_get_charset(__pyx_v_self->_ud)); if (unlikely(!__pyx_t_4)) __PYX_ERR(1, 75, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_4);
+    __Pyx_GIVEREF(__pyx_t_4);
     __Pyx_GOTREF(__pyx_v_self->_detected_charset);
     __Pyx_DECREF(__pyx_v_self->_detected_charset);
-    __pyx_v_self->_detected_charset = ((PyObject*)__pyx_t_3);
-    __pyx_t_3 = 0;
+    __pyx_v_self->_detected_charset = ((PyObject*)__pyx_t_4);
+    __pyx_t_4 = 0;
 
     /* "_cchardet.pyx":76
  * 
@@ -1714,7 +1727,7 @@ static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_4feed(struct __pyx_obj_
   /* "_cchardet.pyx":57
  *             uchardet_reset(self._ud)
  * 
- *     def feed(self, const_char_ptr msg):             # <<<<<<<<<<<<<<
+ *     def feed(self, bytes msg):             # <<<<<<<<<<<<<<
  *         cdef int length
  *         cdef int result
  */
@@ -1723,7 +1736,7 @@ static PyObject *__pyx_pf_9_cchardet_17UniversalDetector_4feed(struct __pyx_obj_
   __pyx_r = Py_None; __Pyx_INCREF(Py_None);
   goto __pyx_L0;
   __pyx_L1_error:;
-  __Pyx_XDECREF(__pyx_t_3);
+  __Pyx_XDECREF(__pyx_t_4);
   __Pyx_AddTraceback("_cchardet.UniversalDetector.feed", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
@@ -2377,14 +2390,14 @@ static int __Pyx_InitCachedConstants(void) {
   /* "_cchardet.pyx":14
  *     cdef float uchardet_get_confidence(uchardet_t ud)
  * 
- * def detect_with_confidence(const_char_ptr msg):             # <<<<<<<<<<<<<<
+ * def detect_with_confidence(bytes msg):             # <<<<<<<<<<<<<<
  *     cdef int length = len(msg)
  * 
  */
-  __pyx_tuple__8 = PyTuple_Pack(7, __pyx_n_s_msg, __pyx_n_s_msg, __pyx_n_s_length, __pyx_n_s_ud, __pyx_n_s_result, __pyx_n_s_detected_charset, __pyx_n_s_detected_confidence); if (unlikely(!__pyx_tuple__8)) __PYX_ERR(1, 14, __pyx_L1_error)
+  __pyx_tuple__8 = PyTuple_Pack(6, __pyx_n_s_msg, __pyx_n_s_length, __pyx_n_s_ud, __pyx_n_s_result, __pyx_n_s_detected_charset, __pyx_n_s_detected_confidence); if (unlikely(!__pyx_tuple__8)) __PYX_ERR(1, 14, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__8);
   __Pyx_GIVEREF(__pyx_tuple__8);
-  __pyx_codeobj__9 = (PyObject*)__Pyx_PyCode_New(1, 0, 7, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__8, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_cchardet_pyx, __pyx_n_s_detect_with_confidence, 14, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__9)) __PYX_ERR(1, 14, __pyx_L1_error)
+  __pyx_codeobj__9 = (PyObject*)__Pyx_PyCode_New(1, 0, 6, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__8, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_cchardet_pyx, __pyx_n_s_detect_with_confidence, 14, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__9)) __PYX_ERR(1, 14, __pyx_L1_error)
   __Pyx_RefNannyFinishContext();
   return 0;
   __pyx_L1_error:;
@@ -2650,7 +2663,7 @@ if (!__Pyx_RefNanny) {
   /* "_cchardet.pyx":14
  *     cdef float uchardet_get_confidence(uchardet_t ud)
  * 
- * def detect_with_confidence(const_char_ptr msg):             # <<<<<<<<<<<<<<
+ * def detect_with_confidence(bytes msg):             # <<<<<<<<<<<<<<
  *     cdef int length = len(msg)
  * 
  */
@@ -2737,6 +2750,27 @@ static PyObject *__Pyx_GetBuiltinName(PyObject *name) {
 #endif
     }
     return result;
+}
+
+/* ArgTypeTest */
+static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *name, int exact)
+{
+    if (unlikely(!type)) {
+        PyErr_SetString(PyExc_SystemError, "Missing type object");
+        return 0;
+    }
+    else if (exact) {
+        #if PY_MAJOR_VERSION == 2
+        if ((type == &PyBaseString_Type) && likely(__Pyx_PyBaseString_CheckExact(obj))) return 1;
+        #endif
+    }
+    else {
+        if (likely(__Pyx_TypeCheck(obj, type))) return 1;
+    }
+    PyErr_Format(PyExc_TypeError,
+        "Argument '%.200s' has incorrect type (expected %.200s, got %.200s)",
+        name, type->tp_name, Py_TYPE(obj)->tp_name);
+    return 0;
 }
 
 /* PyObjectCall */

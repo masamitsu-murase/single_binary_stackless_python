@@ -1,30 +1,7 @@
-diff --git b/_internal.py a/_internal.py
-index 3d1ee09..aace39b 100644
---- b/_internal.py
-+++ a/_internal.py
-@@ -42,15 +42,15 @@ for _i in chain(range_type(32), range_type(127, 256)):
- 
- _octal_re = re.compile(b'\\\\[0-3][0-7][0-7]')
- _quote_re = re.compile(b'[\\\\].')
--_legal_cookie_chars_re = b'[\w\d!#%&\'~_`><@,:/\$\*\+\-\.\^\|\)\(\?\}\{\=]'
-+# _legal_cookie_chars_re = b'[\w\d!#%&\'~_`><@,:/\$\*\+\-\.\^\|\)\(\?\}\{\=]'
- _cookie_re = re.compile(b"""
-     (?P<key>[^=]+)
--    \s*=\s*
-+    \\s*=\\s*
-     (?P<val>
-         "(?:[^\\\\"]|\\\\.)*" |
-          (?:.*?)
-     )
--    \s*;
-+    \\s*;
- """, flags=re.VERBOSE)
- 
- 
-diff --git b/debug/__init__.py a/debug/__init__.py
-index 6124727..9d63740 100644
---- b/debug/__init__.py
-+++ a/debug/__init__.py
+diff --git a/debug/__init__.py b/debug/__init__.py
+index 14fe193..ddb4aaf 100644
+--- a/debug/__init__.py
++++ b/debug/__init__.py
 @@ -9,6 +9,7 @@
      :license: BSD, see LICENSE for more details.
  """
@@ -50,7 +27,7 @@ index 6124727..9d63740 100644
  # DEPRECATED
  #: import this here because it once was documented as being available
  #: from this module.  In case there are users left ...
-@@ -346,15 +346,15 @@ class DebuggedApplication(object):
+@@ -350,15 +350,15 @@ class DebuggedApplication(object):
  
      def get_resource(self, request, filename):
          """Return a static resource from the shared folder."""
@@ -73,10 +50,10 @@ index 6124727..9d63740 100644
          return Response('Not Found', status=404)
  
      def check_pin_trust(self, environ):
-diff --git b/debug/shared/style.css a/debug/shared/style.css
+diff --git a/debug/shared/style.css b/debug/shared/style.css
 index 2f4c5be..f3a564f 100644
---- b/debug/shared/style.css
-+++ a/debug/shared/style.css
+--- a/debug/shared/style.css
++++ b/debug/shared/style.css
 @@ -1,3 +1,4 @@
 +/*
  @font-face {
@@ -90,11 +67,11 @@ index 2f4c5be..f3a564f 100644
  
  body, input  { font-family: 'Lucida Grande', 'Lucida Sans Unicode', 'Geneva',
                 'Verdana', sans-serif; color: #000; text-align: center;
-diff --git b/routing.py a/routing.py
-index 6fe0816..de797ce 100644
---- b/routing.py
-+++ a/routing.py
-@@ -1379,7 +1379,7 @@ class MapAdapter(object):
+diff --git a/routing.py b/routing.py
+index 2e4e2f4..df8634f 100644
+--- a/routing.py
++++ b/routing.py
+@@ -1387,7 +1387,7 @@ class MapAdapter(object):
  
      def dispatch(self, view_func, path_info=None, method=None,
                   catch_http_exceptions=False):

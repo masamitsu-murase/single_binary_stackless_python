@@ -37,6 +37,9 @@ from .exceptions import (
 NETRC_FILES = ('.netrc', '_netrc')
 
 DEFAULT_CA_BUNDLE_PATH = certs.where()
+
+DEFAULT_PORTS = {'http': 80, 'https': 443}
+
 # Load ca_cert_data for single binarisation.
 if hasattr(certs, "ca_cert_data"):
     DEFAULT_CA_BUNDLE_DATA = certs.ca_cert_data()
@@ -269,7 +272,7 @@ def from_key_val_list(value):
         >>> from_key_val_list([('key', 'val')])
         OrderedDict([('key', 'val')])
         >>> from_key_val_list('string')
-        ValueError: need more than 1 value to unpack
+        ValueError: cannot encode objects that are not 2-tuples
         >>> from_key_val_list({'key': 'val'})
         OrderedDict([('key', 'val')])
 

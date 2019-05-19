@@ -100,12 +100,19 @@ class UndefinedExport(Message):
 
 
 class UndefinedLocal(Message):
-    message = ('local variable %r (defined in enclosing scope on line %r) '
-               'referenced before assignment')
+    message = 'local variable %r {0} referenced before assignment'
+
+    default = 'defined in enclosing scope on line %r'
+    builtin = 'defined as a builtin'
 
     def __init__(self, filename, loc, name, orig_loc):
         Message.__init__(self, filename, loc)
-        self.message_args = (name, orig_loc.lineno)
+        if orig_loc is None:
+            self.message = self.message.format(self.builtin)
+            self.message_args = name
+        else:
+            self.message = self.message.format(self.default)
+            self.message_args = (name, orig_loc.lineno)
 
 
 class DuplicateArgument(Message):
@@ -241,5 +248,21 @@ class ForwardAnnotationSyntaxError(Message):
         self.message_args = (annotation,)
 
 
+class CommentAnnotationSyntaxError(Message):
+    message = 'syntax error in type comment %r'
+
+    def __init__(self, filename, loc, annotation):
+        Message.__init__(self, filename, loc)
+        self.message_args = (annotation,)
+
+
 class RaiseNotImplemented(Message):
     message = "'raise NotImplemented' should be 'raise NotImplementedError'"
+
+
+class InvalidPrintSyntax(Message):
+    message = 'use of >> is invalid with print function'
+
+
+class IsLiteral(Message):
+    message = 'use ==/!= to compare str, bytes, and int literals'
