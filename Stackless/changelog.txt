@@ -4,10 +4,16 @@ Stackless-Python News
 This file documents user visible changes to the Stackless extension of C-Python.
 For other changes see Misc/NEWS.
 
-What's New in Stackless 3.X.X?
-==============================
+What's New in Stackless 3.6.7 and 3.6.8?
+========================================
 
-*Release date: 20XX-XX-XX*
+*Release date: 2019-01-20*  (3.6.8)
+*Release date: 2019-01-20*  (3.6.7)
+
+- https://github.com/stackless-dev/stackless/issues/190
+  Silently ignore attempts to close a running generator, coroutine or
+  asynchronous generator. This avoids spurious error messages, if such an
+  object is deallocated as part of a paused, restorable tasklet.
 
 - https://github.com/stackless-dev/stackless/issues/206
   Fix the error handling of the Python implementation of function-object

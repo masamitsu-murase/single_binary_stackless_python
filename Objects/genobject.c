@@ -143,6 +143,15 @@ gen_send_ex(PyGenObject *gen, PyObject *arg, int exc, int closing)
     PyFrameObject *f = gen->gi_frame;
     PyObject *result;
 
+#ifdef STACKLESS
+    if (gen->gi_running && exc && closing) {
+        /*
+         * Do not close a running generator.
+         * See Stackless issue 190.
+         */
+        return NULL;
+    }
+#endif
     if (gen->gi_running) {
         char *msg = "generator already executing";
         if (PyCoro_CheckExact(gen)) {
@@ -776,14 +785,14 @@ gen_repr(PyGenObject *gen)
 }
 
 static PyObject *
-gen_get_name(PyGenObject *op)
+gen_get_name(PyGenObject *op, void *Py_UNUSED(ignored))
 {
     Py_INCREF(op->gi_name);
     return op->gi_name;
 }
 
 static int
-gen_set_name(PyGenObject *op, PyObject *value)
+gen_set_name(PyGenObject *op, PyObject *value, void *Py_UNUSED(ignored))
 {
     /* Not legal to del gen.gi_name or to set it to anything
      * other than a string object. */
@@ -798,14 +807,14 @@ gen_set_name(PyGenObject *op, PyObject *value)
 }
 
 static PyObject *
-gen_get_qualname(PyGenObject *op)
+gen_get_qualname(PyGenObject *op, void *Py_UNUSED(ignored))
 {
     Py_INCREF(op->gi_qualname);
     return op->gi_qualname;
 }
 
 static int
-gen_set_qualname(PyGenObject *op, PyObject *value)
+gen_set_qualname(PyGenObject *op, PyObject *value, void *Py_UNUSED(ignored))
 {
     /* Not legal to del gen.__qualname__ or to set it to anything
      * other than a string object. */
@@ -820,7 +829,7 @@ gen_set_qualname(PyGenObject *op, PyObject *value)
 }
 
 static PyObject *
-gen_getyieldfrom(PyGenObject *gen)
+gen_getyieldfrom(PyGenObject *gen, void *Py_UNUSED(ignored))
 {
     PyObject *yf = _PyGen_yf(gen);
     if (yf == NULL)
@@ -1057,7 +1066,7 @@ coro_await(PyCoroObject *coro)
 }
 
 static PyObject *
-coro_get_cr_await(PyCoroObject *coro)
+coro_get_cr_await(PyCoroObject *coro, void *Py_UNUSED(ignored))
 {
     PyObject *yf = _PyGen_yf((PyGenObject *) coro);
     if (yf == NULL)

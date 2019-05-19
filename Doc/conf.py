@@ -13,7 +13,7 @@ sys.path.append(os.path.abspath('tools/extensions'))
 # ---------------------
 
 extensions = ['sphinx.ext.coverage', 'sphinx.ext.doctest',
-              'pyspecific', 'c_annotations']
+              'pyspecific', 'c_annotations', 'escape4chm']
 
 # Compatibility hack for Sphinx version 1.2 and later
 # without the 'sphinx.ext.refcounting' extension
