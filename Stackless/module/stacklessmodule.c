@@ -784,12 +784,15 @@ get_thread_info(PyObject *self, PyObject *args)
     long id_is_valid;
     /* The additional optional argument flags is currently intentionally
      * undocumented. The lower order flag bits are reserved for future public
-     * applications. If the flag bit 31 is set, the returned tuple contains
-     * the watchdog list as an additional item. The Stackless test suite uses
-     * this feature to ensure that the list is empty at start and end of each
-     * test.
+     * applications.
+     * If the flag bit 30 is set, the values of serial, serial_last_jump and
+     * initial_stub are appended to the result. The Stackless test suite uses them.
+     * If the flag bit 31 is set, the watchdog list is appended to the result.
+     * The Stackless test suite uses this feature to ensure that the list is empty at
+     * start and end of each test.
      */
     unsigned long flags=0;
+    PyObject *retval;
 
     if (!PyArg_ParseTuple(args, "|O!k:get_thread_info", &PyLong_Type, &thread_id, &flags))
         return NULL;
@@ -807,11 +810,44 @@ get_thread_info(PyObject *self, PyObject *args)
             RUNTIME_ERROR("Thread id not found", NULL);
     }
 
-    return Py_BuildValue((flags & (1ul<<31)) ? "(OOiO)": "(OOi)",
+    retval = Py_BuildValue("(OOi)",
         ts->st.main ? (PyObject *) ts->st.main : Py_None,
         ts->st.runcount ? (PyObject *) ts->st.current : Py_None,
-        ts->st.runcount,
-        ts->st.watchdogs ? ts->st.watchdogs : Py_None);
+        ts->st.runcount
+        );
+
+    if (retval && (flags & (1ul<<30))) {
+        Py_ssize_t retsize = PyTuple_GET_SIZE(retval);
+        /* Append the serial numbers */
+        PyObject *serial, *serial_last_jump;
+        serial = PyLong_FromLongLong(ts->st.serial);
+        if (serial == NULL) {
+            Py_DECREF(retval);
+            return NULL;
+        }
+        serial_last_jump = PyLong_FromLongLong(ts->st.serial_last_jump);
+        if (serial == NULL) {
+            Py_DECREF(retval);
+            return NULL;
+        }
+        if (!_PyTuple_Resize(&retval, retsize + 3)) {
+            PyTuple_SET_ITEM(retval, retsize, serial);  /* steals a ref to serial */
+            PyTuple_SET_ITEM(retval, retsize + 1, serial_last_jump);  /* steals a ref to serial_last_jump */
+            serial = ts->st.initial_stub ? (PyObject *) ts->st.initial_stub : Py_None;
+            Py_INCREF(serial);
+            PyTuple_SET_ITEM(retval, retsize + 2, serial);  /* steals a ref to serial */
+        }
+    }
+    if (retval && (flags & (1ul<<31))) {
+        Py_ssize_t retsize = PyTuple_GET_SIZE(retval);
+        /* Append the watchdog list */
+        if (!_PyTuple_Resize(&retval, retsize + 1)) {
+            PyObject *o = ts->st.watchdogs ? ts->st.watchdogs : Py_None;
+            Py_INCREF(o);
+            PyTuple_SET_ITEM(retval, retsize, o);  /* steals a ref to o */
+        }
+    }
+    return retval;
 }
 
 static PyObject *

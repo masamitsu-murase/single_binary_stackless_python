@@ -131,6 +131,14 @@ def testcase_leaks_references(leak_reason, soft_switching=None):
 #         raise RuntimeError("There is no ref leak for obj. Missing referrers %d" % (delta,))
 
 
+def get_serial_last_jump(threadid=-1):
+    """Get the current serial_last_jump of the given thread.
+    """
+    # The second argument of get_thread_info() is intentionally undocumented.
+    # See C source.
+    return stackless.get_thread_info(threadid, 1 << 30)[4]
+
+
 def get_watchdog_list(threadid):
     """Get the watchdog list of a thread.
 
@@ -561,6 +569,7 @@ class StacklessTestCase(unittest.TestCase, StacklessTestCaseMixin, metaclass=Sta
 
         self.__active_test_cases[id(self)] = self
         self.__uncollectable_tasklets = []
+        self.__initial_cstack_serial = get_serial_last_jump()
         self.assertListEqual([t for t in gc.garbage if isinstance(t, stackless.tasklet)], [],
                              "Leakage from other tests, with tasklets in gc.garbage")
 
@@ -590,6 +599,8 @@ class StacklessTestCase(unittest.TestCase, StacklessTestCaseMixin, metaclass=Sta
                              (active_count, expected_thread_count))
 
     def tearDown(self):
+        # Test that the C-stack didn't change
+        self.assertEqual(self.__initial_cstack_serial, get_serial_last_jump())
         # Test, that stackless errorhandler is None and reset it
         self.assertIsNone(stackless.set_error_handler(None))
 
