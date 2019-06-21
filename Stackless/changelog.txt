@@ -9,6 +9,12 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://github.com/stackless-dev/stackless/issues/221
+  Change the width of C-stack serial numbers to 64bit. This prevents overflows
+  in long running applications with an embedded Stackless Python.
+  This change affects internal Stackless C structures PyStacklessState and
+  PyCStackObject. If you tamper with them, you must recompile your code!
+
 - https://github.com/stackless-dev/stackless/issues/219
   Fix a NULL pointer access in PyStackless_Schedule, if this function is called
   from from "outside" and if no current tasklet exists.

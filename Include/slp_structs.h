@@ -143,11 +143,7 @@ typedef struct _cstack {
     PyObject_VAR_HEAD
     struct _cstack *next;
     struct _cstack *prev;
-#ifdef have_long_long
-    long_long serial;
-#else
-    long serial;
-#endif
+    PY_LONG_LONG serial;
     struct _tasklet *task;
     int nesting_level;
     PyThreadState *tstate;

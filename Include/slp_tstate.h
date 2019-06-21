@@ -76,13 +76,8 @@ typedef struct _sts {
      * stack belongs.  This is used to find out if a stack switch
      * is required when the main tasklet exits
      */
-#ifdef have_long_long
-    long_long serial;
-    long_long serial_last_jump;
-#else
-    long serial;
-    long serial_last_jump;
-#endif
+    PY_LONG_LONG serial;
+    PY_LONG_LONG serial_last_jump;
     /* the blueprint for new stacks */
     struct _cstack *initial_stub;
     /* the base address for hijacking stacks. XXX deprecating */
