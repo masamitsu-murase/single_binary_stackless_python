@@ -936,7 +936,7 @@ test_outside(PyObject *self)
     int recursion_depth = ts->recursion_depth;
     int nesting_level = ts->st.nesting_level;
     PyObject *ret = Py_None;
-    int jump = ts->st.serial_last_jump;
+    PY_LONG_LONG jump = ts->st.serial_last_jump;
 
     Py_INCREF(ret);
     ts->st.main = NULL;
