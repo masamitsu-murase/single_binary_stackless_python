@@ -172,6 +172,7 @@ static PyMemberDef cstack_members[] = {
     {"task", T_OBJECT, offsetof(PyCStackObject, task), READONLY},
     {"startaddr", T_ADDR, offsetof(PyCStackObject, startaddr), READONLY},
     {"nesting_level", T_INT, offsetof(PyCStackObject, nesting_level), READONLY},
+    {"serial", T_LONGLONG, offsetof(PyCStackObject, serial), READONLY},
     {0}
 };
 
