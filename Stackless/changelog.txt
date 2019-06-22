@@ -9,6 +9,10 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://github.com/stackless-dev/stackless/issues/219
+  C-API documentation update: update the names of watchdog flags to match the
+  implementation.
+
 - https://github.com/stackless-dev/stackless/issues/221
   Fix a bug that could cause an assertion failure and a reference leak during
   the termination of a main-tasklet, if an application embeds Stackless Python.
