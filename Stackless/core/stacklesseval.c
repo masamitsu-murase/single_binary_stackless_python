@@ -348,17 +348,18 @@ slp_eval_frame(PyFrameObject *f)
         if (ts->st.cstack_base == NULL)
             ts->st.cstack_base = stackref - SLP_CSTACK_GOODGAP;
         if (stackref > ts->st.cstack_base) {
-			PyCStackObject *cst;
+			PyCStackObject *initial_stub;
             retval = climb_stack_and_eval_frame(f);
-			cst = ts->st.initial_stub;
-			/* might be NULL in OOM conditions */
-			if (cst != NULL) {
-                PyCStackObject *other;
+			initial_stub = ts->st.initial_stub;
+			/* cst might be NULL in OOM conditions */
+			if (initial_stub != NULL) {
+                PyCStackObject *cst;
                 register int found = 0;
-                assert(cst->startaddr == ts->st.cstack_base);
-                for (other = cst->next; other != cst; other = other->next) {
-                    if (Py_SIZE(other) != 0 && other->task != NULL && other->tstate == ts) {
-                        assert(other->startaddr == ts->st.cstack_base);
+                assert(initial_stub->startaddr == ts->st.cstack_base);
+                for (cst = initial_stub->next; cst != initial_stub; cst = cst->next) {
+                    if (Py_SIZE(cst) != 0 && cst->task != NULL &&
+                            cst->tstate == ts) {
+                        assert(cst->startaddr == ts->st.cstack_base);
                         found = 1;
                         break;
                     }
