@@ -69,7 +69,7 @@ class TestOutside(StacklessTestCase):
         def createSource():
             tasklet(source)()
         tasklet(createSource)()  # create source from a different cstate
-        test_outside()
+        test_outside()  # create the source tasklet and run it until it blocks
 
         # now create the sink tasklet
         tasklet(sink)()

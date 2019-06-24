@@ -773,7 +773,7 @@ Modules/getpath.o: $(srcdir)/Modules/getpath.c Makefile
 Programs/python.o: $(srcdir)/Programs/python.c
 	$(MAINCC) -c $(PY_CORE_CFLAGS) -o $@ $(srcdir)/Programs/python.c
 
-Programs/_testembed.o: $(srcdir)/Programs/_testembed.c
+Programs/_testembed.o: $(srcdir)/Programs/_testembed.c $(srcdir)/Stackless/unittests/_testembed_slp.c
 	$(MAINCC) -c $(PY_CORE_CFLAGS) -o $@ $(srcdir)/Programs/_testembed.c
 
 Modules/_sre.o: $(srcdir)/Modules/_sre.c $(srcdir)/Modules/sre.h $(srcdir)/Modules/sre_constants.h $(srcdir)/Modules/sre_lib.h

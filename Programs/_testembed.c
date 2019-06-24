@@ -221,6 +221,10 @@ static struct TestCase TestCases[] = {
     { NULL, NULL }
 };
 
+#ifdef STACKLESS
+#include "../Stackless/unittests/_testembed_slp.c"
+#endif
+
 int main(int argc, char *argv[])
 {
     if (argc > 1) {

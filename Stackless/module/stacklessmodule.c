@@ -969,15 +969,22 @@ test_outside(PyObject *self)
 {
     PyThreadState *ts = PyThreadState_GET();
     PyTaskletObject *stmain = ts->st.main;
-    PyCStackObject *cst = ts->st.initial_stub;
+    PyCStackObject *initial_stub = ts->st.initial_stub;
     PyFrameObject *f = SLP_CURRENT_FRAME(ts);
     int recursion_depth = ts->recursion_depth;
     int nesting_level = ts->st.nesting_level;
+    intptr_t *cstack_base = ts->st.cstack_base;
+    intptr_t *cstack_root = ts->st.cstack_root;
     PyObject *ret = Py_None;
     PY_LONG_LONG jump = ts->st.serial_last_jump;
 
     Py_INCREF(ret);
     ts->st.main = NULL;
+    assert(initial_stub->startaddr == cstack_base);
+    if (ts->interp != _PyRuntime.interpreters.main) {
+        ts->st.cstack_base = NULL;
+        ts->st.cstack_root = NULL;
+    }
     ts->st.initial_stub = NULL;
     ts->st.nesting_level = 0;
     SLP_SET_CURRENT_FRAME(ts, NULL);
@@ -990,9 +997,12 @@ test_outside(PyObject *self)
             break;
         }
     }
+    ts->st.cstack_base = cstack_base;
+    ts->st.cstack_root = cstack_root;
+    initial_stub->startaddr = cstack_base;
     ts->st.main = stmain;
     Py_CLEAR(ts->st.initial_stub);
-    ts->st.initial_stub = cst;
+    ts->st.initial_stub = initial_stub;
     SLP_SET_CURRENT_FRAME(ts, f);
     slp_current_insert(stmain);
     ts->recursion_depth = recursion_depth;

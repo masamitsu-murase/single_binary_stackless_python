@@ -144,6 +144,9 @@ typedef struct _cstack {
     struct _cstack *next;
     struct _cstack *prev;
     PY_LONG_LONG serial;
+    /* A borrowed reference to the tasklet, that owns this cstack. NULL after
+     * the stack has been restored. Always NULL for an initial stub.
+     */
     struct _tasklet *task;
     int nesting_level;
     PyThreadState *tstate;
@@ -155,6 +158,8 @@ typedef struct _cstack {
 	 */
     unsigned long exception_list;
 #endif
+    /* The end-address (sic!) of the stack stored in the cstack.
+     */
     intptr_t *startaddr;
     intptr_t stack[
 #if defined(_WINDOWS_) && defined(SLP_SEH32)
