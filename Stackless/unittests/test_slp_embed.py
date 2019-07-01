@@ -17,7 +17,6 @@ from test.test_embed import EmbeddingTestsMixin
 from test.support import verbose
 
 
-@unittest.skip("Stackless issue 218")
 class EmbeddingTests(EmbeddingTestsMixin, unittest.TestCase):
     def test_schedule(self):
         env = dict(os.environ)

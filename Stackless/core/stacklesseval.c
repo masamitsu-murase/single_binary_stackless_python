@@ -352,7 +352,7 @@ slp_eval_frame(PyFrameObject *f)
             retval = climb_stack_and_eval_frame(f);
 			initial_stub = ts->st.initial_stub;
 			/* cst might be NULL in OOM conditions */
-			if (initial_stub != NULL) {
+			if (ts->interp != _PyRuntime.interpreters.main && initial_stub != NULL) {
                 PyCStackObject *cst;
                 register int found = 0;
                 assert(initial_stub->startaddr == ts->st.cstack_base);
