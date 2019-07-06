@@ -51,6 +51,8 @@ This binary includes standard library and the following libraries.
   Developed by Armin Ronacher. Released under the BSD License.
 * [click](https://pypi.org/project/click/)  
   Developed by Armin Ronacher. Released under the BSD License.
+* [yapf](https://pypi.org/project/yapf/)  
+  Developed by Bill Wendling. Released under the Apache Software License.
 
 ## Additional features
 

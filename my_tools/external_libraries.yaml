@@ -142,6 +142,12 @@ python_libraries:
     tag: "7.0"
     output_dir: "click"
     filter_dir: "click"
+  - name: "yapf"
+    github_user: "google"
+    github_repository: "yapf"
+    tag: "v0.27.0"
+    output_dir: "yapf"
+    filter_dir: "yapf"
 c_libraries:
   - name: "PyYAML"
     github_user: "yaml"
