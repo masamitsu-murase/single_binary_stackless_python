@@ -90,6 +90,11 @@ __included_module_info = {
         "license": "BSD License",
         "module_name": "click"
     },
+    "yapf": {
+        "author": "Bill Wendling",
+        "license": "Apache Software License",
+        "module_name": "yapf"
+    },
 
     "exepy": {
         "author": "Masamitsu MURASE",
