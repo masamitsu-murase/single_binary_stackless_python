@@ -1466,7 +1466,7 @@ PyCArrayType_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     }
 
     itemsize = itemdict->size;
-    if (length * itemsize < 0) {
+    if (length > PY_SSIZE_T_MAX / itemsize) {
         PyErr_SetString(PyExc_OverflowError,
                         "array too large");
         goto error;
@@ -1481,6 +1481,7 @@ PyCArrayType_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     stgdict->align = itemalign;
     stgdict->length = length;
     stgdict->proto = type_attr;
+    type_attr = NULL;
 
     stgdict->paramfunc = &PyCArrayType_paramfunc;
 
@@ -2662,10 +2663,11 @@ PyCData_reduce(PyObject *myself, PyObject *args)
                         "ctypes objects containing pointers cannot be pickled");
         return NULL;
     }
-    return Py_BuildValue("O(O(NN))",
-                         _unpickle,
-                         Py_TYPE(myself),
-                         PyObject_GetAttrString(myself, "__dict__"),
+    PyObject *dict = PyObject_GetAttrString(myself, "__dict__");
+    if (dict == NULL) {
+        return NULL;
+    }
+    return Py_BuildValue("O(O(NN))", _unpickle, Py_TYPE(myself), dict,
                          PyBytes_FromStringAndSize(self->b_ptr, self->b_size));
 }
 
