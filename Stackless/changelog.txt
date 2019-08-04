@@ -4,10 +4,10 @@ Stackless-Python News
 This file documents user visible changes to the Stackless extension of C-Python.
 For other changes see Misc/NEWS.
 
-What's New in Stackless 3.X.X?
+What's New in Stackless 3.7.4?
 ==============================
 
-*Release date: 20XX-XX-XX*
+*Release date: 2019-08-04*
 
 - https://github.com/stackless-dev/stackless/issues/218
   Fix using Stackless as embedded Python interpreter. The fix for Stackless
