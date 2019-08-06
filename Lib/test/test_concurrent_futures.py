@@ -754,6 +754,13 @@ class ThreadPoolExecutorTest(ThreadPoolMixin, ExecutorTest, BaseTestCase):
 
 
 class ProcessPoolExecutorTest(ExecutorTest):
+
+    @unittest.skipUnless(sys.platform=='win32', 'Windows-only process limit')
+    def test_max_workers_too_large(self):
+        with self.assertRaisesRegex(ValueError,
+                                    "max_workers must be <= 61"):
+            futures.ProcessPoolExecutor(max_workers=62)
+
     def test_killed_child(self):
         # When a child process is abruptly terminated, the whole pool gets
         # "broken".
@@ -1078,6 +1085,22 @@ class FutureTests(BaseTestCase):
         self.assertTrue(f.cancel())
         f.add_done_callback(fn)
         self.assertTrue(was_cancelled)
+
+    def test_done_callback_raises_already_succeeded(self):
+        with test.support.captured_stderr() as stderr:
+            def raising_fn(callback_future):
+                raise Exception('doh!')
+
+            f = Future()
+
+            # Set the result first to simulate a future that runs instantly,
+            # effectively allowing the callback to be run immediately.
+            f.set_result(5)
+            f.add_done_callback(raising_fn)
+
+            self.assertIn('exception calling callback for', stderr.getvalue())
+            self.assertIn('doh!', stderr.getvalue())
+
 
     def test_repr(self):
         self.assertRegex(repr(PENDING_FUTURE),

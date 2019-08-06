@@ -1,7 +1,20 @@
-What's New in IDLE 3.7.3
-Released on 2019-??-??
+What's New in IDLE 3.7.4
+Released on 2019-06-24?
 ======================================
 
+
+bpo-35610: Replace now redundant editor.context_use_ps1 with
+.prompt_last_line.  This finishes change started in bpo-31858.
+
+bpo-32411: Stop sorting dict created with desired line order.
+
+bpo-37038: Make idlelib.run runnable; add test clause.
+
+bpo-36958: Print any argument other than None or int passed to
+SystemExit or sys.exit().
+
+bpo-36807: When saving a file, call file.flush() and os.fsync()
+so bits are flushed to e.g. a USB drive.
 
 bpo-36429: Fix starting IDLE with pyshell.
 Add idlelib.pyshell alias at top; remove pyshell alias at bottom.
@@ -18,6 +31,11 @@ bpo-36396: Remove fgBg param of idlelib.config.GetHighlight().
 This param was only used twice and changed the return type.
 
 bpo-23216: IDLE: Add docstrings to search modules.
+
+
+What's New in IDLE 3.7.3
+Released on 2019-03-25
+======================================
 
 bpo-36176: Fix IDLE autocomplete & calltip popup colors.
 Prevent conflicts with Linux dark themes
@@ -74,7 +92,7 @@ Add some internal references within the IDLE doc.
 
 
 What's New in IDLE 3.7.2
-Released on 2018-12-21?
+Released on 2018-12-24
 ======================================
 
 bpo-34864: When starting IDLE on MacOS, warn if the system setting
@@ -117,7 +135,7 @@ The main change is the elimination of chapter-section numbers.
 
 
 What's New in IDLE 3.7.1
-Released on 2018-07-31?
+Released on 2018-10-20
 ======================================
 
 bpo-1529353: Output over N lines (50 by default) is squeezed down to a button.

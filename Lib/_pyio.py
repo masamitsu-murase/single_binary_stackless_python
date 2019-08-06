@@ -546,6 +546,11 @@ class IOBase(metaclass=abc.ABCMeta):
         return lines
 
     def writelines(self, lines):
+        """Write a list of lines to the stream.
+
+        Line separators are not added, so it is usual for each of the lines
+        provided to have a line separator at the end.
+        """
         self._checkClosed()
         for line in lines:
             self.write(line)
@@ -834,6 +839,10 @@ class BytesIO(BufferedIOBase):
 
     """Buffered I/O implementation using an in-memory bytes buffer."""
 
+    # Initialize _buffer as soon as possible since it's used by __del__()
+    # which calls close()
+    _buffer = None
+
     def __init__(self, initial_bytes=None):
         buf = bytearray()
         if initial_bytes is not None:
@@ -861,7 +870,8 @@ class BytesIO(BufferedIOBase):
         return memoryview(self._buffer)
 
     def close(self):
-        self._buffer.clear()
+        if self._buffer is not None:
+            self._buffer.clear()
         super().close()
 
     def read(self, size=-1):
@@ -1930,6 +1940,10 @@ class TextIOWrapper(TextIOBase):
     """
 
     _CHUNK_SIZE = 2048
+
+    # Initialize _buffer as soon as possible since it's used by __del__()
+    # which calls close()
+    _buffer = None
 
     # The write_through argument has no effect here since this
     # implementation always writes through.  The argument is present only
