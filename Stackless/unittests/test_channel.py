@@ -152,6 +152,7 @@ class TestChannels(StacklessTestCase):
         thread.start()
 
         scheduler_run(slave_func)
+        thread.join()
 
     def testSendException(self):
 
