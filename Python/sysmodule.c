@@ -2474,8 +2474,6 @@ err_occurred:
     return _Py_INIT_ERR("can't initialize sys module");
 }
 
-#undef SET_SYS_FROM_STRING
-
 /* Updating the sys namespace, returning integer error codes */
 #define SET_SYS_FROM_STRING_INT_RESULT(key, value)         \
     do {                                                   \
@@ -2508,6 +2506,17 @@ _PySys_EndInit(PyObject *sysdict, _PyMainInterpreterConfig *config)
     SET_SYS_FROM_STRING_BORROW("base_prefix", config->base_prefix);
     SET_SYS_FROM_STRING_BORROW("exec_prefix", config->exec_prefix);
     SET_SYS_FROM_STRING_BORROW("base_exec_prefix", config->base_exec_prefix);
+
+#ifdef MS_WINDOWS
+    const wchar_t *baseExecutable = _wgetenv(L"__PYVENV_BASE_EXECUTABLE__");
+    if (baseExecutable) {
+        SET_SYS_FROM_STRING("_base_executable",
+                            PyUnicode_FromWideChar(baseExecutable, -1));
+        _wputenv_s(L"__PYVENV_BASE_EXECUTABLE__", L"");
+    } else {
+        SET_SYS_FROM_STRING_BORROW("_base_executable", config->executable);
+    }
+#endif
 
     if (config->argv != NULL) {
         SET_SYS_FROM_STRING_BORROW("argv", config->argv);
@@ -2554,6 +2563,7 @@ err_occurred:
     return -1;
 }
 
+#undef SET_SYS_FROM_STRING
 #undef SET_SYS_FROM_STRING_BORROW
 #undef SET_SYS_FROM_STRING_INT_RESULT
 
