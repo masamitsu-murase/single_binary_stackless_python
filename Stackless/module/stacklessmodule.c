@@ -182,12 +182,15 @@ PyStackless_Schedule(PyObject *retval, int remove)
 {
     STACKLESS_GETARG();
     PyThreadState *ts = PyThreadState_GET();
-    PyTaskletObject *prev = ts->st.current, *next = prev->next;
+    PyTaskletObject *prev = ts->st.current, *next;
     PyObject *tmpval, *ret = NULL;
     int switched, fail;
 
-    if (ts->st.main == NULL) return PyStackless_Schedule_M(retval, remove);
+    if (ts->st.main == NULL)
+        return PyStackless_Schedule_M(retval, remove);
 
+    assert(prev);
+    next = prev->next;
     /* make sure we hold a reference to the previous tasklet.
      * this will be decrefed after the switch is complete
      */
@@ -529,7 +532,9 @@ PyStackless_RunWatchdogEx(long timeout, int flags)
         /* we failed to switch */
         PyTaskletObject *undo = pop_watchdog(ts);
         assert(undo == old_current);
-        slp_current_unremove(undo);
+        /* In case of an error, we don't know the state */
+        if (undo->next == NULL)
+            slp_current_unremove(undo);
         return NULL;
     }
 
@@ -941,6 +946,7 @@ PyDoc_STRVAR(test_cframe_nr__doc__,
 "test_cframe_nr(switches) -- a builtin testing function that does nothing\n\
 but soft tasklet switching. The function will call PyStackless_Schedule_nr() for switches\n\
 times and then finish.\n\
+All remaining arguments are intentionally undocumented. Don't use them!\n\
 Usage: Cf. test_cframe().");
 
 static
@@ -973,14 +979,23 @@ static
 PyObject *
 test_cframe_nr(PyObject *self, PyObject *args, PyObject *kwds)
 {
-    static char *argnames[] = {"switches", NULL};
+    static char *argnames[] = {"switches", "cstate_add_addr", NULL};
     PyThreadState *ts = PyThreadState_GET();
     PyCFrameObject *cf;
     long switches;
+    PyObject *cstack = NULL;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "l:test_cframe_nr",
-                                     argnames, &switches))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "l|O!:test_cframe_nr",
+                                     argnames, &switches, &PyCStack_Type, &cstack))
         return NULL;
+    if (cstack) {
+        /* Manipulate the startaddr of a cstack to make it (in)valid.
+         * This can be used to provoke switching errors. Without such a functionality,
+         * it is not possible to test the error handling code for switching errors.
+         */
+        ((PyCStackObject*)cstack)->startaddr += switches;
+        Py_RETURN_NONE;
+    }
     cf = slp_cframe_new(test_cframe_nr_loop, 1);
     if (cf == NULL)
         return NULL;
