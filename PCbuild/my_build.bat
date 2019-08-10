@@ -47,9 +47,16 @@ if "%1" == "x86" (
     set VC_CPU=x86
     set WINDOWS_PE=0
 )
+REM Windows SDK Version
+set WINDOWS_SDK_VERSION=10.0.15063.0
+set WINDOWS_KITS_BASE_DIR=%ProgramFiles(x86)%\Windows Kits\10\Include
+for %%i in ("10.0.14393.0" "10.0.15063.0") do (
+    if EXIST "%WINDOWS_KITS_BASE_DIR%\%%~i" set WINDOWS_SDK_VERSION=%%~i
+)
 
 echo VC_CPU %VC_CPU%
 echo VC_VERSION %VC_VERSION%
+echo WINDOWS_SDK_VERSION %WINDOWS_SDK_VERSION%
 echo VC_PYTHON %VC_PYTHON%
 echo WINDOWS_PE %WINDOWS_PE%
 
@@ -66,7 +73,7 @@ if "%VC_VERSION%" == "2008" (
 ) else (
     set VSTOOLS=!VS140COMNTOOLS!
 )
-call "%VSTOOLS%..\..\VC\vcvarsall.bat" %VC_CPU%
+call "%VSTOOLS%..\..\VC\vcvarsall.bat" %VC_CPU% %WINDOWS_SDK_VERSION%
 if ERRORLEVEL 1 exit /b 1
 goto EXTRACT_EXTERNALS
 
