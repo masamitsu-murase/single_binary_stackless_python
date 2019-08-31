@@ -135,6 +135,8 @@ if __name__ == "__main__":
         elif module_name == "pyreadline":
             import pyreadline.release
             version = pyreadline.release.version
+        else:
+            raise RuntimeError(module_name + " does not have version.")
         print("* %s (%s)  " % (module_name, version))
         if "author" in info and info["author"]:
             print("  Developed by %s.  " % info["author"])
