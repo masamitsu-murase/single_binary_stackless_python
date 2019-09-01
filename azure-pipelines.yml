@@ -61,7 +61,7 @@ jobs:
 - job: github_release
   displayName: GitHub Release
   dependsOn: windows
-  condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/))
+  condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
   steps:
   - task: DownloadPipelineArtifact@2
     inputs:
