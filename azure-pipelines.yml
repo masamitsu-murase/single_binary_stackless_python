@@ -62,6 +62,16 @@ jobs:
   displayName: GitHub Release
   dependsOn: windows
   steps:
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      buildType: 'current'
+      artifactName: 'python_exe'
+      targetPath: 'artifact'
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      buildType: 'current'
+      artifactName: 'lib_7z'
+      targetPath: 'artifact'
   - task: GitHubRelease@0
     inputs:
       gitHubConnection: 'masamitsu-murase'
@@ -69,6 +79,9 @@ jobs:
       action: 'create'
       target: '$(Build.SourceVersion)'
       tagSource: 'auto'
+      tag: '$(tagName)'
+      assets: 'artifact/**/*'
+      title: 'SampleTitle'
       releaseNotesSource: 'input'
       releaseNotes: 'Sample'
       isDraft: true
