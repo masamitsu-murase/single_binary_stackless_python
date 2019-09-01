@@ -73,6 +73,8 @@ jobs:
       buildType: 'current'
       artifactName: 'lib_7z'
       targetPath: 'artifact'
+  - script: cmd /c artifact\python.exe PCbuild/create_release_note.py release_note.md
+    displayName: Release Note
   - task: GitHubRelease@0
     inputs:
       gitHubConnection: 'masamitsu-murase'
@@ -84,8 +86,8 @@ jobs:
       assets: 'artifact/**/*'
       assetUploadMode: 'replace'
       title: 'SampleTitle'
-      releaseNotesSource: 'input'
-      releaseNotes: 'Sample'
+      releaseNotesSource: 'file'
+      releaseNotesFile: 'release_note.md'
       isDraft: true
       isPreRelease: true
       addChangeLog: false
