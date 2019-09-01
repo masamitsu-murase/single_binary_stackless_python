@@ -5,7 +5,7 @@ trigger:
     - '*'
   tags:
     include:
-    - refs/tags/*
+    - '*'
 pr:
   branches:
     include:
