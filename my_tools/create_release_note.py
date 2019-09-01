@@ -34,7 +34,7 @@ if __name__ == "__main__":
     python_version = sys.version.split(" ", 1)[0]
     level = int(single_binary_stackless_python.__version__)
     modules = single_binary_stackless_python.included_module_info().values()
-    comment = ""
+    comment = "This is a sample release by Azure Pipelines."
     content = create_release_note_content(python_version, level, modules,
                                           comment)
 
