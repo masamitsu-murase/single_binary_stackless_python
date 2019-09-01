@@ -79,7 +79,7 @@ jobs:
       action: 'edit'
       target: '$(Build.SourceVersion)'
       tagSource: 'auto'
-      tag: '$(tagName)'
+      tag: '$(Build.SourceBranchName)'
       assets: 'artifact/**/*'
       assetUploadMode: 'replace'
       title: 'SampleTitle'
