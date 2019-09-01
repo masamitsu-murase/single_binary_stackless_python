@@ -50,7 +50,7 @@ python_libraries:
   - name: "certifi"
     github_user: "certifi"
     github_repository: "python-certifi"
-    tag: "2019.03.09"
+    tag: "2019.06.16"
     output_dir: "certifi"
     filter_dir: "certifi"
     post_processes:
