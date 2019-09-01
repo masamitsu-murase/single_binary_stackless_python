@@ -1,4 +1,15 @@
 
+trigger:
+  branches:
+    include:
+    - '*'
+  tags:
+    include:
+    - refs/tags/*
+pr:
+  branches:
+    include:
+    - '*'
 jobs:
 - job: windows
   displayName: Windows
@@ -49,6 +60,7 @@ jobs:
       publishLocation: Container
 - job: github_release
   displayName: GitHub Release
+  dependsOn: windows
   steps:
   - task: GitHubRelease@0
     inputs:
