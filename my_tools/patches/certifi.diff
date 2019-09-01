@@ -6,7 +6,7 @@ index 632db8e..b0e40b8 100644
 -from .core import where
 +from .core import where, ca_cert_data
  
- __version__ = "2019.03.09"
+ __version__ = "2019.06.16"
 diff --git a/core.py b/core.py
 index 7271acf..85a8b6d 100644
 --- a/core.py
