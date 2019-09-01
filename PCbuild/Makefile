@@ -54,13 +54,17 @@ all: $(TARGET) $(TARGETW)
 .c.obj:
 	$(CC) /c $< $(CFLAGS) /Fo$@
 
-$(TARGET): $(ProjectDir)\Programs\python.obj lib $(ProjectDir)\PC\python.manifest
-	$(LINK) /OUT:$(TARGET) $(LFLAGS) /SUBSYSTEM:CONSOLE $(ProjectDir)\Programs\python.obj $(LIBS) $(EXTERNAL_LIBS) $(RESOURCE)
-	$(MT) -manifest $(ProjectDir)\PC\python.manifest -outputresource:$(TARGET);1
+# $(TARGET): $(ProjectDir)\Programs\python.obj lib $(ProjectDir)\PC\python.manifest
+# 	$(LINK) /OUT:$(TARGET) $(LFLAGS) /SUBSYSTEM:CONSOLE $(ProjectDir)\Programs\python.obj $(LIBS) $(EXTERNAL_LIBS) $(RESOURCE)
+# 	$(MT) -manifest $(ProjectDir)\PC\python.manifest -outputresource:$(TARGET);1
+$(TARGET):
+	echo hoge > $(TARGET)
 
-$(TARGETW): $(ProjectDir)\PC\WinMain.obj lib $(ProjectDir)\PC\python.manifest
-	$(LINK) /OUT:$(TARGETW) $(LFLAGS) /SUBSYSTEM:WINDOWS $(ProjectDir)\PC\WinMain.obj $(LIBS) $(EXTERNAL_LIBS) $(RESOURCEW)
-	$(MT) -manifest $(ProjectDir)\PC\python.manifest -outputresource:$(TARGETW);1
+# $(TARGETW): $(ProjectDir)\PC\WinMain.obj lib $(ProjectDir)\PC\python.manifest
+# 	$(LINK) /OUT:$(TARGETW) $(LFLAGS) /SUBSYSTEM:WINDOWS $(ProjectDir)\PC\WinMain.obj $(LIBS) $(EXTERNAL_LIBS) $(RESOURCEW)
+# 	$(MT) -manifest $(ProjectDir)\PC\python.manifest -outputresource:$(TARGETW);1
+$(TARGETW):
+	echo hoge > $(TARGETW)
 
 lib:
 	$(MAKE) /$(MAKEFLAGS) /f Makefile_ssleay

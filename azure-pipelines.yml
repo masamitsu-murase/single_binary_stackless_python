@@ -68,8 +68,7 @@ jobs:
       repositoryName: '$(Build.Repository.Name)'
       action: 'create'
       target: '$(Build.SourceVersion)'
-      tagSource: 'manual'
-      tagPattern: 'sample*'
+      tagSource: 'auto'
       releaseNotesSource: 'input'
       releaseNotes: 'Sample'
       isDraft: true
