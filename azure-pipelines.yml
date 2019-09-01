@@ -81,6 +81,7 @@ jobs:
       tagSource: 'auto'
       tag: '$(tagName)'
       assets: 'artifact/**/*'
+      assetUploadMode: 'replace'
       title: 'SampleTitle'
       releaseNotesSource: 'input'
       releaseNotes: 'Sample'
