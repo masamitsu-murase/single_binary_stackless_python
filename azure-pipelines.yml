@@ -60,6 +60,8 @@ jobs:
       publishLocation: Container
 - job: github_release
   displayName: GitHub Release
+  pool:
+    vmImage: 'vs2015-win2012r2'
   dependsOn: windows
   condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
   steps:
