@@ -7,7 +7,10 @@
 
 #define PY_SSIZE_T_CLEAN
 
+#define SINGLE_BINARY_STACKLESS_PYTHON__TESTCAPIMODULE
+
 #include "Python.h"
+#include "internal/pystate.h"
 #include <float.h>
 #include "structmember.h"
 #include "datetime.h"
@@ -2228,7 +2231,7 @@ static int test_run_counter = 0;
 // Copied from datetime.h.
 // The following is necessary for a single binary.
 /* Define global variable for the C API and a macro for setting it. */
-static PyDateTime_CAPI *PyDateTimeAPI = NULL;
+// static PyDateTime_CAPI *PyDateTimeAPI = NULL;  // Defined in datetime.h
 
 #define PyDateTime_IMPORT \
     PyDateTimeAPI = (PyDateTime_CAPI *)PyCapsule_Import(PyDateTime_CAPSULE_NAME, 0)

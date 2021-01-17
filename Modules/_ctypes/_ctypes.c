@@ -115,6 +115,7 @@ bytes(cdata)
 #include "ctypes_dlfcn.h"
 #endif
 #include "ctypes.h"
+#include "internal/pystate.h"
 
 PyObject *PyExc_ArgError = NULL;
 

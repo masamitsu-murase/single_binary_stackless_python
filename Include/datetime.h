@@ -180,7 +180,7 @@ typedef struct {
 #define PyDateTime_CAPSULE_NAME "datetime.datetime_CAPI"
 
 
-#ifdef Py_BUILD_CORE
+#if defined(Py_BUILD_CORE) && !defined(SINGLE_BINARY_STACKLESS_PYTHON__TESTCAPIMODULE)
 
 /* Macros for type checking when building the Python core. */
 #define PyDate_Check(op) PyObject_TypeCheck(op, &PyDateTime_DateType)
