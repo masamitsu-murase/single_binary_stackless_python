@@ -28,7 +28,7 @@ ADDITIONAL_LIBS = _msi.lib
 !ELSE
 ADDITIONAL_LIBS =
 !ENDIF
-LIBS = _asyncio.lib _bz2.lib _cchardet.lib _ctypes.lib _decimal.lib _elementtree.lib _hashlib.lib _lzma.lib _multiprocessing.lib _overlapped.lib _socket.lib _sqlite3.lib \
+LIBS = _asyncio.lib _bz2.lib _cchardet.lib _ctypes.lib _decimal.lib _elementtree.lib _hashlib.lib _lzma.lib _multiprocessing.lib _overlapped.lib _queue.lib _socket.lib _sqlite3.lib \
         _ssl.lib _testcapi.lib _tkinter.lib _yaml.lib libuchardet.lib libyaml.lib liblzma.lib pyexpat.lib pythoncore.lib select.lib sqlite3.lib unicodedata.lib winsound.lib xxlimited.lib \
  	   $(ADDITIONAL_LIBS)
 
@@ -80,6 +80,7 @@ lib:
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__msi
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__multiprocessing
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__overlapped
+	$(MAKE) /$(MAKEFLAGS) /f Makefile__queue
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__socket
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__sqlite3
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__ssl
@@ -113,6 +114,7 @@ clean:
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__msi clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__multiprocessing clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__overlapped clean
+	-$(MAKE) /$(MAKEFLAGS) /f Makefile__queue clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__socket clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__sqlite3 clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__ssl clean
