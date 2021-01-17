@@ -14,6 +14,7 @@
 
 /* Xxo objects */
 
+#define SINGLE_BINARY_STACKLESS_PYTHON_XXLIMITED
 #include "Python.h"
 
 static PyObject *ErrorObject;

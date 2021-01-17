@@ -4,7 +4,7 @@ externalsDir = $(ProjectDir)\externals
 
 !include common_arch.mak
 
-INCLUDES = /I "$(ProjectDir)\Python" /I "$(ProjectDir)\Modules\zlib" /I "$(ProjectDir)\Include" /I "$(ProjectDir)\PC" /I "$(ProjectDir)\Stackless" 
+INCLUDES = /I "$(ProjectDir)\Python" /I "$(externalsDir)\zlib-1.2.11" /I "$(ProjectDir)\Include" /I "$(ProjectDir)\PC" /I "$(ProjectDir)\Stackless" 
 !IF "$(WINDOWS_PE)" == "0"
 DEFINES = /D "Py_BUILD_CORE" /D "Py_ENABLE_SHARED" /D "WIN32" /D "_CONSOLE" /D "NDEBUG" 
 !ELSE
@@ -15,13 +15,14 @@ LFLAGS = /NOLOGO /LTCG
 TARGET = pythoncore.lib
 
 COMMON_OBJS = \
-        $(ProjectDir)\Modules\_asynciomodule.obj \
+        $(ProjectDir)\Modules\_abc.obj \
         $(ProjectDir)\Modules\_bisectmodule.obj \
         $(ProjectDir)\Modules\_blake2\blake2module.obj \
         $(ProjectDir)\Modules\_blake2\blake2b_impl.obj \
         $(ProjectDir)\Modules\_blake2\blake2s_impl.obj \
         $(ProjectDir)\Modules\_codecsmodule.obj \
         $(ProjectDir)\Modules\_collectionsmodule.obj \
+        $(ProjectDir)\Modules\_contextvarsmodule.obj \
         $(ProjectDir)\Modules\_csv.obj \
         $(ProjectDir)\Modules\_functoolsmodule.obj \
         $(ProjectDir)\Modules\_heapqmodule.obj \
@@ -66,7 +67,6 @@ COMMON_OBJS = \
         $(ProjectDir)\Modules\timemodule.obj \
         $(ProjectDir)\Modules\xxsubtype.obj \
         $(ProjectDir)\Modules\zipimport.obj \
-        $(ProjectDir)\Modules\zlibmodule.obj \
         $(ProjectDir)\Modules\_io\fileio.obj \
         $(ProjectDir)\Modules\_io\bytesio.obj \
         $(ProjectDir)\Modules\_io\stringio.obj \
@@ -75,17 +75,6 @@ COMMON_OBJS = \
         $(ProjectDir)\Modules\_io\textio.obj \
         $(ProjectDir)\Modules\_io\winconsoleio.obj \
         $(ProjectDir)\Modules\_io\_iomodule.obj \
-        $(ProjectDir)\Modules\zlib\adler32.obj \
-        $(ProjectDir)\Modules\zlib\compress.obj \
-        $(ProjectDir)\Modules\zlib\crc32.obj \
-        $(ProjectDir)\Modules\zlib\deflate.obj \
-        $(ProjectDir)\Modules\zlib\infback.obj \
-        $(ProjectDir)\Modules\zlib\inffast.obj \
-        $(ProjectDir)\Modules\zlib\inflate.obj \
-        $(ProjectDir)\Modules\zlib\inftrees.obj \
-        $(ProjectDir)\Modules\zlib\trees.obj \
-        $(ProjectDir)\Modules\zlib\uncompr.obj \
-        $(ProjectDir)\Modules\zlib\zutil.obj \
         $(ProjectDir)\Modules\cjkcodecs\_codecs_cn.obj \
         $(ProjectDir)\Modules\cjkcodecs\_codecs_hk.obj \
         $(ProjectDir)\Modules\cjkcodecs\_codecs_iso2022.obj \
@@ -97,9 +86,10 @@ COMMON_OBJS = \
         $(ProjectDir)\Objects\abstract.obj \
         $(ProjectDir)\Objects\accu.obj \
         $(ProjectDir)\Objects\boolobject.obj \
-        $(ProjectDir)\Objects\bytes_methods.obj \
         $(ProjectDir)\Objects\bytearrayobject.obj \
+        $(ProjectDir)\Objects\bytes_methods.obj \
         $(ProjectDir)\Objects\bytesobject.obj \
+        $(ProjectDir)\Objects\call.obj \
         $(ProjectDir)\Objects\capsule.obj \
         $(ProjectDir)\Objects\cellobject.obj \
         $(ProjectDir)\Objects\classobject.obj \
@@ -151,14 +141,17 @@ COMMON_OBJS = \
         $(ProjectDir)\PC\getpathp.obj \
         $(ProjectDir)\PC\msvcrtmodule.obj \
         $(ProjectDir)\Python\pyhash.obj \
-        $(ProjectDir)\Python\random.obj \
         $(ProjectDir)\Python\_warnings.obj \
         $(ProjectDir)\Python\asdl.obj \
         $(ProjectDir)\Python\ast.obj \
+        $(ProjectDir)\Python\ast_opt.obj \
+        $(ProjectDir)\Python\ast_unparse.obj \
         $(ProjectDir)\Python\bltinmodule.obj \
+        $(ProjectDir)\Python\bootstrap_hash.obj \
         $(ProjectDir)\Python\ceval.obj \
         $(ProjectDir)\Python\codecs.obj \
         $(ProjectDir)\Python\compile.obj \
+        $(ProjectDir)\Python\context.obj \
         $(ProjectDir)\Python\dynamic_annotations.obj \
         $(ProjectDir)\Python\dynload_win.obj \
         $(ProjectDir)\Python\errors.obj \
@@ -173,12 +166,14 @@ COMMON_OBJS = \
         $(ProjectDir)\Python\getplatform.obj \
         $(ProjectDir)\Python\getversion.obj \
         $(ProjectDir)\Python\graminit.obj \
+        $(ProjectDir)\Python\hamt.obj \
         $(ProjectDir)\Python\import.obj \
         $(ProjectDir)\Python\importdl.obj \
         $(ProjectDir)\Python\marshal.obj \
         $(ProjectDir)\Python\modsupport.obj \
         $(ProjectDir)\Python\mysnprintf.obj \
         $(ProjectDir)\Python\mystrtoul.obj \
+        $(ProjectDir)\Python\pathconfig.obj \
         $(ProjectDir)\Python\peephole.obj \
         $(ProjectDir)\Python\pyarena.obj \
         $(ProjectDir)\Python\pyctype.obj \
@@ -208,8 +203,19 @@ COMMON_OBJS = \
         $(ProjectDir)\Stackless\module\taskletobject.obj \
         $(ProjectDir)\Stackless\pickling\prickelpit.obj \
         $(ProjectDir)\Stackless\pickling\safe_pickle.obj \
+        $(ProjectDir)\Modules\zlibmodule.obj \
+        $(externalsDir)\zlib-1.2.11\adler32.obj \
+        $(externalsDir)\zlib-1.2.11\compress.obj \
+        $(externalsDir)\zlib-1.2.11\crc32.obj \
+        $(externalsDir)\zlib-1.2.11\deflate.obj \
+        $(externalsDir)\zlib-1.2.11\infback.obj \
+        $(externalsDir)\zlib-1.2.11\inffast.obj \
+        $(externalsDir)\zlib-1.2.11\inflate.obj \
+        $(externalsDir)\zlib-1.2.11\inftrees.obj \
+        $(externalsDir)\zlib-1.2.11\trees.obj \
+        $(externalsDir)\zlib-1.2.11\uncompr.obj \
+        $(externalsDir)\zlib-1.2.11\zutil.obj \
         $(ProjectDir)\PC\dl_nt.obj \
-        $(ProjectDir)\PC\_findvs.obj \
         $(ProjectDir)\Modules\getbuildinfo.obj \
         $(ProjectDir)\Modules\embeddedimport.obj \
         $(ProjectDir)\Modules\embeddedimport_data.obj

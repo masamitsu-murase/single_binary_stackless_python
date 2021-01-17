@@ -184,7 +184,8 @@ typedef struct {
  * included in _datetimemodule.c, which does not use the C API capsule.
  * See bpo-35081 for more details.
  * */
-#ifndef _PY_DATETIME_IMPL
+#if !defined(_PY_DATETIME_IMPL) && !defined(SINGLE_BINARY_STACKLESS_PYTHON__TESTCAPIMODULE)
+
 /* Define global variable for the C API and a macro for setting it. */
 static PyDateTime_CAPI *PyDateTimeAPI = NULL;
 
