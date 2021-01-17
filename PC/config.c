@@ -84,6 +84,7 @@ extern PyObject* PyInit__lzma(void);
 extern PyObject* PyInit__msi(void);
 extern PyObject* PyInit__multiprocessing(void);
 extern PyObject* PyInit__overlapped(void);
+extern PyObject* PyInit__queue(void);
 extern PyObject* PyInit__socket(void);
 extern PyObject* PyInit__sqlite3(void);
 extern PyObject* PyInit__ssl(void);
@@ -209,6 +210,7 @@ struct _inittab _PyImport_Inittab[] = {
 #endif
     {"_multiprocessing", PyInit__multiprocessing},
     {"_overlapped", PyInit__overlapped},
+    {"_queue", PyInit__queue},
     {"_socket", PyInit__socket},
     {"_sqlite3", PyInit__sqlite3},
     {"_ssl", PyInit__ssl},
