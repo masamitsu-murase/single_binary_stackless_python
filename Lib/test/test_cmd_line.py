@@ -510,7 +510,6 @@ class CmdLineTest(unittest.TestCase):
             env_vars = dict(
                 PYTHONDEBUG=value,
                 PYTHONOPTIMIZE=value,
-                PYTHONDONTWRITEBYTECODE=value,
                 PYTHONVERBOSE=value,
             )
             code = (
@@ -518,12 +517,12 @@ class CmdLineTest(unittest.TestCase):
                 "sys.stderr.write(str(sys.flags)); "
                 f"""sys.exit(not (
                     sys.flags.debug == sys.flags.optimize ==
-                    sys.flags.dont_write_bytecode == sys.flags.verbose ==
+                    sys.flags.verbose ==
                     {expected}
                 ))"""
             )
             with self.subTest(envar_value=value):
-                assert_python_ok('-c', code, **env_vars)
+                assert_python_ok('-E', '-c', code, **env_vars)
 
     def run_xdev(self, *args, check_exitcode=True, xdev=True):
         env = dict(os.environ)
@@ -611,7 +610,7 @@ class CmdLineTest(unittest.TestCase):
             code = "import sys, warnings; "
         code += ("print(' '.join('%s::%s' % (f[0], f[2].__name__) "
                                 "for f in warnings.filters))")
-        args = (sys.executable, '-W', cmdline_option, '-bb', '-c', code)
+        args = (sys.executable, '-E', '-W', cmdline_option, '-bb', '-c', code)
         env = dict(os.environ)
         env.pop('PYTHONDEVMODE', None)
         env["PYTHONWARNINGS"] = envvar
@@ -652,7 +651,7 @@ class CmdLineTest(unittest.TestCase):
             env['PYTHONMALLOC'] = env_var
         else:
             env.pop('PYTHONMALLOC', None)
-        args = (sys.executable, '-c', code)
+        args = (sys.executable, '-E', '-c', code)
         proc = subprocess.run(args,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT,
@@ -692,7 +691,7 @@ class CmdLineTest(unittest.TestCase):
         code = "import sys; print(sys.flags.dev_mode)"
         env = dict(os.environ)
         env.pop('PYTHONDEVMODE', None)
-        args = (sys.executable, '-c', code)
+        args = (sys.executable, '-E', '-c', code)
 
         proc = subprocess.run(args, stdout=subprocess.PIPE,
                               universal_newlines=True, env=env)
@@ -727,7 +726,7 @@ class IgnoreEnvironmentTest(unittest.TestCase):
         # Logical inversion to match predicate check to a zero return
         # code indicating success
         code = "import sys; sys.stderr.write(str(sys.flags)); sys.exit(not ({}))".format(predicate)
-        return assert_python_ok('-E', '-c', code, **env_vars)
+        return assert_python_ok('-c', code, **env_vars)
 
     def test_ignore_PYTHONPATH(self):
         path = "should_be_ignored"
@@ -741,8 +740,8 @@ class IgnoreEnvironmentTest(unittest.TestCase):
     def test_sys_flags_not_set(self):
         # Issue 31845: a startup refactoring broke reading flags from env vars
         expected_outcome = """
-            (sys.flags.debug == sys.flags.optimize ==
-             sys.flags.dont_write_bytecode == sys.flags.verbose == 0)
+            ((sys.flags.debug == sys.flags.optimize ==
+              sys.flags.verbose == 0) and sys.flags.dont_write_bytecode == 1)
         """
         self.run_ignoring_vars(
             expected_outcome,

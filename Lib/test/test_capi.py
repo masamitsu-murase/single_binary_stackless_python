@@ -520,7 +520,7 @@ class PyMemDebugTests(unittest.TestCase):
             os._exit(int(error))
         ''')
         code = code.format(func=func)
-        assert_python_ok('-c', code, PYTHONMALLOC=self.PYTHONMALLOC)
+        assert_python_ok('-E', '-c', code, PYTHONMALLOC=self.PYTHONMALLOC)
 
     def test_pyobject_is_freed_uninitialized(self):
         self.check_pyobject_is_freed('pyobject_uninitialized')
