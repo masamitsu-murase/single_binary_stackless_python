@@ -983,21 +983,5 @@ PyInit_embeddedimport(void)
         return NULL;
     }
 
-    path = PySys_GetObject("path");
-    if (path == NULL) {
-        return NULL;
-    }
-
-    fullpath = PyUnicode_FromWideChar(Py_GetProgramFullPath(), -1);
-    if (fullpath == NULL) {
-        return NULL;
-    }
-
-//    if (PyList_Append(path, fullpath) < 0)
-//        PyErr_Clear();
-    if (PyList_Insert(path, 0, fullpath) < 0)
-        PyErr_Clear();
-    Py_DECREF(fullpath);
-
     return mod;
 }
