@@ -27,6 +27,10 @@ class UTF8ModeTests(unittest.TestCase):
         return (loc in POSIX_LOCALES)
 
     def get_output(self, *args, failure=False, **kw):
+        if '-E' in args:
+            args = [x for x in args if x != '-E']
+        else:
+            args = ['-E', *args]
         kw = dict(self.DEFAULT_ENV, **kw)
         if failure:
             out = assert_python_failure(*args, **kw)
