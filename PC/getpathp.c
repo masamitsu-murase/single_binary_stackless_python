@@ -823,6 +823,9 @@ calculate_module_search_path(const _PyCoreConfig *core_config,
     if (calculate->machine_path) {
         bufsz += wcslen(calculate->machine_path) + 1;
     }
+    if (config->program_full_path) {
+        bufsz += wcslen(config->program_full_path) + 1;
+    }
     bufsz += wcslen(calculate->zip_path) + 1;
     if (core_config->module_search_path_env != NULL) {
         bufsz += wcslen(core_config->module_search_path_env) + 1;
@@ -848,6 +851,13 @@ calculate_module_search_path(const _PyCoreConfig *core_config,
     if (core_config->module_search_path_env) {
         if (wcscpy_s(buf, bufsz - (buf - start_buf),
                      core_config->module_search_path_env)) {
+            return INIT_ERR_BUFFER_OVERFLOW();
+        }
+        buf = wcschr(buf, L'\0');
+        *buf++ = DELIM;
+    }
+    if (config->program_full_path) {
+        if (wcscpy_s(buf, bufsz - (buf - start_buf), config->program_full_path)) {
             return INIT_ERR_BUFFER_OVERFLOW();
         }
         buf = wcschr(buf, L'\0');
