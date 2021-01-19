@@ -29,7 +29,7 @@ ADDITIONAL_LIBS = _msi.lib
 ADDITIONAL_LIBS =
 !ENDIF
 LIBS = _asyncio.lib _bz2.lib _cchardet.lib _ctypes.lib _decimal.lib _elementtree.lib _hashlib.lib _lzma.lib _multiprocessing.lib _overlapped.lib _queue.lib _socket.lib _sqlite3.lib \
-        _ssl.lib _testcapi.lib _tkinter.lib _yaml.lib libuchardet.lib libyaml.lib liblzma.lib pyexpat.lib pythoncore.lib select.lib sqlite3.lib unicodedata.lib winsound.lib xxlimited.lib \
+        _ssl.lib _testcapi.lib _teststackless.lib _tkinter.lib _yaml.lib libuchardet.lib libyaml.lib liblzma.lib pyexpat.lib pythoncore.lib select.lib sqlite3.lib unicodedata.lib winsound.lib xxlimited.lib \
  	   $(ADDITIONAL_LIBS)
 
 EXTERNAL_LIBS = shell32.lib user32.lib advapi32.lib ws2_32.lib ole32.lib oleaut32.lib gdi32.lib crypt32.lib msi.lib cabinet.lib rpcrt4.lib winmm.lib Shlwapi.lib Version.lib \
@@ -85,6 +85,7 @@ lib:
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__sqlite3
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__ssl
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__testcapi
+	$(MAKE) /$(MAKEFLAGS) /f Makefile__teststackless
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__tkinter
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__yaml
 	$(MAKE) /$(MAKEFLAGS) /f Makefile_liblzma
@@ -119,6 +120,7 @@ clean:
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__sqlite3 clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__ssl clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__testcapi clean
+	-$(MAKE) /$(MAKEFLAGS) /f Makefile__teststackless clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__tkinter clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__yaml clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile_liblzma clean

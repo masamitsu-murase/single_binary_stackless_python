@@ -90,6 +90,7 @@ extern PyObject* PyInit__socket(void);
 extern PyObject* PyInit__sqlite3(void);
 extern PyObject* PyInit__ssl(void);
 extern PyObject* PyInit__testcapi(void);
+extern PyObject* PyInit__teststackless(void);
 extern PyObject* PyInit__tkinter(void);
 extern PyObject* PyInit_pyexpat(void);
 extern PyObject* PyInit_select(void);
@@ -217,6 +218,7 @@ struct _inittab _PyImport_Inittab[] = {
     {"_sqlite3", PyInit__sqlite3},
     {"_ssl", PyInit__ssl},
     {"_testcapi", PyInit__testcapi},
+    {"_teststackless", PyInit__teststackless},
     {"_tkinter", PyInit__tkinter},
     {"pyexpat", PyInit_pyexpat},
     {"select", PyInit_select},
