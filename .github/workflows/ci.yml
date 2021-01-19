@@ -19,7 +19,6 @@ jobs:
         - target_type: x64_pe
           vc_version: 2017
     runs-on: windows-2016
-    continue-on-error: true
     steps:
     - name: "Disable git autoCRLF"
       run: git config --global core.autoCRLF false
