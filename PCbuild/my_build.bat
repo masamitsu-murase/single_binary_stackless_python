@@ -129,7 +129,8 @@ nmake
 if ERRORLEVEL 1 exit /b 1
 
 cd /d "%~dp0.."
+if not "%GITHUB_ACTIONS%" == "" (
+    PCbuild\my_tools\7za.exe a Lib.7z -mx=9 -bd -ir^^!Lib\*.py -xr^^!test -xr^^!__pycache__ > NUL
+)
 
 exit /b 0
-
-
