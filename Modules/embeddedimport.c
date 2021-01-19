@@ -723,7 +723,6 @@ embeddedimporter_get_data(PyObject *obj, PyObject *args)
 {
     EmbeddedImporter *self = (EmbeddedImporter *)obj;
     PyObject *path, *key;
-    PyObject *toc_entry;
     Py_ssize_t path_start, path_len, len;
     PyObject *fullpath = NULL;
     PyObject *tuple = NULL;
@@ -952,7 +951,7 @@ static struct PyModuleDef embeddedimportmodule = {
 PyMODINIT_FUNC
 PyInit_embeddedimport(void)
 {
-    PyObject *mod, *path, *fullpath;
+    PyObject *mod;
 
     if (PyType_Ready(&EmbeddedImporter_Type) < 0) {
         return NULL;
