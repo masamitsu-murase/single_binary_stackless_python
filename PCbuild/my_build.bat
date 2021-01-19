@@ -132,6 +132,8 @@ if not "%APPVEYOR%" == "" (
     7z a Lib.7z -mx=9 -bd -ir^^!Lib\*.py -xr^^!test -xr^^!__pycache__ > NUL
 ) else if not "%TF_BUILD%" == "" (
     PCbuild\my_tools\7za.exe a Lib.7z -mx=9 -bd -ir^^!Lib\*.py -xr^^!test -xr^^!__pycache__ > NUL
+) else if not "%GITHUB_ACTIONS%" == "" (
+    PCbuild\my_tools\7za.exe a Lib.7z -mx=9 -bd -ir^^!Lib\*.py -xr^^!test -xr^^!__pycache__ > NUL
 )
 
 exit /b 0
