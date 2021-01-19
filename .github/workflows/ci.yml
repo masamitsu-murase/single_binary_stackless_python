@@ -7,7 +7,7 @@ on:
     branches: [ master3, master3.7 ]
 
 jobs:
-  build:
+  build_and_test:
     strategy:
       fail-fast: false
       matrix:
@@ -19,11 +19,76 @@ jobs:
         - target_type: x64_pe
           vc_version: 2017
     runs-on: windows-2016
+
     steps:
     - name: "Disable git autoCRLF"
       run: git config --global core.autoCRLF false
+
     - uses: actions/checkout@v2
+
     - name: Build
       run: cmd /c PCbuild\my_build.bat ${{ matrix.target_type }} ${{ matrix.vc_version }}
+
     - name: Test
       run: cmd /c PCbuild\my_test.bat ${{ matrix.target_type }} ${{ matrix.vc_version }}
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: Python
+        path: PCbuild/python*.exe
+
+  release:
+    # if: startsWith(github.ref, 'refs/tags/v')
+
+    needs: build_and_test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        body: |
+          Release note.
+        draft: true
+        prerelease: false
+
+    - name: Download artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: Python
+        path: dist
+
+    - run: ls -alF dist
+
+    - name: Upload all artifacts
+      uses: actions/github-script@v3
+      with:
+        release_id: ${{ steps.create_release.outputs.id }}
+        assets_dir: dist
+        script: |
+          console.log("environment", process.versions);
+          const fs = require("fs").promises;
+          const path = require("path");
+          const { repo: { owner, repo } } = context;
+          const release_id = core.getInput("release_id", { required: true });
+          const assets_dir = core.getInput("assets_dir", { required: true });
+
+          const files = await fs.readdir(assets_dir);
+          console.log("files", files);
+          const asset_uploaders = files.map(file => path.join(assets_dir, file)).map(file => {
+            return fs.readFile(file).then(data => {
+              return github.repos.uploadReleaseAsset({
+                owner,
+                repo,
+                release_id,
+                name: path.basename(file),
+                data
+              });
+            });
+          })
+          Promise.all(asset_uploaders);
