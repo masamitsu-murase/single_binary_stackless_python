@@ -613,6 +613,7 @@ class ProgramsTestCase(BaseTestCase):
     @unittest.skipUnless(sysconfig.is_python_build(),
                          'test.bat script is not installed')
     @unittest.skipUnless(sys.platform == 'win32', 'Windows only')
+    @unittest.skip
     def test_tools_buildbot_test(self):
         # Tools\buildbot\test.bat
         script = os.path.join(ROOT_DIR, 'Tools', 'buildbot', 'test.bat')
