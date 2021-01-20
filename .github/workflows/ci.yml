@@ -1,0 +1,112 @@
+name: Python
+
+on:
+  push:
+    branches: [ master3, master3.7, support_github_actions ]
+  pull_request:
+    branches: [ master3, master3.7 ]
+
+jobs:
+  build_and_test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - target_type: x86
+          vc_version: 2017
+        - target_type: x64
+          vc_version: 2017
+        - target_type: x64_pe
+          vc_version: 2017
+    runs-on: windows-2016
+
+    steps:
+    - name: "Disable git autoCRLF"
+      run: git config --global core.autoCRLF false
+
+    - uses: actions/checkout@v2
+
+    - name: Build
+      run: cmd /c PCbuild\my_build.bat ${{ matrix.target_type }} ${{ matrix.vc_version }}
+
+    - name: Test
+      run: cmd /c PCbuild\my_test.bat ${{ matrix.target_type }} ${{ matrix.vc_version }}
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: Python
+        path: PCbuild/python*.exe
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: Lib
+        path: Lib.7z
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    needs: build_and_test
+    runs-on: windows-latest
+
+    steps:
+    - name: "Disable git autoCRLF"
+      run: git config --global core.autoCRLF false
+
+    - uses: actions/checkout@v2
+
+    - name: Download artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: Python
+        path: dist
+
+    - name: Download Lib
+      uses: actions/download-artifact@v2
+      with:
+        name: Lib
+        path: dist
+
+    - run: dir dist
+
+    - name: Create release note
+      run: dist\python.exe my_tools\create_release_note.py release_note.md
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        body_path: release_note.md
+        draft: true
+        prerelease: false
+
+    - name: Upload all artifacts
+      uses: actions/github-script@v3
+      with:
+        release_id: ${{ steps.create_release.outputs.id }}
+        assets_dir: dist
+        script: |
+          console.log("environment", process.versions);
+          const fs = require("fs").promises;
+          const path = require("path");
+          const { repo: { owner, repo } } = context;
+          const release_id = core.getInput("release_id", { required: true });
+          const assets_dir = core.getInput("assets_dir", { required: true });
+
+          const files = await fs.readdir(assets_dir);
+          console.log("files", files);
+          const asset_uploaders = files.map(file => path.join(assets_dir, file)).map(file => {
+            return fs.readFile(file).then(data => {
+              return github.repos.uploadReleaseAsset({
+                owner,
+                repo,
+                release_id,
+                name: path.basename(file),
+                data
+              });
+            });
+          })
+          Promise.all(asset_uploaders);

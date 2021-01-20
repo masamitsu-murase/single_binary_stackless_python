@@ -13,6 +13,7 @@ if "%2" == "python2008" (
 if "%2" == "2012" goto SET_VC_VERSION
 if "%2" == "2013" goto SET_VC_VERSION
 if "%2" == "2015" goto SET_VC_VERSION
+if "%2" == "2017" goto SET_VC_VERSION
 set VC_VERSION=2015
 goto SET_BUILD_TOOL
 
@@ -65,15 +66,23 @@ REM --------------------------------
 REM VC environment
 if NOT "%VC_PYTHON%" == "0" goto USE_PYTHON_VC
 if "%VC_VERSION%" == "2008" (
-    set VSTOOLS=!VS90COMNTOOLS!
+    set "VSTOOLS=!VS90COMNTOOLS!..\..\VC\vcvarsall.bat"
 ) else if "%VC_VERSION%" == "2012" (
-    set VSTOOLS=!VS110COMNTOOLS!
+    set "VSTOOLS=!VS110COMNTOOLS!..\..\VC\vcvarsall.bat"
 ) else if "%VC_VERSION%" == "2013" (
-    set VSTOOLS=!VS120COMNTOOLS!
+    set "VSTOOLS=!VS120COMNTOOLS!..\..\VC\vcvarsall.bat"
+) else if "%VC_VERSION%" == "2015" (
+    set "VSTOOLS=!VS140COMNTOOLS!..\..\VC\vcvarsall.bat"
 ) else (
-    set VSTOOLS=!VS140COMNTOOLS!
+    if EXIST "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC" (
+        set "VSTOOLS=C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvarsall.bat"
+    ) else (
+        set "VSTOOLS=C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat"
+    )
 )
-call "%VSTOOLS%..\..\VC\vcvarsall.bat" %VC_CPU% %WINDOWS_SDK_VERSION%
+pushd .
+call "%VSTOOLS%" %VC_CPU% %WINDOWS_SDK_VERSION%
+popd
 if ERRORLEVEL 1 exit /b 1
 goto EXTRACT_EXTERNALS
 
@@ -122,6 +131,8 @@ cd /d "%~dp0.."
 if not "%APPVEYOR%" == "" (
     7z a Lib.7z -mx=9 -bd -ir^^!Lib\*.py -xr^^!test -xr^^!__pycache__ > NUL
 ) else if not "%TF_BUILD%" == "" (
+    PCbuild\my_tools\7za.exe a Lib.7z -mx=9 -bd -ir^^!Lib\*.py -xr^^!test -xr^^!__pycache__ > NUL
+) else if not "%GITHUB_ACTIONS%" == "" (
     PCbuild\my_tools\7za.exe a Lib.7z -mx=9 -bd -ir^^!Lib\*.py -xr^^!test -xr^^!__pycache__ > NUL
 )
 
