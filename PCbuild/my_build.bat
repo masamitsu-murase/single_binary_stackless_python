@@ -101,6 +101,15 @@ if NOT EXIST externals (
 
 
 REM --------------------------------
+REM for openssl
+if EXIST C:\my_program\perl\perl\bin\perl.exe (
+    set PERL_EXE=C:\my_program\perl\perl\bin\perl.exe
+) else (
+    set PERL_EXE=perl.exe
+)
+%PERL_EXE% -v
+
+REM --------------------------------
 REM for embedded_import and tclEmbeddedFilesystem
 if EXIST C:\Python37\python.exe (
     set PYTHON_EXE=C:\Python37\python.exe
