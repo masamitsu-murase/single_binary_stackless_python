@@ -5,6 +5,7 @@
 *.cover
 *.iml
 *.lib
+*.d
 *.o
 *.a
 *.so*
