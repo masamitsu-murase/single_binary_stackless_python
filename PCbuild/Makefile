@@ -33,7 +33,7 @@ LIBS = _asyncio.lib _bz2.lib _cchardet.lib _ctypes.lib _decimal.lib _elementtree
  	   $(ADDITIONAL_LIBS)
 
 EXTERNAL_LIBS = shell32.lib user32.lib advapi32.lib ws2_32.lib ole32.lib oleaut32.lib gdi32.lib crypt32.lib msi.lib cabinet.lib rpcrt4.lib winmm.lib Shlwapi.lib Version.lib \
-          $(ProjectDir)\PCbuild\libeay.lib $(ProjectDir)\PCbuild\ssleay.lib $(ProjectDir)\PCbuild\tcl86ts.lib $(ProjectDir)\PCbuild\tk86ts.lib $(ProjectDir)\PCbuild\tclstub86.lib netapi32.lib #Mincore_downlevel.lib
+          $(ProjectDir)\PCbuild\libssl.lib $(ProjectDir)\PCbuild\libcrypto.lib $(ProjectDir)\PCbuild\tcl86ts.lib $(ProjectDir)\PCbuild\tk86ts.lib $(ProjectDir)\PCbuild\tclstub86.lib netapi32.lib #Mincore_downlevel.lib
 RESOURCE = $(ProjectDir)\PCbuild\tk_base.res
 RESOURCEW = $(ProjectDir)\PCbuild\tk_basew.res
 
@@ -63,8 +63,7 @@ $(TARGETW): $(ProjectDir)\PC\WinMain.obj lib $(ProjectDir)\PC\python.manifest
 	$(MT) -manifest $(ProjectDir)\PC\python.manifest -outputresource:$(TARGETW);1
 
 lib:
-	$(MAKE) /$(MAKEFLAGS) /f Makefile_ssleay
-	$(MAKE) /$(MAKEFLAGS) /f Makefile_libeay
+	$(MAKE) /$(MAKEFLAGS) /f Makefile_openssl
 	$(MAKE) /$(MAKEFLAGS) /f Makefile_libyaml
 	$(MAKE) /$(MAKEFLAGS) /f Makefile_libuchardet
 	$(MAKE) /$(MAKEFLAGS) /f Makefile_tcl
@@ -98,8 +97,7 @@ lib:
 	$(MAKE) /$(MAKEFLAGS) /f Makefile_pythoncore
 
 clean:
-	-$(MAKE) /$(MAKEFLAGS) /f Makefile_ssleay clean
-	-$(MAKE) /$(MAKEFLAGS) /f Makefile_libeay clean
+	-$(MAKE) /$(MAKEFLAGS) /f Makefile_openssl clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile_libyaml clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile_libuchardet clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile_tcl clean
