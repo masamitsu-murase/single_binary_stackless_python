@@ -1,0 +1,32 @@
+
+ProjectDir = ..
+externalsDir = $(ProjectDir)\externals
+opensslDir = $(externalsDir)\openssl-1.1.1d
+
+!include common_arch.mak
+
+!IF "$(BUILD_TARGET_CPU)" == "x86"
+CONFIGURE_TARGET = VC-WIN32
+!ELSE
+CONFIGURE_TARGET = VC-WIN64A-masm
+!ENDIF
+
+
+all: libcrypto.lib libssl.lib
+
+libcrypto.lib: openssl
+	copy /Y $(opensslDir)\libcrypto.lib .
+
+libssl.lib: openssl
+	copy /Y $(opensslDir)\libssl.lib .
+
+openssl: configure
+	cd $(opensslDir) && $(MAKE) /f makefile build_libs
+
+configure:
+	cd $(opensslDir) && $(PERL_EXE) Configure $(CONFIGURE_TARGET) no-asm no-shared
+
+clean:
+	-cd $(opensslDir) && $(MAKE)/f makefile clean
+	-del libcrypto.lib
+	-del libssl.lib
