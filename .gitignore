@@ -6,6 +6,7 @@
 *.cover
 *.iml
 *.lib
+*.d
 *.o
 *.obj
 *.orig
