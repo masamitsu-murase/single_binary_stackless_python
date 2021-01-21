@@ -2,7 +2,7 @@ name: Python
 
 on:
   push:
-    branches: [ master3, master3.7, support_github_actions ]
+    branches: [ master3, master3.7, refine_build_scripts ]
   pull_request:
     branches: [ master3, master3.7 ]
 
@@ -14,10 +14,43 @@ jobs:
         include:
         - target_type: x86
           vc_version: 2017
+          sdk_version: "10.0.15063.0"
         - target_type: x64
           vc_version: 2017
+          sdk_version: "10.0.15063.0"
         - target_type: x64_pe
           vc_version: 2017
+          sdk_version: "10.0.15063.0"
+
+        - target_type: x86
+          vc_version: 2017
+          sdk_version: "10.0.16299.91"
+        - target_type: x64
+          vc_version: 2017
+          sdk_version: "10.0.16299.91"
+        - target_type: x64_pe
+          vc_version: 2017
+          sdk_version: "10.0.16299.91"
+
+        - target_type: x86
+          vc_version: 2017
+          sdk_version: "10.0.17134.12"
+        - target_type: x64
+          vc_version: 2017
+          sdk_version: "10.0.17134.12"
+        - target_type: x64_pe
+          vc_version: 2017
+          sdk_version: "10.0.17134.12"
+
+        - target_type: x86
+          vc_version: 2017
+          sdk_version: "10.0.17763.0"
+        - target_type: x64
+          vc_version: 2017
+          sdk_version: "10.0.17763.0"
+        - target_type: x64_pe
+          vc_version: 2017
+          sdk_version: "10.0.17763.0"
     runs-on: windows-2016
 
     steps:
@@ -27,7 +60,7 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Build
-      run: cmd /c PCbuild\my_build.bat ${{ matrix.target_type }} ${{ matrix.vc_version }}
+      run: cmd /c PCbuild\my_build.bat ${{ matrix.target_type }} ${{ matrix.vc_version }} ${{ matrix.sdk_version }}
 
     - name: Test
       run: cmd /c PCbuild\my_test.bat ${{ matrix.target_type }} ${{ matrix.vc_version }}
