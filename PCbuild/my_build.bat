@@ -53,6 +53,8 @@ if "%VC_VERSION%" == "2015" (
         set "VSTOOLS=C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvarsall.bat"
     ) else if EXIST "C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\VC" (
         set "VSTOOLS=C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\VC\Auxiliary\Build\vcvarsall.bat"
+    ) else if EXIST "C:\Program Files (x86)\Microsoft Visual Studio\2017\WDExpress\VC" (
+        set "VSTOOLS=C:\Program Files (x86)\Microsoft Visual Studio\2017\WDExpress\VC\Auxiliary\Build\vcvarsall.bat"
     ) else (
         set "VSTOOLS=C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat"
     )
