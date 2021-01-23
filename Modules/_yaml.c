@@ -2,6 +2,7 @@
 
 #define PY_SSIZE_T_CLEAN
 #include "Python.h"
+#include "internal/pystate.h"
 #ifndef Py_PYTHON_H
     #error Python headers needed to compile C extensions, please install development version of Python.
 #elif PY_VERSION_HEX < 0x02060000 || (0x03000000 <= PY_VERSION_HEX && PY_VERSION_HEX < 0x03030000)
@@ -1768,7 +1769,7 @@ static PyObject *__pyx_codeobj__81;
  * import yaml
  * 
  * def get_version_string():             # <<<<<<<<<<<<<<
- *     cdef char *value
+ *     cdef const char *value
  *     value = yaml_get_version_string()
  */
 
@@ -1787,7 +1788,7 @@ static PyObject *__pyx_pw_5_yaml_1get_version_string(PyObject *__pyx_self, CYTHO
 }
 
 static PyObject *__pyx_pf_5_yaml_get_version_string(CYTHON_UNUSED PyObject *__pyx_self) {
-  char *__pyx_v_value;
+  char const *__pyx_v_value;
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   int __pyx_t_1;
@@ -1796,7 +1797,7 @@ static PyObject *__pyx_pf_5_yaml_get_version_string(CYTHON_UNUSED PyObject *__py
 
   /* "_yaml.pyx":6
  * def get_version_string():
- *     cdef char *value
+ *     cdef const char *value
  *     value = yaml_get_version_string()             # <<<<<<<<<<<<<<
  *     if PY_MAJOR_VERSION < 3:
  *         return value
@@ -1804,7 +1805,7 @@ static PyObject *__pyx_pf_5_yaml_get_version_string(CYTHON_UNUSED PyObject *__py
   __pyx_v_value = yaml_get_version_string();
 
   /* "_yaml.pyx":7
- *     cdef char *value
+ *     cdef const char *value
  *     value = yaml_get_version_string()
  *     if PY_MAJOR_VERSION < 3:             # <<<<<<<<<<<<<<
  *         return value
@@ -1828,7 +1829,7 @@ static PyObject *__pyx_pf_5_yaml_get_version_string(CYTHON_UNUSED PyObject *__py
     goto __pyx_L0;
 
     /* "_yaml.pyx":7
- *     cdef char *value
+ *     cdef const char *value
  *     value = yaml_get_version_string()
  *     if PY_MAJOR_VERSION < 3:             # <<<<<<<<<<<<<<
  *         return value
@@ -1856,7 +1857,7 @@ static PyObject *__pyx_pf_5_yaml_get_version_string(CYTHON_UNUSED PyObject *__py
  * import yaml
  * 
  * def get_version_string():             # <<<<<<<<<<<<<<
- *     cdef char *value
+ *     cdef const char *value
  *     value = yaml_get_version_string()
  */
 
@@ -25606,7 +25607,7 @@ static int __Pyx_InitCachedConstants(void) {
  * import yaml
  * 
  * def get_version_string():             # <<<<<<<<<<<<<<
- *     cdef char *value
+ *     cdef const char *value
  *     value = yaml_get_version_string()
  */
   __pyx_tuple__76 = PyTuple_Pack(1, __pyx_n_s_value); if (unlikely(!__pyx_tuple__76)) __PYX_ERR(0, 4, __pyx_L1_error)
@@ -25951,7 +25952,7 @@ if (!__Pyx_RefNanny) {
  * import yaml
  * 
  * def get_version_string():             # <<<<<<<<<<<<<<
- *     cdef char *value
+ *     cdef const char *value
  *     value = yaml_get_version_string()
  */
   __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_5_yaml_1get_version_string, NULL, __pyx_n_s_yaml_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 4, __pyx_L1_error)
