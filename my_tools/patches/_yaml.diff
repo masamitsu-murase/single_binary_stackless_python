@@ -1,7 +1,7 @@
-diff --git b/_yaml.pxd a/_yaml.pxd
-index 7937c9d..d556de9 100644
---- b/_yaml.pxd
-+++ a/_yaml.pxd
+diff --git a/_yaml.pxd b/_yaml.pxd
+index 7937c9db51..d556de9217 100644
+--- a/_yaml.pxd
++++ b/_yaml.pxd
 @@ -9,7 +9,7 @@ cdef extern from "_yaml.h":
      char *PyString_AS_STRING(object o)
      int PyString_GET_SIZE(object o)
@@ -11,10 +11,10 @@ index 7937c9d..d556de9 100644
      object PyUnicode_DecodeUTF8(char *u, int s, char *e)
      object PyUnicode_AsUTF8String(object o)
      int PY_MAJOR_VERSION
-diff --git b/_yaml.pyx a/_yaml.pyx
-index 83eca65..ffba568 100644
---- b/_yaml.pyx
-+++ a/_yaml.pyx
+diff --git a/_yaml.pyx b/_yaml.pyx
+index ff4efe80b5..05eed472ef 100644
+--- a/_yaml.pyx
++++ b/_yaml.pyx
 @@ -2,7 +2,7 @@
  import yaml
  

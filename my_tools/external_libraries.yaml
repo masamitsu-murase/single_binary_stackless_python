@@ -120,18 +120,12 @@ python_libraries:
     tag: "1.1.2"
     output_dir: "flask"
     filter_dir: "src/flask"
-    post_processes:
-      - type: "patch"
-        filename: "flask.diff"
   - name: "Werkzeug"
     github_user: "pallets"
     github_repository: "werkzeug"
     tag: "1.0.1"
     output_dir: "werkzeug"
     filter_dir: "src/werkzeug"
-    post_processes:
-      - type: "patch"
-        filename: "werkzeug.diff"
   - name: "itsdangerous"
     github_user: "pallets"
     github_repository: "itsdangerous"
@@ -162,6 +156,8 @@ c_libraries:
         filename: "_yaml.diff"
       - type: "python"
         command: ["import sys; sys.path.insert(0, '../my_tools'); from Cython.Compiler.Main import main; main(command_line = 1)", "-3", "_yaml.pyx"]
+      - type: "patch"
+        filename: "_yaml_c.diff"
   - name: "cchardet"
     github_user: "PyYoshi"
     github_repository: "cChardet"
@@ -172,6 +168,8 @@ c_libraries:
     post_processes:
       - type: "python"
         command: ["import sys; sys.path.insert(0, '../my_tools'); from Cython.Compiler.Main import main; main(command_line = 1)", "-3", "_cchardet.pyx"]
+      - type: "patch"
+        filename: "_cchardet.diff"
 ext_libraries:
   - name: "uchardet"
     github_user: "PyYoshi"
