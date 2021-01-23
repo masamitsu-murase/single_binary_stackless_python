@@ -29,7 +29,7 @@ def _name_module(tlib):
     return "comtypes.gen." + modname
 
 def GetModule(tlib):
-    """Create a module wrapping a COM typelibrary on demand.
+    r"""Create a module wrapping a COM typelibrary on demand.
 
     'tlib' must be an ITypeLib COM pointer instance, the pathname of a
     type library, a COM CLSID GUID, or a tuple/list specifying the
