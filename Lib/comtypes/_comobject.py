@@ -47,16 +47,17 @@ def HRESULT_FROM_WIN32(errcode):
 def winerror(exc):
     """Return the windows error code from a WindowsError or COMError
     instance."""
-    try:
-        code = exc[0]
+    if isinstance(exc, COMError):
+        return exc.hresult
+    elif isinstance(exc, WindowsError):
+        code = exc.winerror
         if isinstance(code, int):
             return code
-    except IndexError:
-        pass
-    # Sometimes, a WindowsError instance has no error code.  An access
-    # violation raised by ctypes has only text, for example.  In this
-    # cases we return a generic error code.
-    return E_FAIL
+        # Sometimes, a WindowsError instance has no error code.  An access
+        # violation raised by ctypes has only text, for example.  In this
+        # cases we return a generic error code.
+        return E_FAIL
+    raise TypeError("Expected comtypes.COMERROR or WindowsError instance, got %s" % type(exc).__name__)
 
 
 def _do_implement(interface_name, method_name):
@@ -274,12 +275,8 @@ _vtbl_types = {}
 ################################################################
 
 try:
-    if os.name == "ce":
-        _InterlockedIncrement = windll.coredll.InterlockedIncrement
-        _InterlockedDecrement = windll.coredll.InterlockedDecrement
-    else:
-        _InterlockedIncrement = windll.kernel32.InterlockedIncrement
-        _InterlockedDecrement = windll.kernel32.InterlockedDecrement
+    _InterlockedIncrement = windll.kernel32.InterlockedIncrement
+    _InterlockedDecrement = windll.kernel32.InterlockedDecrement
 except AttributeError:
     import threading
     _lock = threading.Lock()

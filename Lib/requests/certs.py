@@ -15,7 +15,7 @@ packaged CA bundle.
 from certifi import where
 # Import ca_cert_data for single binarisation.
 try:
-    from certifi import ca_cert_data
+    from certifi import contents
 except ImportError:
     pass
 
