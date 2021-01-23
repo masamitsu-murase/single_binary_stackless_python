@@ -1,4 +1,4 @@
-import _cchardet
+from cchardet import _cchardet
 from .version import __version__
 
 
@@ -16,6 +16,7 @@ def detect(msg):
     if isinstance(encoding, bytes):
         encoding = encoding.decode()
     return {"encoding": encoding, "confidence": confidence}
+
 
 class UniversalDetector(object):
     def __init__(self):
