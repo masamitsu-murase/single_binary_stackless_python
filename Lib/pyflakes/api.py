@@ -14,7 +14,7 @@ from pyflakes import reporter as modReporter
 
 __all__ = ['check', 'checkPath', 'checkRecursive', 'iterSourceCode', 'main']
 
-PYTHON_SHEBANG_REGEX = re.compile(br'^#!.*\bpython[23w]?\b\s*$')
+PYTHON_SHEBANG_REGEX = re.compile(br'^#!.*\bpython([23](\.\d+)?|w)?[dmu]?\s')
 
 
 def check(codeString, filename, reporter=None):
@@ -118,8 +118,7 @@ def isPythonFile(filename):
     except IOError:
         return False
 
-    first_line = text.splitlines()[0]
-    return PYTHON_SHEBANG_REGEX.match(first_line)
+    return PYTHON_SHEBANG_REGEX.match(text)
 
 
 def iterSourceCode(paths):
@@ -194,14 +193,18 @@ def _get_version():
 
 def main(prog=None, args=None):
     """Entry point for the script "pyflakes"."""
-    import optparse
+    import argparse
 
     # Handle "Keyboard Interrupt" and "Broken pipe" gracefully
     _exitOnSignal('SIGINT', '... stopped')
     _exitOnSignal('SIGPIPE', 1)
 
-    parser = optparse.OptionParser(prog=prog, version=_get_version())
-    (__, args) = parser.parse_args(args=args)
+    parser = argparse.ArgumentParser(prog=prog,
+                                     description='Check Python source files for errors')
+    parser.add_argument('-V', '--version', action='version', version=_get_version())
+    parser.add_argument('path', nargs='*',
+                        help='Path(s) of Python file(s) to check. STDIN if not given.')
+    args = parser.parse_args(args=args).path
     reporter = modReporter._makeDefaultReporter()
     if args:
         warnings = checkRecursive(args, reporter)
