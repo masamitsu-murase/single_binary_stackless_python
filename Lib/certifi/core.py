@@ -9,6 +9,9 @@ This module returns the installation location of cacert.pem or its contents.
 import os
 
 try:
+    # Do not use importlib.resources.
+    raise ImportError()
+
     from importlib.resources import path as get_path, read_text
 
     _CACERT_CTX = None
@@ -44,9 +47,12 @@ except ImportError:
     # importlib.resources module but relies on the existing `where` function
     # so won't address issues with environments like PyOxidizer that don't set
     # __file__ on modules.
+    _ca_cert_data = None
     def read_text(_module, _path, encoding="ascii"):
-        with open(where(), "r", encoding=encoding) as data:
-            return data.read()
+        global _ca_cert_data
+        if _ca_cert_data is None:
+            _ca_cert_data = __loader__.get_data(where()).decode(encoding)
+        return _ca_cert_data
 
     # If we don't have importlib.resources, then we will just do the old logic
     # of assuming we're on the filesystem and munge the path directly.
