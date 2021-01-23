@@ -1,7 +1,7 @@
-diff --git b/client/_code_cache.py a/client/_code_cache.py
-index 6218ef1..20c8b86 100644
---- b/client/_code_cache.py
-+++ a/client/_code_cache.py
+diff --git a/client/_code_cache.py b/client/_code_cache.py
+index 2212805d69..31d6166660 100644
+--- a/client/_code_cache.py
++++ b/client/_code_cache.py
 @@ -20,7 +20,7 @@ def _ensure_list(path):
  
  
@@ -11,11 +11,11 @@ index 6218ef1..20c8b86 100644
      generated modules will be created.
  
      Usually, this is the directory 'Lib/site-packages/comtypes/gen'.
-diff --git b/client/_generate.py a/client/_generate.py
-index 7ef2e27..d24e4f3 100644
---- b/client/_generate.py
-+++ a/client/_generate.py
-@@ -34,7 +34,7 @@ def _name_module(tlib):
+diff --git a/client/_generate.py b/client/_generate.py
+index 1e94e1e0a6..4f5bb71851 100644
+--- a/client/_generate.py
++++ b/client/_generate.py
+@@ -29,7 +29,7 @@ def _name_module(tlib):
      return "comtypes.gen." + modname
  
  def GetModule(tlib):
@@ -23,4 +23,4 @@ index 7ef2e27..d24e4f3 100644
 +    r"""Create a module wrapping a COM typelibrary on demand.
  
      'tlib' must be an ITypeLib COM pointer instance, the pathname of a
-     type library, or a tuple/list specifying the arguments to a
+     type library, a COM CLSID GUID, or a tuple/list specifying the
