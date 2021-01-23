@@ -11,5 +11,5 @@ def main(args=None):
     return test_appliance.run(collections, args)
 
 if __name__ == '__main__':
-    sys.exit(not main())
+    main()
 
