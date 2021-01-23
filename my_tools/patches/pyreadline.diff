@@ -1,7 +1,7 @@
-diff --git b/lineeditor/history.py a/lineeditor/history.py
-index ab46c44..ee93329 100644
---- b/lineeditor/history.py
-+++ a/lineeditor/history.py
+diff --git a/lineeditor/history.py b/lineeditor/history.py
+index ab46c44e5f..ee9332941b 100644
+--- a/lineeditor/history.py
++++ b/lineeditor/history.py
 @@ -79,7 +79,7 @@ class LineHistory(object):
          if filename is None:
              filename = self.history_filename
@@ -11,10 +11,10 @@ index ab46c44..ee93329 100644
                  self.add_history(lineobj.ReadLineTextBuffer(ensure_unicode(line.rstrip())))
          except IOError:
              self.history = []
-diff --git b/modes/basemode.py a/modes/basemode.py
-index 17084ac..797f946 100644
---- b/modes/basemode.py
-+++ a/modes/basemode.py
+diff --git a/modes/basemode.py b/modes/basemode.py
+index 17084ac7c1..797f946e41 100644
+--- a/modes/basemode.py
++++ b/modes/basemode.py
 @@ -510,7 +510,7 @@ class BaseMode(object):
          self.finalize()
          
