@@ -3,7 +3,7 @@ import sys
 import os
 
 # comtypes version numbers follow semver (http://semver.org/) and PEP 440
-__version__ = "1.1.7"
+__version__ = "1.1.8"
 
 import logging
 class NullHandler(logging.Handler):
@@ -23,21 +23,19 @@ from ctypes import *
 from _ctypes import COMError
 from comtypes import patcher
 
-def _check_version(actual):
+def _check_version(actual, tlib_cached_mtime=None):
     from comtypes.tools.codegenerator import version as required
     if actual != required:
         raise ImportError("Wrong version")
     if not hasattr(sys, "frozen"):
         g = sys._getframe(1).f_globals
-        mod_path = g.get("__file__")
         tlb_path = g.get("typelib_path")
         try:
-            mod_mtime = os.stat(mod_path).st_mtime
-            tlib_mtime = os.stat(tlb_path).st_mtime
+            tlib_curr_mtime = os.stat(tlb_path).st_mtime
         except (OSError, TypeError):
             return
-        if mod_mtime < tlib_mtime:
-            raise ImportError("Typelib newer than module")
+        if not tlib_cached_mtime or abs(tlib_curr_mtime - tlib_cached_mtime) >= 1:
+            raise ImportError("Typelib different than module")
 
 try:
     COMError()
@@ -148,10 +146,7 @@ def CoInitialize():
 
 def CoInitializeEx(flags=None):
     if flags is None:
-        if os.name == "ce":
-            flags = getattr(sys, "coinit_flags", COINIT_MULTITHREADED)
-        else:
-            flags = getattr(sys, "coinit_flags", COINIT_APARTMENTTHREADED)
+        flags = getattr(sys, "coinit_flags", COINIT_APARTMENTTHREADED)
     logger.debug("CoInitializeEx(None, %s)", flags)
     _ole32.CoInitializeEx(None, flags)
 
@@ -172,7 +167,7 @@ def CoUninitialize():
     _ole32_nohresult.CoUninitialize()
 
 
-def shutdown(func=_ole32_nohresult.CoUninitialize,
+def _shutdown(func=_ole32_nohresult.CoUninitialize,
              _debug=logger.debug,
              _exc_clear=getattr(sys, "exc_clear", lambda: None)):
     # Make sure no COM pointers stay in exception frames.
@@ -193,8 +188,7 @@ def shutdown(func=_ole32_nohresult.CoUninitialize,
     _debug("CoUnititialize() done.")
 
 import atexit
-atexit.register(shutdown)
-del shutdown
+atexit.register(_shutdown)
 
 ################################################################
 # global registries.
