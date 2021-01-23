@@ -120,18 +120,12 @@ python_libraries:
     tag: "1.1.2"
     output_dir: "flask"
     filter_dir: "src/flask"
-    post_processes:
-      - type: "patch"
-        filename: "flask.diff"
   - name: "Werkzeug"
     github_user: "pallets"
     github_repository: "werkzeug"
     tag: "1.0.1"
     output_dir: "werkzeug"
     filter_dir: "src/werkzeug"
-    post_processes:
-      - type: "patch"
-        filename: "werkzeug.diff"
   - name: "itsdangerous"
     github_user: "pallets"
     github_repository: "itsdangerous"
