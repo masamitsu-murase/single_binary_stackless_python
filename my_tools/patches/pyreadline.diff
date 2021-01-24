@@ -24,3 +24,20 @@ index 17084ac7c1..797f946e41 100644
          True then try to convert tabseparated data to repr of list of lists or 
          repr of array.
          If enable_ipython_paste_for_paths==True then change \\ to / and spaces to \space"""
+diff --git a/py3k_compat.py b/py3k_compat.py
+index ab0f837c4a..3e6469bdf1 100644
+--- a/py3k_compat.py
++++ b/py3k_compat.py
+@@ -2,10 +2,10 @@ from __future__ import print_function, unicode_literals, absolute_import
+ import sys
+ 
+ if sys.version_info[0] >= 3:
+-    import collections
++    import collections.abc
+     PY3 = True
+     def callable(x):
+-        return isinstance(x, collections.Callable)
++        return isinstance(x, collections.abc.Callable)
+     
+     def execfile(fname, glob, loc=None):
+         loc = loc if (loc is not None) else glob
