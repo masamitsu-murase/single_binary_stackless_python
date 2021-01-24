@@ -1,4 +1,4 @@
-[![Build Status](https://dev.azure.com/masamitsu-murase/single_binary_stackless_python/_apis/build/status/masamitsu-murase.single_binary_stackless_python?branchName=master3)](https://dev.azure.com/masamitsu-murase/single_binary_stackless_python/_build/latest?definitionId=1&branchName=master3) [![Build status](https://ci.appveyor.com/api/projects/status/btjf8f567h0a1jc3/branch/master3?svg=true)](https://ci.appveyor.com/project/masamitsu-murase/single-binary-stackless-python/branch/master3)
+[![Python](https://github.com/masamitsu-murase/single_binary_stackless_python/workflows/Python/badge.svg)](https://github.com/masamitsu-murase/single_binary_stackless_python/actions)
 
 # Single Binary StacklessPython
 
