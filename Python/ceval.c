@@ -580,7 +580,8 @@ do { \
         Py_DECREF(f2); \
         if (SLP_PEEK_NEXT_FRAME(tstate) != f) { \
             assert(f->f_execute == slp_eval_frame_value || f->f_execute == slp_eval_frame_noval || \
-                f->f_execute == slp_eval_frame_setup_with || f->f_execute == slp_eval_frame_with_cleanup); \
+                f->f_execute == slp_eval_frame_setup_with || f->f_execute == slp_eval_frame_with_cleanup || \
+                f->f_execute == slp_eval_frame_yield_from); \
             if (f->f_execute == slp_eval_frame_noval) \
                 f->f_execute = slp_eval_frame_value; \
             return (retval__); \
