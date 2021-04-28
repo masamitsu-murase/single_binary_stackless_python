@@ -151,11 +151,11 @@ typedef struct _cstack {
     int nesting_level;
     PyThreadState *tstate;
 #ifdef SLP_SEH32
-	/* SEH handler on Win32
-	 * The correct type is DWORD, but we do not want to include <windows.h>.
-	 * Instead we use a compile time assertion to ensure, that we use an
-	 * equivalent type.
-	 */
+        /* SEH handler on Win32
+         * The correct type is DWORD, but we do not want to include <windows.h>.
+         * Instead we use a compile time assertion to ensure, that we use an
+         * equivalent type.
+         */
     unsigned long exception_list;
 #endif
     /* The end-address (sic!) of the stack stored in the cstack.
@@ -163,14 +163,14 @@ typedef struct _cstack {
     intptr_t *startaddr;
     intptr_t stack[
 #if defined(_WINDOWS_) && defined(SLP_SEH32)
-		/* Assert the equivalence of DWORD and unsigned long. If <windows.h>
-		 * is included, _WINDOWS_ is defined.
-		 * Py_BUILD_ASSERT_EXPR needs an expression and this is the only one.
-		 */
-		Py_BUILD_ASSERT_EXPR(sizeof(unsigned long) == sizeof(DWORD)) +
-		Py_BUILD_ASSERT_EXPR(((DWORD)-1) > 0) + /* signedness */
+                /* Assert the equivalence of DWORD and unsigned long. If <windows.h>
+                 * is included, _WINDOWS_ is defined.
+                 * Py_BUILD_ASSERT_EXPR needs an expression and this is the only one.
+                 */
+                Py_BUILD_ASSERT_EXPR(sizeof(unsigned long) == sizeof(DWORD)) +
+                Py_BUILD_ASSERT_EXPR(((DWORD)-1) > 0) + /* signedness */
 #endif
-		1];
+                1];
 } PyCStackObject;
 
 
