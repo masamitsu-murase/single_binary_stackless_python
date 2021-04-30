@@ -85,11 +85,12 @@ The ``tasklet`` class
    >>> t.bind(func, (1, 2, 3), {"name":"test"})
    >>> t.insert()
 
-   In fact, the *tasklet.__init__* method just calls :meth:`tasklet.bind`
-   and the *tasklet.__call__* method calls :meth:`tasklet.setup`.
-
    Note that when an implicit :meth:`tasklet.insert` is invoked, there is no need
    to hold a reference to the created tasklet.
+
+.. method:: tasklet.__init__(func=None, args=None, kwargs=None)
+
+   Just calls :attr:`tasklet.bind` (func, args, kwargs) and returns :data:`None`
 
 .. method:: tasklet.bind(func=None, args=None, kwargs=None)
 
@@ -109,10 +110,10 @@ The ``tasklet`` class
    :meth:`tasklet.setup`.  The difference is that when providing them to
    :meth:`tasklet.bind`, the tasklet is not made runnable yet.
 
-   *func* can be None when providing arguments, in which case a previous call
+   *func* can be :data:`None` when providing arguments, in which case a previous call
    to :meth:`tasklet.bind` must have provided the function.
 
-   To clear the binding of a tasklet set all arguments to ``None``. This
+   To clear the binding of a tasklet set all arguments to :data:`None`. This
    is especially useful, if you run a tasklet only partially::
 
       >>> def func():
@@ -133,6 +134,7 @@ The ``tasklet`` class
    if these conditions are not met.
 
 .. method:: tasklet.setup(*args, **kwargs)
+            tasklet.__call__(*args, **kwargs)
 
    Provide the tasklet with arguments to pass into its bound callable::
 
@@ -354,6 +356,20 @@ The ``tasklet`` class
    could cause undefined behavior.
 
    You should not call this method from |PY|-code.
+
+.. method:: tasklet.__reduce_ex__(protocol)
+
+   See :meth:`object.__reduce_ex__`.
+
+.. method:: tasklet.__setstate__(state)
+
+   See :meth:`object.__setstate__`.
+
+   :param state: the state as given by ``__reduce_ex__(...)[2]``
+   :type state: :class:`tuple`
+   :return: self
+   :rtype: :class:`tasklet`
+   :raises RuntimeError: if the tasklet is already alive
 
 The following (read-only) attributes allow tasklet state to be checked:
 

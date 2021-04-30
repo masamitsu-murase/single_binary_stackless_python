@@ -184,9 +184,9 @@ Callback related functions:
 .. function:: set_channel_callback(callable)
 
    Install a global channel callback.  Every send or receive action will result
-   in *callable* being called.  Setting a value of ``None`` will result in the
+   in *callable* being called.  Setting a value of :data:`None` will result in the
    callback being disabled. The function returns the previous channel callback or
-   ``None`` if none was installed.
+   :data:`None` if none was installed.
 
    Example - installing a callback::
 
@@ -211,13 +211,13 @@ Callback related functions:
 .. function:: get_channel_callback()
 
    Get the current global channel callback. The function returns the
-   current channel callback or ``None`` if none was installed.
+   current channel callback or :data:`None` if none was installed.
 
 .. function:: set_schedule_callback(callable)
 
    Install a callback for scheduling.  Every scheduling event, whether
    explicit or implicit, will result in *callable* being called. The function
-   returns the previous channel callback or ``None`` if none was installed.
+   returns the previous channel callback or :data:`None` if none was installed.
 
    Example - installing a callback::
 
@@ -240,7 +240,7 @@ Callback related functions:
 .. function:: get_schedule_callback()
 
    Get the current global schedule callback. The function returns the
-   current schedule callback or ``None`` if none was installed.
+   current schedule callback or :data:`None` if none was installed.
 
 Scheduler state introspection related functions:
 
@@ -292,7 +292,7 @@ Pickling related functions:
    Whenever |PY| initialises a thread state, it copies the default-value to
    the thread state. Use function :func:`pickle_flags` to get and
    set the flags of the current thread only.
-   
+
    :param new_default: The new default value for pickle-flags
    :type new_default: int
    :param mask: A bit mask, that indicates the valid bits in argument "new_default"
@@ -343,7 +343,7 @@ Debugging related functions:
    Tasklets can be either switched by moving C stack slices around
    or by avoiding stack changes at all. The latter is only possible
    in the top interpreter level. This flag exists once for the whole process.
-   For inquiry only, use 'None' as the flag.
+   For inquiry only, use :data:`None` as the flag.
    By default, soft switching is enabled.
 
    Example - safely disabling soft switching::
