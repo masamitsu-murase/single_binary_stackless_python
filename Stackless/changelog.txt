@@ -9,6 +9,17 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://github.com/stackless-dev/stackless/issues/247
+  The API module 'stackless' used to expose a few debug/internal methods, which
+  can't be used safely in application code. The following names have been
+  removed from module 'stackless'. They are still available from 'stackless.
+  _stackless':
+  '_gc_track', '_gc_untrack', '_get_all_objects', '_get_refinfo', '_peek',
+  '_test_nostacklesscall', '_wrap', '_pickle_moduledict'.
+  The functions 'stackless.test_cframe_nr()' and 'stackless.test_outside()'
+  have been renamed to 'stackless._stackless._test_cframe_nr()' and 'stackless.
+  _stackless._test_outside()'
+
 - https://github.com/stackless-dev/stackless/issues/245
   Prevent a crash, if you call tasklet.__init__() or tasklet.bind() with wrong
   argument types.

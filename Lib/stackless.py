@@ -7,14 +7,6 @@ import types
 
 import _stackless
 from _stackless import *
-# various debugging things starting with underscore
-from _stackless import _test_nostacklesscall, _pickle_moduledict, _gc_track, _gc_untrack
-try:
-    from _stackless import _peek  # defined if compiled with STACKLESS_SPY
-except ImportError: pass
-try:
-    from _stackless import _get_refinfo, _get_all_objects  # defined if compiled with Py_TRACE_REFS
-except ImportError: pass
 
 def __reduce__():
     return "stackless"
@@ -165,7 +157,7 @@ def transmogrify():
 
     m = StacklessModuleType("stackless", __doc__)
     m.__dict__.update(globals())
-    del m.transmogrify, m.types, m.sys
+    del m.transmogrify, m.types, m.sys, m._wrap
 
     # odd curiosity, the stackless module contains a reference to itself
     # deprecated, of course
