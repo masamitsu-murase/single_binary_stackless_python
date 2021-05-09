@@ -12,7 +12,7 @@ import time
 import os
 import struct
 import gc
-from stackless import _test_nostacklesscall as apply_not_stackless
+from _stackless import _test_nostacklesscall as apply_not_stackless
 import _teststackless
 
 try:
