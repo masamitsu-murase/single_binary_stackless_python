@@ -9,6 +9,10 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://github.com/stackless-dev/stackless/issues/248
+  Documentation update: Mention, that module "stackless" must be imported, to
+  enable the extended pickling capabilities.
+
 - https://github.com/stackless-dev/stackless/issues/247
   The API module 'stackless' used to expose a few debug/internal methods, which
   can't be used safely in application code. The following names have been
