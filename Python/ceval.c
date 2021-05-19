@@ -4058,6 +4058,16 @@ PyEval_EvalFrameEx_slp(PyFrameObject *f, int throwflag, PyObject *retval)
 {
     PyThreadState *tstate = PyThreadState_GET();
 
+    /* Check, if an extension module has changed tstate->interp->eval_frame.
+     * PEP 523 defines this function pointer as an API to customise the frame
+     * evaluation. Stackless can not support this API. In order to prevent
+     * undefined behavior, we terminate the interpreter.
+     */
+    if (tstate->interp->eval_frame != _PyEval_EvalFrameDefault)
+        Py_FatalError("An extension module has set a custom frame evaluation function (see PEP 523).\n"
+                      "Stackless Python does not support the frame evaluation API defined by PEP 523.\n"
+                      "The programm now terminates to prevent undefined behavior.\n");
+
     /* Start of code, similar to non stackless
      * PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
      */
