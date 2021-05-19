@@ -132,7 +132,8 @@ Pickling other objects
 ======================
 
 In order to be able to pickle tasklets |SLP| needs to be able to pickle
-several other objects, which can't be pickled by |CPY|. |SLP|
+several other objects, which can't be pickled by |CPY|. If the module
+:mod:`stackless` gets imported for the first time, |SLP|
 uses :func:`copyreg.pickle` to register “reduction” functions for the following
 types:
 :data:`~types.AsyncGeneratorType`,

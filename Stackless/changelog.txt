@@ -9,6 +9,10 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://github.com/stackless-dev/stackless/issues/248
+  Documentation update: Mention, that module "stackless" must be imported, to
+  enable the extended pickling capabilities.
+
 - https://github.com/stackless-dev/stackless/issues/239
   Add support for PEP 567 context variables to tasklets.
   Each tasklet now has a contextvars.Context object, that becomes active during
