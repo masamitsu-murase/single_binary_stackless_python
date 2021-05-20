@@ -4,10 +4,10 @@ Stackless-Python News
 This file documents user visible changes to the Stackless extension of C-Python.
 For other changes see Misc/NEWS.
 
-What's New in Stackless 3.X.X?
+What's New in Stackless 3.7.6?
 ==============================
 
-*Release date: 20XX-XX-XX*
+*Release date: 2021-05-20*
 
 - https://github.com/stackless-dev/stackless/issues/231
   Update Stackless related bitbucket.org URLs to github.com
