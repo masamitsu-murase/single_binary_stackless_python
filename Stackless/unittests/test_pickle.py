@@ -774,7 +774,7 @@ class TestAsyncGenPickling(StacklessPickleTestCase):
         c = ag.__anext__()
         self.assertRaises(StopAsyncIteration, c.send, None)
         self.assertIsNone(ag.ag_frame)
-        self.assertRaises(StopIteration, c.send, None)
+        self.assertRaisesRegex(RuntimeError, "cannot reuse already awaited", c.send, None)
         c = ag.__anext__()
         self.assertRaises(StopAsyncIteration, c.send, None)
 
@@ -793,7 +793,7 @@ class TestAsyncGenPickling(StacklessPickleTestCase):
         c = ag.__anext__()
         self.assertRaises(StopAsyncIteration, c.send, None)
         self.assertIsNone(ag.ag_frame)
-        self.assertRaises(StopIteration, c.send, None)
+        self.assertRaisesRegex(RuntimeError, "cannot reuse already awaited", c.send, None)
         c = ag.__anext__()
         self.assertRaises(StopAsyncIteration, c.send, None)
 
@@ -815,7 +815,7 @@ class TestAsyncGenPickling(StacklessPickleTestCase):
             c = ag.__anext__()
             self.assertRaises(StopAsyncIteration, c.send, None)
             self.assertIsNone(ag.ag_frame)
-            self.assertRaises(StopIteration, c.send, None)
+            self.assertRaisesRegex(RuntimeError, "cannot reuse already awaited", c.send, None)
             c = ag.__anext__()
             self.assertRaises(StopAsyncIteration, c.send, None)
             ag = self.loads(p)
@@ -840,7 +840,7 @@ class TestAsyncGenPickling(StacklessPickleTestCase):
         p = self.dumps(ag)
         ag = self.loads(p)
         self.assertIsNone(ag.ag_frame)
-        self.assertRaises(StopIteration, c.send, None)
+        self.assertRaisesRegex(RuntimeError, "cannot reuse already awaited", c.send, None)
         c = ag.__anext__()
         self.assertRaises(StopAsyncIteration, c.send, None)
 
