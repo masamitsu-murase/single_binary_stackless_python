@@ -2032,7 +2032,6 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
 #ifdef STACKLESS
             if (STACKLESS_UNWINDING(retval)) {
                 HANDLE_UNWINDING(slp_eval_frame_yield_from, 0, retval);
-                receiver = TOP();
             }
 #endif
             if (retval == NULL) {
@@ -3057,7 +3056,6 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
             }
             if (STACKLESS_UNWINDING(next)) {
                 HANDLE_UNWINDING(slp_eval_frame_iter, 1, next);
-                iter = TOP();
             }
 #else
             next = (*iter->ob_type->tp_iternext)(iter);
@@ -3264,10 +3262,6 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
 #ifdef STACKLESS
             if (STACKLESS_UNWINDING(res)) {
                 HANDLE_UNWINDING(slp_eval_frame_with_cleanup, 0, res);
-                /* recompute exc after the goto */
-                exc = TOP();
-                if (PyLong_Check(exc))
-                    exc = Py_None;
             }
 #endif
             if (res == NULL)
