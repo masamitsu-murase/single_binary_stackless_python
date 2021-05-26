@@ -554,6 +554,12 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
      (!((x) >> 8)  ? 0 : \
      (!((x) >> 16) ? 1 : \
      (!((x) >> 24) ? 2 : 3 ))))
+#ifdef LLTRACE
+#define LLTRACE_HANDLE_UNWINDING(obj__, msg__) \
+	lltrace && prtrace((obj__), (msg__))
+#else
+#define LLTRACE_HANDLE_UNWINDING(obj__, msg__) 1
+#endif
 
 #define HANDLE_UNWINDING(frame_func, has_opcode, retval__) \
 do { \
@@ -571,10 +577,13 @@ do { \
     f->f_lasti = INSTR_OFFSET() != 0 ? \
             assert(INSTR_OFFSET() >= sizeof(_Py_CODEUNIT)), \
             (int)(INSTR_OFFSET() - sizeof(_Py_CODEUNIT)) : -1; \
-    if (SLP_PEEK_NEXT_FRAME(tstate)->f_back != f) \
+    if (SLP_PEEK_NEXT_FRAME(tstate)->f_back != f) {\
+        LLTRACE_HANDLE_UNWINDING(STACKLESS_RETVAL((tstate), (retval__)), "handle_unwinding return:");\
         return (retval__); \
+    }\
     STACKLESS_UNPACK(tstate, (retval__)); \
     { \
+        LLTRACE_HANDLE_UNWINDING((retval__), "handle_unwinding call next frame:");\
         PyFrameObject *f2 = SLP_CLAIM_NEXT_FRAME(tstate); \
         (retval__) = CALL_FRAME_FUNCTION(f2, 0, (retval__)); \
         Py_DECREF(f2); \
@@ -584,6 +593,7 @@ do { \
                 f->f_execute == slp_eval_frame_yield_from); \
             if (f->f_execute == slp_eval_frame_noval) \
                 f->f_execute = slp_eval_frame_value; \
+            LLTRACE_HANDLE_UNWINDING(STACKLESS_RETVAL((tstate), (retval__)), "handle_unwinding return from next frame:");\
             return (retval__); \
         } \
         f2 = SLP_CLAIM_NEXT_FRAME(tstate); \
@@ -604,6 +614,7 @@ do { \
     f->f_execute = slp_eval_frame_value; \
     if (has_opcode) \
         next_instr += 1 + EXTENDED_ARG_OFFSET(oparg); \
+    LLTRACE_HANDLE_UNWINDING((retval__), "handle_unwinding end:");\
 } while(0)
 #endif
 
