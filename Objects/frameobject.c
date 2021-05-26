@@ -447,7 +447,7 @@ frame_dealloc(PyFrameObject *f)
 
     Py_TRASHCAN_SAFE_BEGIN(f)
 
-#if defined(STACKLESS) && PY_VERSION_HEX < 0x03080000
+#if defined(STACKLESS) && PY_VERSION_HEX < SLP_END_OF_OLD_CYTHON_HACK_VERSION
     /* Clear the magic for the old Cython frame hack.
      * See below in PyFrame_New() for a detailed explanation.
      */
@@ -777,7 +777,7 @@ PyFrame_New(PyThreadState *tstate, PyCodeObject *code,
     PyFrameObject *f = _PyFrame_New_NoTrack(tstate, code, globals, locals);
     if (f) {
         _PyObject_GC_TRACK(f);
-#if defined(STACKLESS) && PY_VERSION_HEX < 0x03080000
+#if defined(STACKLESS) && PY_VERSION_HEX < SLP_END_OF_OLD_CYTHON_HACK_VERSION
         if (code->co_argcount > 0) {
             /*
              * A hack for binary compatibility with Cython extension modules, which

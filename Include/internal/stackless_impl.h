@@ -30,6 +30,18 @@ extern "C" {
  * This would usually be done in place with the assembly macros.
  */
 
+#ifndef SLP_END_OF_OLD_CYTHON_HACK_VERSION
+/*
+ * If PY_VERSION_HEX < SLP_END_OF_OLD_CYTHON_VERSION_HEX support for
+ * Cython versions prior to 0.29 (2018-10-14) is enabled.
+ *
+ * It is a hack for binary compatibility with Cython extension modules, which
+ * were created with an older Cython compiled with regular C-Python.
+ * See Stackless issue #168
+ */
+#define SLP_END_OF_OLD_CYTHON_HACK_VERSION (0x030800b1)
+#endif
+
 /*
  * Macros used to extract bit-field values from an integer in a portable
  * way.

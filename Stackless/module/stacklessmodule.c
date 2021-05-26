@@ -1826,6 +1826,9 @@ PyInit__stackless(void)
     INSERT("channel",   &PyChannel_Type);
     INSERT("atomic",    &PyAtomic_Type);
     INSERT("pickle_with_tracing_state", Py_False);
+#if PY_VERSION_HEX < SLP_END_OF_OLD_CYTHON_HACK_VERSION
+    INSERT("_with_old_cython_hack", Py_True);
+#endif
 
     tmp = get_test_nostacklesscallobj();
     if (!tmp)

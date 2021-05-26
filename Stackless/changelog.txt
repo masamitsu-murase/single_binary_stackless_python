@@ -9,6 +9,12 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://github.com/stackless-dev/stackless/issues/253
+  Disable the support for Cython versions below 0.29.
+  Starting with Stackless version 3.8.0b1 extension modules compiled with
+  regular C-Python and Cython versions below 0.29 no longer work with
+  Stackless Python.
+
 - https://github.com/stackless-dev/stackless/issues/231
   Update Stackless related bitbucket.org URLs to github.com
 

@@ -3955,7 +3955,7 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
          */
         f->f_execute = PyEval_EvalFrameEx_slp;
 
-#if PY_VERSION_HEX < 0x03080000
+#if PY_VERSION_HEX < SLP_END_OF_OLD_CYTHON_HACK_VERSION
         /* Older versions of Cython used to create frames using C-Python layout
          * of PyFrameObject. As a consequence f_code is overwritten by the first
          * item of f_localsplus[]. To be able to fix it, we have a copy of
