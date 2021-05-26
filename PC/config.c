@@ -5,6 +5,7 @@
 
 #include "Python.h"
 
+extern PyObject* PyInit__abc(void);
 extern PyObject* PyInit_array(void);
 extern PyObject* PyInit_audioop(void);
 extern PyObject* PyInit_binascii(void);
@@ -84,6 +85,7 @@ extern PyObject* PyInit__stackless(void);
 
 struct _inittab _PyImport_Inittab[] = {
 
+    {"_abc", PyInit__abc},
     {"array", PyInit_array},
     {"_ast", PyInit__ast},
     {"audioop", PyInit_audioop},
