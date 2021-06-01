@@ -1059,6 +1059,9 @@ static HANDLE hPython3;
 int
 _Py_CheckPython3(void)
 {
+#ifndef PY3_DLLNAME
+#define PY3_DLLNAME L"python3.dll"
+#endif
     wchar_t py3path[MAXPATHLEN+1];
     if (python3_checked) {
         return hPython3 != NULL;
