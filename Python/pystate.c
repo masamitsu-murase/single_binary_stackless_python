@@ -445,12 +445,12 @@ new_threadstate(PyInterpreterState *interp, int init)
         tstate->context = NULL;
         tstate->context_ver = 1;
 
-        tstate->id = ++interp->tstate_next_unique_id;
 
         if (init)
             _PyThreadState_Init(tstate);
 
         HEAD_LOCK();
+        tstate->id = ++interp->tstate_next_unique_id;
         tstate->prev = NULL;
         tstate->next = interp->tstate_head;
         if (tstate->next)
@@ -603,11 +603,19 @@ PyThreadState_Clear(PyThreadState *tstate)
 #ifdef STACKLESS
     slp_kill_tasks_with_stacks(tstate);
 #endif
-    if (Py_VerboseFlag && tstate->frame != NULL)
+    if (Py_VerboseFlag && tstate->frame != NULL) {
+        /* bpo-20526: After the main thread calls
+           _PyRuntimeState_SetFinalizing() in Py_FinalizeEx(), threads must
+           exit when trying to take the GIL. If a thread exit in the middle of
+           _PyEval_EvalFrameDefault(), tstate->frame is not reset to its
+           previous value. It is more likely with daemon threads, but it can
+           happen with regular threads if threading._shutdown() fails
+           (ex: interrupted by CTRL+C). */
         fprintf(stderr,
-        "# PyThreadState_Clear: warning: thread still has a frame\n");
+          "PyThreadState_Clear: warning: thread still has a frame\n");
+    }
 
-    Py_CLEAR(tstate->frame);
+    /* Don't clear tstate->frame: it is a borrowed reference */
 
     Py_CLEAR(tstate->dict);
     Py_CLEAR(tstate->async_exc);

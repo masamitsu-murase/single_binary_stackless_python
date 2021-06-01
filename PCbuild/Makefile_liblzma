@@ -7,7 +7,7 @@ xzDir = $(externalsDir)\xz-5.2.2
 
 INCLUDES = /I "$(xzDir)\windows" /I "$(xzDir)\src/liblzma/common" /I "$(xzDir)\src/common" /I "$(xzDir)\src/liblzma/api" /I "$(xzDir)\src/liblzma/check" /I "$(xzDir)\src/liblzma/delta" /I "$(xzDir)\src/liblzma/lz" /I "$(xzDir)\src/liblzma/lzma" /I "$(xzDir)\src/liblzma/rangecoder" /I "$(xzDir)\src/liblzma/simple"
 DEFINES = /D "WIN32" /D "HAVE_CONFIG_H" /D "_LIB" /D "NDEBUG"
-CFLAGS = /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi
+CFLAGS = /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi /wd4028 /wd4113 /wd4133 /wd4244 /wd4267 /wd4996
 LFLAGS = /NOLOGO /LTCG
 TARGET = liblzma.lib
 

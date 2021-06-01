@@ -1706,7 +1706,9 @@ async_gen_asend_send(PyAsyncGenASend *o, PyObject *arg)
     PyObject *result;
 
     if (o->ags_state == AWAITABLE_STATE_CLOSED) {
-        PyErr_SetNone(PyExc_StopIteration);
+        PyErr_SetString(
+            PyExc_RuntimeError,
+            "cannot reuse already awaited __anext__()/asend()");
         return NULL;
     }
 
@@ -1767,7 +1769,9 @@ async_gen_asend_throw(PyAsyncGenASend *o, PyObject *args)
     PyObject *result;
 
     if (o->ags_state == AWAITABLE_STATE_CLOSED) {
-        PyErr_SetNone(PyExc_StopIteration);
+        PyErr_SetString(
+            PyExc_RuntimeError,
+            "cannot reuse already awaited __anext__()/asend()");
         return NULL;
     }
 
@@ -2000,8 +2004,15 @@ async_gen_athrow_send(PyAsyncGenAThrow *o, PyObject *arg)
     PyFrameObject *f = gen->gi_frame;
     PyObject *retval;
 
-    if (f == NULL || f->f_stacktop == NULL ||
-            o->agt_state == AWAITABLE_STATE_CLOSED) {
+    if (o->agt_state == AWAITABLE_STATE_CLOSED) {
+        PyErr_SetString(
+            PyExc_RuntimeError,
+            "cannot reuse already awaited aclose()/athrow()");
+        return NULL;
+    }
+
+    if (f == NULL || f->f_stacktop == NULL) {
+        o->agt_state = AWAITABLE_STATE_CLOSED;
         PyErr_SetNone(PyExc_StopIteration);
         return NULL;
     }
@@ -2076,25 +2087,25 @@ async_gen_athrow_send(PyAsyncGenAThrow *o, PyObject *arg)
     }
 
 yield_close:
+    o->agt_state = AWAITABLE_STATE_CLOSED;
     PyErr_SetString(
         PyExc_RuntimeError, ASYNC_GEN_IGNORED_EXIT_MSG);
     return NULL;
 
 check_error:
-    if (PyErr_ExceptionMatches(PyExc_StopAsyncIteration)) {
+    if (PyErr_ExceptionMatches(PyExc_StopAsyncIteration) ||
+            PyErr_ExceptionMatches(PyExc_GeneratorExit))
+    {
         o->agt_state = AWAITABLE_STATE_CLOSED;
         if (o->agt_args == NULL) {
             /* when aclose() is called we don't want to propagate
-               StopAsyncIteration; just raise StopIteration, signalling
-               that 'aclose()' is done. */
+               StopAsyncIteration or GeneratorExit; just raise
+               StopIteration, signalling that this 'aclose()' await
+               is done.
+            */
             PyErr_Clear();
             PyErr_SetNone(PyExc_StopIteration);
         }
-    }
-    else if (PyErr_ExceptionMatches(PyExc_GeneratorExit)) {
-        o->agt_state = AWAITABLE_STATE_CLOSED;
-        PyErr_Clear();          /* ignore these errors */
-        PyErr_SetNone(PyExc_StopIteration);
     }
     return NULL;
 }
@@ -2106,7 +2117,9 @@ async_gen_athrow_throw(PyAsyncGenAThrow *o, PyObject *args)
     PyObject *retval;
 
     if (o->agt_state == AWAITABLE_STATE_CLOSED) {
-        PyErr_SetNone(PyExc_StopIteration);
+        PyErr_SetString(
+            PyExc_RuntimeError,
+            "cannot reuse already awaited aclose()/athrow()");
         return NULL;
     }
 
@@ -2116,9 +2129,21 @@ async_gen_athrow_throw(PyAsyncGenAThrow *o, PyObject *args)
     } else {
         /* aclose() mode */
         if (retval && _PyAsyncGenWrappedValue_CheckExact(retval)) {
+            o->agt_state = AWAITABLE_STATE_CLOSED;
             Py_DECREF(retval);
             PyErr_SetString(PyExc_RuntimeError, ASYNC_GEN_IGNORED_EXIT_MSG);
             return NULL;
+        }
+        if (PyErr_ExceptionMatches(PyExc_StopAsyncIteration) ||
+            PyErr_ExceptionMatches(PyExc_GeneratorExit))
+        {
+            /* when aclose() is called we don't want to propagate
+               StopAsyncIteration or GeneratorExit; just raise
+               StopIteration, signalling that this 'aclose()' await
+               is done.
+            */
+            PyErr_Clear();
+            PyErr_SetNone(PyExc_StopIteration);
         }
         return retval;
     }

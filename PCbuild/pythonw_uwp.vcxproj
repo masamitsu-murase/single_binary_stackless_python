@@ -36,6 +36,7 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{AB603547-1E2A-45B3-9E09-B04596006393}</ProjectGuid>
+    <PlatformToolset Condition="'$(PlatformToolset)' == '' and ('$(MSBuildToolsVersion)' == '16.0' or '$(VisualStudioVersion)' == '16.0')">v142</PlatformToolset>
   </PropertyGroup>
   <Import Project="python.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -63,6 +64,15 @@
     <Link>
       <AdditionalDependencies>windowsapp.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Windows</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="$(Configuration) != 'Debug'">
+    <ClCompile>
+      <RuntimeLibrary>Multithreaded</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>ucrt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreSpecificDefaultLibraries>libucrt;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
