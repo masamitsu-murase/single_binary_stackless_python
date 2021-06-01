@@ -152,21 +152,14 @@ the ``time()`` function, which returns system time in seconds since the Unix
 epoch, and the ``GetModuleHandleA()`` function, which returns a win32 module
 handle.
 
-This example calls both functions with a NULL pointer (``None`` should be used
-as the NULL pointer)::
+This example calls both functions with a ``NULL`` pointer (``None`` should be used
+as the ``NULL`` pointer)::
 
    >>> print(libc.time(None))  # doctest: +SKIP
    1150640792
    >>> print(hex(windll.kernel32.GetModuleHandleA(None)))  # doctest: +WINDOWS
    0x1d000000
    >>>
-
-.. note::
-
-   :mod:`ctypes` may raise a :exc:`ValueError` after calling the function, if
-   it detects that an invalid number of arguments were passed.  This behavior
-   should not be relied upon.  It is deprecated in 3.6.2, and will be removed
-   in 3.7.
 
 :exc:`ValueError` is raised when you call an ``stdcall`` function with the
 ``cdecl`` calling convention, or vice versa::
@@ -624,7 +617,7 @@ Structure/union alignment and byte order
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 By default, Structure and Union fields are aligned in the same way the C
-compiler does it. It is possible to override this behavior be specifying a
+compiler does it. It is possible to override this behavior by specifying a
 :attr:`_pack_` class attribute in the subclass definition. This must be set to a
 positive integer and specifies the maximum alignment for the fields. This is
 what ``#pragma pack(n)`` also does in MSVC.
@@ -922,7 +915,7 @@ attribute later, after the class statement::
    ...                  ("next", POINTER(cell))]
    >>>
 
-Lets try it. We create two instances of ``cell``, and let them point to each
+Let's try it. We create two instances of ``cell``, and let them point to each
 other, and finally follow the pointer chain a few times::
 
    >>> c1 = cell()
@@ -1083,7 +1076,7 @@ An extended example which also demonstrates the use of pointers accesses the
 Quoting the docs for that value:
 
    This pointer is initialized to point to an array of :c:type:`struct _frozen`
-   records, terminated by one whose members are all *NULL* or zero.  When a frozen
+   records, terminated by one whose members are all ``NULL`` or zero.  When a frozen
    module is imported, it is searched in this table.  Third-party code could play
    tricks with this to provide a dynamically created collection of frozen modules.
 
@@ -1110,7 +1103,7 @@ Since ``table`` is a ``pointer`` to the array of ``struct_frozen`` records, we
 can iterate over it, but we just have to make sure that our loop terminates,
 because pointers have no size. Sooner or later it would probably crash with an
 access violation or whatever, so it's better to break out of the loop when we
-hit the NULL entry::
+hit the ``NULL`` entry::
 
    >>> for item in table:
    ...     if item.name is None:
@@ -1125,8 +1118,8 @@ hit the NULL entry::
    >>>
 
 The fact that standard Python has a frozen module and a frozen package
-(indicated by the negative size member) is not well known, it is only used for
-testing. Try it out with ``import __hello__`` for example.
+(indicated by the negative ``size`` member) is not well known, it is only used
+for testing. Try it out with ``import __hello__`` for example.
 
 
 .. _ctypes-surprises:

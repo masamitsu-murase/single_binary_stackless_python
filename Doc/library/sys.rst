@@ -378,8 +378,8 @@ always available.
    +---------------------+----------------+--------------------------------------------------+
    | attribute           | float.h macro  | explanation                                      |
    +=====================+================+==================================================+
-   | :const:`epsilon`    | DBL_EPSILON    | difference between 1 and the least value greater |
-   |                     |                | than 1 that is representable as a float          |
+   | :const:`epsilon`    | DBL_EPSILON    | difference between 1.0 and the least value       |
+   |                     |                | greater than 1.0 that is representable as a float|
    +---------------------+----------------+--------------------------------------------------+
    | :const:`dig`        | DBL_DIG        | maximum number of decimal digits that can be     |
    |                     |                | faithfully represented in a float;  see below    |
@@ -387,20 +387,20 @@ always available.
    | :const:`mant_dig`   | DBL_MANT_DIG   | float precision: the number of base-``radix``    |
    |                     |                | digits in the significand of a float             |
    +---------------------+----------------+--------------------------------------------------+
-   | :const:`max`        | DBL_MAX        | maximum representable finite float               |
+   | :const:`max`        | DBL_MAX        | maximum representable positive finite float      |
    +---------------------+----------------+--------------------------------------------------+
-   | :const:`max_exp`    | DBL_MAX_EXP    | maximum integer e such that ``radix**(e-1)`` is  |
+   | :const:`max_exp`    | DBL_MAX_EXP    | maximum integer *e* such that ``radix**(e-1)`` is|
    |                     |                | a representable finite float                     |
    +---------------------+----------------+--------------------------------------------------+
-   | :const:`max_10_exp` | DBL_MAX_10_EXP | maximum integer e such that ``10**e`` is in the  |
+   | :const:`max_10_exp` | DBL_MAX_10_EXP | maximum integer *e* such that ``10**e`` is in the|
    |                     |                | range of representable finite floats             |
    +---------------------+----------------+--------------------------------------------------+
-   | :const:`min`        | DBL_MIN        | minimum positive normalized float                |
+   | :const:`min`        | DBL_MIN        | minimum representable positive *normalized* float|
    +---------------------+----------------+--------------------------------------------------+
-   | :const:`min_exp`    | DBL_MIN_EXP    | minimum integer e such that ``radix**(e-1)`` is  |
+   | :const:`min_exp`    | DBL_MIN_EXP    | minimum integer *e* such that ``radix**(e-1)`` is|
    |                     |                | a normalized float                               |
    +---------------------+----------------+--------------------------------------------------+
-   | :const:`min_10_exp` | DBL_MIN_10_EXP | minimum integer e such that ``10**e`` is a       |
+   | :const:`min_10_exp` | DBL_MIN_10_EXP | minimum integer *e* such that ``10**e`` is a     |
    |                     |                | normalized float                                 |
    +---------------------+----------------+--------------------------------------------------+
    | :const:`radix`      | FLT_RADIX      | radix of exponent representation                 |
@@ -1377,7 +1377,7 @@ always available.
      On Windows, UTF-8 is used for the console device.  Non-character
      devices such as disk files and pipes use the system locale
      encoding (i.e. the ANSI codepage).  Non-console character
-     devices such as NUL (i.e. where isatty() returns True) use the
+     devices such as NUL (i.e. where ``isatty()`` returns ``True``) use the
      value of the console input and output codepages at startup,
      respectively for stdin and stdout/stderr. This defaults to the
      system locale encoding if the process is not initially attached

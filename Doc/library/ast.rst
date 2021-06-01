@@ -240,11 +240,11 @@ and classes for traversing abstract syntax trees:
       class RewriteName(NodeTransformer):
 
           def visit_Name(self, node):
-              return copy_location(Subscript(
+              return Subscript(
                   value=Name(id='data', ctx=Load()),
                   slice=Index(value=Str(s=node.id)),
                   ctx=node.ctx
-              ), node)
+              )
 
    Keep in mind that if the node you're operating on has child nodes you must
    either transform the child nodes yourself or call the :meth:`generic_visit`
@@ -253,6 +253,14 @@ and classes for traversing abstract syntax trees:
    For nodes that were part of a collection of statements (that applies to all
    statement nodes), the visitor may also return a list of nodes rather than
    just a single node.
+
+   If :class:`NodeTransformer` introduces new nodes (that weren't part of
+   original tree) without giving them location information (such as
+   :attr:`lineno`), :func:`fix_missing_locations` should be called with
+   the new sub-tree to recalculate the location information::
+
+      tree = ast.parse('foo', mode='eval')
+      new_tree = fix_missing_locations(RewriteName().visit(tree))
 
    Usually you use the transformer like this::
 

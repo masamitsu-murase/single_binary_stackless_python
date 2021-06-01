@@ -651,7 +651,6 @@ class ProcessTestCase(BaseTestCase):
             # on adding even when the environment in exec is empty.
             # Gentoo sandboxes also force LD_PRELOAD and SANDBOX_* to exist.
             return ('VERSIONER' in n or '__CF' in n or  # MacOS
-                    '__PYVENV_LAUNCHER__' in n or # MacOS framework build
                     n == 'LD_PRELOAD' or n.startswith('SANDBOX') or # Gentoo
                     n == 'LC_CTYPE') # Locale coercion triggered
 
@@ -2847,6 +2846,17 @@ class POSIXProcessTestCase(BaseTestCase):
             returncode = proc.wait()
 
         self.assertEqual(returncode, -3)
+
+    def test_communicate_repeated_call_after_stdout_close(self):
+        proc = subprocess.Popen([sys.executable, '-c',
+                                 'import os, time; os.close(1), time.sleep(2)'],
+                                stdout=subprocess.PIPE)
+        while True:
+            try:
+                proc.communicate(timeout=0.1)
+                return
+            except subprocess.TimeoutExpired:
+                pass
 
 
 @unittest.skipUnless(mswindows, "Windows specific tests")

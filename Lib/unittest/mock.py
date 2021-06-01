@@ -30,6 +30,7 @@ import inspect
 import pprint
 import sys
 import builtins
+import contextlib
 from types import ModuleType, MethodType
 from functools import wraps, partial
 
@@ -794,6 +795,10 @@ class NonCallableMock(Base):
             if child is None or isinstance(child, _SpecState):
                 break
             else:
+                # If an autospecced object is attached using attach_mock the
+                # child would be a function with mock object as attribute from
+                # which signature has to be derived.
+                child = _extract_mock(child)
                 children = child._mock_children
                 sig = child._spec_signature
 
@@ -1239,13 +1244,9 @@ class _patch(object):
         @wraps(func)
         def patched(*args, **keywargs):
             extra_args = []
-            entered_patchers = []
-
-            exc_info = tuple()
-            try:
+            with contextlib.ExitStack() as exit_stack:
                 for patching in patched.patchings:
-                    arg = patching.__enter__()
-                    entered_patchers.append(patching)
+                    arg = exit_stack.enter_context(patching)
                     if patching.attribute_name is not None:
                         keywargs.update(arg)
                     elif patching.new is DEFAULT:
@@ -1253,19 +1254,6 @@ class _patch(object):
 
                 args += tuple(extra_args)
                 return func(*args, **keywargs)
-            except:
-                if (patching not in entered_patchers and
-                    _is_started(patching)):
-                    # the patcher may have been started, but an exception
-                    # raised whilst entering one of its additional_patchers
-                    entered_patchers.append(patching)
-                # Pass the exception to __exit__
-                exc_info = sys.exc_info()
-                # re-raise the exception
-                raise
-            finally:
-                for patching in reversed(entered_patchers):
-                    patching.__exit__(*exc_info)
 
         patched.patchings = [self]
         return patched
@@ -1407,19 +1395,23 @@ class _patch(object):
 
         self.temp_original = original
         self.is_local = local
-        setattr(self.target, self.attribute, new_attr)
-        if self.attribute_name is not None:
-            extra_args = {}
-            if self.new is DEFAULT:
-                extra_args[self.attribute_name] =  new
-            for patching in self.additional_patchers:
-                arg = patching.__enter__()
-                if patching.new is DEFAULT:
-                    extra_args.update(arg)
-            return extra_args
+        self._exit_stack = contextlib.ExitStack()
+        try:
+            setattr(self.target, self.attribute, new_attr)
+            if self.attribute_name is not None:
+                extra_args = {}
+                if self.new is DEFAULT:
+                    extra_args[self.attribute_name] =  new
+                for patching in self.additional_patchers:
+                    arg = self._exit_stack.enter_context(patching)
+                    if patching.new is DEFAULT:
+                        extra_args.update(arg)
+                return extra_args
 
-        return new
-
+            return new
+        except:
+            if not self.__exit__(*sys.exc_info()):
+                raise
 
     def __exit__(self, *exc_info):
         """Undo the patch."""
@@ -1440,9 +1432,9 @@ class _patch(object):
         del self.temp_original
         del self.is_local
         del self.target
-        for patcher in reversed(self.additional_patchers):
-            if _is_started(patcher):
-                patcher.__exit__(*exc_info)
+        exit_stack = self._exit_stack
+        del self._exit_stack
+        return exit_stack.__exit__(*exc_info)
 
 
     def start(self):
@@ -1460,7 +1452,7 @@ class _patch(object):
             # If the patch hasn't been started this will fail
             pass
 
-        return self.__exit__()
+        return self.__exit__(None, None, None)
 
 
 
@@ -1492,6 +1484,10 @@ def _patch_object(
     When used as a class decorator `patch.object` honours `patch.TEST_PREFIX`
     for choosing which methods to wrap.
     """
+    if type(target) is str:
+        raise TypeError(
+            f"{target!r} must be the actual object to be patched, not a str"
+        )
     getter = lambda: target
     return _patch(
         getter, attribute, new, spec, create,
@@ -2334,7 +2330,7 @@ def _must_skip(spec, entry, is_type):
             continue
         if isinstance(result, (staticmethod, classmethod)):
             return False
-        elif isinstance(getattr(result, '__get__', None), MethodWrapperTypes):
+        elif isinstance(result, FunctionTypes):
             # Normal method => skip if looked up on type
             # (if looked up on instance, self is already skipped)
             return is_type
@@ -2371,10 +2367,6 @@ FunctionTypes = (
     type(create_autospec),
     # instance method
     type(ANY.__eq__),
-)
-
-MethodWrapperTypes = (
-    type(ANY.__eq__.__get__),
 )
 
 

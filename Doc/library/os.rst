@@ -147,7 +147,7 @@ process and user.
    versa).
 
    :data:`environb` is only available if :data:`supports_bytes_environ` is
-   True.
+   ``True``.
 
    .. versionadded:: 3.2
 
@@ -235,7 +235,7 @@ process and user.
    *default* if it doesn't. *key*, *default* and the result are bytes.
 
    :func:`getenvb` is only available if :data:`supports_bytes_environ`
-   is True.
+   is ``True``.
 
    .. availability:: most flavors of Unix.
 
@@ -642,7 +642,7 @@ process and user.
    calls to :func:`unsetenv` don't update ``os.environ``, so it is actually
    preferable to delete items of ``os.environ``.
 
-   .. availability:: most flavors of Unix, Windows.
+   .. availability:: most flavors of Unix.
 
 
 .. _os-newstreams:
@@ -3603,10 +3603,8 @@ written in Python, such as a mail server's external command delivery program.
 
    See the Unix manual page
    :manpage:`times(2)` and :manpage:`times(3)` manual page on Unix or `the GetProcessTimes MSDN
-   <https://docs.microsoft.com/windows/win32/api/processthreadsapi/nf-processthreadsapi-getprocesstimes>`
-   _ on Windows.
-   On Windows, only :attr:`user` and :attr:`system` are known; the other
-   attributes are zero.
+   <https://docs.microsoft.com/windows/win32/api/processthreadsapi/nf-processthreadsapi-getprocesstimes>`_
+   on Windows. On Windows, only :attr:`user` and :attr:`system` are known; the other attributes are zero.
 
    .. availability:: Unix, Windows.
 
@@ -3767,28 +3765,36 @@ used to determine the disposition of a process.
    Return ``True`` if a core dump was generated for the process, otherwise
    return ``False``.
 
+   This function should be employed only if :func:`WIFSIGNALED` is true.
+
    .. availability:: Unix.
 
 
 .. function:: WIFCONTINUED(status)
 
-   Return ``True`` if the process has been continued from a job control stop,
-   otherwise return ``False``.
+   Return ``True`` if a stopped child has been resumed by delivery of
+   :data:`~signal.SIGCONT` (if the process has been continued from a job
+   control stop), otherwise return ``False``.
+
+   See :data:`WCONTINUED` option.
 
    .. availability:: Unix.
 
 
 .. function:: WIFSTOPPED(status)
 
-   Return ``True`` if the process has been stopped, otherwise return
-   ``False``.
+   Return ``True`` if the process was stopped by delivery of a signal,
+   otherwise return ``False``.
+
+   :func:`WIFSTOPPED` only returns ``True`` if the :func:`waitpid` call was
+   done using :data:`WUNTRACED` option or when the process is being traced (see
+   :manpage:`ptrace(2)`).
 
    .. availability:: Unix.
 
-
 .. function:: WIFSIGNALED(status)
 
-   Return ``True`` if the process exited due to a signal, otherwise return
+   Return ``True`` if the process was terminated by a signal, otherwise return
    ``False``.
 
    .. availability:: Unix.
@@ -3796,7 +3802,8 @@ used to determine the disposition of a process.
 
 .. function:: WIFEXITED(status)
 
-   Return ``True`` if the process exited using the :manpage:`exit(2)` system call,
+   Return ``True`` if the process exited terminated normally, that is,
+   by calling ``exit()`` or ``_exit()``, or by returning from ``main()``;
    otherwise return ``False``.
 
    .. availability:: Unix.
@@ -3804,8 +3811,9 @@ used to determine the disposition of a process.
 
 .. function:: WEXITSTATUS(status)
 
-   If ``WIFEXITED(status)`` is true, return the integer parameter to the
-   :manpage:`exit(2)` system call.  Otherwise, the return value is meaningless.
+   Return the process exit status.
+
+   This function should be employed only if :func:`WIFEXITED` is true.
 
    .. availability:: Unix.
 
@@ -3814,12 +3822,16 @@ used to determine the disposition of a process.
 
    Return the signal which caused the process to stop.
 
+   This function should be employed only if :func:`WIFSTOPPED` is true.
+
    .. availability:: Unix.
 
 
 .. function:: WTERMSIG(status)
 
-   Return the signal which caused the process to exit.
+   Return the number of the signal that caused the process to terminate.
+
+   This function should be employed only if :func:`WIFSIGNALED` is true.
 
    .. availability:: Unix.
 
