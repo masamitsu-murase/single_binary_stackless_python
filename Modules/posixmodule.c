@@ -303,12 +303,6 @@ extern int lstat(const char *, struct stat *);
 #ifdef HAVE_PROCESS_H
 #include <process.h>
 #endif
-#ifndef VOLUME_NAME_DOS
-#define VOLUME_NAME_DOS 0x0
-#endif
-#ifndef VOLUME_NAME_NT
-#define VOLUME_NAME_NT  0x2
-#endif
 #ifndef IO_REPARSE_TAG_SYMLINK
 #define IO_REPARSE_TAG_SYMLINK (0xA000000CL)
 #endif
@@ -1272,6 +1266,65 @@ PyLong_FromPy_off_t(Py_off_t offset)
     return PyLong_FromLong(offset);
 #endif
 }
+
+#ifdef HAVE_SIGSET_T
+/* Convert an iterable of integers to a sigset.
+   Return 1 on success, return 0 and raise an exception on error. */
+int
+_Py_Sigset_Converter(PyObject *obj, void *addr)
+{
+    sigset_t *mask = (sigset_t *)addr;
+    PyObject *iterator, *item;
+    long signum;
+    int overflow;
+
+    if (sigemptyset(mask)) {
+        /* Probably only if mask == NULL. */
+        PyErr_SetFromErrno(PyExc_OSError);
+        return 0;
+    }
+
+    iterator = PyObject_GetIter(obj);
+    if (iterator == NULL) {
+        return 0;
+    }
+
+    while ((item = PyIter_Next(iterator)) != NULL) {
+        signum = PyLong_AsLongAndOverflow(item, &overflow);
+        Py_DECREF(item);
+        if (signum <= 0 || signum >= NSIG) {
+            if (overflow || signum != -1 || !PyErr_Occurred()) {
+                PyErr_Format(PyExc_ValueError,
+                             "signal number %ld out of range", signum);
+            }
+            goto error;
+        }
+        if (sigaddset(mask, (int)signum)) {
+            if (errno != EINVAL) {
+                /* Probably impossible */
+                PyErr_SetFromErrno(PyExc_OSError);
+                goto error;
+            }
+            /* For backwards compatibility, allow idioms such as
+             * `range(1, NSIG)` but warn about invalid signal numbers
+             */
+            const char msg[] =
+                "invalid signal number %ld, please use valid_signals()";
+            if (PyErr_WarnFormat(PyExc_RuntimeWarning, 1, msg, signum)) {
+                goto error;
+            }
+        }
+    }
+    if (!PyErr_Occurred()) {
+        Py_DECREF(iterator);
+        return 1;
+    }
+
+error:
+    Py_DECREF(iterator);
+    return 0;
+}
+#endif /* HAVE_SIGSET_T */
 
 #ifdef MS_WINDOWS
 
@@ -3731,11 +3784,10 @@ os__getfinalpathname_impl(PyObject *module, path_t *path)
 /*[clinic end generated code: output=621a3c79bc29ebfa input=2b6b6c7cbad5fb84]*/
 {
     HANDLE hFile;
-    int buf_size;
-    wchar_t *target_path;
+    wchar_t buf[MAXPATHLEN], *target_path = buf;
+    int buf_size = Py_ARRAY_LENGTH(buf);
     int result_length;
     PyObject *result;
-    const char *err = NULL;
 
     Py_BEGIN_ALLOW_THREADS
     hFile = CreateFileW(
@@ -3747,55 +3799,52 @@ os__getfinalpathname_impl(PyObject *module, path_t *path)
         /* FILE_FLAG_BACKUP_SEMANTICS is required to open a directory */
         FILE_FLAG_BACKUP_SEMANTICS,
         NULL);
+    Py_END_ALLOW_THREADS
 
     if (hFile == INVALID_HANDLE_VALUE) {
-        err = "CreateFileW";
-        goto done1;
+        return win32_error_object("CreateFileW", path->object);
     }
 
     /* We have a good handle to the target, use it to determine the
        target path name. */
-    buf_size = GetFinalPathNameByHandleW(hFile, 0, 0, VOLUME_NAME_NT);
+    while (1) {
+        Py_BEGIN_ALLOW_THREADS
+        result_length = GetFinalPathNameByHandleW(hFile, target_path,
+                                                  buf_size, VOLUME_NAME_DOS);
+        Py_END_ALLOW_THREADS
 
-    if (!buf_size) {
-        err = "GetFinalPathNameByHandle";
-        goto done1;
-    }
-done1:
-    Py_END_ALLOW_THREADS
-    if (err)
-        return win32_error_object(err, path->object);
+        if (!result_length) {
+            result = win32_error_object("GetFinalPathNameByHandleW",
+                                         path->object);
+            goto cleanup;
+        }
 
-    target_path = PyMem_New(wchar_t, buf_size+1);
-    if(!target_path)
-        return PyErr_NoMemory();
+        if (result_length < buf_size) {
+            break;
+        }
 
-    Py_BEGIN_ALLOW_THREADS
-    result_length = GetFinalPathNameByHandleW(hFile, target_path,
-                                              buf_size, VOLUME_NAME_DOS);
-    if (!result_length) {
-        err = "GetFinalPathNameByHandle";
-        goto done2;
-    }
+        wchar_t *tmp;
+        tmp = PyMem_Realloc(target_path != buf ? target_path : NULL,
+                            result_length * sizeof(*tmp));
+        if (!tmp) {
+            result = PyErr_NoMemory();
+            goto cleanup;
+        }
 
-    if (!CloseHandle(hFile)) {
-        err = "CloseHandle";
-        goto done2;
-    }
-done2:
-    Py_END_ALLOW_THREADS
-    if (err) {
-        PyMem_Free(target_path);
-        return win32_error_object(err, path->object);
+        buf_size = result_length;
+        target_path = tmp;
     }
 
-    target_path[result_length] = 0;
     result = PyUnicode_FromWideChar(target_path, result_length);
-    PyMem_Free(target_path);
     if (path->narrow)
         Py_SETREF(result, PyUnicode_EncodeFSDefault(result));
-    return result;
 
+cleanup:
+    if (target_path != buf) {
+        PyMem_Free(target_path);
+    }
+    CloseHandle(hFile);
+    return result;
 }
 
 /*[clinic input]
@@ -5124,6 +5173,111 @@ enum posix_spawn_file_actions_identifier {
     POSIX_SPAWN_DUP2
 };
 
+static int
+parse_file_actions(PyObject *file_actions,
+                   posix_spawn_file_actions_t *file_actionsp)
+{
+    PyObject *seq;
+    PyObject *file_action = NULL;
+    PyObject *tag_obj;
+
+    seq = PySequence_Fast(file_actions,
+                          "file_actions must be a sequence or None");
+    if (seq == NULL) {
+        return -1;
+    }
+
+    errno = posix_spawn_file_actions_init(file_actionsp);
+    if (errno) {
+        posix_error();
+        Py_DECREF(seq);
+        return -1;
+    }
+
+    for (int i = 0; i < PySequence_Fast_GET_SIZE(seq); ++i) {
+        file_action = PySequence_Fast_GET_ITEM(seq, i);
+        Py_INCREF(file_action);
+        if (!PyTuple_Check(file_action) || !PyTuple_GET_SIZE(file_action)) {
+            PyErr_SetString(PyExc_TypeError,
+                "Each file_actions element must be a non-empty tuple");
+            goto fail;
+        }
+        long tag = PyLong_AsLong(PyTuple_GET_ITEM(file_action, 0));
+        if (tag == -1 && PyErr_Occurred()) {
+            goto fail;
+        }
+
+        /* Populate the file_actions object */
+        switch (tag) {
+            case POSIX_SPAWN_OPEN: {
+                int fd, oflag;
+                PyObject *path;
+                unsigned long mode;
+                if (!PyArg_ParseTuple(file_action, "OiO&ik"
+                        ";A open file_action tuple must have 5 elements",
+                        &tag_obj, &fd, PyUnicode_FSConverter, &path,
+                        &oflag, &mode))
+                {
+                    goto fail;
+                }
+                errno = posix_spawn_file_actions_addopen(file_actionsp,
+                        fd, PyBytes_AS_STRING(path), oflag, (mode_t)mode);
+                Py_DECREF(path);  /* addopen copied it. */
+                if (errno) {
+                    posix_error();
+                    goto fail;
+                }
+                break;
+            }
+            case POSIX_SPAWN_CLOSE: {
+                int fd;
+                if (!PyArg_ParseTuple(file_action, "Oi"
+                        ";A close file_action tuple must have 2 elements",
+                        &tag_obj, &fd))
+                {
+                    goto fail;
+                }
+                errno = posix_spawn_file_actions_addclose(file_actionsp, fd);
+                if (errno) {
+                    posix_error();
+                    goto fail;
+                }
+                break;
+            }
+            case POSIX_SPAWN_DUP2: {
+                int fd1, fd2;
+                if (!PyArg_ParseTuple(file_action, "Oii"
+                        ";A dup2 file_action tuple must have 3 elements",
+                        &tag_obj, &fd1, &fd2))
+                {
+                    goto fail;
+                }
+                errno = posix_spawn_file_actions_adddup2(file_actionsp,
+                                                         fd1, fd2);
+                if (errno) {
+                    posix_error();
+                    goto fail;
+                }
+                break;
+            }
+            default: {
+                PyErr_SetString(PyExc_TypeError,
+                                "Unknown file_actions identifier");
+                goto fail;
+            }
+        }
+        Py_DECREF(file_action);
+    }
+    Py_DECREF(seq);
+    return 0;
+
+fail:
+    Py_DECREF(seq);
+    Py_DECREF(file_action);
+    (void)posix_spawn_file_actions_destroy(file_actionsp);
+    return -1;
+}
+
 /*[clinic input]
 
 os.posix_spawn
@@ -5134,7 +5288,7 @@ os.posix_spawn
     env: object
         Dictionary of strings mapping to strings.
     file_actions: object = None
-        FileActions object.
+        A sequence of file action tuples.
     /
 
 Execute the program specified by path in a new process.
@@ -5143,22 +5297,22 @@ Execute the program specified by path in a new process.
 static PyObject *
 os_posix_spawn_impl(PyObject *module, path_t *path, PyObject *argv,
                     PyObject *env, PyObject *file_actions)
-/*[clinic end generated code: output=d023521f541c709c input=0ec9f1cfdc890be5]*/
+/*[clinic end generated code: output=d023521f541c709c input=a3db1021d33230dc]*/
 {
     EXECV_CHAR **argvlist = NULL;
     EXECV_CHAR **envlist = NULL;
-    posix_spawn_file_actions_t _file_actions;
+    posix_spawn_file_actions_t file_actions_buf;
     posix_spawn_file_actions_t *file_actionsp = NULL;
     Py_ssize_t argc, envc;
-    PyObject* result = NULL;
-    PyObject* seq = NULL;
- 
+    PyObject *result = NULL;
+    pid_t pid;
+    int err_code;
 
     /* posix_spawn has three arguments: (path, argv, env), where
-   argv is a list or tuple of strings and env is a dictionary
+       argv is a list or tuple of strings and env is a dictionary
        like posix.environ. */
 
-    if (!PySequence_Check(argv)) {
+    if (!PyList_Check(argv) && !PyTuple_Check(argv)) {
         PyErr_SetString(PyExc_TypeError,
                         "posix_spawn: argv must be a tuple or list");
         goto exit;
@@ -5190,139 +5344,35 @@ os_posix_spawn_impl(PyObject *module, path_t *path, PyObject *argv,
         goto exit;
     }
 
-    pid_t pid;
-    if (file_actions != NULL && file_actions != Py_None) {
-        if(posix_spawn_file_actions_init(&_file_actions) != 0){
-            PyErr_SetString(PyExc_OSError,
-                            "Error initializing file actions");
+    if (file_actions != Py_None) {
+        if (parse_file_actions(file_actions, &file_actions_buf)) {
             goto exit;
         }
-
-        file_actionsp = &_file_actions;
-
-        seq = PySequence_Fast(file_actions, "file_actions must be a sequence");
-        if(seq == NULL) {
-            goto exit;
-        }
-        PyObject* file_actions_obj;
-        PyObject* mode_obj;
-
-        for (int i = 0; i < PySequence_Fast_GET_SIZE(seq); ++i) {
-            file_actions_obj = PySequence_Fast_GET_ITEM(seq, i);
-
-            if(!PySequence_Check(file_actions_obj) | !PySequence_Size(file_actions_obj)) {
-                PyErr_SetString(PyExc_TypeError,"Each file_action element must be a non empty sequence");
-                goto exit;
-            }
-
-
-            mode_obj = PySequence_Fast_GET_ITEM(file_actions_obj, 0);
-            int mode = PyLong_AsLong(mode_obj);
-
-            /* Populate the file_actions object */
-
-            switch(mode) {
-
-                case POSIX_SPAWN_OPEN:
-                    if(PySequence_Size(file_actions_obj) != 5) {
-                        PyErr_SetString(PyExc_TypeError,"A open file_action object must have 5 elements");
-                        goto exit;
-                    }
-
-                    long open_fd = PyLong_AsLong(PySequence_GetItem(file_actions_obj, 1));
-                    if(PyErr_Occurred()) {
-                        goto exit;
-                    }
-                    const char* open_path = PyUnicode_AsUTF8(PySequence_GetItem(file_actions_obj, 2));
-                    if(open_path == NULL) {
-                        goto exit;
-                    }
-                    long open_oflag = PyLong_AsLong(PySequence_GetItem(file_actions_obj, 3));
-                    if(PyErr_Occurred()) {
-                        goto exit;
-                    }
-                    long open_mode = PyLong_AsLong(PySequence_GetItem(file_actions_obj, 4));
-                    if(PyErr_Occurred()) {
-                        goto exit;
-                    }
-                    if(posix_spawn_file_actions_addopen(file_actionsp, open_fd, open_path, open_oflag, open_mode)) {
-                        PyErr_SetString(PyExc_OSError,"Failed to add open file action");
-                        goto exit;
-                    }
-   
-                    break;
-
-                case POSIX_SPAWN_CLOSE:
-                    if(PySequence_Size(file_actions_obj) != 2){
-                        PyErr_SetString(PyExc_TypeError,"A close file_action object must have 2 elements");
-                        goto exit;
-                    }
-
-                    long close_fd = PyLong_AsLong(PySequence_GetItem(file_actions_obj, 1));
-                    if(PyErr_Occurred()) {
-                        goto exit;
-                    }
-                    if(posix_spawn_file_actions_addclose(file_actionsp, close_fd)) {
-                        PyErr_SetString(PyExc_OSError,"Failed to add close file action");
-                        goto exit;
-                    }
-                    break;
-
-                case POSIX_SPAWN_DUP2:
-                    if(PySequence_Size(file_actions_obj) != 3){
-                        PyErr_SetString(PyExc_TypeError,"A dup2 file_action object must have 3 elements");
-                        goto exit;
-                    }
-
-                    long fd1 = PyLong_AsLong(PySequence_GetItem(file_actions_obj, 1));
-                    if(PyErr_Occurred()) {
-                        goto exit;
-                    }
-                    long fd2 = PyLong_AsLong(PySequence_GetItem(file_actions_obj, 2));
-                    if(PyErr_Occurred()) {
-                        goto exit;
-                    }
-                    if(posix_spawn_file_actions_adddup2(file_actionsp, fd1, fd2)) {
-                        PyErr_SetString(PyExc_OSError,"Failed to add dup2 file action");
-                        goto exit;
-                    }
-                    break;
-
-                default:
-                    PyErr_SetString(PyExc_TypeError,"Unknown file_actions identifier");
-                    goto exit;
-            }
-        }
+        file_actionsp = &file_actions_buf;
     }
 
     _Py_BEGIN_SUPPRESS_IPH
-    int err_code = posix_spawn(&pid, path->narrow, file_actionsp, NULL, argvlist, envlist);
+    err_code = posix_spawn(&pid, path->narrow,
+                           file_actionsp, NULL, argvlist, envlist);
     _Py_END_SUPPRESS_IPH
-    if(err_code) {
-        PyErr_SetString(PyExc_OSError,"posix_spawn call failed");
+    if (err_code) {
+        errno = err_code;
+        PyErr_SetFromErrnoWithFilenameObject(PyExc_OSError, path->object);
         goto exit;
     }
     result = PyLong_FromPid(pid);
 
 exit:
-
-    Py_XDECREF(seq);
-
-    if(file_actionsp) {
-        posix_spawn_file_actions_destroy(file_actionsp);
+    if (file_actionsp) {
+        (void)posix_spawn_file_actions_destroy(file_actionsp);
     }
-    
     if (envlist) {
         free_string_array(envlist, envc);
     }
-
     if (argvlist) {
         free_string_array(argvlist, argc);
     }
-
     return result;
-
-
 }
 #endif /* HAVE_POSIX_SPAWN */
 
@@ -7471,7 +7521,7 @@ win_readlink(PyObject *self, PyObject *args, PyObject *kwargs)
 #if defined(MS_WINDOWS)
 
 /* Grab CreateSymbolicLinkW dynamically from kernel32 */
-static DWORD (CALLBACK *Py_CreateSymbolicLinkW)(LPCWSTR, LPCWSTR, DWORD) = NULL;
+static BOOLEAN (CALLBACK *Py_CreateSymbolicLinkW)(LPCWSTR, LPCWSTR, DWORD) = NULL;
 
 static int
 check_CreateSymbolicLink(void)
@@ -7486,47 +7536,51 @@ check_CreateSymbolicLink(void)
     return Py_CreateSymbolicLinkW != NULL;
 }
 
-/* Remove the last portion of the path */
-static void
+/* Remove the last portion of the path - return 0 on success */
+static int
 _dirnameW(WCHAR *path)
 {
     WCHAR *ptr;
+    size_t length = wcsnlen_s(path, MAX_PATH);
+    if (length == MAX_PATH) {
+        return -1;
+    }
 
     /* walk the path from the end until a backslash is encountered */
-    for(ptr = path + wcslen(path); ptr != path; ptr--) {
-        if (*ptr == L'\\' || *ptr == L'/')
+    for(ptr = path + length; ptr != path; ptr--) {
+        if (*ptr == L'\\' || *ptr == L'/') {
             break;
+        }
     }
     *ptr = 0;
+    return 0;
 }
 
 /* Is this path absolute? */
 static int
 _is_absW(const WCHAR *path)
 {
-    return path[0] == L'\\' || path[0] == L'/' || path[1] == L':';
-
+    return path[0] == L'\\' || path[0] == L'/' ||
+        (path[0] && path[1] == L':');
 }
 
-/* join root and rest with a backslash */
-static void
+/* join root and rest with a backslash - return 0 on success */
+static int
 _joinW(WCHAR *dest_path, const WCHAR *root, const WCHAR *rest)
 {
-    size_t root_len;
-
     if (_is_absW(rest)) {
-        wcscpy(dest_path, rest);
-        return;
+        return wcscpy_s(dest_path, MAX_PATH, rest);
     }
 
-    root_len = wcslen(root);
-
-    wcscpy(dest_path, root);
-    if(root_len) {
-        dest_path[root_len] = L'\\';
-        root_len++;
+    if (wcscpy_s(dest_path, MAX_PATH, root)) {
+        return -1;
     }
-    wcscpy(dest_path+root_len, rest);
+
+    if (dest_path[0] && wcscat_s(dest_path, MAX_PATH, L"\\")) {
+        return -1;
+    }
+
+    return wcscat_s(dest_path, MAX_PATH, rest);
 }
 
 /* Return True if the path at src relative to dest is a directory */
@@ -7538,10 +7592,14 @@ _check_dirW(LPCWSTR src, LPCWSTR dest)
     WCHAR src_resolved[MAX_PATH] = L"";
 
     /* dest_parent = os.path.dirname(dest) */
-    wcscpy(dest_parent, dest);
-    _dirnameW(dest_parent);
+    if (wcscpy_s(dest_parent, MAX_PATH, dest) ||
+        _dirnameW(dest_parent)) {
+        return 0;
+    }
     /* src_resolved = os.path.join(dest_parent, src) */
-    _joinW(src_resolved, dest_parent, src);
+    if (_joinW(src_resolved, dest_parent, src)) {
+        return 0;
+    }
     return (
         GetFileAttributesExW(src_resolved, GetFileExInfoStandard, &src_info)
         && src_info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY
@@ -7597,25 +7655,27 @@ os_symlink_impl(PyObject *module, path_t *src, path_t *dst,
         }
 #endif
 
-    if ((src->narrow && dst->wide) || (src->wide && dst->narrow)) {
-        PyErr_SetString(PyExc_ValueError,
-            "symlink: src and dst must be the same type");
-        return NULL;
-    }
-
 #ifdef MS_WINDOWS
 
     Py_BEGIN_ALLOW_THREADS
+    _Py_BEGIN_SUPPRESS_IPH
     /* if src is a directory, ensure target_is_directory==1 */
     target_is_directory |= _check_dirW(src->wide, dst->wide);
     result = Py_CreateSymbolicLinkW(dst->wide, src->wide,
                                     target_is_directory);
+    _Py_END_SUPPRESS_IPH
     Py_END_ALLOW_THREADS
 
     if (!result)
         return path_error2(src, dst);
 
 #else
+
+    if ((src->narrow && dst->wide) || (src->wide && dst->narrow)) {
+        PyErr_SetString(PyExc_ValueError,
+            "symlink: src and dst must be the same type");
+        return NULL;
+    }
 
     Py_BEGIN_ALLOW_THREADS
 #if HAVE_SYMLINKAT
