@@ -697,9 +697,6 @@ _Py_InitializeCore(const _PyCoreConfig *core_config)
         return _Py_INIT_ERR("can't init stackless types");
 #endif
 
-    if (!_PyFrame_Init())
-        return _Py_INIT_ERR("can't init frames");
-
     if (!_PyLong_Init())
         return _Py_INIT_ERR("can't init longs");
 
