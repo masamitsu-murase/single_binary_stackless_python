@@ -3257,7 +3257,7 @@ main_loop:
                 slp_continue_slp_eval_frame_with_cleanup:
                 /* Initialize variables */
                 exc = TOP();
-                if (PyLong_Check(exc))
+                if (exc == NULL)
                     exc = Py_None;
                 res = retval;
                 retval = NULL;
