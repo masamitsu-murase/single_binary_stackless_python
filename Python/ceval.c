@@ -556,9 +556,9 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
      (!((x) >> 24) ? 2 : 3 ))))
 #ifdef LLTRACE
 #define LLTRACE_HANDLE_UNWINDING(obj__, msg__) \
-	lltrace && prtrace((obj__), (msg__))
+        (void)(lltrace && prtrace((obj__), (msg__)))
 #else
-#define LLTRACE_HANDLE_UNWINDING(obj__, msg__) 1
+#define LLTRACE_HANDLE_UNWINDING(obj__, msg__) (void)1
 #endif
 
 #define HANDLE_UNWINDING(frame_func, has_opcode, retval__) \
@@ -616,6 +616,20 @@ do { \
         next_instr += 1 + EXTENDED_ARG_OFFSET(oparg); \
     LLTRACE_HANDLE_UNWINDING((retval__), "handle_unwinding end:");\
 } while(0)
+
+/* To be called in the slp_continue_<xxxx> block, if
+ * HANDLE_UNWINDING is used with has_opcode==1
+ */
+#define SLP_SET_OPCODE_AND_OPARG() \
+do { \
+        NEXTOPARG(); \
+    while (opcode == EXTENDED_ARG) { \
+        int oldoparg = oparg; \
+        NEXTOPARG(); \
+        oparg |= oldoparg << 8; \
+    } \
+} while(0)
+
 #endif
 
 PyObject* _Py_HOT_FUNCTION
@@ -1036,118 +1050,38 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
         /* this is a return */
         PUSH(retval); /* we are back from a function call */
     }
-    else {
-        if (f->f_execute == slp_eval_frame_noval) {
-            /* don't push it, frame ignores value */
-            Py_XDECREF(retval);
-        }
-        else if (f->f_execute == slp_eval_frame_iter) {
-            /* finalise the for_iter operation */
-            NEXTOPARG();
-            if (opcode == EXTENDED_ARG) {
-                int oldoparg = oparg;
-                NEXTOPARG();
-                oparg |= oldoparg << 8;
-            }
-            assert(opcode == FOR_ITER);
-
-            if (retval != NULL) {
-                PUSH(retval);
-            }
-            else if (!PyErr_Occurred()) {
-                /* iterator ended normally */
-                assert(retval == NULL);  /* to prevent reference leaks */
-                retval = POP();
-                Py_DECREF(retval);
-                /* perform the delayed block jump */
-                JUMPBY(oparg);
-            }
-            else if (PyErr_ExceptionMatches(PyExc_StopIteration)) {
-                /* we need to check for stopiteration because
-                 * somebody might inject this as a real
-                 * exception.
-                 */
-                if (tstate->c_tracefunc != NULL)
-                    call_exc_trace(tstate->c_tracefunc, tstate->c_traceobj, tstate, f);
-                PyErr_Clear();
-                assert(retval == NULL);  /* to prevent reference leaks */
-                retval = POP();
-                Py_DECREF(retval);
-                JUMPBY(oparg);
-            }
-        }
-        else if (f->f_execute == slp_eval_frame_setup_with) {
-            /* finalise the SETUP_WITH operation */
-            NEXTOPARG();
-            if (opcode == EXTENDED_ARG) {
-                int oldoparg = oparg;
-                NEXTOPARG();
-                oparg |= oldoparg << 8;
-            }
-            assert(opcode == SETUP_WITH);
-
-            if (retval) {
-                /* Setup a finally block before pushing the result of
-                   __enter__ on the stack. */
-                PyFrame_BlockSetup(f, SETUP_FINALLY, INSTR_OFFSET() + oparg,
-                                   STACK_LEVEL());
-
-                PUSH(retval);
-            }
-        }
-        else if (f->f_execute == slp_eval_frame_with_cleanup) {
-            /* finalise the WITH_CLEANUP_START operation */
-            if (retval) {
-                /* recompute exc */
-                PyObject *exc = TOP();
-                if (PyLong_Check(exc))
-                    exc = Py_None;
-                Py_INCREF(exc); /* Duplicating the exception on the stack */
-                PUSH(exc);
-                PUSH(retval);
-                /* XXX: The main loop contains a PREDICT(WITH_CLEANUP_FINISH);
-                 * I wonder, if we must use it here?
-                 * If so, then set f_execute too.
-                 */
-                /*f->f_execute = PyEval_EvalFrame_value;
-                PREDICT(WITH_CLEANUP_FINISH); */
-            }
-        }
-        else if (f->f_execute == slp_eval_frame_yield_from) {
-            /* finalise the YIELD_FROM operation */
-            PyObject *receiver = TOP();
-            if (retval == NULL) {
-                int err;
-                if (tstate->c_tracefunc != NULL
-                    && PyErr_ExceptionMatches(PyExc_StopIteration))
-                    call_exc_trace(tstate->c_tracefunc, tstate->c_traceobj, tstate, f);
-                err = _PyGen_FetchStopIterationValue(&retval);
-                if (err < 0) {
-                    retval = NULL;
-                }
-                else {
-                    Py_DECREF(receiver);
-                    SET_TOP(retval);
-                }
-            }
-            else {
-                /* receiver remains on stack, retval is value to be yielded */
-                f->f_stacktop = stack_pointer;
-                why = WHY_YIELD;
-                /* and repeat... */
-                assert(f->f_lasti >= (int)sizeof(_Py_CODEUNIT));
-                f->f_lasti -= sizeof(_Py_CODEUNIT);
-                goto fast_yield;
-            }
-        }
-        else
-            Py_FatalError("invalid frame function");
+    else if (f->f_execute == slp_eval_frame_noval) {
         f->f_execute = slp_eval_frame_value;
+        /* don't push it, frame ignores value */
+        Py_XDECREF(retval);
     }
+    else if (f->f_execute == slp_eval_frame_iter) {
+        f->f_execute = slp_eval_frame_value;
+        goto slp_continue_slp_eval_frame_iter;
+    }
+    else if (f->f_execute == slp_eval_frame_setup_with) {
+        f->f_execute = slp_eval_frame_value;
+        goto slp_continue_slp_eval_frame_setup_with;
+    }
+    else if (f->f_execute == slp_eval_frame_with_cleanup) {
+        f->f_execute = slp_eval_frame_value;
+        goto slp_continue_slp_eval_frame_with_cleanup;
+    }
+    else if (f->f_execute == slp_eval_frame_yield_from) {
+        f->f_execute = slp_eval_frame_value;
+        goto slp_continue_slp_eval_frame_yield_from;
+    }
+    else
+        Py_FatalError("invalid frame function");
 
     /* always check for an error flag */
     if (retval == NULL)
         goto error;
+    /* At this point retval contains an uncounted reference.
+     * We set it to NULL, to match C-Python code, which initializes
+     * retval to NULL;
+     */
+    retval = NULL;
 #endif
 
 #ifdef Py_DEBUG
@@ -2032,6 +1966,11 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
 #ifdef STACKLESS
             if (STACKLESS_UNWINDING(retval)) {
                 HANDLE_UNWINDING(slp_eval_frame_yield_from, 0, retval);
+            }
+            if (0) {
+                slp_continue_slp_eval_frame_yield_from:
+                /* Initialize variables */
+                receiver = TOP();
             }
 #endif
             if (retval == NULL) {
@@ -3057,6 +2996,16 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
             if (STACKLESS_UNWINDING(next)) {
                 HANDLE_UNWINDING(slp_eval_frame_iter, 1, next);
             }
+            if (0) {
+                slp_continue_slp_eval_frame_iter:
+                SLP_SET_OPCODE_AND_OPARG();
+                assert(opcode == FOR_ITER);
+
+                /* Initialize variables */
+                iter = TOP();
+                next = retval;
+                retval = NULL;
+            }
 #else
             next = (*iter->ob_type->tp_iternext)(iter);
 #endif
@@ -3164,6 +3113,14 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
             if (STACKLESS_UNWINDING(res)) {
                 HANDLE_UNWINDING(slp_eval_frame_setup_with, 1, res);
             }
+            if(0) {
+                slp_continue_slp_eval_frame_setup_with:
+                SLP_SET_OPCODE_AND_OPARG();
+                assert(opcode == SETUP_WITH);
+                /* Initialize variables */
+                res = retval;
+                retval = NULL;
+            }
 #endif
             if (res == NULL)
                 goto error;
@@ -3262,6 +3219,15 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
 #ifdef STACKLESS
             if (STACKLESS_UNWINDING(res)) {
                 HANDLE_UNWINDING(slp_eval_frame_with_cleanup, 0, res);
+            }
+            if (0) {
+                slp_continue_slp_eval_frame_with_cleanup:
+                /* Initialize variables */
+                exc = TOP();
+                if (PyLong_Check(exc))
+                    exc = Py_None;
+                res = retval;
+                retval = NULL;
             }
 #endif
             if (res == NULL)
