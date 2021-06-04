@@ -6453,6 +6453,14 @@ if test "$Py_LTO" = 'true' ; then
       esac
       ;;
   esac
+
+  if test "$ac_cv_prog_cc_g" = "yes"
+  then
+      # bpo-30345: Add -g to LDFLAGS when compiling with LTO
+      # to get debug symbols.
+      LTOFLAGS="$LTOFLAGS -g"
+  fi
+
   CFLAGS="$CFLAGS $LTOFLAGS"
   LDFLAGS="$LDFLAGS $LTOFLAGS"
 fi
@@ -9659,9 +9667,7 @@ main ()
 {
 
 #ifndef uuid_enc_be
-uuid_t uuid;
-unsigned char buf[sizeof(uuid)];
-uuid_enc_be(buf, &uuid);
+void *x = uuid_enc_be
 #endif
 
   ;

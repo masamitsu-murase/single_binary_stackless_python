@@ -1,4 +1,3 @@
-
 /* Thread and interpreter state structures and their interfaces */
 
 
@@ -47,6 +46,7 @@ typedef struct {
     int coerce_c_locale;    /* PYTHONCOERCECLOCALE, -1 means unknown */
     int coerce_c_locale_warn; /* PYTHONCOERCECLOCALE=warn */
     int utf8_mode;          /* PYTHONUTF8, -X utf8; -1 means unknown */
+    wchar_t *pycache_prefix; /* PYTHONPYCACHEPREFIX, -X pycache_prefix=PATH */
 
     wchar_t *program_name;  /* Program name, see also Py_GetProgramName() */
     int argc;               /* Number of command line arguments,
@@ -104,6 +104,7 @@ typedef struct {
     PyObject *warnoptions;         /* sys.warnoptions list, can be NULL */
     PyObject *xoptions;            /* sys._xoptions dict, can be NULL */
     PyObject *module_search_path;  /* sys.path list */
+    PyObject *pycache_prefix;      /* sys.pycache_prefix str, can be NULL */
 } _PyMainInterpreterConfig;
 
 #define _PyMainInterpreterConfig_INIT \

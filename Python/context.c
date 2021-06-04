@@ -998,6 +998,10 @@ contextvar_cls_getitem(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+static PyMemberDef PyContextVar_members[] = {
+    {"name", T_OBJECT, offsetof(PyContextVar, var_name), READONLY},
+    {NULL}
+};
 
 static PyMethodDef PyContextVar_methods[] = {
     _CONTEXTVARS_CONTEXTVAR_GET_METHODDEF
@@ -1013,6 +1017,7 @@ PyTypeObject PyContextVar_Type = {
     "ContextVar",
     sizeof(PyContextVar),
     .tp_methods = PyContextVar_methods,
+    .tp_members = PyContextVar_members,
     .tp_dealloc = (destructor)contextvar_tp_dealloc,
     .tp_getattro = PyObject_GenericGetAttr,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,

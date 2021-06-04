@@ -1319,6 +1319,14 @@ if test "$Py_LTO" = 'true' ; then
       esac
       ;;
   esac
+
+  if test "$ac_cv_prog_cc_g" = "yes"
+  then
+      # bpo-30345: Add -g to LDFLAGS when compiling with LTO
+      # to get debug symbols.
+      LTOFLAGS="$LTOFLAGS -g"
+  fi
+
   CFLAGS="$CFLAGS $LTOFLAGS"
   LDFLAGS="$LDFLAGS $LTOFLAGS"
 fi
@@ -2734,9 +2742,7 @@ void *x = uuid_create
 AC_MSG_CHECKING(for uuid_enc_be)
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <uuid.h>]], [[
 #ifndef uuid_enc_be
-uuid_t uuid;
-unsigned char buf[sizeof(uuid)];
-uuid_enc_be(buf, &uuid);
+void *x = uuid_enc_be
 #endif
 ]])],
   [AC_DEFINE(HAVE_UUID_ENC_BE, 1, Define if uuid_enc_be() exists.)

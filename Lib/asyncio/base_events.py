@@ -61,6 +61,8 @@ _MIN_CANCELLED_TIMER_HANDLES_FRACTION = 0.5
 _FATAL_ERROR_IGNORE = (BrokenPipeError,
                        ConnectionResetError, ConnectionAbortedError)
 
+_HAS_IPv6 = hasattr(socket, 'AF_INET6')
+
 
 def _format_handle(handle):
     cb = handle._callback
@@ -123,7 +125,7 @@ def _ipaddr_info(host, port, family, type, proto):
 
     if family == socket.AF_UNSPEC:
         afs = [socket.AF_INET]
-        if hasattr(socket, 'AF_INET6'):
+        if _HAS_IPv6:
             afs.append(socket.AF_INET6)
     else:
         afs = [family]
@@ -139,7 +141,10 @@ def _ipaddr_info(host, port, family, type, proto):
         try:
             socket.inet_pton(af, host)
             # The host has already been resolved.
-            return af, type, proto, '', (host, port)
+            if _HAS_IPv6 and af == socket.AF_INET6:
+                return af, type, proto, '', (host, port, 0, 0)
+            else:
+                return af, type, proto, '', (host, port)
         except OSError:
             pass
 
@@ -1309,7 +1314,6 @@ class BaseEventLoop(events.AbstractEventLoop):
                 raise ValueError(
                     'host/port and sock can not be specified at the same time')
 
-            AF_INET6 = getattr(socket, 'AF_INET6', 0)
             if reuse_address is None:
                 reuse_address = os.name == 'posix' and sys.platform != 'cygwin'
             sockets = []
@@ -1349,7 +1353,9 @@ class BaseEventLoop(events.AbstractEventLoop):
                     # Disable IPv4/IPv6 dual stack support (enabled by
                     # default on Linux) which makes a single socket
                     # listen on both address families.
-                    if af == AF_INET6 and hasattr(socket, 'IPPROTO_IPV6'):
+                    if (_HAS_IPv6 and
+                            af == socket.AF_INET6 and
+                            hasattr(socket, 'IPPROTO_IPV6')):
                         sock.setsockopt(socket.IPPROTO_IPV6,
                                         socket.IPV6_V6ONLY,
                                         True)
@@ -1476,6 +1482,7 @@ class BaseEventLoop(events.AbstractEventLoop):
         if bufsize != 0:
             raise ValueError("bufsize must be 0")
         protocol = protocol_factory()
+        debug_log = None
         if self._debug:
             # don't log parameters: they may contain sensitive information
             # (password) and may be too long
@@ -1483,7 +1490,7 @@ class BaseEventLoop(events.AbstractEventLoop):
             self._log_subprocess(debug_log, stdin, stdout, stderr)
         transport = await self._make_subprocess_transport(
             protocol, cmd, True, stdin, stdout, stderr, bufsize, **kwargs)
-        if self._debug:
+        if self._debug and debug_log is not None:
             logger.info('%s: %r', debug_log, transport)
         return transport, protocol
 
@@ -1504,6 +1511,7 @@ class BaseEventLoop(events.AbstractEventLoop):
                     f"program arguments must be a bytes or text string, "
                     f"not {type(arg).__name__}")
         protocol = protocol_factory()
+        debug_log = None
         if self._debug:
             # don't log parameters: they may contain sensitive information
             # (password) and may be too long
@@ -1512,7 +1520,7 @@ class BaseEventLoop(events.AbstractEventLoop):
         transport = await self._make_subprocess_transport(
             protocol, popen_args, False, stdin, stdout, stderr,
             bufsize, **kwargs)
-        if self._debug:
+        if self._debug and debug_log is not None:
             logger.info('%s: %r', debug_log, transport)
         return transport, protocol
 
