@@ -39,9 +39,9 @@ HAS_GIT=no-repository
 fi
 if test $HAS_GIT = found
 then
-    GITVERSION="git -C \$(srcdir) rev-parse --short HEAD"
-    GITTAG="git -C \$(srcdir) describe --all --always --dirty"
-    GITBRANCH="git -C \$(srcdir) name-rev --name-only HEAD"
+    GITVERSION="git --git-dir \$(srcdir)/.git rev-parse --short HEAD"
+    GITTAG="git --git-dir \$(srcdir)/.git describe --all --always --dirty"
+    GITBRANCH="git --git-dir \$(srcdir)/.git name-rev --name-only HEAD"
 else
     GITVERSION=""
     GITTAG=""
@@ -3452,8 +3452,9 @@ AC_CHECK_FUNCS(alarm accept4 setitimer getitimer bind_textdomain_codeset chown \
  clock confstr ctermid dup3 execv faccessat fchmod fchmodat fchown fchownat \
  fexecve fdopendir fork fpathconf fstatat ftime ftruncate futimesat \
  futimens futimes gai_strerror getentropy \
+ getgrgid_r getgrnam_r \
  getgrouplist getgroups getlogin getloadavg getpeername getpgid getpid \
- getpriority getresuid getresgid getpwent getspnam getspent getsid getwd \
+ getpriority getresuid getresgid getpwent getpwnam_r getpwuid_r getspnam getspent getsid getwd \
  if_nameindex \
  initgroups kill killpg lchmod lchown lockf linkat lstat lutimes mmap \
  memrchr mbrtowc mkdirat mkfifo \
@@ -3466,7 +3467,7 @@ AC_CHECK_FUNCS(alarm accept4 setitimer getitimer bind_textdomain_codeset chown \
  sched_get_priority_max sched_setaffinity sched_setscheduler sched_setparam \
  sched_rr_get_interval \
  sigaction sigaltstack sigfillset siginterrupt sigpending sigrelse \
- sigtimedwait sigwait sigwaitinfo snprintf strftime strlcpy symlinkat sync \
+ sigtimedwait sigwait sigwaitinfo snprintf strftime strlcpy strsignal symlinkat sync \
  sysconf tcgetpgrp tcsetpgrp tempnam timegm times tmpfile tmpnam tmpnam_r \
  truncate uname unlinkat unsetenv utimensat utimes waitid waitpid wait3 wait4 \
  wcscoll wcsftime wcsxfrm wmemcmp writev _getpty)
@@ -4376,63 +4377,6 @@ AC_CHECK_FUNCS([acosh asinh atanh copysign erf erfc expm1 finite gamma])
 AC_CHECK_FUNCS([hypot lgamma log1p log2 round tgamma])
 AC_CHECK_DECLS([isinf, isnan, isfinite], [], [], [[#include <math.h>]])
 
-# On FreeBSD 6.2, it appears that tanh(-0.) returns 0. instead of
-# -0. on some architectures.
-AC_MSG_CHECKING(whether tanh preserves the sign of zero)
-AC_CACHE_VAL(ac_cv_tanh_preserves_zero_sign, [
-AC_RUN_IFELSE([AC_LANG_SOURCE([[
-#include <math.h>
-#include <stdlib.h>
-int main() {
-    /* return 0 if either negative zeros don't exist
-       on this platform or if negative zeros exist
-       and tanh(-0.) == -0. */
-  if (atan2(0., -1.) == atan2(-0., -1.) ||
-      atan2(tanh(-0.), -1.) == atan2(-0., -1.)) exit(0);
-  else exit(1);
-}
-]])],
-[ac_cv_tanh_preserves_zero_sign=yes],
-[ac_cv_tanh_preserves_zero_sign=no],
-[ac_cv_tanh_preserves_zero_sign=no])])
-AC_MSG_RESULT($ac_cv_tanh_preserves_zero_sign)
-if test "$ac_cv_tanh_preserves_zero_sign" = yes
-then
-  AC_DEFINE(TANH_PRESERVES_ZERO_SIGN, 1,
-  [Define if tanh(-0.) is -0., or if platform doesn't have signed zeros])
-fi
-
-if test "$ac_cv_func_log1p" = yes
-then
-    # On some versions of AIX, log1p(-0.) returns 0. instead of
-    # -0.  See issue #9920.
-    AC_MSG_CHECKING(whether log1p drops the sign of negative zero)
-    AC_CACHE_VAL(ac_cv_log1p_drops_zero_sign, [
-    AC_RUN_IFELSE([AC_LANG_SOURCE([[
-    #include <math.h>
-    #include <stdlib.h>
-    int main() {
-        /* Fail if the signs of log1p(-0.) and -0. can be
-	   distinguished. */
-        if (atan2(log1p(-0.), -1.) == atan2(-0., -1.))
-            return 0;
-        else
-            return 1;
-    }
-    ]])],
-    [ac_cv_log1p_drops_zero_sign=no],
-    [ac_cv_log1p_drops_zero_sign=yes],
-    [ac_cv_log1p_drops_zero_sign=no])])
-    AC_MSG_RESULT($ac_cv_log1p_drops_zero_sign)
-fi
-if test "$ac_cv_log1p_drops_zero_sign" = yes
-then
-  AC_DEFINE(LOG1P_DROPS_ZERO_SIGN, 1,
-  [Define if log1p(-0.) is 0. rather than -0.])
-fi
-
-LIBS=$LIBS_SAVE
-
 # For multiprocessing module, check that sem_open
 # actually works.  For FreeBSD versions <= 7.2,
 # the kernel module that provides POSIX semaphores
@@ -4573,19 +4517,19 @@ then
   AC_MSG_RESULT($ac_cv_wchar_t_signed)
 fi
 
+AC_MSG_CHECKING(whether wchar_t is usable)
 # wchar_t is only usable if it maps to an unsigned type
 if test "$ac_cv_sizeof_wchar_t" -ge 2 \
           -a "$ac_cv_wchar_t_signed" = "no"
 then
-  HAVE_USABLE_WCHAR_T="yes"
   AC_DEFINE(HAVE_USABLE_WCHAR_T, 1,
   [Define if you have a useable wchar_t type defined in wchar.h; useable
    means wchar_t must be an unsigned type with at least 16 bits. (see
    Include/unicodeobject.h).])
+  AC_MSG_RESULT(yes)
 else
-  HAVE_USABLE_WCHAR_T="no usable wchar_t found"
+  AC_MSG_RESULT(no)
 fi
-AC_MSG_RESULT($HAVE_USABLE_WCHAR_T)
 
 # check for endianness
 AC_C_BIGENDIAN

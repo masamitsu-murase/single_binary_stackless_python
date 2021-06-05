@@ -469,7 +469,7 @@ class ZipInfo (object):
             extra = extra[ln+4:]
 
     @classmethod
-    def from_file(cls, filename, arcname=None):
+    def from_file(cls, filename, arcname=None, *, strict_timestamps=True):
         """Construct an appropriate ZipInfo for a file on the filesystem.
 
         filename should be the path to a file or directory on the filesystem.
@@ -484,6 +484,10 @@ class ZipInfo (object):
         isdir = stat.S_ISDIR(st.st_mode)
         mtime = time.localtime(st.st_mtime)
         date_time = mtime[0:6]
+        if not strict_timestamps and date_time[0] < 1980:
+            date_time = (1980, 1, 1, 0, 0, 0)
+        elif not strict_timestamps and date_time[0] > 2107:
+            date_time = (2107, 12, 31, 23, 59, 59)
         # Create ZipInfo instance to store file information
         if arcname is None:
             arcname = filename
@@ -1147,7 +1151,7 @@ class ZipFile:
     _windows_illegal_name_trans_table = None
 
     def __init__(self, file, mode="r", compression=ZIP_STORED, allowZip64=True,
-                 compresslevel=None):
+                 compresslevel=None, *, strict_timestamps=True):
         """Open the ZIP file with mode read 'r', write 'w', exclusive create 'x',
         or append 'a'."""
         if mode not in ('r', 'w', 'x', 'a'):
@@ -1165,6 +1169,7 @@ class ZipFile:
         self.mode = mode
         self.pwd = None
         self._comment = b''
+        self._strict_timestamps = strict_timestamps
 
         # Check if we were passed a file-like object
         if isinstance(file, os.PathLike):
@@ -1684,7 +1689,8 @@ class ZipFile:
                 "Can't write to ZIP archive while an open writing handle exists"
             )
 
-        zinfo = ZipInfo.from_file(filename, arcname)
+        zinfo = ZipInfo.from_file(filename, arcname,
+                                  strict_timestamps=self._strict_timestamps)
 
         if zinfo.is_dir():
             zinfo.compress_size = 0

@@ -2,6 +2,7 @@
 
 #include "Python.h"
 #include "Python-ast.h"
+#include "internal/pystate.h"
 
 #include "internal/stackless_impl.h"
 
@@ -2418,6 +2419,11 @@ builtin_sum_impl(PyObject *module, PyObject *iterable, PyObject *start)
                 }
             }
             result = PyFloat_FromDouble(f_result);
+            if (result == NULL) {
+                Py_DECREF(item);
+                Py_DECREF(iter);
+                return NULL;
+            }
             temp = PyNumber_Add(result, item);
             Py_DECREF(result);
             Py_DECREF(item);
@@ -2777,6 +2783,8 @@ _PyBuiltin_Init(void)
 {
     PyObject *mod, *dict, *debug;
 
+    const _PyCoreConfig *config = &_PyInterpreterState_GET_UNSAFE()->core_config;
+
     if (PyType_Ready(&PyFilter_Type) < 0 ||
         PyType_Ready(&PyMap_Type) < 0 ||
         PyType_Ready(&PyZip_Type) < 0)
@@ -2835,7 +2843,7 @@ _PyBuiltin_Init(void)
     SETBUILTIN("tuple",                 &PyTuple_Type);
     SETBUILTIN("type",                  &PyType_Type);
     SETBUILTIN("zip",                   &PyZip_Type);
-    debug = PyBool_FromLong(Py_OptimizeFlag == 0);
+    debug = PyBool_FromLong(config->optimization_level == 0);
     if (PyDict_SetItemString(dict, "__debug__", debug) < 0) {
         Py_DECREF(debug);
         return NULL;
