@@ -193,7 +193,6 @@ initimport(PyInterpreterState *interp, PyObject *sysmod)
     PyObject *importlib;
     PyObject *impmod;
     PyObject *value;
-    _PyInitError err;
 
     /* Import _importlib through its frozen version, _frozen_importlib. */
     if (PyImport_ImportFrozenModule("_frozen_importlib") <= 0) {
@@ -235,11 +234,6 @@ initimport(PyInterpreterState *interp, PyObject *sysmod)
     Py_DECREF(value);
     Py_DECREF(impmod);
 
-    err = _PyImportZip_Init();
-    if (_Py_INIT_FAILED(err)) {
-        return err;
-    }
-
     return _Py_INIT_OK();
 }
 
@@ -254,7 +248,7 @@ initexternalimport(PyInterpreterState *interp)
         return _Py_INIT_ERR("external importer setup failed");
     }
     Py_DECREF(value);
-    return _Py_INIT_OK();
+    return _PyImportZip_Init();
 }
 
 /* Helper functions to better handle the legacy C locale
@@ -303,7 +297,7 @@ static const char *_C_LOCALE_WARNING =
 static void
 _emit_stderr_warning_for_legacy_locale(const _PyCoreConfig *core_config)
 {
-    if (core_config->coerce_c_locale_warn && _Py_LegacyLocaleDetected()) {
+    if (core_config->_coerce_c_locale_warn && _Py_LegacyLocaleDetected()) {
         PySys_FormatStderr("%s", _C_LOCALE_WARNING);
     }
 }
