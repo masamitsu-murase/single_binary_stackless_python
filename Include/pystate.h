@@ -29,15 +29,28 @@ typedef PyObject* (*_PyFrameEvalFunction)(struct _frame *, int);
 
 
 typedef struct {
-    int install_signal_handlers;  /* Install signal handlers? -1 means unset */
+    /* Install signal handlers? Yes by default. */
+    int install_signal_handlers;
 
-    int ignore_environment; /* -E, Py_IgnoreEnvironmentFlag, -1 means unset */
+    /* If greater than 0: use environment variables.
+       Set to 0 by -E command line option. If set to -1 (default), it is
+       set to !Py_IgnoreEnvironmentFlag. */
+    int use_environment;
+
     int use_hash_seed;      /* PYTHONHASHSEED=x */
     unsigned long hash_seed;
-    const char *allocator;  /* Memory allocator: _PyMem_SetupAllocators() */
+
+    const char *allocator;  /* Memory allocator: PYTHONMALLOC */
     int dev_mode;           /* PYTHONDEVMODE, -X dev */
-    int faulthandler;       /* PYTHONFAULTHANDLER, -X faulthandler */
-    int tracemalloc;        /* PYTHONTRACEMALLOC, -X tracemalloc=N */
+
+    /* Enable faulthandler?
+       Set to 1 by -X faulthandler and PYTHONFAULTHANDLER. -1 means unset. */
+    int faulthandler;
+
+    /* Enable tracemalloc?
+       Set by -X tracemalloc=N and PYTHONTRACEMALLOC. -1 means unset */
+    int tracemalloc;
+
     int import_time;        /* PYTHONPROFILEIMPORTTIME, -X importtime */
     int show_ref_count;     /* -X showrefcount */
     int show_alloc_count;   /* -X showalloccount */
@@ -45,7 +58,12 @@ typedef struct {
     int malloc_stats;       /* PYTHONMALLOCSTATS */
     int coerce_c_locale;    /* PYTHONCOERCECLOCALE, -1 means unknown */
     int coerce_c_locale_warn; /* PYTHONCOERCECLOCALE=warn */
-    int utf8_mode;          /* PYTHONUTF8, -X utf8; -1 means unknown */
+
+    /* Enable UTF-8 mode?
+       Set by -X utf8 command line option and PYTHONUTF8 environment variable.
+       If set to -1 (default), inherit Py_UTF8Mode value. */
+    int utf8_mode;
+
     wchar_t *pycache_prefix; /* PYTHONPYCACHEPREFIX, -X pycache_prefix=PATH */
 
     wchar_t *program_name;  /* Program name, see also Py_GetProgramName() */
@@ -133,7 +151,7 @@ typedef struct {
        Incremented by the -d command line option. Set by the PYTHONDEBUG
        environment variable. If set to -1 (default), inherit Py_DebugFlag
        value. */
-    int debug;
+    int parser_debug;
 
     /* If equal to 0, Python won't try to write ``.pyc`` files on the
        import of source modules.
@@ -170,13 +188,13 @@ typedef struct {
       !Py_NoUserSiteDirectory. */
     int user_site_directory;
 
-    /* If greater than 0, enable unbuffered mode: force the stdout and stderr
+    /* If equal to 0, enable unbuffered mode: force the stdout and stderr
        streams to be unbuffered.
 
-       Set to 1 by the -u option. Set by the PYTHONUNBUFFERED environment
-       variable. If set to -1 (default), inherit Py_UnbufferedStdioFlag
-       value. */
-    int unbuffered_stdio;
+       Set to 0 by the -u option. Set by the PYTHONUNBUFFERED environment
+       variable.
+       If set to -1 (default), it is set to !Py_UnbufferedStdioFlag. */
+    int buffered_stdio;
 
 #ifdef MS_WINDOWS
     /* If greater than 1, use the "mbcs" encoding instead of the UTF-8
@@ -203,8 +221,7 @@ typedef struct {
     /* --- Private fields -------- */
 
     /* Install importlib? If set to 0, importlib is not initialized at all.
-       Needed by freeze_importlib: see install_importlib argument of
-       _Py_InitializeEx_Private(). */
+       Needed by freeze_importlib. */
     int _install_importlib;
 
     /* Value of the --check-hash-based-pycs configure option. Valid values:
@@ -221,6 +238,12 @@ typedef struct {
 
        See PEP 552 "Deterministic pycs" for more details. */
     const char *_check_hash_pycs_mode;
+
+    /* If greater than 0, suppress _PyPathConfig_Calculate() warnings.
+
+       If set to -1 (default), inherit Py_FrozenFlag value. */
+    int _frozen;
+
 } _PyCoreConfig;
 
 #ifdef MS_WINDOWS
@@ -233,9 +256,11 @@ typedef struct {
 
 #define _PyCoreConfig_INIT \
     (_PyCoreConfig){ \
-        .install_signal_handlers = -1, \
-        .ignore_environment = -1, \
+        .install_signal_handlers = 1, \
+        .use_environment = -1, \
         .use_hash_seed = -1, \
+        .faulthandler = -1, \
+        .tracemalloc = -1, \
         .coerce_c_locale = -1, \
         .utf8_mode = -1, \
         .argc = -1, \
@@ -246,14 +271,15 @@ typedef struct {
         .inspect = -1, \
         .interactive = -1, \
         .optimization_level = -1, \
-        .debug= -1, \
+        .parser_debug= -1, \
         .write_bytecode = -1, \
         .verbose = -1, \
         .quiet = -1, \
         .user_site_directory = -1, \
-        .unbuffered_stdio = -1, \
+        .buffered_stdio = -1, \
         _PyCoreConfig_WINDOWS_INIT \
-        ._install_importlib = 1}
+        ._install_importlib = 1, \
+        ._frozen = -1}
 /* Note: _PyCoreConfig_INIT sets other fields to 0/NULL */
 
 /* Placeholders while working on the new configuration API

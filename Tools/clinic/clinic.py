@@ -2614,12 +2614,13 @@ class short_converter(CConverter):
 class unsigned_short_converter(CConverter):
     type = 'unsigned short'
     default_type = int
-    format_unit = 'H'
     c_ignored_default = "0"
 
     def converter_init(self, *, bitwise=False):
-        if not bitwise:
-            fail("Unsigned shorts must be bitwise (for now).")
+        if bitwise:
+            self.format_unit = 'H'
+        else:
+            self.converter = '_PyLong_UnsignedShort_Converter'
 
 @add_legacy_c_converter('C', accept={str})
 class int_converter(CConverter):
@@ -2639,12 +2640,13 @@ class int_converter(CConverter):
 class unsigned_int_converter(CConverter):
     type = 'unsigned int'
     default_type = int
-    format_unit = 'I'
     c_ignored_default = "0"
 
     def converter_init(self, *, bitwise=False):
-        if not bitwise:
-            fail("Unsigned ints must be bitwise (for now).")
+        if bitwise:
+            self.format_unit = 'I'
+        else:
+            self.converter = '_PyLong_UnsignedInt_Converter'
 
 class long_converter(CConverter):
     type = 'long'
@@ -2655,12 +2657,13 @@ class long_converter(CConverter):
 class unsigned_long_converter(CConverter):
     type = 'unsigned long'
     default_type = int
-    format_unit = 'k'
     c_ignored_default = "0"
 
     def converter_init(self, *, bitwise=False):
-        if not bitwise:
-            fail("Unsigned longs must be bitwise (for now).")
+        if bitwise:
+            self.format_unit = 'k'
+        else:
+            self.converter = '_PyLong_UnsignedLong_Converter'
 
 class long_long_converter(CConverter):
     type = 'long long'
@@ -2671,13 +2674,13 @@ class long_long_converter(CConverter):
 class unsigned_long_long_converter(CConverter):
     type = 'unsigned long long'
     default_type = int
-    format_unit = 'K'
     c_ignored_default = "0"
 
     def converter_init(self, *, bitwise=False):
-        if not bitwise:
-            fail("Unsigned long long must be bitwise (for now).")
-
+        if bitwise:
+            self.format_unit = 'K'
+        else:
+            self.converter = '_PyLong_UnsignedLongLong_Converter'
 
 class Py_ssize_t_converter(CConverter):
     type = 'Py_ssize_t'
@@ -2703,6 +2706,11 @@ class slice_index_converter(CConverter):
             self.converter = '_PyEval_SliceIndex'
         else:
             fail("slice_index_converter: illegal 'accept' argument " + repr(accept))
+
+class size_t_converter(CConverter):
+    type = 'size_t'
+    converter = '_PyLong_Size_t_Converter'
+    c_ignored_default = "0"
 
 
 class float_converter(CConverter):
