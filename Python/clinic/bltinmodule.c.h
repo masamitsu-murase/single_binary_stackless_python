@@ -614,7 +614,7 @@ exit:
 }
 
 PyDoc_STRVAR(builtin_sum__doc__,
-"sum($module, iterable, start=0, /)\n"
+"sum($module, iterable, /, start=0)\n"
 "--\n"
 "\n"
 "Return the sum of a \'start\' value (default: 0) plus an iterable of numbers\n"
@@ -624,20 +624,21 @@ PyDoc_STRVAR(builtin_sum__doc__,
 "reject non-numeric types.");
 
 #define BUILTIN_SUM_METHODDEF    \
-    {"sum", (PyCFunction)builtin_sum, METH_FASTCALL, builtin_sum__doc__},
+    {"sum", (PyCFunction)builtin_sum, METH_FASTCALL|METH_KEYWORDS, builtin_sum__doc__},
 
 static PyObject *
 builtin_sum_impl(PyObject *module, PyObject *iterable, PyObject *start);
 
 static PyObject *
-builtin_sum(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
+builtin_sum(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
 {
     PyObject *return_value = NULL;
+    static const char * const _keywords[] = {"", "start", NULL};
+    static _PyArg_Parser _parser = {"O|O:sum", _keywords, 0};
     PyObject *iterable;
     PyObject *start = NULL;
 
-    if (!_PyArg_UnpackStack(args, nargs, "sum",
-        1, 2,
+    if (!_PyArg_ParseStackAndKeywords(args, nargs, kwnames, &_parser,
         &iterable, &start)) {
         goto exit;
     }
@@ -716,4 +717,4 @@ builtin_issubclass(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=e63f11c23d2a3ddd input=a9049054013a1b77]*/
+/*[clinic end generated code: output=26dc5f72e775b9ca input=a9049054013a1b77]*/
