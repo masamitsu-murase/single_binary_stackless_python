@@ -757,11 +757,7 @@ PyAPI_FUNC(Py_ssize_t) _Py_GetRefTotal(void);
 #define _Py_INC_REFTOTAL        _Py_RefTotal++
 #define _Py_DEC_REFTOTAL        _Py_RefTotal--
 #define _Py_REF_DEBUG_COMMA     ,
-#define _Py_CHECK_REFCNT(OP)                                    \
-{       if (((PyObject*)OP)->ob_refcnt < 0)                             \
-                _Py_NegativeRefcount(__FILE__, __LINE__,        \
-                                     (PyObject *)(OP));         \
-}
+
 /* Py_REF_DEBUG also controls the display of refcounts and memory block
  * allocations at the interactive prompt and at interpreter shutdown
  */
@@ -770,14 +766,13 @@ PyAPI_FUNC(void) _PyDebug_PrintTotalRefs(void);
 #define _Py_INC_REFTOTAL
 #define _Py_DEC_REFTOTAL
 #define _Py_REF_DEBUG_COMMA
-#define _Py_CHECK_REFCNT(OP)    /* a semicolon */;
 #endif /* Py_REF_DEBUG */
 
 #ifdef COUNT_ALLOCS
-PyAPI_FUNC(void) inc_count(PyTypeObject *);
-PyAPI_FUNC(void) dec_count(PyTypeObject *);
-#define _Py_INC_TPALLOCS(OP)    inc_count(Py_TYPE(OP))
-#define _Py_INC_TPFREES(OP)     dec_count(Py_TYPE(OP))
+PyAPI_FUNC(void) _Py_inc_count(PyTypeObject *);
+PyAPI_FUNC(void) _Py_dec_count(PyTypeObject *);
+#define _Py_INC_TPALLOCS(OP)    _Py_inc_count(Py_TYPE(OP))
+#define _Py_INC_TPFREES(OP)     _Py_dec_count(Py_TYPE(OP))
 #define _Py_DEC_TPFREES(OP)     Py_TYPE(OP)->tp_frees--
 #define _Py_COUNT_ALLOCS_COMMA  ,
 #else
@@ -802,17 +797,21 @@ PyAPI_FUNC(void) _Py_AddToAllObjects(PyObject *, int force);
 
 #else
 /* Without Py_TRACE_REFS, there's little enough to do that we expand code
- * inline.
- */
-#define _Py_NewReference(op) (                          \
-    (_Py_tracemalloc_config.tracing        \
-        ? _PyTraceMalloc_NewReference(op)               \
-        : 0),                                           \
-    _Py_INC_TPALLOCS(op) _Py_COUNT_ALLOCS_COMMA         \
-    _Py_INC_REFTOTAL  _Py_REF_DEBUG_COMMA               \
-    Py_REFCNT(op) = 1)
+   inline. */
+static inline void _Py_NewReference(PyObject *op)
+{
+    if (_Py_tracemalloc_config.tracing) {
+        _PyTraceMalloc_NewReference(op);
+    }
+    _Py_INC_TPALLOCS(op);
+    _Py_INC_REFTOTAL;
+    Py_REFCNT(op) = 1;
+}
 
-#define _Py_ForgetReference(op) _Py_INC_TPFREES(op)
+static inline void _Py_ForgetReference(PyObject *op)
+{
+    _Py_INC_TPFREES(op);
+}
 
 #ifdef Py_LIMITED_API
 PyAPI_FUNC(void) _Py_Dealloc(PyObject *);
@@ -823,19 +822,33 @@ PyAPI_FUNC(void) _Py_Dealloc(PyObject *);
 #endif
 #endif /* !Py_TRACE_REFS */
 
-#define Py_INCREF(op) (                         \
-    _Py_INC_REFTOTAL  _Py_REF_DEBUG_COMMA       \
-    ((PyObject *)(op))->ob_refcnt++)
 
-#define Py_DECREF(op)                                   \
-    do {                                                \
-        PyObject *_py_decref_tmp = (PyObject *)(op);    \
-        if (_Py_DEC_REFTOTAL  _Py_REF_DEBUG_COMMA       \
-        --(_py_decref_tmp)->ob_refcnt != 0)             \
-            _Py_CHECK_REFCNT(_py_decref_tmp)            \
-        else                                            \
-            _Py_Dealloc(_py_decref_tmp);                \
-    } while (0)
+static inline void _Py_INCREF(PyObject *op)
+{
+    _Py_INC_REFTOTAL;
+    op->ob_refcnt++;
+}
+
+#define Py_INCREF(op) _Py_INCREF((PyObject *)(op))
+
+static inline void _Py_DECREF(const char *filename, int lineno,
+                              PyObject *op)
+{
+    _Py_DEC_REFTOTAL;
+    if (--op->ob_refcnt != 0) {
+#ifdef Py_REF_DEBUG
+        if (op->ob_refcnt < 0) {
+            _Py_NegativeRefcount(filename, lineno, op);
+        }
+#endif
+    }
+    else {
+        _Py_Dealloc(op);
+    }
+}
+
+#define Py_DECREF(op) _Py_DECREF(__FILE__, __LINE__, (PyObject *)(op))
+
 
 /* Safely decref `op` and set `op` to NULL, especially useful in tp_clear
  * and tp_dealloc implementations.
@@ -880,20 +893,24 @@ PyAPI_FUNC(void) _Py_Dealloc(PyObject *);
         }                                       \
     } while (0)
 
-/* Macros to use in case the object pointer may be NULL: */
-#define Py_XINCREF(op)                                \
-    do {                                              \
-        PyObject *_py_xincref_tmp = (PyObject *)(op); \
-        if (_py_xincref_tmp != NULL)                  \
-            Py_INCREF(_py_xincref_tmp);               \
-    } while (0)
+/* Function to use in case the object pointer can be NULL: */
+static inline void _Py_XINCREF(PyObject *op)
+{
+    if (op != NULL) {
+        Py_INCREF(op);
+    }
+}
 
-#define Py_XDECREF(op)                                \
-    do {                                              \
-        PyObject *_py_xdecref_tmp = (PyObject *)(op); \
-        if (_py_xdecref_tmp != NULL)                  \
-            Py_DECREF(_py_xdecref_tmp);               \
-    } while (0)
+#define Py_XINCREF(op) _Py_XINCREF((PyObject *)(op))
+
+static inline void _Py_XDECREF(PyObject *op)
+{
+    if (op != NULL) {
+        Py_DECREF(op);
+    }
+}
+
+#define Py_XDECREF(op) _Py_XDECREF((PyObject *)(op))
 
 #ifndef Py_LIMITED_API
 /* Safely decref `op` and set `op` to `op2`.
