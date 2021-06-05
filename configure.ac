@@ -2130,6 +2130,16 @@ AC_CHECK_HEADERS(linux/netlink.h,,,[
 #endif
 ])
 
+# On Linux, qrtr.h requires asm/types.h
+AC_CHECK_HEADERS(linux/qrtr.h,,,[
+#ifdef HAVE_ASM_TYPES_H
+#include <asm/types.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+])
+
 AC_CHECK_HEADERS(linux/vm_sockets.h,,,[
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
@@ -2962,8 +2972,6 @@ else
   done
 fi])
 AC_MSG_RESULT($with_dbmliborder)
-
-AC_SUBST(LDLAST)
 
 # Templates for things AC_DEFINEd more than once.
 # For a single AC_DEFINE, no template is needed.
