@@ -5321,11 +5321,35 @@ do_call_core(PyObject *func, PyObject *callargs, PyObject *kwdict)
         C_TRACE(result, PyCFunction_Call(func, callargs, kwdict));
         return result;
     }
-    else {
-        result = PyObject_Call(func, callargs, kwdict);
-    }
+    else if (Py_TYPE(func) == &PyMethodDescr_Type) {
+        PyThreadState *tstate = PyThreadState_GET();
+        Py_ssize_t nargs = PyTuple_GET_SIZE(callargs);
+        if (nargs > 0 && tstate->use_tracing) {
+            STACKLESS_GETARG();
+            /* We need to create a temporary bound method as argument
+               for profiling.
 
-    return result;
+               If nargs == 0, then this cannot work because we have no
+               "self". In any case, the call itself would raise
+               TypeError (foo needs an argument), so we just skip
+               profiling. */
+            PyObject *self = PyTuple_GET_ITEM(callargs, 0);
+            func = Py_TYPE(func)->tp_descr_get(func, self, (PyObject*)Py_TYPE(self));
+            if (func == NULL) {
+                return NULL;
+            }
+
+            STACKLESS_PROPOSE_ALL(tstate);
+            C_TRACE(result, _PyCFunction_FastCallDict(func,
+                                                      &PyTuple_GET_ITEM(callargs, 1),
+                                                      nargs - 1,
+                                                      kwdict));
+            STACKLESS_ASSERT();
+            Py_DECREF(func);
+            return result;
+        }
+    }
+    return PyObject_Call(func, callargs, kwdict);
 }
 
 /* Extract a slice index from a PyLong or an object with the
