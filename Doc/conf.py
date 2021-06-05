@@ -32,6 +32,12 @@ if os.environ.get('READTHEDOCS', None) == 'True':
     # See https://docs.readthedocs.org/en/latest/faq.html#i-want-to-use-the-blue-default-sphinx-theme
     html_style = '/default.css'
 
+doctest_global_setup = '''
+try:
+    import _tkinter
+except ImportError:
+    _tkinter = None
+'''
 # General substitutions.
 project = 'Stackless-Python'
 copyright = '2001-%s, Python Software Foundation' % time.strftime('%Y')
