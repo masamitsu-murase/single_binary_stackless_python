@@ -53,8 +53,6 @@
 #include "pyport.h"
 #include "pymacro.h"
 
-#include "pyatomic.h"
-
 /* comment this out if you don't want to be stackless */
 #include "stackless.h"
 
