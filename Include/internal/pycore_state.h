@@ -12,7 +12,7 @@ extern "C" {
 #include "pycore_warnings.h"
 
 #ifdef STACKLESS
-#include "internal/slp_pystate.h"
+#include "pycore_slp_state.h"
 #endif
 
 /* GIL state */

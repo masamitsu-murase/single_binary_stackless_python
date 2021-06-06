@@ -4,11 +4,11 @@
 #include "pythread.h"
 
 #ifdef STACKLESS
-#include "internal/stackless_impl.h"
+#include "pycore_stackless.h"
 
 #define IMPLEMENT_STACKLESSMODULE
-#include "internal/slp_platformselect.h"
-#include "internal/slp_prickelpit.h"
+#include "pycore_slp_platformselect.h"
+#include "pycore_slp_prickelpit.h"
 #include <stddef.h>  /* for offsetof() */
 
 /*[clinic input]

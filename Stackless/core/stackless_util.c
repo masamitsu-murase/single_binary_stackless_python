@@ -1,7 +1,7 @@
 #include "Python.h"
 
 #ifdef STACKLESS
-#include "internal/stackless_impl.h"
+#include "pycore_stackless.h"
 
 int * const _PyStackless__TryStacklessPtr = &_PyStackless_TRY_STACKLESS;
 

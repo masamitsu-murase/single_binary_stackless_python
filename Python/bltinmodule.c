@@ -4,7 +4,7 @@
 #include "Python-ast.h"
 #include "pycore_state.h"
 
-#include "internal/stackless_impl.h"
+#include "pycore_stackless.h"
 
 #include "node.h"
 #include "code.h"

@@ -468,28 +468,28 @@
     <ClInclude Include="..\Include\slp_exttype.h">
       <Filter>Include</Filter>
     </ClInclude>
-    <ClInclude Include="..\Include\internal\stackless_impl.h">
-      <Filter>Include</Filter>
-    </ClInclude>
     <ClInclude Include="..\Include\slp_structs.h">
       <Filter>Include</Filter>
     </ClInclude>
     <ClInclude Include="..\Include\slp_tstate.h">
       <Filter>Include</Filter>
     </ClInclude>
-    <ClInclude Include="..\Include\internal\slp_pystate.h">
+    <ClInclude Include="..\Include\internal\pycore_stackless.h">
       <Filter>Include</Filter>
     </ClInclude>
-    <ClInclude Include="..\Include\internal\slp_platformselect.h">
+    <ClInclude Include="..\Include\internal\pycore_slp_state.h">
       <Filter>Include</Filter>
     </ClInclude>
-    <ClInclude Include="..\Include\internal\slp_switch_x64_msvc.h">
+    <ClInclude Include="..\Include\internal\pycore_slp_platformselect.h">
       <Filter>Include</Filter>
     </ClInclude>
-    <ClInclude Include="..\Include\internal\slp_switch_x86_msvc.h">
+    <ClInclude Include="..\Include\internal\pycore_slp_switch_x64_msvc.h">
       <Filter>Include</Filter>
     </ClInclude>
-    <ClInclude Include="..\Include\internal\slp_prickelpit.h">
+    <ClInclude Include="..\Include\internal\pycore_slp_switch_x86_msvc.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\internal\pycore_slp_prickelpit.h">
       <Filter>Include</Filter>
     </ClInclude>
     <ClInclude Include="..\Modules\hashtable.h">

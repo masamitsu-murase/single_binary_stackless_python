@@ -5,7 +5,7 @@
 #include "pycore_mem.h"
 #include "pycore_state.h"
 #include "structmember.h"
-#include "internal/stackless_impl.h"
+#include "pycore_stackless.h"
 
 /* Free list for method objects to safe malloc/free overhead
  * The m_self element is used to chain the objects.

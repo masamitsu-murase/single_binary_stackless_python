@@ -1,5 +1,5 @@
-#ifndef Py_PRICKELPIT_H
-#define Py_PRICKELPIT_H
+#ifndef PYCORE_SLP_PRICKELPIT_H
+#define PYCORE_SLP_PRICKELPIT_H
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -72,4 +72,4 @@ int slp_safe_pickling(int(*save)(PyObject *, PyObject *, int),
 #ifdef __cplusplus
 }
 #endif
-#endif /* !Py_PRICKELPIT_H */
+#endif /* !PYCORE_SLP_PRICKELPIT_H */

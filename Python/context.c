@@ -4,8 +4,8 @@
 #include "pycore_state.h"
 #include "pycore_context.h"
 #include "pycore_hamt.h"
-#include "internal/stackless_impl.h"
-#include "internal/slp_prickelpit.h"
+#include "pycore_stackless.h"
+#include "pycore_slp_prickelpit.h"
 
 
 #define CONTEXT_FREELIST_MAXLEN 255

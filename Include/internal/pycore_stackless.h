@@ -18,9 +18,9 @@ extern "C" {
 #ifdef SLP_BUILD_CORE
 
 #ifdef Py_BUILD_CORE
-#include "internal/pystate.h"  /* for _PyRuntime */
+#include "pycore_state.h"  /* for _PyRuntime */
 #endif
-#include "internal/slp_prickelpit.h"
+#include "pycore_slp_prickelpit.h"
 
 #undef STACKLESS_SPY
 /*
@@ -449,7 +449,7 @@ PyTaskletObject * slp_get_watchdog(PyThreadState *ts, int interrupt);
     assert(SLP_CURRENT_FRAME_IS_VALID(PyThreadState_GET()))
 
 /* descr must be of type PyWrapperDescrObject, but this type is undocumented.
- * Therefore this macro is in stackless_impl.h and not in stackless_api.h
+ * Therefore this macro is in pycore_stackless.h and not in stackless_api.h
  */
 #define STACKLESS_PROMOTE_WRAPPER(descr) \
     STACKLESS_PROMOTE_FLAG((descr)->d_slpmask)

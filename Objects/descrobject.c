@@ -3,7 +3,7 @@
 #include "Python.h"
 #include "pycore_state.h"
 #include "structmember.h" /* Why is this not included in Python.h? */
-#include "internal/stackless_impl.h"
+#include "pycore_stackless.h"
 
 /*[clinic input]
 class mappingproxy "mappingproxyobject *" "&PyDictProxy_Type"

@@ -8,8 +8,8 @@
 #include "structmember.h"
 
 #ifdef STACKLESS
-#include "internal/stackless_impl.h"
-#include "internal/context.h"
+#include "pycore_stackless.h"
+#include "pycore_context.h"
 
 /*[clinic input]
 module _stackless

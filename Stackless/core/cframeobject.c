@@ -28,9 +28,9 @@
 #include "structmember.h"
 
 #ifdef STACKLESS
-#include "internal/stackless_impl.h"
-#include "internal/slp_prickelpit.h"
-#include "internal/context.h"
+#include "pycore_stackless.h"
+#include "pycore_slp_prickelpit.h"
+#include "pycore_context.h"
 
 static PyCFrameObject *free_list = NULL;
 static int numfree = 0;         /* number of cframes currently in free_list */

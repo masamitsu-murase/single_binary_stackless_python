@@ -2,7 +2,7 @@
 #include "structmember.h"
 
 #ifdef STACKLESS
-#include "internal/stackless_impl.h"
+#include "pycore_stackless.h"
 
 #include "pythread.h"
 

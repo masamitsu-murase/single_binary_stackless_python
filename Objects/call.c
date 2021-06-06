@@ -1,7 +1,7 @@
 #include "Python.h"
 #include "pycore_state.h"
 #include "frameobject.h"
-#include "internal/stackless_impl.h"
+#include "pycore_stackless.h"
 
 
 int

@@ -4,7 +4,7 @@
 #include "pycore_mem.h"
 #include "pycore_state.h"
 #include "structmember.h"
-#include "internal/stackless_impl.h"
+#include "pycore_stackless.h"
 
 #define TP_DESCR_GET(t) ((t)->tp_descr_get)
 

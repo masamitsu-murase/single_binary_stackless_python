@@ -14,9 +14,9 @@
  *  limitations under the License.
  */
 
-/* This include file is included from internal/pystate.h only */
+/* This include file is included from pycore_state.h only */
 
-#include "internal/slp_platformselect.h"  /* for SLP_CSTACK_SLOTS */
+#include "pycore_slp_platformselect.h"  /* for SLP_CSTACK_SLOTS */
 
 /*
  * Stackless runtime state

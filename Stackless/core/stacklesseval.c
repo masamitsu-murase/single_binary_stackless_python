@@ -5,11 +5,11 @@
 #include "frameobject.h"
 #include "structmember.h"
 
-#include "internal/stackless_impl.h"
-#include "internal/slp_prickelpit.h"
+#include "pycore_stackless.h"
+#include "pycore_slp_prickelpit.h"
 
 /* platform specific constants */
-#include "internal/slp_platformselect.h"
+#include "pycore_slp_platformselect.h"
 
 /* Stackless extension for ceval.c */
 

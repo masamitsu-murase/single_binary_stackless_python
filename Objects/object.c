@@ -6,7 +6,7 @@
 #include "pycore_context.h"
 #include "frameobject.h"
 #ifdef STACKLESS
-#include "internal/stackless_impl.h"
+#include "pycore_stackless.h"
 #endif
 
 #ifdef __cplusplus

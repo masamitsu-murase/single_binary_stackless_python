@@ -8,7 +8,7 @@
 #include "structmember.h"
 
 #ifdef STACKLESS
-#include "internal/stackless_impl.h"
+#include "pycore_stackless.h"
 
 Py_LOCAL_INLINE(PyChannelFlagStruc)
 channel_flags_from_integer(int flags) {

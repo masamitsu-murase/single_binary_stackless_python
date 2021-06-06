@@ -4,7 +4,7 @@
 #include "pycore_state.h"
 #include "frameobject.h"
 #include "structmember.h"
-#include "internal/stackless_impl.h"
+#include "pycore_stackless.h"
 
 #include <ctype.h>
 

@@ -7,7 +7,7 @@
 #ifdef STACKLESS
 #include "frameobject.h"
 #endif
-#include "internal/stackless_impl.h"
+#include "pycore_stackless.h"
 
 #define _PyThreadState_SET(value) \
     _Py_atomic_store_relaxed(&_PyRuntime.gilstate.tstate_current, \
