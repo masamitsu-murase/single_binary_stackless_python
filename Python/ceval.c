@@ -159,7 +159,7 @@ PyEval_InitThreads(void)
     if (gil_created())
         return;
     create_gil();
-    take_gil(PyThreadState_GET());
+    take_gil(_PyThreadState_GET());
     _PyRuntime.ceval.pending.main_thread = PyThread_get_thread_ident();
     if (!_PyRuntime.ceval.pending.lock)
         _PyRuntime.ceval.pending.lock = PyThread_allocate_lock();
@@ -177,7 +177,7 @@ _PyEval_FiniThreads(void)
 void
 PyEval_AcquireLock(void)
 {
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
     if (tstate == NULL)
         Py_FatalError("PyEval_AcquireLock: current thread state is NULL");
     take_gil(tstate);
@@ -187,10 +187,10 @@ void
 PyEval_ReleaseLock(void)
 {
     /* This function must succeed when the current thread state is NULL.
-       We therefore avoid PyThreadState_GET() which dumps a fatal error
+       We therefore avoid PyThreadState_Get() which dumps a fatal error
        in debug mode.
     */
-    drop_gil(PyThreadState_GET());
+    drop_gil(_PyThreadState_GET());
 }
 
 void
@@ -224,7 +224,7 @@ PyEval_ReleaseThread(PyThreadState *tstate)
 void
 PyEval_ReInitThreads(void)
 {
-    PyThreadState *current_tstate = PyThreadState_GET();
+    PyThreadState *current_tstate = _PyThreadState_GET();
 
     if (!gil_created())
         return;
@@ -464,7 +464,7 @@ Py_SetRecursionLimit(int new_limit)
 int
 _Py_CheckRecursiveCall(const char *where)
 {
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
     int recursion_limit = _PyRuntime.ceval.recursion_limit;
 
 #ifdef USE_STACKCHECK
@@ -635,7 +635,7 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
 #ifndef STACKLESS
     PyObject *retval = NULL;            /* Return value */
 #endif
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
     PyCodeObject *co;
 
     /* when tracing we set things up so that
@@ -4326,7 +4326,7 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
     }
 
     /* Create the frame */
-    tstate = PyThreadState_GET();
+    tstate = _PyThreadState_GET();
     assert(tstate != NULL);
     f = _PyFrame_New_NoTrack(tstate, co, globals, locals);
     if (f == NULL) {
@@ -4657,7 +4657,7 @@ do_raise(PyObject *exc, PyObject *cause)
 
     if (exc == NULL) {
         /* Reraise */
-        PyThreadState *tstate = PyThreadState_GET();
+        PyThreadState *tstate = _PyThreadState_GET();
         _PyErr_StackItem *exc_info = _PyErr_GetTopmostException(tstate);
         PyObject *tb;
         type = exc_info->exc_type;
@@ -4929,7 +4929,7 @@ call_trace(Py_tracefunc func, PyObject *obj,
 PyObject *
 _PyEval_CallTracing(PyObject *func, PyObject *args)
 {
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
     int save_tracing = tstate->tracing;
     int save_use_tracing = tstate->use_tracing;
     PyObject *result;
@@ -4983,7 +4983,7 @@ maybe_call_line_trace(Py_tracefunc func, PyObject *obj,
 void
 PyEval_SetProfile(Py_tracefunc func, PyObject *arg)
 {
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
     PyObject *temp = tstate->c_profileobj;
     Py_XINCREF(arg);
     tstate->c_profilefunc = NULL;
@@ -5000,7 +5000,7 @@ PyEval_SetProfile(Py_tracefunc func, PyObject *arg)
 void
 PyEval_SetTrace(Py_tracefunc func, PyObject *arg)
 {
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
     PyObject *temp = tstate->c_traceobj;
     _Py_TracingPossible += (func != NULL) - (tstate->c_tracefunc != NULL);
     Py_XINCREF(arg);
@@ -5020,21 +5020,21 @@ void
 _PyEval_SetCoroutineOriginTrackingDepth(int new_depth)
 {
     assert(new_depth >= 0);
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
     tstate->coroutine_origin_tracking_depth = new_depth;
 }
 
 int
 _PyEval_GetCoroutineOriginTrackingDepth(void)
 {
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
     return tstate->coroutine_origin_tracking_depth;
 }
 
 void
 _PyEval_SetCoroutineWrapper(PyObject *wrapper)
 {
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
 
     Py_XINCREF(wrapper);
     Py_XSETREF(tstate->coroutine_wrapper, wrapper);
@@ -5043,14 +5043,14 @@ _PyEval_SetCoroutineWrapper(PyObject *wrapper)
 PyObject *
 _PyEval_GetCoroutineWrapper(void)
 {
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
     return tstate->coroutine_wrapper;
 }
 
 void
 _PyEval_SetAsyncGenFirstiter(PyObject *firstiter)
 {
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
 
     Py_XINCREF(firstiter);
     Py_XSETREF(tstate->async_gen_firstiter, firstiter);
@@ -5059,14 +5059,14 @@ _PyEval_SetAsyncGenFirstiter(PyObject *firstiter)
 PyObject *
 _PyEval_GetAsyncGenFirstiter(void)
 {
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
     return tstate->async_gen_firstiter;
 }
 
 void
 _PyEval_SetAsyncGenFinalizer(PyObject *finalizer)
 {
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
 
     Py_XINCREF(finalizer);
     Py_XSETREF(tstate->async_gen_finalizer, finalizer);
@@ -5075,7 +5075,7 @@ _PyEval_SetAsyncGenFinalizer(PyObject *finalizer)
 PyObject *
 _PyEval_GetAsyncGenFinalizer(void)
 {
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
     return tstate->async_gen_finalizer;
 }
 
@@ -5129,7 +5129,7 @@ PyEval_GetGlobals(void)
 PyFrameObject *
 PyEval_GetFrame(void)
 {
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
     return _PyThreadState_GetFrame(tstate);
 }
 
@@ -5226,7 +5226,7 @@ call_function(PyObject ***pp_stack, Py_ssize_t oparg, PyObject *kwnames)
     Py_ssize_t nkwargs = (kwnames == NULL) ? 0 : PyTuple_GET_SIZE(kwnames);
     Py_ssize_t nargs = oparg - nkwargs;
     PyObject **stack = (*pp_stack) - nargs - nkwargs;
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
 
     /* Always dispatch PyCFunction first, because these are
        presumed to be the most frequent callable object.
@@ -5312,12 +5312,12 @@ do_call_core(PyObject *func, PyObject *callargs, PyObject *kwdict)
     PyObject *result;
 
     if (PyCFunction_Check(func)) {
-        PyThreadState *tstate = PyThreadState_GET();
+        PyThreadState *tstate = _PyThreadState_GET();
         C_TRACE(result, PyCFunction_Call(func, callargs, kwdict));
         return result;
     }
     else if (Py_TYPE(func) == &PyMethodDescr_Type) {
-        PyThreadState *tstate = PyThreadState_GET();
+        PyThreadState *tstate = _PyThreadState_GET();
         Py_ssize_t nargs = PyTuple_GET_SIZE(callargs);
         if (nargs > 0 && tstate->use_tracing) {
             STACKLESS_GETARG();

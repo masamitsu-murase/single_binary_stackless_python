@@ -330,7 +330,7 @@ _PyInterpreterState_DeleteExceptMain()
 PyInterpreterState *
 _PyInterpreterState_Get(void)
 {
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
     if (tstate == NULL) {
         Py_FatalError("_PyInterpreterState_Get(): no current thread state");
     }
@@ -735,7 +735,7 @@ tstate_delete_common(PyThreadState *tstate)
 void
 PyThreadState_Delete(PyThreadState *tstate)
 {
-    if (tstate == PyThreadState_GET())
+    if (tstate == _PyThreadState_GET())
         Py_FatalError("PyThreadState_Delete: tstate is still current");
     if (_PyRuntime.gilstate.autoInterpreterState &&
         PyThread_tss_get(&_PyRuntime.gilstate.autoTSSkey) == tstate)
@@ -749,7 +749,7 @@ PyThreadState_Delete(PyThreadState *tstate)
 void
 PyThreadState_DeleteCurrent()
 {
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
     if (tstate == NULL)
         Py_FatalError(
             "PyThreadState_DeleteCurrent: no current tstate");
@@ -804,14 +804,14 @@ _PyThreadState_DeleteExcept(PyThreadState *tstate)
 PyThreadState *
 _PyThreadState_UncheckedGet(void)
 {
-    return PyThreadState_GET();
+    return _PyThreadState_GET();
 }
 
 
 PyThreadState *
 PyThreadState_Get(void)
 {
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
     if (tstate == NULL)
         Py_FatalError("PyThreadState_Get: no current thread");
 
@@ -822,7 +822,7 @@ PyThreadState_Get(void)
 PyThreadState *
 PyThreadState_Swap(PyThreadState *newts)
 {
-    PyThreadState *oldts = PyThreadState_GET();
+    PyThreadState *oldts = _PyThreadState_GET();
 
     _PyThreadState_SET(newts);
     /* It should not be possible for more than one thread state
@@ -853,7 +853,7 @@ PyThreadState_Swap(PyThreadState *newts)
 PyObject *
 PyThreadState_GetDict(void)
 {
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
     if (tstate == NULL)
         return NULL;
 
@@ -1004,7 +1004,7 @@ PyThreadState_IsCurrent(PyThreadState *tstate)
 {
     /* Must be the tstate for this thread */
     assert(PyGILState_GetThisThreadState()==tstate);
-    return tstate == PyThreadState_GET();
+    return tstate == _PyThreadState_GET();
 }
 
 /* Internal initialization/finalization functions called by
@@ -1131,7 +1131,7 @@ PyGILState_Check(void)
         return 1;
     }
 
-    tstate = PyThreadState_GET();
+    tstate = _PyThreadState_GET();
     if (tstate == NULL)
         return 0;
 

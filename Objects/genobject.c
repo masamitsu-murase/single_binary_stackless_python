@@ -186,7 +186,7 @@ gen_send_ex2(PyGenObject *gen, PyObject *arg, int exc, int closing, PyObject * o
     STACKLESS_GETARG();
     PyFrameObject *stopframe;
 #endif
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
     PyFrameObject *f = gen->gi_frame;
     PyObject *result;
 
@@ -1329,7 +1329,7 @@ PyCoro_New(PyFrameObject *f, PyObject *name, PyObject *qualname)
         return NULL;
     }
 
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
     int origin_depth = tstate->coroutine_origin_tracking_depth;
 
     if (origin_depth == 0) {
@@ -1439,7 +1439,7 @@ async_gen_init_hooks(PyAsyncGenObject *o)
 
     o->ag_hooks_inited = 1;
 
-    tstate = PyThreadState_GET();
+    tstate = _PyThreadState_GET();
 
     finalizer = tstate->async_gen_finalizer;
     if (finalizer) {

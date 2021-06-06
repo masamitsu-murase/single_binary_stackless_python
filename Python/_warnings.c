@@ -692,9 +692,9 @@ setup_context(Py_ssize_t stack_level, PyObject **filename, int *lineno,
     }
     /* fallback to the state frame */
     if (f == NULL)
-        f = PyThreadState_GET()->frame;
+        f = _PyThreadState_GET()->frame;
 #else
-    PyFrameObject *f = PyThreadState_GET()->frame;
+    PyFrameObject *f = _PyThreadState_GET()->frame;
 #endif
     // Stack level comparisons to Python code is off by one as there is no
     // warnings-related stack level to avoid.
