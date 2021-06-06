@@ -223,7 +223,7 @@
     <ClInclude Include="..\Include\slp_structs.h" />
     <ClInclude Include="..\Include\slp_tstate.h" />
     <ClInclude Include="..\Include\internal\pycore_stackless.h" />
-    <ClInclude Include="..\Include\internal\pycore_slp_state.h" />
+    <ClInclude Include="..\Include\internal\pycore_slp_pystate.h" />
     <ClInclude Include="..\Include\internal\pycore_slp_prickelpit.h" />
     <ClInclude Include="..\Include\internal\pycore_slp_platformselect.h" />
     <ClInclude Include="..\Include\internal\pycore_slp_switch_x64_msvc.h" />

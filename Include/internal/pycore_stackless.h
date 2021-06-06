@@ -18,7 +18,7 @@ extern "C" {
 #ifdef SLP_BUILD_CORE
 
 #ifdef Py_BUILD_CORE
-#include "pycore_state.h"  /* for _PyRuntime */
+#include "pycore_pystate.h"  /* for _PyRuntime */
 #endif
 #include "pycore_slp_prickelpit.h"
 

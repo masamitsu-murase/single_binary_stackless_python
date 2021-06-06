@@ -486,7 +486,7 @@
     <ClInclude Include="..\Include\internal\pycore_stackless.h">
       <Filter>Include</Filter>
     </ClInclude>
-    <ClInclude Include="..\Include\internal\pycore_slp_state.h">
+    <ClInclude Include="..\Include\internal\pycore_slp_pystate.h">
       <Filter>Include</Filter>
     </ClInclude>
     <ClInclude Include="..\Include\internal\pycore_slp_platformselect.h">

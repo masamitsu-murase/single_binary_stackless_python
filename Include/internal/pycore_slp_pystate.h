@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-/* This include file is included from pycore_state.h only */
+/* This include file is included from pycore_pystate.h only */
 
 #include "pycore_slp_platformselect.h"  /* for SLP_CSTACK_SLOTS */
 
