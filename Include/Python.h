@@ -56,6 +56,15 @@
 /* comment this out if you don't want to be stackless */
 #include "stackless.h"
 
+/* A convenient way for code to know if clang's memory sanitizer is enabled. */
+#if defined(__has_feature)
+#  if __has_feature(memory_sanitizer)
+#    if !defined(MEMORY_SANITIZER)
+#      define MEMORY_SANITIZER
+#    endif
+#  endif
+#endif
+
 /* Debug-mode build with pymalloc implies PYMALLOC_DEBUG.
  *  PYMALLOC_DEBUG is in error if pymalloc is not in use.
  */
