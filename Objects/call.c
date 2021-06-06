@@ -270,7 +270,7 @@ PyObject_Call(PyObject *callable, PyObject *args, PyObject *kwargs)
     if (PyFunction_Check(callable)) {
         STACKLESS_PROMOTE_ALL();
         result = _PyFunction_FastCallDict(callable,
-                                        &PyTuple_GET_ITEM(args, 0),
+                                        _PyTuple_ITEMS(args),
                                         PyTuple_GET_SIZE(args),
                                         kwargs);
         STACKLESS_ASSERT();
@@ -424,7 +424,7 @@ _PyFunction_FastCallDict(PyObject *func, PyObject *const *args, Py_ssize_t nargs
                  && co->co_argcount == PyTuple_GET_SIZE(argdefs)) {
             /* function called with no arguments, but all parameters have
                a default value: use default values as arguments .*/
-            args = &PyTuple_GET_ITEM(argdefs, 0);
+            args = _PyTuple_ITEMS(argdefs);
             STACKLESS_PROMOTE_ALL();
             result = function_code_fastcall(co, args, PyTuple_GET_SIZE(argdefs),
                                           globals);
@@ -444,7 +444,7 @@ _PyFunction_FastCallDict(PyObject *func, PyObject *const *args, Py_ssize_t nargs
             return NULL;
         }
 
-        k = &PyTuple_GET_ITEM(kwtuple, 0);
+        k = _PyTuple_ITEMS(kwtuple);
         pos = i = 0;
         while (PyDict_Next(kwargs, &pos, &k[i], &k[i+1])) {
             /* We must hold strong references because keyword arguments can be
@@ -467,7 +467,7 @@ _PyFunction_FastCallDict(PyObject *func, PyObject *const *args, Py_ssize_t nargs
     qualname = ((PyFunctionObject *)func) -> func_qualname;
 
     if (argdefs != NULL) {
-        d = &PyTuple_GET_ITEM(argdefs, 0);
+        d = _PyTuple_ITEMS(argdefs);
         nd = PyTuple_GET_SIZE(argdefs);
     }
     else {
@@ -515,7 +515,7 @@ _PyFunction_FastCallKeywords(PyObject *func, PyObject *const *stack,
                  && co->co_argcount == PyTuple_GET_SIZE(argdefs)) {
             /* function called with no arguments, but all parameters have
                a default value: use default values as arguments .*/
-            stack = &PyTuple_GET_ITEM(argdefs, 0);
+            stack = _PyTuple_ITEMS(argdefs);
             return function_code_fastcall(co, stack, PyTuple_GET_SIZE(argdefs),
                                           globals);
         }
@@ -527,7 +527,7 @@ _PyFunction_FastCallKeywords(PyObject *func, PyObject *const *stack,
     qualname = ((PyFunctionObject *)func) -> func_qualname;
 
     if (argdefs != NULL) {
-        d = &PyTuple_GET_ITEM(argdefs, 0);
+        d = _PyTuple_ITEMS(argdefs);
         nd = PyTuple_GET_SIZE(argdefs);
     }
     else {
@@ -536,7 +536,7 @@ _PyFunction_FastCallKeywords(PyObject *func, PyObject *const *stack,
     }
     return _PyEval_EvalCodeWithName((PyObject*)co, globals, (PyObject *)NULL,
                                     stack, nargs,
-                                    nkwargs ? &PyTuple_GET_ITEM(kwnames, 0) : NULL,
+                                    nkwargs ? _PyTuple_ITEMS(kwnames) : NULL,
                                     stack + nargs,
                                     nkwargs, 1,
                                     d, (int)nd, kwdefs,
@@ -963,7 +963,7 @@ PyCFunction_Call(PyObject *func, PyObject *args, PyObject *kwargs)
     }
     else {
         return _PyCFunction_FastCallDict(func,
-                                         &PyTuple_GET_ITEM(args, 0),
+                                         _PyTuple_ITEMS(args),
                                          PyTuple_GET_SIZE(args),
                                          kwargs);
     }
@@ -1087,8 +1087,8 @@ _PyObject_Call_Prepend(PyObject *callable,
     /* use borrowed references */
     stack[0] = obj;
     memcpy(&stack[1],
-              &PyTuple_GET_ITEM(args, 0),
-              argcount * sizeof(PyObject *));
+           _PyTuple_ITEMS(args),
+           argcount * sizeof(PyObject *));
 
     STACKLESS_PROMOTE_ALL();
     result = _PyObject_FastCallDict(callable,
@@ -1143,7 +1143,7 @@ _PyObject_CallFunctionVa(PyObject *callable, const char *format,
         PyObject *args = stack[0];
         STACKLESS_PROMOTE_ALL();
         result = _PyObject_FastCall(callable,
-                                    &PyTuple_GET_ITEM(args, 0),
+                                    _PyTuple_ITEMS(args),
                                     PyTuple_GET_SIZE(args));
     }
     else {

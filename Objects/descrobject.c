@@ -250,7 +250,7 @@ methoddescr_call(PyMethodDescrObject *descr, PyObject *args, PyObject *kwargs)
 
     STACKLESS_PROMOTE_ALL();
     result = _PyMethodDef_RawFastCallDict(descr->d_method, self,
-                                          &PyTuple_GET_ITEM(args, 1), nargs - 1,
+                                          &_PyTuple_ITEMS(args)[1], nargs - 1,
                                           kwargs);
     STACKLESS_ASSERT();
     result = _Py_CheckFunctionResult((PyObject *)descr, result, NULL);
@@ -340,7 +340,7 @@ classmethoddescr_call(PyMethodDescrObject *descr, PyObject *args,
 
     STACKLESS_PROMOTE_ALL();
     result = _PyMethodDef_RawFastCallDict(descr->d_method, self,
-                                          &PyTuple_GET_ITEM(args, 1), argc - 1,
+                                          &_PyTuple_ITEMS(args)[1], argc - 1,
                                           kwds);
     STACKLESS_ASSERT();
     result = _Py_CheckFunctionResult((PyObject *)descr, result, NULL);
