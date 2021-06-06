@@ -2260,8 +2260,9 @@ _PyObject_AssertFailed(PyObject *obj, const char *msg, const char *expr,
     Py_FatalError("_PyObject_AssertFailed");
 }
 
-
+#ifdef _Py_Dealloc
 #undef _Py_Dealloc
+#endif
 
 void
 _Py_Dealloc(PyObject *op)
@@ -2272,7 +2273,11 @@ _Py_Dealloc(PyObject *op)
 #else
     _Py_INC_TPFREES(op);
 #endif
+#ifdef STACKLESS
+    SLP_WITH_VALID_CURRENT_FRAME((*dealloc)(op));
+#else
     (*dealloc)(op);
+#endif
 }
 
 #ifdef __cplusplus

@@ -817,6 +817,8 @@ static inline void _Py_ForgetReference(PyObject *op)
 PyAPI_FUNC(void) _Py_Dealloc(PyObject *);
 
 #ifndef Py_LIMITED_API
+/* Do not inline, if Stackless is compiled with SLP_WITH_FRAME_REF_DEBUG */
+#if !defined(STACKLESS) || !defined(SLP_WITH_FRAME_REF_DEBUG)
 static inline void _Py_Dealloc_inline(PyObject *op)
 {
     destructor dealloc = Py_TYPE(op)->tp_dealloc;
@@ -829,6 +831,7 @@ static inline void _Py_Dealloc_inline(PyObject *op)
 }
 
 #  define _Py_Dealloc(op) _Py_Dealloc_inline(op)
+#endif   /* !defined(STACKLESS) || !defined(SLP_WITH_FRAME_REF_DEBUG) */
 #endif   /* !defined(Py_LIMITED_API) */
 
 

@@ -2,19 +2,6 @@
 
 #ifndef Py_LIMITED_API
 
-/*** addition to tstate ***/
-#ifdef Py_DEBUG
-#ifndef SLP_WITH_FRAME_REF_DEBUG
-/* SLP_WITH_FRAME_REF_DEBUG must be either undefined, 1 or 2
- *  undefined: disable frame recerence count debugging
- *  1: normal frame recerence count debugging
- *  2: heavy (slow) frame recerence count debugging
- */
-/* #define SLP_WITH_FRAME_REF_DEBUG 1 */
-/* #define SLP_WITH_FRAME_REF_DEBUG 2 */
-#endif
-#endif
-
 /* forward declarations */
 struct _cstack;
 struct _bomb;

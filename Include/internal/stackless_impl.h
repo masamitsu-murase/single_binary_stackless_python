@@ -164,19 +164,20 @@ extern "C" {
  */
 
 /* The macro SLP_WITH_FRAME_REF_DEBUG gets eventually defined in
- * slp_tstate.h. It enables reference debugging for frames and C-frames.
+ * stackless.h. It enables reference debugging for frames and C-frames.
  */
 #ifdef SLP_WITH_FRAME_REF_DEBUG
-#ifndef Py_TRACE_REFS
-#error "SLP_WITH_FRAME_REF_DEBUG requires Py_TRACE_REFS"
+#ifdef _Py_Dealloc
+#error "SLP_WITH_FRAME_REF_DEBUG requires _Py_Dealloc to be a real function"
 /* The SLP_WITH_FRAME_REF_DEBUG mode sets 'tstate->frame' to the invalid
  * address 1, in order to prevent any usage of the frame during a frame
  * transfer.
  * A Py_DECREF can lead to a recursive invocation of the Python interpreter
  * during frame transfers. Therefore, it is necessary to restore
  * 'tstate->frame', if a reference counter drops to zero. This is done by
- * patching _Py_Dealloc(), which is only available, if Py_TRACE_REFS is
- * defined.
+ * patching _Py_Dealloc(). _Py_Dealloc() is usually a macro, that calls an
+ * inline function, but if SLP_WITH_FRAME_REF_DEBUG is defined, it is a real
+ * function. See object.h
  */
 #endif
 
@@ -308,13 +309,10 @@ PyObject * slp_wrap_call_frame(PyFrameObject *frame, int exc, PyObject *retval);
 #define SLP_PEEK_NEXT_FRAME(tstate) \
     ((tstate)->frame)
 
-#ifdef Py_TRACE_REFS
 #define SLP_WITH_VALID_CURRENT_FRAME(expr) \
     do { \
         (void)(expr); \
     } while (0)
-
-#endif  /* #ifdef Py_TRACE_REFS */
 
 #endif /* #ifdef SLP_WITH_FRAME_REF_DEBUG */
 
