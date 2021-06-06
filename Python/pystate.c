@@ -2,6 +2,7 @@
 /* Thread and interpreter state structures and their interfaces */
 
 #include "Python.h"
+#include "internal/mem.h"
 #include "internal/pystate.h"
 #ifdef STACKLESS
 #include "frameobject.h"
