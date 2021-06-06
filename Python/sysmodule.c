@@ -15,10 +15,12 @@ Data members:
 */
 
 #include "Python.h"
-#include "pycore_mem.h"
-#include "pycore_state.h"
 #include "code.h"
 #include "frameobject.h"
+#include "pycore_lifecycle.h"
+#include "pycore_mem.h"
+#include "pycore_pathconfig.h"
+#include "pycore_state.h"
 #include "pythread.h"
 
 #include "osdefs.h"
@@ -153,16 +155,8 @@ sys_breakpointhook(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyOb
         return NULL;
     }
 
-    PyObject *fromlist = Py_BuildValue("(s)", attrname);
-    if (fromlist == NULL) {
-        Py_DECREF(modulepath);
-        PyMem_RawFree(envar);
-        return NULL;
-    }
-    PyObject *module = PyImport_ImportModuleLevelObject(
-        modulepath, NULL, NULL, fromlist, 0);
+    PyObject *module = PyImport_Import(modulepath);
     Py_DECREF(modulepath);
-    Py_DECREF(fromlist);
 
     if (module == NULL) {
         goto error;

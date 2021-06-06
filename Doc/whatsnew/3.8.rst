@@ -98,6 +98,9 @@ Other Language Changes
 * Added support of ``\N{name}`` escapes in :mod:`regular expressions <re>`.
   (Contributed by Jonathan Eunice and Serhiy Storchaka in :issue:`30688`.)
 
+* Dict and dictviews are now iterable in reversed insertion order using
+  :func:`reversed`. (Contributed by Rémi Lapeyre in :issue:`33462`.)
+
 * The syntax allowed for keyword names in function calls was further
   restricted. In particular, ``f((keyword)=arg)`` is no longer allowed. It was
   never intended to permit more than a bare name on the left-hand side of a
@@ -128,6 +131,19 @@ asyncio
 On Windows, the default event loop is now :class:`~asyncio.ProactorEventLoop`.
 
 
+gettext
+-------
+
+Added :func:`~gettext.pgettext` and its variants.
+(Contributed by Franz Glasner, Éric Araujo, and Cheryl Sabella in :issue:`2504`.)
+
+gzip
+----
+
+Added the *mtime* parameter to :func:`gzip.compress` for reproducible output.
+(Contributed by Guo Ci Teo in :issue:`34898`.)
+
+
 idlelib and IDLE
 ----------------
 
@@ -140,6 +156,12 @@ by right-clicking the button.  (Contributed by Tal Einat in :issue:`1529353`.)
 
 The changes above have been backported to 3.7 maintenance releases.
 
+
+json.tool
+---------
+
+Add option ``--json-lines`` to parse every input line as separate JSON object.
+(Contributed by Weipeng Hong in :issue:`31553`.)
 
 os.path
 -------
@@ -204,6 +226,22 @@ Added method :meth:`~tkinter.Canvas.moveto`
 in the :class:`tkinter.Canvas` class.
 (Contributed by Juliette Monsel in :issue:`23831`.)
 
+unicodedata
+-----------
+
+* New function :func:`~unicodedata.is_normalized` can be used to verify a string
+  is in a specific normal form. (Contributed by Max Belanger and David Euresti in
+  :issue:`32285`).
+
+unittest
+--------
+
+* Added :func:`~unittest.addModuleCleanup()` and
+  :meth:`~unittest.TestCase.addClassCleanup()` to unittest to support
+  cleanups for :func:`~unittest.setUpModule()` and
+  :meth:`~unittest.TestCase.setUpClass()`.
+  (Contributed by Lisa Roach in :issue:`24412`.)
+
 venv
 ----
 
@@ -215,7 +253,7 @@ xml
 ---
 
 * As mitigation against DTD and external entity retrieval, the
-  :mod:`xml.dom.minidom` and mod:`xml.sax` modules no longer process
+  :mod:`xml.dom.minidom` and :mod:`xml.sax` modules no longer process
   external entities by default.
   (Contributed by Christian Heimes in :issue:`17239`.)
 
@@ -425,7 +463,7 @@ Changes in the Python API
 * :class:`uuid.UUID` now uses ``__slots__``, therefore instances can no longer
   be weak-referenced and attributes can no longer be added.
 
-* :mod:`xml.dom.minidom` and mod:`xml.sax` modules no longer process
+* :mod:`xml.dom.minidom` and :mod:`xml.sax` modules no longer process
   external entities by default.
   (Contributed by Christian Heimes in :issue:`17239`.)
 

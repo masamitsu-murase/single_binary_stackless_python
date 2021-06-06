@@ -5,6 +5,7 @@
 #include "Python-ast.h"
 #undef Yield /* undefine macro conflicting with winbase.h */
 #include "pycore_hash.h"
+#include "pycore_lifecycle.h"
 #include "pycore_mem.h"
 #include "pycore_state.h"
 #include "errcode.h"
@@ -838,7 +839,7 @@ remove_module(PyObject *name)
         if (!PyMapping_HasKey(modules, name)) {
             return;
         }
-        Py_FatalError("import:  deleting existing key in"
+        Py_FatalError("import:  deleting existing key in "
                       "sys.modules failed");
     }
 }
