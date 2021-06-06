@@ -1,9 +1,9 @@
 #include "Python.h"
 
 #include "structmember.h"
-#include "internal/pystate.h"
-#include "internal/context.h"
-#include "internal/hamt.h"
+#include "pycore_state.h"
+#include "pycore_context.h"
+#include "pycore_hamt.h"
 #include "internal/stackless_impl.h"
 #include "internal/slp_prickelpit.h"
 

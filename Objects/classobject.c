@@ -1,8 +1,8 @@
 /* Class object implementation (dead now except for methods) */
 
 #include "Python.h"
-#include "internal/mem.h"
-#include "internal/pystate.h"
+#include "pycore_mem.h"
+#include "pycore_state.h"
 #include "structmember.h"
 #include "internal/stackless_impl.h"
 
