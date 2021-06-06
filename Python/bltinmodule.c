@@ -3,7 +3,7 @@
 #include "Python.h"
 #include <ctype.h>
 #include "ast.h"
-#include "pycore_state.h"
+#include "pycore_pystate.h"
 #include "pycore_stackless.h"
 
 _Py_IDENTIFIER(__builtins__);
