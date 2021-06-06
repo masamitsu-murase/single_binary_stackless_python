@@ -5899,7 +5899,7 @@ wrap_next(PyObject *self, PyObject *args, void *wrapped)
     STACKLESS_PROMOTE_ALL();
     res = (*func)(self);
     STACKLESS_ASSERT();
-    STACKLESS_ASSERT_UNWINDING_VALUE_IS_NOT(PyThreadState_GET(), res, NULL);
+    STACKLESS_ASSERT_UNWINDING_VALUE_IS_NOT(_PyThreadState_GET(), res, NULL);
     if (res == NULL && !PyErr_Occurred())
         PyErr_SetNone(PyExc_StopIteration);
     return res;
@@ -6762,7 +6762,7 @@ slot_tp_descr_set(PyObject *self, PyObject *target, PyObject *value)
 PyObject *
 slp_tp_init_callback(PyFrameObject *f, int exc, PyObject *retval)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyCFrameObject *cf = (PyCFrameObject *) f;
 
     f = cf->f_back;
@@ -6805,7 +6805,7 @@ slot_tp_init(PyObject *self, PyObject *args, PyObject *kwds)
             return -1;
         Py_INCREF(self);
         f->ob1 = self;
-        SLP_SET_CURRENT_FRAME(PyThreadState_GET(), (PyFrameObject *) f);
+        SLP_SET_CURRENT_FRAME(_PyThreadState_GET(), (PyFrameObject *) f);
         /* f contains the only counted reference to current frame. This reference
          * keeps the fame alive during the following PyObject_Call().
          */
@@ -6823,7 +6823,7 @@ slot_tp_init(PyObject *self, PyObject *args, PyObject *kwds)
 #ifdef STACKLESS
     if (stackless && !STACKLESS_UNWINDING(res)) {
         /* required, because we added a C-frame */
-        PyThreadState *ts = PyThreadState_GET();
+        PyThreadState *ts = _PyThreadState_GET();
         STACKLESS_PACK(ts, res);
         assert(f);
         assert((PyFrameObject *)f == SLP_CURRENT_FRAME(ts));

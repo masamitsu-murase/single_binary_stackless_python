@@ -95,7 +95,7 @@ slp_current_uninsert(PyTaskletObject *task)
 PyTaskletObject *
 slp_current_remove(void)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyTaskletObject **chain = &ts->st.current, *ret;
 
     /* Make sure that the tasklet belongs to this thread.
@@ -235,7 +235,7 @@ tasklet_clear(PyTaskletObject *t)
 static void
 kill_finally (PyObject *ob)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyTaskletObject *self = (PyTaskletObject *) ob;
     int is_mine = ts == self->cstate->tstate;
     int i;
@@ -534,7 +534,7 @@ tasklet_bind(PyObject *self, PyObject *args, PyObject *kwargs)
 static PyObject *
 tasklet_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyTaskletObject *t;
 
     /* we always need a cstate, so be sure to initialize */
@@ -838,7 +838,7 @@ tasklet_setstate(PyObject *self, PyObject *args)
     assert(t->exc_state.previous_item == NULL);
 
     /* t must not be current, otherwise we would have to assign to ts->exc_info_obj */
-    assert(t != PyThreadState_GET()->st.current);
+    assert(t != _PyThreadState_GET()->st.current);
     if (exc_info_obj == Py_None) {
         t->exc_info = &t->exc_state;
     } else {
@@ -891,7 +891,7 @@ int
 PyTasklet_BindThread(PyTaskletObject *task, unsigned long thread_id)
 {
     PyThreadState *ts = task->cstate->tstate;
-    PyThreadState *cts = PyThreadState_GET();
+    PyThreadState *cts = _PyThreadState_GET();
     PyObject *old;
     assert(PyTasklet_Check(task));
 
@@ -951,7 +951,7 @@ PyTasklet_Remove_M(PyTaskletObject *task)
 static int
 impl_tasklet_remove(PyTaskletObject *task)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
 
     assert(PyTasklet_Check(task));
     if (ts->st.main == NULL) return PyTasklet_Remove_M(task);
@@ -1008,7 +1008,7 @@ PyTasklet_Insert_M(PyTaskletObject *task)
 static int
 impl_tasklet_insert(PyTaskletObject *task)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
 
     assert(PyTasklet_Check(task));
     if (ts->st.main == NULL)
@@ -1067,7 +1067,7 @@ impl_tasklet_run_remove(PyTaskletObject *task, int remove);
 int
 PyTasklet_Run_nr(PyTaskletObject *task)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     STACKLESS_PROPOSE_ALL(ts);
     return slp_return_wrapper(impl_tasklet_run_remove(task, 0));
 }
@@ -1085,7 +1085,7 @@ static PyObject *
 impl_tasklet_run_remove(PyTaskletObject *task, int remove)
 {
     STACKLESS_GETARG();
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyObject *ret;
     int inserted, fail, switched, removed=0;
     PyTaskletObject *prev = ts->st.current;
@@ -1196,7 +1196,7 @@ PyTasklet_Switch_M(PyTaskletObject *task)
 int
 PyTasklet_Switch_nr(PyTaskletObject *task)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     STACKLESS_PROPOSE_ALL(ts);
     return slp_return_wrapper(impl_tasklet_run_remove(task, 1));
 }
@@ -1233,7 +1233,7 @@ PyTasklet_SetAtomic(PyTaskletObject *task, int flag)
     int ret = task->flags.atomic;
 
     task->flags.atomic = flag ? 1 : 0;
-    if (task->flags.pending_irq && task == PyThreadState_GET()->st.current)
+    if (task->flags.pending_irq && task == _PyThreadState_GET()->st.current)
         slp_check_pending_irq();
     return ret;
 }
@@ -1266,7 +1266,7 @@ PyTasklet_SetIgnoreNesting(PyTaskletObject *task, int flag)
     int ret = task->flags.ignore_nesting;
 
     task->flags.ignore_nesting = flag ? 1 : 0;
-    if (task->flags.pending_irq && task == PyThreadState_GET()->st.current)
+    if (task->flags.pending_irq && task == _PyThreadState_GET()->st.current)
         slp_check_pending_irq();
     return ret;
 }
@@ -1326,7 +1326,7 @@ int PyTasklet_Setup(PyTaskletObject *task, PyObject *args, PyObject *kwds)
 static int
 impl_tasklet_setup(PyTaskletObject *task, PyObject *args, PyObject *kwds, int insert)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyFrameObject *frame;
     PyObject *func;
 
@@ -1423,7 +1423,7 @@ _impl_tasklet_throw_bomb(PyTaskletObject *self, int pending, PyObject *bomb)
 #endif
 {
     STACKLESS_GETARG();
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyObject *ret, *tmpval;
     int fail;
 
@@ -1557,7 +1557,7 @@ static PyObject *
 impl_tasklet_throw(PyTaskletObject *self, int pending, PyObject *exc, PyObject *val, PyObject *tb)
 {
     STACKLESS_GETARG();
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyObject *ret, *bomb;
 
     if (ts->st.main == NULL)
@@ -1626,7 +1626,7 @@ impl_tasklet_raise_exception(PyTaskletObject *self, PyObject *klass, PyObject *a
 
 {
     STACKLESS_GETARG();
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyObject *ret, *bomb;
 
     if (ts->st.main == NULL)
@@ -2098,7 +2098,7 @@ tasklet_set_trace_function(PyTaskletObject *task, PyObject *value)
     }
     if (ts && ts->st.current == task) {
         /* current tasklet */
-        if (PyThreadState_GET() != ts)
+        if (_PyThreadState_GET() != ts)
             RUNTIME_ERROR("You cannot set the trace function of the current tasklet of another thread", -1);
         PyEval_SetTrace(tf, value);
         return 0;
@@ -2232,7 +2232,7 @@ tasklet_set_profile_function(PyTaskletObject *task, PyObject *value)
     }
     if (ts && ts->st.current == task) {
         /* current tasklet */
-        if (PyThreadState_GET() != ts)
+        if (_PyThreadState_GET() != ts)
             RUNTIME_ERROR("You cannot set the profile function of the current tasklet of another thread", -1);
         PyEval_SetProfile(tf, value);
         return 0;

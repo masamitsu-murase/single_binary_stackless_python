@@ -17,7 +17,7 @@ typedef PyObject *(PyFrame_ExecFunc) (struct _frame *, int, PyObject *);
  *
  *  PyObject * example(PyFrameObject *f, int exc, PyObject *retval)
  *  {
- *     PyThreadState *ts = PyThreadState_GET();
+ *     PyThreadState *ts = _PyThreadState_GET();
  *
  *     do something ....
  *     if you change retval, use Py_SETREF(retval, new_value) or

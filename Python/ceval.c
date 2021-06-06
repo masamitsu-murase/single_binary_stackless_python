@@ -3892,7 +3892,7 @@ slp_eval_frame_yield_from(PyFrameObject *f, int throwflag, PyObject *retval)
 static PyObject *
 run_frame_dispatch(PyFrameObject *f, int exc, PyObject *retval)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyCFrameObject *cf = (PyCFrameObject*) f;
     PyFrameObject *f_back;
     int done = cf->i;
@@ -3938,7 +3938,7 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
      * This method is not used by Stackless Python. It is provided for compatibility
      * with extension modules and Cython.
      */
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
     PyObject * retval = NULL;
     PyFrameObject * f_back;
 
@@ -4056,7 +4056,7 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
 PyObject * _Py_HOT_FUNCTION
 PyEval_EvalFrameEx_slp(PyFrameObject *f, int throwflag, PyObject *retval)
 {
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
 
     /* Check, if an extension module has changed tstate->interp->eval_frame.
      * PEP 523 defines this function pointer as an API to customise the frame
@@ -5111,7 +5111,7 @@ PyEval_GetGlobals(void)
     PyFrameObject *current_frame = PyEval_GetFrame();
 #if 1 && defined STACKLESS
     if (current_frame == NULL) {
-        PyThreadState *ts = PyThreadState_GET();
+        PyThreadState *ts = _PyThreadState_GET();
 
         if (ts->st.current != NULL)
             return ts->st.current->def_globals;

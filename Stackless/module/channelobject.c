@@ -402,7 +402,7 @@ channel_callback(PyObject *channel_hook, PyChannelObject *channel, PyTaskletObje
 
 int PyStackless_SetChannelCallback(PyObject *callable)
 {
-    PyThreadState * ts = PyThreadState_GET();
+    PyThreadState * ts = _PyThreadState_GET();
     if(callable != NULL && !PyCallable_Check(callable))
         TYPE_ERROR("channel callback must be callable", -1);
     Py_XINCREF(callable);
@@ -413,7 +413,7 @@ int PyStackless_SetChannelCallback(PyObject *callable)
 PyObject *
 slp_get_channel_callback(void)
 {
-    PyObject *temp = PyThreadState_GET()->interp->st.channel_hook;
+    PyObject *temp = _PyThreadState_GET()->interp->st.channel_hook;
     Py_XINCREF(temp);
     return temp;
 }
@@ -447,7 +447,7 @@ generic_channel_block(PyThreadState *ts, PyObject **result, PyChannelObject *sel
 static PyObject *
 generic_channel_action(PyChannelObject *self, PyObject *arg, int dir, int stackless)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyTaskletObject *source = ts->st.current;
     PyTaskletObject *target = self->head;
     int cando = dir > 0 ? self->balance < 0 : self->balance > 0;
@@ -597,7 +597,7 @@ static PyObject *
 impl_channel_send(PyChannelObject *self, PyObject *arg)
 {
     STACKLESS_GETARG();
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
 
     if(ts->st.main == NULL) return PyChannel_Send_M(self, arg);
     return generic_channel_action(self, arg, 1, stackless);
@@ -606,7 +606,7 @@ impl_channel_send(PyChannelObject *self, PyObject *arg)
 int
 PyChannel_Send_nr(PyChannelObject *self, PyObject *arg)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     STACKLESS_PROPOSE_ALL(ts);
     return slp_return_wrapper(impl_channel_send(self, arg));
 }
@@ -645,7 +645,7 @@ static PyObject *
 impl_channel_send_exception(PyChannelObject *self, PyObject *klass, PyObject *args)
 {
     STACKLESS_GETARG();
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyObject *bomb, *ret = NULL;
 
     assert(PyChannel_Check(self));
@@ -716,7 +716,7 @@ static PyObject *
 impl_channel_send_throw(PyChannelObject *self, PyObject *exc, PyObject *val, PyObject *tb)
 {
     STACKLESS_GETARG();
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyObject *bomb, *ret = NULL;
 
     assert(PyChannel_Check(self));
@@ -781,7 +781,7 @@ static PyObject *
 impl_channel_receive(PyChannelObject *self)
 {
     STACKLESS_GETARG();
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
 
     if (ts->st.main == NULL) return PyChannel_Receive_M(self);
     return generic_channel_action(self, Py_None, -1, stackless);
@@ -790,7 +790,7 @@ impl_channel_receive(PyChannelObject *self)
 PyObject *
 PyChannel_Receive_nr(PyChannelObject *self)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyObject *ret;
 
     STACKLESS_PROPOSE_ALL(ts);
@@ -950,7 +950,7 @@ _channel_send_sequence(PyChannelObject *self, PyObject *v)
 PyObject *
 slp_channel_seq_callback(PyFrameObject *_f, int exc, PyObject *retval)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyCFrameObject *f = (PyCFrameObject *) _f;
     PyChannelObject *ch;
     PyObject *item;
@@ -1023,7 +1023,7 @@ static PyObject *
 channel_send_sequence(PyChannelObject *self, PyObject *v)
 {
     STACKLESS_GETARG();
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyObject *it;
     PyCFrameObject *f;
 

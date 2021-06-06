@@ -41,7 +41,7 @@ static void slp_cstack_cacheclear(void)
 static void
 cstack_dealloc(PyCStackObject *cst)
 {
-    PyThreadState * ts = PyThreadState_GET();
+    PyThreadState * ts = _PyThreadState_GET();
     ts->interp->st.cstack_chain = cst;
     SLP_CHAIN_REMOVE(PyCStackObject, &ts->interp->st.cstack_chain, cst, next,
                      prev);
@@ -77,13 +77,13 @@ slp_cstack_new(PyCStackObject **cst, intptr_t *stackref, PyTaskletObject *task)
         ts = task->cstate->tstate;
     }
     if (ts == NULL) {
-        ts = PyThreadState_GET();
+        ts = _PyThreadState_GET();
     }
 
     stackbase = ts->st.cstack_base;
     size = stackbase - stackref;
 
-    assert(size == 0 || ts == PyThreadState_GET());
+    assert(size == 0 || ts == _PyThreadState_GET());
     assert(size >= 0);
 
     if (*cst != NULL) {
@@ -223,7 +223,7 @@ PyTypeObject PyCStack_Type = {
 static int
 make_initial_stub(void)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     int result;
 
     Py_CLEAR(ts->st.initial_stub);
@@ -253,7 +253,7 @@ climb_stack_and_eval_frame(PyFrameObject *f)
      * This way, initial_stub is always valid to be
      * used to return to the main c stack.
      */
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     intptr_t probe;
     ptrdiff_t needed = &probe - ts->st.cstack_base;
     /* in rare cases, the need might have vanished due to the recursion */
@@ -279,7 +279,7 @@ slp_run_tasklet(void)
      * slp_transfer_return(). Therefore, this function must not hold
      * any reference during the execution of these sub-functions.
      */
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyObject *retval;
 
     SLP_ASSERT_FRAME_IN_TRANSFER(ts);
@@ -314,7 +314,7 @@ slp_run_tasklet(void)
 PyObject * _Py_HOT_FUNCTION
 slp_eval_frame(PyFrameObject *f)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyFrameObject *fprev = f->f_back;
     intptr_t * stackref;
     PyObject *retval;
@@ -405,7 +405,7 @@ get_current_main_and_watchdogs(PyThreadState *ts, PyObject *list)
 {
     PyTaskletObject *t;
 
-    assert(ts != PyThreadState_GET());  /* don't kill ourself */
+    assert(ts != _PyThreadState_GET());  /* don't kill ourself */
     assert(PyList_CheckExact(list));
 
     /* kill watchdogs */
@@ -501,7 +501,7 @@ run_other_threads(PyObject **sleep, Py_ssize_t count)
  */
 void slp_kill_tasks_with_stacks(PyThreadState *target_ts)
 {
-    PyThreadState *cts = PyThreadState_GET();
+    PyThreadState *cts = _PyThreadState_GET();
     PyInterpreterState * interp = cts->interp;
     int in_loop = 0;
 
@@ -845,7 +845,7 @@ void PyStackless_kill_tasks_with_stacks(int allthreads)
 static PyObject *
 eval_frame_callback(PyFrameObject *f, int exc, PyObject *retval)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyTaskletObject *cur = ts->st.current;
     PyCStackObject *cst;
     PyCFrameObject *cf = (PyCFrameObject *) f;
@@ -917,7 +917,7 @@ fatal:
 PyObject *
 slp_eval_frame_newstack(PyFrameObject *f, int exc, PyObject *retval)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyTaskletObject *cur = ts->st.current;
     PyCFrameObject *cf = NULL;
     PyCStackObject *cst;
@@ -1026,7 +1026,7 @@ PyUnwindObject *Py_UnwindToken = &unwind_token;
 PyObject * _Py_HOT_FUNCTION
 slp_frame_dispatch(PyFrameObject *f, PyFrameObject *stopframe, int exc, PyObject *retval)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyFrameObject *first_frame = f;
     ++ts->st.nesting_level;
 
@@ -1070,7 +1070,7 @@ slp_frame_dispatch(PyFrameObject *f, PyFrameObject *stopframe, int exc, PyObject
 static PyObject *
 slp_frame_dispatch_top(PyObject *retval)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyFrameObject *f = SLP_CLAIM_NEXT_FRAME(ts);
 
     if (f==NULL) return retval;

@@ -244,17 +244,14 @@ PyObject * slp_wrap_call_frame(PyFrameObject *frame, int exc, PyObject *retval);
 
 #endif  /* #if (SLP_WITH_FRAME_REF_DEBUG == 2) */
 
-/* Access the thread state without a check for NULL */
-#define _SLP_PyThreadState_Current ((PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current))
-
 /* Used in _Py_Dealloc() to eventually restore tstate->frame */
 #define SLP_WITH_VALID_CURRENT_FRAME(expr) \
     do { \
-        if (_SLP_PyThreadState_Current != NULL && \
-            (assert(_SLP_FRAME_STATE_IS_CONSISTENT(_SLP_PyThreadState_Current)), \
-            _SLP_FRAME_IN_TRANSFER(_SLP_PyThreadState_Current))) \
+        if (_PyThreadState_GET() != NULL && \
+            (assert(_SLP_FRAME_STATE_IS_CONSISTENT(_PyThreadState_GET())), \
+            _SLP_FRAME_IN_TRANSFER(_PyThreadState_GET()))) \
         { \
-            PyThreadState * ts = _SLP_PyThreadState_Current; \
+            PyThreadState * ts = _PyThreadState_GET(); \
             PyFrameObject * frame = SLP_CLAIM_NEXT_FRAME(ts); \
             (void)(expr); \
             assert(frame == NULL || Py_REFCNT(frame) >= 1); \
@@ -264,8 +261,8 @@ PyObject * slp_wrap_call_frame(PyFrameObject *frame, int exc, PyObject *retval);
             Py_XDECREF(frame); \
         } else { \
             (void)(expr); \
-            assert(_SLP_PyThreadState_Current == NULL || _SLP_FRAME_STATE_IS_CONSISTENT(_SLP_PyThreadState_Current)); \
-            assert(_SLP_PyThreadState_Current == NULL || !_SLP_FRAME_IN_TRANSFER(_SLP_PyThreadState_Current)); \
+            assert(_PyThreadState_GET() == NULL || _SLP_FRAME_STATE_IS_CONSISTENT(_PyThreadState_GET())); \
+            assert(_PyThreadState_GET() == NULL || !_SLP_FRAME_IN_TRANSFER(_PyThreadState_GET())); \
         } \
     } while (0)
 
@@ -446,7 +443,7 @@ PyTaskletObject * slp_get_watchdog(PyThreadState *ts, int interrupt);
 #undef STACKLESS__GETARG_ASSERT
 #endif
 #define STACKLESS__GETARG_ASSERT \
-    assert(SLP_CURRENT_FRAME_IS_VALID(PyThreadState_GET()))
+    assert(SLP_CURRENT_FRAME_IS_VALID(_PyThreadState_GET()))
 
 /* descr must be of type PyWrapperDescrObject, but this type is undocumented.
  * Therefore this macro is in pycore_stackless.h and not in stackless_api.h

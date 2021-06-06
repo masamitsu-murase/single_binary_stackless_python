@@ -2591,7 +2591,7 @@ PyIter_Next(PyObject *iter)
     STACKLESS_PROMOTE_METHOD(iter, tp_iternext);
     result = (*iter->ob_type->tp_iternext)(iter);
     STACKLESS_ASSERT();
-    STACKLESS_ASSERT_UNWINDING_VALUE_IS_NOT(PyThreadState_GET(), result, NULL);
+    STACKLESS_ASSERT_UNWINDING_VALUE_IS_NOT(_PyThreadState_GET(), result, NULL);
     if (result == NULL &&
         PyErr_Occurred() &&
         PyErr_ExceptionMatches(PyExc_StopIteration))

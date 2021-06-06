@@ -91,7 +91,7 @@ cframe_clear(PyCFrameObject *cf)
 PyCFrameObject *
 slp_cframe_new(PyFrame_ExecFunc *exec, unsigned int linked)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyCFrameObject *cf;
     PyFrameObject *back;
 
@@ -247,7 +247,7 @@ static PyMethodDef cframe_methods[] = {
 
 static PyObject * run_cframe(PyFrameObject *f, int exc, PyObject *retval)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyCFrameObject *cf = (PyCFrameObject*) f;
     PyTaskletObject *task = ts->st.current;
     int done = cf->i;
@@ -452,7 +452,7 @@ execute_soft_switchable_func(PyFrameObject *f, int exc, PyObject *retval)
      * Special rule for frame execution functions: we now own a reference to retval!
      */
     PyCFrameObject *cf = (PyCFrameObject *)f;
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyObject *ob1, *ob2, *ob3;
     PyStacklessFunctionDeclarationObject *ssfd =
             (PyStacklessFunctionDeclarationObject*)cf->any2;
@@ -504,7 +504,7 @@ PyStackless_CallFunction(PyStacklessFunctionDeclarationObject *ssfd, PyObject *a
         PyObject *ob1, PyObject *ob2, PyObject *ob3, long n, void *any)
 {
     STACKLESS_GETARG();
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyObject *et=NULL, *ev=NULL, *tb=NULL;
 
     assert(ssfd);

@@ -627,7 +627,7 @@ PyObject* slp_context_run_callback(PyFrameObject *f, int exc, PyObject *result)
 
     if (cf->i) {
         /* called by tasklet.context_run(...) */
-        PyThreadState *ts = PyThreadState_GET();
+        PyThreadState *ts = _PyThreadState_GET();
         assert(ts);
         assert(NULL == context || PyContext_CheckExact(context));
         Py_XSETREF(ts->context, context);
@@ -640,7 +640,7 @@ PyObject* slp_context_run_callback(PyFrameObject *f, int exc, PyObject *result)
         Py_DECREF(context);
     }
 
-    SLP_STORE_NEXT_FRAME(PyThreadState_GET(), cf->f_back);
+    SLP_STORE_NEXT_FRAME(_PyThreadState_GET(), cf->f_back);
     return result;
 }
 
@@ -666,7 +666,7 @@ context_run(PyContext *self, PyObject *const *args,
     }
 
 #ifdef STACKLESS
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyCFrameObject *f = NULL;
     if (stackless) {
         f = slp_cframe_new(slp_context_run_callback, 1);

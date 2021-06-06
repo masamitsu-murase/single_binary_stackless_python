@@ -37,7 +37,7 @@ _Py_CheckFunctionResult(PyObject *callable, PyObject *result, const char *where)
 
     assert((callable != NULL) ^ (where != NULL));
 
-    if (STACKLESS_RETVAL(PyThreadState_GET(), result) == NULL) {
+    if (STACKLESS_RETVAL(_PyThreadState_GET(), result) == NULL) {
         if (!err_occurred) {
             if (callable)
                 PyErr_Format(PyExc_SystemError,
@@ -56,7 +56,7 @@ _Py_CheckFunctionResult(PyObject *callable, PyObject *result, const char *where)
     }
     else {
         if (err_occurred) {
-            Py_DECREF(STACKLESS_RETVAL(PyThreadState_GET(), result));
+            Py_DECREF(STACKLESS_RETVAL(_PyThreadState_GET(), result));
 
             if (callable) {
                 _PyErr_FormatFromCause(PyExc_SystemError,

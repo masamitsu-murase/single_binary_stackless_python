@@ -199,7 +199,7 @@ PyDoc_STRVAR(set_reduce_frame__doc__,
 static PyObject *
 set_reduce_frame(PyObject *self, PyObject *func)
 {
-    PyThreadState * ts = PyThreadState_GET();
+    PyThreadState * ts = _PyThreadState_GET();
     if (func == Py_None) {
         Py_CLEAR(ts->interp->st.reduce_frame_func);
     } else {
@@ -214,7 +214,7 @@ set_reduce_frame(PyObject *self, PyObject *func)
 
 PyObject *
 slp_reduce_frame(PyFrameObject * frame) {
-    PyThreadState * ts = PyThreadState_GET();
+    PyThreadState * ts = _PyThreadState_GET();
     if (!PyFrame_Check(frame) || ts->interp->st.reduce_frame_func == NULL) {
         Py_INCREF(frame);
         return (PyObject *)frame;
@@ -232,7 +232,7 @@ slp_reduce_frame(PyFrameObject * frame) {
  */
 static PyObject *
 unwrap_frame_arg(PyObject * args) {
-    PyThreadState * ts = PyThreadState_GET();
+    PyThreadState * ts = _PyThreadState_GET();
     PyObject *wrapper_type, *arg0, *result;
     int is_instance;
     Py_ssize_t len, i;
@@ -374,7 +374,7 @@ slp_cannot_execute(PyFrameObject *f, const char *exec_name, PyObject *retval)
     /*
      * show an error message and raise exception.
      */
-    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *tstate = _PyThreadState_GET();
 
     /* if we already have an exception, we keep it */
     if (retval != NULL) {
@@ -856,7 +856,7 @@ frameobject_reduce(PyFrameObject *f)
     int have_locals = f->f_locals != NULL;
     PyObject * dummy_locals = NULL;
     PyObject * f_trace = NULL;
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
 
     if (!have_locals)
         if ((dummy_locals = PyDict_New()) == NULL)
@@ -939,7 +939,7 @@ err_exit:
 static PyObject *
 frame_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyFrameObject *f;
     PyCodeObject *f_code;
     PyObject *globals;
@@ -1602,7 +1602,7 @@ reduce_to_gen_obj_head(gen_obj_head_ty *goh, PyFrameObject * frame, const _PyErr
 
     assert(exc_state != NULL);
     if (exc_state->previous_item != NULL) {
-        assert(exc_state->previous_item != &(PyThreadState_GET()->exc_state));
+        assert(exc_state->previous_item != &(_PyThreadState_GET()->exc_state));
         goh->exc_info_obj = slp_get_obj_for_exc_state(exc_state->previous_item);
         if (goh->exc_info_obj == NULL) {
             Py_DECREF(goh->frame);
@@ -1978,7 +1978,7 @@ static int init_coroutinetype(PyObject * mod)
 static PyObject *
 async_gen_reduce(PyAsyncGenObject *async_gen)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyObject *tup;
     gen_obj_head_ty goh;
     PyObject *finalizer;
@@ -2046,7 +2046,7 @@ async_gen_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 static PyObject *
 async_gen_setstate(PyObject *self, PyObject *args)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyAsyncGenObject *async_gen = (PyAsyncGenObject *)self;
     gen_obj_head_ty goh;
     PyObject *finalizer;

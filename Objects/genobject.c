@@ -342,7 +342,7 @@ gen_send_ex2(PyGenObject *gen, PyObject *arg, int exc, int closing, PyObject * o
 static PyObject*
 gen_iternext_callback(PyFrameObject *f, int exc, PyObject *result)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyCFrameObject *cf = (PyCFrameObject *) f;
     PyGenObject *gen = (PyGenObject *) cf->ob1;
     PyObject *arg = cf->ob2;

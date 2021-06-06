@@ -145,7 +145,7 @@ _stackless_pickle_flags_default_impl(PyObject *module, long new_default,
                                      long mask)
 /*[clinic end generated code: output=60e5303388b2dee1 input=ed5fcb139f236812]*/
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     long old_default;
 
     if (new_default < -1 || (new_default & mask) > SLP_PICKLEFLAGS__MAX_VALUE) {
@@ -191,7 +191,7 @@ static PyObject *
 _stackless_pickle_flags_impl(PyObject *module, long new_flags, long mask)
 /*[clinic end generated code: output=fd773a5b06ab0c48 input=36479a8e5486c711]*/
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     long old_flags;
 
     Py_BUILD_ASSERT(sizeof(ts->interp->st.pickleflags) == sizeof(ts->st.pickleflags));
@@ -239,7 +239,7 @@ PyObject *
 PyStackless_Schedule(PyObject *retval, int remove)
 {
     STACKLESS_GETARG();
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyTaskletObject *prev = ts->st.current, *next;
     PyObject *tmpval, *ret = NULL;
     int switched, fail;
@@ -284,7 +284,7 @@ PyStackless_Schedule(PyObject *retval, int remove)
 PyObject *
 PyStackless_Schedule_nr(PyObject *retval, int remove)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     STACKLESS_PROPOSE_ALL(ts);
     return PyStackless_Schedule(retval, remove);
 }
@@ -293,7 +293,7 @@ static PyObject *
 schedule(PyObject *self, PyObject *args, PyObject *kwds)
 {
     STACKLESS_GETARG();
-    PyObject *retval = (PyObject *) PyThreadState_GET()->st.current;
+    PyObject *retval = (PyObject *) _PyThreadState_GET()->st.current;
     static char *argnames[] = {"retval", NULL};
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O:schedule",
@@ -309,7 +309,7 @@ static PyObject *
 schedule_remove(PyObject *self, PyObject *args, PyObject *kwds)
 {
     STACKLESS_GETARG();
-    PyObject *retval = (PyObject *) PyThreadState_GET()->st.current;
+    PyObject *retval = (PyObject *) _PyThreadState_GET()->st.current;
     static char *argnames[] = {"retval", NULL};
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O:schedule_remove",
@@ -328,14 +328,14 @@ PyDoc_STRVAR(getruncount__doc__,
 int
 PyStackless_GetRunCount(void)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     return ts->st.runcount;
 }
 
 static PyObject *
 getruncount(PyObject *self)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     return PyLong_FromLong(ts->st.runcount);
 }
 
@@ -346,7 +346,7 @@ PyDoc_STRVAR(getcurrent__doc__,
 PyObject *
 PyStackless_GetCurrent(void)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     /* only if there is a main tasklet, is the current one
      * the active one.  Otherwise, it is merely a runnable
      * tasklet
@@ -409,7 +409,7 @@ PyDoc_STRVAR(getmain__doc__,
 static PyObject *
 getmain(PyObject *self)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyObject * t = (PyObject*) ts->st.main;
     Py_INCREF(t);
     return t;
@@ -427,7 +427,7 @@ PyDoc_STRVAR(enable_soft__doc__,
 static PyObject *
 enable_softswitch(PyObject *self, PyObject *flag)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyObject *ret;
     int newflag;
     if (!flag || flag == Py_None)
@@ -468,7 +468,7 @@ to return after a certain time.");
 static PyObject *
 interrupt_timeout_return(void)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyTaskletObject *current = ts->st.current;
     PyTaskletObject *watchdog;
     PyObject *ret;
@@ -539,7 +539,7 @@ check_watchdog(PyThreadState *ts, PyTaskletObject *task);
 PyObject *
 PyStackless_RunWatchdogEx(long timeout, int flags)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyTaskletObject *old_current, *victim;
     PyObject *retval;
     int fail;
@@ -781,7 +781,7 @@ map (stackless.get_thread_info, stackless.threads)");
 static PyObject *
 get_thread_info(PyObject *self, PyObject *args)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyInterpreterState *interp = ts->interp;
     PyObject *thread_id = NULL;
     unsigned long id = 0;
@@ -863,7 +863,7 @@ slpmodule_reduce(PyObject *self)
 int
 PyStackless_AdjustSwitchTrap(int change)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     int old = ts->st.switch_trap;
     ts->st.switch_trap += change;
     return old;
@@ -895,7 +895,7 @@ static PyObject *
 set_error_handler(PyObject *self, PyObject *args)
 {
     PyObject *old, *handler = NULL;
-    PyThreadState * ts = PyThreadState_GET();
+    PyThreadState * ts = _PyThreadState_GET();
     if (!PyArg_ParseTuple(args, "|O:set_error_handler", &handler))
         return NULL;
     old = ts->interp->st.error_handler;
@@ -912,7 +912,7 @@ set_error_handler(PyObject *self, PyObject *args)
 int
 PyStackless_CallErrorHandler(void)
 {
-    PyThreadState * ts = PyThreadState_GET();
+    PyThreadState * ts = _PyThreadState_GET();
     PyObject * error_handler = ts->interp->st.error_handler;
     int res = -1;  /* just raise the current exception */
     PyObject *exc, *val, *tb;
@@ -969,7 +969,7 @@ static
 PyObject *
 _test_outside(PyObject *self)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyTaskletObject *stmain = ts->st.main;
     if (PyTasklet_Scheduled(stmain) && !PyTasklet_IsCurrent(stmain))
         RUNTIME_ERROR("main tasklet is still scheduled", NULL);
@@ -1028,7 +1028,7 @@ static
 PyObject *
 _test_cframe_nr_loop(PyFrameObject *f, int exc, PyObject *retval)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyCFrameObject *cf = (PyCFrameObject *) f;
 
     if (retval == NULL)
@@ -1055,7 +1055,7 @@ PyObject *
 _test_cframe_nr(PyObject *self, PyObject *args, PyObject *kwds)
 {
     static char *argnames[] = {"switches", "cstate_add_addr", NULL};
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyCFrameObject *cf;
     long switches;
     PyObject *cstack = NULL;
@@ -1213,7 +1213,7 @@ static PyObject *get_test_nostacklesscallobj(void)
 PyObject *
 PyStackless_Call_Main(PyObject *func, PyObject *args, PyObject *kwds)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyCFrameObject *cf;
     PyObject *retval;
 
@@ -1321,12 +1321,12 @@ PyStackless_CallCMethod_Main(PyMethodDef *meth, PyObject *self, char *format, ..
 
 void PyStackless_SetScheduleFastcallback(slp_schedule_hook_func func)
 {
-    PyThreadState_GET()->interp->st.schedule_fasthook = func;
+    _PyThreadState_GET()->interp->st.schedule_fasthook = func;
 }
 
 int PyStackless_SetScheduleCallback(PyObject *callable)
 {
-    PyThreadState * ts = PyThreadState_GET();
+    PyThreadState * ts = _PyThreadState_GET();
     PyObject * temp = ts->interp->st.schedule_hook;
     if(callable != NULL && !PyCallable_Check(callable))
         TYPE_ERROR("schedule callback must be callable", -1);
@@ -1354,7 +1354,7 @@ Pass None to switch monitoring off again.");
 static PyObject *
 set_schedule_callback(PyObject *self, PyObject *arg)
 {
-    PyThreadState * ts = PyThreadState_GET();
+    PyThreadState * ts = _PyThreadState_GET();
     PyObject * old = ts->interp->st.schedule_hook;
     if (NULL == old)
         old = Py_None;
@@ -1375,7 +1375,7 @@ This function returns None, if no callback is installed.");
 static PyObject *
 get_schedule_callback(PyObject *self)
 {
-    PyThreadState * ts = PyThreadState_GET();
+    PyThreadState * ts = _PyThreadState_GET();
     PyObject *temp = ts->interp->st.schedule_hook;
     if (NULL == temp)
         temp = Py_None;
@@ -1588,7 +1588,7 @@ PyDoc_STRVAR(slpmodule_getdebug__doc__,
 static PyObject *
 slpmodule_getuncollectables(PyObject *self)
 {
-    PyThreadState * ts = PyThreadState_GET();
+    PyThreadState * ts = _PyThreadState_GET();
     PyObject *lis = PyList_New(0);
     PyCStackObject *cst, *cst_first = ts->interp->st.cstack_chain;
 
@@ -1617,7 +1617,7 @@ PyObject *
 slp_getthreads(PyObject *self)
 {
     PyObject *lis = PyList_New(0);
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     PyInterpreterState *interp = ts->interp;
 
     if (lis == NULL)

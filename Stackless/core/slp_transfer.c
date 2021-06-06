@@ -101,7 +101,7 @@ climb_stack_and_transfer(PyCStackObject **cstprev, PyCStackObject *cst,
      * need to switch from a higher stacklevel, and the
      * needed stack size becomes *negative* :-))
      */
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     intptr_t probe;
     register ptrdiff_t needed = &probe - ts->st.cstack_base;
     /* in rare cases, the need might have vanished due to the recursion */
@@ -124,7 +124,7 @@ int
 slp_transfer(PyCStackObject **cstprev, PyCStackObject *cst,
              PyTaskletObject *prev)
 {
-    PyThreadState *ts = PyThreadState_GET();
+    PyThreadState *ts = _PyThreadState_GET();
     int result;
     /* Use a volatile pointer to prevent inlining of slp_switch().
      * See Stackless issue 183
