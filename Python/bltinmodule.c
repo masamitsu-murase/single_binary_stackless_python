@@ -1,18 +1,10 @@
 /* Built-in functions */
 
 #include "Python.h"
-#include "Python-ast.h"
-#include "pycore_state.h"
-
-#include "pycore_stackless.h"
-
-#include "node.h"
-#include "code.h"
-
-#include "asdl.h"
-#include "ast.h"
-
 #include <ctype.h>
+#include "ast.h"
+#include "pycore_state.h"
+#include "pycore_stackless.h"
 
 _Py_IDENTIFIER(__builtins__);
 _Py_IDENTIFIER(__dict__);
