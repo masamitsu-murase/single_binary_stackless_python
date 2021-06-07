@@ -3,6 +3,7 @@
 #include "pycore_stackless.h"
 
 #include "Python.h"
+#include "pycore_object.h"
 #include "pycore_pystate.h"
 #include "frameobject.h"
 #include "structmember.h"
