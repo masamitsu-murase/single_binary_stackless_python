@@ -6,6 +6,10 @@
 extern "C" {
 #endif
 
+#ifdef STACKLESS
+#include "slp_exttype.h"
+#endif
+
 /********************* String Literals ****************************************/
 /* This structure helps managing static strings. The basic usage goes like this:
    Instead of doing
@@ -154,7 +158,22 @@ typedef struct {
     lenfunc mp_length;
     binaryfunc mp_subscript;
     objobjargproc mp_ass_subscript;
+#ifdef STACKLESS
+    /* we put the stackless method flags in here.  This keeps the basic PyTypeObject size
+     * constants and thus helps with compatibility with external types
+     */
+    slp_methodflags slpflags;
+#endif
 } PyMappingMethods;
+
+#ifdef STACKLESS
+/* we need the original object for inclusion in the PyHeapTypeObject */
+typedef struct {
+    lenfunc mp_length;
+    binaryfunc mp_subscript;
+    objobjargproc mp_ass_subscript;
+} PyMappingMethods_Orig;
+#endif
 
 typedef struct {
     unaryfunc am_await;
@@ -272,7 +291,11 @@ typedef struct _heaptypeobject {
     PyTypeObject ht_type;
     PyAsyncMethods as_async;
     PyNumberMethods as_number;
+#ifdef STACKLESS
+    PyMappingMethods_Orig as_mapping;
+#else
     PyMappingMethods as_mapping;
+#endif
     PySequenceMethods as_sequence; /* as_sequence comes after as_mapping,
                                       so that the mapping wins when both
                                       the mapping and the sequence define
@@ -335,6 +358,8 @@ PyAPI_FUNC(PyObject *) _PyObject_GetBuiltin(const char *name);
 
 #define PyType_HasFeature(t,f)  (((t)->tp_flags & (f)) != 0)
 
+/* Do not inline, if Stackless is compiled with SLP_WITH_FRAME_REF_DEBUG */
+#if !defined(STACKLESS) || !defined(SLP_WITH_FRAME_REF_DEBUG)
 static inline void _Py_Dealloc_inline(PyObject *op)
 {
     destructor dealloc = Py_TYPE(op)->tp_dealloc;
@@ -346,6 +371,7 @@ static inline void _Py_Dealloc_inline(PyObject *op)
     (*dealloc)(op);
 }
 #define _Py_Dealloc(op) _Py_Dealloc_inline(op)
+#endif   /* !defined(STACKLESS) || !defined(SLP_WITH_FRAME_REF_DEBUG) */
 
 
 /* Safely decref `op` and set `op` to `op2`.
