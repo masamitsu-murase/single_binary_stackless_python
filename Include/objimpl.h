@@ -145,7 +145,7 @@ PyAPI_FUNC(PyVarObject *) _PyObject_NewVar(PyTypeObject *, Py_ssize_t);
 
    These inline functions expect non-NULL object pointers. */
 static inline PyObject*
-PyObject_INIT(PyObject *op, PyTypeObject *typeobj)
+_PyObject_INIT(PyObject *op, PyTypeObject *typeobj)
 {
     assert(op != NULL);
     Py_TYPE(op) = typeobj;
@@ -153,14 +153,20 @@ PyObject_INIT(PyObject *op, PyTypeObject *typeobj)
     return op;
 }
 
+#define PyObject_INIT(op, typeobj) \
+    _PyObject_INIT(_PyObject_CAST(op), (typeobj))
+
 static inline PyVarObject*
-PyObject_INIT_VAR(PyVarObject *op, PyTypeObject *typeobj, Py_ssize_t size)
+_PyObject_INIT_VAR(PyVarObject *op, PyTypeObject *typeobj, Py_ssize_t size)
 {
     assert(op != NULL);
     Py_SIZE(op) = size;
     PyObject_INIT((PyObject *)op, typeobj);
     return op;
 }
+
+#define PyObject_INIT_VAR(op, typeobj, size) \
+    _PyObject_INIT_VAR(_PyVarObject_CAST(op), (typeobj), (size))
 
 #define _PyObject_SIZE(typeobj) ( (typeobj)->tp_basicsize )
 
@@ -258,7 +264,7 @@ PyAPI_FUNC(Py_ssize_t) _PyGC_CollectIfEnabled(void);
 
 PyAPI_FUNC(PyVarObject *) _PyObject_GC_Resize(PyVarObject *, Py_ssize_t);
 #define PyObject_GC_Resize(type, op, n) \
-                ( (type *) _PyObject_GC_Resize((PyVarObject *)(op), (n)) )
+                ( (type *) _PyObject_GC_Resize(_PyVarObject_CAST(op), (n)) )
 
 
 #ifndef Py_LIMITED_API
@@ -356,7 +362,7 @@ PyAPI_FUNC(void) PyObject_GC_Del(void *);
 #define Py_VISIT(op)                                                    \
     do {                                                                \
         if (op) {                                                       \
-            int vret = visit((PyObject *)(op), arg);                    \
+            int vret = visit(_PyObject_CAST(op), arg);                  \
             if (vret)                                                   \
                 return vret;                                            \
         }                                                               \
