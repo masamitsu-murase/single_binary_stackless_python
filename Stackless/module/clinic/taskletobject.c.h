@@ -18,7 +18,7 @@ PyDoc_STRVAR(_stackless_tasklet_set_context__doc__,
 "This method returns the tasklet it is called on.");
 
 #define _STACKLESS_TASKLET_SET_CONTEXT_METHODDEF    \
-    {"set_context", (PyCFunction)_stackless_tasklet_set_context, METH_FASTCALL|METH_KEYWORDS, _stackless_tasklet_set_context__doc__},
+    {"set_context", (PyCFunction)(void(*)(void))_stackless_tasklet_set_context, METH_FASTCALL|METH_KEYWORDS, _stackless_tasklet_set_context__doc__},
 
 static PyObject *
 _stackless_tasklet_set_context_impl(PyTaskletObject *self, PyObject *context);
@@ -46,4 +46,4 @@ exit:
 #ifndef _STACKLESS_TASKLET_SET_CONTEXT_METHODDEF
     #define _STACKLESS_TASKLET_SET_CONTEXT_METHODDEF
 #endif /* !defined(_STACKLESS_TASKLET_SET_CONTEXT_METHODDEF) */
-/*[clinic end generated code: output=f45e93a186a75d8b input=a9049054013a1b77]*/
+/*[clinic end generated code: output=d6d26cc0dd503a03 input=a9049054013a1b77]*/
