@@ -26,11 +26,12 @@
 
 #include "Python.h"
 #include "structmember.h"
+#include "pycore_context.h"
+#include "pycore_object.h"
 
 #ifdef STACKLESS
 #include "pycore_stackless.h"
 #include "pycore_slp_prickelpit.h"
-#include "pycore_context.h"
 
 static PyCFrameObject *free_list = NULL;
 static int numfree = 0;         /* number of cframes currently in free_list */

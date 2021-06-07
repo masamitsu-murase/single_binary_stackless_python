@@ -1,10 +1,11 @@
 #include "Python.h"
 #include "structmember.h"
+#include "pythread.h"
+#include "pycore_object.h"
 
 #ifdef STACKLESS
 #include "pycore_stackless.h"
 
-#include "pythread.h"
 
 /******************************************************
 
