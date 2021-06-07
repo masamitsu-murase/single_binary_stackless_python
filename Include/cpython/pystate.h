@@ -5,6 +5,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#ifdef STACKLESS
+#include "cpython/slp_tstate.h"
+#endif
 
 typedef PyObject* (*_PyFrameEvalFunction)(struct _frame *, int);
 
@@ -86,6 +89,10 @@ typedef struct _is {
     PyObject *pyexitmodule;
 
     uint64_t tstate_next_unique_id;
+
+#ifdef STACKLESS
+    PyStacklessInterpreterState st;
+#endif
 } PyInterpreterState;
 
 /* State unique per thread */
@@ -214,6 +221,9 @@ typedef struct _ts {
 
     /* XXX signal handlers should also be here */
 
+#ifdef STACKLESS
+    PyStacklessState st;
+#endif
 } PyThreadState;
 
 /* Get the current interpreter state.

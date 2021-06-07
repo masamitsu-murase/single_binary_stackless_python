@@ -1040,7 +1040,7 @@ PYTHON_HEADERS= \
 		$(srcdir)/Include/stackless_api.h \
 		$(srcdir)/Include/stackless_version.h \
 		$(srcdir)/Include/slp_structs.h \
-		$(srcdir)/Include/slp_tstate.h \
+		$(srcdir)/Include/cpython/slp_tstate.h \
 		$(srcdir)/Include/internal/pycore_stackless.h \
 		$(srcdir)/Include/internal/pycore_slp_pystate.h \
 		$(srcdir)/Include/internal/pycore_slp_prickelpit.h \

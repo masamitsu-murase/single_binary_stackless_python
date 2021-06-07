@@ -6,9 +6,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#ifdef STACKLESS
-#include "slp_tstate.h"
-#endif
 
 #include "pythread.h"
 #include "coreconfig.h"

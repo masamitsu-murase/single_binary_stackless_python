@@ -225,7 +225,7 @@
     <ClInclude Include="..\Python\wordcode_helpers.h" />
     <ClInclude Include="..\Include\slp_exttype.h" />
     <ClInclude Include="..\Include\slp_structs.h" />
-    <ClInclude Include="..\Include\slp_tstate.h" />
+    <ClInclude Include="..\Include\cpython\slp_tstate.h" />
     <ClInclude Include="..\Include\internal\pycore_stackless.h" />
     <ClInclude Include="..\Include\internal\pycore_slp_pystate.h" />
     <ClInclude Include="..\Include\internal\pycore_slp_prickelpit.h" />
