@@ -122,7 +122,13 @@ builtin_chr(PyObject *module, PyObject *arg)
     PyObject *return_value = NULL;
     int i;
 
-    if (!PyArg_Parse(arg, "i:chr", &i)) {
+    if (PyFloat_Check(arg)) {
+        PyErr_SetString(PyExc_TypeError,
+                        "integer argument expected, got float" );
+        goto exit;
+    }
+    i = _PyLong_AsInt(arg);
+    if (i == -1 && PyErr_Occurred()) {
         goto exit;
     }
     return_value = builtin_chr_impl(module, i);
@@ -717,4 +723,4 @@ builtin_issubclass(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=035f6abf98ac1dca input=a9049054013a1b77]*/
+/*[clinic end generated code: output=af2e4612691008cf input=a9049054013a1b77]*/
