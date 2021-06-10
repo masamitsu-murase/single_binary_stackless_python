@@ -69,8 +69,7 @@ INSTALL_SCRIPT= @INSTALL_SCRIPT@
 INSTALL_DATA=	@INSTALL_DATA@
 # Shared libraries must be installed with executable mode on some systems;
 # rather than figuring out exactly which, we always give them executable mode.
-# Also, making them read-only seems to be a good idea...
-INSTALL_SHARED= ${INSTALL} -m 555
+INSTALL_SHARED= ${INSTALL} -m 755
 
 MKDIR_P=	@MKDIR_P@
 
@@ -1063,7 +1062,15 @@ PYTHON_HEADERS= \
 		$(PARSER_HEADERS) \
 		$(srcdir)/Include/Python-ast.h \
 		\
+		$(srcdir)/Include/cpython/abstract.h \
+		$(srcdir)/Include/cpython/dictobject.h \
+		$(srcdir)/Include/cpython/object.h \
 		$(srcdir)/Include/cpython/objimpl.h \
+		$(srcdir)/Include/cpython/pyerrors.h \
+		$(srcdir)/Include/cpython/pylifecycle.h \
+		$(srcdir)/Include/cpython/pystate.h \
+		$(srcdir)/Include/cpython/tupleobject.h \
+		$(srcdir)/Include/cpython/unicodeobject.h \
 		\
 		$(srcdir)/Include/internal/pycore_accu.h \
 		$(srcdir)/Include/internal/pycore_atomic.h \
