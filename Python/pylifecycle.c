@@ -1299,6 +1299,9 @@ new_interpreter(PyThreadState **tstate_p)
         PyDict_SetItemString(interp->sysdict, "modules", modules);
         _PySys_EndInit(interp->sysdict, interp);
     }
+    else if (PyErr_Occurred()) {
+        goto handle_error;
+    }
 
     bimod = _PyImport_FindBuiltin("builtins", modules);
     if (bimod != NULL) {
@@ -1306,6 +1309,9 @@ new_interpreter(PyThreadState **tstate_p)
         if (interp->builtins == NULL)
             goto handle_error;
         Py_INCREF(interp->builtins);
+    }
+    else if (PyErr_Occurred()) {
+        goto handle_error;
     }
 
     /* initialize builtin exceptions */

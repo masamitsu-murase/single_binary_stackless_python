@@ -2573,29 +2573,14 @@ class char_converter(CConverter):
     format_unit = 'c'
     c_ignored_default = "'\0'"
 
-    # characters which need to be escaped in C code
-    _escapes = {x: r'\%d' % x for x in range(7)}
-    _escapes.update({
-        0x07: r'\a',
-        0x08: r'\b',
-        0x09: r'\t',
-        0x0A: r'\n',
-        0x0B: r'\v',
-        0x0C: r'\f',
-        0x0D: r'\r',
-        0x22: r'\"',
-        0x27: r'\'',
-        0x3F: r'\?',
-        0x5C: r'\\',
-    })
-
     def converter_init(self):
         if isinstance(self.default, self.default_type):
             if len(self.default) != 1:
                 fail("char_converter: illegal default value " + repr(self.default))
 
-            c_ord = self.default[0]
-            self.c_default = "'%s'" % self._escapes.get(c_ord, chr(c_ord))
+            self.c_default = repr(bytes(self.default))[1:]
+            if self.c_default == '"\'"':
+                self.c_default = r"'\''"
 
 
 @add_legacy_c_converter('B', bitwise=True)
@@ -2869,7 +2854,7 @@ class unicode_converter(CConverter):
 @add_legacy_c_converter('Z', accept={str, NoneType})
 @add_legacy_c_converter('Z#', accept={str, NoneType}, zeroes=True)
 class Py_UNICODE_converter(CConverter):
-    type = 'Py_UNICODE *'
+    type = 'const Py_UNICODE *'
     default_type = (str, Null, NoneType)
     format_unit = 'u'
 
@@ -3175,16 +3160,6 @@ class double_return_converter(CReturnConverter):
 class float_return_converter(double_return_converter):
     type = 'float'
     cast = '(double)'
-
-
-class DecodeFSDefault_return_converter(CReturnConverter):
-    type = 'char *'
-
-    def render(self, function, data):
-        self.declare(data)
-        self.err_occurred_if_null_pointer("_return_value", data)
-        data.return_conversion.append(
-            'return_value = PyUnicode_DecodeFSDefault(_return_value);\n')
 
 
 def eval_ast_expr(node, globals, *, filename='-'):

@@ -353,9 +353,6 @@ PyAPI_FUNC(int)
 _PyObject_GenericSetAttrWithDict(PyObject *, PyObject *,
                                  PyObject *, PyObject *);
 
-/* Helper to look up a builtin object */
-PyAPI_FUNC(PyObject *) _PyObject_GetBuiltin(const char *name);
-
 #define PyType_HasFeature(t,f)  (((t)->tp_flags & (f)) != 0)
 
 /* Do not inline, if Stackless is compiled with SLP_WITH_FRAME_REF_DEBUG */
