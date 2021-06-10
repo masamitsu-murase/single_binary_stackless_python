@@ -1148,7 +1148,7 @@ sys_getwindowsversion_impl(PyObject *module)
 {
     PyObject *version;
     int pos = 0;
-    OSVERSIONINFOEX ver;
+    OSVERSIONINFOEXW ver;
     DWORD realMajor, realMinor, realBuild;
     HANDLE hKernel32;
     wchar_t kernel32_path[MAX_PATH];
@@ -1156,7 +1156,7 @@ sys_getwindowsversion_impl(PyObject *module)
     DWORD verblock_size;
 
     ver.dwOSVersionInfoSize = sizeof(ver);
-    if (!GetVersionEx((OSVERSIONINFO*) &ver))
+    if (!GetVersionExW((OSVERSIONINFOW*) &ver))
         return PyErr_SetFromWindowsErr(0);
 
     version = PyStructSequence_New(&WindowsVersionType);
@@ -1167,7 +1167,7 @@ sys_getwindowsversion_impl(PyObject *module)
     PyStructSequence_SET_ITEM(version, pos++, PyLong_FromLong(ver.dwMinorVersion));
     PyStructSequence_SET_ITEM(version, pos++, PyLong_FromLong(ver.dwBuildNumber));
     PyStructSequence_SET_ITEM(version, pos++, PyLong_FromLong(ver.dwPlatformId));
-    PyStructSequence_SET_ITEM(version, pos++, PyUnicode_FromString(ver.szCSDVersion));
+    PyStructSequence_SET_ITEM(version, pos++, PyUnicode_FromWideChar(ver.szCSDVersion, -1));
     PyStructSequence_SET_ITEM(version, pos++, PyLong_FromLong(ver.wServicePackMajor));
     PyStructSequence_SET_ITEM(version, pos++, PyLong_FromLong(ver.wServicePackMinor));
     PyStructSequence_SET_ITEM(version, pos++, PyLong_FromLong(ver.wSuiteMask));
