@@ -7,7 +7,7 @@ extern "C" {
 #endif
 
 #ifdef STACKLESS
-#include "slp_exttype.h"
+#include "cpython/slp_exttype.h"
 #endif
 
 /********************* String Literals ****************************************/

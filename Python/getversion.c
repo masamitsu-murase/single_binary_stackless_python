@@ -7,7 +7,7 @@
 
 #ifdef STACKLESS
         /* avoiding to recompile everything for Stackless all the time */
-#include "stackless_version.h"
+#include "cpython/stackless_version.h"
 
 const char *
 Py_GetVersion(void)

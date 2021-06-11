@@ -24,8 +24,9 @@ What's New in Stackless 3.X.X?
   from outside of the interpreter (with no main-tasklet).
 
 - https://github.com/stackless-dev/stackless/issues/264
-  Implement bpo-35134 for Stackless: move header Include/slp_tstate.h to
-  Include/cpython/slp_tstate.h.
+  Implement bpo-35134 for Stackless: move header Include/slp_tstate.h,
+  Include/slp_exttype.h, Include/slp_structs.h and Include/stackless_version.h
+  to Include/cpython/.
 
 - https://github.com/stackless-dev/stackless/issues/263
   Implement bpo-35081 for Stackless: Prefix header files in Include/internal/

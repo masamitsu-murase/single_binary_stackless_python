@@ -507,13 +507,13 @@
     <ClInclude Include="..\Include\stackless_api.h">
       <Filter>Include</Filter>
     </ClInclude>
-    <ClInclude Include="..\Include\stackless_version.h">
+    <ClInclude Include="..\Include\cpython\stackless_version.h">
       <Filter>Include</Filter>
     </ClInclude>
-    <ClInclude Include="..\Include\slp_exttype.h">
+    <ClInclude Include="..\Include\cpython\slp_exttype.h">
       <Filter>Include</Filter>
     </ClInclude>
-    <ClInclude Include="..\Include\slp_structs.h">
+    <ClInclude Include="..\Include\cpython\slp_structs.h">
       <Filter>Include</Filter>
     </ClInclude>
     <ClInclude Include="..\Include\cpython\slp_tstate.h">
