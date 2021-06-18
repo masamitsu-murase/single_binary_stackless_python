@@ -603,6 +603,9 @@ do { \
     assert(SLP_FRAME_EXECUTING_VALUE == f->f_executing); \
     if (frame_func != SLP_FRAME_EXECUTING_VALUE) { \
         f->f_executing = (frame_func); \
+        /* check argument: must be an executing frame with retval */ \
+        assert(frame_func != SLP_FRAME_EXECUTING_NOVAL); \
+        assert(SLP_FRAME_IS_EXECUTING(f)); \
     } \
     /* keep the reference to the frame to be called. */ \
     f->f_stacktop = stack_pointer; \
@@ -622,9 +625,7 @@ do { \
         (retval__) = CALL_FRAME_FUNCTION(f2, 0, (retval__)); \
         Py_DECREF(f2); \
         if (SLP_PEEK_NEXT_FRAME(tstate) != f) { \
-            assert(SLP_FRAME_IS_EXECUTING(f)); \
-            if (f->f_executing == SLP_FRAME_EXECUTING_NOVAL) \
-                f->f_executing = SLP_FRAME_EXECUTING_VALUE; \
+            assert(f->f_executing == (frame_func)); \
             LLTRACE_HANDLE_UNWINDING(STACKLESS_RETVAL((tstate), (retval__)), "handle_unwinding return from next frame:");\
             return (retval__); \
         } \
@@ -635,12 +636,7 @@ do { \
     if (STACKLESS_UNWINDING(retval__)) \
         STACKLESS_UNPACK(tstate, (retval__)); \
     f->f_stacktop = NULL; \
-    if (frame_func != SLP_FRAME_EXECUTING_VALUE) { \
-        assert(f->f_executing == (frame_func)); \
-    } \
-    else { \
-        assert(f->f_executing == SLP_FRAME_EXECUTING_VALUE || f->f_executing == SLP_FRAME_EXECUTING_NOVAL); \
-    } \
+    assert(f->f_executing == (frame_func)); \
     f->f_executing = SLP_FRAME_EXECUTING_VALUE; \
     if (has_opcode) \
         next_instr += 1 + EXTENDED_ARG_OFFSET(oparg); \
