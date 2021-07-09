@@ -6,7 +6,6 @@
 #ifdef STACKLESS
 #include "pycore_stackless.h"
 
-
 /******************************************************
 
   The Bomb object -- making exceptions convenient

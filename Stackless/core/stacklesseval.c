@@ -8,9 +8,6 @@
 #include "pycore_stackless.h"
 #include "pycore_slp_prickelpit.h"
 
-/* platform specific constants */
-#include "pycore_slp_platformselect.h"
-
 /* Stackless extension for ceval.c */
 
 
@@ -243,32 +240,6 @@ make_initial_stub(void)
     return result;
 }
 
-static PyObject *
-climb_stack_and_eval_frame(PyFrameObject *f)
-{
-    /*
-     * a similar case to climb_stack_and_transfer,
-     * but here we need to incorporate a gap in the
-     * stack into main and keep this gap on the stack.
-     * This way, initial_stub is always valid to be
-     * used to return to the main c stack.
-     */
-    PyThreadState *ts = _PyThreadState_GET();
-    intptr_t probe;
-    ptrdiff_t needed = &probe - ts->st.cstack_base;
-    /* in rare cases, the need might have vanished due to the recursion */
-    if (needed > 0) {
-        register void * stack_ptr_tmp = alloca(needed * sizeof(intptr_t));
-        if (stack_ptr_tmp == NULL)
-            return NULL;
-        /* hinder the compiler to optimise away
-        stack_ptr_tmp and the alloca call.
-        This happens with gcc 4.7.x and -O2 */
-        SLP_DO_NOT_OPTIMIZE_AWAY(stack_ptr_tmp);
-    }
-    return slp_eval_frame(f);
-}
-
 static PyObject * slp_frame_dispatch_top(PyObject *retval);
 
 static PyObject *
@@ -316,7 +287,6 @@ slp_eval_frame(PyFrameObject *f)
 {
     PyThreadState *ts = _PyThreadState_GET();
     PyFrameObject *fprev = f->f_back;
-    intptr_t * stackref;
     int set_cstack_base;
     PyObject *retval;
 
@@ -345,13 +315,9 @@ slp_eval_frame(PyFrameObject *f)
         }
 
         /* mark the stack base */
-        stackref = SLP_STACK_REFPLUS + (intptr_t *) &f;
         set_cstack_base = ts->st.cstack_base == NULL;
-        if (set_cstack_base)
-            ts->st.cstack_base = stackref - SLP_CSTACK_GOODGAP;
-        if (stackref > ts->st.cstack_base) {
-            retval = climb_stack_and_eval_frame(f);  /* recursively calls slp_eval_frame(f) */
-        } else {
+        retval = slp_cstack_set_base_and_goodgap(ts, &f, f);
+        if (retval == (void*)1) {
             assert(SLP_CURRENT_FRAME(ts) == NULL);  /* else we would change the current frame */
             SLP_STORE_NEXT_FRAME(ts, f);
             returning = make_initial_stub();
@@ -873,7 +839,7 @@ eval_frame_callback(PyCFrameObject *cf, int exc, PyObject *retval)
      * ourselves in an infinite loop of stack spilling.
      */
     saved_base = ts->st.cstack_root;
-    ts->st.cstack_root = SLP_STACK_REFPLUS + (intptr_t *) &f;
+    SLP_CSTACK_SET_ROOT(ts, f);
 
     /* pull in the right retval and tempval from the arguments */
     Py_SETREF(retval, cf->ob1);
@@ -936,14 +902,14 @@ slp_eval_frame_newstack(PyFrameObject *f, int exc, PyObject *retval)
          * magic here will clear that exception.
          */
         intptr_t *old = ts->st.cstack_root;
-        ts->st.cstack_root = SLP_STACK_REFPLUS + (intptr_t *) &f;
+        SLP_CSTACK_SET_ROOT(ts, f);
         retval = PyEval_EvalFrameEx_slp(f, exc, retval);
         ts->st.cstack_root = old;
         return retval;
     }
     if (ts->st.cstack_root == NULL) {
         /* this is a toplevel call.  Store the root of stack spilling */
-        ts->st.cstack_root = SLP_STACK_REFPLUS + (intptr_t *) &f;
+        SLP_CSTACK_SET_ROOT(ts, f);
         retval = PyEval_EvalFrameEx_slp(f, exc, retval);
         /* and reset it.  We may reenter stackless at a completely different
          * depth later
