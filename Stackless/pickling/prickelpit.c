@@ -712,12 +712,14 @@ code_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
         /* Now prepend an invalid opcode to the code.
          */
         PyObject *code2 = PyBytes_FromStringAndSize(NULL, code_len + sizeof(_Py_CODEUNIT));
-        assert(_Py_IS_ALIGNED(PyBytes_AS_STRING(code), sizeof(_Py_CODEUNIT)));
         char *p = PyBytes_AS_STRING(code2);
         p[0] = Py_BUILD_ASSERT_EXPR(sizeof(_Py_CODEUNIT) == 2) + CODE_INVALID_OPCODE;
         p[1] = 0; /* Argument */
         memcpy(p + sizeof(_Py_CODEUNIT), PyBytes_AS_STRING(code), code_len);
-        PyTuple_SET_ITEM(args, code_co_code_index, code2);
+        if (PyTuple_SetItem(args, code_co_code_index, code2)) {
+            Py_DECREF(args);
+            return NULL;
+        }
     }
 
     PyObject *retval = generic_new(type, args, kwds);
