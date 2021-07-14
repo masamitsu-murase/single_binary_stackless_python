@@ -11,6 +11,7 @@ extern "C" {
 #include "pystate.h"
 #include "pythread.h"
 
+#include "pycore_atomic.h"
 #include "pycore_ceval.h"
 #include "pycore_pathconfig.h"
 #include "pycore_pymem.h"
@@ -33,6 +34,8 @@ struct _is {
     int64_t id;
     int64_t id_refcount;
     PyThread_type_lock id_mutex;
+
+    int finalizing;
 
     PyObject *modules;
     PyObject *modules_by_index;
@@ -81,6 +84,8 @@ struct _is {
     PyObject *pyexitmodule;
 
     uint64_t tstate_next_unique_id;
+
+    struct _ceval_interpreter_state ceval;
 #ifdef STACKLESS
     PyStacklessInterpreterState st;
 #endif
@@ -212,6 +217,8 @@ typedef struct pyruntimestate {
         PyThread_type_lock mutex;
         struct _xidregitem *head;
     } xidregistry;
+
+    unsigned long main_thread;
 
 #define NEXITFUNCS 32
     void (*exitfuncs[NEXITFUNCS])(void);
