@@ -163,6 +163,15 @@ gettext
 Added :func:`~gettext.pgettext` and its variants.
 (Contributed by Franz Glasner, Éric Araujo, and Cheryl Sabella in :issue:`2504`.)
 
+
+gc
+--
+
+:func:`~gc.get_objects` can now receive an optional *generation* parameter
+indicating a generation to get objects from. Contributed in
+:issue:`36016` by Pablo Galindo.
+
+
 gzip
 ----
 
@@ -253,6 +262,15 @@ Added :attr:`SSLContext.post_handshake_auth` to enable and
 :meth:`ssl.SSLSocket.verify_client_post_handshake` to initiate TLS 1.3
 post-handshake authentication.
 (Contributed by Christian Heimes in :issue:`34670`.)
+
+
+statistics
+----------
+
+Added :func:`statistics.fmean` as a faster, floating point variant of
+:func:`statistics.mean()`.  (Contributed by Raymond Hettinger and
+Steven D'Aprano in :issue:`35904`.)
+
 
 tokenize
 --------
@@ -368,12 +386,17 @@ Optimizations
 * Sped-up field lookups in :func:`collections.namedtuple`.  They are now more
   than two times faster, making them the fastest form of instance variable
   lookup in Python. (Contributed by Raymond Hettinger, Pablo Galindo, and
-  Serhiy Storchaka in :issue:`32492`.)
+  Joe Jevnik, Serhiy Storchaka in :issue:`32492`.)
 
 * The :class:`list` constructor does not overallocate the internal item buffer
   if the input iterable has a known length (the input implements ``__len__``).
   This makes the created list 12% smaller on average. (Contributed by
   Raymond Hettinger and Pablo Galindo in :issue:`33234`.)
+
+* Doubled the speed of class variable writes.  When a non-dunder attribute
+  was updated, there was an unnecessary call to update slots.
+  (Contributed by Stefan Behnel, Pablo Galindo Salgado, Raymond Hettinger,
+  Neil Schemenauer, and Serhiy Storchaka in :issue:`36012`.)
 
 
 Build and C API Changes

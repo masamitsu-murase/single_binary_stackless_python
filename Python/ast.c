@@ -1084,7 +1084,7 @@ set_context(struct compiling *c, expr_ty e, expr_context_ty ctx, const node *n)
                 return 0;
             break;
         case Name_kind:
-            if (ctx == Store) {
+            if (ctx == Store || ctx == NamedStore) {
                 if (forbidden_name(c, e->v.Name.id, n, 0))
                     return 0; /* forbidden_name() calls ast_error() */
             }
@@ -3872,7 +3872,7 @@ ast_for_suite(struct compiling *c, const node *n)
 static void
 get_last_end_pos(asdl_seq *s, int *end_lineno, int *end_col_offset)
 {
-    int tot = asdl_seq_LEN(s);
+    Py_ssize_t tot = asdl_seq_LEN(s);
     // There must be no empty suites.
     assert(tot > 0);
     stmt_ty last = asdl_seq_GET(s, tot - 1);
