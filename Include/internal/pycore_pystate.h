@@ -81,6 +81,9 @@ struct _is {
     PyObject *pyexitmodule;
 
     uint64_t tstate_next_unique_id;
+#ifdef STACKLESS
+    PyStacklessInterpreterState st;
+#endif
 };
 
 PyAPI_FUNC(struct _is*) _PyInterpreterState_LookUpID(PY_INT64_T);

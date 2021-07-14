@@ -162,6 +162,9 @@ struct _ts {
 
     /* XXX signal handlers should also be here */
 
+#ifdef STACKLESS
+    PyStacklessState st;
+#endif
 };
 
 /* Get the current interpreter state.
