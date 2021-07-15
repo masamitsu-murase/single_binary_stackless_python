@@ -385,6 +385,9 @@ then
 	*-*-cygwin*)
 		ac_sys_system=Cygwin
 		;;
+	*-*-vxworks*)
+	    ac_sys_system=VxWorks
+	    ;;
 	*)
 		# for now, limit cross builds to known configurations
 		MACHDEP="unknown"
@@ -428,6 +431,9 @@ if test "$cross_compiling" = yes; then
 		;;
 	*-*-cygwin*)
 		_host_cpu=
+		;;
+	*-*-vxworks*)
+		_host_cpu=$host_cpu
 		;;
 	*)
 		# for now, limit cross builds to known configurations
@@ -522,6 +528,11 @@ case $ac_sys_system/$ac_sys_release in
   # On QNX 6.3.2, defining _XOPEN_SOURCE prevents netdb.h from
   # defining NI_NUMERICHOST.
   QNX/6.3.2)
+    define_xopen_source=no
+    ;;
+  # On VxWorks, defining _XOPEN_SOURCE causes compile failures
+  # in network headers still using system V types.
+  VxWorks/*)
     define_xopen_source=no
     ;;
 
@@ -846,6 +857,8 @@ cat >> conftest.c <<EOF
         i386-gnu
 #elif defined(__APPLE__)
         darwin
+#elif defined(__VXWORKS__)
+        vxworks
 #else
 # error unknown platform triplet
 #endif
@@ -2573,7 +2586,7 @@ then
 			BLDSHARED="$LDSHARED"
 		fi
 		;;
-	Linux*|GNU*|QNX*)
+	Linux*|GNU*|QNX*|VxWorks*)
 		LDSHARED='$(CC) -shared'
 		LDCXXSHARED='$(CXX) -shared';;
 	FreeBSD*)
@@ -2652,6 +2665,8 @@ then
 		then CCSHARED="-fPIC"
 		else CCSHARED="-Kpic -belf"
 		fi;;
+	VxWorks*)
+		CCSHARED="-fpic -D__SO_PICABILINUX__  -ftls-model=global-dynamic"
 	esac
 fi
 AC_MSG_RESULT($CCSHARED)
@@ -2708,6 +2723,8 @@ then
 		# to 2048 kilobytes so that the stack doesn't overflow
 		# when running test_compile.py.
 		LINKFORSHARED='-Wl,-E -N 2048K';;
+	VxWorks*)
+		LINKFORSHARED='--export-dynamic';;		
 	esac
 fi
 AC_MSG_RESULT($LINKFORSHARED)
@@ -4596,7 +4613,7 @@ AC_MSG_RESULT($SOABI)
 
 AC_SUBST(EXT_SUFFIX)
 case $ac_sys_system in
-    Linux*|GNU*|Darwin)
+    Linux*|GNU*|Darwin|VxWorks)
 	EXT_SUFFIX=.${SOABI}${SHLIB_SUFFIX};;
     *)
 	EXT_SUFFIX=${SHLIB_SUFFIX};;
@@ -4745,6 +4762,8 @@ LIBS=$LIBS_no_readline
 AC_MSG_CHECKING(for broken nice())
 AC_CACHE_VAL(ac_cv_broken_nice, [
 AC_RUN_IFELSE([AC_LANG_SOURCE([[
+#include <stdlib.h>
+#include <unistd.h>
 int main()
 {
 	int val1 = nice(1);

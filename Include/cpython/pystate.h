@@ -9,6 +9,8 @@ extern "C" {
 #include "cpython/slp_tstate.h"
 #endif
 
+#include "cpython/coreconfig.h"
+
 /* Placeholders while working on the new configuration API
  *
  * See PEP 432 for final anticipated contents

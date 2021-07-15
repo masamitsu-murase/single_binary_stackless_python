@@ -290,10 +290,8 @@ def copymode(src, dst, *, follow_symlinks=True):
             stat_func, chmod_func = os.lstat, os.lchmod
         else:
             return
-    elif hasattr(os, 'chmod'):
-        stat_func, chmod_func = _stat, os.chmod
     else:
-        return
+        stat_func, chmod_func = _stat, os.chmod
 
     st = stat_func(src)
     chmod_func(dst, stat.S_IMODE(st.st_mode))
@@ -474,7 +472,7 @@ def _copytree(entries, src, dst, symlinks, ignore, copy_function,
                          dirs_exist_ok=dirs_exist_ok)
             else:
                 # Will raise a SpecialFileError for unsupported file types
-                copy_function(srcentry, dstname)
+                copy_function(srcobj, dstname)
         # catch the Error from the recursive copytree so that we can
         # continue with other files
         except Error as err:

@@ -5030,6 +5030,7 @@ add_getset(PyTypeObject *type, PyGetSetDef *gsp)
             return -1;
 
         if (PyDict_GetItemWithError(dict, PyDescr_NAME(descr))) {
+            Py_DECREF(descr);
             continue;
         }
         else if (PyErr_Occurred()) {
@@ -8005,6 +8006,7 @@ super_getattro(PyObject *self, PyObject *name)
             return res;
         }
         else if (PyErr_Occurred()) {
+            Py_DECREF(mro);
             return NULL;
         }
 

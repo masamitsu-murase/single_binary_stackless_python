@@ -131,7 +131,7 @@
 #include "codecs.h"
 #include "pyerrors.h"
 
-#include "coreconfig.h"
+#include "cpython/coreconfig.h"
 #include "pystate.h"
 #include "context.h"
 
