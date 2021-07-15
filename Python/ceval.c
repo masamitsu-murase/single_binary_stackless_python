@@ -731,6 +731,7 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
     PyObject **fastlocals, **freevars;
     PyObject *retval = NULL;            /* Return value */
     PyThreadState *tstate = _PyThreadState_GET();
+    _Py_atomic_int *eval_breaker = &tstate->interp->ceval.eval_breaker;
     PyCodeObject *co;
 
     /* when tracing we set things up so that
@@ -817,7 +818,7 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
 #define DISPATCH() \
     { \
         SLP_CHECK_INTERRUPT() \
-        if (!_Py_atomic_load_relaxed(&tstate->interp->ceval.eval_breaker)) { \
+        if (!_Py_atomic_load_relaxed(eval_breaker)) { \
                     FAST_DISPATCH(); \
         } \
         continue; \
@@ -1199,7 +1200,7 @@ main_loop:
         SLP_CHECK_INTERRUPT()
 #endif
 
-        if (_Py_atomic_load_relaxed(&(tstate->interp->ceval.eval_breaker))) {
+        if (_Py_atomic_load_relaxed(eval_breaker)) {
 #ifdef STACKLESS
             if (tstate->st.current->flags.atomic) {
                 /* make stackless atomic fully atomic */
