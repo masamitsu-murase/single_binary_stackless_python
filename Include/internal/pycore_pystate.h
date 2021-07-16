@@ -62,7 +62,6 @@ struct _is {
     int fscodec_initialized;
 
     _PyCoreConfig core_config;
-    _PyMainInterpreterConfig config;
 #ifdef HAVE_DLOPEN
     int dlopenflags;
 #endif

@@ -1774,9 +1774,9 @@ PyUnicodeDecodeError_GetEnd(PyObject *exc, Py_ssize_t *end)
 
 
 int
-PyUnicodeTranslateError_GetEnd(PyObject *exc, Py_ssize_t *start)
+PyUnicodeTranslateError_GetEnd(PyObject *exc, Py_ssize_t *end)
 {
-    return PyUnicodeEncodeError_GetEnd(exc, start);
+    return PyUnicodeEncodeError_GetEnd(exc, end);
 }
 
 

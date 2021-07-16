@@ -5496,7 +5496,7 @@ import_from(PyObject *v, PyObject *name)
     }
     x = PyImport_GetModule(fullmodname);
     Py_DECREF(fullmodname);
-    if (x == NULL) {
+    if (x == NULL && !PyErr_Occurred()) {
         goto error;
     }
     Py_DECREF(pkgname);
@@ -5519,7 +5519,7 @@ import_from(PyObject *v, PyObject *name)
             "cannot import name %R from %R (unknown location)",
             name, pkgname_or_unknown
         );
-        /* NULL check for errmsg done by PyErr_SetImportError. */
+        /* NULL checks for errmsg and pkgname done by PyErr_SetImportError. */
         PyErr_SetImportError(errmsg, pkgname, NULL);
     }
     else {
@@ -5527,7 +5527,7 @@ import_from(PyObject *v, PyObject *name)
             "cannot import name %R from %R (%S)",
             name, pkgname_or_unknown, pkgpath
         );
-        /* NULL check for errmsg done by PyErr_SetImportError. */
+        /* NULL checks for errmsg and pkgname done by PyErr_SetImportError. */
         PyErr_SetImportError(errmsg, pkgname, pkgpath);
     }
 
