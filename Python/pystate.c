@@ -157,12 +157,14 @@ _PyRuntimeState_ReInitThreads(_PyRuntimeState *runtime)
 #ifdef STACKLESS
 void
 slp_head_lock(void) {
-    HEAD_LOCK();
+    _PyRuntimeState *runtime = &_PyRuntime;
+    HEAD_LOCK(runtime);
 }
 
 void
 slp_head_unlock(void) {
-    HEAD_UNLOCK();
+    _PyRuntimeState *runtime = &_PyRuntime;
+    HEAD_UNLOCK(runtime);
 }
 #endif
 
