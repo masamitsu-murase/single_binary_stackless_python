@@ -8,6 +8,7 @@ extern "C" {
 #  error "this header requires Py_BUILD_CORE or Py_BUILD_CORE_BUILTIN define"
 #endif
 
+#include "cpython/coreconfig.h"
 #include "pystate.h"
 #include "pythread.h"
 
@@ -181,6 +182,8 @@ typedef struct pyruntimestate {
     struct _warnings_runtime_state warnings;
     struct _ceval_runtime_state ceval;
     struct _gilstate_runtime_state gilstate;
+
+    _PyPreConfig preconfig;
 #ifdef STACKLESS
     struct _stackless_runtime_state st;
 #endif
