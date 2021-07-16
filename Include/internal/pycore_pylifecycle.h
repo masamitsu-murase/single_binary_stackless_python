@@ -76,6 +76,7 @@ extern void PyLong_Fini(void);
 extern void _PyFaulthandler_Fini(void);
 extern void _PyHash_Fini(void);
 extern int _PyTraceMalloc_Fini(void);
+extern void _PyWarnings_Fini(_PyRuntimeState *runtime);
 
 extern void _PyGILState_Init(
     _PyRuntimeState *runtime,
@@ -83,7 +84,7 @@ extern void _PyGILState_Init(
     PyThreadState *tstate);
 extern void _PyGILState_Fini(_PyRuntimeState *runtime);
 
-PyAPI_FUNC(void) _PyGC_DumpShutdownStats(void);
+PyAPI_FUNC(void) _PyGC_DumpShutdownStats(_PyRuntimeState *runtime);
 
 PyAPI_FUNC(_PyInitError) _Py_PreInitializeFromCoreConfig(
     const _PyCoreConfig *coreconfig);

@@ -77,6 +77,7 @@ static PyObject * special_lookup(PyObject *, _Py_Identifier *);
 static int check_args_iterable(PyObject *func, PyObject *vararg);
 static void format_kwargs_error(PyObject *func, PyObject *kwargs);
 static void format_awaitable_error(PyTypeObject *, int);
+static inline void exit_thread_if_finalizing(PyThreadState *);
 
 #define NAME_ERROR_MSG \
     "name '%.200s' is not defined"
@@ -204,6 +205,17 @@ _PyEval_FiniThreads(void)
     }
 }
 
+static inline void
+exit_thread_if_finalizing(PyThreadState *tstate)
+{
+    /* _Py_Finalizing is protected by the GIL */
+    if (_Py_IsFinalizing() && !_Py_CURRENTLY_FINALIZING(tstate)) {
+        drop_gil(tstate);
+        PyThread_exit_thread();
+        Py_UNREACHABLE();
+    }
+}
+
 void
 PyEval_AcquireLock(void)
 {
@@ -211,6 +223,7 @@ PyEval_AcquireLock(void)
     if (tstate == NULL)
         Py_FatalError("PyEval_AcquireLock: current thread state is NULL");
     take_gil(tstate);
+    exit_thread_if_finalizing(tstate);
 }
 
 void
@@ -231,6 +244,7 @@ PyEval_AcquireThread(PyThreadState *tstate)
     /* Check someone has called PyEval_InitThreads() to create the lock */
     assert(gil_created());
     take_gil(tstate);
+    exit_thread_if_finalizing(tstate);
     if (PyThreadState_Swap(tstate) != NULL)
         Py_FatalError(
             "PyEval_AcquireThread: non-NULL old thread state");
@@ -299,12 +313,7 @@ PyEval_RestoreThread(PyThreadState *tstate)
 
     int err = errno;
     take_gil(tstate);
-    /* _Py_Finalizing is protected by the GIL */
-    if (_Py_IsFinalizing() && !_Py_CURRENTLY_FINALIZING(tstate)) {
-        drop_gil(tstate);
-        PyThread_exit_thread();
-        Py_UNREACHABLE();
-    }
+    exit_thread_if_finalizing(tstate);
     errno = err;
 
     PyThreadState_Swap(tstate);
@@ -1264,12 +1273,7 @@ main_loop:
                 take_gil(tstate);
 
                 /* Check if we should make a quick exit. */
-                if (_Py_IsFinalizing() &&
-                    !_Py_CURRENTLY_FINALIZING(tstate))
-                {
-                    drop_gil(tstate);
-                    PyThread_exit_thread();
-                }
+                exit_thread_if_finalizing(tstate);
 
                 if (PyThreadState_Swap(tstate) != NULL)
                     Py_FatalError("ceval: orphan tstate");
@@ -3461,7 +3465,7 @@ slp_continue_slp_eval_frame_with_cleanup:
         }
 
         case TARGET(LOAD_METHOD): {
-            /* Designed to work in tamdem with CALL_METHOD. */
+            /* Designed to work in tandem with CALL_METHOD. */
             PyObject *name = GETITEM(names, oparg);
             PyObject *obj = TOP();
             PyObject *meth = NULL;
