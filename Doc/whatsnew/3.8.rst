@@ -67,6 +67,22 @@ Summary -- Release highlights
 New Features
 ============
 
+Assignment expressions
+----------------------
+
+There is new syntax (the "walrus operator", ``:=``) to assign values
+to variables as part of an expression.  Example::
+
+  if (n := len(a)) > 10:
+      print(f"List is too long ({n} elements, expected <= 10)")
+
+See :pep:`572` for a full description.
+
+(Contributed by Emily Morehouse in :issue:`35224`.)
+
+.. TODO: Emily will sprint on docs at PyCon US 2019.
+
+
 Parallel filesystem cache for compiled bytecode files
 -----------------------------------------------------
 
@@ -713,6 +729,12 @@ Changes in Python behavior
 Changes in the Python API
 -------------------------
 
+* :class:`subprocess.Popen` can now use :func:`os.posix_spawn` in some cases
+  for better performance. On Windows Subsystem for Linux and QEMU User
+  Emulation, Popen constructor using :func:`os.posix_spawn` no longer raise an
+  exception on errors like missing program, but the child process fails with a
+  non-zero :attr:`~Popen.returncode`.
+
 * The :meth:`imap.IMAP4.logout` method no longer ignores silently arbitrary
   exceptions.
 
@@ -829,15 +851,18 @@ Changes in the Python API
 Changes in the C API
 --------------------
 
+* On Unix, C extensions are no longer linked to libpython. When Python is
+  embedded, ``libpython`` must not be loaded with ``RTLD_LOCAL``, but
+  ``RTLD_GLOBAL`` instead. Previously, using ``RTLD_LOCAL``, it was already not
+  possible to load C extensions which were not linked to ``libpython``, like C
+  extensions of the standard library built by the ``*shared*`` section of
+  ``Modules/Setup``.
+
 * Use of ``#`` variants of formats in parsing or building value (e.g.
   :c:func:`PyArg_ParseTuple`, :c:func:`Py_BuildValue`, :c:func:`PyObject_CallFunction`,
   etc.) without ``PY_SSIZE_T_CLEAN`` defined raises ``DeprecationWarning`` now.
   It will be removed in 3.10 or 4.0.  Read :ref:`arg-parsing` for detail.
   (Contributed by Inada Naoki in :issue:`36381`.)
-
-
-Changes in the C API
---------------------------
 
 * Instances of heap-allocated types (such as those created with
   :c:func:`PyType_FromSpec`) hold a reference to their type object.
