@@ -44,17 +44,11 @@ typedef struct {
      assert((tstate)->interp->st.initial_tstate), \
      (tstate)->interp->st.initial_tstate)
 
+/* The complete struct is already initialized with 0.
+ * Therefore we only need non-zero initializations.
+ */
 #define SPL_INTERPRETERSTATE_NEW(interp)       \
-    (interp)->st.cstack_chain = NULL;          \
-    (interp)->st.reduce_frame_func = NULL;     \
-    (interp)->st.error_handler = NULL;         \
-    (interp)->st.channel_hook = NULL;          \
-    (interp)->st.mem_bomb = NULL;              \
-    (interp)->st.schedule_hook = NULL;         \
-    (interp)->st.schedule_fasthook = NULL;     \
-    (interp)->st.initial_tstate = NULL;        \
-    (interp)->st.enable_softswitch = 1;        \
-    (interp)->st.pickleflags = 0;
+    (interp)->st.enable_softswitch = 1;
 
 #define SPL_INTERPRETERSTATE_CLEAR(interp)     \
     (interp)->st.cstack_chain = NULL; /* uncounted ref */  \
