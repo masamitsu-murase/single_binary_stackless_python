@@ -30,14 +30,43 @@ _stackless_pickle_flags_default(PyObject *module, PyObject *const *args, Py_ssiz
 {
     PyObject *return_value = NULL;
     static const char * const _keywords[] = {"new_default", "mask", NULL};
-    static _PyArg_Parser _parser = {"|ll:pickle_flags_default", _keywords, 0};
+    static _PyArg_Parser _parser = {NULL, _keywords, "pickle_flags_default", 0};
+    PyObject *argsbuf[2];
+    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 0;
     long new_default = -1;
     long mask = -1;
 
-    if (!_PyArg_ParseStackAndKeywords(args, nargs, kwnames, &_parser,
-        &new_default, &mask)) {
+    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 0, 2, 0, argsbuf);
+    if (!args) {
         goto exit;
     }
+    if (!noptargs) {
+        goto skip_optional_pos;
+    }
+    if (args[0]) {
+        if (PyFloat_Check(args[0])) {
+            PyErr_SetString(PyExc_TypeError,
+                            "integer argument expected, got float" );
+            goto exit;
+        }
+        new_default = PyLong_AsLong(args[0]);
+        if (new_default == -1 && PyErr_Occurred()) {
+            goto exit;
+        }
+        if (!--noptargs) {
+            goto skip_optional_pos;
+        }
+    }
+    if (PyFloat_Check(args[1])) {
+        PyErr_SetString(PyExc_TypeError,
+                        "integer argument expected, got float" );
+        goto exit;
+    }
+    mask = PyLong_AsLong(args[1]);
+    if (mask == -1 && PyErr_Occurred()) {
+        goto exit;
+    }
+skip_optional_pos:
     return_value = _stackless_pickle_flags_default_impl(module, new_default, mask);
 
 exit:
@@ -81,14 +110,43 @@ _stackless_pickle_flags(PyObject *module, PyObject *const *args, Py_ssize_t narg
 {
     PyObject *return_value = NULL;
     static const char * const _keywords[] = {"new_flags", "mask", NULL};
-    static _PyArg_Parser _parser = {"|ll:pickle_flags", _keywords, 0};
+    static _PyArg_Parser _parser = {NULL, _keywords, "pickle_flags", 0};
+    PyObject *argsbuf[2];
+    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 0;
     long new_flags = -1;
     long mask = -1;
 
-    if (!_PyArg_ParseStackAndKeywords(args, nargs, kwnames, &_parser,
-        &new_flags, &mask)) {
+    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 0, 2, 0, argsbuf);
+    if (!args) {
         goto exit;
     }
+    if (!noptargs) {
+        goto skip_optional_pos;
+    }
+    if (args[0]) {
+        if (PyFloat_Check(args[0])) {
+            PyErr_SetString(PyExc_TypeError,
+                            "integer argument expected, got float" );
+            goto exit;
+        }
+        new_flags = PyLong_AsLong(args[0]);
+        if (new_flags == -1 && PyErr_Occurred()) {
+            goto exit;
+        }
+        if (!--noptargs) {
+            goto skip_optional_pos;
+        }
+    }
+    if (PyFloat_Check(args[1])) {
+        PyErr_SetString(PyExc_TypeError,
+                        "integer argument expected, got float" );
+        goto exit;
+    }
+    mask = PyLong_AsLong(args[1]);
+    if (mask == -1 && PyErr_Occurred()) {
+        goto exit;
+    }
+skip_optional_pos:
     return_value = _stackless_pickle_flags_impl(module, new_flags, mask);
 
 exit:
@@ -104,4 +162,4 @@ exit:
 #ifndef _STACKLESS_PICKLE_FLAGS_METHODDEF
     #define _STACKLESS_PICKLE_FLAGS_METHODDEF
 #endif /* !defined(_STACKLESS_PICKLE_FLAGS_METHODDEF) */
-/*[clinic end generated code: output=e59f426d5b04d0fe input=a9049054013a1b77]*/
+/*[clinic end generated code: output=25a1592662352a4a input=a9049054013a1b77]*/
