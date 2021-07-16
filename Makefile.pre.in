@@ -704,8 +704,8 @@ Programs/_testembed: Programs/_testembed.o $(LIBRARY) $(LDLIBRARY) $(PY3LIBRARY)
 
 
 $(srcdir)/Include/cpython/slp_exttype.h: $(srcdir)/Objects/typeobject.c
-	$(PYTHON_FOR_REGEN) $(srcdir)/Stackless/Tools/extract_slp_info.py
-	$(UPDATE_FILE) $(srcdir)/Include/cpython/slp_exttype.h $(srcdir)/Include/cpython/slp_exttype.h.new
+	$(PYTHON_FOR_REGEN) $(srcdir)/Stackless/Tools/extract_slp_info.py && \
+	mv $(srcdir)/Include/cpython/slp_exttype.h.new $(srcdir)/Include/cpython/slp_exttype.h
 
 ############################################################################
 # Importlib
