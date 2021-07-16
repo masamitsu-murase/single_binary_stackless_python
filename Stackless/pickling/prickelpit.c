@@ -606,9 +606,9 @@ slp_from_tuple_with_nulls(PyObject **start, PyObject *tup)
 
  ******************************************************/
 
-#define codetuplefmt "liiiiiSOOOSSiSOO"
+#define codetuplefmt "liiiiiiSOOOSSiSOO"
 /* Index of co_code in the tuple given to code_new */
-static const Py_ssize_t code_co_code_index = 5;
+static const Py_ssize_t code_co_code_index = 6;
 
 /*
  * An unused (invalid) opcode. See opcode.h for a list of used opcodes.
@@ -637,6 +637,7 @@ code_reduce(PyCodeObject * co, PyObject *unused)
         &wrap_PyCode_Type,
         bytecode_magic,
         co->co_argcount,
+        co->co_posonlyargcount,
         co->co_kwonlyargcount,
         co->co_nlocals,
         co->co_stacksize,
@@ -675,11 +676,8 @@ code_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
             return NULL;
         }
         args = PyTuple_GetSlice(args, 1, sizeof(codetuplefmt) - 1);
-    } else if (PyTuple_GET_SIZE(args) == sizeof(codetuplefmt) - 2) {
-        /* Format used by Stackless versions up to 3.7 */
-        args = PyTuple_GetSlice(args, 0, sizeof(codetuplefmt) - 2);
     } else {
-        PyErr_SetString(PyExc_IndexError, "Argument tuple has wrong size.");
+        PyErr_SetString(PyExc_IndexError, "code_new: Argument tuple has wrong size.");
         return NULL;
     }
     if (NULL == args)

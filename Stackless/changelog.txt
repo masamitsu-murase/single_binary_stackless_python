@@ -42,8 +42,9 @@ What's New in Stackless 3.X.X?
 
 - https://github.com/stackless-dev/stackless/issues/268
   Pickled code objects now contain importlib.util.MAGIC_NUMBER. Unpickling
-  code objects pickled with an incompatible version of Python now creates a
-  RuntimeWarning("Unpickling code object with invalid magic number"). The
+  code objects pickled with an incompatible version of Python now either
+  raises an IndexError, if the number of pickled attributes is wrong, or emits
+  a RuntimeWarning("Unpickling code object with invalid magic number"). The
   resulting code object starts with an invalid opcode and renders unpickled
   frames invalid. Unpickling a function whose code is invalid causes a
   RuntimeWarning("Unpickling function with invalid code object").

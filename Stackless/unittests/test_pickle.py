@@ -1390,7 +1390,7 @@ class TestCodePickling(unittest.TestCase):
         reduce = stackless._stackless._wrap.code.__reduce__
         reduced = reduce(code)
         args = reduced[1][1:]
-        with self.assertRaisesRegex(RuntimeWarning, "Unpickling code object with invalid magic number 0"):
+        with self.assertRaisesRegex(IndexError, "Argument tuple has wrong size"):
             with stackless.atomic():
                 with warnings.catch_warnings():
                     warnings.simplefilter("error", RuntimeWarning)
