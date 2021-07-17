@@ -575,7 +575,7 @@ pycore_init_types(void)
 
 #ifdef STACKLESS
     if (!_PyStackless_InitTypes())
-        return _Py_INIT_ERR("can't init stackless types");
+        return _PyStatus_ERR("can't init stackless types");
 #endif
 
     if (!_PyLong_Init()) {
