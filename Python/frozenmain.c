@@ -17,7 +17,7 @@ int
 Py_FrozenMain(int argc, char **argv)
 {
     _PyInitError err = _PyRuntime_Initialize();
-    if (_Py_INIT_FAILED(err)) {
+    if (_PyInitError_Failed(err)) {
         _Py_ExitInitError(err);
     }
 
@@ -40,7 +40,7 @@ Py_FrozenMain(int argc, char **argv)
     }
 
     _PyCoreConfig config;
-    _PyCoreConfig_Init(&config);
+    _PyCoreConfig_InitPythonConfig(&config);
     config.pathconfig_warnings = 0;   /* Suppress errors from getpath.c */
 
     if ((p = Py_GETENV("PYTHONINSPECT")) && *p != '\0')
@@ -84,7 +84,7 @@ Py_FrozenMain(int argc, char **argv)
     err = _Py_InitializeFromConfig(&config);
     /* No need to call _PyCoreConfig_Clear() since we didn't allocate any
        memory: program_name is a constant string. */
-    if (_Py_INIT_FAILED(err)) {
+    if (_PyInitError_Failed(err)) {
         _Py_ExitInitError(err);
     }
 
