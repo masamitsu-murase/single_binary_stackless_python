@@ -597,7 +597,11 @@ _Py_HandleSystemExit(int *exitcode_p)
         return 0;
     }
 
+#ifdef STACKLESS
+    if (!PyErr_ExceptionMatches(PyExc_SystemExit) && !PyErr_ExceptionMatches(PyExc_TaskletExit)) {
+#else
     if (!PyErr_ExceptionMatches(PyExc_SystemExit)) {
+#endif
         return 0;
     }
 

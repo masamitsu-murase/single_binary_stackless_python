@@ -2,6 +2,7 @@
 #include "structmember.h"
 #include "pythread.h"
 #include "pycore_object.h"
+#include "pycore_pylifecycle.h"
 
 #ifdef STACKLESS
 #include "pycore_stackless.h"
@@ -1320,8 +1321,6 @@ schedule_task_destruct(PyObject **retval, PyTaskletObject *prev, PyTaskletObject
     return fail;
 }
 
-/* defined in pythonrun.c */
-extern void PyStackless_HandleSystemExit(void);
 /* defined in stacklessmodule.c */
 extern int PyStackless_CallErrorHandler(void);
 
@@ -1352,7 +1351,10 @@ slp_tasklet_end(PyObject *retval)
             /* but if it is truly a SystemExit on the main thread, we want the exit! */
             if (ts == SLP_INITIAL_TSTATE(ts) && !PyErr_ExceptionMatches(PyExc_TaskletExit)) {
                 if (ts->interp == _PyRuntime.interpreters.main) {
-                    PyStackless_HandleSystemExit();
+                    int exitcode;
+                    if (_Py_HandleSystemExit(&exitcode)) {
+                        Py_Exit(exitcode);
+                    }
                     handled = 1; /* handler returned, it wants us to silence it */
                 }
             } else {
