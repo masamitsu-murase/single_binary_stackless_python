@@ -13,6 +13,9 @@
 
 #ifdef STACKLESS
 #define SLP_BUILD_CORE
+#ifdef Py_BUILD_CORE
+#undef Py_BUILD_CORE  /* prevent the inclusion of Windows.h */
+#endif
 #include "stackless_api.h"
 #include "pycore_slp_prickelpit.h"
 #include "pycore_stackless.h"

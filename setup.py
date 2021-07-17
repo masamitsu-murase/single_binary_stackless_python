@@ -793,7 +793,8 @@ class PyBuildExt(build_ext):
 
         # Stackless Python test module.
         if "_stackless" in sys.builtin_module_names:
-            self.add(Extension('_teststackless', ['../Stackless/module/_teststackless.c']))
+            self.add(Extension('_teststackless', ['../Stackless/module/_teststackless.c'],
+                               extra_compile_args=['-DPy_BUILD_CORE_MODULE']))
 
         # Multimedia modules
         # These don't work for 64-bit platforms!!!
