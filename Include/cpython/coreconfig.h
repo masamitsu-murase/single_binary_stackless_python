@@ -15,11 +15,7 @@ typedef struct {
     } _type;
     const char *_func;
     const char *err_msg;
-#ifdef MS_WINDOWS
-    unsigned int exitcode;
-#else
     int exitcode;
-#endif
 } _PyInitError;
 
 /* Almost all errors causing Python initialization to fail */
@@ -124,7 +120,9 @@ typedef struct {
     int utf8_mode;
 
     int dev_mode;           /* Development mode. PYTHONDEVMODE, -X dev */
-    char *allocator;        /* Memory allocator: PYTHONMALLOC */
+
+    /* Memory allocator: PYTHONMALLOC env var */
+    PyMemAllocatorName allocator;
 } _PyPreConfig;
 
 #ifdef MS_WINDOWS
@@ -141,7 +139,7 @@ typedef struct {
         .isolated = -1, \
         .use_environment = -1, \
         .dev_mode = -1, \
-        .allocator = NULL}
+        .allocator = PYMEM_ALLOCATOR_NOT_SET}
 
 
 /* --- _PyCoreConfig ---------------------------------------------- */
@@ -211,31 +209,29 @@ typedef struct {
     wchar_t *filesystem_errors;
 
     wchar_t *pycache_prefix;  /* PYTHONPYCACHEPREFIX, -X pycache_prefix=PATH */
-    wchar_t *program_name;    /* Program name, see also Py_GetProgramName() */
-    _PyWstrList argv;         /* Command line arguments */
-    wchar_t *program;         /* argv[0] or "" */
+    int parse_argv;           /* Parse argv command line arguments? */
+
+    /* Command line arguments (sys.argv).
+
+       By default, Python command line arguments are parsed and then stripped
+       from argv. Set parse_argv to 0 to avoid that.
+
+       If argv is empty, an empty string is added to ensure that sys.argv
+       always exists and is never empty. */
+    _PyWstrList argv;
+
+    /* Program name:
+
+       - If Py_SetProgramName() was called, use its value.
+       - On macOS, use PYTHONEXECUTABLE environment variable if set.
+       - If WITH_NEXT_FRAMEWORK macro is defined, use __PYVENV_LAUNCHER__
+         environment variable is set.
+       - Use argv[0] if available and non-empty.
+       - Use "python" on Windows, or "python3 on other platforms. */
+    wchar_t *program_name;
+
     _PyWstrList xoptions;     /* Command line -X options */
     _PyWstrList warnoptions;  /* Warnings options */
-
-    /* Path configuration inputs */
-    wchar_t *module_search_path_env; /* PYTHONPATH environment variable */
-    wchar_t *home;          /* PYTHONHOME environment variable,
-                               see also Py_SetPythonHome(). */
-
-    /* Path configuration outputs */
-    int use_module_search_paths;  /* If non-zero, use module_search_paths */
-    _PyWstrList module_search_paths;  /* sys.path paths. Computed if
-                                       use_module_search_paths is equal
-                                       to zero. */
-
-    wchar_t *executable;    /* sys.executable */
-    wchar_t *prefix;        /* sys.prefix */
-    wchar_t *base_prefix;   /* sys.base_prefix */
-    wchar_t *exec_prefix;   /* sys.exec_prefix */
-    wchar_t *base_exec_prefix;  /* sys.base_exec_prefix */
-#ifdef MS_WINDOWS
-    wchar_t *dll_path;      /* Windows DLL path */
-#endif
 
     /* If equal to zero, disable the import of the module site and the
        site-dependent manipulations of sys.path that it entails. Also disable
@@ -322,6 +318,14 @@ typedef struct {
       !Py_NoUserSiteDirectory. */
     int user_site_directory;
 
+    /* If non-zero, configure C standard steams (stdio, stdout,
+       stderr):
+
+       - Set O_BINARY mode on Windows.
+       - If buffered_stdio is equal to zero, make streams unbuffered.
+         Otherwise, enable streams buffering if interactive is non-zero. */
+    int configure_c_stdio;
+
     /* If equal to 0, enable unbuffered mode: force the stdout and stderr
        streams to be unbuffered.
 
@@ -352,6 +356,28 @@ typedef struct {
 
        See PEP 528 for more details. */
     int legacy_windows_stdio;
+#endif
+
+    /* --- Path configuration inputs ------------ */
+
+    wchar_t *module_search_path_env; /* PYTHONPATH environment variable */
+    wchar_t *home;          /* PYTHONHOME environment variable,
+                               see also Py_SetPythonHome(). */
+
+    /* --- Path configuration outputs ----------- */
+
+    int use_module_search_paths;  /* If non-zero, use module_search_paths */
+    _PyWstrList module_search_paths;  /* sys.path paths. Computed if
+                                       use_module_search_paths is equal
+                                       to zero. */
+
+    wchar_t *executable;    /* sys.executable */
+    wchar_t *prefix;        /* sys.prefix */
+    wchar_t *base_prefix;   /* sys.base_prefix */
+    wchar_t *exec_prefix;   /* sys.exec_prefix */
+    wchar_t *base_exec_prefix;  /* sys.base_exec_prefix */
+#ifdef MS_WINDOWS
+    wchar_t *dll_path;      /* Windows DLL path */
 #endif
 
     /* --- Parameter only used by Py_Main() ---------- */
@@ -386,10 +412,14 @@ typedef struct {
        See PEP 552 "Deterministic pycs" for more details. */
     wchar_t *check_hash_pycs_mode;
 
-    /* If greater than 0, suppress _PyPathConfig_Calculate() warnings.
+    /* If greater than 0, suppress _PyPathConfig_Calculate() warnings on Unix.
+       The parameter has no effect on Windows.
 
-       If set to -1 (default), inherit Py_FrozenFlag value. */
-    int _frozen;
+       If set to -1 (default), inherit !Py_FrozenFlag value. */
+    int pathconfig_warnings;
+
+    /* If equal to 0, stop Python initialization before the "main" phase */
+    int _init_main;
 
 } _PyCoreConfig;
 
@@ -412,6 +442,7 @@ typedef struct {
         .faulthandler = -1, \
         .tracemalloc = -1, \
         .use_module_search_paths = 0, \
+        .parse_argv = 1, \
         .site_import = -1, \
         .bytes_warning = -1, \
         .inspect = -1, \
@@ -422,10 +453,12 @@ typedef struct {
         .verbose = -1, \
         .quiet = -1, \
         .user_site_directory = -1, \
+        .configure_c_stdio = 1, \
         .buffered_stdio = -1, \
         ._install_importlib = 1, \
         .check_hash_pycs_mode = NULL, \
-        ._frozen = -1}
+        .pathconfig_warnings = -1, \
+        ._init_main = 1}
 /* Note: _PyCoreConfig_INIT sets other fields to 0/NULL */
 
 #ifdef __cplusplus

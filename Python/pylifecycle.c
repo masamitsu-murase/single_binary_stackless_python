@@ -152,12 +152,13 @@ init_importlib(PyInterpreterState *interp, PyObject *sysmod)
     PyObject *importlib;
     PyObject *impmod;
     PyObject *value;
+    int verbose = interp->core_config.verbose;
 
     /* Import _importlib through its frozen version, _frozen_importlib. */
     if (PyImport_ImportFrozenModule("_frozen_importlib") <= 0) {
         return _Py_INIT_ERR("can't import _frozen_importlib");
     }
-    else if (Py_VerboseFlag) {
+    else if (verbose) {
         PySys_FormatStderr("import _frozen_importlib # frozen\n");
     }
     importlib = PyImport_AddModule("_frozen_importlib");
@@ -177,7 +178,7 @@ init_importlib(PyInterpreterState *interp, PyObject *sysmod)
     if (impmod == NULL) {
         return _Py_INIT_ERR("can't import _imp");
     }
-    else if (Py_VerboseFlag) {
+    else if (verbose) {
         PySys_FormatStderr("import _imp # builtin\n");
     }
     if (_PyImport_SetModuleString("_imp", impmod) < 0) {
@@ -207,7 +208,7 @@ init_importlib_external(PyInterpreterState *interp)
         return _Py_INIT_ERR("external importer setup failed");
     }
     Py_DECREF(value);
-    return _PyImportZip_Init();
+    return _PyImportZip_Init(interp);
 }
 
 /* Helper functions to better handle the legacy C locale
@@ -712,26 +713,22 @@ _Py_PreInitializeFromPyArgv(const _PyPreConfig *src_config, const _PyArgv *args)
     if (src_config) {
         if (_PyPreConfig_Copy(&config, src_config) < 0) {
             err = _Py_INIT_NO_MEMORY();
-            goto done;
+            return err;
         }
     }
 
     err = _PyPreConfig_Read(&config, args);
     if (_Py_INIT_FAILED(err)) {
-        goto done;
+        return err;
     }
 
     err = _PyPreConfig_Write(&config);
     if (_Py_INIT_FAILED(err)) {
-        goto done;
+        return err;
     }
 
     runtime->pre_initialized = 1;
-    err = _Py_INIT_OK();
-
-done:
-    _PyPreConfig_Clear(&config);
-    return err;
+    return _Py_INIT_OK();
 }
 
 
@@ -976,6 +973,21 @@ _Py_InitializeMainInterpreter(_PyRuntimeState *runtime,
     return _Py_INIT_OK();
 }
 
+
+_PyInitError
+_Py_InitializeMain(void)
+{
+    _PyInitError err = _PyRuntime_Initialize();
+    if (_Py_INIT_FAILED(err)) {
+        return err;
+    }
+    _PyRuntimeState *runtime = &_PyRuntime;
+    PyInterpreterState *interp = _PyRuntimeState_GetThreadState(runtime)->interp;
+
+    return _Py_InitializeMainInterpreter(runtime, interp);
+}
+
+
 #undef _INIT_DEBUG_PRINT
 
 static _PyInitError
@@ -996,7 +1008,7 @@ init_python(const _PyCoreConfig *config, const _PyArgv *args)
     }
     config = &interp->core_config;
 
-    if (!config->_frozen) {
+    if (config->_init_main) {
         err = _Py_InitializeMainInterpreter(runtime, interp);
         if (_Py_INIT_FAILED(err)) {
             return err;
@@ -2136,17 +2148,14 @@ Py_FatalError(const char *msg)
 void _Py_NO_RETURN
 _Py_ExitInitError(_PyInitError err)
 {
-    assert(_Py_INIT_FAILED(err));
     if (_Py_INIT_IS_EXIT(err)) {
-#ifdef MS_WINDOWS
-        ExitProcess(err.exitcode);
-#else
         exit(err.exitcode);
-#endif
+    }
+    else if (_Py_INIT_IS_ERROR(err)) {
+        fatal_error(err._func, err.err_msg, 1);
     }
     else {
-        assert(_Py_INIT_IS_ERROR(err));
-        fatal_error(err._func, err.err_msg, 1);
+        Py_FatalError("_Py_ExitInitError() must not be called on success");
     }
 }
 

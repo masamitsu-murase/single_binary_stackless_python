@@ -13,6 +13,9 @@ import textwrap
 
 
 MS_WINDOWS = (os.name == 'nt')
+PYMEM_ALLOCATOR_NOT_SET = 0
+PYMEM_ALLOCATOR_DEBUG = 2
+PYMEM_ALLOCATOR_MALLOC = 3
 
 
 class EmbeddingTestsMixin:
@@ -269,17 +272,10 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
     maxDiff = 4096
     UTF8_MODE_ERRORS = ('surrogatepass' if MS_WINDOWS else 'surrogateescape')
 
-    # core config
-    UNTESTED_CORE_CONFIG = (
-        # FIXME: untested core configuration variables
-        'dll_path',
-        'executable',
-        'module_search_paths',
-    )
     # Mark config which should be get by get_default_config()
     GET_DEFAULT_CONFIG = object()
     DEFAULT_PRE_CONFIG = {
-        'allocator': None,
+        'allocator': PYMEM_ALLOCATOR_NOT_SET,
         'coerce_c_locale': 0,
         'coerce_c_locale_warn': 0,
         'utf8_mode': 0,
@@ -310,20 +306,22 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
         'filesystem_errors': GET_DEFAULT_CONFIG,
 
         'pycache_prefix': None,
-        'program_name': './_testembed',
+        'program_name': GET_DEFAULT_CONFIG,
+        'parse_argv': 1,
         'argv': [""],
-        'program': '',
 
         'xoptions': [],
         'warnoptions': [],
 
         'module_search_path_env': None,
         'home': None,
+        'executable': GET_DEFAULT_CONFIG,
 
         'prefix': GET_DEFAULT_CONFIG,
         'base_prefix': GET_DEFAULT_CONFIG,
         'exec_prefix': GET_DEFAULT_CONFIG,
         'base_exec_prefix': GET_DEFAULT_CONFIG,
+        'module_search_paths': GET_DEFAULT_CONFIG,
 
         'site_import': 1,
         'bytes_warning': 0,
@@ -335,6 +333,7 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
         'verbose': 0,
         'quiet': 0,
         'user_site_directory': 1,
+        'configure_c_stdio': 1,
         'buffered_stdio': 1,
 
         'stdio_encoding': GET_DEFAULT_CONFIG,
@@ -347,13 +346,15 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
 
         '_install_importlib': 1,
         'check_hash_pycs_mode': 'default',
-        '_frozen': 0,
+        'pathconfig_warnings': 1,
+        '_init_main': 1,
     }
     if MS_WINDOWS:
         DEFAULT_PRE_CONFIG.update({
             'legacy_windows_fs_encoding': 0,
         })
         DEFAULT_CORE_CONFIG.update({
+            'dll_path': GET_DEFAULT_CONFIG,
             'legacy_windows_stdio': 0,
         })
 
@@ -374,7 +375,7 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
         ('Py_DontWriteBytecodeFlag', 'write_bytecode', True),
         ('Py_FileSystemDefaultEncodeErrors', 'filesystem_errors'),
         ('Py_FileSystemDefaultEncoding', 'filesystem_encoding'),
-        ('Py_FrozenFlag', '_frozen'),
+        ('Py_FrozenFlag', 'pathconfig_warnings', True),
         ('Py_IgnoreEnvironmentFlag', 'use_environment', True),
         ('Py_InspectFlag', 'inspect'),
         ('Py_InteractiveFlag', 'interactive'),
@@ -404,13 +405,16 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
                 xoptions[opt] = True
         return xoptions
 
-    def get_expected_config(self, expected, env):
+    def get_expected_config(self, expected, env, add_path=None):
         expected = dict(self.DEFAULT_CORE_CONFIG, **expected)
 
         code = textwrap.dedent('''
             import json
             import sys
+            import _testinternalcapi
 
+            configs = _testinternalcapi.get_configs()
+            core_config = configs['core_config']
             data = {
                 'stdio_encoding': sys.stdout.encoding,
                 'stdio_errors': sys.stdout.errors,
@@ -420,7 +424,10 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
                 'base_exec_prefix': sys.base_exec_prefix,
                 'filesystem_encoding': sys.getfilesystemencoding(),
                 'filesystem_errors': sys.getfilesystemencodeerrors(),
+                'module_search_paths': core_config['module_search_paths'],
             }
+            if sys.platform == 'win32':
+                data['dll_path'] = core_config['dll_path']
 
             data = json.dumps(data)
             data = data.encode('utf-8')
@@ -430,7 +437,7 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
 
         # Use -S to not import the site module: get the proper configuration
         # when test_embed is run from a venv (bpo-35313)
-        args = (sys.executable, '-S', '-c', code)
+        args = [sys.executable, '-S', '-c', code]
         env = dict(env)
         if not expected['isolated']:
             env['PYTHONCOERCECLOCALE'] = '0'
@@ -447,9 +454,23 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
         except json.JSONDecodeError:
             self.fail(f"fail to decode stdout: {stdout!r}")
 
+        if expected['executable'] is self.GET_DEFAULT_CONFIG:
+            if sys.platform == 'win32':
+                expected['executable'] = self.test_exe
+            else:
+                if expected['program_name'] is not self.GET_DEFAULT_CONFIG:
+                    expected['executable'] = os.path.abspath(expected['program_name'])
+                else:
+                    expected['executable'] = os.path.join(os.getcwd(), '_testembed')
+        if expected['program_name'] is self.GET_DEFAULT_CONFIG:
+            expected['program_name'] = './_testembed'
+
         for key, value in expected.items():
             if value is self.GET_DEFAULT_CONFIG:
                 expected[key] = config[key]
+
+        if add_path is not None:
+            expected['module_search_paths'].append(add_path)
         return expected
 
     def check_pre_config(self, config, expected):
@@ -459,8 +480,6 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
 
     def check_core_config(self, config, expected):
         core_config = dict(config['core_config'])
-        for key in self.UNTESTED_CORE_CONFIG:
-            core_config.pop(key, None)
         self.assertEqual(core_config, expected)
 
     def check_global_config(self, config):
@@ -485,7 +504,8 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
 
         self.assertEqual(config['global_config'], expected)
 
-    def check_config(self, testname, expected_config, expected_preconfig):
+    def check_config(self, testname, expected_config, expected_preconfig,
+                     add_path=None, stderr=None):
         env = dict(os.environ)
         # Remove PYTHON* environment variables to get deterministic environment
         for key in list(env):
@@ -496,18 +516,21 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
         env['PYTHONCOERCECLOCALE'] = '0'
         env['PYTHONUTF8'] = '0'
 
+        expected_preconfig = dict(self.DEFAULT_PRE_CONFIG, **expected_preconfig)
+        expected_config = self.get_expected_config(expected_config, env, add_path)
+        for key in self.COPY_PRE_CONFIG:
+            if key not in expected_preconfig:
+                expected_preconfig[key] = expected_config[key]
+
         out, err = self.run_embedded_interpreter(testname, env=env)
-        # Ignore err
+        if stderr is None and not expected_config['verbose']:
+            stderr = ""
+        if stderr is not None:
+            self.assertEqual(err.rstrip(), stderr)
         try:
             config = json.loads(out)
         except json.JSONDecodeError:
             self.fail(f"fail to decode stdout: {out!r}")
-
-        expected_preconfig = dict(self.DEFAULT_PRE_CONFIG, **expected_preconfig)
-        expected_config = self.get_expected_config(expected_config, env)
-        for key in self.COPY_PRE_CONFIG:
-            if key not in expected_preconfig:
-                expected_preconfig[key] = expected_config[key]
 
         self.check_pre_config(config, expected_preconfig)
         self.check_core_config(config, expected_config)
@@ -538,12 +561,13 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
             'filesystem_encoding': 'utf-8',
             'filesystem_errors': self.UTF8_MODE_ERRORS,
             'user_site_directory': 0,
+            'pathconfig_warnings': 0,
         }
         self.check_config("init_global_config", config, preconfig)
 
     def test_init_from_config(self):
         preconfig = {
-            'allocator': 'malloc',
+            'allocator': PYMEM_ALLOCATOR_MALLOC,
             'utf8_mode': 1,
         }
         config = {
@@ -564,7 +588,6 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
             'pycache_prefix': 'conf_pycache_prefix',
             'program_name': './conf_program_name',
             'argv': ['-c', 'arg2'],
-            'program': 'conf_program',
             'xoptions': ['core_xoption1=3', 'core_xoption2=', 'core_xoption3'],
             'warnoptions': ['error::ResourceWarning', 'default::BytesWarning'],
             'run_command': 'pass\n',
@@ -577,16 +600,18 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
             'write_bytecode': 0,
             'verbose': 1,
             'quiet': 1,
+            'configure_c_stdio': 0,
             'buffered_stdio': 0,
             'user_site_directory': 0,
             'faulthandler': 1,
 
             'check_hash_pycs_mode': 'always',
+            'pathconfig_warnings': 0,
         }
         self.check_config("init_from_config", config, preconfig)
 
     INIT_ENV_PRECONFIG = {
-        'allocator': 'malloc',
+        'allocator': PYMEM_ALLOCATOR_MALLOC,
     }
     INIT_ENV_CONFIG = {
         'use_hash_seed': 1,
@@ -611,7 +636,7 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
 
     def test_init_env_dev_mode(self):
         preconfig = dict(self.INIT_ENV_PRECONFIG,
-                      allocator='debug')
+                      allocator=PYMEM_ALLOCATOR_DEBUG)
         config = dict(self.INIT_ENV_CONFIG,
                       dev_mode=1,
                       warnoptions=['default'])
@@ -619,7 +644,7 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
 
     def test_init_env_dev_mode_alloc(self):
         preconfig = dict(self.INIT_ENV_PRECONFIG,
-                         allocator='malloc')
+                         allocator=PYMEM_ALLOCATOR_MALLOC)
         config = dict(self.INIT_ENV_CONFIG,
                       dev_mode=1,
                       warnoptions=['default'])
@@ -627,7 +652,7 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
 
     def test_init_dev_mode(self):
         preconfig = {
-            'allocator': 'debug',
+            'allocator': PYMEM_ALLOCATOR_DEBUG,
         }
         config = {
             'faulthandler': 1,
@@ -664,6 +689,46 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
             'user_site_directory': 0,
         }
         self.check_config("preinit_isolated2", config, preconfig)
+
+    def test_init_read_set(self):
+        preconfig = {}
+        core_config = {
+            'program_name': './init_read_set',
+            'executable': 'my_executable',
+        }
+        self.check_config("init_read_set", core_config, preconfig,
+                          add_path="init_read_set_path")
+
+    def test_init_run_main(self):
+        preconfig = {}
+        code = ('import _testinternalcapi, json; '
+                'print(json.dumps(_testinternalcapi.get_configs()))')
+        core_config = {
+            'argv': ['-c', 'arg2'],
+            'program_name': './python3',
+            'run_command': code + '\n',
+        }
+        self.check_config("init_run_main", core_config, preconfig)
+
+    def test_init_main(self):
+        preconfig = {}
+        code = ('import _testinternalcapi, json; '
+                'print(json.dumps(_testinternalcapi.get_configs()))')
+        core_config = {
+            'argv': ['-c', 'arg2'],
+            'program_name': './python3',
+            'run_command': code + '\n',
+            '_init_main': 0,
+        }
+        self.check_config("init_main", core_config, preconfig,
+                          stderr="Run Python code before _Py_InitializeMain")
+
+    def test_init_dont_parse_argv(self):
+        core_config = {
+            'argv': ['-v', '-c', 'arg1', '-W', 'arg2'],
+            'parse_argv': 0,
+        }
+        self.check_config("init_dont_parse_argv", core_config, {})
 
 
 if __name__ == "__main__":

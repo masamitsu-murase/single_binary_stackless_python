@@ -130,7 +130,7 @@ pymain_sys_path_add_path0(PyInterpreterState *interp, PyObject *path0)
     if (sysdict != NULL) {
         sys_path = _PyDict_GetItemIdWithError(sysdict, &PyId_path);
         if (sys_path == NULL && PyErr_Occurred()) {
-            goto error;
+            return -1;
         }
     }
     else {
@@ -138,17 +138,13 @@ pymain_sys_path_add_path0(PyInterpreterState *interp, PyObject *path0)
     }
     if (sys_path == NULL) {
         PyErr_SetString(PyExc_RuntimeError, "unable to get sys.path");
-        goto error;
+        return -1;
     }
 
     if (PyList_Insert(sys_path, 0, path0)) {
-        goto error;
+        return -1;
     }
     return 0;
-
-error:
-    PyErr_Print();
-    return -1;
 }
 
 
@@ -287,7 +283,7 @@ pymain_run_file(_PyCoreConfig *config, PyCompilerFlags *cf)
         else
             cfilename = "<unprintable file name>";
         fprintf(stderr, "%ls: can't open file '%s': [Errno %d] %s\n",
-                config->program, cfilename, err, strerror(err));
+                config->program_name, cfilename, err, strerror(err));
         PyMem_RawFree(cfilename_buffer);
         return 2;
     }
@@ -307,7 +303,7 @@ pymain_run_file(_PyCoreConfig *config, PyCompilerFlags *cf)
     if (_Py_fstat_noraise(fileno(fp), &sb) == 0 && S_ISDIR(sb.st_mode)) {
         fprintf(stderr,
                 "%ls: '%ls' is a directory, cannot continue\n",
-                config->program, filename);
+                config->program_name, filename);
         fclose(fp);
         return 1;
     }
@@ -403,8 +399,8 @@ static int
 pymain_run_stdin(_PyCoreConfig *config, PyCompilerFlags *cf)
 {
     if (stdin_is_interactive(config)) {
-        Py_InspectFlag = 0; /* do exit on SystemExit */
         config->inspect = 0;
+        Py_InspectFlag = 0; /* do exit on SystemExit */
         pymain_run_startup(config, cf);
         pymain_run_interactive_hook();
     }
@@ -425,17 +421,17 @@ pymain_repl(_PyCoreConfig *config, PyCompilerFlags *cf, int *exitcode)
 {
     /* Check this environment variable at the end, to give programs the
        opportunity to set it from Python. */
-    if (!Py_InspectFlag && _Py_GetEnv(config->use_environment, "PYTHONINSPECT")) {
-        Py_InspectFlag = 1;
+    if (!config->inspect && _Py_GetEnv(config->use_environment, "PYTHONINSPECT")) {
         config->inspect = 1;
+        Py_InspectFlag = 1;
     }
 
-    if (!(Py_InspectFlag && stdin_is_interactive(config) && RUN_CODE(config))) {
+    if (!(config->inspect && stdin_is_interactive(config) && RUN_CODE(config))) {
         return;
     }
 
-    Py_InspectFlag = 0;
     config->inspect = 0;
+    Py_InspectFlag = 0;
     pymain_run_interactive_hook();
 
     int res = PyRun_AnyFileFlags(stdin, "<stdin>", cf);
@@ -443,11 +439,9 @@ pymain_repl(_PyCoreConfig *config, PyCompilerFlags *cf, int *exitcode)
 }
 
 
-static _PyInitError
+static void
 pymain_run_python(int *exitcode)
 {
-    _PyInitError err;
-
     PyInterpreterState *interp = _PyInterpreterState_GET_UNSAFE();
     /* pymain_run_stdin() modify the config */
     _PyCoreConfig *config = &interp->core_config;
@@ -464,22 +458,20 @@ pymain_run_python(int *exitcode)
 
     if (main_importer_path != NULL) {
         if (pymain_sys_path_add_path0(interp, main_importer_path) < 0) {
-            err = _Py_INIT_EXIT(1);
-            goto done;
+            goto error;
         }
     }
     else if (!config->isolated) {
         PyObject *path0 = NULL;
-        if (_PyPathConfig_ComputeSysPath0(&config->argv, &path0)) {
-            if (path0 == NULL) {
-                err = _Py_INIT_NO_MEMORY();
-                goto done;
-            }
+        int res = _PyPathConfig_ComputeSysPath0(&config->argv, &path0);
+        if (res < 0) {
+            goto error;
+        }
 
+        if (res > 0) {
             if (pymain_sys_path_add_path0(interp, path0) < 0) {
                 Py_DECREF(path0);
-                err = _Py_INIT_EXIT(1);
-                goto done;
+                goto error;
             }
             Py_DECREF(path0);
         }
@@ -508,11 +500,14 @@ pymain_run_python(int *exitcode)
     }
 
     pymain_repl(config, &cf, exitcode);
-    err = _Py_INIT_OK();
+    goto done;
+
+error:
+    PyErr_Print();
+    *exitcode = 1;
 
 done:
     Py_XDECREF(main_importer_path);
-    return err;
 }
 
 
@@ -578,10 +573,7 @@ _Py_RunMain(void)
 {
     int exitcode = 0;
 
-    _PyInitError err = pymain_run_python(&exitcode);
-    if (_Py_INIT_FAILED(err)) {
-        pymain_exit_error(err);
-    }
+    pymain_run_python(&exitcode);
 
     if (Py_FinalizeEx() < 0) {
         /* Value unlikely to be confused with a non-error exit status or
@@ -603,6 +595,10 @@ static int
 pymain_main(_PyArgv *args)
 {
     _PyInitError err = pymain_init(args);
+    if (_Py_INIT_IS_EXIT(err)) {
+        pymain_free();
+        return err.exitcode;
+    }
     if (_Py_INIT_FAILED(err)) {
         pymain_exit_error(err);
     }
