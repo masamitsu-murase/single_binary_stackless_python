@@ -1776,7 +1776,7 @@ _alloc_preinit_entry(const wchar_t *value)
 
     PyMem_SetAllocator(PYMEM_DOMAIN_RAW, &old_alloc);
     return node;
-};
+}
 
 static int
 _append_preinit_entry(_Py_PreInitEntry *optionlist, const wchar_t *value)
@@ -1798,7 +1798,7 @@ _append_preinit_entry(_Py_PreInitEntry *optionlist, const wchar_t *value)
         last_entry->next = new_entry;
     }
     return 0;
-};
+}
 
 static void
 _clear_preinit_entries(_Py_PreInitEntry *optionlist)
@@ -1815,7 +1815,7 @@ _clear_preinit_entries(_Py_PreInitEntry *optionlist)
         current = next;
     }
     PyMem_SetAllocator(PYMEM_DOMAIN_RAW, &old_alloc);
-};
+}
 
 static void
 _clear_all_preinit_options(void)
@@ -1846,7 +1846,7 @@ _PySys_ReadPreInitOptions(void)
 
     _clear_all_preinit_options();
     return 0;
-};
+}
 
 static PyObject *
 get_warnoptions(void)
