@@ -5,6 +5,7 @@
 #include "pycore_coreconfig.h"
 #include "pycore_pymem.h"
 #include "pycore_pystate.h"
+#include "pycore_pylifecycle.h"
 #ifdef STACKLESS
 #include "frameobject.h"
 #endif
@@ -279,6 +280,9 @@ _PyInterpreterState_Clear(_PyRuntimeState *runtime, PyInterpreterState *interp)
     Py_CLEAR(interp->after_forkers_parent);
     Py_CLEAR(interp->after_forkers_child);
 #endif
+    if (runtime->finalizing == NULL) {
+        _PyWarnings_Fini(interp);
+    }
 #ifdef STACKLESS
     SPL_INTERPRETERSTATE_CLEAR(interp);
 #endif
