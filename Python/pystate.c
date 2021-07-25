@@ -49,7 +49,18 @@ static void _PyThreadState_Delete(_PyRuntimeState *runtime, PyThreadState *tstat
 static _PyInitError
 _PyRuntimeState_Init_impl(_PyRuntimeState *runtime)
 {
+    /* We preserve the hook across init, because there is
+       currently no public API to set it between runtime
+       initialization and interpreter initialization. */
+    void *open_code_hook = runtime->open_code_hook;
+    void *open_code_userdata = runtime->open_code_userdata;
+    _Py_AuditHookEntry *audit_hook_head = runtime->audit_hook_head;
+
     memset(runtime, 0, sizeof(*runtime));
+
+    runtime->open_code_hook = open_code_hook;
+    runtime->open_code_userdata = open_code_userdata;
+    runtime->audit_hook_head = audit_hook_head;
 
     _PyGC_Initialize(&runtime->gc);
     _PyEval_Initialize(&runtime->ceval);
@@ -200,6 +211,10 @@ _PyInterpreterState_Enable(_PyRuntimeState *runtime)
 PyInterpreterState *
 PyInterpreterState_New(void)
 {
+    if (PySys_Audit("cpython.PyInterpreterState_New", NULL) < 0) {
+        return NULL;
+    }
+
     PyInterpreterState *interp = PyMem_RawMalloc(sizeof(PyInterpreterState));
     if (interp == NULL) {
         return NULL;
@@ -255,6 +270,8 @@ PyInterpreterState_New(void)
 
     interp->tstate_next_unique_id = 0;
 
+    interp->audit_hooks = NULL;
+
     return interp;
 }
 
@@ -262,11 +279,18 @@ PyInterpreterState_New(void)
 static void
 _PyInterpreterState_Clear(_PyRuntimeState *runtime, PyInterpreterState *interp)
 {
+    if (PySys_Audit("cpython.PyInterpreterState_Clear", NULL) < 0) {
+        PyErr_Clear();
+    }
+
     HEAD_LOCK(runtime);
     for (PyThreadState *p = interp->tstate_head; p != NULL; p = p->next) {
         PyThreadState_Clear(p);
     }
     HEAD_UNLOCK(runtime);
+
+    Py_CLEAR(interp->audit_hooks);
+
     _PyCoreConfig_Clear(&interp->core_config);
     Py_CLEAR(interp->codec_search_path);
     Py_CLEAR(interp->codec_search_cache);
@@ -1104,6 +1128,10 @@ _PyThread_CurrentFrames(void)
 {
     PyObject *result;
     PyInterpreterState *i;
+
+    if (PySys_Audit("sys._current_frames", NULL) < 0) {
+        return NULL;
+    }
 
     result = PyDict_New();
     if (result == NULL)

@@ -9,8 +9,10 @@ extern "C" {
 #endif
 
 #include "cpython/coreconfig.h"
+#include "fileobject.h"
 #include "pystate.h"
 #include "pythread.h"
+#include "sysmodule.h"
 
 #include "pycore_gil.h"   /* _gil_runtime_state  */
 #include "pycore_pathconfig.h"
@@ -134,6 +136,8 @@ struct _is {
     uint64_t tstate_next_unique_id;
 
     struct _warnings_runtime_state warnings;
+
+    PyObject *audit_hooks;
 #ifdef STACKLESS
     PyStacklessInterpreterState st;
 #endif
@@ -160,6 +164,13 @@ struct _xidregitem {
     struct _xidregitem *next;
 };
 
+/* runtime audit hook state */
+
+typedef struct _Py_AuditHookEntry {
+    struct _Py_AuditHookEntry *next;
+    Py_AuditHookFunction hookCFunction;
+    void *userData;
+} _Py_AuditHookEntry;
 
 /* GIL state */
 
@@ -230,10 +241,15 @@ typedef struct pyruntimestate {
     struct _gilstate_runtime_state gilstate;
 
     _PyPreConfig preconfig;
+
+    Py_OpenCodeHookFunction open_code_hook;
+    void *open_code_userdata;
+    _Py_AuditHookEntry *audit_hook_head;
+
 #ifdef STACKLESS
     struct _stackless_runtime_state st;
 #endif
-    // XXX Consolidate globals found via the check-c-globals script.
+   // XXX Consolidate globals found via the check-c-globals script.
 } _PyRuntimeState;
 
 #define _PyRuntimeState_INIT \
