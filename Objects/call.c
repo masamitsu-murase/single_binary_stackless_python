@@ -1373,7 +1373,7 @@ _PyObject_CallMethodId_SizeT(PyObject *obj, _Py_Identifier *name,
 /* --- Call with "..." arguments ---------------------------------- */
 
 static PyObject *
-object_vacall(PyObject *callable, va_list vargs)
+object_vacall(PyObject *base, PyObject *callable, va_list vargs)
 {
     STACKLESS_GETARG();
     PyObject *small_stack[_PY_FASTCALL_SMALL_STACK];
@@ -1389,7 +1389,7 @@ object_vacall(PyObject *callable, va_list vargs)
 
     /* Count the number of arguments */
     va_copy(countva, vargs);
-    nargs = 0;
+    nargs = base ? 1 : 0;
     while (1) {
         PyObject *arg = va_arg(countva, PyObject *);
         if (arg == NULL) {
@@ -1411,7 +1411,12 @@ object_vacall(PyObject *callable, va_list vargs)
         }
     }
 
-    for (i = 0; i < nargs; ++i) {
+    i = 0;
+    if (base) {
+        stack[i++] = base;
+    }
+
+    for (; i < nargs; ++i) {
         stack[i] = va_arg(vargs, PyObject *);
     }
 
@@ -1427,25 +1432,28 @@ object_vacall(PyObject *callable, va_list vargs)
 }
 
 
+/* Private API for the LOAD_METHOD opcode. */
+extern int _PyObject_GetMethod(PyObject *, PyObject *, PyObject **);
+
 PyObject *
-PyObject_CallMethodObjArgs(PyObject *callable, PyObject *name, ...)
+PyObject_CallMethodObjArgs(PyObject *obj, PyObject *name, ...)
 {
     STACKLESS_GETARG();
-    va_list vargs;
-    PyObject *result;
-
-    if (callable == NULL || name == NULL) {
+    if (obj == NULL || name == NULL) {
         return null_error();
     }
 
-    callable = PyObject_GetAttr(callable, name);
+    PyObject *callable = NULL;
+    int is_method = _PyObject_GetMethod(obj, name, &callable);
     if (callable == NULL) {
         return NULL;
     }
+    obj = is_method ? obj : NULL;
 
+    va_list vargs;
     va_start(vargs, name);
     STACKLESS_PROMOTE_ALL();
-    result = object_vacall(callable, vargs);
+    PyObject *result = object_vacall(obj, callable, vargs);
     STACKLESS_ASSERT();
     va_end(vargs);
 
@@ -1459,21 +1467,26 @@ _PyObject_CallMethodIdObjArgs(PyObject *obj,
                               struct _Py_Identifier *name, ...)
 {
     STACKLESS_GETARG();
-    va_list vargs;
-    PyObject *callable, *result;
-
     if (obj == NULL || name == NULL) {
         return null_error();
     }
 
-    callable = _PyObject_GetAttrId(obj, name);
-    if (callable == NULL) {
+    PyObject *oname = _PyUnicode_FromId(name); /* borrowed */
+    if (!oname) {
         return NULL;
     }
 
+    PyObject *callable = NULL;
+    int is_method = _PyObject_GetMethod(obj, oname, &callable);
+    if (callable == NULL) {
+        return NULL;
+    }
+    obj = is_method ? obj : NULL;
+
+    va_list vargs;
     va_start(vargs, name);
     STACKLESS_PROMOTE_ALL();
-    result = object_vacall(callable, vargs);
+    PyObject *result = object_vacall(obj, callable, vargs);
     STACKLESS_ASSERT();
     va_end(vargs);
 
@@ -1489,7 +1502,7 @@ PyObject_CallFunctionObjArgs(PyObject *callable, ...)
     PyObject *result;
 
     va_start(vargs, callable);
-    result = object_vacall(callable, vargs);
+    result = object_vacall(NULL, callable, vargs);
     va_end(vargs);
 
     return result;
