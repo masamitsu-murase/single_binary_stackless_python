@@ -639,17 +639,15 @@ new_threadstate(PyInterpreterState *interp, int init)
 
     tstate->coroutine_origin_tracking_depth = 0;
 
-    tstate->coroutine_wrapper = NULL;
-    tstate->in_coroutine_wrapper = 0;
-#ifdef STACKLESS
-        STACKLESS_PYSTATE_NEW;
-#endif
-
     tstate->async_gen_firstiter = NULL;
     tstate->async_gen_finalizer = NULL;
 
     tstate->context = NULL;
     tstate->context_ver = 1;
+
+#ifdef STACKLESS
+    STACKLESS_PYSTATE_NEW;
+#endif
 
     tstate->id = ++interp->tstate_next_unique_id;
 
@@ -841,7 +839,6 @@ PyThreadState_Clear(PyThreadState *tstate)
     Py_CLEAR(tstate->c_profileobj);
     Py_CLEAR(tstate->c_traceobj);
 
-    Py_CLEAR(tstate->coroutine_wrapper);
     Py_CLEAR(tstate->async_gen_firstiter);
     Py_CLEAR(tstate->async_gen_finalizer);
 
