@@ -584,6 +584,7 @@ PyTypeObject PyMethodDescr_Type = {
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
+    Py_TPFLAGS_METHOD_DESCRIPTOR |
     Py_TPFLAGS_HAVE_STACKLESS_EXTENSION,        /* tp_flags */
     0,                                          /* tp_doc */
     descr_traverse,                             /* tp_traverse */
@@ -737,6 +738,7 @@ PyTypeObject PyWrapperDescr_Type = {
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
+    Py_TPFLAGS_METHOD_DESCRIPTOR |
     Py_TPFLAGS_HAVE_STACKLESS_EXTENSION,        /* tp_flags */
     0,                                          /* tp_doc */
     descr_traverse,                             /* tp_traverse */
