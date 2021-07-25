@@ -300,6 +300,9 @@
     <ClInclude Include="..\Include\patchlevel.h">
       <Filter>Include</Filter>
     </ClInclude>
+    <ClInclude Include="..\Include\picklebufobject.h">
+      <Filter>Include</Filter>
+    </ClInclude>
     <ClInclude Include="..\Include\py_curses.h">
       <Filter>Include</Filter>
     </ClInclude>
@@ -864,6 +867,9 @@
       <Filter>Objects</Filter>
     </ClCompile>
     <ClCompile Include="..\Objects\obmalloc.c">
+      <Filter>Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Objects\picklebufobject.c">
       <Filter>Objects</Filter>
     </ClCompile>
     <ClCompile Include="..\Objects\rangeobject.c">
