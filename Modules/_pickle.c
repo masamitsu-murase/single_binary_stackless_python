@@ -626,6 +626,9 @@ typedef struct PicklerObject {
     PyObject *pers_func_self;   /* borrowed reference to self if pers_func
                                    is an unbound method, NULL otherwise */
     PyObject *dispatch_table;   /* private dispatch_table, can be NULL */
+    PyObject *reducer_override; /* hook for invoking user-defined callbacks
+                                   instead of save_global when pickling
+                                   functions and classes*/
 
     PyObject *write;            /* write() method of the output stream. */
     PyObject *output_buffer;    /* Write into a local bytearray buffer before
@@ -1126,6 +1129,7 @@ _Pickler_New(void)
 #endif
     self->max_output_len = WRITE_BUF_SIZE;
     self->output_len = 0;
+    self->reducer_override = NULL;
 
     self->memo = PyMemoTable_New();
     self->output_buffer = PyBytes_FromStringAndSize(NULL,
@@ -2236,7 +2240,7 @@ save_bytes(PicklerObject *self, PyObject *obj)
            Python 2 *and* the appropriate 'bytes' object when unpickled
            using Python 3. Again this is a hack and we don't need to do this
            with newer protocols. */
-        PyObject *reduce_value = NULL;
+        PyObject *reduce_value;
         int status;
 
         if (PyBytes_GET_SIZE(obj) == 0) {
@@ -4101,7 +4105,25 @@ save(PicklerObject *self, PyObject *obj, int pers_save)
         status = save_tuple(self, obj);
         goto done;
     }
-    else if (type == &PyType_Type) {
+
+    /* Now, check reducer_override.  If it returns NotImplemented,
+     * fallback to save_type or save_global, and then perhaps to the
+     * regular reduction mechanism.
+     */
+    if (self->reducer_override != NULL) {
+        reduce_value = PyObject_CallFunctionObjArgs(self->reducer_override,
+                                                    obj, NULL);
+        if (reduce_value == NULL) {
+            goto error;
+        }
+        if (reduce_value != Py_NotImplemented) {
+            goto reduce;
+        }
+        Py_DECREF(reduce_value);
+        reduce_value = NULL;
+    }
+
+    if (type == &PyType_Type) {
         status = save_type(self, obj);
         goto done;
     }
@@ -4200,6 +4222,7 @@ save(PicklerObject *self, PyObject *obj, int pers_save)
     if (reduce_value == NULL)
         goto error;
 
+  reduce:
     if (PyUnicode_Check(reduce_value)) {
         status = save_global(self, obj, reduce_value);
         goto done;
@@ -4231,6 +4254,20 @@ static int
 dump(PicklerObject *self, PyObject *obj)
 {
     const char stop_op = STOP;
+    PyObject *tmp;
+    _Py_IDENTIFIER(reducer_override);
+
+    if (_PyObject_LookupAttrId((PyObject *)self, &PyId_reducer_override,
+                               &tmp) < 0) {
+        return -1;
+    }
+    /* Cache the reducer_override method, if it exists. */
+    if (tmp != NULL) {
+        Py_XSETREF(self->reducer_override, tmp);
+    }
+    else {
+        Py_CLEAR(self->reducer_override);
+    }
 
     if (self->proto >= 2) {
         char header[2];
@@ -4355,6 +4392,7 @@ Pickler_dealloc(PicklerObject *self)
     Py_XDECREF(self->pers_func);
     Py_XDECREF(self->dispatch_table);
     Py_XDECREF(self->fast_memo);
+    Py_XDECREF(self->reducer_override);
 #ifdef STACKLESS
         Py_XDECREF(self->module_dict_ids);
 #endif
@@ -4371,6 +4409,7 @@ Pickler_traverse(PicklerObject *self, visitproc visit, void *arg)
     Py_VISIT(self->pers_func);
     Py_VISIT(self->dispatch_table);
     Py_VISIT(self->fast_memo);
+    Py_VISIT(self->reducer_override);
 #ifdef STACKLESS
         Py_VISIT(self->module_dict_ids);
 #endif
@@ -4385,6 +4424,7 @@ Pickler_clear(PicklerObject *self)
     Py_CLEAR(self->pers_func);
     Py_CLEAR(self->dispatch_table);
     Py_CLEAR(self->fast_memo);
+    Py_CLEAR(self->reducer_override);
 #ifdef STACKLESS
         Py_CLEAR(self->module_dict_ids);
 #endif
