@@ -431,7 +431,7 @@ PyObject *
 _PyFunction_Vectorcall(PyObject *func, PyObject* const* stack,
                        size_t nargsf, PyObject *kwnames)
 {
-    STACKLESS_VECTORCALL_GETARG(_PyFunction_FastCallKeywords);
+    STACKLESS_VECTORCALL_GETARG(_PyFunction_Vectorcall);
     PyObject *result;
     PyCodeObject *co = (PyCodeObject *)PyFunction_GET_CODE(func);
     PyObject *globals = PyFunction_GET_GLOBALS(func);
@@ -810,7 +810,7 @@ _PyCFunction_Vectorcall(PyObject *func,
                         PyObject *const *args, size_t nargsf,
                         PyObject *kwnames)
 {
-    STACKLESS_VECTORCALL_GETARG(_PyCFunction_FastCallKeywords);
+    STACKLESS_VECTORCALL_GETARG(_PyCFunction_Vectorcall);
     PyObject *result;
 
     assert(func != NULL);
