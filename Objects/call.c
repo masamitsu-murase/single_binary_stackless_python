@@ -91,8 +91,6 @@ PyObject *
 _PyObject_FastCallDict(PyObject *callable, PyObject *const *args,
                        size_t nargsf, PyObject *kwargs)
 {
-    STACKLESS_GETARG();
-    PyObject *result;
     /* _PyObject_FastCallDict() must not be called with an exception set,
        because it can clear it (directly or indirectly) and so the
        caller loses its exception */
@@ -110,9 +108,10 @@ _PyObject_FastCallDict(PyObject *callable, PyObject *const *args,
         return _PyObject_MakeTpCall(callable, args, nargs, kwargs);
     }
 
+    STACKLESS_GETARG();
     PyObject *res;
     if (kwargs == NULL) {
-        res = func(callable, args, nargsf, NULL);
+        res = STACKLESS_VECTORCALL(func, callable, args, nargsf, NULL);
     }
     else {
         PyObject *kwnames;
@@ -120,7 +119,7 @@ _PyObject_FastCallDict(PyObject *callable, PyObject *const *args,
         if (_PyStack_UnpackDict(args, nargs, kwargs, &newargs, &kwnames) < 0) {
             return NULL;
         }
-        res = func(callable, newargs, nargs, kwnames);
+        res = STACKLESS_VECTORCALL(func, callable, newargs, nargs, kwnames);
         if (kwnames != NULL) {
             Py_ssize_t i, n = PyTuple_GET_SIZE(kwnames) + nargs;
             for (i = 0; i < n; i++) {
@@ -137,6 +136,7 @@ _PyObject_FastCallDict(PyObject *callable, PyObject *const *args,
 PyObject *
 _PyObject_MakeTpCall(PyObject *callable, PyObject *const *args, Py_ssize_t nargs, PyObject *keywords)
 {
+    STACKLESS_GETARG();
     /* Slow path: build a temporary tuple for positional arguments and a
      * temporary dictionary for keyword arguments (if any) */
     ternaryfunc call = Py_TYPE(callable)->tp_call;
@@ -173,11 +173,19 @@ _PyObject_MakeTpCall(PyObject *callable, PyObject *const *args, Py_ssize_t nargs
     }
 
     PyObject *result = NULL;
-    if (Py_EnterRecursiveCall(" while calling a Python object") == 0)
+    /* only do recursion adjustment if there is no danger of soft-switching.
+     * Were a soft-switch to occur, the re-adjustment of the recursion depth
+     * would happen for the wrong frame.
+     */
+    if (stackless ||
+            Py_EnterRecursiveCall(" while calling a Python object") == 0)
     {
+        STACKLESS_PROMOTE(callable);
         result = call(callable, argstuple, kwdict);
-        Py_LeaveRecursiveCall();
+        if(!stackless)
+            Py_LeaveRecursiveCall();
     }
+    STACKLESS_ASSERT();
 
     Py_DECREF(argstuple);
     if (kwdict != keywords) {
@@ -192,6 +200,7 @@ _PyObject_MakeTpCall(PyObject *callable, PyObject *const *args, Py_ssize_t nargs
 PyObject *
 PyVectorcall_Call(PyObject *callable, PyObject *tuple, PyObject *kwargs)
 {
+    STACKLESS_GETARG();
     vectorcallfunc func = _PyVectorcall_Function(callable);
     if (func == NULL) {
         PyErr_Format(PyExc_TypeError, "'%.200s' object does not support vectorcall",
@@ -205,7 +214,7 @@ PyVectorcall_Call(PyObject *callable, PyObject *tuple, PyObject *kwargs)
         kwargs, &args, &kwnames) < 0) {
         return NULL;
     }
-    PyObject *result = func(callable, args, nargs, kwnames);
+    PyObject *result = STACKLESS_VECTORCALL(func, callable, args, nargs, kwnames);
     if (kwnames != NULL) {
         Py_ssize_t i, n = PyTuple_GET_SIZE(kwnames) + nargs;
         for (i = 0; i < n; i++) {
@@ -222,7 +231,6 @@ PyVectorcall_Call(PyObject *callable, PyObject *tuple, PyObject *kwargs)
 PyObject *
 PyObject_Call(PyObject *callable, PyObject *args, PyObject *kwargs)
 {
-    STACKLESS_GETARG();
     ternaryfunc call;
     PyObject *result;
 
@@ -242,6 +250,7 @@ PyObject_Call(PyObject *callable, PyObject *args, PyObject *kwargs)
         return cfunction_call_varargs(callable, args, kwargs);
     }
     else {
+        STACKLESS_GETARG();
         call = callable->ob_type->tp_call;
         if (call == NULL) {
             PyErr_Format(PyExc_TypeError, "'%.200s' object is not callable",
@@ -249,30 +258,19 @@ PyObject_Call(PyObject *callable, PyObject *args, PyObject *kwargs)
             return NULL;
         }
 
-#ifdef STACKLESS
-        /* only do recursion adjustment if there is no danger
-         * of soft-switching, i.e. if we are not being called by
-         * run_cframe.  Were a soft-switch to occur, the re-adjustment
-         * of the recursion depth would happen for the wrong frame.
+        /* only do recursion adjustment if there is no danger of soft-switching.
+         * Were a soft-switch to occur, the re-adjustment of the recursion depth
+         * would happen for the wrong frame.
          */
-        if (!stackless)
-#endif
-        if (Py_EnterRecursiveCall(" while calling a Python object"))
+        if (!stackless && Py_EnterRecursiveCall(" while calling a Python object"))
             return NULL;
 
         STACKLESS_PROMOTE(callable);
         result = (*call)(callable, args, kwargs);
         STACKLESS_ASSERT();
 
-#ifdef STACKLESS
-        /* only do recursion adjustment if there is no danger
-         * of soft-switching, i.e. if we are not being called by
-         * run_cframe.  Were a soft-switch to occur, the re-adjustment
-         * of the recursion depth would happen for the wrong frame.
-         */
         if (!stackless)
-#endif
-        Py_LeaveRecursiveCall();
+            Py_LeaveRecursiveCall();
 
         return _Py_CheckFunctionResult(callable, result, NULL);
     }
@@ -449,6 +447,8 @@ PyObject *
 _PyFunction_FastCallKeywords(PyObject *func, PyObject* const* stack,
                              size_t nargsf, PyObject *kwnames)
 {
+    STACKLESS_VECTORCALL_GETARG(_PyFunction_FastCallKeywords);
+    PyObject *result;
     PyCodeObject *co = (PyCodeObject *)PyFunction_GET_CODE(func);
     PyObject *globals = PyFunction_GET_GLOBALS(func);
     PyObject *argdefs = PyFunction_GET_DEFAULTS(func);
@@ -469,15 +469,21 @@ _PyFunction_FastCallKeywords(PyObject *func, PyObject* const* stack,
         (co->co_flags & ~PyCF_MASK) == (CO_OPTIMIZED | CO_NEWLOCALS | CO_NOFREE))
     {
         if (argdefs == NULL && co->co_argcount + co->co_posonlyargcount== nargs) {
-            return function_code_fastcall(co, stack, nargs, globals);
+            STACKLESS_PROMOTE_ALL();
+            result = function_code_fastcall(co, stack, nargs, globals);
+            STACKLESS_ASSERT();
+            return result;
         }
         else if (nargs == 0 && argdefs != NULL
                  && co->co_argcount + co->co_posonlyargcount == PyTuple_GET_SIZE(argdefs)) {
             /* function called with no arguments, but all parameters have
                a default value: use default values as arguments .*/
             stack = _PyTuple_ITEMS(argdefs);
-            return function_code_fastcall(co, stack, PyTuple_GET_SIZE(argdefs),
+            STACKLESS_PROMOTE_ALL();
+            result = function_code_fastcall(co, stack, PyTuple_GET_SIZE(argdefs),
                                           globals);
+            STACKLESS_ASSERT();
+            return result;
         }
     }
 
@@ -494,13 +500,16 @@ _PyFunction_FastCallKeywords(PyObject *func, PyObject* const* stack,
         d = NULL;
         nd = 0;
     }
-    return _PyEval_EvalCodeWithName((PyObject*)co, globals, (PyObject *)NULL,
+    STACKLESS_PROMOTE_ALL();
+    result = _PyEval_EvalCodeWithName((PyObject*)co, globals, (PyObject *)NULL,
                                     stack, nargs,
                                     nkwargs ? _PyTuple_ITEMS(kwnames) : NULL,
                                     stack + nargs,
                                     nkwargs, 1,
                                     d, (int)nd, kwdefs,
                                     closure, name, qualname);
+    STACKLESS_ASSERT();
+    return result;
 }
 
 
@@ -526,15 +535,12 @@ _PyMethodDef_RawFastCallDict(PyMethodDef *method, PyObject *self,
     int flags = method->ml_flags & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_STACKLESS);
     PyObject *result = NULL;
 
-#ifdef STACKLESS
-    /* only do recursion adjustment if there is no danger
-     * of soft-switching, i.e. if we are not being called by
-     * run_cframe.  Were a soft-switch to occur, the re-adjustment
-     * of the recursion depth would happen for the wrong frame.
+    /* only do recursion adjustment if there is no danger of soft-switching.
+     * Were a soft-switch to occur, the re-adjustment of the recursion depth
+     * would happen for the wrong frame.
      */
-    if (!stackless)
-#endif
-    if (Py_EnterRecursiveCall(" while calling a Python object")) {
+    if (!stackless &&
+            Py_EnterRecursiveCall(" while calling a Python object")) {
         return NULL;
     }
 
@@ -647,15 +653,8 @@ no_keyword_error:
                  method->ml_name);
 
 exit:
-#ifdef STACKLESS
-    /* only do recursion adjustment if there is no danger
-     * of soft-switching, i.e. if we are not being called by
-     * run_cframe.  Were a soft-switch to occur, the re-adjustment
-     * of the recursion depth would happen for the wrong frame.
-     */
     if (!stackless)
-#endif
-    Py_LeaveRecursiveCall();
+        Py_LeaveRecursiveCall();
     return result;
 }
 
@@ -700,15 +699,12 @@ _PyMethodDef_RawFastCallKeywords(PyMethodDef *method, PyObject *self,
     Py_ssize_t nkwargs = kwnames == NULL ? 0 : PyTuple_GET_SIZE(kwnames);
     PyObject *result = NULL;
 
-#ifdef STACKLESS
-    /* only do recursion adjustment if there is no danger
-     * of soft-switching, i.e. if we are not being called by
-     * run_cframe.  Were a soft-switch to occur, the re-adjustment
-     * of the recursion depth would happen for the wrong frame.
+    /* only do recursion adjustment if there is no danger of soft-switching.
+     * Were a soft-switch to occur, the re-adjustment of the recursion depth
+     * would happen for the wrong frame.
      */
-    if (!stackless)
-#endif
-    if (Py_EnterRecursiveCall(" while calling a Python object")) {
+    if (!stackless &&
+            Py_EnterRecursiveCall(" while calling a Python object")) {
         return NULL;
     }
 
@@ -819,15 +815,8 @@ no_keyword_error:
                  method->ml_name);
 
 exit:
-#ifdef STACKLESS
-    /* only do recursion adjustment if there is no danger
-     * of soft-switching, i.e. if we are not being called by
-     * run_cframe.  Were a soft-switch to occur, the re-adjustment
-     * of the recursion depth would happen for the wrong frame.
-     */
     if (!stackless)
-#endif
-    Py_LeaveRecursiveCall();
+        Py_LeaveRecursiveCall();
     return result;
 }
 
@@ -837,15 +826,18 @@ _PyCFunction_FastCallKeywords(PyObject *func,
                               PyObject *const *args, size_t nargsf,
                               PyObject *kwnames)
 {
+    STACKLESS_VECTORCALL_GETARG(_PyCFunction_FastCallKeywords);
     PyObject *result;
 
     assert(func != NULL);
     assert(PyCFunction_Check(func));
     Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
 
+    STACKLESS_PROMOTE_ALL();
     result = _PyMethodDef_RawFastCallKeywords(((PyCFunctionObject*)func)->m_ml,
                                               PyCFunction_GET_SELF(func),
                                               args, nargs, kwnames);
+    STACKLESS_ASSERT();
     result = _Py_CheckFunctionResult(func, result, NULL);
     return result;
 }
@@ -864,15 +856,12 @@ cfunction_call_varargs(PyObject *func, PyObject *args, PyObject *kwargs)
 
     assert(PyCFunction_GET_FLAGS(func) & METH_VARARGS);
     if (PyCFunction_GET_FLAGS(func) & METH_KEYWORDS) {
-#ifdef STACKLESS
-        /* only do recursion adjustment if there is no danger
-         * of soft-switching, i.e. if we are not being called by
-         * run_cframe.  Were a soft-switch to occur, the re-adjustment
-         * of the recursion depth would happen for the wrong frame.
+        /* only do recursion adjustment if there is no danger of soft-switching.
+         * Were a soft-switch to occur, the re-adjustment of the recursion depth
+         * would happen for the wrong frame.
          */
-        if (!stackless)
-#endif
-        if (Py_EnterRecursiveCall(" while calling a Python object")) {
+        if (!stackless &&
+                Py_EnterRecursiveCall(" while calling a Python object")) {
             return NULL;
         }
 
@@ -880,10 +869,8 @@ cfunction_call_varargs(PyObject *func, PyObject *args, PyObject *kwargs)
         result = (*(PyCFunctionWithKeywords)(void(*)(void))meth)(self, args, kwargs);
         STACKLESS_ASSERT();
 
-#ifdef STACKLESS
         if (!stackless)
-#endif
-        Py_LeaveRecursiveCall();
+            Py_LeaveRecursiveCall();
     }
     else {
         if (kwargs != NULL && PyDict_GET_SIZE(kwargs) != 0) {
@@ -892,15 +879,12 @@ cfunction_call_varargs(PyObject *func, PyObject *args, PyObject *kwargs)
             return NULL;
         }
 
-#ifdef STACKLESS
-        /* only do recursion adjustment if there is no danger
-         * of soft-switching, i.e. if we are not being called by
-         * run_cframe.  Were a soft-switch to occur, the re-adjustment
-         * of the recursion depth would happen for the wrong frame.
+        /* only do recursion adjustment if there is no danger of soft-switching.
+         * Were a soft-switch to occur, the re-adjustment of the recursion depth
+         * would happen for the wrong frame.
          */
-        if (!stackless)
-#endif
-        if (Py_EnterRecursiveCall(" while calling a Python object")) {
+        if (!stackless &&
+                Py_EnterRecursiveCall(" while calling a Python object")) {
             return NULL;
         }
 
@@ -908,10 +892,8 @@ cfunction_call_varargs(PyObject *func, PyObject *args, PyObject *kwargs)
         result = (*meth)(self, args);
         STACKLESS_ASSERT();
 
-#ifdef STACKLESS
         if (!stackless)
-#endif
-        Py_LeaveRecursiveCall();
+            Py_LeaveRecursiveCall();
     }
 
     return _Py_CheckFunctionResult(func, result, NULL);

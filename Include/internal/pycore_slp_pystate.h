@@ -79,7 +79,7 @@ struct _stackless_runtime_state {
      * As long as the GIL is shared between sub-interpreters,
      * try_stackless can be a field in the runtime state.
      */
-    int try_stackless;
+    intptr_t try_stackless;
 
     /* Used to manage free C-stack objects, see stacklesseval.c */
     int cstack_cachecount;

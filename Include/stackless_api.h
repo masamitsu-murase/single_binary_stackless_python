@@ -462,18 +462,35 @@ STACKLESS_RETRACT()
 
 #define STACKLESS_GETARG() \
     int stackless = (STACKLESS__GETARG_ASSERT, \
-                     stackless = _PyStackless_TRY_STACKLESS, \
+                     stackless = (1 == _PyStackless_TRY_STACKLESS), \
                      _PyStackless_TRY_STACKLESS = 0, \
                      stackless)
 
 #define STACKLESS_PROMOTE_ALL() ((void)(_PyStackless_TRY_STACKLESS = stackless, NULL))
 
 #define STACKLESS_PROMOTE_FLAG(flag) \
-    (stackless ? (_PyStackless_TRY_STACKLESS = (flag)) : 0)
+    (stackless ? (_PyStackless_TRY_STACKLESS = !!(flag)) : 0)
 
 #define STACKLESS_RETRACT() (_PyStackless_TRY_STACKLESS = 0)
 
 #define STACKLESS_ASSERT() assert(!_PyStackless_TRY_STACKLESS)
+
+#define STACKLESS_VECTORCALL_GETARG(func) \
+    int stackless = (STACKLESS__GETARG_ASSERT, \
+                     stackless = ((intptr_t)((void(*)(void))(func)) == _PyStackless_TRY_STACKLESS), \
+                     _PyStackless_TRY_STACKLESS = 0, \
+                     stackless)
+
+#define STACKLESS_VECTORCALL_BEFORE(func) \
+    (stackless ? (_PyStackless_TRY_STACKLESS = (intptr_t)((void(*)(void))(func))) : 0)
+
+#define STACKLESS_VECTORCALL_AFTER(func) \
+    do { \
+        if (_PyStackless_TRY_STACKLESS) { \
+            assert((intptr_t)((void(*)(void))(func)) == _PyStackless_TRY_STACKLESS); \
+            _PyStackless_TRY_STACKLESS = 0; \
+        } \
+    } while(0)
 
 #else /* STACKLESS */
 /* turn the stackless flag macros into dummies */
@@ -482,6 +499,9 @@ STACKLESS_RETRACT()
 #define STACKLESS_PROMOTE_FLAG(flag) (stackless = 0)
 #define STACKLESS_RETRACT() assert(1)
 #define STACKLESS_ASSERT() assert(1)
+#define STACKLESS_VECTORCALL_GETARG(func) int stackless = 0
+#define STACKLESS_VECTORCALL_BEFORE(func) (stackless = 0)
+#define STACKLESS_VECTORCALL_AFTER(func) (stackless = 0)
 #endif
 
 #define STACKLESS_PROMOTE_METHOD(obj, slot_name) \
@@ -494,6 +514,17 @@ STACKLESS_RETRACT()
     STACKLESS_PROMOTE_FLAG( \
         Py_TYPE(obj)->tp_flags & Py_TPFLAGS_HAVE_STACKLESS_CALL)
 
+static inline PyObject *
+_slp_vectorcall(const int stackless, vectorcallfunc func, PyObject *callable, PyObject *const *args, size_t nargsf, PyObject *kwnames)
+{
+    STACKLESS_VECTORCALL_BEFORE(func);
+    PyObject * result = func(callable, args, nargsf, kwnames);
+    STACKLESS_VECTORCALL_AFTER(func);
+    return result;
+}
+
+#define STACKLESS_VECTORCALL(func, callable, args, nargsf, kwnames) \
+    _slp_vectorcall(stackless, (func), (callable), (args), (nargsf), (kwnames))
 
 #ifdef STACKLESS
 
