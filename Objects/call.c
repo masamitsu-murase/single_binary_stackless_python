@@ -428,8 +428,8 @@ _PyFunction_FastCallDict(PyObject *func, PyObject *const *args, Py_ssize_t nargs
 
 
 PyObject *
-_PyFunction_FastCallKeywords(PyObject *func, PyObject* const* stack,
-                             size_t nargsf, PyObject *kwnames)
+_PyFunction_Vectorcall(PyObject *func, PyObject* const* stack,
+                       size_t nargsf, PyObject *kwnames)
 {
     STACKLESS_VECTORCALL_GETARG(_PyFunction_FastCallKeywords);
     PyObject *result;
@@ -806,9 +806,9 @@ exit:
 
 
 PyObject *
-_PyCFunction_FastCallKeywords(PyObject *func,
-                              PyObject *const *args, size_t nargsf,
-                              PyObject *kwnames)
+_PyCFunction_Vectorcall(PyObject *func,
+                        PyObject *const *args, size_t nargsf,
+                        PyObject *kwnames)
 {
     STACKLESS_VECTORCALL_GETARG(_PyCFunction_FastCallKeywords);
     PyObject *result;
