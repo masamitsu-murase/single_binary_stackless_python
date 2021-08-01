@@ -2505,8 +2505,7 @@ PyTypeObject PyTasklet_Type = {
     .tp_getattro = PyObject_GenericGetAttr,
     .tp_setattro = PyObject_GenericSetAttr,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
-        Py_TPFLAGS_BASETYPE |
-        Py_TPFLAGS_HAVE_FINALIZE,
+        Py_TPFLAGS_BASETYPE,
     .tp_doc = tasklet__doc__,
     .tp_traverse = (traverseproc)tasklet_traverse,
     .tp_clear = (inquiry) tasklet_clear,
