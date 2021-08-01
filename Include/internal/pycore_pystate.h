@@ -29,7 +29,7 @@ struct pyruntimestate;
 
 /* ceval state */
 
-struct _pending_calls {
+struct _ceval_pending_calls {
     int finishing;
     PyThread_type_lock lock;
     /* Request for running pending calls. */
@@ -40,6 +40,7 @@ struct _pending_calls {
     int async_exc;
 #define NPENDINGCALLS 32
     struct {
+        unsigned long thread_id;
         int (*func)(void *);
         void *arg;
     } calls[NPENDINGCALLS];
@@ -57,14 +58,20 @@ struct _ceval_runtime_state {
     int tracing_possible;
     /* This single variable consolidates all requests to break out of
        the fast path in the eval loop. */
+    // XXX This can move to _ceval_interpreter_state once all parts
+    // from COMPUTE_EVAL_BREAKER have moved under PyInterpreterState.
     _Py_atomic_int eval_breaker;
     /* Request for dropping the GIL */
     _Py_atomic_int gil_drop_request;
-    struct _pending_calls pending;
     /* Request for checking signals. */
     _Py_atomic_int signals_pending;
     struct _gil_runtime_state gil;
 };
+
+struct _ceval_interpreter_state {
+    struct _ceval_pending_calls pending;
+};
+
 
 /* interpreter state */
 
@@ -140,6 +147,7 @@ struct _is {
 
     uint64_t tstate_next_unique_id;
 
+    struct _ceval_interpreter_state ceval;
     struct _warnings_runtime_state warnings;
 
     PyObject *audit_hooks;
