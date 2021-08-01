@@ -1,5 +1,8 @@
 #include "Python.h"
 #include <stddef.h> /* For ptrdiff_t */
+#ifdef _MSC_VER
+#include <malloc.h>  /* for alloca */
+#endif /* _MSC_VER */
 
 #ifdef STACKLESS
 
