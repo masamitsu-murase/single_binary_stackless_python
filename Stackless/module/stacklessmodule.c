@@ -1105,7 +1105,7 @@ test_nostacklesscall_call(PyObject *f, PyObject *arg, PyObject *kw)
     PyObject * callback1;
     PyObject * callback2 = NULL;
     PyObject * rest;
-    int stackless = _PyStackless_TRY_STACKLESS;
+    int stackless = !!_PyStackless_TRY_STACKLESS;
 
     callback1 = PyTuple_GetItem(arg, 0);
     if (callback1 == NULL)
