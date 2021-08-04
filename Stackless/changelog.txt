@@ -9,6 +9,9 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://github.com/stackless-dev/stackless/issues/297
+  Stackless now works on Linux ARM64 (architecture "aarch64").
+
 - https://github.com/stackless-dev/stackless/issues/296
   It is now possible to cross-compile Stackless for Windows on ARM and ARM64.
 
