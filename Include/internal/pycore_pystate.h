@@ -23,9 +23,6 @@ extern "C" {
 #include "pycore_slp_pystate.h"
 #endif
 
-// forward
-struct pyruntimestate;
-
 
 /* ceval state */
 
@@ -75,7 +72,6 @@ struct _is {
 
     struct _is *next;
     struct _ts *tstate_head;
-    struct pyruntimestate *runtime;
 
     int64_t id;
     int64_t id_refcount;
@@ -310,8 +306,12 @@ PyAPI_FUNC(void) _PyRuntime_Finalize(void);
 
 /* Other */
 
-PyAPI_FUNC(void) _PyThreadState_Init(PyThreadState *tstate);
-PyAPI_FUNC(void) _PyThreadState_DeleteExcept(PyThreadState *tstate);
+PyAPI_FUNC(void) _PyThreadState_Init(
+    _PyRuntimeState *runtime,
+    PyThreadState *tstate);
+PyAPI_FUNC(void) _PyThreadState_DeleteExcept(
+    _PyRuntimeState *runtime,
+    PyThreadState *tstate);
 
 PyAPI_FUNC(PyThreadState *) _PyThreadState_Swap(
     struct _gilstate_runtime_state *gilstate,
