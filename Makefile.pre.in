@@ -715,8 +715,8 @@ $(srcdir)/Include/cpython/slp_exttype.h: $(srcdir)/Objects/typeobject.c $(srcdir
 	mv $(srcdir)/Include/cpython/slp_exttype.h.new $(srcdir)/Include/cpython/slp_exttype.h
 
 $(SLP_STACKMAN_OBJS): $(SLP_STACKMAN_LIB)
-	cp $(SLP_STACKMAN_LIB) Stackless/platf/libstackman.a
-	cd Stackless/platf && $(AR) x libstackman.a && rm libstackman.a
+	cp $(SLP_STACKMAN_LIB) Stackless/platf/libstackman.a_$$$$ && \
+	cd Stackless/platf && $(AR) x libstackman.a_$$$$ && rm libstackman.a_$$$$
 
 Stackless/platf/slp_transfer.o: $(srcdir)/Stackless/platf/slp_transfer.c
 	$(CC) -c $(PY_CORE_CFLAGS) $(SLPFLAGS) -o $@ $(srcdir)/Stackless/platf/slp_transfer.c
