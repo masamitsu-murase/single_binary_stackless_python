@@ -83,13 +83,14 @@ static inline vectorcallfunc
 _PyVectorcall_Function(PyObject *callable)
 {
     PyTypeObject *tp = Py_TYPE(callable);
+    Py_ssize_t offset = tp->tp_vectorcall_offset;
+    vectorcallfunc *ptr;
     if (!PyType_HasFeature(tp, _Py_TPFLAGS_HAVE_VECTORCALL)) {
         return NULL;
     }
     assert(PyCallable_Check(callable));
-    Py_ssize_t offset = tp->tp_vectorcall_offset;
     assert(offset > 0);
-    vectorcallfunc *ptr = (vectorcallfunc *)(((char *)callable) + offset);
+    ptr = (vectorcallfunc*)(((char *)callable) + offset);
     return *ptr;
 }
 
@@ -116,17 +117,22 @@ static inline PyObject *
 _PyObject_Vectorcall(PyObject *callable, PyObject *const *args,
                      size_t nargsf, PyObject *kwnames)
 {
+    PyObject *res;
+    vectorcallfunc func;
     assert(kwnames == NULL || PyTuple_Check(kwnames));
     assert(args != NULL || PyVectorcall_NARGS(nargsf) == 0);
-    vectorcallfunc func = _PyVectorcall_Function(callable);
+    func = _PyVectorcall_Function(callable);
     if (func == NULL) {
         Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
         return _PyObject_MakeTpCall(callable, args, nargs, kwnames);
     }
-    STACKLESS_GETARG();
-    STACKLESS_VECTORCALL_BEFORE(func);
-    PyObject *res = func(callable, args, nargsf, kwnames);
-    STACKLESS_VECTORCALL_AFTER(func);
+    else
+    {   /* Avoid intermingled declarations. See bpo-37191 */
+        STACKLESS_GETARG();
+        STACKLESS_VECTORCALL_BEFORE(func);
+        res = func(callable, args, nargsf, kwnames);
+        STACKLESS_VECTORCALL_AFTER(func);
+    }
     return _Py_CheckFunctionResult(callable, res, NULL);
 }
 
