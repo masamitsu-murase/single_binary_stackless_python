@@ -724,12 +724,11 @@ builtin_compile_impl(PyObject *module, PyObject *source, PyObject *filename,
     const char *str;
     int compile_mode = -1;
     int is_ast;
-    PyCompilerFlags cf;
     int start[] = {Py_file_input, Py_eval_input, Py_single_input, Py_func_type_input};
     PyObject *result;
 
+    PyCompilerFlags cf = _PyCompilerFlags_INIT;
     cf.cf_flags = flags | PyCF_SOURCE_IS_UTF8;
-    cf.cf_feature_version = PY_MINOR_VERSION;
     if (feature_version >= 0 && (flags & PyCF_ONLY_AST)) {
         cf.cf_feature_version = feature_version;
     }
@@ -892,7 +891,6 @@ builtin_eval_impl(PyObject *module, PyObject *source, PyObject *globals,
     STACKLESS_GETARG();
     PyObject *result, *source_copy;
     const char *str;
-    PyCompilerFlags cf;
 
     if (locals != Py_None && !PyMapping_Check(locals)) {
         PyErr_SetString(PyExc_TypeError, "locals must be a mapping");
@@ -945,8 +943,8 @@ builtin_eval_impl(PyObject *module, PyObject *source, PyObject *globals,
         return PyEval_EvalCode(source, globals, locals);
     }
 
+    PyCompilerFlags cf = _PyCompilerFlags_INIT;
     cf.cf_flags = PyCF_SOURCE_IS_UTF8;
-    cf.cf_feature_version = PY_MINOR_VERSION;
     str = _Py_SourceAsString(source, "eval", "string, bytes or code", &cf, &source_copy);
     if (str == NULL)
         return NULL;
@@ -1042,9 +1040,8 @@ builtin_exec_impl(PyObject *module, PyObject *source, PyObject *globals,
     else {
         PyObject *source_copy;
         const char *str;
-        PyCompilerFlags cf;
+        PyCompilerFlags cf = _PyCompilerFlags_INIT;
         cf.cf_flags = PyCF_SOURCE_IS_UTF8;
-        cf.cf_feature_version = PY_MINOR_VERSION;
         str = _Py_SourceAsString(source, "exec",
                                        "string, bytes or code", &cf,
                                        &source_copy);
