@@ -68,10 +68,16 @@ method_vectorcall(PyObject *method, PyObject *const *args,
         Py_ssize_t nkwargs = (kwnames == NULL) ? 0 : PyTuple_GET_SIZE(kwnames);
         PyObject **newargs;
         Py_ssize_t totalargs = nargs + nkwargs;
-        newargs = PyMem_Malloc((totalargs+1) * sizeof(PyObject *));
-        if (newargs == NULL) {
-            PyErr_NoMemory();
-            return NULL;
+        PyObject *newargs_stack[_PY_FASTCALL_SMALL_STACK];
+        if (totalargs <= (Py_ssize_t)Py_ARRAY_LENGTH(newargs_stack) - 1) {
+            newargs = newargs_stack;
+        }
+        else {
+            newargs = PyMem_Malloc((totalargs+1) * sizeof(PyObject *));
+            if (newargs == NULL) {
+                PyErr_NoMemory();
+                return NULL;
+            }
         }
         /* use borrowed references */
         newargs[0] = self;
@@ -83,7 +89,9 @@ method_vectorcall(PyObject *method, PyObject *const *args,
         STACKLESS_PROMOTE_ALL();
         result = _PyObject_Vectorcall(func, newargs, nargs+1, kwnames);
         STACKLESS_ASSERT();
-        PyMem_Free(newargs);
+        if (newargs != newargs_stack) {
+            PyMem_Free(newargs);
+        }
     }
     return result;
 }
