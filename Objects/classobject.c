@@ -75,7 +75,11 @@ method_vectorcall(PyObject *method, PyObject *const *args,
         }
         /* use borrowed references */
         newargs[0] = self;
-        memcpy(newargs + 1, args, totalargs * sizeof(PyObject *));
+        if (totalargs) { /* bpo-37138: if totalargs == 0, then args may be
+                          * NULL and calling memcpy() with a NULL pointer
+                          * is undefined behaviour. */
+            memcpy(newargs + 1, args, totalargs * sizeof(PyObject *));
+        }
         STACKLESS_PROMOTE_ALL();
         result = _PyObject_Vectorcall(func, newargs, nargs+1, kwnames);
         STACKLESS_ASSERT();
