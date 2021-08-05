@@ -4238,10 +4238,10 @@ compiler_sync_comprehension_generator(struct compiler *c,
             ADDOP_I(c, SET_ADD, gen_index + 1);
             break;
         case COMP_DICTCOMP:
-            /* With 'd[k] = v', v is evaluated before k, so we do
+            /* With '{k: v}', k is evaluated before v, so we do
                the same. */
-            VISIT(c, expr, val);
             VISIT(c, expr, elt);
+            VISIT(c, expr, val);
             ADDOP_I(c, MAP_ADD, gen_index + 1);
             break;
         default:
@@ -4327,10 +4327,10 @@ compiler_async_comprehension_generator(struct compiler *c,
             ADDOP_I(c, SET_ADD, gen_index + 1);
             break;
         case COMP_DICTCOMP:
-            /* With 'd[k] = v', v is evaluated before k, so we do
+            /* With '{k: v}', k is evaluated before v, so we do
                the same. */
-            VISIT(c, expr, val);
             VISIT(c, expr, elt);
+            VISIT(c, expr, val);
             ADDOP_I(c, MAP_ADD, gen_index + 1);
             break;
         default:
@@ -5813,13 +5813,11 @@ makecode(struct compiler *c, struct assembler *a)
     if (maxdepth < 0) {
         goto error;
     }
-    co = PyCode_New(posonlyargcount+posorkeywordargcount, posonlyargcount,
-                    kwonlyargcount, nlocals_int, maxdepth, flags,
-                    bytecode, consts, names, varnames,
-                    freevars, cellvars,
-                    c->c_filename, c->u->u_name,
-                    c->u->u_firstlineno,
-                    a->a_lnotab);
+    co = PyCode_NewWithPosOnlyArgs(posonlyargcount+posorkeywordargcount,
+                                   posonlyargcount, kwonlyargcount, nlocals_int, 
+                                   maxdepth, flags, bytecode, consts, names,
+                                   varnames, freevars, cellvars, c->c_filename,
+                                   c->u->u_name, c->u->u_firstlineno, a->a_lnotab);
  error:
     Py_XDECREF(consts);
     Py_XDECREF(names);
