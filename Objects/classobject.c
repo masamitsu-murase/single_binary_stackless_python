@@ -68,7 +68,10 @@ method_vectorcall(PyObject *method, PyObject *const *args,
         Py_ssize_t nkwargs = (kwnames == NULL) ? 0 : PyTuple_GET_SIZE(kwnames);
         Py_ssize_t totalargs = nargs + nkwargs;
         if (totalargs == 0) {
-            return _PyObject_Vectorcall(func, &self, 1, NULL);
+            STACKLESS_PROMOTE_ALL();
+            result = _PyObject_Vectorcall(func, &self, 1, NULL);
+            STACKLESS_ASSERT();
+            return result;
         }
 
         PyObject *newargs_stack[_PY_FASTCALL_SMALL_STACK];
