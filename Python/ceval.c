@@ -5479,10 +5479,7 @@ trace_call_function(PyThreadState *tstate,
 {
     PyObject *x;
     if (PyCFunction_Check(func)) {
-        STACKLESS_GETARG();
-        STACKLESS_VECTORCALL_BEFORE(_PyCFunction_Vectorcall);
         C_TRACE(x, _PyObject_Vectorcall(func, args, nargs, kwnames));
-        STACKLESS_VECTORCALL_AFTER(_PyCFunction_Vectorcall);
         return x;
     }
     else if (Py_TYPE(func) == &PyMethodDescr_Type && nargs > 0) {
@@ -5499,11 +5496,11 @@ trace_call_function(PyThreadState *tstate,
         if (func == NULL) {
             return NULL;
         }
-        STACKLESS_VECTORCALL_BEFORE(_PyCFunction_Vectorcall);
+        STACKLESS_PROMOTE_ALL();
         C_TRACE(x, _PyObject_Vectorcall(func,
                                         args+1, nargs-1,
                                         kwnames));
-        STACKLESS_VECTORCALL_AFTER(_PyCFunction_Vectorcall);
+        STACKLESS_ASSERT();
         Py_DECREF(func);
         return x;
     }

@@ -837,6 +837,7 @@ slp_cstack_set_base_and_goodgap(PyThreadState *tstate, const void * pstackvar, P
 #define SLP_PEEK_NEXT_FRAME(tstate) \
     ((tstate)->frame)
 
+#define _PyStackless_TRY_STACKLESS 0
 #define STACKLESS_PROMOTE_WRAPPER(descr) assert(1)
 
 #define STACKLESS_PROPOSE(tstate, func) assert(1)

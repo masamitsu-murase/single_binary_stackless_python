@@ -403,10 +403,18 @@ cfunction_check_kwargs(PyObject *func, PyObject *kwnames)
     return 0;
 }
 
+#ifdef STACKLESS
+static int
+cfunction_get_stackless(PyObject *func) {
+    assert(PyCFunction_Check(func));
+    return ((PyCFunctionObject *)func)->m_ml->ml_flags & METH_STACKLESS;
+}
+#endif
+
 static inline funcptr
-cfunction_enter_call(PyObject *func)
+cfunction_enter_call(PyObject *func, int stackless)
 {
-    if (Py_EnterRecursiveCall(" while calling a Python object")) {
+    if (!stackless && Py_EnterRecursiveCall(" while calling a Python object")) {
         return NULL;
     }
     return (funcptr)PyCFunction_GET_FUNCTION(func);
@@ -417,17 +425,23 @@ static PyObject *
 cfunction_vectorcall_FASTCALL(
     PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames)
 {
+    STACKLESS_VECTORCALL_GETARG(cfunction_vectorcall_FASTCALL);
     if (cfunction_check_kwargs(func, kwnames)) {
         return NULL;
     }
     Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+    STACKLESS_PROMOTE_FLAG(cfunction_get_stackless(func));
+    stackless = !!_PyStackless_TRY_STACKLESS; /* reuse variable stackless */
     _PyCFunctionFast meth = (_PyCFunctionFast)
-                            cfunction_enter_call(func);
+                            cfunction_enter_call(func, stackless);
     if (meth == NULL) {
+        STACKLESS_RETRACT();
         return NULL;
     }
     PyObject *result = meth(PyCFunction_GET_SELF(func), args, nargs);
-    Py_LeaveRecursiveCall();
+    STACKLESS_ASSERT();
+    if (!stackless)
+        Py_LeaveRecursiveCall();
     return result;
 }
 
@@ -435,14 +449,20 @@ static PyObject *
 cfunction_vectorcall_FASTCALL_KEYWORDS(
     PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames)
 {
+    STACKLESS_VECTORCALL_GETARG(cfunction_vectorcall_FASTCALL_KEYWORDS);
     Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+    STACKLESS_PROMOTE_FLAG(cfunction_get_stackless(func));
+    stackless = !!_PyStackless_TRY_STACKLESS; /* reuse variable stackless */
     _PyCFunctionFastWithKeywords meth = (_PyCFunctionFastWithKeywords)
-                                        cfunction_enter_call(func);
+                                        cfunction_enter_call(func, stackless);
     if (meth == NULL) {
+        STACKLESS_RETRACT();
         return NULL;
     }
     PyObject *result = meth(PyCFunction_GET_SELF(func), args, nargs, kwnames);
-    Py_LeaveRecursiveCall();
+    STACKLESS_ASSERT();
+    if (!stackless)
+        Py_LeaveRecursiveCall();
     return result;
 }
 
@@ -450,6 +470,7 @@ static PyObject *
 cfunction_vectorcall_NOARGS(
     PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames)
 {
+    STACKLESS_VECTORCALL_GETARG(cfunction_vectorcall_NOARGS);
     if (cfunction_check_kwargs(func, kwnames)) {
         return NULL;
     }
@@ -459,12 +480,17 @@ cfunction_vectorcall_NOARGS(
             "%.200s() takes no arguments (%zd given)", get_name(func), nargs);
         return NULL;
     }
-    PyCFunction meth = (PyCFunction)cfunction_enter_call(func);
+    STACKLESS_PROMOTE_FLAG(cfunction_get_stackless(func));
+    stackless = !!_PyStackless_TRY_STACKLESS; /* reuse variable stackless */
+    PyCFunction meth = (PyCFunction)cfunction_enter_call(func, stackless);
     if (meth == NULL) {
+        STACKLESS_RETRACT();
         return NULL;
     }
     PyObject *result = meth(PyCFunction_GET_SELF(func), NULL);
-    Py_LeaveRecursiveCall();
+    STACKLESS_ASSERT();
+    if (!stackless)
+        Py_LeaveRecursiveCall();
     return result;
 }
 
@@ -472,6 +498,7 @@ static PyObject *
 cfunction_vectorcall_O(
     PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames)
 {
+    STACKLESS_VECTORCALL_GETARG(cfunction_vectorcall_O);
     if (cfunction_check_kwargs(func, kwnames)) {
         return NULL;
     }
@@ -482,11 +509,16 @@ cfunction_vectorcall_O(
             get_name(func), nargs);
         return NULL;
     }
-    PyCFunction meth = (PyCFunction)cfunction_enter_call(func);
+    STACKLESS_PROMOTE_FLAG(cfunction_get_stackless(func));
+    stackless = !!_PyStackless_TRY_STACKLESS; /* reuse variable stackless */
+    PyCFunction meth = (PyCFunction)cfunction_enter_call(func, stackless);
     if (meth == NULL) {
+        STACKLESS_RETRACT();
         return NULL;
     }
     PyObject *result = meth(PyCFunction_GET_SELF(func), args[0]);
-    Py_LeaveRecursiveCall();
+    STACKLESS_ASSERT();
+    if (!stackless)
+        Py_LeaveRecursiveCall();
     return result;
 }
