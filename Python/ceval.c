@@ -5481,7 +5481,7 @@ trace_call_function(PyThreadState *tstate,
     if (PyCFunction_Check(func)) {
         STACKLESS_GETARG();
         STACKLESS_VECTORCALL_BEFORE(_PyCFunction_Vectorcall);
-        C_TRACE(x, _PyCFunction_Vectorcall(func, args, nargs, kwnames));
+        C_TRACE(x, _PyObject_Vectorcall(func, args, nargs, kwnames));
         STACKLESS_VECTORCALL_AFTER(_PyCFunction_Vectorcall);
         return x;
     }
@@ -5500,9 +5500,9 @@ trace_call_function(PyThreadState *tstate,
             return NULL;
         }
         STACKLESS_VECTORCALL_BEFORE(_PyCFunction_Vectorcall);
-        C_TRACE(x, _PyCFunction_Vectorcall(func,
-                                           args+1, nargs-1,
-                                           kwnames));
+        C_TRACE(x, _PyObject_Vectorcall(func,
+                                        args+1, nargs-1,
+                                        kwnames));
         STACKLESS_VECTORCALL_AFTER(_PyCFunction_Vectorcall);
         Py_DECREF(func);
         return x;
@@ -5569,10 +5569,10 @@ do_call_core(PyThreadState *tstate, PyObject *func, PyObject *callargs, PyObject
             }
 
             STACKLESS_PROPOSE_ALL(tstate);
-            C_TRACE(result, _PyCFunction_FastCallDict(func,
-                                                      &_PyTuple_ITEMS(callargs)[1],
-                                                      nargs - 1,
-                                                      kwdict));
+            C_TRACE(result, _PyObject_FastCallDict(func,
+                                                   &_PyTuple_ITEMS(callargs)[1],
+                                                   nargs - 1,
+                                                   kwdict));
             STACKLESS_ASSERT();
             Py_DECREF(func);
             return result;

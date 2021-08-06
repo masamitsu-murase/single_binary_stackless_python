@@ -218,7 +218,7 @@ PyVectorcall_Call(PyObject *callable, PyObject *tuple, PyObject *kwargs)
         Py_DECREF(kwnames);
     }
 
-    return result;
+    return _Py_CheckFunctionResult(callable, result, NULL);
 }
 
 
@@ -811,28 +811,6 @@ no_keyword_error:
 exit:
     if (!stackless)
         Py_LeaveRecursiveCall();
-    return result;
-}
-
-
-PyObject *
-_PyCFunction_Vectorcall(PyObject *func,
-                        PyObject *const *args, size_t nargsf,
-                        PyObject *kwnames)
-{
-    STACKLESS_VECTORCALL_GETARG(_PyCFunction_Vectorcall);
-    PyObject *result;
-
-    assert(func != NULL);
-    assert(PyCFunction_Check(func));
-    Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
-
-    STACKLESS_PROMOTE_ALL();
-    result = _PyMethodDef_RawFastCallKeywords(((PyCFunctionObject*)func)->m_ml,
-                                              PyCFunction_GET_SELF(func),
-                                              args, nargs, kwnames);
-    STACKLESS_ASSERT();
-    result = _Py_CheckFunctionResult(func, result, NULL);
     return result;
 }
 
