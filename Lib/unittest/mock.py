@@ -873,7 +873,7 @@ class NonCallableMock(Base):
         """
         if self.call_count == 0:
             msg = ("Expected '%s' to have been called." %
-                   self._mock_name or 'mock')
+                   (self._mock_name or 'mock'))
             raise AssertionError(msg)
 
     def assert_called_once(self):
@@ -988,9 +988,13 @@ class NonCallableMock(Base):
         _type = type(self)
         if issubclass(_type, MagicMock) and _new_name in _async_method_magics:
             klass = AsyncMock
-        if issubclass(_type, AsyncMockMixin):
+        elif _new_name  in _sync_async_magics:
+            # Special case these ones b/c users will assume they are async,
+            # but they are actually sync (ie. __aiter__)
             klass = MagicMock
-        if not issubclass(_type, CallableMixin):
+        elif issubclass(_type, AsyncMockMixin):
+            klass = AsyncMock
+        elif not issubclass(_type, CallableMixin):
             if issubclass(_type, NonCallableMagicMock):
                 klass = MagicMock
             elif issubclass(_type, NonCallableMock) :
@@ -1867,7 +1871,7 @@ _non_defaults = {
     '__reduce__', '__reduce_ex__', '__getinitargs__', '__getnewargs__',
     '__getstate__', '__setstate__', '__getformat__', '__setformat__',
     '__repr__', '__dir__', '__subclasses__', '__format__',
-    '__getnewargs_ex__', '__aenter__', '__aexit__', '__anext__', '__aiter__',
+    '__getnewargs_ex__',
 }
 
 
@@ -1886,10 +1890,12 @@ _magics = {
 
 # Magic methods used for async `with` statements
 _async_method_magics = {"__aenter__", "__aexit__", "__anext__"}
-# `__aiter__` is a plain function but used with async calls
-_async_magics = _async_method_magics | {"__aiter__"}
+# Magic methods that are only used with async calls but are synchronous functions themselves
+_sync_async_magics = {"__aiter__"}
+_async_magics = _async_method_magics | _sync_async_magics
 
-_all_magics = _magics | _non_defaults
+_all_sync_magics = _magics | _non_defaults
+_all_magics = _all_sync_magics | _async_magics
 
 _unsupported_magics = {
     '__getattr__', '__setattr__',
@@ -1974,9 +1980,9 @@ def _set_return_value(mock, method, name):
         method.return_value = fixed
         return
 
-    return_calulator = _calculate_return_value.get(name)
-    if return_calulator is not None:
-        return_value = return_calulator(mock)
+    return_calculator = _calculate_return_value.get(name)
+    if return_calculator is not None:
+        return_value = return_calculator(mock)
         method.return_value = return_value
         return
 

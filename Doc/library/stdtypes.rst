@@ -4209,6 +4209,10 @@ pairs within braces, for example: ``{'jack': 4098, 'sjoerd': 4127}`` or ``{4098:
    These are the operations that dictionaries support (and therefore, custom
    mapping types should support too):
 
+   .. describe:: list(d)
+
+      Return a list of all the keys used in the dictionary *d*.
+
    .. describe:: len(d)
 
       Return the number of items in the dictionary *d*.
@@ -4352,7 +4356,7 @@ pairs within braces, for example: ``{'jack': 4098, 'sjoerd': 4127}`` or ``{4098:
          False
 
    Dictionaries compare equal if and only if they have the same ``(key,
-   value)`` pairs. Order comparisons ('<', '<=', '>=', '>') raise
+   value)`` pairs (regardless of ordering). Order comparisons ('<', '<=', '>=', '>') raise
    :exc:`TypeError`.
 
    Dictionaries preserve insertion order.  Note that updating a key does not
