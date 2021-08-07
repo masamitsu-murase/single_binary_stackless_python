@@ -2272,16 +2272,12 @@ builtin_vars(PyObject *self, PyObject *args)
         return NULL;
     if (v == NULL) {
         d = PyEval_GetLocals();
-        if (d == NULL)
-            return NULL;
-        Py_INCREF(d);
+        Py_XINCREF(d);
     }
     else {
-        d = _PyObject_GetAttrId(v, &PyId___dict__);
-        if (d == NULL) {
+        if (_PyObject_LookupAttrId(v, &PyId___dict__, &d) == 0) {
             PyErr_SetString(PyExc_TypeError,
                 "vars() argument must have __dict__ attribute");
-            return NULL;
         }
     }
     return d;
@@ -2565,10 +2561,6 @@ zip_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
         PyObject *item = PyTuple_GET_ITEM(args, i);
         PyObject *it = PyObject_GetIter(item);
         if (it == NULL) {
-            if (PyErr_ExceptionMatches(PyExc_TypeError))
-                PyErr_Format(PyExc_TypeError,
-                    "zip argument #%zd must support iteration",
-                    i+1);
             Py_DECREF(ittuple);
             return NULL;
         }

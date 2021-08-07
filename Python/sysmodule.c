@@ -205,16 +205,12 @@ PySys_Audit(const char *event, const char *argFormat, ...)
         ts->tracing++;
         ts->use_tracing = 0;
         while ((hook = PyIter_Next(hooks)) != NULL) {
+            _Py_IDENTIFIER(__cantrace__);
             PyObject *o;
-            int canTrace = -1;
-            o = PyObject_GetAttrString(hook, "__cantrace__");
+            int canTrace = _PyObject_LookupAttrId(hook, &PyId___cantrace__, &o);
             if (o) {
                 canTrace = PyObject_IsTrue(o);
                 Py_DECREF(o);
-            } else if (PyErr_Occurred() &&
-                       PyErr_ExceptionMatches(PyExc_AttributeError)) {
-                PyErr_Clear();
-                canTrace = 0;
             }
             if (canTrace < 0) {
                 break;
@@ -542,7 +538,10 @@ sys_displayhook_unencodable(PyObject *outf, PyObject *o)
     if (encoded == NULL)
         goto error;
 
-    buffer = _PyObject_GetAttrId(outf, &PyId_buffer);
+    if (_PyObject_LookupAttrId(outf, &PyId_buffer, &buffer) < 0) {
+        Py_DECREF(encoded);
+        goto error;
+    }
     if (buffer) {
         result = _PyObject_CallMethodIdObjArgs(buffer, &PyId_write, encoded, NULL);
         Py_DECREF(buffer);
@@ -552,7 +551,6 @@ sys_displayhook_unencodable(PyObject *outf, PyObject *o)
         Py_DECREF(result);
     }
     else {
-        PyErr_Clear();
         escaped_str = PyUnicode_FromEncodedObject(encoded,
                                                   stdout_encoding_str,
                                                   "strict");
@@ -1186,7 +1184,7 @@ static PyTypeObject AsyncGenHooksType;
 PyDoc_STRVAR(asyncgen_hooks_doc,
 "asyncgen_hooks\n\
 \n\
-A struct sequence providing information about asynhronous\n\
+A named tuple providing information about asynchronous\n\
 generators hooks.  The attributes are read only.");
 
 static PyStructSequence_Field asyncgen_hooks_fields[] = {
@@ -1294,7 +1292,7 @@ static PyTypeObject Hash_InfoType;
 PyDoc_STRVAR(hash_info_doc,
 "hash_info\n\
 \n\
-A struct sequence providing parameters used for computing\n\
+A named tuple providing parameters used for computing\n\
 hashes. The attributes are read only.");
 
 static PyStructSequence_Field hash_info_fields[] = {
@@ -2349,17 +2347,17 @@ builtin_module_names -- tuple of module names built into this interpreter\n\
 copyright -- copyright notice pertaining to this interpreter\n\
 exec_prefix -- prefix used to find the machine-specific Python library\n\
 executable -- absolute path of the executable binary of the Python interpreter\n\
-float_info -- a struct sequence with information about the float implementation.\n\
+float_info -- a named tuple with information about the float implementation.\n\
 float_repr_style -- string indicating the style of repr() output for floats\n\
-hash_info -- a struct sequence with information about the hash algorithm.\n\
+hash_info -- a named tuple with information about the hash algorithm.\n\
 hexversion -- version information encoded as a single integer\n\
 implementation -- Python implementation information.\n\
-int_info -- a struct sequence with information about the int implementation.\n\
+int_info -- a named tuple with information about the int implementation.\n\
 maxsize -- the largest supported length of containers.\n\
 maxunicode -- the value of the largest Unicode code point\n\
 platform -- platform identifier\n\
 prefix -- prefix used to find the Python library\n\
-thread_info -- a struct sequence with information about the thread implementation.\n\
+thread_info -- a named tuple with information about the thread implementation.\n\
 version -- the version of this interpreter as a string\n\
 version_info -- version information as a named tuple\n\
 "

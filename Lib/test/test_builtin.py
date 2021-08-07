@@ -160,6 +160,11 @@ class BuiltinTest(unittest.TestCase):
         self.assertRaises(TypeError, __import__, 1, 2, 3, 4)
         self.assertRaises(ValueError, __import__, '')
         self.assertRaises(TypeError, __import__, 'sys', name='sys')
+        # Relative import outside of a package with no __package__ or __spec__ (bpo-37409).
+        with self.assertWarns(ImportWarning):
+            self.assertRaises(ImportError, __import__, '',
+                              {'__package__': None, '__spec__': None, '__name__': '__main__'},
+                              locals={}, fromlist=('foo',), level=1)
         # embedded null character
         self.assertRaises(ModuleNotFoundError, __import__, 'string\x00')
 
@@ -1476,6 +1481,18 @@ class BuiltinTest(unittest.TestCase):
         for proto in range(pickle.HIGHEST_PROTOCOL + 1):
             z1 = zip(a, b)
             self.check_iter_pickle(z1, t, proto)
+
+    def test_zip_bad_iterable(self):
+        exception = TypeError()
+
+        class BadIterable:
+            def __iter__(self):
+                raise exception
+
+        with self.assertRaises(TypeError) as cm:
+            zip(BadIterable())
+
+        self.assertIs(cm.exception, exception)
 
     def test_format(self):
         # Test the basic machinery of the format() builtin.  Don't test
