@@ -66,11 +66,7 @@ _PyRuntimeState_Init_impl(_PyRuntimeState *runtime)
     _PyEval_Initialize(&runtime->ceval);
     slp_initialize(&runtime->st);
 
-    runtime->preconfig.struct_size = sizeof(PyPreConfig);
-    PyStatus status = PyPreConfig_InitPythonConfig(&runtime->preconfig);
-    if (_PyStatus_EXCEPTION(status)) {
-        return status;
-    }
+    PyPreConfig_InitPythonConfig(&runtime->preconfig);
 
     runtime->gilstate.check_enabled = 1;
 
@@ -229,7 +225,6 @@ PyInterpreterState_New(void)
     interp->id_refcount = -1;
     interp->check_interval = 100;
 
-    interp->config.struct_size = sizeof(PyConfig);
     PyStatus status = PyConfig_InitPythonConfig(&interp->config);
     if (_PyStatus_EXCEPTION(status)) {
         /* Don't report status to caller: PyConfig_InitPythonConfig()
