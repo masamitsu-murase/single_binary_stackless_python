@@ -474,7 +474,7 @@ pyinit_core_reconfigure(_PyRuntimeState *runtime,
     config = &interp->config;
 
     if (config->_install_importlib) {
-        status = _PyPathConfig_Init();
+        status = _PyConfig_WritePathConfig(config);
         if (_PyStatus_EXCEPTION(status)) {
             return status;
         }
@@ -648,7 +648,7 @@ pycore_init_import_warnings(PyInterpreterState *interp, PyObject *sysmod)
     }
 
     if (config->_install_importlib) {
-        status = _PyPathConfig_Init();
+        status = _PyConfig_WritePathConfig(config);
         if (_PyStatus_EXCEPTION(status)) {
             return status;
         }
@@ -948,7 +948,8 @@ pyinit_main(_PyRuntimeState *runtime, PyInterpreterState *interp)
         return status;
     }
 
-    status = _PyUnicode_InitEncodings(interp);
+    PyThreadState *tstate = _PyRuntimeState_GetThreadState(runtime);
+    status = _PyUnicode_InitEncodings(tstate);
     if (_PyStatus_EXCEPTION(status)) {
         return status;
     }
@@ -1521,7 +1522,7 @@ new_interpreter(PyThreadState **tstate_p)
             return status;
         }
 
-        status = _PyUnicode_InitEncodings(interp);
+        status = _PyUnicode_InitEncodings(tstate);
         if (_PyStatus_EXCEPTION(status)) {
             return status;
         }
