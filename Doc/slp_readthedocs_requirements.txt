@@ -1,0 +1,10 @@
+# -*- coding: utf-8 -*-
+#
+# This file is used to create the virtual environment used to build the Stackless
+# documentation on readthedocs.org. See ../.readthedocs.yaml
+#
+# The requirements should match the requirements in the target "venv" of Makefile
+#
+Sphinx == 2.0.1
+blurb
+python-docs-theme

@@ -18,3 +18,6 @@ build:
 # Optionally set the version of Python and requirements required to build your docs
 python:
    version: 3.8
+   install:
+     - requirements: Doc/slp_readthedocs_requirements.txt
+   system_packages: true
