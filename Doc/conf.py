@@ -16,17 +16,6 @@ sys.path.append(os.path.abspath('includes'))
 extensions = ['sphinx.ext.coverage', 'sphinx.ext.doctest',
               'pyspecific', 'c_annotations', 'escape4chm']
 
-# Compatibility hack for Sphinx version 1.2 and later
-# without the 'sphinx.ext.refcounting' extension
-# Required for http://stackless.readthedocs.org
-try:
-    # this symbol is available starting from version 1.2
-    from sphinx import version_info
-except Exception:
-    pass # version is pre 1.2.
-else:
-    del version_info
-    del extensions[0]
 if os.environ.get('READTHEDOCS', None) == 'True':
     # Use the Sphinx default theme, not the very neat theme of readthedocs.org
     # See https://docs.readthedocs.org/en/latest/faq.html#i-want-to-use-the-blue-default-sphinx-theme
