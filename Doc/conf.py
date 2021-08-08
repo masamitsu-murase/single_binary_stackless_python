@@ -19,7 +19,7 @@ extensions = ['sphinx.ext.coverage', 'sphinx.ext.doctest',
 if os.environ.get('READTHEDOCS', None) == 'True':
     # Use the Sphinx default theme, not the very neat theme of readthedocs.org
     # See https://docs.readthedocs.org/en/latest/faq.html#i-want-to-use-the-blue-default-sphinx-theme
-    html_style = '/default.css'
+    html_style = 'pydoctheme.css'
 
 doctest_global_setup = '''
 try:
