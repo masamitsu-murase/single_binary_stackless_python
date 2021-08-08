@@ -444,6 +444,12 @@ The ``tasklet`` class
       the :class:`~contextvars.Context` object of the
       tasklet to the :class:`~contextvars.Context` object of the current tasklet.
 
+   .. versionchanged:: 3.8
+
+      If the state contains a trace- or profile-function :meth:`~__setstate__` now
+      raises an auditing event ``sys.settrace`` resp. ``sys.setprofile`` with
+      no arguments.
+
    :param state: the state as given by ``__reduce_ex__(...)[2]``
    :type state: :class:`tuple`
    :return: self
@@ -571,6 +577,11 @@ and thus may not be available in all |SLP| implementations.
    The trace / profile function of the tasklet. These attributes
    are the tasklet counterparts of the functions :func:`sys.settrace`,
    :func:`sys.gettrace`, :func:`sys.setprofile` and :func:`sys.getprofile`.
+
+   .. versionchanged:: 3.8
+
+      Assignments to these attributes now raise an auditing event
+      ``sys.settrace`` resp. ``sys.setprofile`` with no arguments.
 
 
 ^^^^^^^^^^^^^^^^^^

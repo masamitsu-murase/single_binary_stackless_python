@@ -736,9 +736,11 @@ PyObject * slp_async_gen_athrow_new(PyAsyncGenObject *gen);
 PyObject * slp_async_gen_athrow_setstate(PyObject *self, PyObject *args);
 
 /* debugging/monitoring */
-
 int slp_schedule_callback(PyTaskletObject *prev, PyTaskletObject *next);
+void slp_set_profile(Py_tracefunc func, PyObject *arg);
+void slp_set_trace(Py_tracefunc func, PyObject *arg);
 
+/* Stackless extension for types */
 int slp_prepare_slots(PyTypeObject*);
 
 Py_tracefunc slp_get_sys_profile_func(void);

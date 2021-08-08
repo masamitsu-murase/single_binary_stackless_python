@@ -853,6 +853,20 @@ tasklet_setstate(PyObject *self, PyObject *args)
     }
 
     /* profile and tracing */
+    if ((c_functions & 1) || (Py_None != traceobj)) {
+        /* trace setting requested */
+        if (PySys_Audit("sys.settrace", NULL)) {
+            return NULL;
+        }
+    }
+
+    if ((c_functions & 2) || (Py_None != profileobj)) {
+        /* profile setting requested */
+        if (PySys_Audit("sys.setprofile", NULL)) {
+            return NULL;
+        }
+    }
+
     if (c_functions & 1) {
         Py_tracefunc func = slp_get_sys_trace_func();
         if (NULL == func)
@@ -2141,6 +2155,9 @@ tasklet_set_trace_function(PyTaskletObject *task, PyObject *value, void *closure
     PyThreadState *ts = task->cstate->tstate;
     Py_tracefunc tf = NULL;
 
+    if (PySys_Audit("sys.settrace", NULL)) {
+        return -1;
+    }
     if (Py_None == value)
         value = NULL;
     if (value) {
@@ -2152,7 +2169,7 @@ tasklet_set_trace_function(PyTaskletObject *task, PyObject *value, void *closure
         /* current tasklet */
         if (_PyThreadState_GET() != ts)
             RUNTIME_ERROR("You cannot set the trace function of the current tasklet of another thread", -1);
-        PyEval_SetTrace(tf, value);
+        slp_set_trace(tf, value);
         return 0;
     }
 
@@ -2182,6 +2199,9 @@ tasklet_set_profile_function(PyTaskletObject *task, PyObject *value, void *closu
     PyThreadState *ts = task->cstate->tstate;
     Py_tracefunc tf = NULL;
 
+    if (PySys_Audit("sys.setprofile", NULL)) {
+        return -1;
+    }
     if (Py_None == value)
         value = NULL;
     if (value) {
@@ -2193,7 +2213,7 @@ tasklet_set_profile_function(PyTaskletObject *task, PyObject *value, void *closu
         /* current tasklet */
         if (_PyThreadState_GET() != ts)
             RUNTIME_ERROR("You cannot set the profile function of the current tasklet of another thread", -1);
-        PyEval_SetProfile(tf, value);
+        slp_set_profile(tf, value);
         return 0;
     }
 

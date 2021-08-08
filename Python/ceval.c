@@ -5253,7 +5253,14 @@ PyEval_SetProfile(Py_tracefunc func, PyObject *arg)
     if (PySys_Audit("sys.setprofile", NULL) < 0) {
         return;
     }
+#ifdef STACKLESS
+    slp_set_profile(func, arg);
+}
 
+void
+slp_set_profile(Py_tracefunc func, PyObject *arg)
+{
+#endif
     PyThreadState *tstate = _PyThreadState_GET();
     PyObject *temp = tstate->c_profileobj;
     Py_XINCREF(arg);
@@ -5274,6 +5281,14 @@ PyEval_SetTrace(Py_tracefunc func, PyObject *arg)
     if (PySys_Audit("sys.settrace", NULL) < 0) {
         return;
     }
+#ifdef STACKLESS
+    slp_set_trace(func, arg);
+}
+
+void
+slp_set_trace(Py_tracefunc func, PyObject *arg)
+{
+#endif
 
     _PyRuntimeState *runtime = &_PyRuntime;
     PyThreadState *tstate = _PyRuntimeState_GetThreadState(runtime);

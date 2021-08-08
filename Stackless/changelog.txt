@@ -9,6 +9,12 @@ What's New in Stackless 3.X.X?
 
 *Release date: 20XX-XX-XX*
 
+- https://github.com/stackless-dev/stackless/issues/300
+  Assignments to 'tasklet.trace_function', 'tasklet.profile_function' now raise
+  an auditing event "sys.settrace" resp. "sys.setprofile" with no arguments.
+  Unpickling a tasklet with trace- or profile-function now raises an
+  auditing event "sys.settrace" resp. "sys.setprofile" with no arguments.
+
 - https://github.com/stackless-dev/stackless/issues/275
   Add limited support for the eval_frame-hook introduced by PEP-523.
   Stackless can't fully support all use-cases. Currently the hook can be used

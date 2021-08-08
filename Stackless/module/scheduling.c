@@ -622,7 +622,7 @@ Py_LOCAL_INLINE(void) SLP_UPDATE_TSTATE_ON_SWITCH(PyThreadState *tstate, PyTaskl
         Py_XINCREF(prev->profileobj);
         if (prev->profileobj)
             assert(Py_REFCNT(prev->profileobj) >= 2);  /* won't drop to zero in PyEval_SetProfile */
-        PyEval_SetProfile(next->profilefunc, next->profileobj);
+        slp_set_profile(next->profilefunc, next->profileobj);
         next->profilefunc = NULL;
         if (next->profileobj)
             assert(Py_REFCNT(next->profileobj) >= 2);  /* won't drop to zero */
@@ -642,7 +642,7 @@ Py_LOCAL_INLINE(void) SLP_UPDATE_TSTATE_ON_SWITCH(PyThreadState *tstate, PyTaskl
             assert(Py_REFCNT(prev->traceobj) >= 2);  /* won't drop to zero in PyEval_SetTrace */
         prev->tracing = tstate->tracing;
         tstate->tracing = next->tracing;
-        PyEval_SetTrace(next->tracefunc, next->traceobj);
+        slp_set_trace(next->tracefunc, next->traceobj);
         next->tracefunc = NULL;
         if (next->traceobj)
             assert(Py_REFCNT(next->traceobj) >= 2);  /* won't drop to zero */
@@ -682,7 +682,7 @@ Py_LOCAL_INLINE(void) SLP_UPDATE_TSTATE_ON_SWITCH(PyThreadState *tstate, PyTaskl
             Py_XINCREF(prev__->profileobj); \
             if (prev__->profileobj) \
                 assert(Py_REFCNT(prev__->profileobj) >= 2);  /* won't drop to zero in PyEval_SetProfile */ \
-            PyEval_SetProfile(next__->profilefunc, next__->profileobj); \
+            slp_set_profile(next__->profilefunc, next__->profileobj); \
             next__->profilefunc = NULL; \
             if (next__->profileobj) \
                 assert(Py_REFCNT(next__->profileobj) >= 2);  /* won't drop to zero */ \
@@ -701,7 +701,7 @@ Py_LOCAL_INLINE(void) SLP_UPDATE_TSTATE_ON_SWITCH(PyThreadState *tstate, PyTaskl
                 assert(Py_REFCNT(prev__->traceobj) >= 2);  /* won't drop to zero in PyEval_SetTrace */ \
             prev__->tracing = ts__->tracing; \
             ts__->tracing = next__->tracing; \
-            PyEval_SetTrace(next__->tracefunc, next__->traceobj); \
+            slp_set_trace(next__->tracefunc, next__->traceobj); \
             next__->tracefunc = NULL; \
             if (next__->traceobj) \
                 assert(Py_REFCNT(next__->traceobj) >= 2);  /* won't drop to zero */ \
