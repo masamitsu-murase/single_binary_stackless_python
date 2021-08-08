@@ -16,10 +16,6 @@ sys.path.append(os.path.abspath('includes'))
 extensions = ['sphinx.ext.coverage', 'sphinx.ext.doctest',
               'pyspecific', 'c_annotations', 'escape4chm']
 
-if os.environ.get('READTHEDOCS', None) == 'True':
-    # Use the Sphinx default theme, not the very neat theme of readthedocs.org
-    # See https://docs.readthedocs.org/en/latest/faq.html#i-want-to-use-the-blue-default-sphinx-theme
-    html_style = 'pydoctheme.css'
 
 doctest_global_setup = '''
 try:
