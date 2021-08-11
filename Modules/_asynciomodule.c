@@ -1831,6 +1831,21 @@ TaskWakeupMethWrapper_dealloc(TaskWakeupMethWrapper *o)
     Py_TYPE(o)->tp_free(o);
 }
 
+static PyObject *
+TaskWakeupMethWrapper_get___self__(TaskWakeupMethWrapper *o, void *Py_UNUSED(ignored))
+{
+    if (o->ww_task) {
+        Py_INCREF(o->ww_task);
+        return (PyObject*)o->ww_task;
+    }
+    Py_RETURN_NONE;
+}
+
+static PyGetSetDef TaskWakeupMethWrapper_getsetlist[] = {
+    {"__self__", (getter)TaskWakeupMethWrapper_get___self__, NULL, NULL},
+    {NULL} /* Sentinel */
+};
+
 #ifdef STACKLESS
 static PyMappingMethods TaskWakeupMethWrapper_as_mapping = {
     .slpflags.tp_call = -1,
@@ -1848,6 +1863,7 @@ static PyTypeObject TaskWakeupMethWrapper_Type = {
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_STACKLESS_EXTENSION,
     .tp_traverse = (traverseproc)TaskWakeupMethWrapper_traverse,
     .tp_clear = (inquiry)TaskWakeupMethWrapper_clear,
+    .tp_getset = TaskWakeupMethWrapper_getsetlist,
 #ifdef STACKLESS
     .tp_as_mapping = &TaskWakeupMethWrapper_as_mapping,
 #endif
@@ -3377,7 +3393,7 @@ module_init(void)
     }
     if (module_initialized != 0) {
         return 0;
-    } 
+    }
     else {
         module_initialized = 1;
     }
