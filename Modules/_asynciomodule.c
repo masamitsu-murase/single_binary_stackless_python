@@ -1,4 +1,3 @@
-//#define STACKLESS_OFF
 #include "Python.h"
 #include "structmember.h"
 #include "stackless_api.h"
