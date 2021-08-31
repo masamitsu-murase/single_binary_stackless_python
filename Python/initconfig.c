@@ -613,14 +613,14 @@ config_init_defaults(PyConfig *config)
     _PyConfig_InitCompatConfig(config);
 
     config->isolated = 0;
-    config->use_environment = 1;
+    config->use_environment = 0;
     config->site_import = 1;
     config->bytes_warning = 0;
     config->inspect = 0;
     config->interactive = 0;
     config->optimization_level = 0;
     config->parser_debug= 0;
-    config->write_bytecode = 1;
+    config->write_bytecode = 0;
     config->verbose = 0;
     config->quiet = 0;
     config->user_site_directory = 1;
@@ -1918,7 +1918,7 @@ config_parse_cmdline(PyConfig *config, PyWideStringList *warnoptions,
             break;
 
         case 'B':
-            config->write_bytecode = 0;
+            config->write_bytecode = 1;
             break;
 
         case 's':
