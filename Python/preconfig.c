@@ -196,7 +196,7 @@ precmdline_parse_cmdline(_PyPreCmdline *cmdline)
 
         switch (c) {
         case 'E':
-            cmdline->use_environment = 0;
+            cmdline->use_environment = 1;
             break;
 
         case 'I':
@@ -305,7 +305,7 @@ PyPreConfig_InitPythonConfig(PyPreConfig *config)
     config->_config_init = (int)_PyConfig_INIT_PYTHON;
     config->isolated = 0;
     config->parse_argv = 1;
-    config->use_environment = 1;
+    config->use_environment = 0;
     /* Set to -1 to enable C locale coercion (PEP 538) and UTF-8 Mode (PEP 540)
        depending on the LC_CTYPE locale, PYTHONUTF8 and PYTHONCOERCECLOCALE
        environment variables. */
