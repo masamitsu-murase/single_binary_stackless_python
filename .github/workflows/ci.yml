@@ -2,7 +2,7 @@ name: Python
 
 on:
   push:
-    branches: [ master3, master3.7, refine_build_scripts ]
+    branches: [ master3, master3.7, update_to_3.8 ]
     tags: ['v*']
   pull_request:
     branches: [ master3, master3.7 ]
