@@ -865,8 +865,8 @@ calculate_module_search_path(PyCalculatePath *calculate,
     if (calculate->machine_path) {
         bufsz += wcslen(calculate->machine_path) + 1;
     }
-    if (config->program_full_path) {
-        bufsz += wcslen(config->program_full_path) + 1;
+    if (pathconfig->program_full_path) {
+        bufsz += wcslen(pathconfig->program_full_path) + 1;
     }
     bufsz += wcslen(zip_path) + 1;
     if (calculate->pythonpath_env != NULL) {
@@ -888,8 +888,8 @@ calculate_module_search_path(PyCalculatePath *calculate,
         buf = wcschr(buf, L'\0');
         *buf++ = DELIM;
     }
-    if (config->program_full_path) {
-        if (wcscpy_s(buf, bufsz - (buf - start_buf), config->program_full_path)) {
+    if (pathconfig->program_full_path) {
+        if (wcscpy_s(buf, bufsz - (buf - start_buf), pathconfig->program_full_path)) {
             return INIT_ERR_BUFFER_OVERFLOW();
         }
         buf = wcschr(buf, L'\0');

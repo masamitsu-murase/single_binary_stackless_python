@@ -28,12 +28,19 @@ ADDITIONAL_LIBS = _msi.lib
 !ELSE
 ADDITIONAL_LIBS =
 !ENDIF
+#        _ssl.lib _testcapi.lib _teststackless.lib _tkinter.lib _yaml.lib libuchardet.lib libyaml.lib liblzma.lib pyexpat.lib pythoncore.lib select.lib sqlite3.lib unicodedata.lib winsound.lib xxlimited.lib
 LIBS = _asyncio.lib _bz2.lib _cchardet.lib _ctypes.lib _decimal.lib _elementtree.lib _hashlib.lib _lzma.lib _multiprocessing.lib _overlapped.lib _queue.lib _socket.lib _sqlite3.lib \
-        _ssl.lib _testcapi.lib _teststackless.lib _tkinter.lib _yaml.lib libuchardet.lib libyaml.lib liblzma.lib pyexpat.lib pythoncore.lib select.lib sqlite3.lib unicodedata.lib winsound.lib xxlimited.lib \
- 	   $(ADDITIONAL_LIBS)
+       _ssl.lib _testcapi.lib  _tkinter.lib _yaml.lib libuchardet.lib libyaml.lib liblzma.lib pyexpat.lib pythoncore.lib select.lib sqlite3.lib unicodedata.lib winsound.lib xxlimited.lib \
+       iphlpapi.lib $(ADDITIONAL_LIBS)
 
+!IF "$(BUILD_TARGET_CPU)" == "x86"
+EXTERNAL_LIBS_PLATFORM = $(externalsDir)\libffi-3.4.2\win32\libffi_convenience.lib
+!ELSE
+EXTERNAL_LIBS_PLATFORM = $(externalsDir)\libffi-3.4.2\amd64\libffi_convenience.lib
+!ENDIF
 EXTERNAL_LIBS = shell32.lib user32.lib advapi32.lib ws2_32.lib ole32.lib oleaut32.lib gdi32.lib crypt32.lib msi.lib cabinet.lib rpcrt4.lib winmm.lib Shlwapi.lib Version.lib \
-          $(ProjectDir)\PCbuild\libssl.lib $(ProjectDir)\PCbuild\libcrypto.lib $(ProjectDir)\PCbuild\tcl86ts.lib $(ProjectDir)\PCbuild\tk86ts.lib $(ProjectDir)\PCbuild\tclstub86.lib netapi32.lib #Mincore_downlevel.lib
+          $(ProjectDir)\PCbuild\libssl.lib $(ProjectDir)\PCbuild\libcrypto.lib $(ProjectDir)\PCbuild\tcl86ts.lib $(ProjectDir)\PCbuild\tk86ts.lib $(ProjectDir)\PCbuild\tclstub86.lib netapi32.lib \
+          $(EXTERNAL_LIBS_PLATFORM)
 RESOURCE = $(ProjectDir)\PCbuild\tk_base.res
 RESOURCEW = $(ProjectDir)\PCbuild\tk_basew.res
 
@@ -84,7 +91,7 @@ lib:
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__sqlite3
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__ssl
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__testcapi
-	$(MAKE) /$(MAKEFLAGS) /f Makefile__teststackless
+#	$(MAKE) /$(MAKEFLAGS) /f Makefile__teststackless
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__tkinter
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__yaml
 	$(MAKE) /$(MAKEFLAGS) /f Makefile_liblzma
@@ -118,7 +125,7 @@ clean:
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__sqlite3 clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__ssl clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__testcapi clean
-	-$(MAKE) /$(MAKEFLAGS) /f Makefile__teststackless clean
+#	-$(MAKE) /$(MAKEFLAGS) /f Makefile__teststackless clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__tkinter clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__yaml clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile_liblzma clean
