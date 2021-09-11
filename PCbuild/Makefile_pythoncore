@@ -6,9 +6,9 @@ externalsDir = $(ProjectDir)\externals
 
 INCLUDES = /I "$(ProjectDir)\Python" /I "$(externalsDir)\zlib-1.2.11" /I "$(ProjectDir)\Include" /I "$(ProjectDir)\Include\internal" /I "$(ProjectDir)\PC" /I "$(ProjectDir)\Stackless" 
 !IF "$(WINDOWS_PE)" == "0"
-DEFINES = /D "Py_BUILD_CORE" /D "Py_ENABLE_SHARED" /D "_Py_HAVE_ZLIB" /D "WIN32" /D "_CONSOLE" /D "NDEBUG" 
+DEFINES = /D "Py_BUILD_CORE_BUILTIN" /D "Py_BUILD_CORE" /D "SLP_NO_STACKMAN" /D "Py_ENABLE_SHARED" /D "_Py_HAVE_ZLIB" /D "WIN32" /D "_CONSOLE" /D "NDEBUG" 
 !ELSE
-DEFINES = /D "Py_BUILD_CORE" /D "Py_ENABLE_SHARED" /D "_Py_HAVE_ZLIB" /D "WIN32" /D "_CONSOLE" /D "NDEBUG" /D "Py_BUILD_FOR_WINDOWS_PE"
+DEFINES = /D "Py_BUILD_CORE_BUILTIN" /D "Py_BUILD_CORE" /D "SLP_NO_STACKMAN" /D "Py_ENABLE_SHARED" /D "_Py_HAVE_ZLIB" /D "WIN32" /D "_CONSOLE" /D "NDEBUG" /D "Py_BUILD_FOR_WINDOWS_PE"
 !ENDIF
 CFLAGS = /O2 /Ob1 /Oi /GL $(INCLUDES) $(DEFINES) $(ARCH_DEFINES) /GF /FD /MT /Gy /W3 /nologo /Zi
 LFLAGS = /NOLOGO /LTCG
@@ -61,12 +61,13 @@ COMMON_OBJS = \
         $(ProjectDir)\Modules\sha256module.obj \
         $(ProjectDir)\Modules\sha512module.obj \
         $(ProjectDir)\Modules\signalmodule.obj \
+        $(ProjectDir)\Modules\_statisticsmodule.obj \
         $(ProjectDir)\Modules\symtablemodule.obj \
         $(ProjectDir)\Modules\_threadmodule.obj \
         $(ProjectDir)\Modules\_tracemalloc.obj \
         $(ProjectDir)\Modules\timemodule.obj \
         $(ProjectDir)\Modules\xxsubtype.obj \
-        $(ProjectDir)\Modules\zipimport.obj \
+        $(ProjectDir)\Modules\_xxsubinterpretersmodule.obj \
         $(ProjectDir)\Modules\_io\fileio.obj \
         $(ProjectDir)\Modules\_io\bytesio.obj \
         $(ProjectDir)\Modules\_io\stringio.obj \
@@ -104,6 +105,7 @@ COMMON_OBJS = \
         $(ProjectDir)\Objects\frameobject.obj \
         $(ProjectDir)\Objects\funcobject.obj \
         $(ProjectDir)\Objects\genobject.obj \
+        $(ProjectDir)\Objects\interpreteridobject.obj \
         $(ProjectDir)\Objects\iterobject.obj \
         $(ProjectDir)\Objects\listobject.obj \
         $(ProjectDir)\Objects\longobject.obj \
@@ -114,6 +116,7 @@ COMMON_OBJS = \
         $(ProjectDir)\Objects\object.obj \
         $(ProjectDir)\Objects\obmalloc.obj \
         $(ProjectDir)\Objects\odictobject.obj \
+        $(ProjectDir)\Objects\picklebufobject.obj \
         $(ProjectDir)\Objects\rangeobject.obj \
         $(ProjectDir)\Objects\setobject.obj \
         $(ProjectDir)\Objects\sliceobject.obj \
@@ -124,17 +127,14 @@ COMMON_OBJS = \
         $(ProjectDir)\Objects\unicodeobject.obj \
         $(ProjectDir)\Objects\weakrefobject.obj \
         $(ProjectDir)\Parser\acceler.obj \
-        $(ProjectDir)\Parser\bitset.obj \
-        $(ProjectDir)\Parser\firstsets.obj \
-        $(ProjectDir)\Parser\grammar.obj \
         $(ProjectDir)\Parser\grammar1.obj \
         $(ProjectDir)\Parser\listnode.obj \
-        $(ProjectDir)\Parser\metagrammar.obj \
         $(ProjectDir)\Parser\myreadline.obj \
         $(ProjectDir)\Parser\node.obj \
         $(ProjectDir)\Parser\parser.obj \
         $(ProjectDir)\Parser\parsetok.obj \
         $(ProjectDir)\Parser\tokenizer.obj \
+        $(ProjectDir)\Parser\token.obj \
         $(ProjectDir)\PC\invalid_parameter_handler.obj \
         $(ProjectDir)\PC\winreg.obj \
         $(ProjectDir)\PC\config.obj \
@@ -169,12 +169,14 @@ COMMON_OBJS = \
         $(ProjectDir)\Python\hamt.obj \
         $(ProjectDir)\Python\import.obj \
         $(ProjectDir)\Python\importdl.obj \
+        $(ProjectDir)\Python\initconfig.obj \
         $(ProjectDir)\Python\marshal.obj \
         $(ProjectDir)\Python\modsupport.obj \
         $(ProjectDir)\Python\mysnprintf.obj \
         $(ProjectDir)\Python\mystrtoul.obj \
         $(ProjectDir)\Python\pathconfig.obj \
         $(ProjectDir)\Python\peephole.obj \
+        $(ProjectDir)\Python\preconfig.obj \
         $(ProjectDir)\Python\pyarena.obj \
         $(ProjectDir)\Python\pyctype.obj \
         $(ProjectDir)\Python\pyfpe.obj \
@@ -194,7 +196,7 @@ COMMON_OBJS = \
         $(ProjectDir)\Python\thread.obj \
         $(ProjectDir)\Python\traceback.obj \
         $(ProjectDir)\Stackless\core\cframeobject.obj \
-        $(ProjectDir)\Stackless\core\slp_transfer.obj \
+        $(ProjectDir)\Stackless\platf\slp_transfer.obj \
         $(ProjectDir)\Stackless\core\stacklesseval.obj \
         $(ProjectDir)\Stackless\core\stackless_util.obj \
         $(ProjectDir)\Stackless\module\channelobject.obj \
