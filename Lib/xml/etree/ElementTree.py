@@ -720,7 +720,7 @@ class ElementTree:
               default_namespace=None,
               method=None, *,
               short_empty_elements=True,
-              sort_attrib=True):
+              sort_attrib=False):
         """Write element tree to a file as XML.
 
         Arguments:
@@ -896,7 +896,7 @@ def _namespaces(elem, default_namespace=None):
     return qnames, namespaces
 
 def _serialize_xml(write, elem, qnames, namespaces,
-                   short_empty_elements, sort_attrib=True, **kwargs):
+                   short_empty_elements, sort_attrib=False, **kwargs):
     tag = elem.tag
     text = elem.text
     if tag is Comment:
@@ -961,7 +961,7 @@ try:
 except NameError:
     pass
 
-def _serialize_html(write, elem, qnames, namespaces, sort_attrib=True, **kwargs):
+def _serialize_html(write, elem, qnames, namespaces, sort_attrib=False, **kwargs):
     tag = elem.tag
     text = elem.text
     if tag is Comment:
@@ -1132,7 +1132,7 @@ def _escape_attrib_html(text):
 
 def tostring(element, encoding=None, method=None, *,
              xml_declaration=None, default_namespace=None,
-             short_empty_elements=True, sort_attrib=True):
+             short_empty_elements=True, sort_attrib=False):
     """Generate string representation of XML element.
 
     All subelements are included.  If encoding is "unicode", a string
@@ -1174,7 +1174,7 @@ class _ListDataStream(io.BufferedIOBase):
 
 def tostringlist(element, encoding=None, method=None, *,
                  xml_declaration=None, default_namespace=None,
-                 short_empty_elements=True, sort_attrib=True):
+                 short_empty_elements=True, sort_attrib=False):
     lst = []
     stream = _ListDataStream(lst)
     ElementTree(element).write(stream, encoding,
