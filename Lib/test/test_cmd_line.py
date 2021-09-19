@@ -68,7 +68,8 @@ class CmdLineTest(unittest.TestCase):
         def get_xoptions(*args):
             # use subprocess module directly because test.support.script_helper adds
             # "-X faulthandler" to the command line
-            args = (sys.executable, '-E') + args
+            # args = (sys.executable, '-E') + args
+            args = (sys.executable, ) + args
             args += ('-c', 'import sys; print(sys._xoptions)')
             out = subprocess.check_output(args)
             opts = eval(out.splitlines()[0])
@@ -86,6 +87,10 @@ class CmdLineTest(unittest.TestCase):
             # the refcount from stderr.  It can be replaced once
             # assert_python_ok stops doing that.
             cmd = [sys.executable]
+            if "-E" not in args:
+                cmd.append("-E")
+            else:
+                args = [arg for arg in args if arg != "-E"]
             cmd.extend(args)
             PIPE = subprocess.PIPE
             p = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
@@ -164,7 +169,7 @@ class CmdLineTest(unittest.TestCase):
             b'print(ascii("' + undecodable + b'"), '
                 b'locale.getpreferredencoding())')
         p = subprocess.Popen(
-            [sys.executable, "-c", code],
+            [sys.executable, "-E", "-c", code],
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             env=env)
         stdout, stderr = p.communicate()
@@ -511,6 +516,7 @@ class CmdLineTest(unittest.TestCase):
             env_vars = dict(
                 PYTHONDEBUG=value,
                 PYTHONOPTIMIZE=value,
+                PYTHONDONTWRITEBYTECODE=value,
                 PYTHONVERBOSE=value,
             )
             dont_write_bytecode = int(bool(value))
@@ -525,7 +531,7 @@ class CmdLineTest(unittest.TestCase):
                 ))"""
             )
             with self.subTest(envar_value=value):
-                assert_python_ok('-E', '-c', code, **env_vars)
+                assert_python_ok('-E', '-B', '-c', code, **env_vars)
 
     def test_set_pycache_prefix(self):
         # sys.pycache_prefix can be set from either -X pycache_prefix or
@@ -543,7 +549,7 @@ class CmdLineTest(unittest.TestCase):
         for envval, opt, expected in cases:
             exp_clause = "is None" if expected is None else f'== "{expected}"'
             code = f"import sys; sys.exit(not sys.pycache_prefix {exp_clause})"
-            args = ['-c', code]
+            args = ["-E", '-c', code]
             env = {} if envval is None else {'PYTHONPYCACHEPREFIX': envval}
             if opt is NO_VALUE:
                 args[:0] = ['-X', 'pycache_prefix']

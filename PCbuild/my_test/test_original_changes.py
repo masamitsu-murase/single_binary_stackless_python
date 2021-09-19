@@ -56,8 +56,8 @@ class TestOriginalChanges(unittest.TestCase):
           <test a="123" m="345" z="234">test</test>
         </data>"""
         root = ET.fromstring(xml_text)
-        output_sorted = ET.tostring(root, encoding="unicode")
-        output = ET.tostring(root, encoding="unicode", sort_attrib=False)
+        output_sorted = ET.tostring(root, encoding="unicode", sort_attrib=True)
+        output = ET.tostring(root, encoding="unicode")
         self.assertEqual(xml_text_sorted, output_sorted)
         self.assertEqual(xml_text, output)
 
