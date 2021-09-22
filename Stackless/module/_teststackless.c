@@ -492,6 +492,8 @@ pep523_frame_hook_eval_frame(PyFrameObject *f, int throwflag) {
 /*
  * The code below uses Python internal APIs
  */
+#include "pycore_pystate.h"
+
 PyDoc_STRVAR(test_install_PEP523_eval_frame_hook__doc__,
     "test_install_PEP523_eval_frame_hook(*, store_args, store_result, reset=False) -- a test function.\n\
 This function tests the PEP-523 eval_frame-hook. Usually it is not used by Stackless Python.");
