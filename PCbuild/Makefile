@@ -28,9 +28,8 @@ ADDITIONAL_LIBS = _msi.lib
 !ELSE
 ADDITIONAL_LIBS =
 !ENDIF
-#        _ssl.lib _testcapi.lib _teststackless.lib _tkinter.lib _yaml.lib libuchardet.lib libyaml.lib liblzma.lib pyexpat.lib pythoncore.lib select.lib sqlite3.lib unicodedata.lib winsound.lib xxlimited.lib
 LIBS = _asyncio.lib _bz2.lib _cchardet.lib _ctypes.lib _decimal.lib _elementtree.lib _hashlib.lib _lzma.lib _multiprocessing.lib _overlapped.lib _queue.lib _socket.lib _sqlite3.lib \
-       _ssl.lib _testcapi.lib  _tkinter.lib _yaml.lib libuchardet.lib libyaml.lib liblzma.lib pyexpat.lib pythoncore.lib select.lib sqlite3.lib unicodedata.lib winsound.lib xxlimited.lib \
+       _ssl.lib _testcapi.lib _teststackless.lib _tkinter.lib _yaml.lib libuchardet.lib libyaml.lib liblzma.lib pyexpat.lib pythoncore.lib select.lib sqlite3.lib unicodedata.lib winsound.lib xxlimited.lib \
        iphlpapi.lib $(ADDITIONAL_LIBS)
 
 !IF "$(BUILD_TARGET_CPU)" == "x86"
