@@ -91,7 +91,7 @@ lib:
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__sqlite3
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__ssl
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__testcapi
-#	$(MAKE) /$(MAKEFLAGS) /f Makefile__teststackless
+	$(MAKE) /$(MAKEFLAGS) /f Makefile__teststackless
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__tkinter
 	$(MAKE) /$(MAKEFLAGS) /f Makefile__yaml
 	$(MAKE) /$(MAKEFLAGS) /f Makefile_liblzma
@@ -125,7 +125,7 @@ clean:
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__sqlite3 clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__ssl clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__testcapi clean
-#	-$(MAKE) /$(MAKEFLAGS) /f Makefile__teststackless clean
+	-$(MAKE) /$(MAKEFLAGS) /f Makefile__teststackless clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__tkinter clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile__yaml clean
 	-$(MAKE) /$(MAKEFLAGS) /f Makefile_liblzma clean
