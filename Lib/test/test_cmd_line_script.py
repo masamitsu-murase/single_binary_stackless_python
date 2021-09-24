@@ -126,7 +126,7 @@ class CmdLineTest(unittest.TestCase):
         run_args = [*support.optim_args_from_interpreter_flags(),
                     *cmd_line_switches, *script_exec_args, *example_args]
         rc, out, err = assert_python_ok(
-            *run_args, __isolated=False, __cwd=cwd, **env_vars
+            *['-E', *run_args], __isolated=False, __cwd=cwd, **env_vars
         )
         self._check_output(script_exec_args, rc, out + err, expected_file,
                            expected_argv0, expected_path0,
