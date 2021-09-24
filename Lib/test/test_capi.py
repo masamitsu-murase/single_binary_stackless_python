@@ -692,7 +692,7 @@ class PyMemDebugTests(unittest.TestCase):
             except _testcapi.error:
                 os._exit(1)
         ''')
-        assert_python_ok('-c', code, PYTHONMALLOC=self.PYTHONMALLOC)
+        assert_python_ok('-E', '-c', code, PYTHONMALLOC=self.PYTHONMALLOC)
 
     def test_pyobject_null_is_freed(self):
         self.check_pyobject_is_freed('check_pyobject_null_is_freed')
