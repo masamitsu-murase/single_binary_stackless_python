@@ -255,7 +255,8 @@ class CmdLineTest(unittest.TestCase):
             path = ":".join(sys.path)
             path = path.encode("ascii", "backslashreplace")
             sys.stdout.buffer.write(path)"""
-        rc, out, err = assert_python_ok('-S', '-c', code,
+        # rc, out, err = assert_python_ok('-S', '-c', code,
+        rc, out, err = assert_python_ok('-S', '-E', '-c', code,
                                         PYTHONPATH=path)
         self.assertIn(path1.encode('ascii'), out)
         self.assertIn(path2.encode('ascii'), out)
@@ -282,7 +283,8 @@ class CmdLineTest(unittest.TestCase):
             env = os.environ.copy()
             env['PYTHONIOENCODING'] = encoding
             p = subprocess.Popen(
-                [sys.executable, '-i'],
+                # [sys.executable, '-i'],
+                [sys.executable, '-E', '-i'],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
@@ -431,13 +433,16 @@ class CmdLineTest(unittest.TestCase):
 
         # Verify that sys.flags contains hash_randomization
         code = 'import sys; print("random is", sys.flags.hash_randomization)'
-        rc, out, err = assert_python_ok('-c', code, PYTHONHASHSEED='')
+        # rc, out, err = assert_python_ok('-c', code, PYTHONHASHSEED='')
+        rc, out, err = assert_python_ok('-E', '-c', code, PYTHONHASHSEED='')
         self.assertIn(b'random is 1', out)
 
-        rc, out, err = assert_python_ok('-c', code, PYTHONHASHSEED='random')
+        # rc, out, err = assert_python_ok('-c', code, PYTHONHASHSEED='random')
+        rc, out, err = assert_python_ok('-E', '-c', code, PYTHONHASHSEED='random')
         self.assertIn(b'random is 1', out)
 
-        rc, out, err = assert_python_ok('-c', code, PYTHONHASHSEED='0')
+        # rc, out, err = assert_python_ok('-c', code, PYTHONHASHSEED='0')
+        rc, out, err = assert_python_ok('-E', '-c', code, PYTHONHASHSEED='0')
         self.assertIn(b'random is 0', out)
 
         rc, out, err = assert_python_ok('-R', '-c', code, PYTHONHASHSEED='0')
@@ -477,7 +482,8 @@ class CmdLineTest(unittest.TestCase):
     def test_isolatedmode(self):
         self.verify_valid_flag('-I')
         self.verify_valid_flag('-IEs')
-        rc, out, err = assert_python_ok('-I', '-c',
+        # rc, out, err = assert_python_ok('-I', '-c',
+        rc, out, err = assert_python_ok('-I', '-E', '-c',
             'from sys import flags as f; '
             'print(f.no_user_site, f.ignore_environment, f.isolated)',
             # dummyvar to prevent extraneous -E
@@ -505,7 +511,6 @@ class CmdLineTest(unittest.TestCase):
             env_vars = dict(
                 PYTHONDEBUG=value,
                 PYTHONOPTIMIZE=value,
-                PYTHONDONTWRITEBYTECODE=value,
                 PYTHONVERBOSE=value,
             )
             dont_write_bytecode = int(bool(value))
@@ -520,7 +525,7 @@ class CmdLineTest(unittest.TestCase):
                 ))"""
             )
             with self.subTest(envar_value=value):
-                assert_python_ok('-c', code, **env_vars)
+                assert_python_ok('-E', '-c', code, **env_vars)
 
     def test_set_pycache_prefix(self):
         # sys.pycache_prefix can be set from either -X pycache_prefix or
@@ -634,7 +639,7 @@ class CmdLineTest(unittest.TestCase):
             code = "import sys, warnings; "
         code += ("print(' '.join('%s::%s' % (f[0], f[2].__name__) "
                                 "for f in warnings.filters))")
-        args = (sys.executable, '-W', cmdline_option, '-bb', '-c', code)
+        args = (sys.executable, '-E', '-W', cmdline_option, '-bb', '-c', code)
         env = dict(os.environ)
         env.pop('PYTHONDEVMODE', None)
         env["PYTHONWARNINGS"] = envvar
@@ -675,7 +680,7 @@ class CmdLineTest(unittest.TestCase):
             env['PYTHONMALLOC'] = env_var
         else:
             env.pop('PYTHONMALLOC', None)
-        args = (sys.executable, '-c', code)
+        args = (sys.executable, '-E', '-c', code)
         proc = subprocess.run(args,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT,
@@ -715,7 +720,7 @@ class CmdLineTest(unittest.TestCase):
         code = "import sys; print(sys.flags.dev_mode)"
         env = dict(os.environ)
         env.pop('PYTHONDEVMODE', None)
-        args = (sys.executable, '-c', code)
+        args = (sys.executable, '-E', '-c', code)
 
         proc = subprocess.run(args, stdout=subprocess.PIPE,
                               universal_newlines=True, env=env)
@@ -750,7 +755,7 @@ class IgnoreEnvironmentTest(unittest.TestCase):
         # Logical inversion to match predicate check to a zero return
         # code indicating success
         code = "import sys; sys.stderr.write(str(sys.flags)); sys.exit(not ({}))".format(predicate)
-        return assert_python_ok('-E', '-c', code, **env_vars)
+        return assert_python_ok('-c', code, **env_vars)
 
     def test_ignore_PYTHONPATH(self):
         path = "should_be_ignored"
@@ -764,8 +769,8 @@ class IgnoreEnvironmentTest(unittest.TestCase):
     def test_sys_flags_not_set(self):
         # Issue 31845: a startup refactoring broke reading flags from env vars
         expected_outcome = """
-            (sys.flags.debug == sys.flags.optimize ==
-             sys.flags.dont_write_bytecode == sys.flags.verbose == 0)
+            ((sys.flags.debug == sys.flags.optimize ==
+              sys.flags.verbose == 0) and sys.flags.dont_write_bytecode == 1)
         """
         self.run_ignoring_vars(
             expected_outcome,
