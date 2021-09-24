@@ -4,11 +4,13 @@
 
 *.cover
 *.iml
+*.lib
 *.o
 *.a
 *.so*
 *.dylib
 *.dll
+*.obj
 *.orig
 *.pyc
 *.pyd
