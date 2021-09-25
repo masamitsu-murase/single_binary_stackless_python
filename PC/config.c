@@ -218,7 +218,7 @@ struct _inittab _PyImport_Inittab[] = {
     {"_sqlite3", PyInit__sqlite3},
     {"_ssl", PyInit__ssl},
     {"_testcapi", PyInit__testcapi},
-    // {"_teststackless", PyInit__teststackless},
+    {"_teststackless", PyInit__teststackless},
     {"_tkinter", PyInit__tkinter},
     {"pyexpat", PyInit_pyexpat},
     {"select", PyInit_select},
