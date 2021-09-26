@@ -16,7 +16,6 @@
  */
 
 #include "Python.h"
-#include "internal/pystate.h"
 #include "frameobject.h"
 #include "stackless_api.h"
 #ifdef MS_WINDOWS

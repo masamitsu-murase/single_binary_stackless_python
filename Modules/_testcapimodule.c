@@ -12,7 +12,7 @@
 
 #define PY_SSIZE_T_CLEAN
 
-#define SINGLE_BINARY_STACKLESS_PYTHON__TESTCAPIMODULE
+// #define SINGLE_BINARY_STACKLESS_PYTHON__TESTCAPIMODULE
 
 #include "Python.h"
 #include "datetime.h"
@@ -30,9 +30,9 @@
 #include <sys/wait.h>           /* For W_STOPCODE */
 #endif
 
-#ifdef Py_BUILD_CORE
-#  error "_testcapi must test the public Python C API, not CPython internal C API"
-#endif
+// #ifdef Py_BUILD_CORE
+// #  error "_testcapi must test the public Python C API, not CPython internal C API"
+// #endif
 
 static struct PyModuleDef _testcapimodule;
 
