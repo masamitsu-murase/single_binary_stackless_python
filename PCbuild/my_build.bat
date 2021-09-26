@@ -90,6 +90,18 @@ if EXIST externals (
     if ERRORLEVEL 1 exit /b 1
 )
 
+REM --------------------------------
+REM for embedded_import and tclEmbeddedFilesystem
+set PYTHON_EXE=%~dp0my_tools\python.exe
+
+REM --------------------------------
+REM embeddedimport
+echo Creating embeddedimport_data.c...
+%PYTHON_EXE% create_embeddedimporter_data.py
+if ERRORLEVEL 1 (
+    echo Failed to create embeddedimport_data.c
+    exit /b 1
+)
 
 REM --------------------------------
 REM build
