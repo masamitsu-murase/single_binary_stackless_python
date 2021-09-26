@@ -145,6 +145,59 @@ _PyImportZip_Init(PyInterpreterState *interp)
     return _PyStatus_ERR("initializing zipimport failed");
 }
 
+PyStatus
+_PyImportEmbedded_Init(PyInterpreterState *interp)
+{
+    PyObject *path_hooks, *embeddedimport;
+    int err = 0;
+
+    path_hooks = PySys_GetObject("path_hooks");
+    if (path_hooks == NULL) {
+        PyErr_SetString(PyExc_RuntimeError, "unable to get sys.path_hooks");
+        goto error;
+    }
+
+    int verbose = interp->config.verbose;
+    if (verbose)
+        PySys_WriteStderr("# installing embeddedimport hook\n");
+
+    embeddedimport = PyImport_ImportModule("embeddedimport");
+    if (embeddedimport == NULL) {
+        PyErr_Clear(); /* No embedded import module -- okay */
+        if (verbose)
+            PySys_WriteStderr("# can't import embeddedimport\n");
+    }
+    else {
+        _Py_IDENTIFIER(embeddedimporter);
+        PyObject *embeddedimporter = _PyObject_GetAttrId(embeddedimport,
+                                                         &PyId_embeddedimporter);
+        Py_DECREF(embeddedimport);
+        if (embeddedimporter == NULL) {
+            PyErr_Clear(); /* No embeddedimporter object -- okay */
+            if (verbose)
+                PySys_WriteStderr(
+                    "# can't import embeddedimport.embeddedimporter\n");
+        }
+        else {
+            /* sys.path_hooks.insert(0, embeddedimporter) */
+            err = PyList_Insert(path_hooks, 0, embeddedimporter);
+            Py_DECREF(embeddedimporter);
+            if (err < 0) {
+                goto error;
+            }
+            if (verbose)
+                PySys_WriteStderr(
+                    "# installed embeddedimport hook\n");
+        }
+    }
+
+    return _PyStatus_OK();
+
+  error:
+    PyErr_Print();
+    return _PyStatus_ERR("initializing embeddedimport failed");
+}
+
 /* Locking primitives to prevent parallel imports of the same module
    in different threads to return with a partially loaded module.
    These calls are serialized by the global interpreter lock. */

@@ -202,6 +202,7 @@ static PyStatus
 init_importlib_external(PyInterpreterState *interp)
 {
     PyObject *value;
+    PyStatus status;
     value = PyObject_CallMethod(interp->importlib,
                                 "_install_external_importers", "");
     if (value == NULL) {
@@ -209,7 +210,12 @@ init_importlib_external(PyInterpreterState *interp)
         return _PyStatus_ERR("external importer setup failed");
     }
     Py_DECREF(value);
-    return _PyImportZip_Init(interp);
+    status = _PyImportZip_Init(interp);
+    if (_PyStatus_EXCEPTION(status)) {
+        return status;
+    }
+
+    return _PyImportEmbedded_Init(interp);
 }
 
 /* Helper functions to better handle the legacy C locale
