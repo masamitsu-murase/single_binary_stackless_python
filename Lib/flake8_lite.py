@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import argparse
 import sys
 import pyflakes.api
 import pycodestyle
@@ -28,7 +29,7 @@ __author__ = "Masamitsu MURASE"
 __copyright__ = "Copyright 2018, Masamitsu MURASE"
 __credits__ = ["Masamitsu MURASE"]
 __license__ = "MIT"
-__version__ = "1.1.1"
+__version__ = "1.2.0"
 
 
 class PyflakesReporter(object):
@@ -199,26 +200,21 @@ def check_pycodestyle(filename):
 
 
 def usage():
-    print("python -m flake8_lite [--ignore=E302,E305] [--format=%(filename)s:%(row)d:%(col)d: %(code)s %(text)s] input.py")
+    return "python -m flake8_lite [--ignore=E302,E305] [--format=%(filename)s:%(row)d:%(col)d: %(code)s %(text)s] input.py"
 
 
 def main():
-    filename = None
-    ignore_list = []
-    output_format = "%(filename)s:%(row)d:%(col)d: %(code)s %(text)s"
-    for arg in sys.argv[1:]:
-        if arg.startswith("--ignore="):
-            ignore_list = arg.split("=", 1)[1].split(",")
-        elif arg.startswith("--format="):
-            output_format = arg.split("=", 1)[1]
-        elif arg == "-h" or arg == "--help":
-            usage()
-            return 0
-        else:
-            filename = arg
-    if filename is None:
-        sys.stderr.write("filename is not specified.\n")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(usage=usage().replace("%", "%%"))
+    parser.add_argument("--format", type=str, help="Format of output message",
+        default="%(filename)s:%(row)d:%(col)d: %(code)s %(text)s")
+    parser.add_argument("--ignore", type=str, help="Ignored errors: e.g. E302,E305",
+        default="")
+    parser.add_argument("filename")
+    args = parser.parse_args()
+
+    output_format = args.format
+    ignore_list = args.ignore.split(",")
+    filename = args.filename
 
     result_pyflakes = check_pyflakes(filename)
     result_pycodestyle = check_pycodestyle(filename)
