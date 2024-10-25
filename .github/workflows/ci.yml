@@ -5,7 +5,7 @@ on:
     branches: [ master3, master3.7, main3.8, update_to_3.8 ]
     tags: ['v*']
   pull_request:
-    branches: [ master3, master3.7 ]
+    branches: [ master3, master3.7, main3.8 ]
 
 jobs:
   build_and_test:
@@ -14,16 +14,16 @@ jobs:
       matrix:
         include:
         - target_type: x86
-          vc_version: 2017
-          sdk_version: "10.0.15063.0"
+          vc_version: 2019
+          sdk_version: "10.0.14393.0"
         - target_type: x64
-          vc_version: 2017
-          sdk_version: "10.0.15063.0"
+          vc_version: 2019
+          sdk_version: "10.0.14393.0"
         - target_type: x64_pe
-          vc_version: 2017
-          sdk_version: "10.0.15063.0"
+          vc_version: 2019
+          sdk_version: "10.0.14393.0"
 
-    runs-on: windows-2016
+    runs-on: windows-2019
 
     steps:
     - name: "Disable git autoCRLF"
