@@ -5,6 +5,7 @@ cd /d "%~dp0.."
 
 if "%2" == "2015" goto SET_VC_VERSION
 if "%2" == "2017" goto SET_VC_VERSION
+if "%2" == "2019" goto SET_VC_VERSION
 echo Unknown VC version
 exit /b 1
 
@@ -57,6 +58,16 @@ if "%VC_VERSION%" == "2015" (
         set "VSTOOLS=C:\Program Files (x86)\Microsoft Visual Studio\2017\WDExpress\VC\Auxiliary\Build\vcvarsall.bat"
     ) else (
         set "VSTOOLS=C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat"
+    )
+) else if "%VC_VERSION%" == "2019" (
+    if EXIST "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC" (
+        set "VSTOOLS=C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat"
+    ) else if EXIST "C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC" (
+        set "VSTOOLS=C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Auxiliary\Build\vcvarsall.bat"
+    ) else if EXIST "C:\Program Files (x86)\Microsoft Visual Studio\2019\WDExpress\VC" (
+        set "VSTOOLS=C:\Program Files (x86)\Microsoft Visual Studio\2019\WDExpress\VC\Auxiliary\Build\vcvarsall.bat"
+    ) else (
+        set "VSTOOLS=C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat"
     )
 ) else (
     echo Unknown VC_VERSION
