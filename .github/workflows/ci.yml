@@ -29,7 +29,7 @@ jobs:
     - name: "Disable git autoCRLF"
       run: git config --global core.autoCRLF false
 
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Build
       run: cmd /c PCbuild\my_build.bat ${{ matrix.target_type }} ${{ matrix.vc_version }} ${{ matrix.sdk_version }}
@@ -57,18 +57,30 @@ jobs:
     - name: "Disable git autoCRLF"
       run: git config --global core.autoCRLF false
 
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Download artifact
       uses: actions/download-artifact@v4
       with:
-        name: Python
+        name: Python_x86
+        path: dist
+
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: Python_x64
+        path: dist
+
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: Python_x64_pe
         path: dist
 
     - name: Download Lib
       uses: actions/download-artifact@v4
       with:
-        name: Lib
+        name: Lib_x64
         path: dist
 
     - run: dir dist
