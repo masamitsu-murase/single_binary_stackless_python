@@ -39,12 +39,12 @@ jobs:
 
     - uses: actions/upload-artifact@v4
       with:
-        name: Python
+        name: Python_${{ matrix.target_type }}
         path: PCbuild/python*.exe
 
     - uses: actions/upload-artifact@v4
       with:
-        name: Lib
+        name: Lib_${{ matrix.target_type }}
         path: Lib.7z
 
   release:
