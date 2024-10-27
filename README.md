@@ -23,8 +23,9 @@ This binary includes standard library and the following libraries.
   Developed by Johann C. Rocholl. Released under the MIT (Expat) License.
 * [pyflakes](https://pypi.org/project/pyflakes/)  
   Released under the MIT License.
-* [pyreadline](https://pypi.org/project/pyreadline/)  
-  Developed by Jorgen Stenarson. Released under the BSD License.
+* [pyreadline3](https://pypi.org/project/pyreadline3/)  
+  Developed by Jorgen Stenarson. Released under the BSD-styeled License.  
+  See https://github.com/pyreadline3/pyreadline3/tree/master?tab=License-1-ov-file#readme
 * [PyYAML and libyaml](https://pypi.org/project/PyYAML/)  
   Developed by Kirill Simonov. Released under the MIT License.
 * [certifi](https://pypi.org/project/certifi/)  
