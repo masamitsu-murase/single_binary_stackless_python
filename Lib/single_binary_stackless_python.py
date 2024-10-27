@@ -20,10 +20,10 @@ __included_module_info = {
         "license": "MIT License",
         "module_name": "pyflakes"
     },
-    "pyreadline": {
-        "author": "Jorgen Stenarson",
-        "license": "BSD License",
-        "module_name": "pyreadline"
+    "pyreadline3": {
+        "author": "Bassem Girgis",
+        "license": "BSD-like License (https://pypi.org/project/pyreadline3/)",
+        "module_name": "pyreadline3"
     },
     "PyYAML": {
         "author": "Kirill Simonov",
