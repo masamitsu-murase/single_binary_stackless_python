@@ -31,7 +31,7 @@ if _S.lower() != "windows":
 del system, _S
 
 try:
-    __version__ = version("pyreadline3")
+    __version__ = "3.5.4"
 except PackageNotFoundError:
     # package is not installed
     pass

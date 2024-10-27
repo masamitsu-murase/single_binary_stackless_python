@@ -57,13 +57,14 @@ def process_github_library(lib, base_dir):
 
 def update():
     with open(os.path.join(DIRECTORY, "external_libraries.yaml"), "r") as file:
-        external_libraries = yaml.load(file)
+        external_libraries = yaml.safe_load(file)
 
     for lib in external_libraries["python_libraries"]:
         try:
             process_github_library(lib, LIB_DIR)
-        except Exception:
+        except Exception as e:
             print("  **Failed.**")
+            print(e)
 
     for lib in external_libraries["c_libraries"]:
         try:

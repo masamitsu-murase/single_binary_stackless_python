@@ -1,13 +1,13 @@
-diff --git b/__init__.py a/__init__.py
-index 1d1aea729b..792381f95e 100644
---- b/__init__.py
-+++ a/__init__.py
+diff --git a/__init__.py b/__init__.py
+index 792381f95e..1d1aea729b 100644
+--- a/__init__.py
++++ b/__init__.py
 @@ -31,7 +31,7 @@ if _S.lower() != "windows":
  del system, _S
  
  try:
--    __version__ = "3.5.4"
-+    __version__ = version("pyreadline3")
+-    __version__ = version("pyreadline3")
++    __version__ = "3.5.4"
  except PackageNotFoundError:
      # package is not installed
      pass
