@@ -4,6 +4,8 @@ import os
 DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(DIRECTORY)
 
+import requests
+from requests.auth import HTTPBasicAuth
 import shutil
 import yaml
 import github_downloader
@@ -19,7 +21,7 @@ EXT_DIR = os.path.normpath(os.path.join(DIRECTORY, "..", "externals"))
 # git diff -R --relative .
 
 
-def process_github_library(lib, base_dir):
+def process_github_library(session, lib, base_dir):
     print("Updating %s..." % lib["name"])
     output_dir = os.path.join(base_dir, lib["output_dir"])
     if lib["output_dir"]:
@@ -28,11 +30,11 @@ def process_github_library(lib, base_dir):
         elif os.path.isdir(output_dir):
             shutil.rmtree(output_dir)
     if "tag" in lib:
-        github_downloader.download_tag_with_filter(lib["github_user"], lib["github_repository"], lib["tag"],
+        github_downloader.download_tag_with_filter(session, lib["github_user"], lib["github_repository"], lib["tag"],
                                                    output_dir, lib["filter_dir"],
                                                    lib.get("skip_depth"))
     else:
-        github_downloader.download_sha_with_filter(lib["github_user"], lib["github_repository"], lib["sha"],
+        github_downloader.download_sha_with_filter(session, lib["github_user"], lib["github_repository"], lib["sha"],
                                                    output_dir, lib["filter_dir"],
                                                    lib.get("skip_depth"))
     if "exclude_dirs" in lib:
@@ -56,26 +58,31 @@ def process_github_library(lib, base_dir):
 
 
 def update():
+    session = requests.Session()
+    name = "masamitsu-murase"
+    token = input("API Token: ").strip()
+    session.auth = HTTPBasicAuth(name, token)
+
     with open(os.path.join(DIRECTORY, "external_libraries.yaml"), "r") as file:
-        external_libraries = yaml.load(file)
+        external_libraries = yaml.safe_load(file)
 
     for lib in external_libraries["python_libraries"]:
         try:
-            process_github_library(lib, LIB_DIR)
-        except Exception:
-            print("  **Failed.**")
+            process_github_library(session, lib, LIB_DIR)
+        except Exception as e:
+            print(f"  **Failed.** {type(e)}'{e}'")
 
     for lib in external_libraries["c_libraries"]:
         try:
-            process_github_library(lib, MODULES_DIR)
-        except Exception:
-            print("  **Failed.**")
+            process_github_library(session, lib, MODULES_DIR)
+        except Exception as e:
+            print(f"  **Failed.** {type(e)}'{e}'")
 
     for lib in external_libraries["ext_libraries"]:
         try:
-            process_github_library(lib, EXT_DIR)
-        except Exception:
-            print("  **Failed.**")
+            process_github_library(session, lib, EXT_DIR)
+        except Exception as e:
+            print(f"  **Failed.** {type(e)}'{e}'")
 
 
 if __name__ == "__main__":

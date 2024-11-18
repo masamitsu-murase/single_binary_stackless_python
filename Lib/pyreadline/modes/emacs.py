@@ -14,7 +14,7 @@ from pyreadline.lineeditor.lineobj import Point
 import pyreadline.lineeditor.lineobj as lineobj
 import pyreadline.lineeditor.history as history
 from . import basemode
-from pyreadline.unicode_helper import ensure_unicode
+from pyreadline.unicode_helper import ensure_str, ensure_unicode
 
 
 def format(keyinfo):
@@ -60,6 +60,11 @@ class IncrementalSearchPromptMode(object):
             if keyinfo.keyname == 'escape':
                 self.l_buffer.set_line(self.subsearch_old_line)
             return True
+        elif keyinfo.keyname == 'tab':
+            self._bell()
+            self.prompt = self.subsearch_oldprompt
+            self.process_keyevent_queue = self.process_keyevent_queue[:-1]
+            return False
         elif keyinfo.keyname:
             pass
         elif keytuple in revtuples:
@@ -141,7 +146,7 @@ class SearchPromptMode(object):
             self.non_inc_query += keyinfo.char
         else:
             pass
-        self.prompt = self.non_inc_oldprompt + ":" + self.non_inc_query
+        self.prompt = self.non_inc_oldprompt + ensure_str(":" + self.non_inc_query)
 
     def _init_non_i_search(self, direction):
         self.non_inc_direction = direction
@@ -149,7 +154,7 @@ class SearchPromptMode(object):
         self.non_inc_oldprompt = self.prompt
         self.non_inc_oldline = self.l_buffer.copy()
         self.l_buffer.reset_line()
-        self.prompt = self.non_inc_oldprompt + ":"
+        self.prompt = self.non_inc_oldprompt + ensure_str(":")
         queue = self.process_keyevent_queue
         queue.append(self._process_non_incremental_search_keyevent)
 
