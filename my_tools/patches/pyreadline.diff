@@ -11,6 +11,19 @@ index ab46c44e5f..ee9332941b 100644
                  self.add_history(lineobj.ReadLineTextBuffer(ensure_unicode(line.rstrip())))
          except IOError:
              self.history = []
+diff --git a/lineeditor/lineobj.py b/lineeditor/lineobj.py
+index a8fc962fc8..ee9dac01b3 100644
+--- a/lineeditor/lineobj.py
++++ b/lineeditor/lineobj.py
+@@ -745,7 +745,7 @@ class ReadLineTextBuffer(TextLine):
+ 
+ ############## Kill ring
+     def add_to_kill_ring(self,txt):
+-        self.kill_ring = [txt]
++        self.kill_ring = [txt.get_line_text()]
+         if kill_ring_to_clipboard:
+             clipboard.SetClipboardText(txt.get_line_text())
+ 
 diff --git a/modes/basemode.py b/modes/basemode.py
 index 17084ac7c1..797f946e41 100644
 --- a/modes/basemode.py
@@ -24,6 +37,49 @@ index 17084ac7c1..797f946e41 100644
          True then try to convert tabseparated data to repr of list of lists or 
          repr of array.
          If enable_ipython_paste_for_paths==True then change \\ to / and spaces to \space"""
+diff --git a/modes/emacs.py b/modes/emacs.py
+index 730e35ee4d..828ff1b9b5 100644
+--- a/modes/emacs.py
++++ b/modes/emacs.py
+@@ -14,7 +14,7 @@ from pyreadline.lineeditor.lineobj import Point
+ import pyreadline.lineeditor.lineobj as lineobj
+ import pyreadline.lineeditor.history as history
+ from . import basemode
+-from pyreadline.unicode_helper import ensure_unicode
++from pyreadline.unicode_helper import ensure_str, ensure_unicode
+ 
+ 
+ def format(keyinfo):
+@@ -60,6 +60,11 @@ class IncrementalSearchPromptMode(object):
+             if keyinfo.keyname == 'escape':
+                 self.l_buffer.set_line(self.subsearch_old_line)
+             return True
++        elif keyinfo.keyname == 'tab':
++            self._bell()
++            self.prompt = self.subsearch_oldprompt
++            self.process_keyevent_queue = self.process_keyevent_queue[:-1]
++            return False
+         elif keyinfo.keyname:
+             pass
+         elif keytuple in revtuples:
+@@ -141,7 +146,7 @@ class SearchPromptMode(object):
+             self.non_inc_query += keyinfo.char
+         else:
+             pass
+-        self.prompt = self.non_inc_oldprompt + ":" + self.non_inc_query
++        self.prompt = self.non_inc_oldprompt + ensure_str(":" + self.non_inc_query)
+ 
+     def _init_non_i_search(self, direction):
+         self.non_inc_direction = direction
+@@ -149,7 +154,7 @@ class SearchPromptMode(object):
+         self.non_inc_oldprompt = self.prompt
+         self.non_inc_oldline = self.l_buffer.copy()
+         self.l_buffer.reset_line()
+-        self.prompt = self.non_inc_oldprompt + ":"
++        self.prompt = self.non_inc_oldprompt + ensure_str(":")
+         queue = self.process_keyevent_queue
+         queue.append(self._process_non_incremental_search_keyevent)
+ 
 diff --git a/py3k_compat.py b/py3k_compat.py
 index ab0f837c4a..3e6469bdf1 100644
 --- a/py3k_compat.py
