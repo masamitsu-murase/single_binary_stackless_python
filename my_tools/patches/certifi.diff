@@ -1,24 +1,30 @@
 diff --git a/core.py b/core.py
-index 5d2b8cd32f..24729f7ebe 100644
+index 91f538bb1f..c89fadf417 100644
 --- a/core.py
 +++ b/core.py
-@@ -9,6 +9,9 @@ This module returns the installation location of cacert.pem or its contents.
- import os
+@@ -46,7 +46,7 @@ if sys.version_info >= (3, 11):
+     def contents() -> str:
+         return files("certifi").joinpath("cacert.pem").read_text(encoding="ascii")
  
- try:
-+    # Do not use importlib.resources.
-+    raise ImportError()
-+
+-elif sys.version_info >= (3, 7):
++elif False:  # sys.version_info >= (3, 7):
+ 
      from importlib.resources import path as get_path, read_text
  
-     _CACERT_CTX = None
-@@ -44,9 +47,12 @@ except ImportError:
+@@ -90,6 +90,8 @@ else:
+     Package = Union[types.ModuleType, str]
+     Resource = Union[str, "os.PathLike"]
+ 
++    _ca_cert_data = None
++
+     # This fallback will work for Python versions prior to 3.7 that lack the
      # importlib.resources module but relies on the existing `where` function
      # so won't address issues with environments like PyOxidizer that don't set
-     # __file__ on modules.
-+    _ca_cert_data = None
-     def read_text(_module, _path, encoding="ascii"):
--        with open(where(), "r", encoding=encoding) as data:
+@@ -100,8 +102,10 @@ else:
+         encoding: str = 'utf-8',
+         errors: str = 'strict'
+     ) -> str:
+-        with open(where(), encoding=encoding) as data:
 -            return data.read()
 +        global _ca_cert_data
 +        if _ca_cert_data is None:

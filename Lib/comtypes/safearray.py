@@ -41,6 +41,8 @@ class _SafeArrayAsNdArrayContextManager(object):
         '''
         return bool(getattr(self.thread_local, 'count', 0))
 
+    __nonzero__ = __bool__ # for Py2.7 compatibility
+
 
 # Global _SafeArrayAsNdArrayContextManager
 safearray_as_ndarray = _SafeArrayAsNdArrayContextManager()
@@ -236,7 +238,12 @@ def _make_safearray_type(itemtype):
             """Unpack a POINTER(SAFEARRAY_...) into a Python tuple or ndarray."""
             dim = _safearray.SafeArrayGetDim(self)
 
-            if dim == 1:
+            if dim == 0:
+                if safearray_as_ndarray:
+                    import numpy
+                    return numpy.array()
+                return tuple()
+            elif dim == 1:
                 num_elements = self._get_size(1)
                 result = self._get_elements_raw(num_elements)
                 if safearray_as_ndarray:
@@ -308,7 +315,7 @@ def _make_safearray_type(itemtype):
                         # XXX Only try to convert types known to
                         #     numpy.ctypeslib.
                         if (safearray_as_ndarray and self._itemtype_ in
-                                list(npsupport.typecodes.values())):
+                                list(npsupport.typecodes.keys())):
                             arr = numpy.ctypeslib.as_array(ptr,
                                                            (num_elements,))
                             return arr.copy()

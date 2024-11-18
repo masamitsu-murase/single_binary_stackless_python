@@ -36,7 +36,10 @@ Now, debug the object, and when done delete logging info:
   python mycomobj.py /nodebug
 """
 import sys, os
-import winreg
+if sys.version_info >= (3, 0):
+    import winreg
+else:
+    import winreg as winreg
 import logging
 
 import comtypes
@@ -62,10 +65,7 @@ SHDeleteKey = windll.shlwapi.SHDeleteKeyW
 SHDeleteKey.errcheck = _non_zero
 SHDeleteKey.argtypes = c_ulong, c_wchar_p
 
-try:
-    Set = set
-except NameError:
-    from sets import Set #as set
+Set = set
 
 
 _KEYS = {winreg.HKEY_CLASSES_ROOT: "HKCR",

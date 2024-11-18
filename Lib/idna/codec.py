@@ -1,50 +1,51 @@
-from .core import encode, decode, alabel, ulabel, IDNAError
 import codecs
 import re
+from typing import Any, Optional, Tuple
 
-_unicode_dots_re = re.compile('[\u002e\u3002\uff0e\uff61]')
+from .core import IDNAError, alabel, decode, encode, ulabel
+
+_unicode_dots_re = re.compile("[\u002e\u3002\uff0e\uff61]")
+
 
 class Codec(codecs.Codec):
+    def encode(self, data: str, errors: str = "strict") -> Tuple[bytes, int]:
+        if errors != "strict":
+            raise IDNAError('Unsupported error handling "{}"'.format(errors))
 
-    def encode(self, data, errors='strict'):
+        if not data:
+            return b"", 0
 
-        if errors != 'strict':
-            raise IDNAError('Unsupported error handling \"{}\"'.format(errors))
+        return encode(data), len(data)
+
+    def decode(self, data: bytes, errors: str = "strict") -> Tuple[str, int]:
+        if errors != "strict":
+            raise IDNAError('Unsupported error handling "{}"'.format(errors))
 
         if not data:
             return "", 0
 
-        return encode(data), len(data)
-
-    def decode(self, data, errors='strict'):
-
-        if errors != 'strict':
-            raise IDNAError('Unsupported error handling \"{}\"'.format(errors))
-
-        if not data:
-            return '', 0
-
         return decode(data), len(data)
 
+
 class IncrementalEncoder(codecs.BufferedIncrementalEncoder):
-    def _buffer_encode(self, data, errors, final):
-        if errors != 'strict':
-            raise IDNAError('Unsupported error handling \"{}\"'.format(errors))
+    def _buffer_encode(self, data: str, errors: str, final: bool) -> Tuple[bytes, int]:
+        if errors != "strict":
+            raise IDNAError('Unsupported error handling "{}"'.format(errors))
 
         if not data:
-            return ('', 0)
+            return b"", 0
 
         labels = _unicode_dots_re.split(data)
-        trailing_dot = ''
+        trailing_dot = b""
         if labels:
             if not labels[-1]:
-                trailing_dot = '.'
+                trailing_dot = b"."
                 del labels[-1]
             elif not final:
                 # Keep potentially unfinished label until the next call
                 del labels[-1]
                 if labels:
-                    trailing_dot = '.'
+                    trailing_dot = b"."
 
         result = []
         size = 0
@@ -55,29 +56,33 @@ class IncrementalEncoder(codecs.BufferedIncrementalEncoder):
             size += len(label)
 
         # Join with U+002E
-        result = '.'.join(result) + trailing_dot
+        result_bytes = b".".join(result) + trailing_dot
         size += len(trailing_dot)
-        return (result, size)
+        return result_bytes, size
+
 
 class IncrementalDecoder(codecs.BufferedIncrementalDecoder):
-    def _buffer_decode(self, data, errors, final):
-        if errors != 'strict':
-            raise IDNAError('Unsupported error handling \"{}\"'.format(errors))
+    def _buffer_decode(self, data: Any, errors: str, final: bool) -> Tuple[str, int]:
+        if errors != "strict":
+            raise IDNAError('Unsupported error handling "{}"'.format(errors))
 
         if not data:
-            return ('', 0)
+            return ("", 0)
+
+        if not isinstance(data, str):
+            data = str(data, "ascii")
 
         labels = _unicode_dots_re.split(data)
-        trailing_dot = ''
+        trailing_dot = ""
         if labels:
             if not labels[-1]:
-                trailing_dot = '.'
+                trailing_dot = "."
                 del labels[-1]
             elif not final:
                 # Keep potentially unfinished label until the next call
                 del labels[-1]
                 if labels:
-                    trailing_dot = '.'
+                    trailing_dot = "."
 
         result = []
         size = 0
@@ -87,20 +92,24 @@ class IncrementalDecoder(codecs.BufferedIncrementalDecoder):
                 size += 1
             size += len(label)
 
-        result = '.'.join(result) + trailing_dot
+        result_str = ".".join(result) + trailing_dot
         size += len(trailing_dot)
-        return (result, size)
+        return (result_str, size)
 
 
 class StreamWriter(Codec, codecs.StreamWriter):
     pass
 
+
 class StreamReader(Codec, codecs.StreamReader):
     pass
 
-def getregentry():
+
+def search_function(name: str) -> Optional[codecs.CodecInfo]:
+    if name != "idna2008":
+        return None
     return codecs.CodecInfo(
-        name='idna',
+        name=name,
         encode=Codec().encode,
         decode=Codec().decode,
         incrementalencoder=IncrementalEncoder,
@@ -108,3 +117,6 @@ def getregentry():
         streamwriter=StreamWriter,
         streamreader=StreamReader,
     )
+
+
+codecs.register(search_function)
