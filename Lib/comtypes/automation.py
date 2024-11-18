@@ -2,13 +2,14 @@
 import array
 import datetime
 import decimal
+import sys
 
 from ctypes import *
 from ctypes import _Pointer
 from _ctypes import CopyComPointer
 from comtypes import IUnknown, GUID, IID, STDMETHOD, BSTR, COMMETHOD, COMError
 from comtypes.hresult import *
-from comtypes.patcher import Patch
+import comtypes.patcher
 from comtypes import npsupport
 try:
     from comtypes import _safearray
@@ -18,6 +19,15 @@ except (ImportError, AttributeError):
 
 from ctypes.wintypes import DWORD, LONG, UINT, VARIANT_BOOL, WCHAR, WORD
 
+
+if sys.version_info >= (3, 0):
+    int_types = (int, )
+    str_types = (str, )
+    base_text_type = str
+else:
+    int_types = (int, int)
+    str_types = (str, str)
+    base_text_type = str
 
 LCID = DWORD
 DISPID = LONG
@@ -197,11 +207,11 @@ class tagVARIANT(Structure):
             return "VARIANT(vt=0x%x, byref(%r))" % (self.vt, self[0])
         return "VARIANT(vt=0x%x, %r)" % (self.vt, self.value)
 
+    @classmethod
     def from_param(cls, value):
         if isinstance(value, cls):
             return value
         return cls(value)
-    from_param = classmethod(from_param)
 
     def __setitem__(self, index, value):
         # This method allows to change the value of a
@@ -219,7 +229,7 @@ class tagVARIANT(Structure):
         if value is None:
             self.vt = VT_NULL
         elif (hasattr(value, '__len__') and len(value) == 0
-                and not isinstance(value, str)):
+                and not isinstance(value, base_text_type)):
             self.vt = VT_NULL
         # since bool is a subclass of int, this check must come before
         # the check for int
@@ -229,7 +239,7 @@ class tagVARIANT(Structure):
         elif isinstance(value, (int, c_int)):
             self.vt = VT_I4
             self._.VT_I4 = value
-        elif isinstance(value, int):
+        elif isinstance(value, int_types):
             u = self._
             # try VT_I4 first.
             u.VT_I4 = value
@@ -264,7 +274,7 @@ class tagVARIANT(Structure):
         elif isinstance(value, (float, c_double)):
             self.vt = VT_R8
             self._.VT_R8 = value
-        elif isinstance(value, str):
+        elif isinstance(value, str_types):
             self.vt = VT_BSTR
             # do the c_wchar_p auto unicode conversion
             self._.c_void_p = _SysAllocStringLen(value, len(value))
@@ -545,13 +555,14 @@ del v
 _carg_obj = type(byref(c_int()))
 from _ctypes import Array as _CArrayType
 
-@Patch(POINTER(VARIANT))
+@comtypes.patcher.Patch(POINTER(VARIANT))
 class _(object):
     # Override the default .from_param classmethod of POINTER(VARIANT).
     # This allows to pass values which can be stored in VARIANTs as
     # function parameters declared as POINTER(VARIANT).  See
     # InternetExplorer's Navigate2() method, or Word's Close() method, for
     # examples.
+    @classmethod
     def from_param(cls, arg):
         # accept POINTER(VARIANT) instance
         if isinstance(arg, POINTER(VARIANT)):
@@ -567,7 +578,6 @@ class _(object):
             return arg
         # anything else which can be converted to a VARIANT.
         return byref(VARIANT(arg))
-    from_param = classmethod(from_param)
 
     def __setitem__(self, index, value):
         # This is to support the same sematics as a pointer instance:
@@ -583,11 +593,18 @@ class IEnumVARIANT(IUnknown):
     def __iter__(self):
         return self
 
-    def __next__(self):
-        item, fetched = self.Next(1)
-        if fetched:
-            return item
-        raise StopIteration
+    if sys.version_info >= (3, 0):
+        def __next__(self):
+            item, fetched = self.Next(1)
+            if fetched:
+                return item
+            raise StopIteration
+    else:
+        def next(self):
+            item, fetched = self.Next(1)
+            if fetched:
+                return item
+            raise StopIteration
 
     def __getitem__(self, index):
         self.Reset()
@@ -867,7 +884,7 @@ _ctype_to_vartype = {
     }
 
 _vartype_to_ctype = {}
-for c, v in _ctype_to_vartype.items():
+for c, v in list(_ctype_to_vartype.items()):
     _vartype_to_ctype[v] = c
 _vartype_to_ctype[VT_INT] = _vartype_to_ctype[VT_I4]
 _vartype_to_ctype[VT_UINT] = _vartype_to_ctype[VT_UI4]

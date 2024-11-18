@@ -1,3 +1,4 @@
+
 from ctypes import *
 from ctypes.wintypes import DWORD, WIN32_FIND_DATAA, WIN32_FIND_DATAW, MAX_PATH
 from comtypes import IUnknown, GUID, COMMETHOD, HRESULT, CoClass
@@ -185,7 +186,7 @@ class IShellLinkW(IUnknown):
         return buf.value, iIcon.value
 
 class ShellLink(CoClass):
-    'ShellLink class'
+    """ShellLink class"""
     _reg_clsid_ = GUID('{00021401-0000-0000-C000-000000000046}')
     _idlflags_ = []
     _com_interfaces_ = [IShellLinkW, IShellLinkA]

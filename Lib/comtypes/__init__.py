@@ -3,7 +3,12 @@ import sys
 import os
 
 # comtypes version numbers follow semver (http://semver.org/) and PEP 440
-__version__ = "1.1.8"
+__version__ = "1.1.14"
+
+if sys.version_info >= (3, 0):
+    text_type = str
+else:
+    text_type = str
 
 import logging
 class NullHandler(logging.Handler):
@@ -172,10 +177,10 @@ def _shutdown(func=_ole32_nohresult.CoUninitialize,
              _exc_clear=getattr(sys, "exc_clear", lambda: None)):
     # Make sure no COM pointers stay in exception frames.
     _exc_clear()
-    # Sometimes, CoUnititialize, running at Python shutdown,
+    # Sometimes, CoUninitialize, running at Python shutdown,
     # raises an exception.  We suppress this when __debug__ is
     # False.
-    _debug("Calling CoUnititialize()")
+    _debug("Calling CoUninitialize()")
     if __debug__:
         func()
     else:
@@ -185,7 +190,7 @@ def _shutdown(func=_ole32_nohresult.CoUninitialize,
     # needed.
     if _cominterface_meta is not None:
         _cominterface_meta._com_shutting_down = True
-    _debug("CoUnititialize() done.")
+    _debug("CoUninitialize() done.")
 
 import atexit
 atexit.register(_shutdown)
@@ -222,19 +227,19 @@ class _cominterface_meta(type):
     """
 
     # This flag is set to True by the atexit handler which calls
-    # CoUnititialize.
+    # CoUninitialize.
     _com_shutting_down = False
 
     # Creates also a POINTER type for the newly created class.
-    def __new__(self, name, bases, namespace):
+    def __new__(cls, name, bases, namespace):
         methods = namespace.pop("_methods_", None)
         dispmethods = namespace.pop("_disp_methods_", None)
-        cls = type.__new__(self, name, bases, namespace)
+        new_cls = type.__new__(cls, name, bases, namespace)
 
         if methods is not None:
-            cls._methods_ = methods
+            new_cls._methods_ = methods
         if dispmethods is not None:
-            cls._disp_methods_ = dispmethods
+            new_cls._disp_methods_ = dispmethods
 
         # If we sublass a COM interface, for example:
         #
@@ -245,20 +250,20 @@ class _cominterface_meta(type):
         # subclass of POINTER(IUnknown) because of the way ctypes
         # typechecks work.
         if bases == (object,):
-            _ptr_bases = (cls, _compointer_base)
+            _ptr_bases = (new_cls, _compointer_base)
         else:
-            _ptr_bases = (cls, POINTER(bases[0]))
+            _ptr_bases = (new_cls, POINTER(bases[0]))
 
-        # The interface 'cls' is used as a mixin.
-        p = type(_compointer_base)("POINTER(%s)" % cls.__name__,
+        # The interface 'new_cls' is used as a mixin.
+        p = type(_compointer_base)("POINTER(%s)" % new_cls.__name__,
                                    _ptr_bases,
-                                   {"__com_interface__": cls,
+                                   {"__com_interface__": new_cls,
                                     "_needs_com_addref_": None})
 
         from ctypes import _pointer_type_cache
-        _pointer_type_cache[cls] = p
+        _pointer_type_cache[new_cls] = p
 
-        if cls._case_insensitive_:
+        if new_cls._case_insensitive_:
 
             @patcher.Patch(p)
             class CaseInsensitive(object):
@@ -312,7 +317,7 @@ class _cominterface_meta(type):
                 from _ctypes import CopyComPointer
                 CopyComPointer(value, self)
 
-        return cls
+        return new_cls
 
     def __setattr__(self, name, value):
         if name == "_methods_":
@@ -670,7 +675,7 @@ class _cominterface_meta(type):
         except KeyError:
             raise AttributeError("this class must define an _iid_")
         else:
-            iid = str(iid)
+            iid = text_type(iid)
 ##            if iid in com_interface_registry:
 ##                # Warn when multiple interfaces are defined with identical iids.
 ##                # This would also trigger if we reload() a module that contains
@@ -829,36 +834,36 @@ _all_slice = slice(None, None, None)
 
 
 class bound_named_property(object):
-    def __init__(self, name, getter, setter, im_inst):
+    def __init__(self, name, fget, fset, instance):
         self.name = name
-        self.im_inst = im_inst
-        self.getter = getter
-        self.setter = setter
+        self.instance = instance
+        self.fget = fget
+        self.fset = fset
 
     def __getitem__(self, index):
-        if self.getter is None:
+        if self.fget is None:
             raise TypeError("unsubscriptable object")
         if isinstance(index, tuple):
-            return self.getter(self.im_inst, *index)
+            return self.fget(self.instance, *index)
         elif index == _all_slice:
-            return self.getter(self.im_inst)
+            return self.fget(self.instance)
         else:
-            return self.getter(self.im_inst, index)
+            return self.fget(self.instance, index)
 
     def __call__(self, *args):
-        if self.getter is None:
+        if self.fget is None:
             raise TypeError("object is not callable")
-        return self.getter(self.im_inst, *args)
+        return self.fget(self.instance, *args)
 
     def __setitem__(self, index, value):
-        if self.setter is None:
+        if self.fset is None:
             raise TypeError("object does not support item assignment")
         if isinstance(index, tuple):
-            self.setter(self.im_inst, *(index + (value,)))
+            self.fset(self.instance, *(index + (value,)))
         elif index == _all_slice:
-            self.setter(self.im_inst, value)
+            self.fset(self.instance, value)
         else:
-            self.setter(self.im_inst, index, value)
+            self.fset(self.instance, index, value)
 
     def __repr__(self):
         return "<bound_named_property %r at %x>" % (self.name, id(self))
@@ -869,21 +874,20 @@ class bound_named_property(object):
         raise TypeError(msg)
 
 
-
 class named_property(object):
     def __init__(self, name, fget=None, fset=None, doc=None):
         self.name = name
-        self.getter = fget
-        self.setter = fset
+        self.fget = fget
+        self.fset = fset
         self.__doc__ = doc
 
-    def __get__(self, im_inst, im_class=None):
-        if im_inst is None:
+    def __get__(self, instance, owner=None):
+        if instance is None:
             return self
-        return bound_named_property(self.name, self.getter, self.setter, im_inst)
+        return bound_named_property(self.name, self.fget, self.fset, instance)
 
     # Make this a data descriptor
-    def __set__(self, obj):
+    def __set__(self, instance):
         raise AttributeError("Unsettable attribute")
 
     def __repr__(self):
@@ -891,16 +895,56 @@ class named_property(object):
 
 ################################################################
 
+def add_metaclass(metaclass):
+    """Class decorator from six.py for creating a class with a metaclass.
+
+    Copyright (c) 2010-2020 Benjamin Peterson
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy of
+    this software and associated documentation files (the "Software"), to deal in
+    the Software without restriction, including without limitation the rights to
+    use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+    the Software, and to permit persons to whom the Software is furnished to do so,
+    subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+    FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+    COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+    IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+    CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+    """
+    def wrapper(cls):
+        orig_vars = cls.__dict__.copy()
+        slots = orig_vars.get('__slots__')
+        if slots is not None:
+            if isinstance(slots, text_type):
+                slots = [slots]
+            for slots_var in slots:
+                orig_vars.pop(slots_var)
+        orig_vars.pop('__dict__', None)
+        orig_vars.pop('__weakref__', None)
+        if hasattr(cls, '__qualname__'):
+            orig_vars['__qualname__'] = cls.__qualname__
+        return metaclass(cls.__name__, cls.__bases__, orig_vars)
+    return wrapper
+
+################################################################
+
 class _compointer_meta(type(c_void_p), _cominterface_meta):
     "metaclass for COM interface pointer classes"
     # no functionality, but needed to avoid a metaclass conflict
 
-class _compointer_base(c_void_p, metaclass=_compointer_meta):
+@add_metaclass(_compointer_meta)
+class _compointer_base(c_void_p):
     "base class for COM interface pointer classes"
     def __del__(self, _debug=logger.debug):
         "Release the COM refcount we own."
         if self:
-            # comtypes calls CoUnititialize() when the atexit handlers
+            # comtypes calls CoUninitialize() when the atexit handlers
             # runs.  CoUninitialize() cleans up the COM objects that
             # are still alive. Python COM pointers may still be
             # present but we can no longer call Release() on them -
@@ -950,7 +994,8 @@ class _compointer_base(c_void_p, metaclass=_compointer_meta):
     #
     # It also allows to pass a CoClass instance to an api
     # expecting a COM interface.
-    def from_param(klass, value):
+    @classmethod
+    def from_param(cls, value):
         """Convert 'value' into a COM pointer to the interface.
 
         This method accepts a COM pointer, or a CoClass instance
@@ -961,11 +1006,11 @@ class _compointer_base(c_void_p, metaclass=_compointer_meta):
         # A default value of 0, meaning null, can pass through to here.
         if value == 0:
             return None
-        if isinstance(value, klass):
+        if isinstance(value, cls):
             return value
         # multiple python interface types for the same COM interface.
         # Do we need more checks here?
-        if klass._iid_ == getattr(value, "_iid_", None):
+        if cls._iid_ == getattr(value, "_iid_", None):
             return value
         # Accept an CoClass instance which exposes the interface required.
         try:
@@ -975,11 +1020,10 @@ class _compointer_base(c_void_p, metaclass=_compointer_meta):
         else:
             try:
                 # a kind of QueryInterface
-                return table[klass._iid_]
+                return table[cls._iid_]
             except KeyError:
-                raise TypeError("Interface %s not supported" % klass._iid_)
-        return value.QueryInterface(klass.__com_interface__)
-    from_param = classmethod(from_param)
+                raise TypeError("Interface %s not supported" % cls._iid_)
+        return value.QueryInterface(cls.__com_interface__)
 
 ################################################################
 
@@ -1003,6 +1047,7 @@ class BSTR(_SimpleCData):
                or self._needsfree:
             _free(self)
 
+    @classmethod
     def from_param(cls, value):
         """Convert into a foreign function call parameter."""
         if isinstance(value, cls):
@@ -1011,12 +1056,11 @@ class BSTR(_SimpleCData):
         # right thing, it doesn't ensure that SysFreeString is called
         # on destruction.
         return cls(value)
-    from_param = classmethod(from_param)
 
 ################################################################
 # IDL stuff
 
-class helpstring(str):
+class helpstring(text_type):
     "Specifies the helpstring for a COM method or property."
 
 class defaultvalue(object):
@@ -1122,7 +1166,8 @@ def COMMETHOD(idlflags, restype, methodname, *argspec):
 ################################################################
 # IUnknown, the root of all evil...
 
-class IUnknown(object, metaclass=_cominterface_meta):
+@add_metaclass(_cominterface_meta)
+class IUnknown(object):
     """The most basic COM interface.
 
     Each subclasses of IUnknown must define these class attributes:
@@ -1200,7 +1245,7 @@ def CoGetObject(displayname, interface):
         interface = IUnknown
     punk = POINTER(interface)()
     # Do we need a way to specify the BIND_OPTS parameter?
-    _ole32.CoGetObject(str(displayname),
+    _ole32.CoGetObject(text_type(displayname),
                        None,
                        byref(interface._iid_),
                        byref(punk))
@@ -1379,6 +1424,7 @@ from comtypes._comobject import COMObject
 
 from comtypes._meta import _coclass_meta
 
-class CoClass(COMObject, metaclass=_coclass_meta):
+@add_metaclass(_coclass_meta)
+class CoClass(COMObject):
     pass
 ################################################################

@@ -2,7 +2,7 @@ python_libraries:
   - name: "comtypes"
     github_user: "enthought"
     github_repository: "comtypes"
-    tag: "1.1.8"
+    tag: "1.1.14"
     output_dir: "comtypes"
     filter_dir: "comtypes"
     exclude_dirs:
@@ -50,7 +50,7 @@ python_libraries:
   - name: "certifi"
     github_user: "certifi"
     github_repository: "python-certifi"
-    tag: "2020.12.05"
+    tag: "2024.08.30"
     output_dir: "certifi"
     filter_dir: "certifi"
     exclude_dirs:
@@ -61,7 +61,7 @@ python_libraries:
   - name: "IDNA"
     github_user: "kjd"
     github_repository: "idna"
-    tag: "v3.1"
+    tag: "v3.10"
     output_dir: "idna"
     filter_dir: "idna"
   - name: "Requests"
