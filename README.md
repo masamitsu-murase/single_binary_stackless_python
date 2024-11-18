@@ -6,11 +6,11 @@ This is a StacklessPython for Windows, which is packed into a *single* binary.
 
 ## Binaries
 
-* python.exe, pythonw.exe  
+* python32.exe, pythonw32.exe  
   32bit executable image.
-* python64.exe, pythonw64.exe  
+* python.exe, pythonw.exe  
   64bit executable image.
-* python64\_pe.exe, pythonw64\_pe.exe  
+* python\_pe.exe, pythonw\_pe.exe  
   64bit executable image without \_msi built-in module. You can run this image on Windows PE.
 
 ## Included Libraries

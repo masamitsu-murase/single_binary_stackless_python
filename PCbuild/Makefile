@@ -44,14 +44,14 @@ RESOURCE = $(ProjectDir)\PCbuild\tk_base.res
 RESOURCEW = $(ProjectDir)\PCbuild\tk_basew.res
 
 !IF "$(BUILD_TARGET_CPU)" == "x86"
+TARGET = python32.exe
+TARGETW = pythonw32.exe
+!ELSEIF "$(WINDOWS_PE)" == "0"
 TARGET = python.exe
 TARGETW = pythonw.exe
-!ELSEIF "$(WINDOWS_PE)" == "0"
-TARGET = python64.exe
-TARGETW = pythonw64.exe
 !ELSE
-TARGET = python64_pe.exe
-TARGETW = pythonw64_pe.exe
+TARGET = python_pe.exe
+TARGETW = pythonw_pe.exe
 !ENDIF
 
 

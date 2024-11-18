@@ -15,11 +15,11 @@ if "%1" == "x86" (
 )
 
 if "%BUILD_TARGET_CPU%" == "x86" (
-    set PYTHON=python.exe
+    set PYTHON=python32.exe
 ) else if "%WINDOWS_PE%" == "0" (
-    set PYTHON=python64.exe
+    set PYTHON=python.exe
 ) else (
-    set PYTHON=python64_pe.exe
+    set PYTHON=python_pe.exe
 )
 
 echo BUILD_TARGET_CPU %BUILD_TARGET_CPU%
